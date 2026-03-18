@@ -226,10 +226,26 @@ const Order = () => {
   const [defaultWaiterId, setDefaultWaiterId] = useState<number | null>(null);
   const [defaultPax, setDefaultPax] = useState<number>(1);
 
-  // Set default waiter and pax when modal opens
+  // Auto-set default waiter/pax when table selected + data ready (NEW: TODO Step 2)
+  useEffect(() => {
+    if (
+      selectedTable &&           // Table clicked
+      defaultWaiterId &&         // Default ID loaded
+      waiterUsers.length > 0 &&  // Waiter list loaded
+      !selectedWaiter            // Not already set (avoid override)
+    ) {
+      const defaultWaiter = waiterUsers.find(w => w.userId === defaultWaiterId);
+      if (defaultWaiter) {
+        setSelectedWaiter(defaultWaiter.employee_name || defaultWaiter.username);
+        console.log('✅ Auto-set default waiter:', defaultWaiter.employee_name || defaultWaiter.username);
+      }
+      setPax(defaultPax);
+    }
+  }, [selectedTable, defaultWaiterId, waiterUsers, defaultPax, selectedWaiter]);
+
+  // Original: Set default when modal opens (manual override)
   useEffect(() => {
     if (showWaiterPaxModal) {
-      // Set default waiter - use employee_name if available, else username (matching dropdown value)
       if (defaultWaiterId) {
         const defaultWaiter = waiterUsers.find(waiter => waiter.userId === defaultWaiterId);
         if (defaultWaiter) {
@@ -238,7 +254,6 @@ const Order = () => {
       } else {
         setSelectedWaiter('');
       }
-      // Set default pax
       setPax(defaultPax);
     }
   }, [showWaiterPaxModal, defaultWaiterId, defaultPax, waiterUsers]);
