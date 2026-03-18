@@ -150,8 +150,8 @@ const HandoverService = {
   /**
    * Get handover data (transactions and summary)
    */
-  getHandoverData: (): Promise<HandoverApiResponse<HandoverData>> =>
-    HttpClient.get<HandoverApiResponse<HandoverData>>('/handover/data'),
+getHandoverData: (filters?: { curr_date?: string }): Promise<HandoverApiResponse<HandoverData>> =>
+HttpClient.get<HandoverApiResponse<HandoverData>>('/handover/data', { params: filters }),
 
   /**
    * Get handover users (outlet users for handover)

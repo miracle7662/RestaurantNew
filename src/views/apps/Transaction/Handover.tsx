@@ -115,8 +115,10 @@ const HandoverPage = () => {
 
   useEffect(() => {
     const fetchHandoverData = async () => {
+      const filters = { curr_date: user?.currDate };
+
       try {
-        const response = await HandoverService.getHandoverData();
+        const response = await HandoverService.getHandoverData(filters);
         if (response.success) {
           console.log("Fetched orders data:", response.data.orders);
           console.log("RevKOT numbers in orders:", response.data.orders.map((order: any) => order.revKotNo));
@@ -640,7 +642,7 @@ const HandoverPage = () => {
           <Card.Header className="bg-white border-0 header-compact">
             <Row>
               <Col>
-                <h5 className="fw-bold text-primary mb-0">Shift Handover</h5>
+                <h5 className="fw-bold text-primary mb-0">Shift Handover - {user?.currDate || 'Current Date'}</h5>
               </Col>
             </Row>
           </Card.Header>

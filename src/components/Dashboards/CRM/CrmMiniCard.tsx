@@ -1,3 +1,4 @@
+import { useAuthContext } from '@/common/context/useAuthContext';
 import { useEffect, useState } from 'react'
 import { Button, Card, Col, ProgressBar, Row, Spinner, Stack } from 'react-bootstrap'
 import HandoverService from '@/common/api/handover';
@@ -10,13 +11,16 @@ interface SummaryData {
 }
 
 const CrmMiniCard = () => {
+  const { user } = useAuthContext();
   const [summary, setSummary] = useState<SummaryData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
 const fetchSummaryData = async () => {
+      const filters = { curr_date: user?.currDate };
+
       try {
-        const response = await HandoverService.getHandoverData();
+        const response = await HandoverService.getHandoverData(filters);
         if (response.success) {
           setSummary(response.data.summary)
         }

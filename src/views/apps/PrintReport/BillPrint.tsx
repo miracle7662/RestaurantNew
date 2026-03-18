@@ -380,27 +380,27 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         <!-- ============ BILL INFO (with conditional rendering) ============ -->
         <!-- Row 1: billno, table, date, time -->
         <div style="display: flex; gap: 8px; margin-bottom: 5px; font-size: 9pt;">
-          <div style="flex: 1;"><strong>BillNo:</strong><br />${(localFormData.dine_in_kot_no || '')}${orderNo || ''}</div>
-          <div style="flex: 1;"><strong>Table:</strong><br />${selectedTable || '—'}</div>
-          <div style="flex: 1;"><strong>Date:</strong><br />${new Date().toLocaleDateString('en-GB')}</div>
-          <div style="flex: 1; white-space: nowrap;"><strong>Time:</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
+          <div style="flex: 1;"><strong>BillNo </strong><br />${(localFormData.dine_in_kot_no || '')}${orderNo || ''}</div>
+          <div style="flex: 1;"><strong>Table </strong><br />${selectedTable || '—'}</div>
+          <div style="flex: 1;"><strong>Date </strong><br />${new Date().toLocaleDateString('en-GB')}</div>
+          <div style="flex: 1; white-space: nowrap;"><strong>Time </strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
         </div>
         <!-- Row 2: waiters, covers, kot no -->
         <div style="display: flex; gap: 8px; margin-bottom: 10px; font-size: 9pt;">
-          <div style="flex: 1;"><strong>Waiter:</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>
-          <div style="flex: 1;"><strong>Covers:</strong><br />N/A</div>
-          <div style="flex: 1; white-space: nowrap;"><strong>KOT No:</strong><br />${allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")}</div>
+          <div style="flex: 1;"><strong>Waiter </strong><br />${selectedWaiter || user?.name || 'N/A'}</div>
+          <div style="flex: 1;"><strong>Covers </strong><br />N/A</div>
+          <div style="flex: 1; white-space: nowrap;"><strong>KOT No </strong><br />${allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")}</div>
           <div style="flex: 1;"></div>
         </div>
-        ${(showAll || localFormData.show_customer_bill) ? `
-          <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
-          <div style="font-size: 9pt; margin-bottom: 8px;">
-            ${customerName ? `<div><strong>Customer:</strong> ${customerName}</div>` : ''}
-            ${mobileNumber ? `<div><strong>Mobile:</strong> ${mobileNumber}</div>` : ''}
-            ${(showAll || localFormData.show_customer_gst_bill) ? `<div><strong>GSTIN:</strong> N/A</div>` : ''}
-            ${(showAll || (activeTab === 'Pickup' && localFormData.show_customer_address_pickup_bill)) ? `<div><strong>Address:</strong> N/A</div>` : ''}
-          </div>
-        ` : ''}
+       ${(showAll || localFormData.show_customer_bill) && (customerName || mobileNumber) ? `
+  <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
+  <div style="font-size: 9pt; margin-bottom: 8px;">
+    ${customerName ? `<div><strong>Customer:</strong> ${customerName}</div>` : ''}
+    ${mobileNumber ? `<div><strong>Mobile:</strong> ${mobileNumber}</div>` : ''}
+    ${(showAll || localFormData.show_customer_gst_bill) ? `<div><strong>GSTIN:</strong> N/A</div>` : ''}
+    ${(showAll || (activeTab === 'Pickup' && localFormData.show_customer_address_pickup_bill)) ? `<div><strong>Address:</strong> N/A</div>` : ''}
+  </div>
+` : ''}
         ${(showAll || ((activeTab === 'Dine-in' && localFormData.order_type_dine_in) || (activeTab === 'Pickup' && localFormData.order_type_pickup) || (activeTab === 'Delivery' && localFormData.order_type_delivery) || (activeTab === 'Quick Bill' && localFormData.order_type_quick_bill))) ? `
           <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
           <div style="text-align: center; font-weight: bold; font-size: 10pt; margin-bottom: 5px;">

@@ -3,6 +3,8 @@ const db = require('../config/db');
 
 
 const getHandoverData = (req, res) => {
+  const curr_date = req.query.curr_date;
+
   try {
     // Get all billed or settled bills with their details
     const query = `
@@ -42,7 +44,7 @@ const getHandoverData = (req, res) => {
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1
+WHERE ((t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1)${curr_date ? ` AND DATE(t.TxnDatetime) = '${curr_date}'` : ''}
      
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
