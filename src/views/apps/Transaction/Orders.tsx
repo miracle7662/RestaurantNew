@@ -2674,7 +2674,6 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       setItems([]);
       setReversedItems([]);
       setSelectedTable(null);
-      setShowOrderDetails(false);
       setPaymentAmounts({});
       setSelectedPaymentModes([]);
       setIsMixedPayment(false);
@@ -2689,16 +2688,19 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
           await OrderService.updateTableStatus(tableToUpdate.tableid, { status: 0 });
         }
       }
-      fetchTableManagement(); // Refresh table statuses
+      
+      // 🔥 FIX: Navigate to ALL tables view after settlement
+      setActiveNavTab('ALL');  // Show ALL departments/tables
+      setActiveTab('Dine-in');
+      await fetchTableManagement();  // Refresh tables
+      setTimeout(() => {
+        setShowOrderDetails(false);  // Hide order panel after refresh
+        setShowPendingOrdersView(false);
+      }, 200);  // Small delay for table render
+      
       setCurrentKOTNo(null);
-      setShowPendingOrdersView(false); // Hide pending view after successful settlement
       setCurrentKOTNos([]);
       setOrderNo(null);
-
-      // If the settled order was a Pickup or Delivery, go back to the Dine-in table view.
-      if (activeTab === 'Pickup' || activeTab === 'Delivery') {
-        handleBackToTables();
-      }
 
     } catch (error: any) {
       console.error('Error settling bill:', error);

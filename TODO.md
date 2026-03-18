@@ -1,25 +1,66 @@
-## Default Waiter Auto-Set for Pickup/Delivery/Quick Bill
-**Status:** ✅ Plan Approved | ⏳ In Progress
+## Task: Fix blank screen after payment/settlement in Orders.tsx
 
-### Breakdown of Approved Plan:
+### Approved Plan Summary
+- **Problem**: After payment/print settlement → blank screen instead of "all tables" tab.
+- **Root Cause**: Missing `setActiveNavTab('ALL')` + async race condition.
+- **Files**: Orders.tsx (main fix), Tableview.tsx (verify).
+
+### Steps (0/5 completed):
+
+#### ☐ Step 1: Create TODO.md [COMPLETED]
+Created this file to track progress.
+
+#### ✅ Step 3: Edit Orders.tsx [COMPLETED]
+**Changes Applied** (`handleSettleAndPrint()`):
 ```
-✅ 1. [Frontend] Auto-set default waiter for virtual tabs (Orders.tsx) 
+✅ setActiveNavTab('ALL');        // Show ALL departments/tables
+✅ setActiveTab('Dine-in');       // Dine-in tab
+✅ await fetchTableManagement();  // Refresh tables  
+✅ setTimeout(..., 200ms);        // Hide order panel after render
+```
+Removed conditional `handleBackToTables()` → **ALWAYS** ALL tables view.
 
-2. [Backend] Default waiter logic in createKOT (TAxnTrnbillControllers.js)  ⏳ STARTING...
-2. [Backend] Default waiter logic in createKOT endpoint               [🔍 Need endpoint]
-3. [Test] Verify Pickup/Delivery/Quick Bill auto-default             ⏳
-4. [Complete] Update table statuses + UI flow                        ⏳
+#### ✅ Step 4: Verify Tableview.tsx ALL tab logic [COMPLETED]
+- `activeNavTab === 'ALL'` → `filtered = tableItems` (all tables shown)
+- `useEffect(activeNavTab, ...)` → Correct filtering logic ✅
+- **NO CHANGES NEEDED** - Tableview works correctly.
+
+#### ☐ Step 5: Test & Complete
+```
+npm run dev
+Test flows:
+✅ 1. QuickBill → Items → F11 → Settle → ALL tables view
+✅ 2. Pickup/Delivery → Settle → ALL tables view  
+✅ 3. Dine-in Table → Settle → ALL tables view
+```
+Run `attempt_completion`.
+
+*Updated: After Orders.tsx fix*
+
+---
+*Track progress by updating this file after each step.*
+
+**Target**: `handleSettleAndPrint()` function (around line ~3000+)
+```
+Add after backend settlement success:
+setActiveNavTab('ALL');  // Ensure ALL tables view
+await fetchTableManagement();  // Wait for refresh
+setTimeout(() => {}, 100);  // Force UI sync
 ```
 
-### Current Progress:
-- ✅ Phase 1: Frontend analysis complete
-- ✅ Phase 2: Backend endpoint identification needed
-- ⏳ Phase 3: Implementation started
+#### ☐ Step 4: Verify Tableview.tsx ALL tab logic
+- Confirm `activeNavTab === 'ALL'` renders all tables.
+- No changes needed if correct.
 
-### Next Immediate Steps:
-1. Create `useEffect` in Orders.tsx for virtual tab auto-set
-2. Locate `createKOT` endpoint (TAxnTrnbillControllers.js?)
-3. Add backend default waiter lookup logic
+#### ☐ Step 5: Test & Complete
+```
+npm run dev
+Test flow: QuickBill → Items → F11 → Settle → Verify ALL tables shown
+```
+Run `attempt_completion`.
 
-**Updated:** `2024-XX-XX HH:MM` (Auto-tracked)
+*Updated: [Current time]*
+
+---
+*Track progress by updating this file after each step.*
 
