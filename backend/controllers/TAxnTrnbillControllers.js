@@ -98,7 +98,6 @@ exports.getAllBills = async (req, res) => {
             'Discount_Amount', d.Discount_Amount,
             'AutoKOT', d.AutoKOT,
             'ManualKOT', d.ManualKOT,
-            'RevKOT', d.RevKOT,
             'SpecialInst', d.SpecialInst,
             'isKOTGenerate', d.isKOTGenerate,
             'isSetteled', d.isSetteled,
@@ -109,7 +108,7 @@ exports.getAllBills = async (req, res) => {
             'RuntimeRate', d.RuntimeRate,
             'RevQty', d.RevQty,
             'KOTUsedDate', d.KOTUsedDate,
-            'isBilled', d.isBilled,
+            'isBilled', d.isBilled
           )
         ) as _details
       FROM TAxnTrnbill b

@@ -5,11 +5,14 @@ import Select from 'react-select'
 import { useThemeContext } from '@/common/context'
 import colors from '@/constants/colors'
 import { SettlementService } from '@/common/api'
+import { useAuthContext } from '@/common/context/useAuthContext';
 
 const ProjectStatisticChart = () => {
   const { settings } = useThemeContext()
   const selectedColor = settings.color as keyof typeof colors
-  const themeColor = colors[selectedColor] || selectedColor
+const themeColor = colors[selectedColor] || selectedColor
+
+  const { user } = useAuthContext();
 
   const [selectedOption, setSelectedOption] = useState<{ label: string; value: string }>({
     label: 'Monthly',
@@ -33,7 +36,13 @@ const ProjectStatisticChart = () => {
       try {
         setLoading(true)
         setError(null)
-        const response = await SettlementService.list()
+        const filters = {
+          outletid: Number(user?.outletid),
+          hotelid: Number(user?.hotelid),
+          from: user?.currDate,
+          to: user?.currDate
+        } as any;
+        const response = await SettlementService.list(filters)
         const data = response.data || []
         setSettlements(data)
       } catch (error: any) {
@@ -45,7 +54,7 @@ const ProjectStatisticChart = () => {
       }
     }
     fetchData()
-  }, [])
+  }, [user?.currDate, user?.outletid, user?.hotelid])
 
   const getPaymentTypeSummary = () => {
     const summary: Record<string, number> = {}

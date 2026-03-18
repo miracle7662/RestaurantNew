@@ -1,19 +1,2 @@
-# KOT Print Order Tag Conditional Display - Implementation Plan
-
-Current Working Directory: d:/Github/RestaurantNew
-
-## Approved Plan Summary
-- **Target**: src/views/apps/PrintReport/KotPrint.tsx
-- **Change**: Condition orderTag display on `show_new_order_tag` and `show_running_order_tag` settings
-- **Status**: ✅ Plan approved by user
-
-## Implementation Steps
-- ✅ **Step 1**: Edit KotPrint.tsx - Update orderTag logic in generateKOTContent useMemo
-  - Add conditions: `show_new_order_tag` for tableStatus=0, `show_running_order_tag` for tableStatus=1/2
-- [ ] **Step 2**: Test KOT preview with settings ON/OFF
-- [ ] **Step 3**: Verify no regressions in printing/items display
-- [ ] **Step 4**: Complete task ✅
-
-## COMPLETED ✅
-
+# KOT Pickup/Delivery Header Fix - Task Progress\n\n## Completed Steps (2/4) ✅\n- [x] 1. Create TODO.md with implementation steps ✅\n- [x] 2. Edit Orders.tsx → Added `isPickup:1`/`isdelivery:1`/`isHomeDelivery:1` to `kotPayload` when tab=Pickup/Delivery ✅\n- [ ] 3. Test pickup/delivery KOT save → verify backend header flags\n- [ ] 4. Update TODO.md with test results → attempt_completion\n\n## Implementation Details\n**File**: `src/views/apps/Transaction/Orders.tsx`  \n**Location**: `handlePrintAndSaveKOT()` → `kotPayload` object ✅\n**Change**: Added:\n```js\n        isPickup: activeTab === 'Pickup' ? 1 : 0,\n        isdelivery: activeTab === 'Delivery' ? 1 : 0,\n        isHomeDelivery: activeTab === 'Delivery' ? 1 : 0,\n```\n\n**✅ Frontend fixed.** Backend expects these boolean flags in TAxnTrnbill header.\n\n**Next**: Test in browser → Pickup tab → add item → F9 (KOT) → check DB `isPickup=1`\n\n**Test command**: `npm run dev` → Orders page → Pickup tab → add/test
 

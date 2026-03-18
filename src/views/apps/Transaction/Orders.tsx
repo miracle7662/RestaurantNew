@@ -1751,6 +1751,9 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
         customerid: customerid,
 
         Order_Type: activeTab, // Add the active tab as Order_Type
+        isPickup: activeTab === 'Pickup' ? 1 : 0,
+        isdelivery: activeTab === 'Delivery' ? 1 : 0,
+        isHomeDelivery: activeTab === 'Delivery' ? 1 : 0,
         Steward: selectedWaiter, // Add selected waiter name
         PAX: pax || 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
