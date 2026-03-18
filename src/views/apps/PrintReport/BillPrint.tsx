@@ -448,29 +448,59 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         </div>
         <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
         <!-- ================= TOTALS (with conditional rendering) ================= -->
-        <div style="text-align: right; font-size: 9pt; margin-bottom: 5px;">
-          ${(showAll || !localFormData.hide_total_without_tax) ? `<div>Subtotal: ₹${taxCalc.subtotal.toFixed(2)}</div>` : ''}
-          ${discount > 0 ? `
-            <div>Discount: -₹${discount.toFixed(2)}</div>
-            ${(showAll || (localFormData.show_discount_reason_bill && reason)) ? `<div style="font-size: 8pt;">(${reason || 'N/A'})</div>` : ''}
-          ` : ''}
-          ${(showAll || localFormData.show_tax_charge_bill) ? `
-            <div><strong>Taxable Value:</strong> ₹${(taxCalc.subtotal - discount).toFixed(2)}</div>
-            ${taxCalc.cgstAmt > 0 ? `<div>CGST @${taxRates.cgst}%: ₹${taxCalc.cgstAmt.toFixed(2)}</div>` : ''}
-            ${taxCalc.sgstAmt > 0 ? `<div>SGST @${taxRates.sgst}%: ₹${taxCalc.sgstAmt.toFixed(2)}</div>` : ''}
-            ${taxCalc.igstAmt > 0 ? `<div>IGST @${taxRates.igst}%: ₹${taxCalc.igstAmt.toFixed(2)}</div>` : ''}
-          ` : ''}
-          ${roundOffEnabled && roundOffValue !== 0 ? `<div>Round Off: ${roundOffValue > 0 ? '+' : ''}₹${roundOffValue.toFixed(2)}</div>` : ''}
+      <div style="font-size: 9pt; margin-bottom: 5px;">
 
-          
-          ${(showAll || localFormData.field2) ? `<div style="font-size: 8pt;">${localFormData.field2 || 'N/A'}</div>` : ''}
-          ${(showAll || localFormData.field3) ? `<div style="font-size: 8pt;">${localFormData.field3 || 'N/A'}</div>` : ''}
-          ${(showAll || localFormData.field4) ? `<div style="font-size: 8pt;">${localFormData.field4 || 'N/A'}</div>` : ''}
+  ${(showAll || !localFormData.hide_total_without_tax) ? `
+  <div style="display:grid; grid-template-columns: auto 4px 55px; justify-content:end; column-gap:4px;">
+    <div style="text-align:right;">Subtotal</div>
+    <div style="text-align:center;">:</div>
+    <div style="text-align:right;">₹${taxCalc.subtotal.toFixed(2)}</div>
+  </div>` : ''}
 
-          
-          <div style="font-weight: bold; font-size: 10pt; border-top: 1px solid #000; padding-top: 5px;">
-            GRAND TOTAL: ₹${taxCalc.grandTotal.toFixed(2)}
-          </div>
+  ${discount > 0 ? `
+  <div style="display:grid; grid-template-columns: auto 4px 55px; justify-content:end; column-gap:0;">
+    <div style="text-align:right;">Discount</div>
+    <div style="text-align:center;">:</div>
+    <div style="text-align:right;">-₹${discount.toFixed(2)}</div>
+  </div>
+  ` : ''}
+
+  ${(showAll || localFormData.show_tax_charge_bill) ? `
+  <div style="display:grid; grid-template-columns: auto 4px 55px; justify-content:end; column-gap:4px;">
+    <div style="text-align:right;"><strong>Taxable Value</strong></div>
+    <div style="text-align:center;">:</div>
+    <div style="text-align:right;">₹${(taxCalc.subtotal - discount).toFixed(2)}</div>
+  </div>
+
+  ${taxCalc.cgstAmt > 0 ? `
+  <div style="display:grid; grid-template-columns: auto 4px 55px; justify-content:end; column-gap:4px;">
+    <div style="text-align:right;">CGST @${taxRates.cgst}%</div>
+    <div style="text-align:center;">:</div>
+    <div style="text-align:right;">₹${taxCalc.cgstAmt.toFixed(2)}</div>
+  </div>` : ''}
+
+  ${taxCalc.sgstAmt > 0 ? `
+  <div style="display:grid; grid-template-columns: auto 4px 55px; justify-content:end; column-gap:4px;">
+    <div style="text-align:right;">SGST @${taxRates.sgst}%</div>
+    <div style="text-align:center;">:</div>
+    <div style="text-align:right;">₹${taxCalc.sgstAmt.toFixed(2)}</div>
+  </div>` : ''}
+  ` : ''}
+
+  ${roundOffEnabled && roundOffValue !== 0 ? `
+  <div style="display:grid; grid-template-columns: auto 4px 55px; justify-content:end; column-gap:4px;">
+    <div style="text-align:right;">Round Off</div>
+    <div style="text-align:center;">:</div>
+    <div style="text-align:right;">
+      ${roundOffValue > 0 ? '+' : ''}₹${roundOffValue.toFixed(2)}
+    </div>
+  </div>` : ''}
+
+</div>
+
+<div style="font-weight: bold; font-size: 10pt; border-top: 1px solid #000; padding-top: 5px; text-align:right;">
+  GRAND TOTAL: ₹${taxCalc.grandTotal.toFixed(2)}
+</div>
           
           ${(showAll || localFormData.show_bill_amount_words) ? '<div>In Words: {/* TODO: Function to convert number to words needed */}</div>' : ''}
           ${(showAll || localFormData.show_customer_paid_amount) ? `<div>Paid: ₹${taxCalc.grandTotal.toFixed(2)}</div>` : ''}
