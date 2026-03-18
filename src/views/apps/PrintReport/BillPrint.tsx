@@ -561,7 +561,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
           <div>
             {/* Preview Section - only show if enabled */}
             {canPreviewBill && (
-              <div className="border p-3 mb-3 bg-light">
+              <div className="border  mb-3 bg-light">
                 <div
                   style={{
                     width: "80mm",
