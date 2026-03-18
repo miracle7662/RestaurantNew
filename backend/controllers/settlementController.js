@@ -306,27 +306,27 @@ if (!userId) {
     db.prepare(`DELETE FROM TrnSettlement WHERE OrderNo = ?`).run(OrderNo);
 
     // 5️⃣ Insert new settlements
-    db.prepare(`
-      INSERT INTO TrnSettlement (
-        OrderNo,
-        table_name,
-        PaymentTypeID,
-        PaymentType,
-        Amount,
-        TipAmount,
-        HotelID,
-        TxnNo,
-        UserId,
-        Name,
-        CustomerName,
-        MobileNo,
-        Receive,
-        Refund,
-        isSettled,
-        InsertDate
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-    `);
+   const settlementInsertStmt = db.prepare(`
+  INSERT INTO TrnSettlement (
+    OrderNo,
+    table_name,
+    PaymentTypeID,
+    PaymentType,
+    Amount,
+    TipAmount,
+    HotelID,
+    TxnNo,
+    UserId,
+    Name,
+    CustomerName,
+    MobileNo,
+    Receive,
+    Refund,
+    isSettled,
+    InsertDate
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+`);
 
     for (let i = 0; i < newSettlements.length; i++) {
 

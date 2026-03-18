@@ -1,66 +1,26 @@
-## Task: Fix blank screen after payment/settlement in Orders.tsx
+# Fix replaceSettlement SQL Error - TODO
 
-### Approved Plan Summary
-- **Problem**: After payment/print settlement → blank screen instead of "all tables" tab.
-- **Root Cause**: Missing `setActiveNavTab('ALL')` + async race condition.
-- **Files**: Orders.tsx (main fix), Tableview.tsx (verify).
+**Status: [IN PROGRESS]**
 
-### Steps (0/5 completed):
+## Approved Plan Steps:
 
-#### ☐ Step 1: Create TODO.md [COMPLETED]
-Created this file to track progress.
+### 1. [PENDING] ✅ Create TODO.md (Current step - DONE)
+### 2. [✅ DONE] Edit backend/controllers/settlementController.js
+   - ✅ Prepare settlementInsertStmt properly
+   - ✅ Fix INSERT columns to match TrnSettlement schema (18 columns: OrderNo, TxnNo, userid, etc.)
+   - ✅ Fix UserId → userid  
+   - ✅ Fix VALUES params count/order (18 params)
+   - ✅ Remove receive/refund/table_name, hardcoded refund=1
+   
+### 3. [PENDING] Test the fix
+   - Restart backend server
+   - Test replaceSettlement API endpoint
+   - Verify no SQL errors
+   - Restart backend server
+   - Test replaceSettlement API endpoint
+   - Verify no SQL errors
 
-#### ✅ Step 3: Edit Orders.tsx [COMPLETED]
-**Changes Applied** (`handleSettleAndPrint()`):
-```
-✅ setActiveNavTab('ALL');        // Show ALL departments/tables
-✅ setActiveTab('Dine-in');       // Dine-in tab
-✅ await fetchTableManagement();  // Refresh tables  
-✅ setTimeout(..., 200ms);        // Hide order panel after render
-```
-Removed conditional `handleBackToTables()` → **ALWAYS** ALL tables view.
+### 4. [PENDING] attempt_completion
 
-#### ✅ Step 4: Verify Tableview.tsx ALL tab logic [COMPLETED]
-- `activeNavTab === 'ALL'` → `filtered = tableItems` (all tables shown)
-- `useEffect(activeNavTab, ...)` → Correct filtering logic ✅
-- **NO CHANGES NEEDED** - Tableview works correctly.
-
-#### ☐ Step 5: Test & Complete
-```
-npm run dev
-Test flows:
-✅ 1. QuickBill → Items → F11 → Settle → ALL tables view
-✅ 2. Pickup/Delivery → Settle → ALL tables view  
-✅ 3. Dine-in Table → Settle → ALL tables view
-```
-Run `attempt_completion`.
-
-*Updated: After Orders.tsx fix*
-
----
-*Track progress by updating this file after each step.*
-
-**Target**: `handleSettleAndPrint()` function (around line ~3000+)
-```
-Add after backend settlement success:
-setActiveNavTab('ALL');  // Ensure ALL tables view
-await fetchTableManagement();  // Wait for refresh
-setTimeout(() => {}, 100);  // Force UI sync
-```
-
-#### ☐ Step 4: Verify Tableview.tsx ALL tab logic
-- Confirm `activeNavTab === 'ALL'` renders all tables.
-- No changes needed if correct.
-
-#### ☐ Step 5: Test & Complete
-```
-npm run dev
-Test flow: QuickBill → Items → F11 → Settle → Verify ALL tables shown
-```
-Run `attempt_completion`.
-
-*Updated: [Current time]*
-
----
-*Track progress by updating this file after each step.*
+**Next step: Edit the controller file**
 
