@@ -1,40 +1,25 @@
-# Restaurant Waiter Button Fix - Progress Tracker
+## Default Waiter Auto-Set for Pickup/Delivery/Quick Bill
+**Status:** ✅ Plan Approved | ⏳ In Progress
 
-## ✅ PLAN APPROVED
-**Goal**: Show waiter button/modal for Pickup/Delivery/Quick Bill tabs before KOT save (like Dine-in).
+### Breakdown of Approved Plan:
+```
+✅ 1. [Frontend] Auto-set default waiter for virtual tabs (Orders.tsx) 
 
-**Files**: `src/views/apps/Transaction/Orders.tsx` (main changes)
+2. [Backend] Default waiter logic in createKOT (TAxnTrnbillControllers.js)  ⏳ STARTING...
+2. [Backend] Default waiter logic in createKOT endpoint               [🔍 Need endpoint]
+3. [Test] Verify Pickup/Delivery/Quick Bill auto-default             ⏳
+4. [Complete] Update table statuses + UI flow                        ⏳
+```
 
-## 📋 TODO Steps (8/8 remaining)
+### Current Progress:
+- ✅ Phase 1: Frontend analysis complete
+- ✅ Phase 2: Backend endpoint identification needed
+- ⏳ Phase 3: Implementation started
 
-### [ ] Step 1: Update waiter button condition
-- File: `Orders.tsx`
-- Change: `selectedTable && hasNewItems` → `hasNewItems || ['Pickup','Delivery','Quick Bill'].includes(activeTab)`
+### Next Immediate Steps:
+1. Create `useEffect` in Orders.tsx for virtual tab auto-set
+2. Locate `createKOT` endpoint (TAxnTrnbillControllers.js?)
+3. Add backend default waiter lookup logic
 
-### [ ] Step 2: Add auto-modal trigger for non-dine tabs
-- In `handleTabClick()`: Auto-open `showWaiterPaxModal` when switching to Pickup/Delivery/Quick Bill with items
-
-### [ ] Step 3: Test button visibility
-- Manual: Click Pickup tab → Add item → Verify waiter button appears
-
-### [ ] Step 4: Test KOT save with waiter
-- Save KOT → Check backend `Steward` field populated
-
-### [ ] Step 5: Visual polish (optional)
-- Show waiter name in KOT header for all tabs
-
-### [ ] Step 6: Cross-browser test
-- Chrome/Firefox → Verify modal + default waiter works
-
-### [ ] Step 7: Edge cases
-- Default waiter auto-select
-- Empty waiter field → KOT saves empty?
-
-### [ ] Step 8: Complete & cleanup
-- Update TODO.md ✅
-- attempt_completion
-
-**Next**: Step 1 - Edit Orders.tsx button condition
-
-**Status**: 🚀 Starting implementation...
+**Updated:** `2024-XX-XX HH:MM` (Auto-tracked)
 

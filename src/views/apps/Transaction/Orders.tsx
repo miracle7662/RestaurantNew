@@ -226,23 +226,39 @@ const Order = () => {
   const [defaultWaiterId, setDefaultWaiterId] = useState<number | null>(null);
   const [defaultPax, setDefaultPax] = useState<number>(1);
 
-  // Auto-set default waiter/pax when table selected + data ready (NEW: TODO Step 2)
-  useEffect(() => {
-    if (
-      selectedTable &&           // Table clicked
-      defaultWaiterId &&         // Default ID loaded
-      waiterUsers.length > 0 &&  // Waiter list loaded
-      !selectedWaiter            // Not already set (avoid override)
-    ) {
-      const defaultWaiter = waiterUsers.find(w => w.userId === defaultWaiterId);
-      if (defaultWaiter) {
-        setSelectedWaiter(defaultWaiter.employee_name || defaultWaiter.username);
-        console.log('✅ Auto-set default waiter:', defaultWaiter.employee_name || defaultWaiter.username);
-      }
-      setPax(defaultPax);
-    }
-  }, [selectedTable, defaultWaiterId, waiterUsers, defaultPax, selectedWaiter]);
+// Auto-set default waiter/pax when table selected + data ready (Dine-in tables)
+ useEffect(() => {
+  const isDineIn = activeTab === 'Dine-in';
+  const isOtherTab = ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab);
 
+  const shouldSetWaiter =
+    defaultWaiterId &&
+    waiterUsers.length > 0 &&
+    !selectedWaiter &&
+    (
+      (isDineIn && selectedTable) ||        // ✅ Dine-in → table click
+      (isOtherTab && items.length > 0)      // ✅ Others → item add
+    );
+
+  if (shouldSetWaiter) {
+    const defaultWaiter = waiterUsers.find(w => w.userId === defaultWaiterId);
+
+    if (defaultWaiter) {
+      setSelectedWaiter(defaultWaiter.employee_name || defaultWaiter.username);
+      console.log(`✅ [${activeTab}] Auto-set waiter:`, defaultWaiter.employee_name || defaultWaiter.username);
+    }
+
+    setPax(defaultPax);
+  }
+}, [
+  activeTab,
+  selectedTable,
+  items,            // 🔥 important
+  defaultWaiterId,
+  waiterUsers,
+  defaultPax,
+  selectedWaiter
+]);
   
 
   // Original: Set default when modal opens (manual override)
