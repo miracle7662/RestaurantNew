@@ -662,21 +662,21 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           allow_discount_before_save: convertToBoolean(data.general_settings?.allow_discount_before_save ?? false),
           allow_pre_order_tahd: convertToBoolean(data.general_settings?.allow_pre_order_tahd ?? false),
           ask_covers: parseJsonSafelyBoolean(data.general_settings?.ask_covers, {
-  dine_in: false,
-  pickup: false,
-  delivery: false,
-  quick_bill: false,
-}),
+            dine_in: false,
+            pickup: false,
+            delivery: false,
+            quick_bill: false,
+          }),
           ask_covers_captain: convertToBoolean(data.general_settings?.ask_covers_captain ?? false),
           ask_custom_order_id_quick_bill: convertToBoolean(data.general_settings?.ask_custom_order_id_quick_bill ?? false),
           ask_custom_order_type_quick_bill: convertToBoolean(data.general_settings?.ask_custom_order_type_quick_bill ?? false),
           ask_payment_mode_on_save_bill: convertToBoolean(data.general_settings?.ask_payment_mode_on_save_bill ?? false),
-         ask_waiter: parseJsonSafelyBoolean(data.general_settings?.ask_waiter, {
-  dine_in: false,
-  pickup: false,
-  delivery: false,
-  quick_bill: false,
-}),
+          ask_waiter: parseJsonSafelyBoolean(data.general_settings?.ask_waiter, {
+            dine_in: false,
+            pickup: false,
+            delivery: false,
+            quick_bill: false,
+          }),
 
 
           ask_otp_change_order_status_order_window: convertToBoolean(data.general_settings?.ask_otp_change_order_status_order_window ?? false),
@@ -688,10 +688,10 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           count_sales_after_midnight: convertToBoolean(data.general_settings?.count_sales_after_midnight ?? false),
           customer_display: Boolean(data.general_settings?.customer_display),
           customer_mandatory: parseJsonSafelyBoolean(data.general_settings?.customer_mandatory, {
-          dine_in: false,
-          pickup: false,
-          delivery: false,
-          quick_bill: false,
+            dine_in: false,
+            pickup: false,
+            delivery: false,
+            quick_bill: false,
           }),
           default_ebill_check: convertToBoolean(data.general_settings?.default_ebill_check ?? false),
           default_send_delivery_boy_check: convertToBoolean(data.general_settings?.default_send_delivery_boy_check ?? false),
@@ -710,13 +710,13 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           mandatory_delivery_boy_selection: convertToBoolean(data.general_settings?.mandatory_delivery_boy_selection ?? false),
           mark_order_as_transfer_order: convertToBoolean(data.general_settings?.mark_order_as_transfer_order ?? false),
           online_payment_auto_settle: convertToBoolean(data.general_settings?.online_payment_auto_settle ?? false),
-        order_sync_settings: parseJsonSafely(
-  data.general_settings?.order_sync_settings,
-  {
-    auto_sync_interval: '5',
-    sync_batch_packet_size: '10',
-  }
-),
+          order_sync_settings: parseJsonSafely(
+            data.general_settings?.order_sync_settings,
+            {
+              auto_sync_interval: '5',
+              sync_batch_packet_size: '10',
+            }
+          ),
           separate_billing_by_section: convertToBoolean(data.general_settings?.separate_billing_by_section ?? false),
           set_entered_amount_as_opening: convertToBoolean(data.general_settings?.set_entered_amount_as_opening ?? false),
           show_alternative_item_report_print: convertToBoolean(data.general_settings?.show_alternative_item_report_print ?? false),
@@ -726,25 +726,25 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           show_remote_kot_option: convertToBoolean(data.general_settings?.show_remote_kot_option ?? false),
           show_send_payment_link: convertToBoolean(data.general_settings?.show_send_payment_link ?? false),
           stock_availability_display: convertToBoolean(data.general_settings?.stock_availability_display ?? false),
-       todays_report: parseJsonSafelyBoolean(data.general_settings?.todays_report, {
-  sales_summary: false,
-  order_type_summary: false,
-  payment_type_summary: false,
-  discount_summary: false,
-  expense_summary: false,
-  bill_summary: false,
-  delivery_boy_summary: false,
-  waiter_summary: false,
-  kitchen_department_summary: false,
-  category_summary: false,
-  sold_items_summary: false,
-  cancel_items_summary: false,
-  wallet_summary: false,
-  due_payment_received_summary: false,
-  due_payment_receivable_summary: false,
-  payment_variance_summary: false,
-  currency_denominations_summary: false,
-}),
+          todays_report: parseJsonSafelyBoolean(data.general_settings?.todays_report, {
+            sales_summary: false,
+            order_type_summary: false,
+            payment_type_summary: false,
+            discount_summary: false,
+            expense_summary: false,
+            bill_summary: false,
+            delivery_boy_summary: false,
+            waiter_summary: false,
+            kitchen_department_summary: false,
+            category_summary: false,
+            sold_items_summary: false,
+            cancel_items_summary: false,
+            wallet_summary: false,
+            due_payment_received_summary: false,
+            due_payment_receivable_summary: false,
+            payment_variance_summary: false,
+            currency_denominations_summary: false,
+          }),
           upi_payment_sound_notification: convertToBoolean(data.general_settings?.upi_payment_sound_notification ?? false),
           use_separate_bill_numbers_online: convertToBoolean(data.general_settings?.use_separate_bill_numbers_online ?? false),
           when_send_todays_report: data.general_settings?.when_send_todays_report || '',
@@ -757,7 +757,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           show_in_preparation_kds: convertToBoolean(data.online_orders_settings?.show_in_preparation_kds ?? false),
           auto_accept_online_order: convertToBoolean(data.online_orders_settings?.auto_accept_online_order ?? false),
           customize_order_preparation_time: convertToBoolean(data.online_orders_settings?.customize_order_preparation_time ?? false),
-          online_orders_time_delay: String(data.online_orders_settings?.online_orders_time_delay ?? 0 ),
+          online_orders_time_delay: String(data.online_orders_settings?.online_orders_time_delay ?? 0),
           pull_order_on_accept: convertToBoolean(data.online_orders_settings?.pull_order_on_accept ?? false),
           show_addons_separately: convertToBoolean(data.online_orders_settings?.show_addons_separately ?? false),
           show_complete_online_order_id: convertToBoolean(data.online_orders_settings?.show_complete_online_order_id ?? true),
@@ -1064,7 +1064,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
 
       // Perform separate PUT requests for each section with error handling
       const requests = [
-       OutletService.updateBillPreviewSettings(outletid, billPreviewPayload),
+        OutletService.updateBillPreviewSettings(outletid, billPreviewPayload),
         OutletService.updateKotPrintSettings(outletid, kotPrintPayload),
         OutletService.updateBillPrintSettings(outletid, billPrintPayload),
         OutletService.updateGeneralSettings(outletid, generalPayload),
@@ -2156,174 +2156,163 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                         </div>
                       </div>
                       {/* Right Column - KOT Preview (Non-Scrollable) */}
+
                       <div className="col-lg-4">
                         <div className="card shadow-sm h-100">
                           <div className="card-header bg-light">
                             <h5 className="card-title mb-0 text-center fw-bold">KOT Preview</h5>
                           </div>
-                          <div className="card-body" style={{ fontSize: '0.85rem', overflow: 'hidden' }}>
+                          <div className="card-body p-3" style={{ fontSize: '0.85rem', fontFamily: 'monospace', overflow: 'hidden' }}>
 
                             {/* Store Name and Details */}
                             {formData.show_store_name && (
-                              <div className="text-center mb-3">
-                                <h6 className="fw-bold mb-1">Restaurant Name</h6>
-                                <div className="small text-muted">Kolhapur Road Kolhapur 416416</div>
-                                <div className="small text-muted">sangli@gmail.com</div>
+                              <div className="text-center mb-2">
+                                <div className="fw-bold fs-6">Restaurant Name</div>
+                                <div className="small">Family Dining</div>
                               </div>
                             )}
-                            {formData.show_store_name && (
-                              <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
-                            )}
 
-                            {/* KOT Header */}
-                            <div className="text-center mb-3">
-                              <h6 className="fw-bold">
-                                {formData.dine_in_kot_no || formData.pickup_kot_no || formData.delivery_kot_no || formData.quick_bill_kot_no || 'KITCHEN ORDER TICKET'}
+                            {/* Top dashed separator */}
+                            <div style={{ borderBottom: '1px dashed #999', margin: '8px 0' }}></div>
+
+                            {/* Order Type row with diamond bullet */}
+                            <div className="text-center mb-2">
+                              <small>
+                                <span style={{ color: '#c0392b', fontSize: '0.75rem' }}>◆</span>
+                                &nbsp;
+                                <strong>Order Type:</strong>&nbsp;
+                                {formData.dine_in_kot_no ? 'Dine-in' : 'Quick Bill'}
                                 {formData.show_new_order_tag && formData.new_order_tag_label && (
-                                  <span className="ms-2 badge bg-primary">{formData.new_order_tag_label}</span>
+                                  <span> - {formData.new_order_tag_label}</span>
                                 )}
                                 {formData.show_running_order_tag && formData.running_order_tag_label && (
-                                  <span className="ms-2 badge bg-secondary">{formData.running_order_tag_label}</span>
+                                  <span> - {formData.running_order_tag_label}</span>
                                 )}
-                              </h6>
+                              </small>
                             </div>
 
-                            {/* KOT Details */}
-                            <div className="row mb-2">
-                              <div className="col-6">
+                            {/* Second dashed separator */}
+                            <div style={{ borderBottom: '1px dashed #999', margin: '8px 0' }}></div>
+
+                            {/* Table No box + KOT No & Date */}
+                            <div className="d-flex align-items-center mb-2 gap-3">
+                              {/* Large Table Number Box */}
+                              {!formData.hide_table_name_quick_bill && (
+                                <div
+                                  className="d-flex align-items-center justify-content-center flex-shrink-0"
+                                  style={{
+                                    width: '60px',
+                                    height: '60px',
+                                    border: '2px solid #333',
+                                    fontSize: '1.8rem',
+                                    fontWeight: 'bold',
+                                    lineHeight: 1
+                                  }}
+                                >
+                                  5
+                                </div>
+                              )}
+
+                              {/* KOT No and Date stacked */}
+                              <div>
                                 {(formData.show_kot_no_quick_bill || !formData.hide_table_name_quick_bill) && (
-                                  <small><strong>KOT No:</strong> KOT001</small>
+                                  <div><small><strong>KOT No:</strong>&nbsp;KOT001</small></div>
                                 )}
                                 {formData.show_order_id_quick_bill && (
-                                  <small className="d-block"><strong>Order ID:</strong> ORD123</small>
+                                  <div><small><strong>Order ID:</strong>&nbsp;ORD123</small></div>
                                 )}
                                 {formData.show_order_no_quick_bill_section && (
-                                  <small className="d-block"><strong>Order NO:</strong> Ord NO</small>
+                                  <div><small><strong>Order NO:</strong>&nbsp;Ord NO</small></div>
                                 )}
+                                <div><small><strong>Date:</strong>&nbsp;26/05/2025, 09:10 PM</small></div>
                                 {formData.show_online_order_otp && (
-                                  <small className="d-block"><strong>OTP:</strong> 9876</small>
-                                )}
-                              </div>
-                              <div className="col-6 text-end">
-                                {!formData.hide_table_name_quick_bill && (
-                                  <small><strong>Table:</strong> T-05</small>
-                                )}
-                                {formData.show_covers_as_guest && (
-                                  <small className="d-block"><strong>Guests:</strong> 4</small>
+                                  <div><small><strong>OTP:</strong>&nbsp;9876</small></div>
                                 )}
                               </div>
                             </div>
 
-                            <div className="row mb-2">
-                              <div className="col-6">
-                                <small><strong>Date:</strong> 26/05/2025</small>
-                              </div>
-                              <div className="col-6 text-end">
-                                <small><strong>Time:</strong> 9:10 PM</small>
-                              </div>
-                            </div>
-
-                            <div className="row mb-2">
-                              <div className="col-6">
-                                <small>
-                                  <strong>Order Type:</strong> Dine In{' '}
-                                  {formData.show_order_type_symbol && <span>(🍽️)</span>}
-                                </small>
-                              </div>
-                              <div className="col-6 text-end">
+                            {/* Waiter / Captain / Username row */}
+                            {(formData.show_waiter || formData.show_captain_username || formData.show_username || formData.show_terminal_username) && (
+                              <div className="mb-2">
                                 {formData.show_waiter && (
-                                  <small><strong>Waiter:</strong> John</small>
+                                  <div><small><strong>Waiter:</strong>&nbsp;John</small></div>
                                 )}
                                 {formData.show_captain_username && (
-                                  <small className="d-block"><strong>Captain:</strong> CaptainJane</small>
+                                  <div><small><strong>Captain:</strong>&nbsp;CaptainJane</small></div>
                                 )}
                                 {formData.show_username && (
-                                  <small className="d-block"><strong>Username:</strong> User123</small>
+                                  <div><small><strong>Username:</strong>&nbsp;User123</small></div>
                                 )}
                                 {formData.show_terminal_username && (
-                                  <small className="d-block"><strong>Terminal:</strong> Term01</small>
+                                  <div><small><strong>Terminal:</strong>&nbsp;Term01</small></div>
                                 )}
                               </div>
-                            </div>
+                            )}
 
+                            {/* Customer section */}
                             {(formData.customer_on_kot_dine_in || formData.customer_on_kot_quick_bill || formData.customer_on_kot_pickup || formData.customer_on_kot_delivery) &&
                               formData.customer_kot_display_option !== 'DISABLED' && (
                                 <>
-                                  <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                                  <div style={{ borderBottom: '1px dashed #999', margin: '8px 0' }}></div>
                                   <div className="mb-2">
-                                    <small><strong>Customer:</strong> John Doe</small>
+                                    <small><strong>Customer:</strong>&nbsp;John Doe</small>
                                     {formData.customer_kot_display_option === 'NAME_AND_MOBILE' && (
-                                      <small className="d-block"><strong>Mobile:</strong> +91 9876543210</small>
+                                      <div><small><strong>Mobile:</strong>&nbsp;+91 9876543210</small></div>
                                     )}
                                   </div>
                                 </>
                               )}
 
-                            <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                            <div style={{ borderBottom: '1px dashed #999', margin: '8px 0' }}></div>
 
-                            {/* Items Header */}
-                            <div className="row fw-bold small pb-1 mb-2" style={{ borderBottom: '1px solid #dee2e6' }}>
-                              <div className="col-1">#</div>
-                              <div className="col-4">Item Name</div>
-                              <div className="col-2 text-center">Qty</div>
-                              {formData.hide_item_Amt_column && ( <div className="col-2 text-end fw-bold">Rate</div>)}
-
-                            {formData.show_item_price && <div className="col-3 text-end">Amount</div>}
+                            {/* Items Table Header */}
+                            <div className="row fw-bold small pb-1 mb-1" style={{ borderBottom: '1px solid #333' }}>
+                              <div className="col-2">Qty</div>
+                              <div className="col-5">Item</div>
+                              {formData.hide_item_Amt_column && <div className="col-2 text-end">Rate</div>}
+                              {formData.show_item_price && <div className="col-3 text-end">Amt</div>}
                             </div>
 
-                            {/* Items */}
-                            {[{
-                              name: 'Biryani',
-                              qty: 1,
-                              rate: 100.00,
-                              modifier: 'Spicy',
-                              alternativeItem: 'Veg Biryani'
-                            }, {
-                              name: 'Chicken Curry',
-                              qty: 2,
-                              rate: 150.00
-                            }, {
-                              name: 'Naan',
-                              qty: 3,
-                              rate: 25.00
-                            }].map((item, index) => (
-                              <div className="row small mb-1" key={index}>
-                                <div className="col-1">{index + 1}</div>
-                                <div className="col-4">
+                            {/* Items List */}
+                            {[
+                              { name: 'Biryani', qty: 1, rate: 100.00, modifier: 'Spicy', alternativeItem: 'Veg Biryani' },
+                              { name: 'Chicken Curry', qty: 2, rate: 150.00 },
+                              { name: 'Naan', qty: 3, rate: 25.00 }
+                            ].map((item, index) => (
+                              <div className="row small mb-1 align-items-start" key={index}>
+                                <div className="col-2">{item.qty}</div>
+                                <div className="col-5">
                                   {item.name}
                                   {formData.modifier_default_option && item.modifier && (
-                                    <small className="d-block text-muted">{item.modifier}</small>
+                                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>{item.modifier}</div>
                                   )}
                                   {formData.show_alternative_item && item.alternativeItem && (
-                                    <small className="d-block text-muted">Alt: {item.alternativeItem}</small>
+                                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>Alt: {item.alternativeItem}</div>
                                   )}
                                 </div>
-                                <div className="col-2 text-center">{item.qty}</div>
-                                {formData.hide_item_Amt_column && (<div className="col-2 text-end">{item.rate.toFixed(2)}</div>)}
-
-                                 {formData.show_item_price && (
+                                {formData.hide_item_Amt_column && (
+                                  <div className="col-2 text-end">{item.rate.toFixed(2)}</div>
+                                )}
+                                {formData.show_item_price && (
                                   <div className="col-3 text-end">{(item.qty * item.rate).toFixed(2)}</div>
                                 )}
                               </div>
                             ))}
 
-                            <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                            <div style={{ borderBottom: '1px dashed #999', margin: '8px 0' }}></div>
 
-                            {/* Total Section */}
-                            <div className="row fw-bold mb-2">
-                              <div className="col-8 text-end">
-                                <small>Total Items: 6</small>
-                              </div>
+                            {/* Total */}
+                            <div className="row fw-bold small mb-2">
+                              <div className="col-8 text-end">Total Items: 6</div>
                               {formData.show_item_price && (
-                                <div className="col-4 text-end">
-                                  <small>₹ 475.00</small>
-                                </div>
+                                <div className="col-4 text-end">₹ 475.00</div>
                               )}
                             </div>
 
+                            {/* KOT Note */}
                             {formData.show_kot_note && (
                               <>
-                                <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                                <div style={{ borderBottom: '1px dashed #999', margin: '8px 0' }}></div>
                                 <div className="mb-2">
                                   <small><strong>KOT Note:</strong></small>
                                   <br />
@@ -2332,19 +2321,19 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                               </>
                             )}
 
-                            <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                            <div style={{ borderBottom: '1px dashed #999', margin: '8px 0' }}></div>
 
                             {/* Footer */}
-                            <div className="text-center mt-3">
+                            <div className="text-center mt-2">
                               <small className="text-muted">Thank You!</small>
                               <br />
                               <small className="text-muted">Please prepare the order</small>
                             </div>
 
-                            {/* Bilingual Support */}
+                            {/* Bilingual */}
                             {formData.print_kot_both_languages && (
                               <>
-                                <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                                <div style={{ borderBottom: '1px dashed #999', margin: '8px 0' }}></div>
                                 <div className="text-center">
                                   <small className="fw-bold">रसोई आदेश टिकट</small>
                                   <br />
