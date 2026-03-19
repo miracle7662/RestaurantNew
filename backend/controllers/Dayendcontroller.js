@@ -48,6 +48,20 @@ const getDayendData = (req, res) => {
     `;
 
     const rows = db.prepare(query).all();
+    console.log('=== DAYEND DEBUG === Rows count:', rows.length);
+    rows.forEach((row, idx) => {
+      if (row.TableID <= 0 || row.TableID === '0' || row.KOTNo?.includes('PUP') || row.KOTNo?.includes('DEL') || row.KOTNo?.includes('QBL')) {
+        console.log(`🚚 PICKUP/DELIVERY BILL #${idx}:`, {
+          TxnID: row.TxnID,
+          TxnNo: row.TxnNo,
+          TableID: row.TableID,
+          isSetteled: row.isSetteled,
+          isBilled: row.isBilled,
+          Settlements: row.Settlements,
+          PaymentType: row.PaymentType
+        });
+      }
+    });
 
   
     // Group by transaction
