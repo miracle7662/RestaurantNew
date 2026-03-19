@@ -1,10 +1,11 @@
-# Handover Payment Mode Fix - TODO (pickup/delivery/quickbill)
+# Add TxnID to settleBill in TAxnTrnbillControllers.js
 
-## Progress: 3/6 ✅
-
-### 1. ✅ Create TODO.md 
-### 2. ✅ Verified: TrnSettlement.OrderNo = bill.orderNo (numeric for pickup), TxnNo = null
-### 3. ✅ FIXED handoverController.js: WHERE s.OrderNo = t.TxnNo → (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo)
-### 4. 🔄 TESTING backend /handover/data endpoint  
-### 5. ☐ Restart dev server & verify Handover page
-### 6. ✅ COMPLETE
+✅ [DONE] Understand files and confirm plan  
+✅ [DONE] User approved plan  
+✅ [DONE] Edit backend/controllers/TAxnTrnbillControllers.js
+- ✅ Update INSERT statement to include TxnID  
+- ✅ Update ins.run() parameters to pass Number(id)  
+⏳ [PENDING] Test settlement endpoint  
+⏳ [PENDING] Verify TxnID populates in TrnSettlement table  
+✅ [DONE] Update TODO.md with completion  
+⏳ [PENDING] attempt_completion

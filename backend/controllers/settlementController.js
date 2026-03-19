@@ -58,6 +58,7 @@ exports.getSettlements = async (req, res) => {
         s.Receive,
         s.Refund,
         s.HotelID,
+        s.TxnID,
 s.TxnNo AS TaxNo,
         s.UserId,
         s.Name,
@@ -163,6 +164,12 @@ exports.createSettlement = async (req, res) => {
       InsertDate
     } = req.body;
 
+    // Fetch TxnID from bill
+    const bill = db.prepare(`
+      SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
+    `).get(OrderNo, OrderNo);
+    const txnID = bill ? bill.TxnID : null;
+
     if (!OrderNo || !PaymentType || !Amount || !HotelID) {
       return res.status(400).json({
         success: false,
@@ -192,6 +199,7 @@ exports.createSettlement = async (req, res) => {
     db.prepare(`
       INSERT INTO TrnSettlement (
         OrderNo,
+        TxnID,
         table_name,
         PaymentTypeID,
         PaymentType,
@@ -201,9 +209,10 @@ exports.createSettlement = async (req, res) => {
         InsertDate
 
       )
-      VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
     `).run(
       OrderNo,
+      txnID || null,
       req.body.table_name || null,
       paymentTypeID,
       PaymentType,
@@ -234,6 +243,12 @@ exports.replaceSettlement = async (req, res) => {
   try {
 
     const { OrderNo, newSettlements, HotelID, EditedBy, InsertDate, TipAmount } = req.body;
+
+    // Fetch TxnID from bill for replaceSettlement
+    const bill = db.prepare(`
+      SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
+    `).get(OrderNo, OrderNo);
+    const txnID = bill ? bill.TxnID : null;
 
     if (!OrderNo || !Array.isArray(newSettlements) || !HotelID) {
       return res.status(400).json({
@@ -309,6 +324,7 @@ if (!userId) {
      const settlementInsertStmt = db.prepare(`
   INSERT INTO TrnSettlement (
     OrderNo,
+    TxnID,
     table_name,
     PaymentTypeID,
     PaymentType,
@@ -325,7 +341,7 @@ if (!userId) {
     isSettled,
     InsertDate
   )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
 `);
     
 
@@ -353,6 +369,7 @@ if (!userId) {
 
       settlementInsertStmt.run(
         OrderNo,
+        txnID,
         req.body.table_name || originalSettlement.table_name || null,
         paymentTypeID,
         s.PaymentType,

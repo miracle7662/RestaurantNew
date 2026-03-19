@@ -679,8 +679,8 @@ exports.settleBill = async (req, res) => {
 
     const tx = db.transaction(() => {
       const ins = db.prepare(`
-INSERT INTO TrnSettlement (PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, TxnNo, UserId, CustomerName, MobileNo, Receive, Refund, TipAmount, table_name, isSettled, InsertDate)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+INSERT INTO TrnSettlement (PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, TxnID, TxnNo, UserId, CustomerName, MobileNo, Receive, Refund, TipAmount, table_name, isSettled, InsertDate)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
       `)
       for (const s of settlements) {
         console.log('Processing settlement:', JSON.stringify(s, null, 2))
@@ -691,7 +691,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
         // Get TipAmount - default to 0 if not provided
         const tipAmount = TipAmount != null ? Number(TipAmount) : 0;
         
-        ins.run(
+ins.run(
           s.PaymentTypeID ?? 1,
           s.PaymentType || null,
           Number(s.Amount) || 0,
@@ -699,6 +699,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
           s.Name || null,
           bill.orderNo || bill.TxnNo,
           bill.HotelID,
+          Number(id),
           bill.TxnNo,
           bill.UserId,
           bill.CustomerName,

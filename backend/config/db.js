@@ -1289,7 +1289,15 @@ try {
   `);
   console.log("✅ Stock management fields + NEW RAW MATERIALS FIELDS added to mstrestmenu");
 } catch (e) {
-  console.log("ℹ️ Fields already exist or partial migration:", e.message);
+console.log("ℹ️ Fields already exist or partial migration:", e.message);
+
+// Migration: Add TxnID column to TrnSettlement if it doesn't exist (for settlement txn reference)
+try {
+  db.exec("ALTER TABLE TrnSettlement ADD COLUMN TxnID INTEGER REFERENCES TAxnTrnbill(TxnID) ON DELETE SET NULL");
+  console.log("✅ Added TxnID column to TrnSettlement with FK to TAxnTrnbill");
+} catch (e) {
+  console.log("ℹ️ TxnID column already exists or migration error:", e.message);
+}
 }
 
 
