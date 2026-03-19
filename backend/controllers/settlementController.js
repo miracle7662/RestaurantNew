@@ -58,7 +58,7 @@ exports.getSettlements = async (req, res) => {
         s.Receive,
         s.Refund,
         s.HotelID,
-        s.TxnNo,
+s.TxnNo AS TaxNo,
         s.UserId,
         s.Name,
         s.CustomerName,

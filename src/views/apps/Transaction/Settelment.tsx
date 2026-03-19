@@ -14,7 +14,7 @@ import OutletPaymentModeService from '@/common/api/outletpaymentmode';
 import SettlementService from '@/common/api/settlements';
 import PaginationComponent from '@/components/Common/PaginationComponent';
 
-interface Settlement {
+interface Settlement {  TaxNo?: string;
   SettlementID: number;
   OrderNo: string;
   table_name?: string;
@@ -294,7 +294,7 @@ const [filters, setFilters] = useState({
         <Row className="g-3">
           <Col md={3}>
             <Form.Control
-              placeholder="Order No"
+               placeholder="Order No"
               value={filters.orderNo}
               onChange={e => setFilters({ ...filters, orderNo: e.target.value })}
             />
@@ -338,7 +338,7 @@ const [filters, setFilters] = useState({
         <thead className="table-light">
           <tr>
             <th>ID(s)</th>
-            <th>Order No</th>
+            <th>Tax No / Order No</th>
             <th>Table</th>
             <th>Payment Breakdown</th>
             <th>Hotel ID</th>
@@ -351,7 +351,7 @@ const [filters, setFilters] = useState({
           {groupedSettlements.map(group => (
             <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
               <td>{group.SettlementIDs?.join(', ')}</td>
-              <td>{group.OrderNo}</td>
+              <td><strong>{group.TaxNo || group.OrderNo}</strong><br/><small className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small></td>
               <td>{group.table_name || 'N/A'}</td>
               <td>
                 {Object.entries(group.paymentBreakdown || {}).map(

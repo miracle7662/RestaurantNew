@@ -12,7 +12,7 @@ import { ApiResponse } from '@/types/api'
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
 /** Settlement information */
-export interface Settlement {
+export interface Settlement { taxNo?: string;
   settlementid: number
   txnid: number
   billno?: string
