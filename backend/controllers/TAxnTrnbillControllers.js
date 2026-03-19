@@ -78,8 +78,9 @@ exports.getAllBills = async (req, res) => {
     }
 
     const sql = `
-      SELECT 
+SELECT 
         b.*,
+        b.isHomeDelivery,
         GROUP_CONCAT(
           DISTINCT json_object(
             'TXnDetailID', d.TXnDetailID,
@@ -975,6 +976,7 @@ exports.createKOT = async (req, res) => {
         // Always update the bill header with the latest information, including table_name.
         // Use new discount/NC info if provided, otherwise fall back to existing values.
         // Also update with frontend calculated values
+const isHomeDeliveryUpdateFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'Delivery' ? 1 : 0));
         db.prepare(
           `
             UPDATE TAxnTrnbill
@@ -999,7 +1001,8 @@ exports.createKOT = async (req, res) => {
               IGST = ?,
               CESS = ?,
               RoundOFF = ?,
-              Amount = ?
+              Amount = ?,
+              isHomeDelivery = ?
             WHERE TxnID = ?
         `,
         ).run(
@@ -1025,6 +1028,7 @@ exports.createKOT = async (req, res) => {
           finalCess,
           finalRoundOff,
           finalAmount,
+          isHomeDeliveryUpdateFlag,
           txnId,
         )
       } else {
@@ -1044,13 +1048,14 @@ exports.createKOT = async (req, res) => {
 
         const DeptID = details.length > 0 ? details[0].DeptID : null
 
+const isHomeDeliveryFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'Delivery' ? 1 : 0));
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
             outletid, TxnNo, TableID, table_name, Steward, PAX, UserId, HotelID, TxnDatetime,
             isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, customerid, Order_Type, orderNo,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID,
-            GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
+            GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount, isHomeDelivery
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         const result = insertHeaderStmt.run(
           headerOutletId,
@@ -1082,6 +1087,7 @@ exports.createKOT = async (req, res) => {
           finalCess,
           finalRoundOff,
           finalAmount,
+          isHomeDeliveryFlag
         )
         txnId = result.lastInsertRowid
         db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(
