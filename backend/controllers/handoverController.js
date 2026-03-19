@@ -31,10 +31,10 @@ const getHandoverData = (req, res) => {
           GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
           t.NCPurpose,
           t.NCName,
-          (
+(
             SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount)
             FROM TrnSettlement s
-            WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1 
+            WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1 
           ) as Settlements,
           t.isSetteled,
           t.isBilled,
