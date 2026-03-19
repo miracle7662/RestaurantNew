@@ -859,13 +859,16 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
     RevQty REAL DEFAULT 0,
     KOTUsedDate DATETIME,
     isBilled BOOLEAN DEFAULT 0,
-    RevKOTNo INTEGER
-
+    RevKOTNo INTEGER,
+    VariantID INTEGER,
+    VariantName TEXT
+   
 
 );
 
 CREATE TABLE IF NOT EXISTS TrnSettlement (
     SettlementID INTEGER PRIMARY KEY AUTOINCREMENT,
+    TxnID INTEGER,
     TxnNo TEXT,
     OrderNo TEXT,
     userid INTEGER,
@@ -883,7 +886,10 @@ CREATE TABLE IF NOT EXISTS TrnSettlement (
     MobileNo TEXT,
     Address TEXT,
     Name2 TEXT,
-    Name3 TEXT
+    Name3 TEXT,
+    TipAmount REAL DEFAULT 0,
+    table_name TEXT
+    
     
 );
 
