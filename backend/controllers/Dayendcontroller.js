@@ -29,8 +29,8 @@ const getDayendData = (req, res) => {
           GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
           t.NCPurpose,
           t.NCName,
-          (SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount) FROM TrnSettlement s WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1) as Settlements,
-          (SELECT GROUP_CONCAT(s.PaymentType) FROM TrnSettlement s WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1) as PaymentType,
+(SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1) as Settlements,
+(SELECT GROUP_CONCAT(s.PaymentType) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1) as PaymentType,
           t.isSetteled,
           t.isBilled,
           t.isreversebill,
@@ -48,22 +48,7 @@ const getDayendData = (req, res) => {
     `;
 
     const rows = db.prepare(query).all();
-    console.log('=== DAYEND DEBUG === Rows count:', rows.length);
-    rows.forEach((row, idx) => {
-      if (row.TableID <= 0 || row.TableID === '0' || row.KOTNo?.includes('PUP') || row.KOTNo?.includes('DEL') || row.KOTNo?.includes('QBL')) {
-        console.log(`🚚 PICKUP/DELIVERY BILL #${idx}:`, {
-          TxnID: row.TxnID,
-          TxnNo: row.TxnNo,
-          TableID: row.TableID,
-          isSetteled: row.isSetteled,
-          isBilled: row.isBilled,
-          Settlements: row.Settlements,
-          PaymentType: row.PaymentType
-        });
-      }
-    });
-
-  
+   
     // Group by transaction
     const transactions = {};
     for (const row of rows) {
