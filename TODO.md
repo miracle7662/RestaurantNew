@@ -1,9 +1,12 @@
-# TODO: Fix Report Printer Delete 404 Error
+# DayEndReport Thermal Printer Fix - TODO
 
-## Plan Steps:
-- [x] Step 1: Add `deleteReportPrinter` function to backend/controllers/settingsController.js
-- [x] Step 2: Add DELETE route to backend/routes/settingsRoutes.js
-- [ ] Step 3: Test the delete functionality in Settings page
-- [ ] Step 4: Restart backend server if needed
-- [ ] Step 5: Verify completion and cleanup TODO.md
+## Plan Status
+- [x] 1. Update DayEndReportPreview.tsx: Import PrintService ✅
+- [x] 2. Update DayEndReportPreview.tsx: Change printer API to getKotPrinterSettings ✅
+- [x] 3. Update DayEndReportPreview.tsx: Fix outletId logic ✅
+- [ ] 3. Update DayEndReportPreview.tsx: Fix outletId logic  
+- [ ] 4. Update DayEndReportPreview.tsx: Replace A4 CSS with thermal 302px CSS
+- [ ] 5. Update DayEndReportPreview.tsx: Update preview styling
+- [ ] 6. Test printing on 80mm thermal printer
+- [x] PLAN APPROVED ✅
 
