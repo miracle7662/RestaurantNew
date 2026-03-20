@@ -1280,31 +1280,6 @@ try {
   // Column might already exist, ignore error
 }
 
-// 🔥 NEW STOCK MANAGEMENT FIELDS MIGRATION 🔥
-try {
-  db.exec(`
-    ALTER TABLE mstrestmenu ADD COLUMN is_ingredients_required INTEGER DEFAULT 0 CHECK (is_ingredients_required IN (0,1));
-    ALTER TABLE mstrestmenu ADD COLUMN consume_on_bill INTEGER DEFAULT 1 CHECK (consume_on_bill IN (0,1));
-    ALTER TABLE mstrestmenu ADD COLUMN reverse_stock_cancel_kot INTEGER DEFAULT 0 CHECK (reverse_stock_cancel_kot IN (0,1));
-    ALTER TABLE mstrestmenu ADD COLUMN allow_negative_stock INTEGER DEFAULT 0 CHECK (allow_negative_stock IN (0,1));
-    ALTER TABLE mstrestmenu ADD COLUMN opening_stock_quantity REAL DEFAULT 0;
-    ALTER TABLE mstrestmenu ADD COLUMN opening_stock_unit_id INTEGER;
-    ALTER TABLE mstrestmenu ADD COLUMN consume_raw_materials_on_bill INTEGER DEFAULT 0 CHECK (consume_raw_materials_on_bill IN (0,1));
-    ALTER TABLE mstrestmenu ADD COLUMN consume_raw_materials_on_kot INTEGER DEFAULT 0 CHECK (consume_raw_materials_on_kot IN (0,1));
-    ALTER TABLE mstrestmenu ADD COLUMN store_name INTEGER;  -- FK to mstwarehouse.warehouseid
-  `);
-  console.log("✅ Stock management fields + NEW RAW MATERIALS FIELDS added to mstrestmenu");
-} catch (e) {
-console.log("ℹ️ Fields already exist or partial migration:", e.message);
-
-// Migration: Add TxnID column to TrnSettlement if it doesn't exist (for settlement txn reference)
-try {
-  db.exec("ALTER TABLE TrnSettlement ADD COLUMN TxnID INTEGER REFERENCES TAxnTrnbill(TxnID) ON DELETE SET NULL");
-  console.log("✅ Added TxnID column to TrnSettlement with FK to TAxnTrnbill");
-} catch (e) {
-  console.log("ℹ️ TxnID column already exists or migration error:", e.message);
-}
-}
 
 
 

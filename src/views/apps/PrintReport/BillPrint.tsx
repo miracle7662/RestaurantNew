@@ -229,26 +229,31 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <meta charset="UTF-8" />
   <title>BILL</title>
   <style>
-    @page {
-      size: auto;
-      margin: 0;
+@page {
+      size: 80mm auto;
+      margin: 2mm;
+    }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
 
     html, body {
-      width: 100%;
+      width: 80mm !important;
+      max-width: 80mm !important;
       margin: 0;
       padding: 0;
-      font-family: 'Courier New', monospace;
-      font-size: 10pt;
-      line-height: 1.2;
-      color: #000;
+      font-family: 'Courier New', 'Lucida Console', monospace;
+      font-size: 9pt;
+      line-height: 1.1;
+      color: #000 !important;
       box-sizing: border-box;
+      background: white;
     }
-    /* CONTENT WRAPPER */
     #bill-preview-content {
-      width: 100%;
-      margin: 0 auto;
-      padding: 10px;
+      width: 80mm;
+      max-width: 80mm;
+      margin: 0;
+      padding: 2mm;
       box-sizing: border-box;
     }
 
@@ -378,20 +383,18 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         </div>
         <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
         <!-- ============ BILL INFO (with conditional rendering) ============ -->
-        <!-- Row 1: billno, table, date, time -->
-        <div style="display: flex; gap: 8px; margin-bottom: 5px; font-size: 9pt;">
-          <div style="flex: 1;"><strong>BillNo </strong><br />${(localFormData.dine_in_kot_no || '')}${orderNo || ''}</div>
-          <div style="flex: 1;"><strong>Table </strong><br />${selectedTable || '—'}</div>
-          <div style="flex: 1;"><strong>Date </strong><br />${new Date().toLocaleDateString('en-GB')}</div>
-          <div style="flex: 1; white-space: nowrap;"><strong>Time </strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
-        </div>
-        <!-- Row 2: waiters, covers, kot no -->
-        <div style="display: flex; gap: 8px; margin-bottom: 10px; font-size: 9pt;">
-          <div style="flex: 1;"><strong>Waiter </strong><br />${selectedWaiter || user?.name || 'N/A'}</div>
-          <div style="flex: 1;"><strong>Covers </strong><br />N/A</div>
-          <div style="flex: 1; white-space: nowrap;"><strong>KOT No </strong><br />${allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")}</div>
-          <div style="flex: 1;"></div>
-        </div>
+        <!-- Bill info table - thermal compatible -->
+        <table cellspacing="0" cellpadding="1" style="width:100%; font-size:9pt; margin-bottom:5px;">
+          <tr><td style="width:35%;"><strong>BillNo:</strong></td><td>${(localFormData.dine_in_kot_no || '')}${orderNo || ''}</td></tr>
+          <tr><td><strong>Table:</strong></td><td>${selectedTable || '—'}</td></tr>
+          <tr><td><strong>Date:</strong></td><td>${new Date().toLocaleDateString('en-GB')}</td></tr>
+          <tr><td><strong>Time:</strong></td><td>${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</td></tr>
+        </table>
+        <table cellspacing="0" cellpadding="1" style="width:100%; font-size:9pt;">
+          <tr><td style="width:35%;"><strong>Waiter:</strong></td><td>${selectedWaiter || user?.name || 'N/A'}</td></tr>
+          <tr><td><strong>Covers:</strong></td><td>N/A</td></tr>
+          <tr><td><strong>KOT No:</strong></td><td>${allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")}</td></tr>
+        </table>
        ${(showAll || localFormData.show_customer_bill) && (customerName || mobileNumber) ? `
   <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
   <div style="font-size: 9pt; margin-bottom: 8px;">
@@ -413,12 +416,14 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
         <!-- ============ ITEMS TABLE (with conditional rendering) ============ -->
         <div style="margin-bottom: 10px;">
-          <div style="display: grid; grid-template-columns: ${(showAll || localFormData.print_bill_both_languages) ? '3fr' : '2fr'} ${(showAll || !localFormData.hide_item_quantity_column) ? '30px' : ''} ${(showAll || !localFormData.hide_item_rate_column) ? '40px' : ''} ${(showAll || !localFormData.hide_item_total_column) ? '50px' : ''}; gap: 5px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 5px; font-size: 9pt;">
-            <div>${(showAll || (localFormData.show_alt_item_title_bill && localFormData.print_bill_both_languages)) ? 'Item' : 'Description'}</div>
-            ${(showAll || !localFormData.hide_item_quantity_column) ? '<div style="text-align: right;">Qty</div>' : ''}
-            ${(showAll || !localFormData.hide_item_rate_column) ? '<div style="text-align: right;">Rate</div>' : ''}
-            ${(showAll || !localFormData.hide_item_total_column) ? '<div style="text-align: right;">Amount</div>' : ''}
-          </div>
+          <table cellspacing="0" cellpadding="1" style="width:100%; font-size:9pt; border-bottom:1px solid #000; margin-bottom:3px;">
+            <tr style="font-weight:bold;">
+              <td style="width:${(showAll || localFormData.print_bill_both_languages) ? '55%' : '65%'};">${(showAll || (localFormData.show_alt_item_title_bill && localFormData.print_bill_both_languages)) ? 'Item' : 'Description'}</td>
+              ${(showAll || !localFormData.hide_item_quantity_column) ? '<td style="width:10%; text-align:right;">Qty</td>' : ''}
+              ${(showAll || !localFormData.hide_item_rate_column) ? '<td style="width:12%; text-align:right;">Rate</td>' : ''}
+              ${(showAll || !localFormData.hide_item_total_column) ? '<td style="width:18%; text-align:right;">Amount</td>' : ''}
+            </tr>
+          </table>
           ${Object.values(items.filter(i => i.qty > 0).reduce((acc: any, item: any) => {
         const key = (showAll || localFormData.show_items_sequence_bill)
           ? `${item.id}-${item.variantId || 0}-${item.price}`

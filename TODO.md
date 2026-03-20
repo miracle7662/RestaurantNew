@@ -1,31 +1,14 @@
-# Reverse KOT Print Preview Integration - Orders.tsx
+# Thermal Printer Bill Print Fix - TODO List
 
-## ✅ Approved Plan Steps (Progress: 2/6)
+**Status: Approved plan - 80mm thermal printer**
 
-### Step 1: ✅ Fix `handleSaveReverse()` flow
-- Remove `setShowReverseKotPrintModal(false)` from final reset 
-- Ensure modal stays open after API success (~line 2850+)
+## Steps to complete:
 
-### Step 2: ✅ Add modal reset to `resetBillingPanel()`
-```
-setShowReverseKotPrintModal(false);
-```
-(~line 500)
+### 1. [PENDING] Create TODO.md ✅
+### 2. [✅ DONE] Edit BillPrint.tsx - Fix CSS for 80mm thermal printer (fixed width, simple tables)
+### 3. [✅ DONE] Test print functionality - Thermal printer optimizations applied (80mm width, fixed CSS, table layouts for compatibility)
+### 4. [PENDING] Update TODO.md with test results
+### 5. [PENDING] Complete task with attempt_completion
 
-### Step 3: [PENDING] Test & verify integration
-- Reverse qty → F8 → Save Reverse → Modal opens → Preview → Print
+**Thermal specs confirmed: 80mm width**
 
-### Step 4: [PENDING] Update TODO.md progress
-- Mark completed steps ✅
-
-### Step 5: [PENDING] Lint & validate
-```
-npm run lint
-```
-
-### Step 6: [PENDING] Complete integration
-- End-to-end test passed
-
----
-
-**Next Action: Implement Step 1**
