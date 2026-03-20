@@ -239,7 +239,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       margin: 0;
       padding: 0;
       font-family: 'Courier New', monospace;
-      font-size: 10pt;
+      font-size: 12px;
       line-height: 1.2;
       color: #000;
       box-sizing: border-box;
