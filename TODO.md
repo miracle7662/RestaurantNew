@@ -1,14 +1,9 @@
-# Thermal Printer Bill Print Fix - TODO List
+# TODO: Fix Report Printer Delete 404 Error
 
-**Status: Approved plan - 80mm thermal printer**
-
-## Steps to complete:
-
-### 1. [PENDING] Create TODO.md ✅
-### 2. [✅ DONE] Edit BillPrint.tsx - Fix CSS for 80mm thermal printer (fixed width, simple tables)
-### 3. [✅ DONE] Test print functionality - Thermal printer optimizations applied (80mm width, fixed CSS, table layouts for compatibility)
-### 4. [PENDING] Update TODO.md with test results
-### 5. [PENDING] Complete task with attempt_completion
-
-**Thermal specs confirmed: 80mm width**
+## Plan Steps:
+- [x] Step 1: Add `deleteReportPrinter` function to backend/controllers/settingsController.js
+- [x] Step 2: Add DELETE route to backend/routes/settingsRoutes.js
+- [ ] Step 3: Test the delete functionality in Settings page
+- [ ] Step 4: Restart backend server if needed
+- [ ] Step 5: Verify completion and cleanup TODO.md
 

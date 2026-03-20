@@ -501,6 +501,31 @@ exports.getAllReportPrinterSettings = async (req, res) => {
   }
 };
 
+exports.deleteReportPrinter = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
+
+    const result = await runQuery(
+      'DELETE FROM report_printer_settings WHERE id = ?',
+      [id]
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Report printer setting not found' });
+    }
+
+    res.json({ success: true, msg: 'Report printer setting deleted successfully' });
+  } catch (e) {
+    console.error('REPORT PRINTER DELETE ERROR:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+
 // ------------------------------------------
 // 🔟 KDS Department User
 // ------------------------------------------

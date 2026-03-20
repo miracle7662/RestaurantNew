@@ -58,6 +58,7 @@ router.get("/report-printer", settingsController.getAllReportPrinterSettings);
 router.get("/report-printer/:id", settingsController.getReportPrinterSettings);
 router.post("/report-printer", settingsController.createReportPrinter);
 router.put("/report-printer/:id", settingsController.updateReportPrinter);
+router.delete("/report-printer/:id", settingsController.deleteReportPrinter);
 
 // -------------------------
 // KDS USERS
