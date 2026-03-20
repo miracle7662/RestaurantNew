@@ -229,28 +229,30 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <meta charset="UTF-8" />
   <title>BILL</title>
   <style>
-    @page {
-      size: auto;
-      margin: 0;
-    }
+   @page {
+  size: 80mm auto;
+  margin: 0;
+}
 
-    html, body {
-      width: 100%;
-      margin: 0;
-      padding: 0;
-      font-family: 'Courier New', monospace;
-      font-size: 12pt;
-      line-height: 1.4;
-      color: #000;
-      box-sizing: border-box;
-    }
-    /* CONTENT WRAPPER */
-    #bill-preview-content {
-      width: 100%;
-      margin: 0 auto;
-      padding: 10px;
-      box-sizing: border-box;
-    }
+html, body {
+  width: 80mm !important;
+  min-width: 80mm !important;
+  margin: 0;
+  padding: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 12pt;
+  line-height: 1.4;
+  color: #000 !important;
+  -webkit-print-color-adjust: exact !important;
+}
+
+#bill-preview-content {
+  width: 80mm !important;
+  min-width: 80mm !important;
+  margin: 0 auto;
+  padding: 10px;
+  box-sizing: border-box;
+}
 
     .center { text-align: center; }
     .right { text-align: right; }
