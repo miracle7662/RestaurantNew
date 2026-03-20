@@ -224,7 +224,7 @@ const Order = () => {
   const [selectedWaiter, setSelectedWaiter] = useState<string>('');
   const [pax, setPax] = useState<number>(1);
   const [defaultWaiterId, setDefaultWaiterId] = useState<number | null>(null);
-const [defaultPax, setDefaultPax] = useState<number>(1);
+  const [defaultPax, setDefaultPax] = useState<number>(1);
 
 // 🔥 NEW: isOrderBilled() helper for payment gating
 const isOrderBilled = (): boolean => {
@@ -2952,11 +2952,10 @@ setSelectedDeptId(deptId ?? 0);
   };
 
   const handlePendingMakePayment = async (order: any) => {
-    if (!isOrderBilled()) {
+     if (!isOrderBilled()) {
       toast.error('Please print bill first');
       return;
     }
-    
     setCurrentTxnId(order.id);
     setOrderNo(order.kotNo || `Order-${order.id}`);
     setItems(order.items.map((i: any) => ({ ...i, isBilled: 0, isNew: false }))); // Treat items as existing
@@ -4462,7 +4461,8 @@ setSelectedDeptId(deptId ?? 0);
                             )}
 
                             {/* All items are billed */}
-{items.length > 0 && isOrderBilled() && (
+                           {items.length > 0 && items.every(item => item.isBilled === 1) && (
+
                               <>
                                 <Button
                                   size="sm"
