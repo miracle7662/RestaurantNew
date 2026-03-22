@@ -5,13 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common/context/useAuthContext';
 import SettingsService from '@/common/api/settings';
+import PrintService from '@/common/api/print';
 
 
 const DayEndReportPreview: React.FC = () => {
   const navigate = useNavigate();
   const [previewHTML, setPreviewHTML] = useState('');
   const [printerName, setPrinterName] = useState<string | null>(null);
-  const [, setOutletId] = useState<number | null>(null);
+  const [outletId, setOutletId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const { user } = useAuthContext();
 
