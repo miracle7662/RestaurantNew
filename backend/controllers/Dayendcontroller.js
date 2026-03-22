@@ -663,7 +663,7 @@ function generateBillDetailsHTML(transactions) {
   let totalGross = 0, totalDisc = 0, totalCGST = 0, totalSGST = 0, totalNet = 0;
 
   transactions.forEach(t => {
-    html += `${t.billNo.padEnd(8)} ${String(t.tableNo).padEnd(6)} ${t.grossAmount.toFixed(2).padStart(7)} ${t.discount.toFixed(2).padStart(6)} ${t.cgst.toFixed(2).padStart(6)} ${t.sgst.toFixed(2).padStart(6)} ${t.netAmount.toFixed(2).padStart(6)} ${t.paymentMode.substring(0,8)}\n`;
+String(t.tableNo || '').padEnd(6)
     totalGross += t.grossAmount;
     totalDisc += t.discount;
     totalCGST += t.cgst;
@@ -726,18 +726,21 @@ function generateDiscountSummaryHTML(transactions) {
 
   let totalDiscount = 0;
 
-  transactions.filter(t => t.discount > 0).forEach(t => {
-    const discountReason = String(t.discountReason || 'N/A');
-    html += `${t.billNo.padEnd(8)} ${discountReason.substring(0,20).padEnd(20)} ${t.discount.toFixed(2).padStart(6)}\n`;
-    totalDiscount += t.discount;
-  });
+  transactions
+    .filter(t => t.discount > 0)
+    .forEach(t => {
+      const discountReason = String(t.discountReason || 'N/A');
 
-  html += '-------- -------------------- ------\n';
-  html += `TOTAL DISCOUNT               ${totalDiscount.toFixed(2).padStart(6)}\n\n`;
+String(t.billNo || '').padEnd(8)
+
+      totalDiscount += t.discount;
+    });
+
+  html += '-----------------------------------\n';
+  html += `Total Discount: ${totalDiscount.toFixed(2)}\n`;
 
   return html;
 }
-
 function generateReverseKOTsSummaryHTML(reverseKOTs) {
   let html = 'REVERSE KOTs SUMMARY\n\n';
   html += 'KOT No  Table  Item Name          Qty  Reason    Time\n';
@@ -747,7 +750,7 @@ function generateReverseKOTsSummaryHTML(reverseKOTs) {
     const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
     const itemName = String(r.itemName || 'N/A');
     const reason = String(r.reason || 'N/A');
-    html += `${r.kotNo.padEnd(7)} ${String(r.tableNo).padEnd(6)} ${itemName.substring(0,18).padEnd(18)} ${String(r.quantity).padStart(4)} ${reason.substring(0,9).padEnd(9)} ${timeStr}\n`;
+String(r.kotNo || '').padEnd(7)
   });
 
   html += '\n';
@@ -761,7 +764,7 @@ function generateReverseBillSummaryHTML(reverseBills) {
 
   reverseBills.forEach(r => {
     const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    html += `${r.billNo.padEnd(8)} ${String(r.tableNo).padEnd(6)} ${r.reversedAmount.toFixed(2).padStart(16)} ${r.reason.substring(0,9).padEnd(9)} ${timeStr}\n`;
+String(r.billNo || '').padEnd(8)
   });
 
   html += '\n';
