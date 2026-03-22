@@ -13,6 +13,8 @@ import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
 import KotPreviewPrint from '../PrintReport/KotPrint';
 import BillPreviewPrint from '../PrintReport/BillPrint';
+import ReverseKotPrint from '../PrintReport/ReverseKotPrint';
+
 import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
 import TableManagementService from '@/common/api/tablemanagement';
 import TableDepartmentService from '@/common/api/tabledepartment';
@@ -161,8 +163,13 @@ const Order = () => {
   const [authPassword, setAuthPassword] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
 
-  // State to track reverse quantity items for KOT printing
+// State to track reverse quantity items for KOT printing
   const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
+
+  // NEW: Reverse KOT Print Modal states
+  const [showReverseKotPrintModal, setShowReverseKotPrintModal] = useState(false);
+  const [reversePrintTrigger, setReversePrintTrigger] = useState(0);
+
 
   // New state for Focus Mode
   const [focusMode, setFocusMode] = useState<boolean>(() => {
@@ -302,6 +309,10 @@ const isOrderBilled = (): boolean => {
     setItems([]);
     setReversedItems([]);
     setReverseQtyItems([]);
+
+    // NEW: Reset reverse print modal
+    setShowReverseKotPrintModal(false);
+
 
     setOrderNo(null);
     setBillPrintedTime(null);
@@ -2003,10 +2014,9 @@ const tableNameForKOT =
       });
 
       if (response.success) {
-        toast.success('Reverse KOT processed successfully.');
+        toast.success('Reverse KOT processed successfully!');
 
         // 2️⃣ Table status update API call (green)
-        // 2️⃣ Table status update API call
         if (selectedTable) {
           const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
           if (tableToUpdate) {
@@ -2017,33 +2027,20 @@ const tableNameForKOT =
             });
             const newStatus = allReversed ? 0 : 1; // 0 = Vacant, 1 = Running
             await OrderService.updateTableStatus(tableToUpdate.tableid, { status: newStatus });
-
           }
         }
-        // Open print preview for the reverse KOT
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          const contentToPrint = document.getElementById('kot-preview');
-          if (contentToPrint) {
-            printWindow.document.write(`
-              <!DOCTYPE html>
-              <html>
-                <head><title>Reverse KOT</title></head>
-                <body>${contentToPrint.innerHTML}</body>
-              </html>
-            `);
-            printWindow.document.close();
-            printWindow.focus();
-            printWindow.print();
-          }
+
+        // NEW: Auto-trigger Reverse KOT print modal + print
+        if (reverseQtyItems.length > 0) {
+          setShowReverseKotPrintModal(true);
+          setReversePrintTrigger(prev => prev + 1);
         }
 
         // ✅ If the reversal was from Pickup or Delivery, refresh and show that view.
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
           handlePendingOrderTabClick(activeTab.toLowerCase() as 'pickup' | 'delivery');
         }
-        // For both partial and full reversals, reset the UI state and refresh tables.
-        // For both partial and full reversals, reset the UI state and refresh tables.
+        // Reset UI after successful save
         setItems([]);
         setReversedItems([]);
         setSelectedTable(null);
@@ -2055,12 +2052,8 @@ const tableNameForKOT =
         setDiscount(0);
         setDiscountInputValue(0);
         setRoundOffValue(0);
-
-        // 🔴 MISSING BUT REQUIRED
         setCurrentKOTNo(null);
         setCurrentKOTNos([]);
-
-        // 🔴 VERY IMPORTANT (transaction lifecycle reset)
         setPersistentTxnId(null);
         setPersistentTableId(0);
 
@@ -2069,6 +2062,7 @@ const tableNameForKOT =
       } else {
         throw new Error(response.message || 'Failed to process reverse KOT.');
       }
+
     } catch (error: any) {
       toast.error(error.message || 'Error while saving reversal.');
     } finally {
@@ -4611,6 +4605,22 @@ setSelectedDeptId(deptId ?? 0);
               </Button>
             </Modal.Footer>
           </Modal>
+          {/* NEW: Reverse KOT Print Modal */}
+          <ReverseKotPrint
+            show={showReverseKotPrintModal}
+            onHide={() => setShowReverseKotPrintModal(false)}
+            items={reverseQtyItems.map(item => ({
+              ...item,
+              isReverse: true,
+              revQty: item.qty
+            }))}
+            user={user}
+            restaurantName={user?.hotel_name}
+            outletName={user?.outlet_name}
+            date={user?.currDate}
+            reversePrintTrigger={reversePrintTrigger}
+          />
+
           <Modal
             show={showTaxModal}
             onHide={() => setShowTaxModal(false)}
@@ -4628,7 +4638,7 @@ setSelectedDeptId(deptId ?? 0);
                 <div style={{ overflowX: 'auto' }}>
                   <table
                     className="table table-bordered text-center"
-                    style={{ minWidth: '800px', width: '100%' }}  // Inline CSS applied here
+                    style={{ minWidth: '800px', width: '100%' }}
                   >
                     <thead>
                       <tr>

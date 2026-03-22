@@ -1,10 +1,18 @@
-# Fix Day End Report TypeError Task
+# Automatic Reverse KOT Printing - Implementation Plan
 
-## Steps to Complete:
+## Status: ✅ PLAN APPROVED | Now Implementing Step-by-Step
 
-- [x] **Step 1**: Edit `backend/controllers/Dayendcontroller.js` to add explicit `String()` conversions around `padEnd`/`padStart` calls in `generateBillDetailsHTML` (tableNo, billNo) and audit similar functions for safety.
-- [x] **Step 2**: Verify no other syntax errors in edited sections.
-- [x] **Step 3**: Test by regenerating the day end report HTML to confirm TypeError is resolved.
-- [x] **Step 4**: Complete task.
+### Completed Steps
+- [x] 1. Analyze files (`Orders.tsx`, `ReverseKotPrint.tsx`, `ReverseKotModal.tsx`)
+- [x] 2. Create detailed edit plan 
+- [x] 3. User approval received ✅
 
-Current progress: Starting Step 1.
+### Implementation Steps (4 Total)
+
+**⏳ PENDING:**
+1. **Edit Orders.tsx** - Add modal state + trigger logic + render ReverseKotPrint modal
+2. **Edit ReverseKotPrint.tsx** - Add auto-print useEffect 
+3. **Test Integration** - Add reverse items → Save → Verify auto-print
+4. **attempt_completion** - Mark task COMPLETE
+
+**Next Step:** Edit Orders.tsx (primary changes)
