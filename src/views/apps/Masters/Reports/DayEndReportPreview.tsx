@@ -13,6 +13,7 @@ const DayEndReportPreview: React.FC = () => {
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [, setOutletId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [printIframeRef, setPrintIframeRef] = useState<HTMLIFrameElement | null>(null);
   const { user } = useAuthContext();
 
   useEffect(() => {
@@ -53,10 +54,24 @@ const DayEndReportPreview: React.FC = () => {
     try {
       setLoading(true);
 
-      // Get system printers via Electron API (asynchronous)
+      // Debug HTML content
+      console.log('📄 Preview HTML length:', previewHTML.length);
+      console.log('📄 Preview HTML preview:', previewHTML.substring(0, 500) + '...');
+
+      // Try iframe print first (better for web content)
+      if (printIframeRef?.contentWindow) {
+        const iframeWin = printIframeRef.contentWindow!;
+        iframeWin.focus();
+        iframeWin.print();
+        toast.success("Print dialog opened! Use system dialog to print.");
+        setLoading(false);
+        return;
+      }
+
+      // Fallback to Electron direct print
       const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
       const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
-      console.log("System Printers:", systemPrinters);
+      console.log("🖨️ System Printers:", systemPrinters);
 
       if (systemPrinters.length === 0) {
         toast.error("No printers detected on this system. Please check printer connections and drivers.");
@@ -143,22 +158,81 @@ const DayEndReportPreview: React.FC = () => {
               {loading ? 'Printing...' : 'Print Report'}
             </Button>
           </div>
-          <div
-            className="border rounded p-3 bg-white"
-            style={{
-              fontFamily: 'monospace',
-              fontSize: '12px',
-              lineHeight: '1.2',
-              whiteSpace: 'pre-wrap',
-              maxWidth: '320px',
-              margin: '0 auto',
-              maxHeight: '80vh',
-              overflowY: 'auto'
-            }}
-            dangerouslySetInnerHTML={{
-              __html: previewHTML.replace(/<html>[\s\S]*<body>/, '').replace(/<\/body><\/html>/, '')
-            }}
-          />
+          <div className="border rounded bg-white" style={{ maxHeight: '80vh', overflow: 'auto' }}>
+            <iframe
+              ref={(el) => {
+                if (el) setPrintIframeRef(el);
+              }}
+              srcDoc={`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta charset="UTF-8">
+                  <style>
+                    body {
+                      font-family: 'Courier New', Courier, monospace !important;
+                      font-size: 13px !important;
+                      line-height: 1.4 !important;
+                      margin: 0.25in !important;
+                      padding: 0.125in !important;
+                      width: 100% !important;
+                      min-width: 7.5in !important;
+                      max-width: none !important;
+                      color: black !important;
+                      background: white !important;
+                      print-color-adjust: exact !important;
+                      -webkit-print-color-adjust: exact !important;
+                      word-wrap: break-word !important;
+                    }
+                    img { max-width: 100% !important; height: auto !important; }
+                    table { 
+                      width: 100% !important; 
+                      border-collapse: collapse !important;
+                      table-layout: fixed !important;
+                      word-wrap: break-word !important;
+                    }
+                    td, th { 
+                      word-wrap: break-word !important;
+                      padding: 2px 4px !important;
+                    }
+                    @media print {
+                      body {
+                        margin: 0.125in !important;
+                        padding: 0.0625in !important;
+                        font-size: 12px !important;
+                        line-height: 1.3 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        color-adjust: exact !important;
+                      }
+                      @page {
+                        size: A4 portrait;
+                        margin: 0.125in;
+                      }
+                      table { font-size: 11px !important; }
+                    }
+                    * { box-sizing: border-box !important; }
+                  </style>
+                </head>
+                <body>
+                  ${previewHTML}
+                </body>
+                </html>
+              `}
+              style={{
+                width: '100%',
+                height: '600px',
+                border: 'none',
+                fontFamily: 'monospace',
+                fontSize: '12px'
+              }}
+              title="Day End Report Preview"
+            />
+          </div>
+          {previewHTML.length < 100 && (
+            <div className="alert alert-warning mt-2">
+              ⚠️ Warning: Preview HTML is very short ({previewHTML.length} chars). Check DayEnd report generation.
+            </div>
+          )}
         </div>
       ) : (
         <div className="text-center py-5">
