@@ -1,6 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
+import PrintService from "@/common/api/print";
 import { Modal, Button, Spinner } from "react-bootstrap";
 import { toast } from "react-hot-toast";
+import { useAuthContext } from "@/common";
+
 
 interface MenuItem {
   id: number;
@@ -27,7 +30,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   show,
   onHide,
   items,
-  user,
+ 
   restaurantName,
   outletName,
   date,
@@ -35,6 +38,11 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
+  const [localRestaurantName, setLocalRestaurantName] = useState<string>('');
+  const [localOutletName, setLocalOutletName] = useState<string>('');
+  const [isLoadingNames, setIsLoadingNames] = useState(true);
+  const { user } = useAuthContext();
+  
 
   /** 🔹 Filter reverse items */
   const reverseItems = useMemo(() => {
@@ -50,23 +58,39 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
     return Array.from(set).join(", ");
   }, [reverseItems]);
 
-  /** 🔹 Fetch printer */
+  /** 🔹 Fetch printer + outlet details (parallel) */
   useEffect(() => {
-    if (!show || !user?.outletid) return;
+    if (!show || !user.outletid) {
+      setIsLoadingNames(false);
+      return;
+    }
 
-    const fetchPrinter = async () => {
+    const fetchPrinterAndOutlet = async () => {
+      setIsLoadingNames(true);
       try {
-        const res = await fetch(
-          `http://localhost:3001/api/settings/kot-printer-settings/${user.outletid}`
-        );
-        const data = await res.json();
-        setPrinterName(data?.printer_name || null);
-      } catch {
-        toast.error("Failed to load printer settings");
+        const [printerRes, outletRes] = await Promise.all([
+          PrintService.getKotPrinterSettings(user.outletid),
+          PrintService.getOutletDetails(user.outletid)
+        ]);
+
+        const printerData = printerRes?.data || printerRes;
+        const outletData = outletRes?.data || outletRes;
+
+        setPrinterName(printerData?.printer_name || null);
+        setLocalRestaurantName(outletData?.brand_name || outletData?.hotel_name || user?.hotel_name || '');
+        setLocalOutletName(outletData?.outlet_name || user?.outlet_name || '');
+      } catch (error) {
+        console.error('Error fetching printer/outlet:', error);
+        toast.error("Failed to load printer/outlet settings");
+        setPrinterName(null);
+        setLocalRestaurantName(user?.hotel_name || '');
+        setLocalOutletName(user?.outlet_name || '');
+      } finally {
+        setIsLoadingNames(false);
       }
     };
 
-    fetchPrinter();
+    fetchPrinterAndOutlet();
   }, [show, user]);
 
   /** 🔹 DateTime */
@@ -78,9 +102,11 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 
   /** 🔹 ONLY CONTENT (for preview) */
   const generateContent = useMemo(() => {
+    const displayRestaurantName = restaurantName || localRestaurantName || user.hotel_name || "";
+    const displayOutletName = outletName || localOutletName || user.outlet_name || "";
     return `
-<div class="center bold">${restaurantName || user?.hotel_name || ""}</div>
-<div class="center">${outletName || user?.outlet_name || ""}</div>
+<div class="center bold">${displayRestaurantName}</div>
+<div class="center">${displayOutletName}</div>
 
 <hr/>
 
@@ -118,12 +144,7 @@ ${reverseItems.map(i => `
 <div class="center">*** REVERSE KOT ***</div>
     `;
   }, [
-    restaurantName,
-    outletName,
-    user,
-    reverseKotNos,
-    dateTime,
-    reverseItems
+    restaurantName, localRestaurantName, outletName, localOutletName, user, reverseKotNos, dateTime, reverseItems
   ]);
 
   /** 🔹 FULL HTML (for printing only) */
@@ -182,9 +203,10 @@ ${generateContent}
       </Modal.Header>
 
       <Modal.Body>
-        {loading ? (
+        {loading || isLoadingNames ? (
           <div className="text-center">
             <Spinner />
+            <div className="mt-2">Loading printer/outlet...</div>
           </div>
         ) : (
           <div className="border p-3 bg-light">

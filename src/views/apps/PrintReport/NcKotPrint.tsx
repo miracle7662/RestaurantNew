@@ -35,28 +35,63 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
+  const [localRestaurantName, setLocalRestaurantName] = useState<string>('');
+  const [localOutletName, setLocalOutletName] = useState<string>('');
+  const [isLoadingNames, setIsLoadingNames] = useState(true);
 
   /** 🔹 Filter NC items */
   const ncItems = useMemo(() => {
     return items.filter(i => i.isNCKOT === 1);
   }, [items]);
 
-  /** 🔹 Fetch printer */
+  /** 🔹 Fetch printer + outlet details (parallel) */
   useEffect(() => {
-    if (!show || !user?.outletid) return;
+    if (!show || !user?.outletid) {
+      setIsLoadingNames(false);
+      return;
+    }
 
-    const fetchPrinter = async () => {
+    const fetchPrinterAndOutlet = async () => {
+      setIsLoadingNames(true);
       try {
-        const res = await PrintService.getKotPrinterSettings(user.outletid);
-        const data = res?.data || res;
-        setPrinterName(data?.printer_name || null);
-      } catch {
-        toast.error("Failed to load printer settings");
+        // Parallel fetches
+        const [printerRes, outletRes] = await Promise.all([
+          PrintService.getKotPrinterSettings(user.outletid),
+          PrintService.getOutletDetails(user.outletid)
+        ]);
+
+        // Handle wrapped/unwrapped responses (HttpClient interceptor)
+        const printerData = printerRes?.data || printerRes;
+        const outletData = outletRes?.data || outletRes;
+
+        setPrinterName(printerData?.printer_name || null);
+        
+        // Use brand_name first (preferred), fallback to hotel_name
+        if (!restaurantName || restaurantName.trim() === '' || restaurantName === 'Restaurant Name') {
+          setLocalRestaurantName(outletData?.brand_name || outletData?.hotel_name || user?.hotel_name || 'Restaurant Name');
+        } else {
+          setLocalRestaurantName(restaurantName);
+        }
+
+        // Always set outlet name (most important)
+        if (!outletName || outletName.trim() === '' || outletName === 'Outlet Name') {
+          setLocalOutletName(outletData?.outlet_name || user?.outlet_name || 'Outlet Name');
+        } else {
+          setLocalOutletName(outletName);
+        }
+      } catch (error) {
+        console.error('Error fetching printer/outlet:', error);
+        toast.error('Failed to load printer/outlet settings.');
+        setPrinterName(null);
+        setLocalRestaurantName(user?.hotel_name || 'Restaurant Name');
+        setLocalOutletName(user?.outlet_name || 'Outlet Name');
+      } finally {
+        setIsLoadingNames(false);
       }
     };
 
-    fetchPrinter();
-  }, [show, user]);
+    fetchPrinterAndOutlet();
+  }, [show, user, outletName, restaurantName]);
 
   /** 🔹 DateTime */
   const dateTime = useMemo(() => {
@@ -94,8 +129,8 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
 </head>
 <body>
 
-<div class="center bold">${restaurantName || user?.hotel_name}</div>
-<div class="center">${outletName || user?.outlet_name}</div>
+<div class="center bold">${restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name'}</div>
+<div class="center">${outletName || localOutletName || user?.outlet_name || 'Outlet Name'}</div>
 
 <hr />
 

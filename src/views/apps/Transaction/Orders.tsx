@@ -208,7 +208,6 @@ const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
   const [, setBillActionState] = useState<'initial' | 'printOrSettle'>('initial');
   const [outletPaymentModes, setOutletPaymentModes] = useState<PaymentMode[]>([]);
   const [showSettlementModal, setShowSettlementModal] = useState<boolean>(false);
-  const [printThenSettleMode, setPrintThenSettleMode] = useState<boolean>(false);
   const [isMixedPayment, setIsMixedPayment] = useState<boolean>(false);
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>([]);
@@ -4643,9 +4642,9 @@ setSelectedDeptId(deptId ?? 0);
               revQty: item.qty
             }))}
             user={user}
-            restaurantName={user?.hotel_name}
-            outletName={user?.outlet_name}
-            date={user?.currDate}
+            restaurantName={user.hotel_name}
+            outletName={user.outlet_name}
+            date={user.currDate}
             reversePrintTrigger={reversePrintTrigger}
           />
 
