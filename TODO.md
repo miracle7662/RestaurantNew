@@ -1,17 +1,20 @@
-# Task: Add item price column to ReverseKotPrint.tsx table
+# Day End Report Print Fix - TODO
 
-## Status
-- [x] Plan approved by user
-- [ ] Create TODO.md ✅
-- [x] Update ReverseKotPrint.tsx interface + table ✅
-- [ ] Test preview/print
-- [ ] Complete
+## Plan Summary
+Fix blank print issue in `src/views/apps/Masters/Reports/DayEndReportPreview.tsx` by:
+- Using iframe for isolated print context
+- Adding print-optimized CSS (@media print)
+- Debug HTML content
+- Improve Electron print handling
 
-## Details
-**File:** src/views/apps/PrintReport/ReverseKotPrint.tsx
-- Add `price?: number;` to MenuItem
-- Table header: Item | Qty | **Rate** | **Amount** (optional)
-- Use `i.price?.toFixed(2)` for safety
-- Total amount at bottom optional
+## Steps
+- [x] Create this TODO.md
+- [x] Update DayEndReportPreview.tsx with iframe + print CSS (v1)
+- [x] Add debug logging for previewHTML
+- [x] Initial testing: Print works but narrow → fixing width
+- [ ] Update CSS for wider content
+- [ ] Final test & complete
 
-**Next:** Edit file → Test
+Current step: Fix narrow print width.
+
+Current step: Edit the TSX file.
