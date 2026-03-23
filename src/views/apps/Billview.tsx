@@ -18,6 +18,8 @@ import TableManagementService from '@/common/api/tablemanagement';
 import OrderService from '@/common/api/order';
 import MenuService from "@/common/api/menu";
 import { DepartmentDetail } from "@/common/api/menu";
+import ReverseKotPrint from '../apps/PrintReport/ReverseKotPrint';
+
 
 
 
@@ -447,7 +449,13 @@ const ModernBill = () => {
   const [currentKotNoForPrint, setCurrentKotNoForPrint] = useState<number | null>(null);
   const [showBillPrintModal, setShowBillPrintModal] = useState(false);
   const [showNCKotPrintModal, setShowNCKotPrintModal] = useState(false);
-  const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
+const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
+
+  // 🔥 NEW Reverse KOT Print states (like Orders.tsx)
+  const [showReverseKotPrintModal, setShowReverseKotPrintModal] = useState(false);
+  const [reversePrintTrigger, setReversePrintTrigger] = useState(0);
+  const [reverseSnapshot, setReverseSnapshot] = useState<any[]>([]);
+
   // Transfer modal data
   const [originalTableStatus, setOriginalTableStatus] = useState<number>(0);
 
@@ -2182,10 +2190,20 @@ const ModernBill = () => {
         console.error('Error updating table status:', error);
       }
 
+      // 🔥 PRINT PREVIEW (like Orders.tsx)
+      setReverseSnapshot(reverseItemsFromModal.map(item => ({
+        ...item,
+        name: item.itemName || "",   // ✅ FIX
+        isReverse: true,
+        revQty: item.cancelQty  // Use cancelQty from modal
+      })));
+      setShowReverseKotPrintModal(true);
+      setReversePrintTrigger(prev => prev + 1);
+
       await loadBillDetails();
       await fetchTableManagement();
 
-      navigate('/apps/Tableview');
+      // 🔥 Navigate moved to ReverseKotPrint onHide
 
     } catch (err: any) {
       console.error(err);
@@ -3949,6 +3967,23 @@ value={item.SpecialInst}
           }, 300);
         }}
       />
+
+      {/* 🔥 NEW: Reverse KOT Print Modal (copy from Orders.tsx) */}
+      <ReverseKotPrint
+        key={reversePrintTrigger}
+        show={showReverseKotPrintModal}
+        onHide={() => {
+          setShowReverseKotPrintModal(false);
+          setReverseSnapshot([]);
+          navigate('/apps/Tableview');  // 🔥 Navigate AFTER print/close
+        }}
+        items={reverseSnapshot}
+        user={user}
+        restaurantName={restaurantName}
+        outletName={outletName}
+        date={user?.currDate}
+      />
+
     </React.Fragment>
   );
 };
