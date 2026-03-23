@@ -618,7 +618,11 @@ const getFormattedDate = (dateStr: string) => {
         .table-container th:nth-child(27),
         .table-container td:nth-child(27) { width: 7%; text-align: center; } /* Status */
         .table-container th:nth-child(28),
-        .table-container td:nth-child(28) { width: 6%; text-align: center; } /* Actions */
+        .table-container td:nth-child(28) { width: 6%; text-align: center; } /* isNCKOT */
+        .table-container th:nth-child(29),
+        .table-container td:nth-child(29) { width: 7%; } /* Outlet ID */
+        .table-container th:nth-child(30),
+        .table-container td:nth-child(30) { width: 6%; text-align: center; } /* Actions */
         .summary-cards {
           margin-bottom: 1rem;
         }
@@ -939,7 +943,7 @@ const getFormattedDate = (dateStr: string) => {
                             <th>Round off</th>
                             <th>Rev Amt</th>
                             <th>KOT No</th>
-  <th>Rev KOT No</th>
+                            <th>Rev KOT No</th>
                             <th>NC Name</th>
                             <th>NC Purpose</th>
                             <th>isNCKOT</th>
@@ -1058,8 +1062,9 @@ const getFormattedDate = (dateStr: string) => {
                         </tbody>
                         <tfoot>
                           <tr className="table-success">
-                            <td></td>
                             <td>Total</td>
+                            <td></td>
+                            
                             <td style={{ textAlign: 'right' }}>₹{totalSales.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>-₹{totalDiscount.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalGrossAmount.toLocaleString()}</td>
@@ -1069,6 +1074,9 @@ const getFormattedDate = (dateStr: string) => {
                             <td style={{ textAlign: 'right' }}>₹{totalRevAmt.toLocaleString()}</td>
                             <td></td>
                             <td></td>
+                            <td></td> {/* NC Name */}
+                            <td></td> {/* NC Purpose */}
+                            <td style={{ textAlign: 'center' }}>{orders.filter(o => o.ncKot).length}</td> {/* isNCKOT count */}
                             <td></td>
                             <td style={{ textAlign: 'right' }}>₹{totalWater.toLocaleString()}</td>
                             <td></td>

@@ -1,11 +1,13 @@
-# TODO: Implement handlePrintAndSettle Sequential Flow
-## Plan Breakdown
-1. [ ] Add new state `showSettlementAfterPrint`
-2. [ ] Add useEffect to watch bill print modal close → open settlement
-3. [ ] Update `handlePrintAndSettle` to call `handlePrintBill` + set bridge state
-4. [ ] Update `handlePrintBill` success → set bridge state true
-5. [ ] Test F11 flow: Print modal → Settlement modal → Settle success
-6. [ ] attempt_completion
+# Day End Table Footer Fix Progress
+hr
+## Plan Steps:
+- [ ] Step 1: Create TODO.md with steps (CURRENT)
+- [ ] Step 2: Fix tfoot column alignment in DayEnd.tsx (add empty td for NC columns)
+- [ ] Step 3: Update CSS nth-child selectors for full table width
+- [ ] Step 4: Add NC KOT count summary in footer
+- [ ] Step 5: Test table rendering and alignment
+- [ ] Step 6: Verify no scroll/overflow issues
+- [ ] Step 7: attempt_completion
 
-**Status**: Starting edits...
+**Status:** Fixed table footer mismatch - restored "Total" label, aligned all 32 columns with NC headers, added CSS up to nth-child(30). Test in browser.
 
