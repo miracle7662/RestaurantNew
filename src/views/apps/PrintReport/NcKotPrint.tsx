@@ -37,7 +37,7 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [localRestaurantName, setLocalRestaurantName] = useState<string>('');
   const [localOutletName, setLocalOutletName] = useState<string>('');
-  const [isLoadingNames, setIsLoadingNames] = useState(true);
+  const [, setIsLoadingNames] = useState(true);
 
   /** 🔹 Filter NC items */
   const ncItems = useMemo(() => {
