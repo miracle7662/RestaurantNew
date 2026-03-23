@@ -14,6 +14,7 @@ import { applyKotSettings, } from '@/utils/applyOutletSettings';
 import KotPreviewPrint from '../PrintReport/KotPrint';
 import BillPreviewPrint from '../PrintReport/BillPrint';
 import ReverseKotPrint from '../PrintReport/ReverseKotPrint';
+import NCKotPrint from "../PrintReport/NcKotPrint";
 
 import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
 import TableManagementService from '@/common/api/tablemanagement';
@@ -169,6 +170,8 @@ const Order = () => {
   // NEW: Reverse KOT Print Modal states
   const [showReverseKotPrintModal, setShowReverseKotPrintModal] = useState(false);
   const [reversePrintTrigger, setReversePrintTrigger] = useState(0);
+  const [showNCKotPrintModal, setShowNCKotPrintModal] = useState(false);
+  const [ncPrintItems, setNcPrintItems] = useState<MenuItem[]>([]);
 
 
   // New state for Focus Mode
@@ -2751,6 +2754,18 @@ const tableNameForKOT =
       if (result.success) {
         toast.success('NCKOT applied successfully to all items.');
 
+        const ncItems = items.map(i => ({
+          ...i,
+          isNCKOT: 1,
+          NCName: ncName,
+          NCPurpose: ncPurpose
+        }));
+
+        if (ncItems.length > 0) {
+          setNcPrintItems(ncItems);
+          setShowNCKotPrintModal(true);
+        }
+
         // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
         await fetchTableManagement();
 
@@ -4621,6 +4636,14 @@ setSelectedDeptId(deptId ?? 0);
             reversePrintTrigger={reversePrintTrigger}
           />
 
+          <NCKotPrint
+            show={showNCKotPrintModal}
+            onHide={() => setShowNCKotPrintModal(false)}
+            items={ncPrintItems}
+            user={user}
+            outletName={user?.outlet_name}
+            restaurantName={user?.hotel_name}
+          />
           <Modal
             show={showTaxModal}
             onHide={() => setShowTaxModal(false)}

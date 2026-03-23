@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Button, Modal, Spinner } from "react-bootstrap";
 import { toast } from "react-hot-toast";
+import PrintService from "@/common/api/print";
 
 interface MenuItem {
   id: number;
@@ -41,14 +42,13 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
   );
 
   useEffect(() => {
-    if (!show) return;
+    if (!show || !user?.outletid) return;
 
     const fetchPrinter = async () => {
       try {
-        const res = await fetch(
-          `http://localhost:3001/api/settings/kot-printer-settings/${user?.outletid}`
-        );
-        const data = await res.json();
+        const res = await PrintService.getKotPrinterSettings(user.outletid);
+        // Handle both wrapped (res?.data) and unwrapped (res) responses
+        const data = res?.data || res;
         setPrinterName(data?.printer_name || null);
       } catch {
         toast.error("Failed to load printer settings");
