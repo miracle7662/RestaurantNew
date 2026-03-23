@@ -10,6 +10,7 @@ import F8PasswordModal from '../../components/F8PasswordModal';
 import ReverseKotModal from './ReverseKotModal';
 import KotPreviewPrint from './PrintReport/KotPrint';
 import BillPreviewPrint from './PrintReport/BillPrint';
+import NCKotPrint from './PrintReport/NcKotPrint';
 import { OutletSettings } from '../../utils/applyOutletSettings';
 import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
@@ -445,6 +446,8 @@ const ModernBill = () => {
   const [showKotPrintModal, setShowKotPrintModal] = useState(false);
   const [currentKotNoForPrint, setCurrentKotNoForPrint] = useState<number | null>(null);
   const [showBillPrintModal, setShowBillPrintModal] = useState(false);
+  const [showNCKotPrintModal, setShowNCKotPrintModal] = useState(false);
+  const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
   // Transfer modal data
   const [originalTableStatus, setOriginalTableStatus] = useState<number>(0);
 
@@ -2069,6 +2072,21 @@ const ModernBill = () => {
       if (result.success) {
         toast.success('NCKOT applied successfully to all items.');
 
+        const ncItemsToPrint = billItems
+          .filter(i => i.itemId > 0)
+          .map(i => ({
+            id: i.itemId,
+            name: i.itemName,
+            price: i.rate,
+            qty: i.qty,
+            isNCKOT: 1,
+            NCName: ncName,
+            NCPurpose: ncPurpose,
+            isBilled: 0
+          }));
+        setNcPrintItems(ncItemsToPrint);
+        setShowNCKotPrintModal(true);
+
         // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
         // Explicitly set table status to vacant (0) after NCKOT
         // Try to update table status, but continue even if it fails
@@ -2095,7 +2113,7 @@ const ModernBill = () => {
         setShowNCKOTModal(false);
 
         // ✅ 3️⃣ NAVIGATE TO TABLEVIEW - Always navigate regardless of table status update
-        navigate('/apps/Tableview');
+        // navigate('/apps/Tableview'); // Moved to NCKotPrint onHide
       } else {
         throw new Error(result.message || 'Failed to apply NCKOT.');
       }
@@ -3615,6 +3633,17 @@ value={item.SpecialInst}
           </Button>
         </Modal.Footer>
       </Modal>
+      <NCKotPrint
+        show={showNCKotPrintModal}
+        onHide={() => {
+          setShowNCKotPrintModal(false);
+          navigate('/apps/Tableview');
+        }}
+        items={ncPrintItems}
+        user={user}
+        outletName={outletName || user?.outlet_name}
+        restaurantName={restaurantName || user?.hotel_name}
+      />
       <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
         if (DiscountType === 1) {
           setDiscountInputValue(DiscPer);

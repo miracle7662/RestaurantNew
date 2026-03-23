@@ -36,18 +36,18 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
   const [loading, setLoading] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
 
-  const ncItems = useMemo(
-    () => items.filter(i => i.isNCKOT === 1),
-    [items]
-  );
+  /** 🔹 Filter NC items */
+  const ncItems = useMemo(() => {
+    return items.filter(i => i.isNCKOT === 1);
+  }, [items]);
 
+  /** 🔹 Fetch printer */
   useEffect(() => {
     if (!show || !user?.outletid) return;
 
     const fetchPrinter = async () => {
       try {
         const res = await PrintService.getKotPrinterSettings(user.outletid);
-        // Handle both wrapped (res?.data) and unwrapped (res) responses
         const data = res?.data || res;
         setPrinterName(data?.printer_name || null);
       } catch {
@@ -58,12 +58,15 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
     fetchPrinter();
   }, [show, user]);
 
-  const dateTime = date
-    ? new Date(date).toLocaleString("en-GB")
-    : new Date().toLocaleString("en-GB");
+  /** 🔹 DateTime */
+  const dateTime = useMemo(() => {
+    return date
+      ? new Date(date).toLocaleString("en-GB")
+      : new Date().toLocaleString("en-GB");
+  }, [date]);
 
-  const generateNCKOTHTML = () => {
-    return `
+  /** 🔹 Full HTML (PRINT) */
+  const generateHTML = () => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -106,15 +109,12 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
   <th align="left">Item</th>
   <th align="center">Qty</th>
 </tr>
-${ncItems
-  .map(
-    i => `
+${ncItems.map(i => `
 <tr>
   <td>${i.name}</td>
   <td align="center">${i.qty}</td>
-</tr>`
-  )
-  .join("")}
+</tr>
+`).join("")}
 </table>
 
 <hr />
@@ -123,9 +123,15 @@ ${ncItems
 
 </body>
 </html>
-`;
+  `;
+
+  /** 🔹 Extract ONLY body for preview (FIX) */
+  const getBodyContent = (html: string) => {
+    const match = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    return match ? match[1] : html;
   };
 
+  /** 🔹 Print */
   const handlePrint = async () => {
     try {
       setLoading(true);
@@ -135,13 +141,14 @@ ${ncItems
         return;
       }
 
-      const html = generateNCKOTHTML();
+      await (window as any).electronAPI.directPrint(
+        generateHTML(),
+        printerName
+      );
 
-      await (window as any).electronAPI.directPrint(html, printerName);
       toast.success("NC KOT Printed");
-
       onHide();
-    } catch (err) {
+    } catch {
       toast.error("Print failed");
     } finally {
       setLoading(false);
@@ -156,22 +163,29 @@ ${ncItems
 
       <Modal.Body>
         {loading ? (
-          <Spinner />
+          <div className="text-center">
+            <Spinner />
+          </div>
         ) : (
           <div
             style={{
               width: "302px",
               margin: "0 auto",
               border: "1px solid #ccc",
-              padding: "10px"
+              padding: "10px",
+              backgroundColor: "#fff"
             }}
-            dangerouslySetInnerHTML={{ __html: generateNCKOTHTML() }}
+            dangerouslySetInnerHTML={{
+              __html: getBodyContent(generateHTML())
+            }}
           />
         )}
       </Modal.Body>
 
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>Close</Button>
+        <Button variant="secondary" onClick={onHide}>
+          Close
+        </Button>
         <Button variant="danger" onClick={handlePrint} disabled={loading}>
           Print NC KOT
         </Button>
