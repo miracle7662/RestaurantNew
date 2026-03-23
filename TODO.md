@@ -1,17 +1,38 @@
-# KOT Number Clear Issue Fix - Orders.tsx ✅ FIXED
-Current Working Directory: d:/Github/RestaurantNew
+# Restaurant POS - Task Tracker
 
-## Approved Plan Steps
+## ✅ Completed Tasks
 
-### ✅ 1. Create TODO.md [COMPLETED]
-### ✅ 2. Edit Orders.tsx - Add KOT state reset to handleSaveNCKOT() [COMPLETED]
-### 3. Create reusable resetOrderState() helper function
-### 4. Update all save flows to use resetOrderState()
-### 5. Sync Billview.tsx handleSaveNCKOT() (if active)
-### 6. Test: npm run dev → Verify KOT clears after NCKOT save
-### 7. Test other flows: Regular KOT, Bill, Reverse (no regression)
-### 8. attempt_completion
+**Reverse KOT Amount Display**  
+- [x] Fixed amount=0 issue in ReverseKotPrint.tsx  
+- [x] Added Rate | Qty(-X) | Amount columns + Total  
+- [x] Price normalization in Orders.tsx snapshot  
 
-**Next Step**: Step 3 - Add `resetOrderState()` helper function to Orders.tsx
+## 🔄 Active Tasks
 
+**NC KOT Print Enhancement** ✅ COMPLETED  
+- [✅] Update NcKotPrint.tsx table: Item | Rate | Qty | Amount + Total footer  
+- [✅] Fix Orders.tsx ncPrintItems price normalization  
+- [✅] Test NC KOT flow end-to-end  
+
+## 📋 Pending Tasks
+
+1. **Refactor Orders.tsx** (~5000 lines → Extract:  
+   - Custom hooks: `useTableManagement`, `useOrderCalculations`, `usePrintHandlers`  
+   - Utils: `tableStatusColor`, `kotPayloadBuilder`  
+
+2. **BillPrint.tsx** - Similar enhancements (Rate/Amount columns if needed)  
+
+3. **PrintReport Consistency**  
+   - Shared `PrintModal` HOC  
+   - Centralized printer settings  
+
+4. **Performance**  
+   - Memoize large item lists  
+   - Virtualize table buttons  
+
+## Next Steps  
+```
+- ✅ Complete NC KOT edits  
+- 📝 Update this TODO after each step  
+```
 

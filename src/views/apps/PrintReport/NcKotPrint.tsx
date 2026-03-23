@@ -65,11 +65,8 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
       : new Date().toLocaleString("en-GB");
   }, [date]);
 
-  /** 🔹 Full HTML (PRINT) - Updated with Price and Amount columns */
-  const generateHTML = () => {
-   
-
-    return `
+  /** 🔹 Full HTML (PRINT) */
+  const generateHTML = () => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -86,6 +83,7 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
   }
   .center { text-align: center; }
   .bold { font-weight: bold; }
+
   hr { border-top: 1px dashed #000; margin: 5px 0; }
   .right { text-align: right; }
   .item-table th, .item-table td { padding: 2px 0; border-bottom: 1px solid #000; }
@@ -123,10 +121,8 @@ ${ncItems.map(i => `
   <td class="col-item">${i.name}</td>
   <td class="col-qty">${i.qty}</td>
   <td class="col-rate">${i.price.toFixed(2)}</td>
- 
 </tr>
 `).join("")}
-
 </table>
 
 <hr />
@@ -135,8 +131,7 @@ ${ncItems.map(i => `
 
 </body>
 </html>
-    `;
-  };
+  `;
 
   /** 🔹 Extract ONLY body for preview (FIX) */
   const getBodyContent = (html: string) => {
