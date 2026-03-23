@@ -59,9 +59,10 @@ interface Order {
   items: number;
   kotNo: string;
   revKotNo: string;
-  discount: number;
-  ncKot: string;
+discount: number;
+ncKot: string;
   ncName?: string;
+  ncPurpose?: string;
   cgst: number;
   sgst: number;
   grossAmount: number;
@@ -938,7 +939,10 @@ const getFormattedDate = (dateStr: string) => {
                             <th>Round off</th>
                             <th>Rev Amt</th>
                             <th>KOT No</th>
-                            <th>Rev KOT No</th>
+  <th>Rev KOT No</th>
+                            <th>NC Name</th>
+                            <th>NC Purpose</th>
+                            <th>isNCKOT</th>
                             <th>Outlet ID</th>
                             <th>Water</th>
                             <th>Payment Type</th>
@@ -996,6 +1000,15 @@ const getFormattedDate = (dateStr: string) => {
                                   <small className="text-muted">
                                     {order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
                                   </small>
+                                </td>
+                                <td>{order.ncName || ''}</td>
+                                <td title={order.ncPurpose || ''} style={{whiteSpace:'normal'}}>
+                                  {order.ncPurpose || ''}
+                                </td>
+                                <td style={{textAlign:'center'}}>
+                                  <Badge bg={order.ncKot ? "primary" : "secondary"} className="fs-6">
+                                    {order.ncKot ? 'Yes' : 'No'}
+                                  </Badge>
                                 </td>
                                 <td>{order.outletid}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
