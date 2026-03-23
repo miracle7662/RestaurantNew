@@ -35,13 +35,12 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   const [loading, setLoading] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
 
-  /** 🔹 Only reverse items */
-  const reverseItems = useMemo(
-    () => items.filter(i => i.isReverse && (i.revQty ?? 0) > 0),
-    [items]
-  );
+  /** 🔹 Filter reverse items */
+  const reverseItems = useMemo(() => {
+    return items.filter(i => i.isReverse && (i.revQty ?? 0) > 0);
+  }, [items]);
 
-  /** 🔹 Collect reverse KOT numbers (comma separated, unique) */
+  /** 🔹 Unique Reverse KOT Nos */
   const reverseKotNos = useMemo(() => {
     const set = new Set<number>();
     reverseItems.forEach(i => {
@@ -50,13 +49,14 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
     return Array.from(set).join(", ");
   }, [reverseItems]);
 
+  /** 🔹 Fetch printer */
   useEffect(() => {
-    if (!show) return;
+    if (!show || !user?.outletid) return;
 
     const fetchPrinter = async () => {
       try {
         const res = await fetch(
-          `http://localhost:3001/api/settings/kot-printer-settings/${user?.outletid}`
+          `http://localhost:3001/api/settings/kot-printer-settings/${user.outletid}`
         );
         const data = await res.json();
         setPrinterName(data?.printer_name || null);
@@ -68,47 +68,30 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
     fetchPrinter();
   }, [show, user]);
 
-  const dateTime = date
-    ? new Date(date).toLocaleString("en-GB")
-    : new Date().toLocaleString("en-GB");
+  /** 🔹 DateTime */
+  const dateTime = useMemo(() => {
+    return date
+      ? new Date(date).toLocaleString("en-GB")
+      : new Date().toLocaleString("en-GB");
+  }, [date]);
 
-  const generateReverseKOTHTML = () => `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8" />
-<title>Reverse KOT</title>
-<style>
-  @page { size: 302px auto; margin: 0; }
-  body {
-    width: 302px;
-    margin: 0;
-    
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-  }
-  .center { text-align: center; }
-  .bold { font-weight: bold; }
-  .rev { color: #000; font-weight: bold; }
-  hr { border-top: 1px dashed #000; }
-</style>
-</head>
-<body>
+  /** 🔹 ONLY CONTENT (for preview) */
+  const generateContent = useMemo(() => {
+    return `
+<div class="center bold">${restaurantName || user?.hotel_name || ""}</div>
+<div class="center">${outletName || user?.outlet_name || ""}</div>
 
-<div class="center bold">${restaurantName || user?.hotel_name}</div>
-<div class="center">${outletName || user?.outlet_name}</div>
-
-<hr />
+<hr/>
 
 <div class="center bold">REVERSE KOT</div>
 
-<hr />
+<hr/>
 
 <div><strong>Reverse KOT No:</strong> ${reverseKotNos || "-"}</div>
 <div><strong>Date:</strong> ${dateTime}</div>
-<div><strong>User:</strong> ${user?.username}</div>
+<div><strong>User:</strong> ${user?.username || "-"}</div>
 
-<hr />
+<hr/>
 
 <table width="100%">
 <tr>
@@ -116,37 +99,65 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   <th align="center">Qty</th>
 </tr>
 
-${reverseItems
-  .map(
-    i => `
-<tr class="rev">
+${reverseItems.map(i => `
+<tr>
   <td>${i.name}</td>
   <td align="center">-${i.revQty}</td>
-</tr>`
-  )
-  .join("")}
+</tr>
+`).join("")}
 
 </table>
 
-<hr />
+<hr/>
 
 <div class="center">*** REVERSE KOT ***</div>
+    `;
+  }, [
+    restaurantName,
+    outletName,
+    user,
+    reverseKotNos,
+    dateTime,
+    reverseItems
+  ]);
 
+  /** 🔹 FULL HTML (for printing only) */
+  const generateHTML = () => `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<style>
+  @page { size: 302px auto; margin: 0; }
+  body {
+    width: 302px;
+    margin: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+  }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  hr { border-top: 1px dashed #000; }
+</style>
+</head>
+<body>
+${generateContent}
 </body>
 </html>
-`;
+  `;
 
+  /** 🔹 Print */
   const handlePrint = async () => {
     try {
       setLoading(true);
 
       if (!printerName) {
-        toast.error("Printer not configured");
+        toast.error("No printer configured for this outlet");
         return;
       }
 
       await (window as any).electronAPI.directPrint(
-        generateReverseKOTHTML(),
+        generateHTML(),
         printerName
       );
 
@@ -167,24 +178,33 @@ ${reverseItems
 
       <Modal.Body>
         {loading ? (
-          <Spinner />
+          <div className="text-center">
+            <Spinner />
+          </div>
         ) : (
-          <div
-            style={{
-              width: "302px",
-              margin: "0 auto",
-              border: "1px solid #ccc",
-              padding: "10px"
-            }}
-            dangerouslySetInnerHTML={{
-              __html: generateReverseKOTHTML()
-            }}
-          />
+          <div className="border p-3 bg-light">
+            <div
+              key={reversePrintTrigger}
+              style={{
+                width: "302px",
+                margin: "0 auto",
+                fontFamily: "'Courier New', monospace",
+                fontSize: "12px",
+                lineHeight: "1.4",
+                padding: "10px",
+                backgroundColor: "#fff",
+                border: "1px solid #ccc"
+              }}
+              dangerouslySetInnerHTML={{ __html: generateContent }}
+            />
+          </div>
         )}
       </Modal.Body>
 
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>Close</Button>
+        <Button variant="secondary" onClick={onHide}>
+          Close
+        </Button>
         <Button variant="danger" onClick={handlePrint} disabled={loading}>
           Print Reverse KOT
         </Button>
