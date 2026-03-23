@@ -19,6 +19,7 @@ interface ReverseKotPrintProps {
   restaurantName?: string;
   outletName?: string;
   date?: string;
+  reversePrintTrigger?: number;
 }
 
 const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
@@ -28,7 +29,8 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   user,
   restaurantName,
   outletName,
-  date
+  date,
+  reversePrintTrigger
 }) => {
   const [loading, setLoading] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
@@ -81,7 +83,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   body {
     width: 302px;
     margin: 0;
-    padding: 10px;
+    
     font-family: 'Courier New', monospace;
     font-size: 12px;
   }
