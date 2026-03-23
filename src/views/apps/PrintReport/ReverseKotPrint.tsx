@@ -6,6 +6,7 @@ interface MenuItem {
   id: number;
   name: string;
   qty: number;
+  price?: number;
   revQty?: number;
   isReverse?: boolean;
   kotNo?: number;
@@ -97,12 +98,16 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 <tr>
   <th align="left">Item</th>
   <th align="center">Qty</th>
+  <th align="right">Rate</th>
+  <th align="right">Amount</th>
 </tr>
 
 ${reverseItems.map(i => `
 <tr>
   <td>${i.name}</td>
   <td align="center">-${i.revQty}</td>
+  <td align="right">${(i.price || 0).toFixed(2)}</td>
+  <td align="right">${((i.revQty || 0) * (i.price || 0)).toFixed(2)}</td>
 </tr>
 `).join("")}
 
