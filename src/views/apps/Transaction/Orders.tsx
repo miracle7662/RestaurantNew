@@ -2772,6 +2772,12 @@ const tableNameForKOT =
         // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
         await fetchTableManagement();
 
+        // 🔥 FIX: Clear KOT states consistently after NCKOT
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
+        setCurrentTxnId(null);
+        setOrderNo(null);
+
         // ✅ 2️⃣ UI CLEAR (already correct)
         setItems([]);
         setSelectedTable(null);

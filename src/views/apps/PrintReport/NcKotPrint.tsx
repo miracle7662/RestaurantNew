@@ -65,8 +65,11 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
       : new Date().toLocaleString("en-GB");
   }, [date]);
 
-  /** 🔹 Full HTML (PRINT) */
-  const generateHTML = () => `
+  /** 🔹 Full HTML (PRINT) - Updated with Price and Amount columns */
+  const generateHTML = () => {
+   
+
+    return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -83,7 +86,12 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
   }
   .center { text-align: center; }
   .bold { font-weight: bold; }
-  hr { border-top: 1px dashed #000; }
+  hr { border-top: 1px dashed #000; margin: 5px 0; }
+  .right { text-align: right; }
+  .item-table th, .item-table td { padding: 2px 0; border-bottom: 1px solid #000; }
+  .item-table .col-item { width: 55%; text-align: left; }
+  .item-table .col-qty, .item-table .col-rate, .item-table .col-amt { width: 15%; text-align: center; }
+  .totals { font-weight: bold; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -104,17 +112,21 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
 
 <hr />
 
-<table width="100%">
+<table class="item-table" width="100%">
 <tr>
-  <th align="left">Item</th>
-  <th align="center">Qty</th>
+  <th class="col-item">Item</th>
+  <th class="col-qty">Qty</th>
+  <th class="col-amt">Amt</th>
 </tr>
 ${ncItems.map(i => `
 <tr>
-  <td>${i.name}</td>
-  <td align="center">${i.qty}</td>
+  <td class="col-item">${i.name}</td>
+  <td class="col-qty">${i.qty}</td>
+  <td class="col-rate">${i.price.toFixed(2)}</td>
+ 
 </tr>
 `).join("")}
+
 </table>
 
 <hr />
@@ -123,7 +135,8 @@ ${ncItems.map(i => `
 
 </body>
 </html>
-  `;
+    `;
+  };
 
   /** 🔹 Extract ONLY body for preview (FIX) */
   const getBodyContent = (html: string) => {
