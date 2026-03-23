@@ -1,51 +1,49 @@
-# NC KOT Preview Modal Implementation - TODO
+# Reverse KOT Print Fix - TODO
 
-✅ **Step 1**: Create TODO.md (Current)
+## Status: ✅ PLAN APPROVED - IN PROGRESS
 
-## Remaining Steps (from approved plan):
+### Breakdown of Approved Plan:
 
-**File: `src/views/apps/Transaction/Orders.tsx`**
+**1. [x] Create this TODO.md** (Current step ✅)
 
-1️⃣ **Import NCKotPrint** (Top imports section)
-```
-import NCKotPrint from "../PrintReport/NcKotPrint";
-```
+**2. [ ] Add reverseSnapshot state**  
+   - In `Orders.tsx`: `const [reverseSnapshot, setReverseSnapshot] = useState<MenuItem[]>([]);`
+   - Add to reset functions: `setReverseSnapshot([])`
 
-2️⃣ **Add States** (Near other useState declarations, e.g. after `tip`, `kotNote`)
-```
-const [showNCKotPrintModal, setShowNCKotPrintModal] = useState(false);
-const [ncPrintItems, setNcPrintItems] = useState<MenuItem[]>([]);
-```
+**3. [ ] Fix handleSaveReverse() timing**  
+   ```
+   // AFTER API success:
+   setReverseSnapshot([...reverseQtyItems]);  // SNAPSHOT FIRST
+   setShowReverseKotPrintModal(true);
+   setReversePrintTrigger(prev => prev + 1);
+   setReverseQtyItems([]);  // RESET AFTER SNAPSHOT
+   ```
 
-3️⃣ **Add NC Filter Logic** (`handlePrintAndSaveKOT()`, after `toast.success('KOT saved successfully!');`)
-```
-const ncItems = items.filter(i => i.isNCKOT === 1);
-if (ncItems.length > 0) {
-  setNcPrintItems(ncItems);
-  setShowNCKotPrintModal(true);
-}
-```
+**4. [ ] Update ReverseKotPrint modal props**  
+   ```
+   items={reverseSnapshot.map(...)}  // Use SNAPSHOT
+   onHide={() => {
+     setShowReverseKotPrintModal(false);
+     setReverseSnapshot([]);
+   }}
+   ```
 
-4️⃣ **Add Modal JSX** (In `return()` before final `</div>`)
-```
-<NCKotPrint
-  show={showNCKotPrintModal}
-  onHide={() => setShowNCKotPrintModal(false)}
-  items={ncPrintItems}
-  user={user}
-  outletName={user?.outlet_name}
-  restaurantName={user?.hotel_name}
-/>
-```
+**5. [ ] Add cleanup to resetBillingPanel() & table handlers**  
+   ```
+   setReverseSnapshot([]);
+   ```
 
-## Progress Tracking
-- [ ] Step 1: Import ✅
-- [ ] Step 2: States  
-- [ ] Step 3: Filter Logic
-- [ ] Step 4: Modal JSX
-- [ ] Test: Add NC item → Save KOT → Modal → Print → Close
+**6. [ ] Execute edits** (single edit_file call)
 
-**Next**: Read `src/views/apps/Transaction/Orders.tsx` and implement imports + states.
+**7. [ ] Test**  
+   ```
+   npm run dev
+   # F8 → Reverse items → Save → ✅ Modal shows items → Print ✅
+   ```
 
-**After all steps**: `attempt_completion`
+**8. [ ] attempt_completion**  
+   Expected: Modal displays reversed items (name,qty,amount) every time.
+
+## Next Step
+Proceed with **Step 2: Add reverseSnapshot state** to Orders.tsx?
 

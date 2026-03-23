@@ -165,7 +165,8 @@ const Order = () => {
   const [authError, setAuthError] = useState<string>('');
 
 // State to track reverse quantity items for KOT printing
-  const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
+const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
+  const [reverseSnapshot, setReverseSnapshot] = useState<MenuItem[]>([]); // 🔥 FIX: Snapshot for print modal
 
   // NEW: Reverse KOT Print Modal states
   const [showReverseKotPrintModal, setShowReverseKotPrintModal] = useState(false);
@@ -312,6 +313,7 @@ const isOrderBilled = (): boolean => {
     setItems([]);
     setReversedItems([]);
     setReverseQtyItems([]);
+    setReverseSnapshot([]); // 🔥 FIX: Clear snapshot
 
     // NEW: Reset reverse print modal
     setShowReverseKotPrintModal(false);
@@ -2033,8 +2035,9 @@ const tableNameForKOT =
           }
         }
 
-        // NEW: Auto-trigger Reverse KOT print modal + print
+        // 🔥 FIX: SNAPSHOT before reset
         if (reverseQtyItems.length > 0) {
+          setReverseSnapshot([...reverseQtyItems]);
           setShowReverseKotPrintModal(true);
           setReversePrintTrigger(prev => prev + 1);
         }
@@ -4623,8 +4626,11 @@ setSelectedDeptId(deptId ?? 0);
           {/* NEW: Reverse KOT Print Modal */}
           <ReverseKotPrint
             show={showReverseKotPrintModal}
-            onHide={() => setShowReverseKotPrintModal(false)}
-            items={reverseQtyItems.map(item => ({
+            onHide={() => {
+              setShowReverseKotPrintModal(false);
+              setReverseSnapshot([]); // 🔥 FIX: Clear snapshot on close
+            }}
+            items={reverseSnapshot.map(item => ({
               ...item,
               isReverse: true,
               revQty: item.qty
