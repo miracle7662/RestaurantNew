@@ -4630,7 +4630,7 @@ setSelectedDeptId(deptId ?? 0);
             </Modal.Footer>
           </Modal>
           {/* NEW: Reverse KOT Print Modal */}
-          <ReverseKotPrint
+           <ReverseKotPrint
             show={showReverseKotPrintModal}
             onHide={() => {
               setShowReverseKotPrintModal(false);
@@ -4644,6 +4644,7 @@ setSelectedDeptId(deptId ?? 0);
             user={user}
             restaurantName={user.hotel_name}
             outletName={user.outlet_name}
+            tableName={activeTab === 'Dine-in' ? selectedTable ?? 'Table' : activeTab}  
             date={user.currDate}
             reversePrintTrigger={reversePrintTrigger}
           />
@@ -4652,10 +4653,13 @@ setSelectedDeptId(deptId ?? 0);
             show={showNCKotPrintModal}
             onHide={() => setShowNCKotPrintModal(false)}
             items={ncPrintItems}
+            tableName={activeTab === 'Dine-in' ? selectedTable ?? 'Table' : activeTab}
             user={user}
-            outletName={user?.outlet_name}
             restaurantName={user?.hotel_name}
-          />
+            outletName={user?.outlet_name}
+            date={user?.currDate} 
+            />
+
           <Modal
             show={showTaxModal}
             onHide={() => setShowTaxModal(false)}

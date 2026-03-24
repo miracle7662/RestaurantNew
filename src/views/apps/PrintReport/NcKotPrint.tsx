@@ -21,6 +21,7 @@ interface NCKotPrintProps {
   outletName?: string;
   restaurantName?: string;
   date?: string;
+  tableName?: string;
 }
 
 const NCKotPrint: React.FC<NCKotPrintProps> = ({
@@ -30,7 +31,8 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
   user,
   outletName,
   restaurantName,
-  date
+  date,
+  tableName
 }) => {
   const [loading, setLoading] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
@@ -128,7 +130,8 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
 <div><b>NC:</b> ${ncItems[0]?.NCName || "-"}</div>
 <div><b>Purpose:</b> ${ncItems[0]?.NCPurpose || "-"}</div>
 <div><b>Date:</b> ${dateTime}</div>
-<div><b>User:</b> ${user?.username}</div>
+    <div><b>User:</b> ${user?.username}</div>
+    <div><b>Table:</b> ${tableName || '-'}</div>
 
 <hr/>
 
@@ -188,7 +191,8 @@ ${ncItems
 <div><b>NC:</b> ${ncItems[0]?.NCName || "-"}</div>
 <div><b>Purpose:</b> ${ncItems[0]?.NCPurpose || "-"}</div>
 <div><b>Date:</b> ${dateTime}</div>
-<div><b>User:</b> ${user?.username}</div>
+  <div><b>User:</b> ${user?.username}</div>
+  <div><b>Table:</b> ${tableName || '-'}</div>
 
 <hr style="border-top:1px dashed #000; margin:6px 0;" />
 

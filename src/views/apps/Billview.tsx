@@ -3658,6 +3658,7 @@ value={item.SpecialInst}
         user={user}
         outletName={outletName}            
         restaurantName={restaurantName} 
+        tableName={tableName}
       />
       <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
         if (DiscountType === 1) {
@@ -3976,6 +3977,7 @@ value={item.SpecialInst}
         }}
         items={reverseSnapshot}
         user={user}
+        selectedTable={activeTab === 'Dine-in' ? tableNo : activeTab}
         restaurantName={restaurantName}
         outletName={outletName}
         date={user?.currDate}

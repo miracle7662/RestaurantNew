@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from "react";
 import PrintService from "@/common/api/print";
 import { Modal, Button, Spinner } from "react-bootstrap";
 import { toast } from "react-hot-toast";
-import { useAuthContext } from "@/common";
 
 interface MenuItem {
   id: number;
@@ -21,6 +20,8 @@ interface ReverseKotPrintProps {
   restaurantName?: string;
   user: any;
   outletName?: string;
+  selectedTable?: string | null;
+  tableName?: string;
   date?: string;
   reversePrintTrigger?: number;
 }
@@ -30,7 +31,9 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   onHide,
   items,
   restaurantName,
+  user,
   outletName,
+  selectedTable,
   date,
   reversePrintTrigger
 }) => {
@@ -40,7 +43,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   const [localOutletName, setLocalOutletName] = useState("");
   const [isLoadingNames, setIsLoadingNames] = useState(true);
 
-  const { user } = useAuthContext();
+  
 
   /** 🔹 Filter reverse items */
   const reverseItems = useMemo(() => {
@@ -108,10 +111,24 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   /** 🔹 PREVIEW + PRINT CONTENT (Shared) */
   const generateContent = useMemo(() => {
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || "";
-const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
+    const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
+    const displayTableName = selectedTable || "-";
     return `
 <div style="text-align:center; font-weight:bold;">${displayRestaurantName}</div>
 <div style="text-align:center;">${displayOutletName}</div>
+
+<!-- TABLE BIG BOX (similar to KotPrint.tsx) -->
+<div style="
+  border: 1px solid #696868;
+  min-width: 70px;
+  min-height: 55px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16pt;
+  font-weight: bold;
+  margin: 8px auto;
+">${displayTableName}</div>
 
 <hr style="border-top:1px dashed #000; margin:8px 0;" />
 
@@ -152,6 +169,7 @@ ${reverseItems
     localRestaurantName,
     outletName,
     localOutletName,
+    selectedTable,
     user,
     reverseKotNos,
     dateTime,
