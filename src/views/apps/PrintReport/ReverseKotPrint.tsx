@@ -124,30 +124,30 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 <!-- TABLE BIG BOX (similar to KotPrint.tsx) -->
 <div style="
   border: 1px solid #696868;
-  min-width: 70px;
-  min-height: 55px;
+  width: 70px;
+  height: 45px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16pt;
+  font-size: 14pt;
   font-weight: bold;
-  margin: 8px auto;
+  margin: 4px auto;
 ">${displayTableName}</div>
 
-<hr style="border-top:1px dashed #000; margin:8px 0;" />
+<hr style="border-top:1px dashed #000; margin:4px 0;" />
 
 <div style="text-align:center; font-weight:bold;">REVERSE KOT</div>
 
-<hr style="border-top:1px dashed #000; margin:8px 0;" />
+<hr style="border-top:1px dashed #000; margin:4px 0;" />
 
 <div><strong>Reverse KOT No:</strong> ${reverseKotNos || "-"}</div>
 <div><strong>Date:</strong> ${dateTime}</div>
 <div><strong>User:</strong> ${user?.username || "-"}</div>
 
-<hr style="border-top:1px dashed #000; margin:8px 0;" />
+<hr style="border-top:1px dashed #000; margin:4px 0;" />
 
 <!-- Table -->
-<div style="display:grid; grid-template-columns: 55% 20% 25%; font-weight:bold; border-bottom:1px solid #000; padding:4px 0;">
+<div style="display:grid; grid-template-columns: 55% 20% 25%; font-weight:bold; border-bottom:1px solid #000; padding:2px 0;">
   <div style="text-align:left;">Item</div>
   <div style="text-align:center;">Qty</div>
   <div style="text-align:right;">Amount</div>
@@ -156,7 +156,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 ${reverseItems
   .map(
     i => `
-<div style="display:grid; grid-template-columns: 55% 20% 25%; border-bottom:1px solid #000; padding:4px 0;">
+<div style="display:grid; grid-template-columns: 55% 20% 25%; border-bottom:1px solid #000; padding:2px 0;">
   <div style="text-align:left;">${i.name}</div>
   <div style="text-align:center; color:#d32f2f;">-${i.revQty}</div>
   <div style="text-align:right;">₹${(i.price || 0).toFixed(2)}</div>
@@ -164,10 +164,10 @@ ${reverseItems
   )
   .join("")}
 
-<hr style="border-top:1px dashed #000; margin:8px 0;" />
+<hr style="border-top:1px dashed #000; margin:4px 0;" />
 
 <div style="text-align:center;">*** REVERSE KOT ***</div>
-    `;
+    `.trim();
   }, [
     restaurantName,
     localRestaurantName,
@@ -188,8 +188,13 @@ const generateHTML = () => `
 <head>
 <meta charset="UTF-8" />
 <style>
-  @page { size: 302px auto; margin: 0; }
+  @page { 
+    size: 80mm; 
+    margin: 0; 
+    padding: 0;
+  }
   body {
+<<<<<<< Updated upstream
     width: 302px;
     margin: 0;
     font-family: 'Courier New', monospace;
@@ -198,10 +203,25 @@ const generateHTML = () => `
   .center { text-align: center; }
   .bold { font-weight: bold; }
   hr { border-top: 1px dashed #000; }
+=======
+    width: 80mm;
+    margin: 0;
+    padding: 2px 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.3;
+    page-break-after: avoid;
+    height: auto;
+    max-height: 100mm;
+  }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  hr { border-top: 1px dashed #000; margin: 4px 0; }
+>>>>>>> Stashed changes
 </style>
 </head>
 <body>
-${generateContent}
+${generateContent.trim()}
 </body>
 </html>
   `;
