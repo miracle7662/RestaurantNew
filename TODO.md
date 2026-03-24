@@ -1,49 +1,44 @@
-# KOT Print Debug - Item Name/Qty Showing Issue
+# KOT Print Preview Items Fix - Progress Tracker
 
-## Status: 🔍 Debugging (0/6 complete)
+## Plan Overview
+Fix: Items not showing in `billview.tsx` KOT print preview (`KotPrint.tsx` modal).
+Root Cause: `printItems` filters only new items (`!mkotNo`), fallback uses `isNew: false` for fetched items → empty preview on subsequent KOTs.
 
-### Step 1: Add Console Logging [PENDING]
-```
-Billview.tsx saveKOT():
-console.log("🔍 billItems before filter:", billItems);
-console.log("🔍 printItems (new only):", printItems);
-console.log("🔍 currentKotNoForPrint:", currentKotNoForPrint);
-```
-**Test**: Add 3 items → F9 → check console → copy output
+**Approved Solution**: Pass/filter **all valid items** (`itemId > 0`) to preview.
 
-### Step 2: Verify Backend mkotNo Update [PENDING]
-```
-After saveKOT API: loadBillForTable() → check if items.mkotNo updated
-Expected: After 1st F9, items should have mkotNo = "123|124"
-2nd F9: printItems should be EMPTY
-```
+## TODO Steps (1/5 Complete)
 
-### Step 3: Test Duplicate Print [PENDING]
-```
-1. Add items → F9 (print 1st KOT)
-2. F9 again → should show EMPTY preview / no print
-3. Result?
-```
+### ✅ 1. Create/Update TODO.md [COMPLETE]
+- ✓ Created with steps.
 
-### Step 4: Check KotPrint.tsx Preview [PENDING]
-```
-F9 modal opens → screenshot preview
-Does it show correct new items only?
-```
+### ☐ 2. Update Billview.tsx
+- Path: `src/views/apps/Billview.tsx`
+- Change `<KotPreviewPrint />` `printItems` to `billItems.filter(item => item.itemId > 0)` (all items).
+- Clear `items={[]}` fallback.
+- ✅ Test: F9 → Preview shows all items.
 
-### Step 5: Backend API Debug [PENDING]
-```
-Check backend /orders/kot response:
-Does it return correct KOTNo?
-Does it update items.mkotNo in DB?
-```
+### ☐ 3. Update KotPrint.tsx
+- Path: `src/views/apps/PrintReport/KotPrint.tsx`
+- Fix `kotItems`: `printItems.length > 0 ? printItems : items.filter(i => i.itemId > 0)`.
+- Add console.log('kotItems.length:', kotItems.length).
+- ✅ Test: Preview renders items → Print works.
 
-### Step 6: Verify Electron Print [PENDING]
+### ☐ 4. Test Full Flow
 ```
-Preview correct? → Printer output matches preview?
+1. Add 2-3 items → F9 (1st KOT) → Preview shows items ✓ Print ✓
+2. Add 1 more item → F9 (2nd KOT) → Preview shows ALL items ✓ Print ✓
+3. Edge: Empty → F9 → Toast 'No new items', no empty preview.
+4. Settings: Toggle KOT settings → Preview respects flags.
 ```
+- Browser: Open Billview → Test F9 multiple times.
 
-## Expected Behavior ✅
-```
-KOT Print = ONLY new items (!item.mkotNo)
-Item name + qty = REQUIRED (kitchen needs to know what to cook!)
+### ☐ 5. Complete & Verify
+- Run `npm run dev`.
+- No errors, linter clean.
+- Update TODO.md: Mark ✅ all steps.
+- `attempt_completion`: "Fixed KOT preview - now shows all valid items."
+
+## Next Action
+Proceed to **Step 2: Edit Billview.tsx**?
+
+**Current Progress: 3/5** (Billview + KotPrint updated)

@@ -2191,6 +2191,8 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
       setReverseSnapshot(reverseItemsFromModal.map(item => ({
         ...item,
         name: item.itemName || "",   // ✅ FIX
+        price: item.rate,
+        ReverskotNo: reverseKotNo,
         isReverse: true,
         revQty: item.cancelQty  // Use cancelQty from modal
       })));

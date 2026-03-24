@@ -158,76 +158,104 @@ const DayEndReportPreview: React.FC = () => {
               {loading ? 'Printing...' : 'Print Report'}
             </Button>
           </div>
-          <div className="border rounded bg-white" style={{ maxHeight: '80vh', overflow: 'auto' }}>
-            <iframe
-              ref={(el) => {
-                if (el) setPrintIframeRef(el);
-              }}
-              srcDoc={`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                  <meta charset="UTF-8">
-                  <style>
-                    body {
-                      font-family: 'Courier New', Courier, monospace !important;
-                      font-size: 13px !important;
-                      line-height: 1.4 !important;
-                      margin: 0.25in !important;
-                      padding: 0.125in !important;
-                      width: 100% !important;
-                      min-width: 7.5in !important;
-                      max-width: none !important;
-                      color: black !important;
-                      background: white !important;
-                      print-color-adjust: exact !important;
-                      -webkit-print-color-adjust: exact !important;
-                      word-wrap: break-word !important;
-                    }
-                    img { max-width: 100% !important; height: auto !important; }
-                    table { 
-                      width: 100% !important; 
-                      border-collapse: collapse !important;
-                      table-layout: fixed !important;
-                      word-wrap: break-word !important;
-                    }
-                    td, th { 
-                      word-wrap: break-word !important;
-                      padding: 2px 4px !important;
-                    }
-                    @media print {
-                      body {
-                        margin: 0.125in !important;
-                        padding: 0.0625in !important;
-                        font-size: 12px !important;
-                        line-height: 1.3 !important;
-                        -webkit-print-color-adjust: exact !important;
-                        color-adjust: exact !important;
-                      }
-                      @page {
-                        size: A4 portrait;
-                        margin: 0.125in;
-                      }
-                      table { font-size: 11px !important; }
-                    }
-                    * { box-sizing: border-box !important; }
-                  </style>
-                </head>
-                <body>
-                  ${previewHTML}
-                </body>
-                </html>
-              `}
-              style={{
-                width: '100%',
-                height: '600px',
-                border: 'none',
-                fontFamily: 'monospace',
-                fontSize: '12px'
-              }}
-              title="Day End Report Preview"
-            />
-          </div>
+ <iframe
+  ref={(el) => {
+    if (el) setPrintIframeRef(el);
+  }}
+  srcDoc={`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        /* Reset all spacing */
+        * {
+          margin: 0 !important;
+          padding: 0 !important;
+          box-sizing: border-box !important;
+        }
+
+        body {
+          font-family: 'Courier New', Courier, monospace !important;
+          font-size: 10px !important;
+          line-height: 1.1 !important;
+          margin: 2mm 1.5mm !important;
+          width: 76mm !important;
+          max-width: 76mm !important;
+          color: black !important;
+          background: white !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          word-break: break-all !important;
+        }
+
+        /* Headings */
+        .header {
+          font-size: 12px !important;
+          font-weight: bold !important;
+          margin: 2px 0 !important;
+        }
+
+        /* Text formatting */
+        .bold { font-weight: bold !important; }
+        .center { text-align: center !important; }
+        .right { text-align: right !important; }
+
+        /* Tables */
+        table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+          table-layout: fixed !important;
+        }
+        td, th {
+          padding: 1px 2px !important;
+          font-size: 10px !important;
+          vertical-align: top !important;
+          line-height: 1.1 !important;
+        }
+
+        /* Section spacing */
+        .section {
+          margin: 0 !important;
+          padding: 2px 0 !important;
+        }
+
+        hr {
+          border: 0;
+          border-top: 1px dashed #000;
+          margin: 2px 0 !important;
+        }
+
+        @page {
+          size: 80mm;
+          margin: 0;
+        }
+
+        @media print {
+          body {
+            margin: 2mm 1.5mm !important;
+            font-size: 10px !important;
+          }
+          @page {
+            size: 80mm;
+            margin: 0;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      ${previewHTML}
+    </body>
+    </html>
+  `}
+  style={{
+    width: '100%',
+    height: '650px',
+    border: '1px solid #ddd',
+    background: '#fff'
+  }}
+  title="Day End Report Preview"
+/>
           {previewHTML.length < 100 && (
             <div className="alert alert-warning mt-2">
               ⚠️ Warning: Preview HTML is very short ({previewHTML.length} chars). Check DayEnd report generation.

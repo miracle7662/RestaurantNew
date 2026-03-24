@@ -260,47 +260,90 @@ const KitchenAllocation: React.FC = () => {
 
       console.log(`Printing to printer: ${finalPrinterName}`);
 
-      // Generate HTML for the kitchen allocation report
-      const reportHTML = `
-        <html>
-          <head>
-            <title>Kitchen Allocation Report</title>
-            <style>
-              body { font-family: monospace; font-size: 12px; line-height: 1.2; }
-              table { width: 100%; border-collapse: collapse; }
-              th, td { border: 1px solid #000; padding: 4px; text-align: left; }
-              th { background-color: #f0f0f0; }
-              .header { text-align: center; margin-bottom: 10px; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h2>Kitchen Allocation Report</h2>
-              <p>From: ${fromDate} To: ${toDate}</p>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Item No</th>
-                  <th>Item Name</th>
-                  <th>Total Qty</th>
-                  <th>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${filteredData.map(item => `
-                  <tr>
-                    <td>${item.item_no}</td>
-                    <td>${item.item_name}</td>
-                    <td>${item.TotalQty}</td>
-                    <td>${item.Amount}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </body>
-        </html>
-      `;
+ const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty), 0);
+const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount), 0);
+
+const reportHTML = `
+<html>
+  <head>
+    <title>Kitchen Allocation Report</title>
+    <style>
+      body {
+        font-family: monospace;
+        font-size: 12px;
+        line-height: 1.2;
+        width: 220px; /* 80mm thermal paper */
+        margin: 0;
+        padding: 0;
+      }
+      .header, .sub-header {
+        text-align: center;
+      }
+      .sub-header {
+        font-size: 10px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 5px;
+      }
+      th, td {
+        border-bottom: 1px dashed #000;
+        padding: 2px 0;
+        font-size: 11px;
+      }
+      th {
+        font-weight: bold;
+        text-align: left;
+      }
+      td {
+        text-align: left;
+      }
+      td.qty, td.amt {
+        text-align: right;
+      }
+      .total-row td {
+        font-weight: bold;
+        border-top: 1px solid #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+    
+    </div>
+    <div class="sub-header">
+      <p>Kitchen Allocation Report</p>
+      <p>From: ${fromDate} To: ${toDate}</p>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Item</th>
+          <th>Qty</th>
+          <th>Amt</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filteredData.map(item => `
+          <tr>
+            <td>${item.item_no}</td>
+            <td>${item.item_name}</td>
+            <td class="qty">${item.TotalQty}</td>
+            <td class="amt">${item.Amount.toFixed(2)}</td>
+          </tr>
+        `).join('')}
+        <tr class="total-row">
+          <td colspan="2">Total</td>
+          <td class="qty">${totalQty}</td>
+          <td class="amt">${totalAmount.toFixed(2)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
+`;
 
       // Print using Electron API
       if ((window as any).electronAPI?.directPrint) {

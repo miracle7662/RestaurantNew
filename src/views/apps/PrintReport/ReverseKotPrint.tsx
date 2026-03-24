@@ -182,7 +182,7 @@ ${reverseItems
   ]);
 
   /** 🔹 FULL HTML for Printing */
-  const generateHTML = () => `
+const generateHTML = () => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -191,15 +191,13 @@ ${reverseItems
   @page { size: 302px auto; margin: 0; }
   body {
     width: 302px;
-    margin: 0 auto;
-    padding: 10px;
+    margin: 0;
     font-family: 'Courier New', monospace;
     font-size: 12px;
-    line-height: 1.4;
   }
   .center { text-align: center; }
   .bold { font-weight: bold; }
-  hr { border-top: 1px dashed #000; margin: 8px 0; }
+  hr { border-top: 1px dashed #000; }
 </style>
 </head>
 <body>
@@ -207,6 +205,7 @@ ${generateContent}
 </body>
 </html>
   `;
+
 
   /** 🔹 Print Handler */
   const handlePrint = async () => {
