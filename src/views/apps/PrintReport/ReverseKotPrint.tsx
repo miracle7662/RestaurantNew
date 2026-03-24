@@ -34,6 +34,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   user,
   outletName,
   selectedTable,
+  tableName,
   date,
   reversePrintTrigger
 }) => {
@@ -112,7 +113,10 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   const generateContent = useMemo(() => {
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || "";
     const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
-    const displayTableName = selectedTable || "-";
+    const displayTableName =
+  (tableName && tableName.trim()) ||
+  (selectedTable && selectedTable.trim()) ||
+  "-";
     return `
 <div style="text-align:center; font-weight:bold;">${displayRestaurantName}</div>
 <div style="text-align:center;">${displayOutletName}</div>
@@ -170,6 +174,7 @@ ${reverseItems
     outletName,
     localOutletName,
     selectedTable,
+    tableName,
     user,
     reverseKotNos,
     dateTime,
