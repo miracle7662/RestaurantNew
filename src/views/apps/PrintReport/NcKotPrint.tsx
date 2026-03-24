@@ -67,11 +67,11 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
         );
 
         setLocalOutletName(
-          outletName ||
-            outletData?.outlet_name ||
-            user?.outlet_name ||
-            "Outlet Name"
-        );
+  outletData?.outlet_name ||   // 🔥 FIRST priority API se
+  outletName ||                // 🔥 then props
+  user?.outlet_name ||
+  "Outlet Name"
+);
       } catch {
         toast.error("Failed to load printer settings");
       }

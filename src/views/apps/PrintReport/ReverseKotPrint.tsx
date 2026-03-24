@@ -78,9 +78,12 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
         setLocalRestaurantName(
           outletData?.brand_name || outletData?.hotel_name || user?.hotel_name || ""
         );
-        setLocalOutletName(
-          outletData?.outlet_name || user?.outlet_name || ""
-        );
+       setLocalOutletName(
+  outletData?.outlet_name || 
+  outletName ||   // 🔥 add this
+  user?.outlet_name || 
+  "Outlet Name"
+);
       } catch (error) {
         console.error("Error fetching printer/outlet:", error);
         toast.error("Failed to load printer/outlet settings");
@@ -105,8 +108,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   /** 🔹 PREVIEW + PRINT CONTENT (Shared) */
   const generateContent = useMemo(() => {
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || "";
-    const displayOutletName = outletName || localOutletName || user?.outlet_name || "";
-
+const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
     return `
 <div style="text-align:center; font-weight:bold;">${displayRestaurantName}</div>
 <div style="text-align:center;">${displayOutletName}</div>
