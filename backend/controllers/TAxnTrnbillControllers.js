@@ -2289,7 +2289,11 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled =  0 AND b.isCancelled = 0 AND d.isCancelled = 0
+      WHERE b.TableID = ? 
+      AND b.isBilled = 0 
+      AND b.isCancelled = 0 
+      AND d.isCancelled = 0
+      AND IFNULL(d.isNCKOT, 0) = 0   -- ✅ IMPORTANT
     `,
       )
       .all(Number(tableId))

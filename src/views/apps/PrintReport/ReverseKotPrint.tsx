@@ -19,6 +19,7 @@ interface ReverseKotPrintProps {
   onHide: () => void;
   items: MenuItem[];
   restaurantName?: string;
+  user: any;
   outletName?: string;
   date?: string;
   reversePrintTrigger?: number;
