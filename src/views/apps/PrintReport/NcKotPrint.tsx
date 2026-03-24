@@ -11,7 +11,6 @@ interface MenuItem {
   isNCKOT: number;
   NCName: string;
   NCPurpose: string;
-  isNew?: boolean;
 }
 
 interface NCKotPrintProps {
@@ -35,144 +34,196 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
-  const [localRestaurantName, setLocalRestaurantName] = useState<string>('');
-  const [localOutletName, setLocalOutletName] = useState<string>('');
-  const [, setIsLoadingNames] = useState(true);
+  const [localRestaurantName, setLocalRestaurantName] = useState("");
+  const [localOutletName, setLocalOutletName] = useState("");
 
   /** 🔹 Filter NC items */
   const ncItems = useMemo(() => {
     return items.filter(i => i.isNCKOT === 1);
   }, [items]);
 
-  /** 🔹 Fetch printer + outlet details (parallel) */
+  /** 🔹 Fetch printer + outlet */
   useEffect(() => {
-    if (!show || !user?.outletid) {
-      setIsLoadingNames(false);
-      return;
-    }
+    if (!show || !user?.outletid) return;
 
-    const fetchPrinterAndOutlet = async () => {
-      setIsLoadingNames(true);
+    const fetchData = async () => {
       try {
-        // Parallel fetches
         const [printerRes, outletRes] = await Promise.all([
           PrintService.getKotPrinterSettings(user.outletid),
           PrintService.getOutletDetails(user.outletid)
         ]);
 
-        // Handle wrapped/unwrapped responses (HttpClient interceptor)
         const printerData = printerRes?.data || printerRes;
         const outletData = outletRes?.data || outletRes;
 
         setPrinterName(printerData?.printer_name || null);
-        
-        // Use brand_name first (preferred), fallback to hotel_name
-        if (!restaurantName || restaurantName.trim() === '' || restaurantName === 'Restaurant Name') {
-          setLocalRestaurantName(outletData?.brand_name || outletData?.hotel_name || user?.hotel_name || 'Restaurant Name');
-        } else {
-          setLocalRestaurantName(restaurantName);
-        }
 
-        // Always set outlet name (most important)
-        if (!outletName || outletName.trim() === '' || outletName === 'Outlet Name') {
-          setLocalOutletName(outletData?.outlet_name || user?.outlet_name || 'Outlet Name');
-        } else {
-          setLocalOutletName(outletName);
-        }
-      } catch (error) {
-        console.error('Error fetching printer/outlet:', error);
-        toast.error('Failed to load printer/outlet settings.');
-        setPrinterName(null);
-        setLocalRestaurantName(user?.hotel_name || 'Restaurant Name');
-        setLocalOutletName(user?.outlet_name || 'Outlet Name');
-      } finally {
-        setIsLoadingNames(false);
+        setLocalRestaurantName(
+          restaurantName ||
+            outletData?.brand_name ||
+            outletData?.hotel_name ||
+            user?.hotel_name ||
+            "Restaurant Name"
+        );
+
+        setLocalOutletName(
+          outletName ||
+            outletData?.outlet_name ||
+            user?.outlet_name ||
+            "Outlet Name"
+        );
+      } catch {
+        toast.error("Failed to load printer settings");
       }
     };
 
-    fetchPrinterAndOutlet();
+    fetchData();
   }, [show, user, outletName, restaurantName]);
 
-  /** 🔹 DateTime */
+  /** 🔹 Date */
   const dateTime = useMemo(() => {
     return date
       ? new Date(date).toLocaleString("en-GB")
       : new Date().toLocaleString("en-GB");
   }, [date]);
 
-  /** 🔹 Full HTML (PRINT) */
-  const generateHTML = () => `
+  /** 🔹 FULL PRINT HTML (with fixes: ₹ in Rate/Amt, right align Rate, Total label fixed) */
+  const generateFullPrintHTML = () => `
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8" />
-<title>NC KOT</title>
 <style>
-  @page { size: 302px auto; margin: 0; }
   body {
     width: 302px;
-    margin: 0;
     padding: 10px;
-    font-family: 'Courier New', monospace;
+    font-family: monospace;
     font-size: 12px;
   }
   .center { text-align: center; }
   .bold { font-weight: bold; }
+  hr { border-top: 1px dashed #000; margin: 6px 0; }
 
-  hr { border-top: 1px dashed #000; margin: 5px 0; }
-  .right { text-align: right; }
-  .item-table th, .item-table td { padding: 2px 0; border-bottom: 1px solid #000; }
-  .item-table .col-item { width: 55%; text-align: left; }
-  .item-table .col-qty, .item-table .col-rate, .item-table .col-amt { width: 15%; text-align: center; }
-  .totals { font-weight: bold; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 4px 0; border-bottom: 1px solid #000; }
+
+  .col-qty { width: 15%; text-align: center; }
+  .col-item { width: 40%; text-align: left; }
+  .col-rate { width: 20%; text-align: right; }
+  .col-amt { width: 25%; text-align: right; }
 </style>
 </head>
+
 <body>
 
-<div class="center bold">${restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name'}</div>
-<div class="center">${outletName || localOutletName || user?.outlet_name || 'Outlet Name'}</div>
+<div class="center bold">${localRestaurantName}</div>
+<div class="center">${localOutletName}</div>
 
-<hr />
+<hr/>
 
 <div class="center bold">NC KOT</div>
 
-<hr />
+<hr/>
 
-<div><strong>NC Name:</strong> ${ncItems[0]?.NCName || "-"}</div>
-<div><strong>Purpose:</strong> ${ncItems[0]?.NCPurpose || "-"}</div>
-<div><strong>Date:</strong> ${dateTime}</div>
-<div><strong>User:</strong> ${user?.username}</div>
+<div><b>NC:</b> ${ncItems[0]?.NCName || "-"}</div>
+<div><b>Purpose:</b> ${ncItems[0]?.NCPurpose || "-"}</div>
+<div><b>Date:</b> ${dateTime}</div>
+<div><b>User:</b> ${user?.username}</div>
 
-<hr />
+<hr/>
 
-<table class="item-table" width="100%">
+<table>
 <tr>
-  <th class="col-item">Item</th>
   <th class="col-qty">Qty</th>
+  <th class="col-item">Item</th>
+  <th class="col-rate">Rate</th>
   <th class="col-amt">Amt</th>
 </tr>
-${ncItems.map(i => `
+
+${ncItems
+  .map(
+    i => `
 <tr>
-  <td class="col-item">${i.name}</td>
   <td class="col-qty">${i.qty}</td>
-  <td class="col-rate">${i.price.toFixed(2)}</td>
-</tr>
-`).join("")}
+  <td class="col-item">${i.name}</td>
+  <td class="col-rate">₹${i.price.toFixed(2)}</td>
+  <td class="col-amt">₹${(i.price * i.qty).toFixed(2)}</td>
+</tr>`
+  )
+  .join("")}
+
 </table>
 
-<hr />
+<hr/>
 
+<div class="bold" style="display:flex; justify-content:space-between;">
+  <div>Total: ${ncItems.reduce((a, b) => a + b.qty, 0)}</div>
+  <div>₹${ncItems
+    .reduce((a, b) => a + b.price * b.qty, 0)
+    .toFixed(2)}</div>
+</div>
+
+<hr/>
 <div class="center">*** NC KOT ***</div>
 
 </body>
 </html>
-  `;
+`;
 
-  /** 🔹 Extract ONLY body for preview (FIX) */
-  const getBodyContent = (html: string) => {
-    const match = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    return match ? match[1] : html;
-  };
+  /** 🔹 PREVIEW (now uses SAME layout + inline styles + ₹ + right-aligned Rate + monospace font on container) */
+  const generatePreviewContent = useMemo(() => {
+    const totalQty = ncItems.reduce((a, b) => a + b.qty, 0);
+    const totalAmt = ncItems.reduce((a, b) => a + b.price * b.qty, 0);
+
+    return `
+<div style="text-align:center; font-weight:bold;">${localRestaurantName}</div>
+<div style="text-align:center;">${localOutletName}</div>
+
+<hr style="border-top:1px dashed #000; margin:6px 0;" />
+
+<div style="text-align:center; font-weight:bold;">NC KOT</div>
+
+<hr style="border-top:1px dashed #000; margin:6px 0;" />
+
+<div><b>NC:</b> ${ncItems[0]?.NCName || "-"}</div>
+<div><b>Purpose:</b> ${ncItems[0]?.NCPurpose || "-"}</div>
+<div><b>Date:</b> ${dateTime}</div>
+<div><b>User:</b> ${user?.username}</div>
+
+<hr style="border-top:1px dashed #000; margin:6px 0;" />
+
+<!-- TABLE HEADER -->
+<div style="display:grid; grid-template-columns:15% 40% 20% 25%; font-weight:bold; border-bottom:1px solid #000; padding:4px 0;">
+  <div style="text-align:center;">Qty</div>
+  <div style="text-align:left;">Item</div>
+  <div style="text-align:right;">Rate</div>
+  <div style="text-align:right;">Amt</div>
+</div>
+
+<!-- ITEMS -->
+${ncItems
+  .map(
+    i => `
+<div style="display:grid; grid-template-columns:15% 40% 20% 25%; border-bottom:1px solid #000; padding:4px 0;">
+  <div style="text-align:center;">${i.qty}</div>
+  <div style="text-align:left;">${i.name}</div>
+  <div style="text-align:right;">₹${i.price.toFixed(2)}</div>
+  <div style="text-align:right;">₹${(i.price * i.qty).toFixed(2)}</div>
+</div>`
+  )
+  .join("")}
+
+<hr style="border-top:1px dashed #000; margin:6px 0;" />
+
+<div style="display:flex; justify-content:space-between; font-weight:bold;">
+  <div>Total: ${totalQty}</div>
+  <div>₹${totalAmt.toFixed(2)}</div>
+</div>
+
+<hr style="border-top:1px dashed #000; margin:6px 0;" />
+<div style="text-align:center;">*** NC KOT ***</div>
+`;
+  }, [ncItems, localRestaurantName, localOutletName, dateTime, user]);
 
   /** 🔹 Print */
   const handlePrint = async () => {
@@ -185,11 +236,11 @@ ${ncItems.map(i => `
       }
 
       await (window as any).electronAPI.directPrint(
-        generateHTML(),
+        generateFullPrintHTML(),
         printerName
       );
 
-      toast.success("NC KOT Printed");
+      toast.success("Printed");
       onHide();
     } catch {
       toast.error("Print failed");
@@ -199,7 +250,7 @@ ${ncItems.map(i => `
   };
 
   return (
-    <Modal show={show} onHide={onHide} centered backdrop="static">
+    <Modal show={show} onHide={onHide} centered>
       <Modal.Header closeButton>
         <Modal.Title>NC KOT Preview</Modal.Title>
       </Modal.Header>
@@ -214,23 +265,21 @@ ${ncItems.map(i => `
             style={{
               width: "302px",
               margin: "0 auto",
-              border: "1px solid #ccc",
+              background: "#fff",
               padding: "10px",
-              backgroundColor: "#fff"
+              border: "1px solid #ccc",
+              fontFamily: "monospace",   // ← Fixed: Print-like font
+              fontSize: "12px"           // ← Fixed: Print-like size
             }}
-            dangerouslySetInnerHTML={{
-              __html: getBodyContent(generateHTML())
-            }}
+            dangerouslySetInnerHTML={{ __html: generatePreviewContent }}
           />
         )}
       </Modal.Body>
 
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Close
-        </Button>
-        <Button variant="danger" onClick={handlePrint} disabled={loading}>
-          Print NC KOT
+        <Button onClick={onHide}>Close</Button>
+        <Button variant="danger" onClick={handlePrint}>
+          Print
         </Button>
       </Modal.Footer>
     </Modal>
