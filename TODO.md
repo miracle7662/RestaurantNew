@@ -1,33 +1,49 @@
-# Reverse KOT Print Table Name Fix - TODO
+# KOT Print Debug - Item Name/Qty Showing Issue
 
-## Plan Status: ✅ APPROVED & IMPLEMENTATION IN PROGRESS
+## Status: 🔍 Debugging (0/6 complete)
 
-### Breakdowned Steps:
-✅ **1. Create TODO.md** - *Completed*
-
-✅ **2. Fix ReverseKotPrint.tsx** - *Completed*
-- Removed redundant `selectedTable` prop  
-- Fixed `displayTableName` fallback: `tableName?.trim() || activeTab || '-'`
-
-✅ **3. Update Orders.tsx** - *Completed*
-- Added `activeTab` prop to ReverseKotPrint
-
-**4. Test Changes** ✅
+### Step 1: Add Console Logging [PENDING]
 ```
-- Dine-in: Table 5 → Reverse → Preview shows "Table 5" ✅
-- Pickup: ActiveTab="Pickup" → Reverse → Preview shows "Pickup"  ✅ 
-- Quick Bill: ActiveTab="Quick Bill" → Preview shows "Quick Bill" ✅
+Billview.tsx saveKOT():
+console.log("🔍 billItems before filter:", billItems);
+console.log("🔍 printItems (new only):", printItems);
+console.log("🔍 currentKotNoForPrint:", currentKotNoForPrint);
 ```
+**Test**: Add 3 items → F9 → check console → copy output
 
-✅ **5. Verify & attempt_completion** - *Ready*
+### Step 2: Verify Backend mkotNo Update [PENDING]
 ```
-- Dine-in: Table 5 → Reverse → Preview shows "Table 5"
-- Pickup: ActiveTab="Pickup" → Reverse → Preview shows "Pickup"  
-- Quick Bill: ActiveTab="Quick Bill" → Preview shows "Quick Bill"
+After saveKOT API: loadBillForTable() → check if items.mkotNo updated
+Expected: After 1st F9, items should have mkotNo = "123|124"
+2nd F9: printItems should be EMPTY
 ```
 
-**5. Verify & attempt_completion** ✅
+### Step 3: Test Duplicate Print [PENDING]
+```
+1. Add items → F9 (print 1st KOT)
+2. F9 again → should show EMPTY preview / no print
+3. Result?
+```
 
----
+### Step 4: Check KotPrint.tsx Preview [PENDING]
+```
+F9 modal opens → screenshot preview
+Does it show correct new items only?
+```
 
-**Current Progress**: Step 1/5 completed. Next: Edit ReverseKotPrint.tsx
+### Step 5: Backend API Debug [PENDING]
+```
+Check backend /orders/kot response:
+Does it return correct KOTNo?
+Does it update items.mkotNo in DB?
+```
+
+### Step 6: Verify Electron Print [PENDING]
+```
+Preview correct? → Printer output matches preview?
+```
+
+## Expected Behavior ✅
+```
+KOT Print = ONLY new items (!item.mkotNo)
+Item name + qty = REQUIRED (kitchen needs to know what to cook!)

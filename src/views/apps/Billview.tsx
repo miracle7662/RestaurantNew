@@ -3657,8 +3657,8 @@ value={item.SpecialInst}
         items={ncPrintItems}
         user={user}
         outletName={outletName}            
-        restaurantName={restaurantName} 
-        tableName={tableName}
+        restaurantName={restaurantName}
+        tableName={tableName} 
       />
       <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
         if (DiscountType === 1) {
