@@ -20,9 +20,6 @@ import MenuService from "@/common/api/menu";
 import { DepartmentDetail } from "@/common/api/menu";
 import ReverseKotPrint from '../apps/PrintReport/ReverseKotPrint';
 
-
-
-
 const KOT_COLORS = [
   '#e3f2fd', // Green 50
   '#fff9db', // Orange 50 
