@@ -1,44 +1,22 @@
-# KOT Print Preview Items Fix - Progress Tracker
+# KOT Print Modal Fix - Progress Tracker
 
-## Plan Overview
-Fix: Items not showing in `billview.tsx` KOT print preview (`KotPrint.tsx` modal).
-Root Cause: `printItems` filters only new items (`!mkotNo`), fallback uses `isNew: false` for fetched items → empty preview on subsequent KOTs.
+## Plan Status: ✅ APPROVED BY USER
 
-**Approved Solution**: Pass/filter **all valid items** (`itemId > 0`) to preview.
+**Problem**: F9 navigates directly to Tableview (missing preview modal)
 
-## TODO Steps (1/5 Complete)
+**Root Cause**: Premature navigation in `saveKOT()` before modal state
 
-### ✅ 1. Create/Update TODO.md [COMPLETE]
-- ✓ Created with steps.
+## TODO Steps (1/5 Complete):
 
-### ☐ 2. Update Billview.tsx
-- Path: `src/views/apps/Billview.tsx`
-- Change `<KotPreviewPrint />` `printItems` to `billItems.filter(item => item.itemId > 0)` (all items).
-- Clear `items={[]}` fallback.
-- ✅ Test: F9 → Preview shows all items.
+- [x] **Step 1**: Create TODO.md ✅ **DONE**
+- [ ] **Step 2**: Fix `saveKOT()` navigation logic in Billview.tsx
+  - Remove premature `navigate()` calls when `print=true`
+  - Reliable KOT# extraction: `res.data?.KOTNo ?? editableKot`
+  - Add loading state during save→modal transition
+- [ ] **Step 3**: Test F9 flow 
+  - Add items → F9 → Verify Save+Modal → Print → Tableview
+- [ ] **Step 4**: Verify other flows (F10, F12) still work
+- [ ] **Step 5**: attempt_completion
 
-### ☐ 3. Update KotPrint.tsx
-- Path: `src/views/apps/PrintReport/KotPrint.tsx`
-- Fix `kotItems`: `printItems.length > 0 ? printItems : items.filter(i => i.itemId > 0)`.
-- Add console.log('kotItems.length:', kotItems.length).
-- ✅ Test: Preview renders items → Print works.
+**Next Action**: Step 2 - Edit Billview.tsx
 
-### ☐ 4. Test Full Flow
-```
-1. Add 2-3 items → F9 (1st KOT) → Preview shows items ✓ Print ✓
-2. Add 1 more item → F9 (2nd KOT) → Preview shows ALL items ✓ Print ✓
-3. Edge: Empty → F9 → Toast 'No new items', no empty preview.
-4. Settings: Toggle KOT settings → Preview respects flags.
-```
-- Browser: Open Billview → Test F9 multiple times.
-
-### ☐ 5. Complete & Verify
-- Run `npm run dev`.
-- No errors, linter clean.
-- Update TODO.md: Mark ✅ all steps.
-- `attempt_completion`: "Fixed KOT preview - now shows all valid items."
-
-## Next Action
-Proceed to **Step 2: Edit Billview.tsx**?
-
-**Current Progress: 3/5** (Billview + KotPrint updated)

@@ -443,6 +443,7 @@ const ModernBill = () => {
   const [showReverseKot, setShowReverseKot] = useState(false);
   const [revKotNo, setRevKotNo] = useState(0);
   const [showKotPrintModal, setShowKotPrintModal] = useState(false);
+ 
   const [currentKotNoForPrint, setCurrentKotNoForPrint] = useState<number | null>(null);
   const [showBillPrintModal, setShowBillPrintModal] = useState(false);
   const [showNCKotPrintModal, setShowNCKotPrintModal] = useState(false);
@@ -1839,8 +1840,7 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
 
   // Button handlers
   const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncName?: string, ncPurpose?: string) => {
-    console.log("🚀 saveKOT called");
-    console.log("🖨️ Print enabled:", print);
+    
     try {
       if (!user) {
         toast.error('User not authenticated. Cannot save KOT.');
@@ -2013,7 +2013,7 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
       }
 
       toast.success('KOT saved successfully');
-
+      
       // Set table status to occupied (green)
       if (targetTableId) {
         try {
@@ -2028,21 +2028,15 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
         console.log("🖨️ Print requested");
       }
 
-      if (print && kotNo) {
-        console.log("✅ Printing KOT with number:", kotNo);
-        setCurrentKotNoForPrint(kotNo);
+      if (print) {
+        const reliableKotNo = res.data?.KOTNo ?? res.data?.KOTNo ?? editableKot ?? defaultKot ?? 0;
+        console.log("✅ Opening KOT Preview Modal with KOT#:", reliableKotNo);
+        setCurrentKotNoForPrint(reliableKotNo);
         setShowKotPrintModal(true);
-        // Don't navigate immediately when printing - navigation will happen after print in onPrint callback
-      } else if (print && !kotNo) {
-        console.error("❌ Print blocked: KOT No not generated");
-        // Navigate even if print failed due to no KOT No
-        navigate('/apps/Tableview', {
-          state: {
-            refreshTakeaway: true
-          }
-        });
+        // Navigation handled by KotPreviewPrint onHide ✅
+        return;
       } else {
-        // Navigate immediately if not printing
+        // Only navigate if NOT printing (manual save without print)
         navigate('/apps/Tableview', {
           state: {
             refreshTakeaway: true
@@ -3885,16 +3879,7 @@ value={item.SpecialInst}
         autoPrint={true}
 
         // ✅ NAVIGATE AFTER PRINT COMPLETES
-        onPrint={() => {
-          setTimeout(() => {
-            setShowKotPrintModal(false);
-            navigate('/apps/Tableview', {
-              state: {
-                refreshTakeaway: true
-              }
-            });
-          }, 300);
-        }}
+       
 
         onClose={() => setShowKotPrintModal(false)}
         selectedOutletId={selectedOutletId}
