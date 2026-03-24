@@ -1,22 +1,13 @@
-# KOT Print Modal Fix - Progress Tracker
+# Day End Report Fixes
+Status: In Progress
 
-## Plan Status: ✅ APPROVED BY USER
+## Steps:
+- [ ] 1. Enhance query with mstrestmenu join for item names
+- [ ] 2. Fix data collection logic: reverse bills, NC KOTs (parse ItemDetails), reverse KOTs
+- [ ] 3. Refactor HTML generators: reduce padding widths, fix broken padEnd lines, add tables for better spacing
+- [ ] 4. Test generateDayEndReportHTML output for spacing and data population
+- [ ] 5. Update TODO.md with completion
+- [ ] 6. attempt_completion
 
-**Problem**: F9 navigates directly to Tableview (missing preview modal)
-
-**Root Cause**: Premature navigation in `saveKOT()` before modal state
-
-## TODO Steps (1/5 Complete):
-
-- [x] **Step 1**: Create TODO.md ✅ **DONE**
-- [ ] **Step 2**: Fix `saveKOT()` navigation logic in Billview.tsx
-  - Remove premature `navigate()` calls when `print=true`
-  - Reliable KOT# extraction: `res.data?.KOTNo ?? editableKot`
-  - Add loading state during save→modal transition
-- [ ] **Step 3**: Test F9 flow 
-  - Add items → F9 → Verify Save+Modal → Print → Tableview
-- [ ] **Step 4**: Verify other flows (F10, F12) still work
-- [ ] **Step 5**: attempt_completion
-
-**Next Action**: Step 2 - Edit Billview.tsx
+Current file: backend/controllers/Dayendcontroller.js
 

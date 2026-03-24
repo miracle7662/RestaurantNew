@@ -3835,6 +3835,8 @@ value={item.SpecialInst}
           .map(item => ({
             id: item.itemId,
             name: item.itemName,
+            variantId: item.variantId ?? null,
+            variantName: item.variantName ?? 'Standard',
             price: item.rate,
             qty: item.qty,
             isBilled: 0,
@@ -3902,6 +3904,8 @@ value={item.SpecialInst}
           price: item.rate,
           qty: item.qty,
           isBilled: item.isBilled || 0,
+          variantId: item.variantId ?? null,
+            variantName: item.variantName ?? '',
           isNCKOT: 0,
           NCName: '',
           NCPurpose: '',

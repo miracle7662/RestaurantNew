@@ -250,7 +250,7 @@ const DayEndReportPreview: React.FC = () => {
   `}
   style={{
     width: '100%',
-    height: '650px',
+    height: 'auto',
     border: '1px solid #ddd',
     background: '#fff'
   }}
@@ -264,7 +264,7 @@ const DayEndReportPreview: React.FC = () => {
         </div>
       ) : (
         <div className="text-center py-5">
-          <Printer size={48} className="text-muted mb-3" />
+          <Printer size={20} className="text-muted mb-3" />
           <h6 className="text-muted">No Report Generated</h6>
           <p className="text-muted small">Click "DayEnd" button to generate reports</p>
         </div>

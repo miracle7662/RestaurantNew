@@ -625,8 +625,8 @@ ${showCustomerMobile
     ${qty}
   </div>
   <div style="text-align: left; font-size: 12pt;">
-  ${item.name} 
-  ${item.variantName ? `<span style="font-size:11pt; color:#0066cc; font-weight:bold;">(${item.variantName})</span>` : ''}${modifierHtml}${alternativeHtml}
+${item.name} 
+  <span style="font-size:11pt; color:#0066cc; font-weight:bold;">(${item.variantName || 'Standard'})</span>${modifierHtml}${alternativeHtml}
 </div> 
 </div>${showRateColumn ? `<div style="text-align: right">${item.price.toFixed(2)}</div>` : ''}
         ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty).toFixed(2)}</div>` : ''}
