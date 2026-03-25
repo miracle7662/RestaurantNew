@@ -1,13 +1,11 @@
-# Day End Report Fixes
-Status: In Progress
+# Fix TypeScript variantId Error
+
+**Status**: ✅ In Progress
 
 ## Steps:
-- [ ] 1. Enhance query with mstrestmenu join for item names
-- [ ] 2. Fix data collection logic: reverse bills, NC KOTs (parse ItemDetails), reverse KOTs
-- [ ] 3. Refactor HTML generators: reduce padding widths, fix broken padEnd lines, add tables for better spacing
-- [ ] 4. Test generateDayEndReportHTML output for spacing and data population
-- [ ] 5. Update TODO.md with completion
-- [ ] 6. attempt_completion
-
-Current file: backend/controllers/Dayendcontroller.js
-
+- [x] 1. Create this TODO.md
+- [ ] 2. Fix Billview.tsx types (FetchedItem, MenuItem, BillItem, DisplayedItem)
+- [ ] 3. Fix Orders.tsx MenuItem type  
+- [ ] 4. Verify TypeScript compilation
+- [ ] 5. Test Billview load (table selection)
+- [ ] 6. Complete task
