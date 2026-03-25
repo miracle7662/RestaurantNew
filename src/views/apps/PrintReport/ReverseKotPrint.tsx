@@ -185,23 +185,53 @@ const generateHTML = () => `
 <head>
 <meta charset="UTF-8" />
 <style>
-  @page { size: 302px auto; margin: 0; }
-  body {
-    width: 302px;
+  @page {
+    size: 80mm auto;
     margin: 0;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
   }
+
+  body {
+    width: 72mm;              /* 🔥 SAFE WIDTH */
+    margin-left: 3mm;         /* 🔥 LEFT CUT FIX */
+    margin-right: 2mm;        /* 🔥 RIGHT SAFE */
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
   .center { text-align: center; }
   .bold { font-weight: bold; }
-  hr { border-top: 1px dashed #000; }
+
+  hr {
+    border-top: 1px dashed #000;
+    margin: 6px 0;
+  }
+
+  /* 🔥 GRID FIX (IMPORTANT) */
+  .row {
+    display: grid;
+    grid-template-columns: 50% 20% 30%; /* adjust to fit */
+    width: 100%;
+  }
+
+  .row div {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .left { text-align: left; }
+  .center-text { text-align: center; }
+  .right { text-align: right; }
+
 </style>
 </head>
+
 <body>
 ${generateContent}
 </body>
 </html>
-  `;
+`;
 
 
   /** 🔹 Print Handler */
