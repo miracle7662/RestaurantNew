@@ -1,21 +1,12 @@
-# RevKOTNo Display Fix - TODO Steps
+# F8 Password Modal Fix - Billview.tsx
+Status: ✅ In Progress
 
-## Plan Breakdown (Approved)
-1. ~~Understand files & issue~~ (Done: Print uses wrong `kotNo` field)
-2. Update ReverseKotPrint.tsx (display RevKOTNo)
-3. Update Orders.tsx (pass revKotNo to modal)
-4. Test reversal flow
+## Steps:
+- [x] 1. Understand issue (DB ReverseQtyMode=0 skips modal)
+- [ ] 2. Edit Billview.tsx - Force password modal for billed tables  
+- [ ] 3. Test F8 on billed table → password modal opens
+- [ ] 4. Verify ReverseKotModal opens after password
+- [ ] 5. attempt_completion
 
-## Progress
-- [ ] Step 1: Create TODO.md ✅
-- [x] Step 2: Edit ReverseKotPrint.tsx ✅ (Fixed kotNo → revKotNo logic)
-- [x] Step 3: Edit Orders.tsx ✅ (Pass revKotNo to print modal)
-- [x] Step 4: Test & verify RevKOTNo shows in preview
-- [ ] Step 5: attempt_completion
+**Current:** Creating Billview.tsx edits...
 
-**Status:** ✅ All code changes complete. Ready for testing.
-
-**Test Steps:**
-1. F8 reverse mode → reverse items → Save Reverse
-2. Check Reverse KOT preview shows RevKOTNo (not regular KOT No)
-3. Print & verify

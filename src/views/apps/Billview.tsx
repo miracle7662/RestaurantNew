@@ -2532,6 +2532,7 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
 
   const hasOnlyExistingItems = hasItems && !hasNewItems;
   const isBillPrintedState = billItems.some(i => i.isBilled === 1);
+  // console.log('📊 Bill state - isBillPrintedState:', isBillPrintedState, 'items with isBilled=1:', billItems.filter(i => i.isBilled === 1).length);
 
   // Determine table status as number: 0 = Vacant, 1 = Occupied, 2 = Billed
   // Use reliable conditions: item count, kot count, bill printed flag
@@ -2612,13 +2613,22 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
 
   const isPrintDisabled = !hasOnlyExistingItems;
 
-  const handleF8Action = useCallback(() => {
+const handleF8Action = useCallback(() => {
+    
+    // Force password modal for billed tables (print bill ho gaya)
+    if (isBillPrintedState) {
+      console.log('💰 Billed table detected - forcing password modal');
+      setShowF8RevKotPasswordModal(true);
+      return;
+    }
+    
+    // Existing config logic for unbilled tables
     if (reverseQtyConfig === 'PasswordRequired') {
       setShowF8RevKotPasswordModal(true);
     } else {
       setShowReverseKot(true);
     }
-  }, [reverseQtyConfig]);
+  }, [reverseQtyConfig, isBillPrintedState, hasItems]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
