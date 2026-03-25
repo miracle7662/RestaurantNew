@@ -2186,7 +2186,7 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
         ...item,
         name: item.itemName || "",   // ✅ FIX
         price: item.rate,
-        ReverskotNo: reverseKotNo,
+        revKotNo: revKotNo ,
         isReverse: true,
         revQty: item.cancelQty  // Use cancelQty from modal
       })));
