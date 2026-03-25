@@ -1,10 +1,10 @@
-# Task: Fix generateReverseBillSummaryHTML function
+# DayEnd Reversed Bill Fix - TODO
 
-## Steps:
-- [ ] Step 1: Create TODO.md with plan steps ✅
-- [x] Step 2: Edit backend/controllers/Dayendcontroller.js to replace the incomplete generateReverseBillSummaryHTML function with the completed version
-- [x] Step 3: Verify the changes by reading the updated file content
-- [ ] Step 4: Test the function (optional: simulate via execute_command or manual API test)
-- [x] Step 5: Update TODO.md with completion status
-- [ ] Step 6: Attempt task completion
+## Plan Steps:
+- [ ] Step 1: Create TODO.md ✅ **DONE**
+- [ ] Step 2: Fix backend query in Dayendcontroller.js (WHERE clause)
+- [ ] Step 3: Remove frontend filter skipping reversed bills
+- [ ] Step 4: Test the fix (refresh frontend, check reversed bills appear)
+- [ ] Step 5: Mark complete & cleanup TODO.md
 
+**Current Progress**: 1/5 steps complete
