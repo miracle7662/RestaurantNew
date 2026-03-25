@@ -3827,7 +3827,10 @@ value={item.SpecialInst}
       />
       <KotPreviewPrint
         show={showKotPrintModal}
-        onHide={() => setShowKotPrintModal(false)}
+onHide={() => {
+  setShowKotPrintModal(false);
+  navigate('/apps/Tableview');
+}}
 
         // ✅ PRINT ONLY NEW KOT ITEMS
         printItems={billItems
