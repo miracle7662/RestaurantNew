@@ -103,7 +103,7 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
 
   body {
     width: 72mm;              /* 🔥 SAFE WIDTH */
-    margin-left: 3mm;         /* 🔥 LEFT FIX */
+    margin-left: 4mm;         /* 🔥 LEFT FIX */
     margin-right: 2mm;        /* 🔥 RIGHT FIX */
     font-family: monospace;
     font-size: 11px;

@@ -581,6 +581,13 @@ ${showCustomerMobile
 
         <div><strong>Date:</strong></div>
         <div>${dateTime}</div>
+
+${showWaiter ? `
+  <div style="font-size: 9pt; margin-bottom: 6px; display: flex; gap: 4px;">
+    <strong>Waiter:</strong>
+    <span>${selectedWaiter || user?.name || 'N/A'}</span>
+  </div>
+` : ''}
       </div>
     </div>
 
@@ -589,7 +596,6 @@ ${showCustomerMobile
 
     </div>
 
-    ${showWaiter ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Waiter:</strong> ${selectedWaiter || user?.name || 'N/A'}</div>` : ''}
 
     ${showUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Username:</strong> ${user.username}</div>` : ''}
     ${showTerminalUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Terminal Username:</strong> ${user.terminal_username}</div>` : ''}
