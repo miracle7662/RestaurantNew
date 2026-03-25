@@ -423,7 +423,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     // Determine the names to use: outlet props first, then local state, then user object, then defaults
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
-const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
+    const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
     console.log('KOT Print Debug:', {
       restaurantName,
 

@@ -161,6 +161,9 @@ const KitchenAllocation: React.FC = () => {
         filterId
       });
 
+      console.log('KitchenAllocation data received:', result.data.slice(0, 5)); // Log first 5 items to check item_no
+      console.log('Sample item_no values:', result.data.slice(0, 5).map(item => ({item_no: item.item_no, item_name: item.item_name})));
+
       if (result.success) {
         setData(result.data);
       } else {
@@ -265,83 +268,99 @@ const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount)
 
 const reportHTML = `
 <html>
-  <head>
-    <title>Kitchen Allocation Report</title>
-    <style>
-      body {
-        font-family: monospace;
-        font-size: 12px;
-        line-height: 1.2;
-        width: 220px; /* 80mm thermal paper */
-        margin: 0;
-        padding: 0;
-      }
-      .header, .sub-header {
-        text-align: center;
-      }
-      .sub-header {
-        font-size: 10px;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 5px;
-      }
-      th, td {
-        border-bottom: 1px dashed #000;
-        padding: 2px 0;
-        font-size: 11px;
-      }
-      th {
-        font-weight: bold;
-        text-align: left;
-      }
-      td {
-        text-align: left;
-      }
-      td.qty, td.amt {
-        text-align: right;
-      }
-      .total-row td {
-        font-weight: bold;
-        border-top: 1px solid #000;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="header">
-    
-    </div>
-    <div class="sub-header">
-      <p>Kitchen Allocation Report</p>
-      <p>From: ${fromDate} To: ${toDate}</p>
-    </div>
-    <table>
-      <thead>
+<head>
+  <style>
+    @page {
+      size: 80mm auto;
+      margin: 0;
+    }
+
+    body {
+      font-family: monospace;
+      font-size: 11px;
+      line-height: 1.3;
+
+      width: 72mm;              /* SAFE printable width */
+      margin-left: 3mm;         /* 🔥 IMPORTANT: left gap */
+      margin-right: 2mm;
+      padding: 0;
+    }
+
+    .sub-header {
+      text-align: center;
+      font-size: 10px;
+      margin-bottom: 5px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border-bottom: 1px dashed #000;
+      padding: 2px;
+      font-size: 10px;
+    }
+
+    th {
+      text-align: left;
+    }
+
+    /* Adjusted widths */
+    .col-no   { width: 14%; }
+    .col-name { width: 46%; }
+    .col-qty  { width: 20%; text-align: right; }
+    .col-amt  { width: 20%; text-align: right; }
+
+    td {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .total-row td {
+      font-weight: bold;
+      border-top: 1px solid #000;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="sub-header">
+    <p>Kitchen Allocation Report</p>
+    <p>From: ${fromDate} To: ${toDate}</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="col-no">No</th>
+        <th class="col-name">Item</th>
+        <th class="col-qty">Qty</th>
+        <th class="col-amt">Amt</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      ${filteredData.map(item => `
         <tr>
-          <th>No</th>
-          <th>Item</th>
-          <th>Qty</th>
-          <th>Amt</th>
+          <td class="col-no">${item.item_no ?? '-'}</td>
+          <td class="col-name">${item.item_name}</td>
+          <td class="col-qty">${item.TotalQty}</td>
+          <td class="col-amt">${Number(item.Amount || 0).toFixed(2)}</td>
         </tr>
-      </thead>
-      <tbody>
-        ${filteredData.map(item => `
-          <tr>
-            <td>${item.item_no}</td>
-            <td>${item.item_name}</td>
-            <td class="qty">${item.TotalQty}</td>
-            <td class="amt">${item.Amount.toFixed(2)}</td>
-          </tr>
-        `).join('')}
-        <tr class="total-row">
-          <td colspan="2">Total</td>
-          <td class="qty">${totalQty}</td>
-          <td class="amt">${totalAmount.toFixed(2)}</td>
-        </tr>
-      </tbody>
-    </table>
-  </body>
+      `).join('')}
+
+      <tr class="total-row">
+        <td colspan="2">Total</td>
+        <td class="col-qty">${totalQty}</td>
+        <td class="col-amt">${totalAmount.toFixed(2)}</td>
+      </tr>
+    </tbody>
+  </table>
+</body>
 </html>
 `;
 
