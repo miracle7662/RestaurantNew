@@ -1,11 +1,6 @@
-# Fix TypeScript variantId Error
+# KOT Preview Outlet Name Fix
+- [x] 1. Analyzed Billview.tsx + KotPrint.tsx ✅
+- [x] 2. Edit KotPrint.tsx: Remove showStoreName conditional ✅
+- [ ] 3. Test KOT preview (F9)
+- [ ] 4. Complete task
 
-**Status**: ✅ In Progress
-
-## Steps:
-- [x] 1. Create this TODO.md
-- [ ] 2. Fix Billview.tsx types (FetchedItem, MenuItem, BillItem, DisplayedItem)
-- [ ] 3. Fix Orders.tsx MenuItem type  
-- [ ] 4. Verify TypeScript compilation
-- [ ] 5. Test Billview load (table selection)
-- [ ] 6. Complete task

@@ -237,7 +237,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       width: 302px !important;
       min-width: 302px !important;
       margin: 0;
-      padding: 0;
+      padding: 0 6px;  /* LEFT + RIGHT SAFE ZONE */
       font-family: 'Courier New', monospace;
       font-size: 12px;
       line-height: 1.3;
@@ -247,10 +247,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     /* CONTENT WRAPPER */
     #kot-preview-content {
-      width: 302px !important;
+      
       min-width: 302px !important;
       margin: 0 auto;
-      padding: 10px;
+     
       box-sizing: border-box;
     }
 
