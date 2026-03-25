@@ -104,11 +104,17 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 
   /** 🔹 DateTime */
   const dateTime = useMemo(() => {
-    return date
-      ? new Date(date).toLocaleString("en-GB")
-      : new Date().toLocaleString("en-GB");
-  }, [date]);
+  const d = date ? new Date(date) : new Date();
 
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}, [date]);
   /** 🔹 PREVIEW + PRINT CONTENT (Shared) */
   const generateContent = useMemo(() => {
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || "";
@@ -118,28 +124,43 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 <div style="text-align:center; font-weight:bold;">${displayRestaurantName}</div>
 <div style="text-align:center;">${displayOutletName}</div>
 
-<!-- TABLE BIG BOX (similar to KotPrint.tsx) -->
-<div style="
-  border: 1px solid #696868;
-  min-width: 70px;
-  min-height: 55px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16pt;
-  font-weight: bold;
-  margin: 8px auto;
-">${displayTableName}</div>
-
 <hr style="border-top:1px dashed #000; margin:8px 0;" />
 
 <div style="text-align:center; font-weight:bold;">REVERSE KOT</div>
 
 <hr style="border-top:1px dashed #000; margin:8px 0;" />
 
-<div><strong>Reverse KOT No:</strong> ${reverseKotNos || "-"}</div>
-<div><strong>Date:</strong> ${dateTime}</div>
-<div><strong>User:</strong> ${user?.username || "-"}</div>
+<!-- TOP ROW -->
+<div style="
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+">
+
+  <!-- LEFT SIDE (Details) -->
+  <div style="font-size: 10pt;">
+    <div><strong>Reverse KOT No:</strong> ${reverseKotNos || "-"}</div>
+    <div><strong>Date:</strong> ${dateTime}</div>
+    <div><strong>User:</strong> ${user?.username || "-"}</div>
+  </div>
+
+  <!-- RIGHT SIDE (TABLE BOX) -->
+  <div style="
+    border: 1px solid #696868;
+    min-width: 70px;
+    min-height: 55px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16pt;
+    font-weight: bold;
+    margin-left: 10px;
+  ">
+    ${displayTableName}
+  </div>
+
+</div>
+
 
 <hr style="border-top:1px dashed #000; margin:8px 0;" />
 
@@ -191,8 +212,8 @@ const generateHTML = () => `
   }
 
   body {
-    width: 72mm;              /* 🔥 SAFE WIDTH */
-    margin-left: 3mm;         /* 🔥 LEFT CUT FIX */
+    width: 70mm;              /* 🔥 SAFE WIDTH */
+    margin-left: 4mm;         /* 🔥 LEFT CUT FIX */
     margin-right: 2mm;        /* 🔥 RIGHT SAFE */
     font-family: 'Courier New', monospace;
     font-size: 11px;
