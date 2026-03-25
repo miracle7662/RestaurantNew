@@ -493,10 +493,9 @@ const generateDayEndReportHTML = (req, res) => {
           t.RoundOFF,
           t.RevKOT as RevAmt,
           t.TxnDatetime,
-t.Steward as Captain,
+          t.Steward as Captain,
           t.UserId,
           u.username as UserName,
-          tm.TableName,
           t.NCPurpose,
           t.NCName,
           t.DiscountType,
@@ -518,7 +517,9 @@ t.Steward as Captain,
           SUM(td.Qty) as TotalItems,
           GROUP_CONCAT(DISTINCT td.ItemID || ':' || td.Qty || ':' || td.RuntimeRate   || ':' || td.isNCKOT || ':' || td.RevKOTNo) as ItemDetails
       FROM TAxnTrnbill t
-
+      LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
+      LEFT JOIN mst_users u ON t.UserId = u.userid
+      WHERE t.isDayEnd = 1 AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ? AND t.DayEndEmpID = ?
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
     `;
@@ -552,7 +553,7 @@ t.Steward as Captain,
 
       const transaction = {
         billNo: row.TxnNo,
-        tableName: row.TableName || row.TableID || 'N/A',
+        tableNo: row.TableID,
         grossAmount: parseFloat(row.GrossAmount || 0),
         discount: parseFloat(row.Discount || 0),
         cgst: parseFloat(row.CGST || 0),
@@ -656,37 +657,34 @@ t.Steward as Captain,
 
 function generateBillDetailsHTML(transactions) {
   let html = 'BILL DETAILS\n\n';
- html += 'Bill  Tbl  Grs  Dis  CG  SG  Net  Pay\n\n';
-  
+  html += 'Bill No  Table  Gross   GST     Net    Payment\n';
 
-  let totalGross = 0, totalDisc = 0, totalCGST = 0, totalSGST = 0, totalNet = 0;
+  let totalGross = 0, totalGST = 0, totalNet = 0;
 
-  // Calculate totals
   transactions.forEach(t => {
-    totalGross += t.grossAmount;
-    totalDisc += t.discount;
-    totalCGST += t.cgst;
-    totalSGST += t.sgst;
-    totalNet += t.netAmount;
+    totalGross += t.grossAmount || 0;
+    totalGST += (t.cgst || 0) + (t.sgst || 0); // ✅ GST combine
+    totalNet += t.netAmount || 0;
   });
 
-  // Print transaction rows (limit 25 for 80mm printer)
+  // Print transaction rows
   transactions.slice(0, 25).forEach(t => {
     const billNo = String(t.billNo || '').padEnd(6);
-    const tableNo = String(t.tableNo || '').padEnd(4);
+    const tableNo = String(t.tableNo || '').padEnd(6);
     const gross = (t.grossAmount || 0).toFixed(2).padStart(8);
-    const disc = (t.discount || 0).toFixed(2).padStart(6);
-    const cg = (t.cgst || 0).toFixed(2).padStart(6);
-    const sg = (t.sgst || 0).toFixed(2).padStart(6);
+
+    const gstValue = ((t.cgst || 0) + (t.sgst || 0)); // ✅ combine
+    const gst = gstValue.toFixed(2).padStart(6);
+
     const net = (t.netAmount || 0).toFixed(2).padStart(8);
-    const pay = String(t.paymentMode || 'Cash').substring(0,12).padEnd(12);
-    
-    html += `${billNo}${tableNo}${gross}${disc}${cg}${sg}${net}${pay}\n`;
+    const pay = String(t.paymentMode || 'Cash').substring(0, 12).padEnd(12);
+
+    html += `${billNo}${tableNo}${gross}${gst}${net}${pay}\n`;
   });
 
+  html += '\n\n';
 
- html += '\n\n'; // clean spacing
-  html += `TOTAL    ${totalGross.toFixed(2).padStart(7)} ${totalDisc.toFixed(2).padStart(6)} ${totalCGST.toFixed(2).padStart(6)} ${totalSGST.toFixed(2).padStart(6)} ${totalNet.toFixed(2).padStart(6)}\n\n`;
+  html += `TOTAL    ${totalGross.toFixed(2).padStart(7)} ${totalGST.toFixed(2).padStart(6)} ${totalNet.toFixed(2).padStart(8)}\n\n`;
 
   return html;
 }
@@ -703,7 +701,6 @@ function generateCreditSummaryHTML(transactions) {
     totalCredit += t.creditAmount;
   });
 
- html += '\n\n'; // clean spacing
   html += `TOTAL CREDIT             ${totalCredit.toFixed(2).padStart(14)}\n\n`;
 
   return html;
@@ -727,7 +724,7 @@ function generatePaymentSummaryHTML(transactions) {
   html += `UPI           ${upi.toFixed(2).padStart(10)}\n`;
   html += `QR Code       ${qr.toFixed(2).padStart(10)}\n`;
   html += `Other         ${other.toFixed(2).padStart(10)}\n`;
- html += '\n\n'; // clean spacing
+  html += '---------- ----------\n';
   html += `GRAND TOTAL   ${(cash + card + upi + qr + other).toFixed(2).padStart(10)}\n\n`;
 
   return html;
@@ -737,33 +734,43 @@ function generateDiscountSummaryHTML(transactions) {
   let html = 'DISCOUNT SUMMARY\n\n';
   html += 'Bill No  Discount Reason      Amount\n';
  
+
   let totalDiscount = 0;
 
   transactions
     .filter(t => t.discount > 0)
-    .forEach(t => {
-      const discountReason = String(t.discountReason || 'N/A');
-
-String(t.billNo || '').padEnd(8)
-
+  .forEach(t => {
+      const billNo = String(t.billNo || '').padEnd(8);
+      const discountReason = String(t.discountReason || 'N/A').substring(0,20).padEnd(20);
+      const amount = t.discount.toFixed(2).padStart(10);
+      html += `${billNo}${discountReason}${amount}\n`;
       totalDiscount += t.discount;
     });
 
-  
+ html += '\n\n'; // clean spacing
   html += `Total Discount: ${totalDiscount.toFixed(2)}\n`;
 
   return html;
 }
 function generateReverseKOTsSummaryHTML(reverseKOTs) {
   let html = 'REVERSE KOTs SUMMARY\n\n';
-  html += 'KOT No  Table  Item Name          Qty  Reason    Time\n';
- 
+  html += 'KOT No  Table  Item Name          Qty  Reason      Time\n';
 
   reverseKOTs.forEach(r => {
-    const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    const itemName = String(r.itemName || 'N/A');
-    const reason = String(r.reason || 'N/A');
-String(r.kotNo || '').padEnd(7)
+    const kotNo = String(r.kotNo || '').padEnd(7);
+    const tableNo = String(r.tableNo || '').padEnd(6);
+    const itemName = String(r.itemName || 'N/A').substring(0, 18).padEnd(18);
+    const qty = String(r.qty || 0).padStart(4);
+    const reason = String(r.reason || 'N/A').substring(0, 10).padEnd(10);
+
+    const timeStr = r.time
+      ? new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      : '--:--';
+
+    const time = timeStr.padStart(6);
+
+    // ✅ IMPORTANT: append row
+    html += `${kotNo}${tableNo}${itemName}${qty}${reason}${time}\n`;
   });
 
   html += '\n';
@@ -773,12 +780,23 @@ String(r.kotNo || '').padEnd(7)
 function generateReverseBillSummaryHTML(reverseBills) {
   let html = 'REVERSE BILL SUMMARY\n\n';
   html += 'Bill No  Table  Reversed Amount  Reason    Time\n';
- 
+  
 
-  reverseBills.forEach(r => {
-    const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-String(r.billNo || '').padEnd(8)
+  let totalReversed = 0;
+  
+  reverseBills.slice(0, 20).forEach(r => {
+    const billNo = String(r.billNo || '').padEnd(8);
+    const tableNo = String(r.tableNo || '').padEnd(6);
+    const amount = (r.reversedAmount || 0).toFixed(2).padStart(12);
+    const reason = String(r.reason || 'N/A').substring(0,12).padEnd(12);
+    const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }).padEnd(8);
+    html += `${billNo}${tableNo}${amount}${reason}${timeStr}\n`;
+    totalReversed += r.reversedAmount || 0;
   });
+  
+  if (totalReversed > 0) {
+    html += `TOTAL REVERSED AMOUNT: ${totalReversed.toFixed(2)}\n\n`;
+  }
 
   html += '\n';
   return html;
@@ -788,7 +806,6 @@ function generateNCKOTSalesSummaryHTML(ncKOTs) {
   let html = 'NC KOT SALES SUMMARY\n\n';
   html += 'NC Name    Purpose    Item Name          Qty  Amount\n';
  
-
   let totalAmount = 0;
 
   ncKOTs.forEach(n => {
