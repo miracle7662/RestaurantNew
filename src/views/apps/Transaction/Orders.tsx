@@ -228,6 +228,7 @@ const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
 
   // New state for the Bill Print Modal
   const [showBillPrintModal, setShowBillPrintModal] = useState<boolean>(false);
+  const [printThenSettleFlow, setPrintThenSettleFlow] = useState(false);
 
   const [printItems, setPrintItems] = useState<MenuItem[]>([]);
   const [showWaiterPaxModal, setShowWaiterPaxModal] = useState<boolean>(false);
@@ -1940,7 +1941,7 @@ const tableNameForKOT =
     } finally {
       setLoading(false);
     }
-  };
+  }; 
   const handlePrintAndSettle = async () => {
     if (items.length === 0) {
       toast.error('No items to process.');
@@ -1958,7 +1959,6 @@ const tableNameForKOT =
         customerName: customerName || null,
         mobileNo: mobileNumber || null,
         customerid: customerid || null,
-
       });
 
       if (!billedRes.success) {
@@ -1974,12 +1974,11 @@ const tableNameForKOT =
 
       setOrderNo(txnNo);
 
+      toast.success('Bill marked as printed!');
 
-      toast.success('Bill printed successfully');
-
-      // 4️⃣ ✅ OPEN SETTLEMENT MODAL (NO RESET HERE)
-      setBillActionState('printOrSettle');
-      setShowSettlementModal(true);
+      // 3️⃣ Open Bill Print Preview Modal + Set Flow State
+      setShowBillPrintModal(true);
+      setPrintThenSettleFlow(true);
 
     } catch (error: any) {
       console.error('Error in Print & Settle:', error);
@@ -4930,7 +4929,13 @@ onClose={() => {
           <BillPreviewPrint
             show={showBillPrintModal}
             
-            onHide={() => setShowBillPrintModal(false)}
+            onHide={() => {
+              setShowBillPrintModal(false);
+              if (printThenSettleFlow) {
+                setShowSettlementModal(true);
+                setPrintThenSettleFlow(false);
+              }
+            }}
             formData={formData}
             user={user}
             items={items}
