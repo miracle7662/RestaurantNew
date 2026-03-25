@@ -449,6 +449,9 @@ const ModernBill = () => {
   const [showNCKotPrintModal, setShowNCKotPrintModal] = useState(false);
 const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
 
+  // PrintThenSettle flow state (like Orders.tsx)
+  const [printThenSettleFlow, setPrintThenSettleFlow] = useState(false);
+
   // 🔥 NEW Reverse KOT Print states (like Orders.tsx)
   const [showReverseKotPrintModal, setShowReverseKotPrintModal] = useState(false);
   const [reversePrintTrigger, setReversePrintTrigger] = useState(0);
@@ -2255,7 +2258,7 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
   };
 
 
-  const PrintAndSettle = async () => {
+const PrintAndSettle = async () => {
     if (!txnId) return;
 
     // Safety check for takeaway orders
@@ -2271,7 +2274,6 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
         customerName: customerName || null,
         mobileNo: customerNo || null,
         customerid: customerId || null,
-
       });
 
       const txnNo = response.data?.TxnNo;
@@ -2280,17 +2282,17 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
         return;
       }
 
-      // 2️⃣ TxnNo state me set karo
+      // 2️⃣ Set TxnNo and open BillPreviewPrint modal (like Orders.tsx)
       setOrderNo(txnNo);
-      toast.success('Bill printed successfully');
+      setPrintThenSettleFlow(true);
+      setShowBillPrintModal(true);
+      toast.success('Bill marked as printed and ready for settlement!');
+
 
       // 3️⃣ Table status update (only for dine-in orders)
       if (!isTakeaway && tableId) {
-        await OrderService.updateTableStatus(tableId, { status: 1 });
+        await OrderService.updateTableStatus(tableId, { status: 2 });
       }
-
-      // 4️⃣ Open Settlement Modal with all values
-      setShowSettlementModal(true);
 
     } catch (error) {
       console.error('Error printing bill:', error);
@@ -2607,7 +2609,7 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
   const disableAll = !hasItems;
 
   const disableSettle = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway);
-  const disablePrintSettle = !buttonStates.printSettle;
+const disablePrintSettle = !hasOnlyExistingItems || hasNewItems;
 
   const disableSettlement = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway) || isTableOccupied;
 
@@ -3960,14 +3962,23 @@ onHide={() => {
           toast.success("Bill printed successfully");
 
           // Table status update AFTER print
-          await OrderService.updateTableStatus(tableId, { status: 1 });
+          if (tableId) {
+            await OrderService.updateTableStatus(tableId, { status: 2 });
+          }
 
           setShowBillPrintModal(false);
 
-          setTimeout(() => {
-            navigate("/apps/Tableview");
-          }, 300);
+          // PrintThenSettle flow: Open settlement after print
+          if (printThenSettleFlow) {
+            setPrintThenSettleFlow(false);
+            setShowSettlementModal(true);
+          } else {
+            setTimeout(() => {
+              navigate("/apps/Tableview");
+            }, 300);
+          }
         }}
+        
       />
 
       {/* 🔥 NEW: Reverse KOT Print Modal (copy from Orders.tsx) */}
