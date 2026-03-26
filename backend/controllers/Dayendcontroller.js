@@ -914,19 +914,19 @@ const generateNCKOTsHTML = (data) => {
 
   let html = '';
   html += '           NC KOT SUMMARY           \n';
-  html += 'Customer   Purpose    Qty    Amt\n';
+  html += 'NCName   Purpose    Qty    Amt\n';
  
 
   let totalQty = 0;
   let totalAmt = 0;
 
   data.slice(0, 12).forEach(n => {
-    const ncName  = String(n.ncName  || 'N/A').substring(0, 9).padEnd(10);
+    const NCName  = String(n.ncName  || 'N/A').substring(0, 9).padEnd(10);
     const purpose = String(n.purpose || 'N/A').substring(0, 9).padEnd(10);
     const qty     = String(n.quantity || 0).padStart(4);
     const amount  = (Number(n.amount) || 0).toFixed(2).padStart(9);
 
-    html += `${ncName}${purpose}${qty}${amount}\n`;
+    html += `${NCName}${purpose}${qty}${amount}\n`;
 
     totalQty += Number(n.quantity || 0);
     totalAmt += Number(n.amount || 0);
