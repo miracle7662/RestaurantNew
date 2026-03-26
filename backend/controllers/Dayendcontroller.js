@@ -471,6 +471,127 @@ const getLatestCurrDate = (req, res) => {
   }
 };
 
+
+
+
+// ==================== MAIN CONTROLLER ====================
+
+const generateDayEndReportHTML = (req, res) => {
+  try {
+    const { DayEndEmpID, businessDate, selectedReports = [] } = req.body;
+
+    // VALIDATION
+    if (!DayEndEmpID || !businessDate) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'DayEndEmpID and businessDate required' 
+      });
+    }
+
+    if (!Array.isArray(selectedReports) || selectedReports.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'selectedReports array required' 
+      });
+    }
+
+    console.log(`📊 Generating DayEndReport for Emp:${DayEndEmpID}, Date:${businessDate}`);
+    console.log('Reports:', selectedReports.join(', '));
+
+    // ✅ CASE-WISE: Fetch ONLY required report data
+    const reportData = {};
+
+    // Execute queries PARALLELY for selected reports only
+    selectedReports.forEach(reportKey => {
+      try {
+        switch(reportKey) {
+          case 'billDetails':
+            reportData.billDetails = getBillDetailsData(businessDate, DayEndEmpID);
+            break;
+          case 'paymentSummary':
+            reportData.paymentSummary = getPaymentSummaryData(businessDate, DayEndEmpID);
+            break;
+          case 'creditSummary':
+            reportData.creditSummary = getCreditSummaryData(businessDate, DayEndEmpID);
+            break;
+          case 'discountSummary':
+            reportData.discountSummary = getDiscountSummaryData(businessDate, DayEndEmpID);
+            break;
+          case 'reverseKOTSummary':
+            reportData.reverseKOTs = getReverseKOTsData(businessDate, DayEndEmpID);
+            break;
+          case 'reverseBillSummary':
+            reportData.reverseBills = getReverseBillsData(businessDate, DayEndEmpID);
+            break;
+          case 'ncKOTSummary':
+            reportData.ncKOTSummary = getNCKOTsData(businessDate, DayEndEmpID);
+            break;
+          default:
+            console.warn(`⚠️ Unknown report type: ${reportKey}`);
+        }
+      } catch (queryError) {
+        console.error(`❌ Error fetching ${reportKey}:`, queryError);
+        reportData[reportKey] = [];
+      }
+    });
+
+    // ✅ Generate thermal HTML sections
+    let thermalHTML = '<div style="font-family:\'Courier New\',monospace;font-size:12px;line-height:1.2;max-width:384px;margin:0 auto;white-space:pre;">\n';
+
+    selectedReports.forEach(reportKey => {
+      try {
+        switch(reportKey) {
+          case 'billDetails':
+            thermalHTML += generateBillDetailsHTML(reportData.billDetails);
+            break;
+          case 'paymentSummary':
+            thermalHTML += generatePaymentSummaryHTML(reportData.paymentSummary);
+            break;
+          case 'creditSummary':
+            thermalHTML += generateCreditSummaryHTML(reportData.creditSummary);
+            break;
+          case 'discountSummary':
+            thermalHTML += generateDiscountSummaryHTML(reportData.discountSummary);
+            break;
+          case 'reverseKOTSummary':
+            thermalHTML += generateReverseKOTsHTML(reportData.reverseKOTs);
+            break;
+          case 'reverseBillSummary':
+            thermalHTML += generateReverseBillsHTML(reportData.reverseBills);
+            break;
+          case 'ncKOTSummary':
+            thermalHTML += generateNCKOTsHTML(reportData.ncKOTSummary);
+            break;
+        }
+      } catch (htmlError) {
+        console.error(`❌ HTML generation failed for ${reportKey}:`, htmlError);
+        thermalHTML += `${reportKey.toUpperCase()}\nError generating report\n\n`;
+      }
+    });
+
+    thermalHTML += '</div>';
+
+    console.log(`✅ Generated ${selectedReports.length} report sections`);
+    
+    res.json({ 
+      success: true, 
+      html: thermalHTML,
+      debug: { 
+        reportsProcessed: selectedReports.length,
+        dataCounts: Object.keys(reportData).map(k => ({[k]: reportData[k]?.length || 0}))
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Fatal error in generateDayEndReportHTML:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to generate Day End Report',
+      error: error.message 
+    });
+  }
+};
+
 // ==================== DAY END DATA FETCHERS ====================
 // Each report gets its OWN optimized SQL query (NO massive JOINs)
 
@@ -587,6 +708,25 @@ const getReverseBillsData = (businessDate, dayEndEmpID) => {
       AND t.isreversebill = 1
       AND t.isCancelled = 0
     ORDER BY t.TxnDatetime DESC
+  `;
+  return db.prepare(query).all(dayEndEmpID, businessDate);
+};
+
+const getNCKOTsData = (businessDate, dayEndEmpID) => {
+  const query = `
+    SELECT DISTINCT
+      t.NCName AS ncName,         -- Customer / NC Name
+      td.Purpose AS purpose,      -- Reason / Purpose of NC KOT
+      td.Qty AS quantity,         -- Quantity
+      td.Amount AS amount,        -- Amount
+      t.TxnDatetime               -- Time of transaction
+    FROM TAxnTrnbilldetails td
+    JOIN TAxnTrnbill t ON td.TxnID = t.TxnID
+    WHERE t.isDayEnd = 1
+      AND t.DayEndEmpID = ?
+      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND td.isNCKOT = 1
+    ORDER BY t.TxnDatetime DESC, td.KOTNo DESC
   `;
   return db.prepare(query).all(dayEndEmpID, businessDate);
 };
@@ -767,117 +907,38 @@ const generateReverseBillsHTML = (data) => {
   return html;
 };
 
-// ==================== MAIN CONTROLLER ====================
+const generateNCKOTsHTML = (ncKOTs) => {
+  if (!ncKOTs?.length) return 'NC KOT SUMMARY\nNo NC KOTs.\n\n';
 
-const generateDayEndReportHTML = (req, res) => {
-  try {
-    const { DayEndEmpID, businessDate, selectedReports = [] } = req.body;
+  let html = '═' + '═'.repeat(47) + '═\n';
+  html += '           NC KOT SUMMARY           \n';
+  html += '═' + '═'.repeat(47) + '═\n';
+  html += 'Customer   Purpose    Qty    Amt\n';
+  html += '───────────────────────────────\n';
 
-    // VALIDATION
-    if (!DayEndEmpID || !businessDate) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'DayEndEmpID and businessDate required' 
-      });
-    }
+  let totalQty = 0;
+  let totalAmt = 0;
 
-    if (!Array.isArray(selectedReports) || selectedReports.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'selectedReports array required' 
-      });
-    }
+  ncKOTs.slice(0, 12).forEach(n => {
+    const ncName  = String(n.ncName  || 'N/A').substring(0, 9).padEnd(10);
+    const purpose = String(n.purpose || 'N/A').substring(0, 9).padEnd(10);
+    const qty     = String(n.quantity || 0).padStart(4);
+    const amount  = (Number(n.amount) || 0).toFixed(2).padStart(9);
 
-    console.log(`📊 Generating DayEndReport for Emp:${DayEndEmpID}, Date:${businessDate}`);
-    console.log('Reports:', selectedReports.join(', '));
+    html += `${ncName}${purpose}${qty}${amount}\n`;
 
-    // ✅ CASE-WISE: Fetch ONLY required report data
-    const reportData = {};
+    totalQty += Number(n.quantity || 0);
+    totalAmt += Number(n.amount || 0);
+  });
 
-    // Execute queries PARALLELY for selected reports only
-    selectedReports.forEach(reportKey => {
-      try {
-        switch(reportKey) {
-          case 'billDetails':
-            reportData.billDetails = getBillDetailsData(businessDate, DayEndEmpID);
-            break;
-          case 'paymentSummary':
-            reportData.paymentSummary = getPaymentSummaryData(businessDate, DayEndEmpID);
-            break;
-          case 'creditSummary':
-            reportData.creditSummary = getCreditSummaryData(businessDate, DayEndEmpID);
-            break;
-          case 'discountSummary':
-            reportData.discountSummary = getDiscountSummaryData(businessDate, DayEndEmpID);
-            break;
-          case 'reverseKOTSummary':
-            reportData.reverseKOTs = getReverseKOTsData(businessDate, DayEndEmpID);
-            break;
-          case 'reverseBillSummary':
-            reportData.reverseBills = getReverseBillsData(businessDate, DayEndEmpID);
-            break;
-          default:
-            console.warn(`⚠️ Unknown report type: ${reportKey}`);
-        }
-      } catch (queryError) {
-        console.error(`❌ Error fetching ${reportKey}:`, queryError);
-        reportData[reportKey] = [];
-      }
-    });
+  html += '───────────────────────────────\n';
+  html += `TOTAL               ${String(totalQty).padStart(4)}${totalAmt.toFixed(2).padStart(9)}\n`;
+  html += '═' + '═'.repeat(47) + '═\n\n';
 
-    // ✅ Generate thermal HTML sections
-    let thermalHTML = '<div style="font-family:\'Courier New\',monospace;font-size:12px;line-height:1.2;max-width:384px;margin:0 auto;white-space:pre;">\n';
-
-    selectedReports.forEach(reportKey => {
-      try {
-        switch(reportKey) {
-          case 'billDetails':
-            thermalHTML += generateBillDetailsHTML(reportData.billDetails);
-            break;
-          case 'paymentSummary':
-            thermalHTML += generatePaymentSummaryHTML(reportData.paymentSummary);
-            break;
-          case 'creditSummary':
-            thermalHTML += generateCreditSummaryHTML(reportData.creditSummary);
-            break;
-          case 'discountSummary':
-            thermalHTML += generateDiscountSummaryHTML(reportData.discountSummary);
-            break;
-          case 'reverseKOTSummary':
-            thermalHTML += generateReverseKOTsHTML(reportData.reverseKOTs);
-            break;
-          case 'reverseBillSummary':
-            thermalHTML += generateReverseBillsHTML(reportData.reverseBills);
-            break;
-        }
-      } catch (htmlError) {
-        console.error(`❌ HTML generation failed for ${reportKey}:`, htmlError);
-        thermalHTML += `${reportKey.toUpperCase()}\nError generating report\n\n`;
-      }
-    });
-
-    thermalHTML += '</div>';
-
-    console.log(`✅ Generated ${selectedReports.length} report sections`);
-    
-    res.json({ 
-      success: true, 
-      html: thermalHTML,
-      debug: { 
-        reportsProcessed: selectedReports.length,
-        dataCounts: Object.keys(reportData).map(k => ({[k]: reportData[k]?.length || 0}))
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Fatal error in generateDayEndReportHTML:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to generate Day End Report',
-      error: error.message 
-    });
-  }
+  return html;
 };
+
+
 
 
 const getClosingBalance = (req, res) => {
