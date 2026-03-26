@@ -127,9 +127,9 @@ const DayEnd = () => {
     creditSummary: true,
     paymentSummary: true,
     discountSummary: true,
-    reverseKOTsSummary: true,
-    reverseBillSummary: true,
-    ncKOTSalesSummary: true,
+    reverseKOTSummary: true,
+    reverseBills: true,
+    ncKOTSummary: true,
   });
 
   useEffect(() => {
@@ -1466,8 +1466,8 @@ const getFormattedDate = (dateStr: string) => {
                     Reverse KOTs Summary
                   </>
                 }
-                checked={selectedReports.reverseKOTsSummary}
-                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseKOTsSummary: e.target.checked }))}
+                checked={selectedReports.reverseKOTSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseKOTSummary: e.target.checked }))}
               />
               <Form.Check
                 type="checkbox"
@@ -1478,8 +1478,8 @@ const getFormattedDate = (dateStr: string) => {
                     Reverse Bill Summary
                   </>
                 }
-                checked={selectedReports.reverseBillSummary}
-                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseBillSummary: e.target.checked }))}
+                checked={selectedReports.reverseBills}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseBills: e.target.checked }))}
               />
               <Form.Check
                 type="checkbox"
@@ -1490,8 +1490,8 @@ const getFormattedDate = (dateStr: string) => {
                     NC KOT Sales Summary
                   </>
                 }
-                checked={selectedReports.ncKOTSalesSummary}
-                onChange={(e) => setSelectedReports(prev => ({ ...prev, ncKOTSalesSummary: e.target.checked }))}
+                checked={selectedReports.ncKOTSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, ncKOTSummary: e.target.checked }))}
               />
             </div>
           </Modal.Body>
