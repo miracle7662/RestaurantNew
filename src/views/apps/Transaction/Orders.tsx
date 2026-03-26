@@ -166,7 +166,8 @@ const Order = () => {
 
 // State to track reverse quantity items for KOT printing
 const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
-  const [reverseSnapshot, setReverseSnapshot] = useState<MenuItem[]>([]); // 🔥 FIX: Snapshot for print modal
+const [reverseSnapshot, setReverseSnapshot] = useState<MenuItem[]>([]); // 🔥 FIX: Snapshot for print modal
+  const [tableNameSnapshot, setTableNameSnapshot] = useState<string>('');
 
   // NEW: Reverse KOT Print Modal states
   const [showReverseKotPrintModal, setShowReverseKotPrintModal] = useState(false);
@@ -2036,6 +2037,7 @@ const tableNameForKOT =
 
         // 🔥 FIX: SNAPSHOT before reset
         if (reverseQtyItems.length > 0) {
+          setTableNameSnapshot(selectedTable || 'Table');
           setReverseSnapshot([...reverseQtyItems]);
           setShowReverseKotPrintModal(true);
           setReversePrintTrigger(prev => prev + 1);
@@ -4643,7 +4645,7 @@ setSelectedDeptId(deptId ?? 0);
             user={user}
             restaurantName={user.hotel_name}
             outletName={user.outlet_name}
-            tableName={activeTab === 'Dine-in' ? selectedTable ?? 'Table' : activeTab}
+            tableName={tableNameSnapshot}
             date={user.currDate}
             reversePrintTrigger={reversePrintTrigger}
           />

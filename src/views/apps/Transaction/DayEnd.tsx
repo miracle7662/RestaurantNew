@@ -414,19 +414,22 @@ const DayEnd = () => {
         selectedReports: selectedReportKeys,
       };
 
+      console.log('🔍 Report payload:', payload);
       const response = await DayendService.generateReportHTML(payload);
+      console.log('📄 API Response:', response);
 
-      if (response.success) {
-        // Store the HTML in sessionStorage for the preview page
-        // Note: Backend returns { success: true, html } not { success: true, data: { html } }
+      if (response.success && response.html && response.html.trim().length > 50) { // Validate HTML content
+        // Store HTML and outletId
         sessionStorage.setItem('dayEndReportHTML', response.html);
-        // Store the outletId for printer settings
-        const outletId = orders[0]?.outletid || user?.outletid;
+        const outletId = orders[0]?.outletid || user?.outletid || user?.hotelid;
         sessionStorage.setItem('dayEndReportOutletId', outletId?.toString() || '');
-        // Navigate to the preview page
+        
+        console.log('✅ Stored HTML length:', response.html.length, 'OutletId:', outletId);
+        toast.success('✅ Report generated! Opening preview...');
         navigate('/apps/Masters/Reports/DayEndReportPreview');
       } else {
-        toast.error(response.message || "Failed to generate reports.");
+        console.error('❌ Empty report HTML. Backend debug needed.');
+        toast.error(`Failed to generate reports. HTML empty. Check backend console: Found 0 records?`);
       }
     } catch (error) {
       console.error('Error generating reports:', error);
