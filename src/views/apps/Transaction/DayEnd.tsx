@@ -128,7 +128,7 @@ const DayEnd = () => {
     paymentSummary: true,
     discountSummary: true,
     reverseKOTSummary: true,
-    reverseBills: true,
+    reverseBillSummary: true,
     ncKOTSummary: true,
   });
 
@@ -1478,8 +1478,8 @@ const getFormattedDate = (dateStr: string) => {
                     Reverse Bill Summary
                   </>
                 }
-                checked={selectedReports.reverseBills}
-                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseBills: e.target.checked }))}
+                checked={selectedReports.reverseBillSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseBillSummary: e.target.checked }))}
               />
               <Form.Check
                 type="checkbox"

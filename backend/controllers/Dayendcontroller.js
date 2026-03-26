@@ -909,7 +909,7 @@ const generateReverseBillsHTML = (data) => {
   return html;
 };
 
-const generateNCKOTsHTML = (ncKOTs) => {
+const generateNCKOTsHTML = (data) => {
   if (!data?.length) return 'NC KOT SUMMARY\nNo NC KOTs.\n\n';
 
   let html = '';
@@ -920,7 +920,7 @@ const generateNCKOTsHTML = (ncKOTs) => {
   let totalQty = 0;
   let totalAmt = 0;
 
-  ncKOTs.slice(0, 12).forEach(n => {
+  data.slice(0, 12).forEach(n => {
     const ncName  = String(n.ncName  || 'N/A').substring(0, 9).padEnd(10);
     const purpose = String(n.purpose || 'N/A').substring(0, 9).padEnd(10);
     const qty     = String(n.quantity || 0).padStart(4);
