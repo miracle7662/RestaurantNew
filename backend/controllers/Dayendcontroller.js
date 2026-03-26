@@ -5,11 +5,14 @@ const db = require('../config/db');
 const getDayendData = (req, res) => {
   try {
     // Get all billed or settled bills with their details
+    console.log('🔍 Executing DayEndReport query...');
+
     const query = `
       SELECT
           t.TxnID,
           t.TxnNo,
-          t.TableID,
+          t.TableID, 
+          t.table_name,
           t.outletid,
           t.HotelID,
           t.Amount as TotalAmount,
@@ -472,6 +475,10 @@ const generateDayEndReportHTML = (req, res) => {
   try {
     const { DayEndEmpID, businessDate, selectedReports } = req.body;
 
+    console.log('🔍 DayEndReport Params:', { DayEndEmpID, businessDate, selectedReports: selectedReports?.length });
+    console.log('🗓️  Report date from frontend:', businessDate);
+    console.log('👤  DayEndEmpID from frontend:', DayEndEmpID);
+
     if (!DayEndEmpID || !businessDate || !selectedReports) {
       return res.status(400).json({ success: false, message: 'Missing required parameters' });
     }
@@ -482,6 +489,7 @@ const generateDayEndReportHTML = (req, res) => {
           t.TxnID,
           t.TxnNo,
           t.TableID,
+          t.table_name,
           t.outletid,
           t.Amount as TotalAmount,
           t.Discount,
@@ -513,9 +521,8 @@ const generateDayEndReportHTML = (req, res) => {
           t.isDayEnd,
           t.DayEndEmpID,
           SUM(td.Qty) as TotalItems,
-          GROUP_CONCAT(DISTINCT td.ItemID || ':' || td.Qty || ':' || td.RuntimeRate   || ':' || td.isNCKOT || ':' || td.RevKOTNo) as ItemDetails
-      FROM TAxnTrnbill t
-      LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
+  GROUP_CONCAT(DISTINCT td.ItemID || ':' || td.Qty || ':' || td.RuntimeRate   || ':' || td.isNCKOT || ':' || td.RevKOTNo) as ItemDetails
+      FROM TAxnTrnbill t      LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
       WHERE t.isDayEnd = 1 AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ? AND t.DayEndEmpID = ?
       GROUP BY t.TxnID, t.TxnNo
@@ -523,6 +530,9 @@ const generateDayEndReportHTML = (req, res) => {
     `;
 
     const rows = db.prepare(query).all(businessDate, DayEndEmpID);
+    
+    console.log('📊 DayEndReport Query Results:', rows.length, 'rows');
+    console.log('First row sample (if any):', rows[0] ? { TxnNo: rows[0].TxnNo, TxnDatetime: rows[0].TxnDatetime, DayEndEmpID: rows[0].DayEndEmpID } : 'NONE');
 
     // Process data
     const transactions = [];
@@ -550,8 +560,7 @@ const generateDayEndReportHTML = (req, res) => {
       });
 
       const transaction = {
-        billNo: row.TxnNo,
-        tableNo: row.TableID,
+        billNo: row.TxnNo,       tableNo: row.table_name || row.TableID || 'N/A',
         grossAmount: parseFloat(row.GrossAmount || 0),
         discount: parseFloat(row.Discount || 0),
         cgst: parseFloat(row.CGST || 0),
@@ -594,8 +603,8 @@ const generateDayEndReportHTML = (req, res) => {
       // Collect reverse bills
       if (row.isreversebill) {
         reverseBills.push({
-          billNo: row.TxnNo,
-          tableNo: row.TableID,
+        billNo: row.TxnNo,
+          tableNo: row.table_name || row.TableID || 'N/A',
           reversedAmount: parseFloat(row.RevAmt || 0),
           reason: 'N/A', // Placeholder
           time: row.TxnDatetime
@@ -615,8 +624,7 @@ const generateDayEndReportHTML = (req, res) => {
     });
 
     // Generate HTML
-    let html = '<div style="font-family: monospace; font-size: 12px; line-height: 1.2; max-width: 320px; margin: 0 auto; white-space: pre-wrap;">';
-
+let html = '<div style="font-family: monospace; font-size: 12px; line-height: 1.2; max-width: 320px; margin: 0 auto; white-space: pre;">';
     selectedReports.forEach(reportKey => {
       switch (reportKey) {
         case 'billDetails':
@@ -641,7 +649,7 @@ const generateDayEndReportHTML = (req, res) => {
           html += generateNCKOTSalesSummaryHTML(ncKOTs);
           break;
       }
-      html += '\n\n'; // clean spacing
+      html += '\n'; // clean spacing
     });
 
     html += '</div>';
@@ -654,121 +662,139 @@ const generateDayEndReportHTML = (req, res) => {
 };
 
 function generateBillDetailsHTML(transactions) {
-  let html = 'BILL DETAILS\n\n';
-  html += 'Bill No  Table  Gross   GST     Net    Payment\n';
+  let text = 'BILL DETAILS\n\n';
+  text += 'Bill No  Table  Gross    GST      Net      Payment\n';
+  text += '-------  -----  -------  -------  -------  -------\n';
 
   let totalGross = 0, totalGST = 0, totalNet = 0;
 
   transactions.forEach(t => {
-    totalGross += t.grossAmount || 0;
-    totalGST += (t.cgst || 0) + (t.sgst || 0); // ✅ GST combine
-    totalNet += t.netAmount || 0;
+    const gross = Number(t.grossAmount || 0);
+    const gst   = Number(t.cgst || 0) + Number(t.sgst || 0);
+    const net   = Number(t.netAmount || 0);
+
+    totalGross += gross;
+    totalGST   += gst;
+    totalNet   += net;
+
+    const billNo  = String(t.billNo  || '').padEnd(8);
+const table_name = String(t.tableNo || '').padEnd(6);
+
+    const gAmt    = gross.toFixed(2).padStart(7);
+    const gstAmt  = gst.toFixed(2).padStart(7);
+    const nAmt    = net.toFixed(2).padStart(7);
+    const pay     = String(t.paymentMode || 'Cash').substring(0, 10);
+
+    text += `${billNo} ${table_name} ${gAmt}  ${gstAmt}  ${nAmt}  ${pay}\n`;
   });
 
-  // Print transaction rows
-  transactions.slice(0, 25).forEach(t => {
-    const billNo = String(t.billNo || '').padEnd(6);
-    const tableNo = String(t.tableNo || '').padEnd(6);
-    const gross = (t.grossAmount || 0).toFixed(2).padStart(8);
+ 
+  text += `${'TOTAL'.padEnd(15)} ${totalGross.toFixed(2).padStart(7)}  ${totalGST.toFixed(2).padStart(7)}  ${totalNet.toFixed(2).padStart(7)}\n`;
 
-    const gstValue = ((t.cgst || 0) + (t.sgst || 0)); // ✅ combine
-    const gst = gstValue.toFixed(2).padStart(6);
-
-    const net = (t.netAmount || 0).toFixed(2).padStart(8);
-    const pay = String(t.paymentMode || 'Cash').substring(0, 12).padEnd(12);
-
-    html += `${billNo}${tableNo}${gross}${gst}${net}${pay}\n`;
-  });
-
-  html += '\n\n';
-
-  html += `TOTAL    ${totalGross.toFixed(2).padStart(7)} ${totalGST.toFixed(2).padStart(6)} ${totalNet.toFixed(2).padStart(8)}\n\n`;
-
-  return html;
+  return text;
 }
 
 function generateCreditSummaryHTML(transactions) {
-  let html = 'CREDIT SUMMARY\n\n';
-  html += 'Customer / Ledger Name     Credit Amount\n';
-  
+  let text = 'CREDIT SUMMARY\n';
+  text += 'Customer / Ledger Name       Credit Amount\n';
+
 
   let totalCredit = 0;
 
-  transactions.filter(t => t.creditAmount > 0).forEach(t => {
-    html += `${t.customerName.substring(0,23).padEnd(23)} ${t.creditAmount.toFixed(2).padStart(14)}\n`;
-    totalCredit += t.creditAmount;
-  });
+  transactions
+    .filter(t => Number(t.creditAmount) > 0)
+    .forEach(t => {
+      const name   = String(t.customerName || 'N/A').substring(0, 28).padEnd(28);
+      const credit = Number(t.creditAmount || 0);
+      text += `${name}  ${credit.toFixed(2).padStart(12)}\n`;
+      totalCredit += credit;
+    });
 
-  html += `TOTAL CREDIT             ${totalCredit.toFixed(2).padStart(14)}\n\n`;
+  text += `${'TOTAL CREDIT'.padEnd(28)}  ${totalCredit.toFixed(2).padStart(12)}\n`;
 
-  return html;
+  return text;
 }
-
 function generatePaymentSummaryHTML(transactions) {
   let html = 'PAYMENT SUMMARY\n\n';
 
-  let cash = 0, card = 0, upi = 0, qr = 0, other = 0;
+  let cash = 0, card = 0, gpay = 0, phonepe = 0, qrcode = 0, credit = 0;
 
   transactions.forEach(t => {
-    cash += t.paymentMode.toLowerCase().includes('cash') ? t.netAmount : 0;
-    card += t.paymentMode.toLowerCase().includes('card') ? t.netAmount : 0;
-    upi += (t.paymentMode.toLowerCase().includes('gpay') || t.paymentMode.toLowerCase().includes('phonepe')) ? t.netAmount : 0;
-    qr += t.paymentMode.toLowerCase().includes('qr') ? t.netAmount : 0;
-    other += t.netAmount - (cash + card + upi + qr); // Approximation
+    cash    += Number(t.cash    || 0);
+    card    += Number(t.card    || 0);
+    gpay    += Number(t.gpay    || 0);
+    phonepe += Number(t.phonepe || 0);
+    qrcode  += Number(t.qrcode  || 0);
+    credit  += Number(t.creditAmount || 0);
   });
 
-  html += `Cash          ${cash.toFixed(2).padStart(10)}\n`;
-  html += `Card          ${card.toFixed(2).padStart(10)}\n`;
-  html += `UPI           ${upi.toFixed(2).padStart(10)}\n`;
-  html += `QR Code       ${qr.toFixed(2).padStart(10)}\n`;
-  html += `Other         ${other.toFixed(2).padStart(10)}\n`;
-  html += '---------- ----------\n';
-  html += `GRAND TOTAL   ${(cash + card + upi + qr + other).toFixed(2).padStart(10)}\n\n`;
+  const upi   = gpay + phonepe;
+  const total = cash + card + upi + qrcode + credit;
+
+  html += `Cash        ${cash.toFixed(2).padStart(10)}\n`;
+  html += `Card        ${card.toFixed(2).padStart(10)}\n`;
+  html += `UPI         ${upi.toFixed(2).padStart(10)}\n`;
+  html += `QR Code     ${qrcode.toFixed(2).padStart(10)}\n`;
+  html += `Credit      ${credit.toFixed(2).padStart(10)}\n`;
+  html += '\n';
+  html += `GRAND TOTAL ${total.toFixed(2).padStart(10)}\n\n`;
 
   return html;
 }
-
 function generateDiscountSummaryHTML(transactions) {
   let html = 'DISCOUNT SUMMARY\n\n';
-  html += 'Bill No  Discount Reason      Amount\n';
- 
+
+  if (!transactions.filter(t => Number(t.discount) > 0).length) {
+    html += 'No discounts found.\n\n';
+    return html;
+  }
+
+  html += `${'Bill No'.padEnd(10)}${'Reason'.padEnd(14)}${'Amount'.padStart(8)}\n`;
+  html += `${'-'.repeat(10)}${'-'.repeat(14)}${'-'.repeat(8)}\n`;
 
   let totalDiscount = 0;
 
   transactions
-    .filter(t => t.discount > 0)
-  .forEach(t => {
-      const billNo = String(t.billNo || '').padEnd(8);
-      const discountReason = String(t.discountReason || 'N/A').substring(0,20).padEnd(20);
-      const amount = t.discount.toFixed(2).padStart(10);
-      html += `${billNo}${discountReason}${amount}\n`;
-      totalDiscount += t.discount;
+    .filter(t => Number(t.discount) > 0)
+    .forEach(t => {
+      const billNo  = String(t.billNo  || '').padEnd(10);
+      const reason  = String(t.discountReason || 'N/A').substring(0, 13).padEnd(14);
+      const amount  = (Number(t.discount) || 0).toFixed(2).padStart(8);
+
+      html += `${billNo}${reason}${amount}\n`;
+      totalDiscount += Number(t.discount) || 0;
     });
 
- html += '\n\n'; // clean spacing
-  html += `Total Discount: ${totalDiscount.toFixed(2)}\n`;
+  html += `${'-'.repeat(32)}\n`;
+  html += `${'TOTAL DISCOUNT'.padEnd(24)}${totalDiscount.toFixed(2).padStart(8)}\n`;
 
   return html;
 }
+
 function generateReverseKOTsSummaryHTML(reverseKOTs) {
   let html = 'REVERSE KOTs SUMMARY\n\n';
-  html += 'KOT No  Table  Item Name          Qty  Reason      Time\n';
+
+  if (!reverseKOTs.length) {
+    html += 'No Reverse KOTs found.\n\n';
+    return html;
+  }
+
+  // Removed Reason column — always N/A placeholder, causes overflow
+  html += `${'KOT No'.padEnd(8)}${'Table'.padEnd(7)}${'Item'.padEnd(10)}${'Qty'.padStart(4)}  ${'Time'.padStart(7)}\n`;
+  html += `${'-'.repeat(8)}${'-'.repeat(7)}${'-'.repeat(10)}${'-'.repeat(4)}  ${'-'.repeat(7)}\n`;
 
   reverseKOTs.forEach(r => {
-    const kotNo = String(r.kotNo || '').padEnd(7);
-    const tableNo = String(r.tableNo || '').padEnd(6);
-    const itemName = String(r.itemName || 'N/A').substring(0, 18).padEnd(18);
-    const qty = String(r.qty || 0).padStart(4);
-    const reason = String(r.reason || 'N/A').substring(0, 10).padEnd(10);
-
-    const timeStr = r.time
-      ? new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    const kotNo    = String(r.kotNo    || '').padEnd(8);
+    const table_name  = String(r.tableNo  || '').padEnd(7);
+    const itemName = String(r.itemName || 'N/A').substring(0, 9).padEnd(10);
+    const qty      = String(r.qty      || 0).padStart(4);
+    const time     = r.time
+      ? new Date(r.time).toLocaleTimeString('en-IN', {
+          hour: '2-digit', minute: '2-digit'
+        })
       : '--:--';
 
-    const time = timeStr.padStart(6);
-
-    // ✅ IMPORTANT: append row
-    html += `${kotNo}${tableNo}${itemName}${qty}${reason}${time}\n`;
+    html += `${kotNo}${table_name}${itemName}${qty}  ${time}\n`;
   });
 
   html += '\n';
@@ -777,45 +803,68 @@ function generateReverseKOTsSummaryHTML(reverseKOTs) {
 
 function generateReverseBillSummaryHTML(reverseBills) {
   let html = 'REVERSE BILL SUMMARY\n\n';
-  html += 'Bill No  Table  Reversed Amount  Reason    Time\n';
-  
 
-  let totalReversed = 0;
-  
-  reverseBills.slice(0, 20).forEach(r => {
-    const billNo = String(r.billNo || '').padEnd(8);
-    const tableNo = String(r.tableNo || '').padEnd(6);
-    const amount = (r.reversedAmount || 0).toFixed(2).padStart(12);
-    const reason = String(r.reason || 'N/A').substring(0,12).padEnd(12);
-    const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }).padEnd(8);
-    html += `${billNo}${tableNo}${amount}${reason}${timeStr}\n`;
-    totalReversed += r.reversedAmount || 0;
-  });
-  
-  if (totalReversed > 0) {
-    html += `TOTAL REVERSED AMOUNT: ${totalReversed.toFixed(2)}\n\n`;
+  if (!reverseBills.length) {
+    html += 'No Reverse Bills found.\n\n';
+    return html;
   }
 
-  html += '\n';
+  // Removed Reason column — always N/A placeholder, causes overflow on 80mm
+  html += `${'Bill No'.padEnd(10)}${'Table'.padEnd(7)}${'Amount'.padStart(9)}  ${'Time'.padStart(7)}\n`;
+  html += `${'-'.repeat(10)}${'-'.repeat(7)}${'-'.repeat(9)}  ${'-'.repeat(7)}\n`;
+
+  let totalReversed = 0;
+
+  reverseBills.slice(0, 20).forEach(r => {
+    const billNo  = String(r.billNo  || '').padEnd(10);
+    const table_name = String(r.tableNo || '').padEnd(7);
+    const amount  = (Number(r.reversedAmount) || 0).toFixed(2).padStart(9);
+    const time    = r.time
+      ? new Date(r.time).toLocaleTimeString('en-IN', {
+          hour: '2-digit', minute: '2-digit'
+        })
+      : '--:--';
+
+    html += `${billNo}${table_name}${amount}  ${time}\n`;
+    totalReversed += Number(r.reversedAmount) || 0;
+  });
+
+  html += `${'-'.repeat(33)}\n`;
+  html += `${'TOTAL REVERSED'.padEnd(17)}${totalReversed.toFixed(2).padStart(9)}\n`;
+
   return html;
 }
 
 function generateNCKOTSalesSummaryHTML(ncKOTs) {
   let html = 'NC KOT SALES SUMMARY\n\n';
-  html += 'NC Name    Purpose    Item Name          Qty  Amount\n';
- 
+
+  if (!ncKOTs.length) {
+    html += 'No NC KOTs found.\n\n';
+    return html;
+  }
+
+  // Removed Item Name — always N/A placeholder, causes overflow
+  html += `${'NC Name'.padEnd(10)}${'Purpose'.padEnd(10)}${'Qty'.padStart(4)}${'Amount'.padStart(9)}\n`;
+  html += `${'-'.repeat(10)}${'-'.repeat(10)}${'-'.repeat(4)}${'-'.repeat(9)}\n`;
+
   let totalAmount = 0;
 
   ncKOTs.forEach(n => {
-    html += `${n.ncName.substring(0,10).padEnd(10)} ${n.purpose.substring(0,10).padEnd(10)} ${n.itemName.substring(0,18).padEnd(18)} ${String(n.quantity).padStart(4)} ${n.amount.toFixed(2).padStart(6)}\n`;
-    totalAmount += n.amount;
+    const ncName  = String(n.ncName  || 'N/A').substring(0, 9).padEnd(10);
+    const purpose = String(n.purpose || 'N/A').substring(0, 9).padEnd(10);
+    const qty     = String(n.quantity || 0).padStart(4);
+    const amount  = (Number(n.amount) || 0).toFixed(2).padStart(9);
+
+    html += `${ncName}${purpose}${qty}${amount}\n`;
+    totalAmount += Number(n.amount) || 0;
   });
 
-  html += '\n\n'; // clean spacing
-  html += `TOTAL NC AMOUNT                            ${totalAmount.toFixed(2).padStart(6)}\n\n`;
+  html += `${'-'.repeat(33)}\n`;
+  html += `${'TOTAL NC AMOUNT'.padEnd(24)}${totalAmount.toFixed(2).padStart(9)}\n`;
 
   return html;
 }
+
 
 const getClosingBalance = (req, res) => {
   try {
