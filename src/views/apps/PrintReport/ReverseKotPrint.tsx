@@ -119,7 +119,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   const generateContent = useMemo(() => {
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || "";
     const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
-const displayTableName = tableName || selectedTable || "-";
+    const displayTableName = tableName || selectedTable || "-";
     return `
 <div style="text-align:center; font-weight:bold;">${displayRestaurantName}</div>
 <div style="text-align:center;">${displayOutletName}</div>
