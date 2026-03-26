@@ -478,6 +478,7 @@ const generateDayEndReportHTML = (req, res) => {
     console.log('🔍 DayEndReport Params:', { DayEndEmpID, businessDate, selectedReports: selectedReports?.length });
     console.log('🗓️  Report date from frontend:', businessDate);
     console.log('👤  DayEndEmpID from frontend:', DayEndEmpID);
+    console.log('📅 Query date filter:', businessDate);
 
     if (!DayEndEmpID || !businessDate || !selectedReports) {
       return res.status(400).json({ success: false, message: 'Missing required parameters' });
@@ -668,32 +669,32 @@ function generateBillDetailsHTML(transactions) {
 
   let totalGross = 0, totalGST = 0, totalNet = 0;
 
-  transactions.forEach(t => {
-    const gross = Number(t.grossAmount || 0);
-    const gst   = Number(t.cgst || 0) + Number(t.sgst || 0);
-    const net   = Number(t.netAmount || 0);
+  transactions
+    .filter(t => Number(t.isBilled) === 1) // ✅ only billed
+    .forEach(t => {
+      const gross = Number(t.grossAmount || 0);
+      const gst   = Number(t.cgst || 0) + Number(t.sgst || 0);
+      const net   = Number(t.netAmount || 0);
 
-    totalGross += gross;
-    totalGST   += gst;
-    totalNet   += net;
+      totalGross += gross;
+      totalGST   += gst;
+      totalNet   += net;
 
-    const billNo  = String(t.billNo  || '').padEnd(8);
-const table_name = String(t.tableNo || '').padEnd(6);
+      const billNo = String(t.billNo || '').padEnd(8);
+      const table  = String(t.tableNo || '').padEnd(6);
 
-    const gAmt    = gross.toFixed(2).padStart(7);
-    const gstAmt  = gst.toFixed(2).padStart(7);
-    const nAmt    = net.toFixed(2).padStart(7);
-    const pay     = String(t.paymentMode || 'Cash').substring(0, 10);
+      const gAmt   = gross.toFixed(2).padStart(7);
+      const gstAmt = gst.toFixed(2).padStart(7);
+      const nAmt   = net.toFixed(2).padStart(7);
+      const pay    = String(t.paymentMode || 'Cash').substring(0, 10);
 
-    text += `${billNo} ${table_name} ${gAmt}  ${gstAmt}  ${nAmt}  ${pay}\n`;
-  });
+      text += `${billNo} ${table} ${gAmt}  ${gstAmt}  ${nAmt}  ${pay}\n`;
+    });
 
- 
   text += `${'TOTAL'.padEnd(15)} ${totalGross.toFixed(2).padStart(7)}  ${totalGST.toFixed(2).padStart(7)}  ${totalNet.toFixed(2).padStart(7)}\n`;
 
   return text;
 }
-
 function generateCreditSummaryHTML(transactions) {
   let text = 'CREDIT SUMMARY\n';
   text += 'Customer / Ledger Name       Credit Amount\n';
