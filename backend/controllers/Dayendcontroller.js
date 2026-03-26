@@ -506,24 +506,31 @@ const generateDayEndReportHTML = (req, res) => {
       try {
         switch(reportKey) {
           case 'billDetails':
+            console.log(`🔍 Fetching billDetails for Emp:${DayEndEmpID}, Date:${businessDate}`);
             reportData.billDetails = getBillDetailsData(businessDate, DayEndEmpID);
             break;
           case 'paymentSummary':
+            console.log(`🔍 Fetching paymentSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
             reportData.paymentSummary = getPaymentSummaryData(businessDate, DayEndEmpID);
             break;
           case 'creditSummary':
+            console.log(`🔍 Fetching creditSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
             reportData.creditSummary = getCreditSummaryData(businessDate, DayEndEmpID);
             break;
           case 'discountSummary':
+            console.log(`🔍 Fetching discountSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
             reportData.discountSummary = getDiscountSummaryData(businessDate, DayEndEmpID);
             break;
           case 'reverseKOTSummary':
+            console.log(`🔍 Fetching reverseKOTSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
             reportData.reverseKOTs = getReverseKOTsData(businessDate, DayEndEmpID);
             break;
           case 'reverseBillSummary':
+            console.log(`🔍 Fetching reverseBillSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
             reportData.reverseBills = getReverseBillsData(businessDate, DayEndEmpID);
             break;
           case 'ncKOTSummary':
+            console.log(`🔍 Fetching ncKOTSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
             reportData.ncKOTSummary = getNCKOTsData(businessDate, DayEndEmpID);
             break;
           default:
@@ -596,6 +603,7 @@ const generateDayEndReportHTML = (req, res) => {
 // Each report gets its OWN optimized SQL query (NO massive JOINs)
 
 const getBillDetailsData = (businessDate, dayEndEmpID) => {
+  console.log(`🔍 getBillDetailsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
   const query = `
     SELECT 
       t.TxnID, t.TxnNo, t.table_name, t.Amount as netAmount,
@@ -614,7 +622,7 @@ const getBillDetailsData = (businessDate, dayEndEmpID) => {
     ORDER BY t.TxnDatetime DESC
   `;
   const rows = db.prepare(query).all(dayEndEmpID, businessDate);
-  console.log(`✅ getNCKOTsData found ${rows.length} records`);
+  console.log(`✅ getBillDetailsData found ${rows.length} records`);
   return rows;
 };
 
@@ -678,6 +686,7 @@ const getDiscountSummaryData = (businessDate, dayEndEmpID) => {
 };
 
 const getReverseKOTsData = (businessDate, dayEndEmpID) => {
+  console.log(`🔍 getReverseKOTsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
   const query = `
     SELECT DISTINCT
       td.RevKOTNo as kotNo,
@@ -695,7 +704,9 @@ const getReverseKOTsData = (businessDate, dayEndEmpID) => {
       AND td.RevKOTNo != ''
     ORDER BY td.RevKOTNo DESC, t.TxnDatetime
   `;
-  return db.prepare(query).all(dayEndEmpID, businessDate);
+  const rows = db.prepare(query).all(dayEndEmpID, businessDate);
+  console.log(`✅ getReverseKOTsData found ${rows.length} records`);
+  return rows;
 };
 
 const getReverseBillsData = (businessDate, dayEndEmpID) => {
@@ -709,9 +720,9 @@ const getReverseBillsData = (businessDate, dayEndEmpID) => {
     FROM TAxnTrnbill t
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND DATE(t.TxnDatetime, '+05:30') = ?
+      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
       AND t.isreversebill = 1
-      AND t.isCancelled = 0
+      AND t.isCancelled = 1
     ORDER BY t.TxnDatetime DESC
   `;
   const rows = db.prepare(query).all(dayEndEmpID, businessDate);
@@ -732,11 +743,13 @@ const getNCKOTsData = (businessDate, dayEndEmpID) => {
     JOIN TAxnTrnbill t ON td.TxnID = t.TxnID
     WHERE t.isDayEnd = 1
       AND t.DayEndEmpID = ?
-      AND DATE(t.TxnDatetime, '+05:30') = ?
+      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
       AND td.isNCKOT = 1
     ORDER BY t.TxnDatetime DESC, td.KOTNo DESC
   `;
-  return db.prepare(query).all(dayEndEmpID, businessDate);
+  const rows = db.prepare(query).all(dayEndEmpID, businessDate);
+  console.log(`✅ getNCKOTsData found ${rows.length} records`);
+  return rows;
 };
 
 // ==================== 80MM THERMAL PRINTER GENERATORS ====================
@@ -868,9 +881,9 @@ const generateReverseKOTsHTML = (data) => {
   html += '───────────────────────────────\n';
 
   data.slice(0, 10).forEach((kot) => {
-    const kotNo = (kot.kotNo || '').substring(0, 5).padEnd(5);
-    const table = (kot.table_name || '').padEnd(6);
-    const item = (kot.item_name || '').substring(0, 9).padEnd(9);
+    const kotNo = String(kot.kotNo || '').substring(0, 5).padEnd(5);
+    const table = String(kot.table_name || '').padEnd(6);
+    const item = String(kot.item_name || '').substring(0, 9).padEnd(9);
     const qty = String(kot.quantity || 0).padStart(3);
     const time = kot.TxnDatetime 
       ? new Date(kot.TxnDatetime).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})
@@ -1131,6 +1144,7 @@ const saveOpeningBalance = (req, res) => {
     });
   }
 };
+
 
 
 module.exports = {
