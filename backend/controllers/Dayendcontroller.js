@@ -812,12 +812,7 @@ const generateBillDetailsHTML = (data) => {
 
 const generatePaymentSummaryHTML = (data) => {
   if (!data?.length) return '';
-  
-  let html = '═' + '═'.repeat(47) + '═\n';
-  html += '        PAYMENT SUMMARY              \n';
-  html += '═' + '═'.repeat(47) + '═\n';
- 
-  
+
   let summary = {
     cash: 0, card: 0, upi: 0, qrcode: 0, credit: 0, total: 0
   };
@@ -825,27 +820,47 @@ const generatePaymentSummaryHTML = (data) => {
   data.forEach((payment) => {
     const type = payment.PaymentType?.toLowerCase() || '';
     const amt = Number(payment.totalAmount || 0);
-    
+
     if (type.includes('cash')) summary.cash += amt;
     else if (type.includes('card')) summary.card += amt;
     else if (type.includes('gpay') || type.includes('phone') || type.includes('upi')) summary.upi += amt;
     else if (type.includes('qr')) summary.qrcode += amt;
     else if (type.includes('credit')) summary.credit += amt;
+
     summary.total += amt;
   });
 
-  const lines = [
-    `Cash          ${summary.cash.toLocaleString().padStart(12)}`,
-    `Card          ${summary.card.toLocaleString().padStart(12)}`,
-    `UPI (GPay+PP) ${summary.upi.toLocaleString().padStart(12)}`,
-    `QR Code       ${summary.qrcode.toLocaleString().padStart(12)}`,
-    `Credit        ${summary.credit.toLocaleString().padStart(12)}`,
-    '',
-    `TOTAL         ${summary.total.toLocaleString().padStart(12)}`
-  ];
+  // ❌ Agar total hi 0 hai → kuch bhi print nahi
+  if (summary.total === 0) return '';
 
-  lines.forEach(line => html += line + '\n');
-  
+  // ✅ Header AFTER validation
+  let html = '═'.repeat(48) + '\n';
+  html += '        PAYMENT SUMMARY              \n';
+  html += '═'.repeat(48) + '\n';
+
+  // 🔥 Only non-zero rows
+  if (summary.cash > 0)
+    html += `Cash          ${summary.cash.toLocaleString().padStart(12)}\n`;
+
+  if (summary.card > 0)
+    html += `Card          ${summary.card.toLocaleString().padStart(12)}\n`;
+
+  if (summary.upi > 0)
+    html += `UPI (GPay+PP) ${summary.upi.toLocaleString().padStart(12)}\n`;
+
+  if (summary.qrcode > 0)
+    html += `QR Code       ${summary.qrcode.toLocaleString().padStart(12)}\n`;
+
+  if (summary.credit > 0)
+    html += `Credit        ${summary.credit.toLocaleString().padStart(12)}\n`;
+
+  html += '\n';
+
+  // ✅ TOTAL always show (since >0 already checked)
+  html += `TOTAL         ${summary.total.toLocaleString().padStart(12)}\n`;
+
+  html += '═'.repeat(48) + '\n\n';
+
   return html;
 };
 
