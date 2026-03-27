@@ -715,7 +715,7 @@ const getReverseBillsData = (businessDate, dayEndEmpID) => {
     SELECT 
       t.TxnNo as billNo,
       t.table_name,
-      t.Amount as reversedAmount,
+      t.RevKOT as reversedAmount,
       t.TxnDatetime
     FROM TAxnTrnbill t
     WHERE t.isDayEnd = 1 
@@ -891,14 +891,12 @@ const generateReverseKOTsHTML = (data) => {
     const time = kot.TxnDatetime 
       ? new Date(kot.TxnDatetime).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})
       : '--:--';
-    const qtyStr = String(qty).padStart(3);
-    totalQty += qty; // ✅ accumulate total quantity
     
-    html += `${kotNo} ${table} ${item} ${qtyStr} ${time}\n`;
+    
+    html += `${kotNo} ${table} ${item} ${qty} ${time}\n`;
   });
 
-  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
-  html += `TOTAL                          ${String(totalQty).padStart(3)}\n\n`;
+  
   
   
   return html;
