@@ -1,26 +1,11 @@
-# Fix React "Cannot read properties of undefined (reading 'map')" Error
-## Status: 🔄 In Progress
+# Fix Duplicate Bill Error: GET vs POST Mismatch
 
-### Plan Implementation Checklist:
+Status: 2/5 steps completed
 
-- [ ] **✅ STEP 1**: Create this TODO.md ✓
-- [✅] **STEP 2**: Fix `src/views/apps/PrintReport/DuplicateBillPrint.tsx` ✓
-- [✅] **STEP 3**: Fix `src/views/apps/PrintReport/BillPrint.tsx` (identical changes) ✓
-  - Add `items?: MenuItem[] | null` to interface
-  - Safe map: `items?.map(...) ?? []`
-  - Safe filter/reduce: `(items ?? [])`
-  - Update useMemo deps
-- [ ] **STEP 3**: Fix `src/views/apps/PrintReport/BillPrint.tsx` (identical changes)
-- [ ] **STEP 4**: Update `src/views/apps/Billview.tsx` 
-  - Modal props: `items={billItems.filter(...) || []}`
-- [ ] **STEP 5**: Test bill preview modals + async loading
-- [ ] **✅ COMPLETE**: Remove TODO.md + attempt_completion ✓
-
-**Current File**: DuplicateBillPrint.tsx (VSCode visible)
-**Next Action**: Apply null-safety fixes
-
-**Acceptance Criteria**:
-- No more `.map()` crashes
-- Empty bill shows correctly
-- Print works after data loads
+## Steps:
+1. ✅ [DONE] Understand files and create plan (search_files, read_files completed)
+2. ✅ [DONE] Update backend/routes/ReportRoutes.js - Changed GET → POST for /duplicate-bill
+3. ✅ [DONE] Update backend/controllers/Reportcontroller.js - Added fallback: const data = req.body || req.query
+4. 🔄 Test: Restart server (`cd backend && npm start`), test duplicate bill reprint from UI
+5. 🔄 [FINAL] attempt_completion
 

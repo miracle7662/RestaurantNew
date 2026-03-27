@@ -195,4 +195,143 @@ const getReportData = (req, res) => {
   }
 };
 
-module.exports = { getReportData };
+const getDuplicateBill = (req, res) => {
+  try {
+    const { billNo, billDate, outletId } = req.query;
+
+    if (!billNo || !outletId) {
+      return res.status(400).json({ success: false, message: 'billNo and outletId required' });
+    }
+
+    // Build WHERE clause
+    let whereClause =
+      't.TxnNo = ? AND t.outletid = ? AND t.isCancelled = 0 AND t.isBilled = 1';
+    const params = [billNo, outletId];
+
+    if (billDate) {
+      whereClause += ' AND DATE(t.BilledDate) = ?';
+      params.push(billDate);
+    }
+
+    // Fetch bill header
+    const billQuery = `
+      SELECT 
+        t.TxnID,
+        t.TxnNo AS orderNo,
+        t.TableID,
+        t.CustomerName,
+        t.MobileNo AS mobileNumber,
+        t.Discount,
+        t.DiscPer,
+        t.RoundOFF AS roundOffValue,
+        t.isSetteled,
+        t.CGST,
+        t.SGST,
+        t.IGST,
+        t.GrossAmt,
+        t.Amount AS grandTotal,
+        t.TxnDatetime,
+        t.BilledDate,
+        t.Steward AS selectedWaiter,
+        mt.table_name AS selectedTable,
+        mo.outlet_name,
+        u.username
+      FROM TAxnTrnbill t
+      LEFT JOIN msttablemanagement mt ON t.TableID = mt.tableid
+      LEFT JOIN mst_outlets mo ON t.outletid = mo.outletid
+      LEFT JOIN mst_users u ON t.UserId = u.userid
+      WHERE ${whereClause}
+      ORDER BY t.TxnID DESC
+      LIMIT 1
+    `;
+
+    const bill = db.prepare(billQuery).get(...params);
+
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Bill not found' });
+    }
+
+    // Fetch bill items from TAxnTrnbilldetails
+    const itemsQuery = `
+      SELECT
+        d.ItemID AS id,
+        m.item_name AS name,
+        d.Qty AS qty,
+        d.RuntimeRate AS price,
+        d.KOTNo AS kotNo,
+        d.isNCKOT,
+        t.NCName,
+        t.NCPurpose,
+        d.SpecialInst AS note,
+        d.VariantName AS modifier,
+        NULL AS hsn  -- hsn_code not present in your table
+      FROM TAxnTrnbilldetails d
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      LEFT JOIN TAxnTrnbill t ON d.TxnID = t.TxnID
+      WHERE d.TxnID = ? AND d.Qty > 0
+      ORDER BY d.TXnDetailID
+    `;
+
+    const items = db.prepare(itemsQuery).all(bill.TxnID);
+
+    // Tax calculations
+    const subtotal = parseFloat(bill.GrossAmt || 0) - parseFloat(bill.Discount || 0);
+    const cgstAmt = parseFloat(bill.CGST || 0);
+    const sgstAmt = parseFloat(bill.SGST || 0);
+    const igstAmt = parseFloat(bill.IGST || 0);
+    const grandTotal = parseFloat(bill.grandTotal || 0);
+    const roundOffValue = parseFloat(bill.roundOffValue || 0);
+    const roundOffEnabled = Math.abs(roundOffValue) > 0.01;
+
+    const cgstRate = cgstAmt > 0 ? (cgstAmt / subtotal) * 100 : 0;
+    const sgstRate = sgstAmt > 0 ? (sgstAmt / subtotal) * 100 : 0;
+    const igstRate = igstAmt > 0 ? (igstAmt / subtotal) * 100 : 0;
+
+    // Payment modes
+    const paymentsQuery = `
+      SELECT PaymentType
+      FROM TrnSettlement
+      WHERE OrderNo = ? AND isSettled = 1
+    `;
+    const payments = db.prepare(paymentsQuery).all(bill.orderNo);
+
+    res.json({
+      success: true,
+      data: {
+        items,
+        orderNo: bill.orderNo,
+        selectedTable: bill.selectedTable,
+        selectedWaiter: bill.selectedWaiter,
+        customerName: bill.CustomerName,
+        mobileNumber: bill.mobileNumber,
+        currentTxnId: bill.TxnID.toString(),
+        taxCalc: {
+          subtotal: subtotal.toFixed(2),
+          cgstAmt: cgstAmt.toFixed(2),
+          sgstAmt: sgstAmt.toFixed(2),
+          igstAmt: igstAmt.toFixed(2),
+          grandTotal: grandTotal.toFixed(2)
+        },
+        taxRates: {
+          cgst: parseFloat(cgstRate.toFixed(2)),
+          sgst: parseFloat(sgstRate.toFixed(2)),
+          igst: parseFloat(igstRate.toFixed(2))
+        },
+        discount: parseFloat(bill.Discount || 0),
+        reason: bill.DiscPer ? `${bill.DiscPer}%` : 'Fixed',
+        roundOffEnabled,
+        roundOffValue,
+        selectedPaymentModes: payments.map(p => p.PaymentType),
+        restaurantName: bill.outlet_name || 'Restaurant',
+        outletName: bill.outlet_name,
+        billDate: bill.BilledDate || bill.TxnDatetime
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching duplicate bill:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch bill data' });
+  }
+};
+
+module.exports = { getReportData, getDuplicateBill };
+
