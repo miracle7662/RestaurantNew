@@ -33,6 +33,7 @@ const KitchenAllocation = React.lazy(() => import('./../views/apps/PrintReport/K
 const Contact = React.lazy(() => import('./../views/apps/Contact'))
 const Tableview = React.lazy(() => import('../views/apps/Tableview'))
 const Billview = React.lazy(() => import('../views/apps/Billview'))
+const DuplicateBillPrint = React.lazy(() => import('../views/apps/PrintReport/DuplicateBillPrint'))
 const Settings = React.lazy(() => import('../views/apps/Settings'))
 const OpeningBalancePage = React.lazy(() => import('../views/apps/OpeningBalancePage')) // Updated to use <OpeningBalancePage /> component'@/pages/opening-balance/OpeningBalancePage'
 
@@ -420,6 +421,7 @@ const appsRoutes: RoutesProps = {
 
      
     {
+
       path: '/apps/Tableview',
       name: 'Tableview',
       element: <Tableview />,
@@ -432,6 +434,18 @@ const appsRoutes: RoutesProps = {
       element: <Billview />,
       route: PrivateRoute,
     },
+
+    {
+      path: '/apps/DuplicateBillPrint',
+      name: 'DuplicateBillPrint',
+       element: <DuplicateBillPrint {...({} as any)} />, // ✅ बस यही
+      route: PrivateRoute,
+    },
+
+    
+
+
+
 
    
     // {

@@ -141,6 +141,14 @@ const MENU_ITEMS: MenuItemTypes[] = [
   },
 
   {
+    key: 'DuplicateBillPrint',
+    label: 'Duplicate Bill Print',
+    url: '/apps/DuplicateBillPrint',
+    icon: 'fi fi-rr-print',
+    parentKey: 'apps',
+  },
+
+  {
     key: 'HotelAdmin',
     label: 'HotelAdmin',
     isTitle: true,
