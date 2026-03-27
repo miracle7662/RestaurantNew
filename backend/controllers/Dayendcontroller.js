@@ -758,8 +758,9 @@ const getNCKOTsData = (businessDate, dayEndEmpID) => {
 const generateBillDetailsHTML = (data) => {
   if (!data?.length) return 'BILL DETAILS\nNo bills found.\n\n';
   
-  let html = '';
+  let html = '═' + '═'.repeat(47) + '═\n';
   html += '         BILL DETAILS REPORT          \n';
+  html += '═' + '═'.repeat(47) + '═\n';
   html += 'BillNo   Table   Gross   GST    Net    Mode\n';
   
   let totals = { gross: 0, gst: 0, net: 0 };
@@ -779,17 +780,18 @@ const generateBillDetailsHTML = (data) => {
     totals.gst += gst;
     totals.net += Number(bill.netAmount || 0);
   });
-
-  html += `TOTAL             ${totals.gross.toLocaleString().padStart(7)} ${totals.gst.toFixed(0).padStart(5)} ${totals.net.toLocaleString().padStart(6)}     \n`;
- 
+   html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
+   html += `TOTAL             ${totals.gross.toLocaleString().padStart(7)} ${totals.gst.toFixed(0).padStart(5)} ${totals.net.toLocaleString().padStart(6)}     \n`;
+   html += '═' + '═'.repeat(47) + '═\n\n';
   return html;
 };
 
 const generatePaymentSummaryHTML = (data) => {
   if (!data?.length) return 'PAYMENT SUMMARY\nNo payments found.\n\n';
   
-  let html = '';
+  let html = '═' + '═'.repeat(47) + '═\n';
   html += '        PAYMENT SUMMARY              \n';
+  html += '═' + '═'.repeat(47) + '═\n';
  
   
   let summary = {
@@ -826,8 +828,9 @@ const generatePaymentSummaryHTML = (data) => {
 const generateCreditSummaryHTML = (data) => {
   if (!data?.length) return 'CREDIT SUMMARY\nNo credit transactions.\n\n';
   
-  let html = '';
+  let html = '═' + '═'.repeat(47) + '═\n';
   html += '         CREDIT SUMMARY             \n';
+  html += '═' + '═'.repeat(47) + '═\n';
   html += 'Customer             Bills   Amount  \n';
   html += '───────────────────────────────\n';
 
@@ -840,18 +843,18 @@ const generateCreditSummaryHTML = (data) => {
     totalCredit += Number(cred.creditAmount || 0);
   });
 
-  html += '───────────────────────────────\n';
+  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
   html += `TOTAL                      ${totalCredit.toLocaleString().padStart(9)}\n`;
-  
+  html += '═' + '═'.repeat(47) + '═\n\n';
   return html;
 };
 
 const generateDiscountSummaryHTML = (data) => {
   if (!data?.length) return 'DISCOUNT SUMMARY\nNo discounts applied.\n\n';
   
-  let html = '';  
+  let html = '═' + '═'.repeat(47) + '═\n'; 
   html += '        DISCOUNT SUMMARY            \n';
- 
+  html += '═' + '═'.repeat(47) + '═\n';
   html += 'Bill   Table   Reason   Amount\n';
  
 
@@ -865,7 +868,7 @@ const generateDiscountSummaryHTML = (data) => {
     totalDisc += Number(disc.Discount || 0);
   });
 
- 
+  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
   html += `TOTAL                    ${totalDisc.toLocaleString().padStart(7)}\n`;
   
   return html;
@@ -874,7 +877,7 @@ const generateDiscountSummaryHTML = (data) => {
 const generateReverseKOTsHTML = (data) => {
   if (!data?.length) return 'REVERSE KOT SUMMARY\nNo reverse KOTs.\n\n';
   
-  let html = '';
+  let html = '═' + '═'.repeat(47) + '═\n';
   html += '       REVERSE KOT SUMMARY         \n';
   html += '═' + '═'.repeat(47) + '═\n';
   html += 'KOT#  Table  Item     Qty  Time\n';
@@ -888,9 +891,14 @@ const generateReverseKOTsHTML = (data) => {
     const time = kot.TxnDatetime 
       ? new Date(kot.TxnDatetime).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})
       : '--:--';
+    const qtyStr = String(qty).padStart(3);
+    totalQty += qty; // ✅ accumulate total quantity
     
-    html += `${kotNo} ${table} ${item} ${qty} ${time}\n`;
+    html += `${kotNo} ${table} ${item} ${qtyStr} ${time}\n`;
   });
+
+  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
+  html += `TOTAL                          ${String(totalQty).padStart(3)}\n\n`;
   
   
   return html;
@@ -899,8 +907,9 @@ const generateReverseKOTsHTML = (data) => {
 const generateReverseBillsHTML = (data) => {
   if (!data?.length) return 'REVERSE BILL SUMMARY\nNo reverse bills.\n\n';
   
-  let html = '';
+  let html = '═' + '═'.repeat(47) + '═\n';
   html += '       REVERSE BILL SUMMARY        \n';
+  html += '═' + '═'.repeat(47) + '═\n';
   html += 'BillNo Table    Amount    Time\n';
   
 
@@ -917,16 +926,18 @@ const generateReverseBillsHTML = (data) => {
     totalRev += Number(bill.reversedAmount || 0);
   });
 
- 
+  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
   html += `TOTAL             ${totalRev.toLocaleString().padStart(9)}     \n`;
+  html += '═' + '═'.repeat(47) + '═\n\n';
   return html;
 };
 
 const generateNCKOTsHTML = (data) => {
   if (!data?.length) return 'NC KOT SUMMARY\nNo NC KOTs.\n\n';
 
-  let html = '';
+  let html = '═' + '═'.repeat(47) + '═\n';
   html += '           NC KOT SUMMARY           \n';
+  html += '═' + '═'.repeat(47) + '═\n';
   html += 'NCName   Purpose    Qty    Amt\n';
  
 
@@ -945,8 +956,9 @@ const generateNCKOTsHTML = (data) => {
     totalAmt += Number(n.amount || 0);
   });
 
-  
+  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
   html += `TOTAL               ${String(totalQty).padStart(4)}${totalAmt.toFixed(2).padStart(9)}\n`;
+  html += '═' + '═'.repeat(47) + '═\n\n';
 
   return html;
 };
