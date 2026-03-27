@@ -2173,25 +2173,45 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
 
       toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);
 
-      if (reverseKotNo) {
-        setRevKotNo(reverseKotNo);
-      }
-
-      // Update table status to occupied
-      try {
-        await OrderService.updateTableStatus(tableId, { status: 1 });
-      } catch (error) {
-        console.error('Error updating table status:', error);
+      // 🔥 ✅ NEW: Orders.tsx-style full reversal check + table status logic
+      if (tableId && billItems.length > 0) {
+        const tableToUpdate = tableItems.find(t => t.table_name === tableNo);
+        if (tableToUpdate) {
+          // Precise full reversal check (post-backend, items should reflect remaining qty)
+          const totalRemainingQty = billItems.reduce((sum, item) => sum + (item.qty || 0), 0);
+          const allReversed = totalRemainingQty <= 0;
+          
+          const newStatus = allReversed ? 0 : 1;
+          
+          console.log('🔧 F8 Reversal DEBUG (Billview):', {
+            totalRemainingQty,
+            allReversed,
+            newStatus,
+            tableId: tableToUpdate.tablemanagementid || tableId,
+            itemCount: billItems.length
+          });
+          
+          await OrderService.updateTableStatus(tableToUpdate.tablemanagementid || tableId, { status: newStatus });
+          
+          if (allReversed) {
+            toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
+          } else {
+            toast.success('Partial KOTs reversed! Table remains occupied (status=1)');
+          }
+          
+          // Force refresh table management UI
+          await fetchTableManagement();
+        }
       }
 
       // 🔥 PRINT PREVIEW (like Orders.tsx)
       setReverseSnapshot(reverseItemsFromModal.map(item => ({
         ...item,
-        name: item.itemName || "",   // ✅ FIX
+        name: item.itemName || "",   
         price: item.rate,
-        revKotNo: revKotNo ,
+        revKotNo: reverseKotNo,
         isReverse: true,
-        revQty: item.cancelQty  // Use cancelQty from modal
+        revQty: item.cancelQty  
       })));
       setShowReverseKotPrintModal(true);
       setReversePrintTrigger(prev => prev + 1);

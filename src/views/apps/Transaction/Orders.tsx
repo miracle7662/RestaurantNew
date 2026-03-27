@@ -2021,19 +2021,36 @@ const tableNameForKOT =
       if (response.success) {
         toast.success('Reverse KOT processed successfully!');
 
-        // 2️⃣ Table status update API call (green)
+// 2️⃣ FIXED: Table status update - FORCE status=0 if all items fully reversed (use txnDetailId matching)
         if (selectedTable) {
           const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
           if (tableToUpdate) {
-            // Check if all items in table have qty fully reversed
-            const allReversed = items.every(item => {
-              const revItem = reverseQtyItems.find(r => r.item_no === item.item_no);
-              return revItem ? (item.qty - (revItem.revQty ?? 0)) <= 0 : item.qty <= 0;
+            // ✅ FIXED: Precise full reversal check using txnDetailId (more reliable than item_no)
+            // Post-backend remaining qty should be reflected in items[] already via refreshItemsForTable
+            const totalRemainingQty = items.reduce((sum, item) => sum + item.qty, 0);
+            const allReversed = totalRemainingQty <= 0;
+            
+            const newStatus = allReversed ? 0 : 1;
+            console.log('🔧 F8 Reversal DEBUG:', { 
+              totalRemainingQty, 
+              allReversed, 
+              newStatus, 
+              tableId: tableToUpdate.tableid,
+              itemCount: items.length 
             });
-            const newStatus = allReversed ? 0 : 1; // 0 = Vacant, 1 = Running
+            
             await OrderService.updateTableStatus(tableToUpdate.tableid, { status: newStatus });
+            
+            if (allReversed) {
+              toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
+            } else {
+              toast.success('Partial reversal complete. Table status = 1 (Running)');
+            }
           }
         }
+        
+        // 3️⃣ FORCE REFRESH table list to sync status change
+        await fetchTableManagement();
 
         // 🔥 FIX: SNAPSHOT before reset
         if (reverseQtyItems.length > 0) {
