@@ -1,37 +1,21 @@
-# Day End Report Conditional Rendering Task
+# Dayendcontroller.js ReferenceError Fix - TODO
 
-## Plan Status: ✅ APPROVED & IMPLEMENTED
+## Status: 🚀 In Progress
 
-**Changes Made:**
-✅ **Step 1:** Created TODO.md
-✅ **Step 2:** Edited `backend/controllers/Dayendcontroller.js` 
-   - Added `reportsWithData` array tracking
-   - Data length checks before storing/generating HTML
-   - Only generate HTML sections for reports with data > 0
-   - Enhanced debug response with `reportsWithDataList`, `reportsRequested`
-   - Console logs: ✅ records found, ⏭️ skipped empty
+### Steps (Completed: ✅ | In Progress: ➤ | Pending: ⏳)
 
-**Core Logic:**
-```js
-if (Array.isArray(data) && data.length > 0) {
-  reportsWithData.push(reportKey);
-  // Generate HTML only
-} else {
-  console.log(`⏭️ Skipped ${reportKey}: no data`);
-}
-thermalHTML generated only from reportsWithData.forEach()
-```
+- ⏳ **1. Create this TODO.md file** - Track progress
+- ⏳ **2. Fix generateBillDetailsHTML** - Replace `if (summary.total === 0)` 
+- ⏳ **3. Fix generatePaymentSummaryHTML** - Replace `if (summary.total === 0)`
+- ⏳ **4. Fix generateCreditSummaryHTML** - Replace `if (summary.total === 0)`
+- ⏳ **5. Fix generateDiscountSummaryHTML** - Replace `if (summary.total === 0)`
+- ⏳ **6. Fix generateReverseKOTsHTML** - Replace `if (summary.total === 0)`
+- ⏳ **7. Fix generateNCKOTsHTML** - Replace `if (summary.total === 0)`
+- ⏳ **8. Restart server** - Test endpoint
+- ⏳ **9. Test billDetails report** - Verify no ReferenceError
+- ⏳ **10. Test full report** - All sections render
+- ⏳ **11. Update TODO.md** - Mark complete ✅
+- ⏳ **12. Attempt completion** - Close task
 
-**Benefits Achieved:**
-- ✅ Clean preview: No "No data found" sections
-- ✅ Smaller HTML/print output  
-- ✅ Better UX - only meaningful reports shown
-- ✅ Debug info: Which reports had data vs skipped
-
-**Test Status:**
-- [ ] **Step 3:** Test mixed data/empty scenarios
-- [ ] **Step 4:** Verify DayEndReportPreview shows conditional sections
-
-**Next:** Test the implementation
-
+**Current Step:** 1/12 ✅
 

@@ -543,40 +543,31 @@ const generateDayEndReportHTML = (req, res) => {
     });
 
     // ✅ Generate thermal HTML sections
-    let thermalHTML = '<div style="font-family:\'Courier New\',monospace;font-size:12px;line-height:1.2;max-width:384px;margin:0 auto;white-space:pre;">\n';
+    let reportContent = '';
 
     selectedReports.forEach(reportKey => {
       try {
+        let sectionHTML = '';
         switch(reportKey) {
-          case 'billDetails':
-            thermalHTML += generateBillDetailsHTML(reportData.billDetails);
-            break;
-          case 'paymentSummary':
-            thermalHTML += generatePaymentSummaryHTML(reportData.paymentSummary);
-            break;
-          case 'creditSummary':
-            thermalHTML += generateCreditSummaryHTML(reportData.creditSummary);
-            break;
-          case 'discountSummary':
-            thermalHTML += generateDiscountSummaryHTML(reportData.discountSummary);
-            break;
-          case 'reverseKOTSummary':
-            thermalHTML += generateReverseKOTsHTML(reportData.reverseKOTs);
-            break;
-          case 'reverseBillSummary':
-            thermalHTML += generateReverseBillsHTML(reportData.reverseBills);
-            break;
-          case 'ncKOTSummary':
-            thermalHTML += generateNCKOTsHTML(reportData.ncKOTSummary);
-            break;
+          case 'billDetails': sectionHTML = generateBillDetailsHTML(reportData.billDetails); break;
+          case 'paymentSummary': sectionHTML = generatePaymentSummaryHTML(reportData.paymentSummary); break;
+          case 'creditSummary': sectionHTML = generateCreditSummaryHTML(reportData.creditSummary); break;
+          case 'discountSummary': sectionHTML = generateDiscountSummaryHTML(reportData.discountSummary); break;
+          case 'reverseKOTSummary': sectionHTML = generateReverseKOTsHTML(reportData.reverseKOTs); break;
+          case 'reverseBillSummary': sectionHTML = generateReverseBillsHTML(reportData.reverseBills); break;
+          case 'ncKOTSummary': sectionHTML = generateNCKOTsHTML(reportData.ncKOTSummary); break;
         }
+        if (sectionHTML) reportContent += sectionHTML;
       } catch (htmlError) {
         console.error(`❌ HTML generation failed for ${reportKey}:`, htmlError);
-        thermalHTML += `${reportKey.toUpperCase()}\nError generating report\n\n`;
       }
     });
 
-    thermalHTML += '</div>';
+    if (!reportContent.trim()) {
+      reportContent = '\n' + centerText('NO DATA AVAILABLE', 48) + '\n\n';
+    }
+
+    const thermalHTML = `<div style="font-family:'Courier New',monospace;font-size:12px;line-height:1.2;max-width:384px;margin:0 auto;white-space:pre;">\n${reportContent}</div>`;
 
     console.log(`✅ Generated ${selectedReports.length} report sections`);
     
@@ -767,7 +758,7 @@ const centerText = (text, width) => {
 };
 
 const generateBillDetailsHTML = (data) => {
-  if (!data?.length) return 'BILL DETAILS\nNo bills found.\n\n';
+  if (!data?.length) return '';
   
   let html = '═'.repeat(48) + '\n';
   html += '        BILL DETAILS REPORT        \n';
@@ -820,7 +811,7 @@ const generateBillDetailsHTML = (data) => {
 };
 
 const generatePaymentSummaryHTML = (data) => {
-  if (!data?.length) return 'PAYMENT SUMMARY\nNo payments found.\n\n';
+  if (!data?.length) return '';
   
   let html = '═' + '═'.repeat(47) + '═\n';
   html += '        PAYMENT SUMMARY              \n';
@@ -859,7 +850,7 @@ const generatePaymentSummaryHTML = (data) => {
 };
 
 const generateCreditSummaryHTML = (data) => {
-  if (!data?.length) return 'CREDIT SUMMARY\nNo credit transactions.\n\n';
+  if (!data?.length) return '';
   
   let html = '═' + '═'.repeat(47) + '═\n';
   html += '         CREDIT SUMMARY             \n';
@@ -883,7 +874,7 @@ const generateCreditSummaryHTML = (data) => {
 };
 
 const generateDiscountSummaryHTML = (data) => {
-  if (!data?.length) return 'DISCOUNT SUMMARY\nNo discounts applied.\n\n';
+  if (!data?.length) return '';
   
   let html = '═' + '═'.repeat(47) + '═\n'; 
   html += '        DISCOUNT SUMMARY            \n';
@@ -908,7 +899,7 @@ const generateDiscountSummaryHTML = (data) => {
 };
 
 const generateReverseKOTsHTML = (data) => {
-  if (!data?.length) return 'REVERSE KOT SUMMARY\nNo reverse KOTs.\n\n';
+  if (!data?.length) return '';
   
   let html = '═' + '═'.repeat(47) + '═\n';
   html += '       REVERSE KOT SUMMARY         \n';
@@ -936,7 +927,7 @@ const generateReverseKOTsHTML = (data) => {
 };
 
 const generateReverseBillsHTML = (data) => {
-  if (!data?.length) return 'REVERSE BILL SUMMARY\nNo reverse bills.\n\n';
+  if (!data?.length) return '';
   
   let html = '═' + '═'.repeat(47) + '═\n';
   html += '       REVERSE BILL SUMMARY        \n';
@@ -964,7 +955,7 @@ const generateReverseBillsHTML = (data) => {
 };
 
 const generateNCKOTsHTML = (data) => {
-  if (!data?.length) return 'NC KOT SUMMARY\nNo NC KOTs.\n\n';
+  if (!data?.length) return '';
 
   let html = '═' + '═'.repeat(47) + '═\n';
   html += '           NC KOT SUMMARY           \n';
