@@ -755,24 +755,48 @@ const getNCKOTsData = (businessDate, dayEndEmpID) => {
 // ==================== 80MM THERMAL PRINTER GENERATORS ====================
 // Fixed: 48 char width max, monospace, perfect alignment
 
+const centerText = (text, width) => {
+  text = text || '';
+  if (text.length >= width) return text.substring(0, width);
+
+  const totalSpace = width - text.length;
+  const left = Math.floor(totalSpace / 2);
+  const right = totalSpace - left;
+
+  return ' '.repeat(left) + text + ' '.repeat(right);
+};
+
 const generateBillDetailsHTML = (data) => {
   if (!data?.length) return 'BILL DETAILS\nNo bills found.\n\n';
   
-  let html = '═' + '═'.repeat(47) + '═\n';
-  html += '         BILL DETAILS REPORT          \n';
-  html += '═' + '═'.repeat(47) + '═\n';
-  html += 'BillNo   Table   Gross   GST    Net    Mode\n';
+  let html = '═'.repeat(48) + '\n';
+  html += '        BILL DETAILS REPORT        \n';
+  html += '═'.repeat(48) + '\n';
+
+  // ✅ Short header for space
+  html += 'Bill  Tbl   Gross  GST   Net   Mode\n';
   
   let totals = { gross: 0, gst: 0, net: 0 };
 
-  data.slice(0, 12).forEach((bill) => { // Max 12 bills for 80mm
-    const billNo = (bill.TxnNo || '').substring(0, 7).padEnd(7);
-    const table = (bill.table_name || '').substring(0, 6).padEnd(6);
-    const gross = Number(bill.grossAmount || 0).toFixed(0).padStart(7);
+  data.slice(0, 12).forEach((bill) => {
+
+    // ✅ Remove prefix (MI → only number)
+    const billNo = String(bill.TxnNo || '')
+      .replace(/^\D+/, '')   // remove non-digits from start
+      .substring(0, 5)
+      .padEnd(5);
+
+    // ✅ Center table
+    const table = centerText((bill.table_name || '').substring(0, 4), 4);
+
+    // ✅ Adjust widths for 80mm
+    const gross = Number(bill.grossAmount || 0).toFixed(0).padStart(6);
     const gst = Number(bill.CGST || 0) + Number(bill.SGST || 0);
-    const gstStr = gst.toFixed(0).padStart(5);
+    const gstStr = gst.toFixed(0).padStart(4);
     const net = Number(bill.netAmount || 0).toFixed(0).padStart(6);
-    const mode = (bill.paymentMode || 'Cash').substring(0, 5);
+
+    // ✅ Give space to Mode
+    const mode = (bill.paymentMode || 'Cash').substring(0, 6).padEnd(6);
 
     html += `${billNo} ${table} ${gross} ${gstStr} ${net} ${mode}\n`;
 
@@ -780,9 +804,18 @@ const generateBillDetailsHTML = (data) => {
     totals.gst += gst;
     totals.net += Number(bill.netAmount || 0);
   });
-   html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
-   html += `TOTAL             ${totals.gross.toLocaleString().padStart(7)} ${totals.gst.toFixed(0).padStart(5)} ${totals.net.toLocaleString().padStart(6)}     \n`;
-   html += '═' + '═'.repeat(47) + '═\n\n';
+
+  html += '-'.repeat(48) + '\n';
+
+  // ✅ TOTAL aligned with new widths
+  html += 
+    'TOTAL'.padEnd(11) + // Bill(5)+space+Tbl(4)+space = 11
+    totals.gross.toLocaleString().padStart(6) + ' ' +
+    totals.gst.toFixed(0).padStart(4) + ' ' +
+    totals.net.toLocaleString().padStart(6) + '\n';
+
+  html += '═'.repeat(48) + '\n\n';
+
   return html;
 };
 
@@ -863,13 +896,13 @@ const generateDiscountSummaryHTML = (data) => {
     const bill = (disc.TxnNo || '').substring(0, 6).padEnd(6);
     const table = (disc.table_name || '').substring(0, 6).padEnd(6);
     const reason = (disc.reason || '').substring(0, 8).padEnd(8);
-    const amt = Number(disc.Discount || 0).toLocaleString().padStart(7);
+    const amt = String(Number(disc.Discount || 0).toLocaleString()).padStart(7);
     html += `${bill} ${table} ${reason} ${amt}\n`;
     totalDisc += Number(disc.Discount || 0);
   });
 
   html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
-  html += `TOTAL                    ${totalDisc.toLocaleString().padStart(7)}\n`;
+  html += 'TOTAL'.padEnd(23) + totalDisc.toLocaleString().padStart(7) + '\n';
   
   return html;
 };
@@ -915,7 +948,7 @@ const generateReverseBillsHTML = (data) => {
   data.slice(0, 10).forEach((bill) => {
     const billNo = (bill.billNo || '').substring(0, 7).padEnd(7);
     const table = (bill.table_name || '').padEnd(7);
-    const amt = Number(bill.reversedAmount || 0).toLocaleString().padStart(9);
+    const amt = centerText(Number(bill.reversedAmount || 0).toLocaleString(),9);
     const time = bill.TxnDatetime 
       ? new Date(bill.TxnDatetime).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})
       : '--:--';
@@ -925,7 +958,7 @@ const generateReverseBillsHTML = (data) => {
   });
 
   html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
-  html += `TOTAL             ${totalRev.toLocaleString().padStart(9)}     \n`;
+  html += 'TOTAL'.padEnd(16) + centerText(totalRev.toLocaleString(), 9) + '\n';
   html += '═' + '═'.repeat(47) + '═\n\n';
   return html;
 };
@@ -945,7 +978,7 @@ const generateNCKOTsHTML = (data) => {
   data.slice(0, 12).forEach(n => {
     const NCName  = String(n.ncName  || 'N/A').substring(0, 9).padEnd(10);
     const purpose = String(n.purpose || 'N/A').substring(0, 9).padEnd(10);
-    const qty     = String(n.quantity || 0).padStart(4);
+    const qty = centerText(n.quantity || 0, 4);
     const amount  = (Number(n.amount) || 0).toFixed(2).padStart(9);
 
     html += `${NCName}${purpose}${qty}${amount}\n`;
@@ -955,7 +988,7 @@ const generateNCKOTsHTML = (data) => {
   });
 
   html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
-  html += `TOTAL               ${String(totalQty).padStart(4)}${totalAmt.toFixed(2).padStart(9)}\n`;
+  html += 'TOTAL'.padEnd(20) + centerText(totalQty, 4) + totalAmt.toFixed(2).padStart(9) + '\n';
   html += '═' + '═'.repeat(47) + '═\n\n';
 
   return html;
