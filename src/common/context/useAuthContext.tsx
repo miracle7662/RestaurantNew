@@ -74,17 +74,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (parsedUser && parsedUser.token) {
             const currentUser = await getCurrentUser(parsedUser.token)
             const currDateData = await DayendService.getLatestCurrDate({
-              brandId: currentUser.outletid,   // agar backend me brandId = outletid hai
+              brandId: currentUser.outletid,
               hotelid: currentUser.hotelid
-            })  
-            if (currDateData.success) {
-  const currDate = currDateData.data.curr_date
-  console.log("Business Date:", currDate)
-}
-             console.log('Current user data:', currentUser)
+            })
+            console.log('Current user data:', currentUser)
             console.log('Curr date data:', currDateData)
-            saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.data.curr_date })
-            console.log('User session restored from localStorage.')
+            
+            // Check if opening balance is required after session restore
+            try {
+              const openingBalanceCheck = await DayendService.checkOpeningBalanceRequired({
+                outlet_id: currentUser.outletid ? Number(currentUser.outletid) : undefined,
+                hotel_id: Number(currentUser.hotelid)
+              })
+              
+              const sessionUser = { 
+                ...currentUser, 
+                token: parsedUser.token, 
+                currDate: currDateData.data?.curr_date 
+              }
+              saveSession(sessionUser)
+              
+              // If opening balance required and not on opening balance page, navigate
+              if (openingBalanceCheck.data?.required) {
+                window.location.href = '/apps/OpeningBalancePage'
+              }
+              console.log('User session restored from localStorage.')
+            } catch (balanceError) {
+              console.error('Opening balance check failed:', balanceError)
+              // Fallback: save session without navigation
+              saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.data?.curr_date })
+            }
           } else {
             removeSession()
           }
