@@ -1,28 +1,32 @@
-# Duplicate Bill Print Fix - Implementation Plan (Approved ✅)
+# TODO: Show TxnDatetime in billDate field (Approved Plan)
+Status: ✅ **IN PROGRESS**
 
-## ✅ Step 1: Create TODO.md
-- TODO.md created with step-by-step plan
+## Breakdown of Approved Plan (Step-by-step)
 
-## ✅ Step 2: Fix backend/controllers/Reportcontroller.js
-  - ✅ Fix grandTotal: now uses bill.Amount 
-  - ✅ Add taxableValue = subtotal
-  - ✅ Return NUMBERS: parseFloat(value.toFixed(2))
-  - ☐ Restart backend: `cd backend && npm start`
+### Step 1: [PENDING] ✅ Read BillPreviewPrint.tsx
+- Use `read_file` on `src/views/apps/PrintReport/BillPreviewPrint.tsx`
+- Analyze where `billDate`/`date` is displayed in print preview
+- Identify exact location to replace with `TxnDatetime` (full timestamp)
 
-## ✅ Step 3: Update src/views/apps/PrintReport/DuplicateBillPrint.tsx
-  - ✅ Add taxableValue: number to interface
-  - ✅ Safe parseFloat() for all taxCalc values  
-  - ✅ Compatible with BillPreviewPrint template
+### Step 2: [PENDING] Edit BillPreviewPrint.tsx
+- Replace date display logic to use `props.txnDatetime` (full timestamp)
+- Format `TxnDatetime` nicely (e.g., DD/MM/YYYY HH:MM)
+- Preserve styling/print layout
 
-## ☐ Step 4: Test & Verify
-  - [ ] Backend restart & test /reports/duplicate-bill?billNo=XXX&outletId=1
-  - [ ] Frontend: Load duplicate bill → Verify values (no NaN)
-  - [ ] Bill preview shows: Taxable Value, Subtotal, Grand Total ✓
+### Step 3: [PENDING] Edit DuplicateBillPrint.tsx  
+- Explicitly map `billData.txnDatetime = data.TxnDatetime` from backend
+- Pass `txnDatetime` prop to `BillPreviewPrint`
 
-## ☐ Step 5: Finalize  
-  - [ ] Update TODO.md
-  - [ ] attempt_completion
+### Step 4: [PENDING] Test Changes
+- Restart dev server if needed: `npm run dev`
+- Navigate to Duplicate Bill Print
+- Search bill by `billNo` + `billDate`
+- Verify **full TxnDatetime** (with time) shows in print preview
+- Test print preview looks correct
 
-**Next**: Restart backend server then test duplicate bill print.
+### Step 5: [PENDING] Complete
+- Update this TODO.md with ✅ marks
+- Run `attempt_completion`
 
+**Next Action**: Read `BillPreviewPrint.tsx` to understand display logic.
 
