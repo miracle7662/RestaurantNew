@@ -203,10 +203,11 @@ const getDuplicateBill = (req, res) => {
       return res.status(400).json({ success: false, message: 'billNo and outletId required' });
     }
 
-    // Build WHERE clause
-    let whereClause =
-      't.TxnNo = ? AND t.outletid = ? AND t.isCancelled = 0 AND t.isBilled = 1';
-    const params = [billNo, outletId];
+    console.log('🔍 Searching duplicate bill - billNo:', billNo, 'outletId:', outletId, 'billDate:', billDate || 'any');
+
+    // Build WHERE clause - search both TxnNo and orderNo for takeaway bills
+    let whereClause = 't.outletid = ? AND t.isCancelled = 0 AND t.isBilled = 1 AND (t.TxnNo = ? OR t.orderNo = ?)';
+    const params = [outletId, billNo, billNo];
 
     if (billDate) {
       whereClause += ' AND DATE(t.TxnDatetime) = ?';
@@ -251,6 +252,7 @@ const getDuplicateBill = (req, res) => {
     const bill = db.prepare(billQuery).get(...params);
 
     console.log('🔍 DEBUG DuplicateBill - Raw bill data:', {
+      TxnID: bill.TxnID,
       TxnNo: bill.TxnNo,
       orderNo: bill.orderNo,
       Amount: bill.Amount, 
@@ -260,6 +262,7 @@ const getDuplicateBill = (req, res) => {
     });
 
     if (!bill) {
+      console.log('❌ No bill found with billNo/outletId:', billNo, outletId);
       return res.status(404).json({ success: false, message: 'Bill not found' });
     }
 
@@ -300,13 +303,14 @@ const getDuplicateBill = (req, res) => {
     const sgstRate = sgstAmt > 0 ? (sgstAmt / subtotal) * 100 : 0;
     const igstRate = igstAmt > 0 ? (igstAmt / subtotal) * 100 : 0;
 
-    // Payment modes
+    // Payment modes - use TxnNo or orderNo
+    const orderNoForPayments = bill.TxnNo || bill.orderNo;
     const paymentsQuery = `
       SELECT PaymentType
       FROM TrnSettlement
-      WHERE OrderNo = ? AND isSettled = 1
+      WHERE (OrderNo = ? OR TxnNo = ?) AND isSettled = 1
     `;
-    const payments = db.prepare(paymentsQuery).all(bill.orderNo);
+    const payments = db.prepare(paymentsQuery).all(orderNoForPayments, orderNoForPayments);
 
     res.json({
       success: true,

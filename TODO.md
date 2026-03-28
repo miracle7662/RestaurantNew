@@ -1,19 +1,13 @@
-# Settelment.tsx Backdate & F8 Print Enhancements
+# Fix Duplicate Bill Error for Takeaway/Quickbill Print
 
-## Status: 📋 Planned (0/8 completed)
-
-### 1. [ ] Create TODO.md (Current step - done after this)
-### 2. ✅ Add imports for F8PasswordModal in Settelment.tsx
-### 3. ✅ Add states: isBackDate, showF8Modal, printPendingGroup, f8Error, f8Loading
-### 4. ✅ Implement backdate logic: compare filters.from/to < currDate → disable Edit
-### 5. ✅ Add useEffect to watch dates/currDate for isBackDate
-### 6. ✅ Modify Print button: set printPendingGroup → show F8 modal
-### 7. ✅ Implement handlePrintAuth(password): verify (TODO: API/hardcode) → handlePrintDuplicateBill
-### 8. ✅ Add F8PasswordModal JSX + backdate warning UI
-### 9. [ ] Test & attempt_completion
-
-**Notes:**
-- Backend API for F8 auth needed? (pending confirmation)
-- Edit: global disable on form backdate
-- Print: F8 modal → preview on submit
+## Plan Breakdown
+1. ✅ [Complete] Understand error: `bill` undefined in `getDuplicateBill` because query only searches `TxnNo`, not `orderNo`
+2. ✅ [Complete] Edit `backend/controllers/Reportcontroller.js`:
+   - Update `billQuery` WHERE to search `(t.TxnNo = ? OR t.orderNo = ?)`
+   - Fix `params = [outletId, billNo, billNo]`
+   - Update `paymentsQuery` to use `bill.TxnNo || bill.orderNo`
+   - Add logging and validation
+3. 🔄 [Pending] Restart backend server: `cd backend && npm start` (or your start command)
+4. 🔄 [Pending] Test takeaway/quickbill print - check console for new logs
+5. ✅ [Complete] Task done
 

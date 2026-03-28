@@ -11,6 +11,7 @@ interface MenuItem {
   revQty?: number;
   isReverse?: boolean;
   kotNo?: number;
+  revKotNo?: number;   // ✅ ADD THIS
 }
 
 interface ReverseKotPrintProps {
@@ -52,13 +53,17 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   }, [items]);
 
   /** 🔹 Unique Reverse KOT Nos */
-  const reverseKotNos = useMemo(() => {
-    const set = new Set<number>();
-    reverseItems.forEach(i => {
-      if (i.kotNo) set.add(i.kotNo);
-    });
-    return Array.from(set).join(", ");
-  }, [reverseItems]);
+ const reverseKotNos = useMemo(() => {
+  const set = new Set<number>();
+
+  reverseItems.forEach(i => {
+    if (i.revKotNo) {
+      set.add(i.revKotNo);   // ✅ use revKotNo
+    }
+  });
+
+  return set.size ? Array.from(set).join(", ") : "-";
+}, [reverseItems]);
 
   /** 🔹 Fetch printer + outlet details */
   useEffect(() => {
@@ -139,7 +144,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 
   <!-- LEFT SIDE (Details) -->
   <div style="font-size: 10pt;">
-    <div><strong>Reverse KOT No:</strong> ${reverseKotNos || "-"}</div>
+    <div><strong>Reverse KOT No:</strong> ${reverseKotNos}</div>
     <div><strong>Date:</strong> ${dateTime}</div>
     <div><strong>User:</strong> ${user?.username || "-"}</div>
   </div>
