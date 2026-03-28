@@ -1,26 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button, Form, Card, Spinner, Container, Row, Col } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
 import BillPreviewPrint from './BillPrint';
 import { OutletSettings } from 'src/utils/applyOutletSettings';
 import BillPrintService from '@/common/api/billPrint';
-import useUser from '@/hooks/useUser';
+import { useAuthContext } from '@/common/context/useAuthContext';
 
 interface DuplicateBillData {
   items: any[];
-  orderNo: string;
+  orderNo?: string;
+  TxnNo?: string;
   selectedTable?: string;
   selectedWaiter?: string;
   customerName?: string;
   mobileNumber?: string;
   currentTxnId?: string;
-  taxCalc: {
-    subtotal: number;
-    cgstAmt: number;
-    sgstAmt: number;
-    igstAmt: number;
-    grandTotal: number;
-  };
+ 
+    taxCalc: {
+  CGST: number;
+  SGST: number;
+  IGST: number;
+  Amount: number;
+  GrossAmt: number;
+  Discount: number;
+  RoundOFF: number;
+  subtotal: number;   // now required
+  cgstAmt: number;
+  sgstAmt: number;
+  igstAmt: number;
+  grandTotal: number;
+};
   taxRates: {
     cgst: number;
     sgst: number;
@@ -36,9 +45,10 @@ interface DuplicateBillData {
   billDate?: string;
 }
 
+
+
 const DuplicateBillPrint: React.FC = () => {
-  const [loggedInUser] = useUser();
-  const user = loggedInUser;
+  const { user } = useAuthContext();
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -72,45 +82,83 @@ const DuplicateBillPrint: React.FC = () => {
 
 const handleSearch = async (e: React.FormEvent) => {
   e.preventDefault();
+
   if (!searchParams.billNo.trim()) {
     toast.error('Please enter Bill No');
     return;
   }
 
   setSearchLoading(true);
+
   try {
+    // Format billDate for backend (YYYY-MM-DD)
+    const formattedBillDate = searchParams.billDate
+      ? new Date(searchParams.billDate).toISOString().split('T')[0]
+      : undefined;
+
+    console.log('[DEBUG] handleSearch - Starting search with params:', {
+      billNo: searchParams.billNo,
+      outletId: searchParams.outletId,
+      billDate: formattedBillDate,
+    });
+
     // Call GET version of duplicate bill
     const res = await BillPrintService.getDuplicateBill({
       billNo: searchParams.billNo,
-      billDate: searchParams.billDate || undefined,
-      outletId: searchParams.outletId
+      outletId: searchParams.outletId,
+      billDate: formattedBillDate,
     });
 
-    if (!res?.data?.success && !res?.success) {
-      toast.error('Bill not found. Check Bill No/Date/Outlet.');
-      return;
-    }
+    // Axios only enters here if HTTP status is 2xx
+  
 
-    // Extract the actual bill data
-    const data = res.data?.data || res.data || res;
+    const data = res.data.data || res.data;
+
+    console.log('[DEBUG] handleSearch - Bill data loaded:', {
+      orderNo: data.orderNo || data.TxnNo,
+      itemsCount: data.items?.length || 0
+    });
 
     setBillData({
-      ...data,
-      // fallback to current date if billDate not present
-      billDate: searchParams.billDate || new Date().toLocaleDateString('en-GB')
-    });
+  ...data,
+  orderNo: data.TxnNo || data.orderNo,
+  billDate: formattedBillDate || new Date().toISOString().split('T')[0],
+  taxRates: { cgst: 0, sgst: 0, igst: 0 }, // Default rates
+  taxCalc: {
+    CGST: data.CGST ?? 0,
+    SGST: data.SGST ?? 0,
+    IGST: data.IGST ?? 0,
+    Amount: data.Amount ?? 0,
+    GrossAmt: data.GrossAmt ?? 0,
+    Discount: data.Discount ?? 0,
+    RoundOFF: data.RoundOFF ?? 0,
+    subtotal: data.subtotal ?? 0,   // Default to 0
+    cgstAmt: data.cgstAmt ?? 0,
+    sgstAmt: data.sgstAmt ?? 0,
+    igstAmt: data.igstAmt ?? 0,
+    grandTotal: data.grandTotal ?? 0,
+  },
+});
 
     setShowPreview(true);
     toast.success('Bill loaded successfully');
+
   } catch (err: any) {
-    console.error('Search error:', err);
-    toast.error(
-      err?.response?.data?.message ||
-      err.message ||
-      'Failed to fetch bill data'
-    );
+    // Handles network errors and 404 responses from backend
+    console.error('[DEBUG] handleSearch - Full error details:', {
+      message: err.message,
+      response: err.response?.data,
+      status: err.response?.status,
+      url: err.config?.url,
+      method: err.config?.method,
+    });
+
+    // Show message from backend if available, else generic error
+    const errorMsg = err.response?.data?.message || err.message || 'Failed to fetch bill data';
+    toast.error(errorMsg);
   } finally {
     setSearchLoading(false);
+    console.log('[DEBUG] handleSearch - Search complete');
   }
 };
 
@@ -118,6 +166,8 @@ const handleSearch = async (e: React.FormEvent) => {
     setShowPreview(false);
     setBillData({} as DuplicateBillData);
   };
+
+ 
 
   return (
     <Container className="py-4">

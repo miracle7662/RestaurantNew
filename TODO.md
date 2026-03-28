@@ -1,11 +1,11 @@
-# Fix Duplicate Bill Error: GET vs POST Mismatch
+# Fix taxCalc.subtotal undefined error - Task Progress
 
-Status: 2/5 steps completed
+## Approved Plan Breakdown:
+- [x] **Step 1**: Edit `src/views/apps/PrintReport/DuplicateBillPrint.tsx` - ✅ Compute `taxCalc` from raw bill data (useMemo added)
+- [ ] **Step 2**: Edit `src/views/apps/PrintReport/BillPrint.tsx` - Add defensive null checks in `generateBillContent()`
+- [ ] **Step 3**: Test duplicate bill print flow  
+- [ ] **Step 4**: Attempt completion
 
-## Steps:
-1. ✅ [DONE] Understand files and create plan (search_files, read_files completed)
-2. ✅ [DONE] Update backend/routes/ReportRoutes.js - Changed GET → POST for /duplicate-bill
-3. ✅ [DONE] Update backend/controllers/Reportcontroller.js - Added fallback: const data = req.body || req.query
-4. 🔄 Test: Restart server (`cd backend && npm start`), test duplicate bill reprint from UI
-5. 🔄 [FINAL] attempt_completion
+**Current Status**: Step 1 complete (no TS errors). Proceeding to Step 2...
+
 
