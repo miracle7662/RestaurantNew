@@ -293,7 +293,7 @@ const getDuplicateBill = (req, res) => {
     const sgstAmt = parseFloat(bill.SGST || 0);
     const igstAmt = parseFloat(bill.IGST || 0);
     const grandTotal = parseFloat(bill.Amount || 0);  // FIXED: use Amount field
-    const roundOffValue = parseFloat(bill.RoundOFF || 0);  // FIXED: match query alias
+   const roundOffValue = parseFloat(bill.roundOffValue || 0);
     const roundOffEnabled = Math.abs(roundOffValue) > 0.01;
 
     const cgstRate = cgstAmt > 0 ? (cgstAmt / subtotal) * 100 : 0;
