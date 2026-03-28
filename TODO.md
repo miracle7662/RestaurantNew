@@ -1,48 +1,27 @@
-# Duplicate Bill Print Fix: Restaurant Name Issue
+# Task: Fetch activeTab (pickup/delivery/dine-in) from backend in DuplicateBillPrint.tsx
 
-## Plan Status: ✅ APPROVED
+## Plan Summary
+- Extract `Order_Type` from backend response in `handleSearch()`
+- Add `activeTab` to `billData` state
+- Pass `activeTab={billData.activeTab}` to BillPreviewPrint
+- Fallback: 'Pickup' if missing
 
-**Issue**: DuplicateBillPrint.tsx shows outlet name twice instead of restaurant name
-**Root Cause**: Backend `/reports/duplicate-bill` sends `outlet_name` for BOTH restaurantName & outletName
+## Steps
+✅ **1. Create TODO.md** (current)
 
-## Steps (In Order)
+✅ **2. Edit DuplicateBillPrint.tsx**  
+- Update `DuplicateBillData` interface (+ activeTab?: string)
+- In `handleSearch()`: `const orderType = data.Order_Type || data.orderType || 'Pickup';`
+- `setBillData({ ..., activeTab: orderType })`
+- `<BillPreviewPrint ... activeTab={billData.activeTab || ''} />`
 
-### ✅ Step 1: Create TODO.md [COMPLETE]
-- File created with exact plan
+**3. Test**  
+- Load duplicate bill (e.g., pickup order)
+- Verify print header shows "Pickup Bill" (or correct type)
+- Check console for orderType extraction
 
-### ✅ Step 2: Edit backend/controllers/Reportcontroller.js (PRIMARY FIX) [COMPLETE]
-**Changes:**
-1. ✓ Query: Added `mo.brand_name AS restaurantName` 
-2. ✓ Response: `restaurantName: bill.restaurantName || bill.outlet_name || 'Restaurant'`
+✅ **4. Complete**
 
-### ✅ Step 3: Minor edit src/views/apps/PrintReport/DuplicateBillPrint.tsx [COMPLETE]
-**Safety net:** `restaurantName={billData.restaurantName || user?.hotel_name || billData.outletName}`
-
-### ⏳ Step 4: Test Changes
-**Safety net:** Improve fallback → `billData.restaurantName || user?.hotel_name || billData.outletName`
-
-### ⏳ Step 4: Test Changes
-```
-1. Save files
-2. Backend: cd backend && npm start (restart server)
-3. Frontend: npm run dev (if needed)
-4. Test: Duplicate Bill Print → Load bill → Verify restaurant name shows separately from outlet
-5. Print preview → Both names distinct
-```
-
-### ⏳ Step 5: Update TODO.md & Complete [After Step 4]
-- Mark steps ✅
-- attempt_completion
-
-## Current Progress: 3/5 COMPLETE
-✅ Steps 1-3 done (TODO.md, backend controller, frontend safety net)
-
-### ⏳ Step 4: Test Changes
-```
-1. Backend restart: cd backend && npm start
-2. Frontend: npm run dev
-3. Test Duplicate Bill Print → restaurant name now shows correctly (separate from outlet)
-4. Print preview confirms fix
-```
-
-
+## Current Status
+- ✅ Changes applied
+- Ready for testing / completion

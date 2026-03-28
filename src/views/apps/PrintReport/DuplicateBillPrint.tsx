@@ -38,6 +38,7 @@ interface DuplicateBillData {
   outletName?: string;
   billDate?: string;
   txnDatetime?: string;   // ✅ ADD THIS
+  activeTab?: string;
 
 }
 
@@ -111,9 +112,12 @@ const handleSearch = async (e: React.FormEvent) => {
       orderNo: data.orderNo || data.TxnNo,
       itemsCount: data.items?.length || 0
     });
+    const orderType = data.Order_Type || data.orderType || '';
+
 
     setBillData({
   ...data,
+  activeTab: orderType,
   orderNo: data.TxnNo || data.orderNo,
   billDate: data.billDate || data.BillDate,
   txnDatetime: data.TxnDatetime,
@@ -239,7 +243,7 @@ const handleSearch = async (e: React.FormEvent) => {
           outletName={billData.outletName || user?.outlet_name}
           billDate={billData.txnDatetime || billData.billDate}
           selectedOutletId={searchParams.outletId}
-        activeTab="Quick Bill"
+          activeTab={billData.activeTab || ''}
         />
       )}
     </Container>

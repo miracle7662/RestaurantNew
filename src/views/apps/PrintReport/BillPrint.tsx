@@ -102,7 +102,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   selectedOutletId,
   restaurantName,
   outletName,
-  dialogClassName
+  dialogClassName,
+  billDate
 }) => {
   const [loading, setLoading] = React.useState(false);
   const [printerName, setPrinterName] = React.useState<string | null>(null);
@@ -385,8 +386,9 @@ html, body {
         <div style="display: flex; gap: 8px; margin-bottom: 5px; font-size: 9pt;">
           <div style="flex: 1;"><strong>BillNo </strong><br />${(localFormData.dine_in_kot_no || '')}${orderNo || ''}</div>
           <div style="flex: 1;"><strong>Table </strong><br />${selectedTable || '—'}</div>
-          <div style="flex: 1;"><strong>Date </strong><br />${new Date().toLocaleDateString('en-GB')}</div>
+          <div style="flex: 1;"><strong>Date </strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}</div>
           <div style="flex: 1; white-space: nowrap;"><strong>Time </strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
+
         </div>
         <!-- Row 2: waiters, covers, kot no -->
         <div style="display: flex; gap: 8px; margin-bottom: 10px; font-size: 9pt;">
