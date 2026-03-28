@@ -15,7 +15,8 @@ import OutletPaymentModeService from '@/common/api/outletpaymentmode';
 import SettlementService from '@/common/api/settlements';
 import PaginationComponent from '@/components/Common/PaginationComponent';
 import BillPreviewPrint from '@/views/apps/PrintReport/BillPrint';
-import ReportsService from '@/common/api/billPrint'; // Import ReportsService for duplicate bill
+import ReportsService from '@/common/api/billPrint';
+import F8PasswordModal from '@/components/F8PasswordModal'; // Import F8 password modal
 
 // Add interface for Bill data from duplicate bill API
 interface DuplicateBillData {
@@ -147,6 +148,18 @@ const EditSettlementPage: React.FC = () => {
   const [selectedBillData, setSelectedBillData] = useState<Settlement | null>(null);
   const [billLoading, setBillLoading] = useState(false);
   const [duplicateBillData, setDuplicateBillData] = useState<DuplicateBillData | null>(null);
+  
+  // ── F8 Password Modal States ─────────────────────────────────────
+  const [showF8Modal, setShowF8Modal] = useState(false);
+  const [pendingPrintGroup, setPendingPrintGroup] = useState<Settlement | null>(null);
+  const [f8Error, setF8Error] = useState<string>('');
+  const [f8Loading, setF8Loading] = useState(false);
+
+  // Helper function to check if date is backdated
+  const isBackdated = (billDate: string): boolean => {
+    if (!billDate || !currDate) return false;
+    return new Date(billDate) < new Date(currDate);
+  };
 
   // Fetch all available payment modes
   useEffect(() => {
@@ -326,39 +339,77 @@ const EditSettlementPage: React.FC = () => {
     }
   };
 
-  // ── Print Bill Handlers ───────────────────────────────────────────
-const handlePrintDuplicateBill = async (group: Settlement) => {
-  setBillLoading(true);
-  setSelectedBillData(group);
-  
-  try {
-    const response = await ReportsService.getDuplicateBill({
-      billNo: group.OrderNo,
-      outletId: selectedOutletId || Number(currentUser?.outletid) || 1
-    });
-
-    // ✅ ADD THIS LINE HERE
-    console.log('API RESPONSE:', response);
-
-    if (response.success && response.data) {
-      const billData = response.data;
-      setDuplicateBillData(billData);
-      setShowBillPreview(true);
+  // ── Print Bill Handlers with F8 Password ─────────────────────────
+  const handlePrintDuplicateBill = (group: Settlement) => {
+    // Check if bill is backdated
+    if (isBackdated(group.InsertDate)) {
+      // Open F8 password modal for backdated bills
+      setPendingPrintGroup(group);
+      setF8Error('');
+      setShowF8Modal(true);
     } else {
-      throw new Error(response.message || 'Failed to fetch bill details');
+      // Directly fetch and print for current date bills
+      fetchAndPrintBill(group);
     }
+  };
 
-  } catch (error: any) {
-    console.error('Failed to fetch bill details:', error);
-    setNotification({
-      show: true,
-      message: error?.message || 'Failed to fetch bill details for printing. Please check if the order exists.',
-      type: 'danger',
-    });
-  } finally {
-    setBillLoading(false);
-  }
-};
+  const handleF8PasswordSubmit = async (password: string, txnId?: string) => {
+    if (!pendingPrintGroup) return;
+    
+    setF8Loading(true);
+    setF8Error('');
+    
+    try {
+      // Call your F8 password verification API here
+      // Example: await F8Service.verifyPassword({ password, txnId });
+      
+      // For now, let's assume password verification is successful
+      // In production, replace this with actual API call
+      
+      // After successful verification, fetch and print the bill
+      await fetchAndPrintBill(pendingPrintGroup);
+      
+      // Close the modal on success
+      setShowF8Modal(false);
+      setPendingPrintGroup(null);
+    } catch (error: any) {
+      setF8Error(error?.message || 'Invalid password. Please try again.');
+    } finally {
+      setF8Loading(false);
+    }
+  };
+
+  const fetchAndPrintBill = async (group: Settlement) => {
+    setBillLoading(true);
+    setSelectedBillData(group);
+    
+    try {
+      const response = await ReportsService.getDuplicateBill({
+        billNo: group.OrderNo,
+        outletId: selectedOutletId || Number(currentUser?.outletid) || 1
+      });
+
+      console.log('API RESPONSE:', response);
+
+      if (response.success && response.data) {
+        const billData = response.data;
+        setDuplicateBillData(billData);
+        setShowBillPreview(true);
+      } else {
+        throw new Error(response.message || 'Failed to fetch bill details');
+      }
+
+    } catch (error: any) {
+      console.error('Failed to fetch bill details:', error);
+      setNotification({
+        show: true,
+        message: error?.message || 'Failed to fetch bill details for printing. Please check if the order exists.',
+        type: 'danger',
+      });
+    } finally {
+      setBillLoading(false);
+    }
+  };
 
   // Format items for BillPreviewPrint component
   const formatItemsForPrint = (items: BillItem[]) => {
@@ -367,7 +418,6 @@ const handlePrintDuplicateBill = async (group: Settlement) => {
       isBilled: 1,
       alternativeItem: item.NCName || '',
       modifier: item.modifier ? [item.modifier] : [],
-      // Ensure all required fields are present
       variantName: item.variantName,
       note: item.note,
     }));
@@ -452,59 +502,65 @@ const handlePrintDuplicateBill = async (group: Settlement) => {
           </tr>
         </thead>
         <tbody>
-          {paginatedGroupedSettlements.map(group => (
-            <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
-              <td>{group.SettlementIDs?.join(', ')}</td>
-              <td>
-                <strong>{group.TaxNo || group.OrderNo}</strong>
-                <br/>
-                <small className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small>
-              </td>
-              <td>{group.table_name || 'N/A'}</td>
-              <td>
-                {Object.entries(group.paymentBreakdown || {}).map(
-                  ([type, amount]) => (
-                    <div key={type} className="small">
-                      {type}: ₹{amount.toFixed(2)}
-                    </div>
-                  )
-                )}
-              </td>
-              <td>{group.HotelID}</td>
-              <td>₹{group.Amount.toFixed(2)}</td>
-              <td>
-                {group.InsertDate
-                  ? new Date(group.InsertDate).toLocaleString('en-IN')
-                  : '-'}
-              </td>
-              <td>
-                <div className="d-flex gap-2">
-                  <Button 
-                    size="sm" 
-                    variant="primary" 
-                    onClick={() => handleEdit(group)}
-                  >
-                    Edit
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="info" 
-                    onClick={() => handlePrintDuplicateBill(group)}
-                    disabled={billLoading}
-                  >
-                    {billLoading && selectedBillData?.OrderNo === group.OrderNo ? (
-                      <>
-                        <Spinner animation="border" size="sm" className="me-1" />
-                        Loading...
-                      </>
-                    ) : (
-                      'Print Bill'
-                    )}
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
+          {paginatedGroupedSettlements.map(group => {
+            const isBillBackdated = isBackdated(group.InsertDate);
+            
+            return (
+              <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
+                <td>{group.SettlementIDs?.join(', ')}</td>
+                <td>
+                  <strong>{group.TaxNo || group.OrderNo}</strong>
+                  <br/>
+                  <small className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small>
+                </td>
+                <td>{group.table_name || 'N/A'}</td>
+                <td>
+                  {Object.entries(group.paymentBreakdown || {}).map(
+                    ([type, amount]) => (
+                      <div key={type} className="small">
+                        {type}: ₹{amount.toFixed(2)}
+                      </div>
+                    )
+                  )}
+                </td>
+                <td>{group.HotelID}</td>
+                <td>₹{group.Amount.toFixed(2)}</td>
+                <td>
+                  {group.InsertDate
+                    ? new Date(group.InsertDate).toLocaleString('en-IN')
+                    : '-'}
+                </td>
+                <td>
+                  <div className="d-flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="primary" 
+                      onClick={() => handleEdit(group)}
+                      disabled={isBillBackdated} // Disable edit button for backdated bills
+                      title={isBillBackdated ? "Cannot edit backdated bills" : ""}
+                    >
+                      Edit
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="info" 
+                      onClick={() => handlePrintDuplicateBill(group)}
+                      disabled={billLoading}
+                    >
+                      {billLoading && selectedBillData?.OrderNo === group.OrderNo ? (
+                        <>
+                          <Spinner animation="border" size="sm" className="me-1" />
+                          Loading...
+                        </>
+                      ) : (
+                        'Print Bill'
+                      )}
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </Table>
 
@@ -535,6 +591,22 @@ const handlePrintDuplicateBill = async (group: Settlement) => {
         table_name={editing?.table_name || null}
       />
 
+      {/* F8 Password Modal */}
+      <F8PasswordModal
+        show={showF8Modal}
+        onHide={() => {
+          setShowF8Modal(false);
+          setPendingPrintGroup(null);
+          setF8Error('');
+        }}
+        onSubmit={handleF8PasswordSubmit}
+        error={f8Error}
+        loading={f8Loading}
+        txnId={pendingPrintGroup?.OrderNo}
+        title="F8 Action - Password Required"
+        description="This bill has been backdated. Please enter your password to proceed with printing."
+      />
+
       {/* Bill Preview Print Modal */}
       {showBillPreview && duplicateBillData && selectedBillData && (
         <BillPreviewPrint
@@ -552,7 +624,7 @@ const handlePrintDuplicateBill = async (group: Settlement) => {
           currentKOTNo={getKOTNumbers(duplicateBillData.items)[0] || null}
           orderNo={duplicateBillData.orderNo}
           selectedTable={duplicateBillData.selectedTable || selectedBillData.table_name}
-          activeTab="Dine-in" // You can determine this from order type if available
+          activeTab="Dine-in"
           customerName={duplicateBillData.customerName || selectedBillData.CustomerName}
           mobileNumber={duplicateBillData.mobileNumber || selectedBillData.MobileNo}
           currentTxnId={duplicateBillData.currentTxnId}
