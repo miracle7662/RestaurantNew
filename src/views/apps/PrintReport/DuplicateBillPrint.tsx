@@ -17,14 +17,8 @@ interface DuplicateBillData {
   currentTxnId?: string;
  
     taxCalc: {
-  CGST: number;
-  SGST: number;
-  IGST: number;
-  Amount: number;
-  GrossAmt: number;
-  Discount: number;
-  RoundOFF: number;
-  subtotal: number;   // now required
+  taxableValue: number;     // NEW: from backend
+  subtotal: number;
   cgstAmt: number;
   sgstAmt: number;
   igstAmt: number;
@@ -123,20 +117,14 @@ const handleSearch = async (e: React.FormEvent) => {
   ...data,
   orderNo: data.TxnNo || data.orderNo,
   billDate: formattedBillDate || new Date().toISOString().split('T')[0],
-  taxRates: { cgst: 0, sgst: 0, igst: 0 }, // Default rates
+  taxRates: data.taxRates || { cgst: 0, sgst: 0, igst: 0 },
   taxCalc: {
-    CGST: data.CGST ?? 0,
-    SGST: data.SGST ?? 0,
-    IGST: data.IGST ?? 0,
-    Amount: data.Amount ?? 0,
-    GrossAmt: data.GrossAmt ?? 0,
-    Discount: data.Discount ?? 0,
-    RoundOFF: data.RoundOFF ?? 0,
-    subtotal: data.subtotal ?? 0,   // Default to 0
-    cgstAmt: data.cgstAmt ?? 0,
-    sgstAmt: data.sgstAmt ?? 0,
-    igstAmt: data.igstAmt ?? 0,
-    grandTotal: data.grandTotal ?? 0,
+    taxableValue: parseFloat(data.taxCalc?.taxableValue || data.taxCalc?.subtotal || '0'),
+    subtotal: parseFloat(data.taxCalc?.subtotal || '0'),
+    cgstAmt: parseFloat(data.taxCalc?.cgstAmt || '0'),
+    sgstAmt: parseFloat(data.taxCalc?.sgstAmt || '0'),
+    igstAmt: parseFloat(data.taxCalc?.igstAmt || '0'),
+    grandTotal: parseFloat(data.taxCalc?.grandTotal || '0'),
   },
 });
 

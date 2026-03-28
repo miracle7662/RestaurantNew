@@ -276,11 +276,12 @@ const getDuplicateBill = (req, res) => {
 
     // Tax calculations
     const subtotal = parseFloat(bill.GrossAmt || 0) - parseFloat(bill.Discount || 0);
+    const taxableValue = subtotal;  // Add taxableValue for frontend
     const cgstAmt = parseFloat(bill.CGST || 0);
     const sgstAmt = parseFloat(bill.SGST || 0);
     const igstAmt = parseFloat(bill.IGST || 0);
-    const grandTotal = parseFloat(bill.grandTotal || 0);
-    const roundOffValue = parseFloat(bill.roundOffValue || 0);
+    const grandTotal = parseFloat(bill.Amount || 0);  // FIXED: use Amount field
+    const roundOffValue = parseFloat(bill.RoundOFF || 0);  // FIXED: match query alias
     const roundOffEnabled = Math.abs(roundOffValue) > 0.01;
 
     const cgstRate = cgstAmt > 0 ? (cgstAmt / subtotal) * 100 : 0;
@@ -306,11 +307,12 @@ const getDuplicateBill = (req, res) => {
         mobileNumber: bill.mobileNumber,
         currentTxnId: bill.TxnID.toString(),
         taxCalc: {
-          subtotal: subtotal.toFixed(2),
-          cgstAmt: cgstAmt.toFixed(2),
-          sgstAmt: sgstAmt.toFixed(2),
-          igstAmt: igstAmt.toFixed(2),
-          grandTotal: grandTotal.toFixed(2)
+          taxableValue: parseFloat(taxableValue.toFixed(2)),  // NEW: explicit taxable value
+          subtotal: parseFloat(subtotal.toFixed(2)),
+          cgstAmt: parseFloat(cgstAmt.toFixed(2)),
+          sgstAmt: parseFloat(sgstAmt.toFixed(2)),
+          igstAmt: parseFloat(igstAmt.toFixed(2)),
+          grandTotal: parseFloat(grandTotal.toFixed(2))
         },
         taxRates: {
           cgst: parseFloat(cgstRate.toFixed(2)),
