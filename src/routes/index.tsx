@@ -18,6 +18,8 @@ import Reports from '../views/apps/Transaction/Reports'
 // Daily Reports
 import DailySalesReport from '../views/apps/Masters/Reports/DailySalesReport'
 import DayEndReportPreview from '../views/apps/Masters/Reports/DayEndReportPreview'
+import BackdatedDayEndReport from '../views/apps/Masters/Reports/BackdatedDayEndReport'
+
 
  
 // Dashboards
@@ -299,6 +301,12 @@ const appsRoutes: RoutesProps = {
       path: '/apps/Masters/Reports/DayEndReportPreview',
       name: ' DayEndReportPreview',
       element: <  DayEndReportPreview />,
+      route: PrivateRoute,
+    },
+    {
+      path: '/apps/Masters/Reports/BackdatedDayEndReport',
+      name: ' BackdatedDayEndReport',
+      element: <BackdatedDayEndReport />,
       route: PrivateRoute,
     },
 

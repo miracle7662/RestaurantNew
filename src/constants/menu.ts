@@ -83,6 +83,13 @@ const MENU_ITEMS: MenuItemTypes[] = [
     icon: 'fi fi-rr-chart-histogram',
     parentKey: 'Reports',
   },
+  {
+    key: 'BackdatedDayEndReport',
+    label: 'Backdated DayEnd Report',
+    url: '/apps/Masters/Reports/BackdatedDayEndReport',
+    icon: 'fi fi-rr-print',
+    parentKey: 'apps',
+  },
 
   {
     key: 'Settings',
