@@ -209,7 +209,7 @@ const getDuplicateBill = (req, res) => {
     const params = [billNo, outletId];
 
     if (billDate) {
-      whereClause += ' AND DATE(t.BilledDate) = ?';
+      whereClause += ' AND DATE(t.TxnDatetime) = ?';
       params.push(billDate);
     }
 
