@@ -217,6 +217,7 @@ const getDuplicateBill = (req, res) => {
     const billQuery = `
       SELECT 
         t.TxnID,
+        t.TxnNo,
         t.TxnNo AS orderNo,
         t.TableID,
         t.CustomerName,
@@ -229,7 +230,7 @@ const getDuplicateBill = (req, res) => {
         t.SGST,
         t.IGST,
         t.GrossAmt,
-        t.Amount AS grandTotal,
+        t.Amount,
         t.TxnDatetime,
         t.BilledDate,
         t.Steward AS selectedWaiter,
@@ -246,6 +247,15 @@ const getDuplicateBill = (req, res) => {
     `;
 
     const bill = db.prepare(billQuery).get(...params);
+
+    console.log('🔍 DEBUG DuplicateBill - Raw bill data:', {
+      TxnNo: bill.TxnNo,
+      orderNo: bill.orderNo,
+      Amount: bill.Amount, 
+      GrossAmt: bill.GrossAmt,
+      Discount: bill.Discount,
+      CGST: bill.CGST
+    });
 
     if (!bill) {
       return res.status(404).json({ success: false, message: 'Bill not found' });
@@ -326,7 +336,7 @@ const getDuplicateBill = (req, res) => {
         selectedPaymentModes: payments.map(p => p.PaymentType),
         restaurantName: bill.outlet_name || 'Restaurant',
         outletName: bill.outlet_name,
-        billDate: bill.BilledDate || bill.TxnDatetime
+        billDate:  bill.TxnDatetime
       }
     });
   } catch (error) {
