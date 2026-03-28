@@ -164,19 +164,8 @@ const BillPrintService = {
   /**
    * Get duplicate bill data by bill number for reprint
    */
-// Old (POST) – ❌ no longer valid
-// HttpClient.post<ApiResponse<any>>('/reports/duplicate-bill', params)
-
-// New GET version ✅
-getDuplicateBill: (params: { billNo: string; billDate?: string; outletId: number }): Promise<ApiResponse<any>> => {
-  const query = new URLSearchParams({
-    billNo: params.billNo,
-    outletId: params.outletId.toString(),
-    ...(params.billDate ? { billDate: params.billDate } : {}) // optional
-  }).toString();
-
-  return HttpClient.get<ApiResponse<any>>(`/reports/duplicate-bill?${query}`);
-}
+  getDuplicateBill: (params: { billNo: string; billDate?: string; outletId: number }): Promise<ApiResponse<any>> =>
+    HttpClient.post<ApiResponse<any>>('/reports/duplicate-bill', params)
 }
 
 export default BillPrintService
