@@ -74,16 +74,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (parsedUser && parsedUser.token) {
             const currentUser = await getCurrentUser(parsedUser.token)
             const currDateData = await DayendService.getLatestCurrDate({
-              brandId: currentUser.outletid,   // agar backend me brandId = outletid hai
+              brandId: currentUser.outletid,   
               hotelid: currentUser.hotelid
-            })  
+             })  
             if (currDateData.success) {
   const currDate = currDateData.data.curr_date
   console.log("Business Date:", currDate)
 }
              console.log('Current user data:', currentUser)
             console.log('Curr date data:', currDateData)
-            saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.data.curr_date })
+            
+         saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.data.curr_date })
             console.log('User session restored from localStorage.')
           } else {
             removeSession()

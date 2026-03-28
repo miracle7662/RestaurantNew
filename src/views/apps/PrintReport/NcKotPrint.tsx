@@ -96,23 +96,60 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
 <head>
 <meta charset="UTF-8" />
 <style>
-  body {
-    width: 302px;
-    padding: 10px;
-    font-family: monospace;
-    font-size: 12px;
+  @page {
+    size: 80mm auto;
+    margin: 0;
   }
+
+  body {
+    width: 72mm;              /* 🔥 SAFE WIDTH */
+    margin-left: 4mm;         /* 🔥 LEFT FIX */
+    margin-right: 2mm;        /* 🔥 RIGHT FIX */
+    font-family: monospace;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
   .center { text-align: center; }
   .bold { font-weight: bold; }
-  hr { border-top: 1px dashed #000; margin: 6px 0; }
 
-  table { width: 100%; border-collapse: collapse; }
-  th, td { padding: 4px 0; border-bottom: 1px solid #000; }
+  hr {
+    border-top: 1px dashed #000;
+    margin: 6px 0;
+  }
 
-  .col-qty { width: 15%; text-align: center; }
-  .col-item { width: 40%; text-align: left; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;     /* 🔥 IMPORTANT */
+  }
+
+  th, td {
+    padding: 3px 2px;
+    border-bottom: 1px solid #000;
+    font-size: 10px;
+  }
+
+  th { text-align: left; }
+
+  /* 🔥 COLUMN FIX */
+  .col-qty  { width: 15%; text-align: center; }
+  .col-item { width: 45%; text-align: left; }
   .col-rate { width: 20%; text-align: right; }
-  .col-amt { width: 25%; text-align: right; }
+  .col-amt  { width: 20%; text-align: right; }
+
+  /* 🔥 PREVENT CUT */
+  td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 🔥 LONG ITEM WRAP */
+  .col-item {
+    white-space: normal;
+    word-break: break-word;
+  }
 </style>
 </head>
 
@@ -130,8 +167,8 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
 <div><b>NC:</b> ${ncItems[0]?.NCName || "-"}</div>
 <div><b>Purpose:</b> ${ncItems[0]?.NCPurpose || "-"}</div>
 <div><b>Date:</b> ${dateTime}</div>
-    <div><b>User:</b> ${user?.username}</div>
-    <div><b>Table:</b> ${tableName || '-'}</div>
+<div><b>User:</b> ${user?.username}</div>
+<div><b>Table:</b> ${tableName || '-'}</div>
 
 <hr/>
 
@@ -143,17 +180,14 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
   <th class="col-amt">Amt</th>
 </tr>
 
-${ncItems
-  .map(
-    i => `
+${ncItems.map(i => `
 <tr>
   <td class="col-qty">${i.qty}</td>
   <td class="col-item">${i.name}</td>
   <td class="col-rate">₹${i.price.toFixed(2)}</td>
   <td class="col-amt">₹${(i.price * i.qty).toFixed(2)}</td>
-</tr>`
-  )
-  .join("")}
+</tr>
+`).join("")}
 
 </table>
 
@@ -161,9 +195,7 @@ ${ncItems
 
 <div class="bold" style="display:flex; justify-content:space-between;">
   <div>Total: ${ncItems.reduce((a, b) => a + b.qty, 0)}</div>
-  <div>₹${ncItems
-    .reduce((a, b) => a + b.price * b.qty, 0)
-    .toFixed(2)}</div>
+  <div>₹${ncItems.reduce((a, b) => a + b.price * b.qty, 0).toFixed(2)}</div>
 </div>
 
 <hr/>

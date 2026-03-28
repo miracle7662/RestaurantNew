@@ -83,6 +83,13 @@ const MENU_ITEMS: MenuItemTypes[] = [
     icon: 'fi fi-rr-chart-histogram',
     parentKey: 'Reports',
   },
+  {
+    key: 'BackdatedDayEndReport',
+    label: 'Backdated DayEnd Report',
+    url: '/apps/Masters/Reports/BackdatedDayEndReport',
+    icon: 'fi fi-rr-print',
+    parentKey: 'apps',
+  },
 
   {
     key: 'Settings',
@@ -137,6 +144,14 @@ const MENU_ITEMS: MenuItemTypes[] = [
     label: 'Billview',
     url: '/apps/Billview',
     icon: 'fi fi-rr-file-invoice-dollar',
+    parentKey: 'apps',
+  },
+
+  {
+    key: 'DuplicateBillPrint',
+    label: 'Duplicate Bill Print',
+    url: '/apps/DuplicateBillPrint',
+    icon: 'fi fi-rr-print',
     parentKey: 'apps',
   },
 

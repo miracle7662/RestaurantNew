@@ -449,6 +449,9 @@ const ModernBill = () => {
   const [showNCKotPrintModal, setShowNCKotPrintModal] = useState(false);
 const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
 
+  // PrintThenSettle flow state (like Orders.tsx)
+  const [printThenSettleFlow, setPrintThenSettleFlow] = useState(false);
+
   // 🔥 NEW Reverse KOT Print states (like Orders.tsx)
   const [showReverseKotPrintModal, setShowReverseKotPrintModal] = useState(false);
   const [reversePrintTrigger, setReversePrintTrigger] = useState(0);
@@ -2170,25 +2173,45 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
 
       toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);
 
-      if (reverseKotNo) {
-        setRevKotNo(reverseKotNo);
-      }
-
-      // Update table status to occupied
-      try {
-        await OrderService.updateTableStatus(tableId, { status: 1 });
-      } catch (error) {
-        console.error('Error updating table status:', error);
+      // 🔥 ✅ NEW: Orders.tsx-style full reversal check + table status logic
+      if (tableId && billItems.length > 0) {
+        const tableToUpdate = tableItems.find(t => t.table_name === tableNo);
+        if (tableToUpdate) {
+          // Precise full reversal check (post-backend, items should reflect remaining qty)
+          const totalRemainingQty = billItems.reduce((sum, item) => sum + (item.qty || 0), 0);
+          const allReversed = totalRemainingQty <= 0;
+          
+          const newStatus = allReversed ? 0 : 1;
+          
+          console.log('🔧 F8 Reversal DEBUG (Billview):', {
+            totalRemainingQty,
+            allReversed,
+            newStatus,
+            tableId: tableToUpdate.tablemanagementid || tableId,
+            itemCount: billItems.length
+          });
+          
+          await OrderService.updateTableStatus(tableToUpdate.tablemanagementid || tableId, { status: newStatus });
+          
+          if (allReversed) {
+            toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
+          } else {
+            toast.success('Partial KOTs reversed! Table remains occupied (status=1)');
+          }
+          
+          // Force refresh table management UI
+          await fetchTableManagement();
+        }
       }
 
       // 🔥 PRINT PREVIEW (like Orders.tsx)
       setReverseSnapshot(reverseItemsFromModal.map(item => ({
         ...item,
-        name: item.itemName || "",   // ✅ FIX
+        name: item.itemName || "",   
         price: item.rate,
-        ReverskotNo: reverseKotNo,
+        revKotNo: reverseKotNo,
         isReverse: true,
-        revQty: item.cancelQty  // Use cancelQty from modal
+        revQty: item.cancelQty  
       })));
       setShowReverseKotPrintModal(true);
       setReversePrintTrigger(prev => prev + 1);
@@ -2255,7 +2278,7 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
   };
 
 
-  const PrintAndSettle = async () => {
+const PrintAndSettle = async () => {
     if (!txnId) return;
 
     // Safety check for takeaway orders
@@ -2271,7 +2294,6 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
         customerName: customerName || null,
         mobileNo: customerNo || null,
         customerid: customerId || null,
-
       });
 
       const txnNo = response.data?.TxnNo;
@@ -2280,17 +2302,17 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
         return;
       }
 
-      // 2️⃣ TxnNo state me set karo
+      // 2️⃣ Set TxnNo and open BillPreviewPrint modal (like Orders.tsx)
       setOrderNo(txnNo);
-      toast.success('Bill printed successfully');
+      setPrintThenSettleFlow(true);
+      setShowBillPrintModal(true);
+      toast.success('Bill marked as printed and ready for settlement!');
+
 
       // 3️⃣ Table status update (only for dine-in orders)
       if (!isTakeaway && tableId) {
-        await OrderService.updateTableStatus(tableId, { status: 1 });
+        await OrderService.updateTableStatus(tableId, { status: 2 });
       }
-
-      // 4️⃣ Open Settlement Modal with all values
-      setShowSettlementModal(true);
 
     } catch (error) {
       console.error('Error printing bill:', error);
@@ -2532,6 +2554,7 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
 
   const hasOnlyExistingItems = hasItems && !hasNewItems;
   const isBillPrintedState = billItems.some(i => i.isBilled === 1);
+  // console.log('📊 Bill state - isBillPrintedState:', isBillPrintedState, 'items with isBilled=1:', billItems.filter(i => i.isBilled === 1).length);
 
   // Determine table status as number: 0 = Vacant, 1 = Occupied, 2 = Billed
   // Use reliable conditions: item count, kot count, bill printed flag
@@ -2606,19 +2629,28 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
   const disableAll = !hasItems;
 
   const disableSettle = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway);
-  const disablePrintSettle = !buttonStates.printSettle;
+const disablePrintSettle = !hasOnlyExistingItems || hasNewItems;
 
   const disableSettlement = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway) || isTableOccupied;
 
   const isPrintDisabled = !hasOnlyExistingItems;
 
-  const handleF8Action = useCallback(() => {
+const handleF8Action = useCallback(() => {
+    
+    // Force password modal for billed tables (print bill ho gaya)
+    if (isBillPrintedState) {
+      console.log('💰 Billed table detected - forcing password modal');
+      setShowF8RevKotPasswordModal(true);
+      return;
+    }
+    
+    // Existing config logic for unbilled tables
     if (reverseQtyConfig === 'PasswordRequired') {
       setShowF8RevKotPasswordModal(true);
     } else {
       setShowReverseKot(true);
     }
-  }, [reverseQtyConfig]);
+  }, [reverseQtyConfig, isBillPrintedState, hasItems]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -3827,7 +3859,10 @@ value={item.SpecialInst}
       />
       <KotPreviewPrint
         show={showKotPrintModal}
-        onHide={() => setShowKotPrintModal(false)}
+onHide={() => {
+  setShowKotPrintModal(false);
+  navigate('/apps/Tableview');
+}}
 
         // ✅ PRINT ONLY NEW KOT ITEMS
         printItems={billItems
@@ -3835,8 +3870,8 @@ value={item.SpecialInst}
           .map(item => ({
             id: item.itemId,
             name: item.itemName,
-            variantId: item.variantId ?? null,
-            variantName: item.variantName ?? 'Standard',
+            variantId: item.variantId ?? 0,
+            variantName: item.variantName ?? '',
             price: item.rate,
             qty: item.qty,
             isBilled: 0,
@@ -3947,14 +3982,23 @@ value={item.SpecialInst}
           toast.success("Bill printed successfully");
 
           // Table status update AFTER print
-          await OrderService.updateTableStatus(tableId, { status: 1 });
+          if (tableId) {
+            await OrderService.updateTableStatus(tableId, { status: 2 });
+          }
 
           setShowBillPrintModal(false);
 
-          setTimeout(() => {
-            navigate("/apps/Tableview");
-          }, 300);
+          // PrintThenSettle flow: Open settlement after print
+          if (printThenSettleFlow) {
+            setPrintThenSettleFlow(false);
+            setShowSettlementModal(true);
+          } else {
+            setTimeout(() => {
+              navigate("/apps/Tableview");
+            }, 300);
+          }
         }}
+        
       />
 
       {/* 🔥 NEW: Reverse KOT Print Modal (copy from Orders.tsx) */}

@@ -18,6 +18,8 @@ import Reports from '../views/apps/Transaction/Reports'
 // Daily Reports
 import DailySalesReport from '../views/apps/Masters/Reports/DailySalesReport'
 import DayEndReportPreview from '../views/apps/Masters/Reports/DayEndReportPreview'
+import BackdatedDayEndReport from '../views/apps/Masters/Reports/BackdatedDayEndReport'
+
 
  
 // Dashboards
@@ -33,6 +35,7 @@ const KitchenAllocation = React.lazy(() => import('./../views/apps/PrintReport/K
 const Contact = React.lazy(() => import('./../views/apps/Contact'))
 const Tableview = React.lazy(() => import('../views/apps/Tableview'))
 const Billview = React.lazy(() => import('../views/apps/Billview'))
+const DuplicateBillPrint = React.lazy(() => import('../views/apps/PrintReport/DuplicateBillPrint'))
 const Settings = React.lazy(() => import('../views/apps/Settings'))
 const OpeningBalancePage = React.lazy(() => import('../views/apps/OpeningBalancePage')) // Updated to use <OpeningBalancePage /> component'@/pages/opening-balance/OpeningBalancePage'
 
@@ -300,6 +303,12 @@ const appsRoutes: RoutesProps = {
       element: <  DayEndReportPreview />,
       route: PrivateRoute,
     },
+    {
+      path: '/apps/Masters/Reports/BackdatedDayEndReport',
+      name: ' BackdatedDayEndReport',
+      element: <BackdatedDayEndReport />,
+      route: PrivateRoute,
+    },
 
     {
       path: '/apps/KotTransfer',
@@ -420,6 +429,7 @@ const appsRoutes: RoutesProps = {
 
      
     {
+
       path: '/apps/Tableview',
       name: 'Tableview',
       element: <Tableview />,
@@ -432,6 +442,18 @@ const appsRoutes: RoutesProps = {
       element: <Billview />,
       route: PrivateRoute,
     },
+
+    {
+      path: '/apps/DuplicateBillPrint',
+      name: 'DuplicateBillPrint',
+       element: <DuplicateBillPrint {...({} as any)} />, // ✅ बस यही
+      route: PrivateRoute,
+    },
+
+    
+
+
+
 
    
     // {

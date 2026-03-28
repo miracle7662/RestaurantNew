@@ -1,39 +1,19 @@
-<<<<<<< Updated upstream
-# Day End Report Fixes
-Status: In Progress
+# Settelment.tsx Backdate & F8 Print Enhancements
 
-## Steps:
-- [ ] 1. Enhance query with mstrestmenu join for item names
-- [ ] 2. Fix data collection logic: reverse bills, NC KOTs (parse ItemDetails), reverse KOTs
-- [ ] 3. Refactor HTML generators: reduce padding widths, fix broken padEnd lines, add tables for better spacing
-- [ ] 4. Test generateDayEndReportHTML output for spacing and data population
-- [ ] 5. Update TODO.md with completion
-- [ ] 6. attempt_completion
+## Status: 📋 Planned (0/8 completed)
 
-Current file: backend/controllers/Dayendcontroller.js
+### 1. [ ] Create TODO.md (Current step - done after this)
+### 2. ✅ Add imports for F8PasswordModal in Settelment.tsx
+### 3. ✅ Add states: isBackDate, showF8Modal, printPendingGroup, f8Error, f8Loading
+### 4. ✅ Implement backdate logic: compare filters.from/to < currDate → disable Edit
+### 5. ✅ Add useEffect to watch dates/currDate for isBackDate
+### 6. ✅ Modify Print button: set printPendingGroup → show F8 modal
+### 7. ✅ Implement handlePrintAuth(password): verify (TODO: API/hardcode) → handlePrintDuplicateBill
+### 8. ✅ Add F8PasswordModal JSX + backdate warning UI
+### 9. [ ] Test & attempt_completion
 
-=======
-# ✅ Reverse KOT Thermal Printer Strip Fix - COMPLETE
+**Notes:**
+- Backend API for F8 auth needed? (pending confirmation)
+- Edit: global disable on form backdate
+- Print: F8 modal → preview on submit
 
-## 🎯 OPTIMIZATIONS APPLIED
-- [x] `@page { size: 80mm; }` - Precise thermal printer sizing
-- [x] `body padding: 2px 4px` (was 10px) - ~16px saved
-- [x] Table box `height: 45px` (was 55px min-height) - 10px saved
-- [x] All `margin: 8px → 4px`, `padding: 4px → 2px` - ~20px saved
-- [x] `line-height: 1.3`, `page-break-after: avoid`
-- [x] `generateContent.trim()` - No trailing whitespace
-- [x] `max-height: 100mm` limit
-
-## 📋 TEST NOW
-```
-1. Open Reverse KOT modal
-2. Click "Print Reverse KOT" 
-3. ✅ Check: Single clean slip, NO extra blank strip
-```
-
-## 🔧 Minor Polish (Optional)
-- [ ] Update preview styling to match print (302px → 80mm)
-- [ ] Ignore TS false positive or restart TS server
-
-**Expected:** Clean thermal print, zero paper waste! 🖨️
->>>>>>> Stashed changes

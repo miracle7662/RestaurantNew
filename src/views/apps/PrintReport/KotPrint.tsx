@@ -237,7 +237,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       width: 302px !important;
       min-width: 302px !important;
       margin: 0;
-      padding: 0;
+      padding: 0 6px;  /* LEFT + RIGHT SAFE ZONE */
       font-family: 'Courier New', monospace;
       font-size: 12px;
       line-height: 1.3;
@@ -247,10 +247,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     /* CONTENT WRAPPER */
     #kot-preview-content {
-      width: 302px !important;
+      
       min-width: 302px !important;
       margin: 0 auto;
-      padding: 10px;
+     
       box-sizing: border-box;
     }
 
@@ -423,8 +423,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     // Determine the names to use: outlet props first, then local state, then user object, then defaults
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
-    const displayOutletName = outletName || localOutletName || user?.outlet_name || 'Outlet Name';
-
+    const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
     console.log('KOT Print Debug:', {
       restaurantName,
 
@@ -582,6 +581,13 @@ ${showCustomerMobile
 
         <div><strong>Date:</strong></div>
         <div>${dateTime}</div>
+
+${showWaiter ? `
+  <div style="font-size: 9pt; margin-bottom: 6px; display: flex; gap: 4px;">
+    <strong>Waiter:</strong>
+    <span>${selectedWaiter || user?.name || 'N/A'}</span>
+  </div>
+` : ''}
       </div>
     </div>
 
@@ -590,7 +596,6 @@ ${showCustomerMobile
 
     </div>
 
-    ${showWaiter ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Waiter:</strong> ${selectedWaiter || user?.name || 'N/A'}</div>` : ''}
 
     ${showUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Username:</strong> ${user.username}</div>` : ''}
     ${showTerminalUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Terminal Username:</strong> ${user.terminal_username}</div>` : ''}

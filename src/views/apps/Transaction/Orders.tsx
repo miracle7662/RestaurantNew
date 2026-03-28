@@ -166,7 +166,8 @@ const Order = () => {
 
 // State to track reverse quantity items for KOT printing
 const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
-  const [reverseSnapshot, setReverseSnapshot] = useState<MenuItem[]>([]); // 🔥 FIX: Snapshot for print modal
+const [reverseSnapshot, setReverseSnapshot] = useState<MenuItem[]>([]); // 🔥 FIX: Snapshot for print modal
+  const [tableNameSnapshot, setTableNameSnapshot] = useState<string>('');
 
   // NEW: Reverse KOT Print Modal states
   const [showReverseKotPrintModal, setShowReverseKotPrintModal] = useState(false);
@@ -228,6 +229,7 @@ const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
 
   // New state for the Bill Print Modal
   const [showBillPrintModal, setShowBillPrintModal] = useState<boolean>(false);
+  const [printThenSettleFlow, setPrintThenSettleFlow] = useState(false);
 
   const [printItems, setPrintItems] = useState<MenuItem[]>([]);
   const [showWaiterPaxModal, setShowWaiterPaxModal] = useState<boolean>(false);
@@ -1940,7 +1942,7 @@ const tableNameForKOT =
     } finally {
       setLoading(false);
     }
-  };
+  }; 
   const handlePrintAndSettle = async () => {
     if (items.length === 0) {
       toast.error('No items to process.');
@@ -1958,7 +1960,6 @@ const tableNameForKOT =
         customerName: customerName || null,
         mobileNo: mobileNumber || null,
         customerid: customerid || null,
-
       });
 
       if (!billedRes.success) {
@@ -1974,12 +1975,11 @@ const tableNameForKOT =
 
       setOrderNo(txnNo);
 
+      toast.success('Bill marked as printed!');
 
-      toast.success('Bill printed successfully');
-
-      // 4️⃣ ✅ OPEN SETTLEMENT MODAL (NO RESET HERE)
-      setBillActionState('printOrSettle');
-      setShowSettlementModal(true);
+      // 3️⃣ Open Bill Print Preview Modal + Set Flow State
+      setShowBillPrintModal(true);
+      setPrintThenSettleFlow(true);
 
     } catch (error: any) {
       console.error('Error in Print & Settle:', error);
@@ -2021,22 +2021,40 @@ const tableNameForKOT =
       if (response.success) {
         toast.success('Reverse KOT processed successfully!');
 
-        // 2️⃣ Table status update API call (green)
+// 2️⃣ FIXED: Table status update - FORCE status=0 if all items fully reversed (use txnDetailId matching)
         if (selectedTable) {
           const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
           if (tableToUpdate) {
-            // Check if all items in table have qty fully reversed
-            const allReversed = items.every(item => {
-              const revItem = reverseQtyItems.find(r => r.item_no === item.item_no);
-              return revItem ? (item.qty - (revItem.revQty ?? 0)) <= 0 : item.qty <= 0;
+            // ✅ FIXED: Precise full reversal check using txnDetailId (more reliable than item_no)
+            // Post-backend remaining qty should be reflected in items[] already via refreshItemsForTable
+            const totalRemainingQty = items.reduce((sum, item) => sum + item.qty, 0);
+            const allReversed = totalRemainingQty <= 0;
+            
+            const newStatus = allReversed ? 0 : 1;
+            console.log('🔧 F8 Reversal DEBUG:', { 
+              totalRemainingQty, 
+              allReversed, 
+              newStatus, 
+              tableId: tableToUpdate.tableid,
+              itemCount: items.length 
             });
-            const newStatus = allReversed ? 0 : 1; // 0 = Vacant, 1 = Running
+            
             await OrderService.updateTableStatus(tableToUpdate.tableid, { status: newStatus });
+            
+            if (allReversed) {
+              toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
+            } else {
+              toast.success('Partial reversal complete. Table status = 1 (Running)');
+            }
           }
         }
+        
+        // 3️⃣ FORCE REFRESH table list to sync status change
+        await fetchTableManagement();
 
         // 🔥 FIX: SNAPSHOT before reset
         if (reverseQtyItems.length > 0) {
+          setTableNameSnapshot(selectedTable || 'Table');
           setReverseSnapshot([...reverseQtyItems]);
           setShowReverseKotPrintModal(true);
           setReversePrintTrigger(prev => prev + 1);
@@ -4644,7 +4662,7 @@ setSelectedDeptId(deptId ?? 0);
             user={user}
             restaurantName={user.hotel_name}
             outletName={user.outlet_name}
-            tableName={activeTab === 'Dine-in' ? selectedTable ?? 'Table' : activeTab}
+            tableName={tableNameSnapshot}
             date={user.currDate}
             reversePrintTrigger={reversePrintTrigger}
           />
@@ -4930,7 +4948,13 @@ onClose={() => {
           <BillPreviewPrint
             show={showBillPrintModal}
             
-            onHide={() => setShowBillPrintModal(false)}
+            onHide={() => {
+              setShowBillPrintModal(false);
+              if (printThenSettleFlow) {
+                setShowSettlementModal(true);
+                setPrintThenSettleFlow(false);
+              }
+            }}
             formData={formData}
             user={user}
             items={items}

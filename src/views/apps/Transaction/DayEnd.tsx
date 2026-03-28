@@ -127,9 +127,9 @@ const DayEnd = () => {
     creditSummary: true,
     paymentSummary: true,
     discountSummary: true,
-    reverseKOTsSummary: true,
+    reverseKOTSummary: true,
     reverseBillSummary: true,
-    ncKOTSalesSummary: true,
+    ncKOTSummary: true,
   });
 
   useEffect(() => {
@@ -414,19 +414,22 @@ const DayEnd = () => {
         selectedReports: selectedReportKeys,
       };
 
+      console.log('🔍 Report payload:', payload);
       const response = await DayendService.generateReportHTML(payload);
+      console.log('📄 API Response:', response);
 
-      if (response.success) {
-        // Store the HTML in sessionStorage for the preview page
-        // Note: Backend returns { success: true, html } not { success: true, data: { html } }
+      if (response.success && response.html && response.html.trim().length > 50) { // Validate HTML content
+        // Store HTML and outletId
         sessionStorage.setItem('dayEndReportHTML', response.html);
-        // Store the outletId for printer settings
-        const outletId = orders[0]?.outletid || user?.outletid;
+        const outletId = orders[0]?.outletid || user?.outletid || user?.hotelid;
         sessionStorage.setItem('dayEndReportOutletId', outletId?.toString() || '');
-        // Navigate to the preview page
+        
+        console.log('✅ Stored HTML length:', response.html.length, 'OutletId:', outletId);
+        toast.success('✅ Report generated! Opening preview...');
         navigate('/apps/Masters/Reports/DayEndReportPreview');
       } else {
-        toast.error(response.message || "Failed to generate reports.");
+        console.error('❌ Empty report HTML. Backend debug needed.');
+        toast.error(`Failed to generate reports. HTML empty. Check backend console: Found 0 records?`);
       }
     } catch (error) {
       console.error('Error generating reports:', error);
@@ -1463,8 +1466,8 @@ const getFormattedDate = (dateStr: string) => {
                     Reverse KOTs Summary
                   </>
                 }
-                checked={selectedReports.reverseKOTsSummary}
-                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseKOTsSummary: e.target.checked }))}
+                checked={selectedReports.reverseKOTSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseKOTSummary: e.target.checked }))}
               />
               <Form.Check
                 type="checkbox"
@@ -1487,8 +1490,8 @@ const getFormattedDate = (dateStr: string) => {
                     NC KOT Sales Summary
                   </>
                 }
-                checked={selectedReports.ncKOTSalesSummary}
-                onChange={(e) => setSelectedReports(prev => ({ ...prev, ncKOTSalesSummary: e.target.checked }))}
+                checked={selectedReports.ncKOTSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, ncKOTSummary: e.target.checked }))}
               />
             </div>
           </Modal.Body>

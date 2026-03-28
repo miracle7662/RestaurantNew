@@ -5,11 +5,14 @@ const db = require('../config/db');
 const getDayendData = (req, res) => {
   try {
     // Get all billed or settled bills with their details
+    console.log('🔍 Executing DayEndReport query...');
+
     const query = `
       SELECT
           t.TxnID,
           t.TxnNo,
-          t.TableID,
+          t.TableID, 
+          t.table_name,
           t.outletid,
           t.HotelID,
           t.Amount as TotalAmount,
@@ -41,8 +44,11 @@ const getDayendData = (req, res) => {
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE  t.isDayEnd= 0 and (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1))
-
+WHERE t.isDayEnd = 0 
+AND (
+    (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1))
+    OR t.isreversebill = 1
+)
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
     `;
@@ -52,11 +58,6 @@ const getDayendData = (req, res) => {
     // Group by transaction
     const transactions = {};
     for (const row of rows) {
-      // If there are no settlements and the bill is not settled, skip it (unless it's a reversed bill)
-      if (!row.Settlements && !row.isSetteled && !row.isreversebill) {
-        continue;
-      }
-
       const settlements = (row.Settlements || '').split(',');
       const paymentBreakdown = {
         cash: 0,
@@ -470,324 +471,537 @@ const getLatestCurrDate = (req, res) => {
   }
 };
 
+
+
+
+// ==================== MAIN CONTROLLER ====================
+
 const generateDayEndReportHTML = (req, res) => {
   try {
-    const { DayEndEmpID, businessDate, selectedReports } = req.body;
+    const { DayEndEmpID, businessDate, selectedReports = [] } = req.body;
 
-    if (!DayEndEmpID || !businessDate || !selectedReports) {
-      return res.status(400).json({ success: false, message: 'Missing required parameters' });
+    // VALIDATION
+    if (!DayEndEmpID || !businessDate) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'DayEndEmpID and businessDate required' 
+      });
     }
 
-    // Query to get day-ended transactions for the DayEndEmpID and business date
-    const query = `
-      SELECT
-          t.TxnID,
-          t.TxnNo,
-          t.TableID,
-          t.outletid,
-          t.Amount as TotalAmount,
-          t.Discount,
-          t.GrossAmt as GrossAmount,
-          t.CGST,
-          t.SGST,
-          t.RoundOFF,
-          t.RevKOT as RevAmt,
-          t.TxnDatetime,
-          t.Steward as Captain,
-          t.UserId,
-          u.username as UserName,
-          t.NCPurpose,
-          t.NCName,
-          t.DiscountType,
-          t.DiscPer,
-          GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) as KOTNo,
-          COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') as RevKOTNo,
-          GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
-          (
-            SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount)
-            FROM TrnSettlement s
-            WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1
-          ) as Settlements,
-          t.isSetteled,
-          t.isBilled,
-          t.isreversebill,
-          t.isCancelled,
-          t.isDayEnd,
-          t.DayEndEmpID,
-          SUM(td.Qty) as TotalItems,
-          GROUP_CONCAT(DISTINCT td.ItemID || ':' || td.Qty || ':' || td.RuntimeRate   || ':' || td.isNCKOT || ':' || td.RevKOTNo) as ItemDetails
-      FROM TAxnTrnbill t
-      LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
-      LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE t.isDayEnd = 1 AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ? AND t.DayEndEmpID = ?
-      GROUP BY t.TxnID, t.TxnNo
-      ORDER BY t.TxnDatetime DESC;
-    `;
-
-    const rows = db.prepare(query).all(businessDate, DayEndEmpID);
-
-    // Process data
-    const transactions = [];
-    const reverseKOTs = [];
-    const reverseBills = [];
-    const ncKOTs = [];
-
-    rows.forEach(row => {
-      const settlements = (row.Settlements || '').split(',');
-      const paymentBreakdown = { cash: 0, card: 0, gpay: 0, phonepe: 0, qrcode: 0, credit: 0, other: 0 };
-      let paymentModes = [];
-
-      settlements.forEach(s => {
-        const [type, amountStr] = s.split(':');
-        const amount = parseFloat(amountStr) || 0;
-        if (type) paymentModes.push(type);
-        const tLower = type.toLowerCase();
-        if (tLower.includes('cash')) paymentBreakdown.cash += amount;
-        else if (tLower.includes('card')) paymentBreakdown.card += amount;
-        else if (tLower.includes('gpay') || tLower.includes('google')) paymentBreakdown.gpay += amount;
-        else if (tLower.includes('phonepe')) paymentBreakdown.phonepe += amount;
-        else if (tLower.includes('qr')) paymentBreakdown.qrcode += amount;
-        else if (tLower.includes('credit') && !tLower.includes('card')) paymentBreakdown.credit += amount;
-        else paymentBreakdown.other += amount;
+    if (!Array.isArray(selectedReports) || selectedReports.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'selectedReports array required' 
       });
+    }
 
-      const transaction = {
-        billNo: row.TxnNo,
-        tableNo: row.TableID,
-        grossAmount: parseFloat(row.GrossAmount || 0),
-        discount: parseFloat(row.Discount || 0),
-        cgst: parseFloat(row.CGST || 0),
-        sgst: parseFloat(row.SGST || 0),
-        netAmount: parseFloat(row.TotalAmount || 0),
-        paymentMode: paymentModes.join(', ') || 'Cash',
-        discountReason: row.DiscountType || (row.DiscPer ? `${row.DiscPer}%` : 'N/A'),
-        customerName: row.NCName || 'N/A',
-        creditAmount: paymentBreakdown.credit,
-        reversedAmount: parseFloat(row.RevAmt || 0),
-        reason: row.DiscountType || 'N/A',
-        time: row.TxnDatetime,
-        ncName: row.NCName || '',
-        ncPurpose: row.NCPurpose || '',
-        isReverseBill: row.isreversebill,
-        itemDetails: (row.ItemDetails || '').split(',').map(detail => {
-          const [itemId, qty, rate, reason, isNcKot, revKotNo] = detail.split(':');
-          return { itemId, qty: parseInt(qty), rate: parseFloat(rate), reason, isNcKot: isNcKot === '1', revKotNo };
-        }).filter(d => d.itemId)
-      };
+    console.log(`📊 Generating DayEndReport for Emp:${DayEndEmpID}, Date:${businessDate}`);
+    console.log('Reports:', selectedReports.join(', '));
 
-      transactions.push(transaction);
+    // ✅ CASE-WISE: Fetch ONLY required report data
+    const reportData = {};
 
-      // Collect reverse KOTs
-      if (row.RevKOTNo) {
-        row.RevKOTNo.split(',').forEach(revKot => {
-          if (revKot.trim()) {
-            reverseKOTs.push({
-              kotNo: revKot.trim(),
-              tableNo: row.TableID,
-              itemName: 'N/A', // Would need to join with mstrestmenu for item name
-              quantity: 1, // Placeholder
-              reason: 'N/A', // Placeholder
-              time: row.TxnDatetime
-            });
-          }
-        });
-      }
-
-      // Collect reverse bills
-      if (row.isreversebill) {
-        reverseBills.push({
-          billNo: row.TxnNo,
-          tableNo: row.TableID,
-          reversedAmount: parseFloat(row.RevAmt || 0),
-          reason: 'N/A', // Placeholder
-          time: row.TxnDatetime
-        });
-      }
-
-      // Collect NC KOTs
-      if (row.NCKOT) {
-        ncKOTs.push({
-          ncName: row.NCName || '',
-          purpose: row.NCPurpose || '',
-          itemName: 'N/A', // Placeholder
-          quantity: 1, // Placeholder
-          amount: parseFloat(row.TotalAmount || 0)
-        });
+    // Execute queries PARALLELY for selected reports only
+    selectedReports.forEach(reportKey => {
+      try {
+        switch(reportKey) {
+          case 'billDetails':
+            console.log(`🔍 Fetching billDetails for Emp:${DayEndEmpID}, Date:${businessDate}`);
+            reportData.billDetails = getBillDetailsData(businessDate, DayEndEmpID);
+            break;
+          case 'paymentSummary':
+            console.log(`🔍 Fetching paymentSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
+            reportData.paymentSummary = getPaymentSummaryData(businessDate, DayEndEmpID);
+            break;
+          case 'creditSummary':
+            console.log(`🔍 Fetching creditSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
+            reportData.creditSummary = getCreditSummaryData(businessDate, DayEndEmpID);
+            break;
+          case 'discountSummary':
+            console.log(`🔍 Fetching discountSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
+            reportData.discountSummary = getDiscountSummaryData(businessDate, DayEndEmpID);
+            break;
+          case 'reverseKOTSummary':
+            console.log(`🔍 Fetching reverseKOTSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
+            reportData.reverseKOTs = getReverseKOTsData(businessDate, DayEndEmpID);
+            break;
+          case 'reverseBillSummary':
+            console.log(`🔍 Fetching reverseBillSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
+            reportData.reverseBills = getReverseBillsData(businessDate, DayEndEmpID);
+            break;
+          case 'ncKOTSummary':
+            console.log(`🔍 Fetching ncKOTSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
+            reportData.ncKOTSummary = getNCKOTsData(businessDate, DayEndEmpID);
+            break;
+          default:
+            console.warn(`⚠️ Unknown report type: ${reportKey}`);
+        }
+      } catch (queryError) {
+        console.error(`❌ Error fetching ${reportKey}:`, queryError);
+        reportData[reportKey] = [];
       }
     });
 
-    // Generate HTML
-    let html = '<div style="font-family: monospace; font-size: 12px; line-height: 1.2; max-width: 320px; margin: 0 auto; white-space: pre-wrap;">';
+    // ✅ Generate thermal HTML sections
+    let reportContent = '';
 
     selectedReports.forEach(reportKey => {
-      switch (reportKey) {
-        case 'billDetails':
-          html += generateBillDetailsHTML(transactions);
-          break;
-        case 'creditSummary':
-          html += generateCreditSummaryHTML(transactions);
-          break;
-        case 'paymentSummary':
-          html += generatePaymentSummaryHTML(transactions);
-          break;
-        case 'discountSummary':
-          html += generateDiscountSummaryHTML(transactions);
-          break;
-        case 'reverseKOTsSummary':
-          html += generateReverseKOTsSummaryHTML(reverseKOTs);
-          break;
-        case 'reverseBillSummary':
-          html += generateReverseBillSummaryHTML(reverseBills);
-          break;
-        case 'ncKOTSalesSummary':
-          html += generateNCKOTSalesSummaryHTML(ncKOTs);
-          break;
+      try {
+        let sectionHTML = '';
+        switch(reportKey) {
+          case 'billDetails': sectionHTML = generateBillDetailsHTML(reportData.billDetails); break;
+          case 'paymentSummary': sectionHTML = generatePaymentSummaryHTML(reportData.paymentSummary); break;
+          case 'creditSummary': sectionHTML = generateCreditSummaryHTML(reportData.creditSummary); break;
+          case 'discountSummary': sectionHTML = generateDiscountSummaryHTML(reportData.discountSummary); break;
+          case 'reverseKOTSummary': sectionHTML = generateReverseKOTsHTML(reportData.reverseKOTs); break;
+          case 'reverseBillSummary': sectionHTML = generateReverseBillsHTML(reportData.reverseBills); break;
+          case 'ncKOTSummary': sectionHTML = generateNCKOTsHTML(reportData.ncKOTSummary); break;
+        }
+        if (sectionHTML) reportContent += sectionHTML;
+      } catch (htmlError) {
+        console.error(`❌ HTML generation failed for ${reportKey}:`, htmlError);
       }
-      html += '\n----------------------------\n';
     });
 
-    html += '</div>';
+    if (!reportContent.trim()) {
+      reportContent = '\n' + centerText('NO DATA AVAILABLE', 48) + '\n\n';
+    }
 
-    res.json({ success: true, html });
+    const thermalHTML = `<div style="font-family:'Courier New',monospace;font-size:12px;line-height:1.2;max-width:384px;margin:0 auto;white-space:pre;">\n${reportContent}</div>`;
+
+    console.log(`✅ Generated ${selectedReports.length} report sections`);
+    
+    res.json({ 
+      success: true, 
+      html: thermalHTML,
+      debug: { 
+        reportsProcessed: selectedReports.length,
+        dataCounts: Object.keys(reportData).map(k => ({[k]: reportData[k]?.length || 0}))
+      }
+    });
+
   } catch (error) {
-    console.error('Error generating day end report HTML:', error);
-    res.status(500).json({ success: false, message: 'Failed to generate report' });
+    console.error('❌ Fatal error in generateDayEndReportHTML:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to generate Day End Report',
+      error: error.message 
+    });
   }
 };
 
-function generateBillDetailsHTML(transactions) {
-  let html = 'BILL DETAILS\n\n';
-  html += 'Bill No  Table  Gross   Disc   CGST   SGST   Net    Payment\n';
-  html += '-------- ------ ------- ------ ------ ------ ------ --------\n';
+// ==================== DAY END DATA FETCHERS ====================
+// Each report gets its OWN optimized SQL query (NO massive JOINs)
 
-  let totalGross = 0, totalDisc = 0, totalCGST = 0, totalSGST = 0, totalNet = 0;
+const getBillDetailsData = (businessDate, dayEndEmpID) => {
+  console.log(`🔍 getBillDetailsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
+  const query = `
+    SELECT 
+      t.TxnID, t.TxnNo, t.table_name, t.Amount as netAmount,
+      t.GrossAmt as grossAmount, t.Discount, t.CGST, t.SGST, t.RoundOFF,
+      t.TxnDatetime, 
+      GROUP_CONCAT(s.PaymentType) as paymentMode
+    FROM TAxnTrnbill t
+    LEFT JOIN TrnSettlement s ON s.OrderNo = t.TxnNo AND s.isSettled = 1
+    WHERE t.isDayEnd = 1 
+      AND t.DayEndEmpID = ?
+      AND t.isNCKOT = 0
+      AND t.isreversebill = 0
+      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND t.isCancelled = 0
+    GROUP BY t.TxnID, t.TxnNo
+    ORDER BY t.TxnDatetime DESC
+  `;
+  const rows = db.prepare(query).all(dayEndEmpID, businessDate);
+  console.log(`✅ getBillDetailsData found ${rows.length} records`);
+  return rows;
+};
 
-  transactions.forEach(t => {
-String(t.tableNo || '').padEnd(6)
-    totalGross += t.grossAmount;
-    totalDisc += t.discount;
-    totalCGST += t.cgst;
-    totalSGST += t.sgst;
-    totalNet += t.netAmount;
+const getPaymentSummaryData = (businessDate, dayEndEmpID) => {
+  const query = `
+    SELECT 
+      s.PaymentType,
+      SUM(s.Amount) as totalAmount,
+      COUNT(DISTINCT s.OrderNo) as billCount
+    FROM TrnSettlement s
+    JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
+    WHERE t.isDayEnd = 1 
+      AND t.DayEndEmpID = ?
+      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND s.isSettled = 1
+    GROUP BY s.PaymentType
+    ORDER BY totalAmount DESC
+  `;
+  return db.prepare(query).all(dayEndEmpID, businessDate);
+};
+
+const getCreditSummaryData = (businessDate, dayEndEmpID) => {
+  const query = `
+    SELECT 
+      COALESCE(t.NCName, 'Walk-in Credit') as customerName,
+      SUM(s.Amount) as creditAmount,
+      COUNT(DISTINCT t.TxnNo) as billCount
+    FROM TAxnTrnbill t
+    LEFT JOIN TrnSettlement s ON s.OrderNo = t.TxnNo 
+      AND LOWER(s.PaymentType) LIKE '%credit%' 
+      AND s.isSettled = 1
+    WHERE t.isDayEnd = 1 
+      AND t.DayEndEmpID = ?
+      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND t.isCancelled = 0
+    GROUP BY t.NCName
+    HAVING creditAmount > 0
+    ORDER BY creditAmount DESC
+  `;
+  return db.prepare(query).all(dayEndEmpID, businessDate);
+};
+
+const getDiscountSummaryData = (businessDate, dayEndEmpID) => {
+  const query = `
+    SELECT 
+      t.TxnNo, t.table_name, t.Discount, t.DiscPer,
+      CASE 
+        WHEN t.DiscountType = 1 THEN 'Fixed'
+        WHEN t.DiscountType = 2 THEN CONCAT(t.DiscPer, '%')
+        ELSE 'Other'
+      END as reason
+    FROM TAxnTrnbill t
+    WHERE t.isDayEnd = 1 
+      AND t.DayEndEmpID = ?
+      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND t.Discount > 0
+      AND t.isCancelled = 0
+    ORDER BY t.Discount DESC
+  `;
+  return db.prepare(query).all(dayEndEmpID, businessDate);
+};
+
+const getReverseKOTsData = (businessDate, dayEndEmpID) => {
+  console.log(`🔍 getReverseKOTsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
+  const query = `
+    SELECT DISTINCT
+      td.RevKOTNo as kotNo,
+      t.table_name,
+      m.item_name,
+      td.Qty as quantity,
+      t.TxnDatetime
+    FROM TAxnTrnbilldetails td
+    JOIN TAxnTrnbill t ON td.TxnID = t.TxnID
+    LEFT JOIN mstrestmenu m ON td.ItemID = m.restitemid
+    WHERE t.isDayEnd = 1 
+      AND t.DayEndEmpID = ?
+      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND td.RevKOTNo IS NOT NULL 
+      AND td.RevKOTNo != ''
+    ORDER BY td.RevKOTNo DESC, t.TxnDatetime
+  `;
+  const rows = db.prepare(query).all(dayEndEmpID, businessDate);
+  console.log(`✅ getReverseKOTsData found ${rows.length} records`);
+  return rows;
+};
+
+const getReverseBillsData = (businessDate, dayEndEmpID) => {
+  console.log(`🔍 getReverseBillsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
+  const query = `
+    SELECT 
+      t.TxnNo as billNo,
+      t.table_name,
+      t.RevKOT as reversedAmount,
+      t.TxnDatetime
+    FROM TAxnTrnbill t
+    WHERE t.isDayEnd = 1 
+      AND t.DayEndEmpID = ?
+      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND t.isreversebill = 1
+      AND t.isCancelled = 1
+    ORDER BY t.TxnDatetime DESC
+  `;
+  const rows = db.prepare(query).all(dayEndEmpID, businessDate);
+  console.log(`✅ getReverseBillsData found ${rows.length} records`);
+  return rows;
+};
+
+const getNCKOTsData = (businessDate, dayEndEmpID) => {
+  console.log(`🔍 getNCKOTsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
+  const query = `
+    SELECT DISTINCT
+      t.NCName AS ncName,         -- Customer / NC Name
+      t.NCPurpose AS purpose,      -- Reason / Purpose of NC KOT
+      td.Qty AS quantity,         -- Quantity
+      t.Amount AS amount,        -- Amount
+      t.TxnDatetime               -- Time of transaction
+    FROM TAxnTrnbilldetails td
+    JOIN TAxnTrnbill t ON td.TxnID = t.TxnID
+    WHERE t.isDayEnd = 1
+      AND t.DayEndEmpID = ?
+      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND td.isNCKOT = 1
+    ORDER BY t.TxnDatetime DESC, td.KOTNo DESC
+  `;
+  const rows = db.prepare(query).all(dayEndEmpID, businessDate);
+  console.log(`✅ getNCKOTsData found ${rows.length} records`);
+  return rows;
+};
+
+// ==================== 80MM THERMAL PRINTER GENERATORS ====================
+// Fixed: 48 char width max, monospace, perfect alignment
+
+const centerText = (text, width) => {
+  text = text || '';
+  if (text.length >= width) return text.substring(0, width);
+
+  const totalSpace = width - text.length;
+  const left = Math.floor(totalSpace / 2);
+  const right = totalSpace - left;
+
+  return ' '.repeat(left) + text + ' '.repeat(right);
+};
+
+const generateBillDetailsHTML = (data) => {
+  if (!data?.length) return '';
+  
+  let html = '═'.repeat(48) + '\n';
+  html += '        BILL DETAILS REPORT        \n';
+  html += '═'.repeat(48) + '\n';
+
+  // ✅ Short header for space
+  html += 'Bill  Tbl   Gross  GST   Net   Mode\n';
+  
+  let totals = { gross: 0, gst: 0, net: 0 };
+
+  data.slice(0, 12).forEach((bill) => {
+
+    // ✅ Remove prefix (MI → only number)
+    const billNo = String(bill.TxnNo || '')
+      .replace(/^\D+/, '')   // remove non-digits from start
+      .substring(0, 5)
+      .padEnd(5);
+
+    // ✅ Center table
+    const table = centerText((bill.table_name || '').substring(0, 4), 4);
+
+    // ✅ Adjust widths for 80mm
+    const gross = Number(bill.grossAmount || 0).toFixed(0).padStart(6);
+    const gst = Number(bill.CGST || 0) + Number(bill.SGST || 0);
+    const gstStr = gst.toFixed(0).padStart(4);
+    const net = Number(bill.netAmount || 0).toFixed(0).padStart(6);
+
+    // ✅ Give space to Mode
+    const mode = (bill.paymentMode || 'Cash').substring(0, 6).padEnd(6);
+
+    html += `${billNo} ${table} ${gross} ${gstStr} ${net} ${mode}\n`;
+
+    totals.gross += Number(bill.grossAmount || 0);
+    totals.gst += gst;
+    totals.net += Number(bill.netAmount || 0);
   });
 
-  html += '-------- ------ ------- ------ ------ ------ ------ --------\n';
-  html += `TOTAL    ${totalGross.toFixed(2).padStart(7)} ${totalDisc.toFixed(2).padStart(6)} ${totalCGST.toFixed(2).padStart(6)} ${totalSGST.toFixed(2).padStart(6)} ${totalNet.toFixed(2).padStart(6)}\n\n`;
+  html += '-'.repeat(48) + '\n';
+
+  // ✅ TOTAL aligned with new widths
+  html += 
+    'TOTAL'.padEnd(11) + // Bill(5)+space+Tbl(4)+space = 11
+    totals.gross.toLocaleString().padStart(6) + ' ' +
+    totals.gst.toFixed(0).padStart(4) + ' ' +
+    totals.net.toLocaleString().padStart(6) + '\n';
+
+  html += '═'.repeat(48) + '\n\n';
 
   return html;
-}
+};
 
-function generateCreditSummaryHTML(transactions) {
-  let html = 'CREDIT SUMMARY\n\n';
-  html += 'Customer / Ledger Name     Credit Amount\n';
-  html += '----------------------- --------------\n';
+const generatePaymentSummaryHTML = (data) => {
+  if (!data?.length) return '';
+
+  let summary = {
+    cash: 0, card: 0, upi: 0, qrcode: 0, credit: 0, total: 0
+  };
+
+  data.forEach((payment) => {
+    const type = payment.PaymentType?.toLowerCase() || '';
+    const amt = Number(payment.totalAmount || 0);
+
+    if (type.includes('cash')) summary.cash += amt;
+    else if (type.includes('card')) summary.card += amt;
+    else if (type.includes('gpay') || type.includes('phone') || type.includes('upi')) summary.upi += amt;
+    else if (type.includes('qr')) summary.qrcode += amt;
+    else if (type.includes('credit')) summary.credit += amt;
+
+    summary.total += amt;
+  });
+
+  // ❌ Agar total hi 0 hai → kuch bhi print nahi
+  if (summary.total === 0) return '';
+
+  // ✅ Header AFTER validation
+  let html = '═'.repeat(48) + '\n';
+  html += '        PAYMENT SUMMARY              \n';
+  html += '═'.repeat(48) + '\n';
+
+  // 🔥 Only non-zero rows
+  if (summary.cash > 0)
+    html += `Cash          ${summary.cash.toLocaleString().padStart(12)}\n`;
+
+  if (summary.card > 0)
+    html += `Card          ${summary.card.toLocaleString().padStart(12)}\n`;
+
+  if (summary.upi > 0)
+    html += `UPI (GPay+PP) ${summary.upi.toLocaleString().padStart(12)}\n`;
+
+  if (summary.qrcode > 0)
+    html += `QR Code       ${summary.qrcode.toLocaleString().padStart(12)}\n`;
+
+  if (summary.credit > 0)
+    html += `Credit        ${summary.credit.toLocaleString().padStart(12)}\n`;
+
+  html += '\n';
+
+  // ✅ TOTAL always show (since >0 already checked)
+  html += `TOTAL         ${summary.total.toLocaleString().padStart(12)}\n`;
+
+  html += '═'.repeat(48) + '\n\n';
+
+  return html;
+};
+
+const generateCreditSummaryHTML = (data) => {
+  if (!data?.length) return '';
+  
+  let html = '═' + '═'.repeat(47) + '═\n';
+  html += '         CREDIT SUMMARY             \n';
+  html += '═' + '═'.repeat(47) + '═\n';
+  html += 'Customer             Bills   Amount  \n';
+  html += '───────────────────────────────\n';
 
   let totalCredit = 0;
-
-  transactions.filter(t => t.creditAmount > 0).forEach(t => {
-    html += `${t.customerName.substring(0,23).padEnd(23)} ${t.creditAmount.toFixed(2).padStart(14)}\n`;
-    totalCredit += t.creditAmount;
+  data.slice(0, 8).forEach((cred) => {
+    const name = (cred.customerName || '').substring(0, 18).padEnd(18);
+    const bills = String(cred.billCount || 0).padStart(4);
+    const amt = Number(cred.creditAmount || 0).toLocaleString().padStart(9);
+    html += `${name} ${bills} ${amt}\n`;
+    totalCredit += Number(cred.creditAmount || 0);
   });
 
-  html += '----------------------- --------------\n';
-  html += `TOTAL CREDIT             ${totalCredit.toFixed(2).padStart(14)}\n\n`;
-
+  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
+  html += `TOTAL                      ${totalCredit.toLocaleString().padStart(9)}\n`;
+  html += '═' + '═'.repeat(47) + '═\n\n';
   return html;
-}
+};
 
-function generatePaymentSummaryHTML(transactions) {
-  let html = 'PAYMENT SUMMARY\n\n';
+const generateDiscountSummaryHTML = (data) => {
+  if (!data?.length) return '';
+  
+  let html = '═' + '═'.repeat(47) + '═\n'; 
+  html += '        DISCOUNT SUMMARY            \n';
+  html += '═' + '═'.repeat(47) + '═\n';
+  html += 'Bill   Table   Reason   Amount\n';
+ 
 
-  let cash = 0, card = 0, upi = 0, qr = 0, other = 0;
-
-  transactions.forEach(t => {
-    cash += t.paymentMode.toLowerCase().includes('cash') ? t.netAmount : 0;
-    card += t.paymentMode.toLowerCase().includes('card') ? t.netAmount : 0;
-    upi += (t.paymentMode.toLowerCase().includes('gpay') || t.paymentMode.toLowerCase().includes('phonepe')) ? t.netAmount : 0;
-    qr += t.paymentMode.toLowerCase().includes('qr') ? t.netAmount : 0;
-    other += t.netAmount - (cash + card + upi + qr); // Approximation
+  let totalDisc = 0;
+  data.slice(0, 10).forEach((disc) => {
+    const bill = (disc.TxnNo || '').substring(0, 6).padEnd(6);
+    const table = (disc.table_name || '').substring(0, 6).padEnd(6);
+    const reason = (disc.reason || '').substring(0, 8).padEnd(8);
+    const amt = String(Number(disc.Discount || 0).toLocaleString()).padStart(7);
+    html += `${bill} ${table} ${reason} ${amt}\n`;
+    totalDisc += Number(disc.Discount || 0);
   });
 
-  html += `Cash          ${cash.toFixed(2).padStart(10)}\n`;
-  html += `Card          ${card.toFixed(2).padStart(10)}\n`;
-  html += `UPI           ${upi.toFixed(2).padStart(10)}\n`;
-  html += `QR Code       ${qr.toFixed(2).padStart(10)}\n`;
-  html += `Other         ${other.toFixed(2).padStart(10)}\n`;
-  html += '---------- ----------\n';
-  html += `GRAND TOTAL   ${(cash + card + upi + qr + other).toFixed(2).padStart(10)}\n\n`;
-
+  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
+  html += 'TOTAL'.padEnd(23) + totalDisc.toLocaleString().padStart(7) + '\n';
+  
   return html;
-}
+};
 
-function generateDiscountSummaryHTML(transactions) {
-  let html = 'DISCOUNT SUMMARY\n\n';
-  html += 'Bill No  Discount Reason      Amount\n';
-  html += '-------- -------------------- ------\n';
+const generateReverseKOTsHTML = (data) => {
+  if (!data?.length) return '';
+  
+  let html = '═' + '═'.repeat(47) + '═\n';
+  html += '       REVERSE KOT SUMMARY         \n';
+  html += '═' + '═'.repeat(47) + '═\n';
+  html += 'KOT#  Table  Item     Qty  Time\n';
+  html += '───────────────────────────────\n';
 
-  let totalDiscount = 0;
-
-  transactions
-    .filter(t => t.discount > 0)
-    .forEach(t => {
-      const discountReason = String(t.discountReason || 'N/A');
-
-String(t.billNo || '').padEnd(8)
-
-      totalDiscount += t.discount;
-    });
-
-  html += '-----------------------------------\n';
-  html += `Total Discount: ${totalDiscount.toFixed(2)}\n`;
-
-  return html;
-}
-function generateReverseKOTsSummaryHTML(reverseKOTs) {
-  let html = 'REVERSE KOTs SUMMARY\n\n';
-  html += 'KOT No  Table  Item Name          Qty  Reason    Time\n';
-  html += '------- ------ ------------------ ---- --------- --------\n';
-
-  reverseKOTs.forEach(r => {
-    const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    const itemName = String(r.itemName || 'N/A');
-    const reason = String(r.reason || 'N/A');
-String(r.kotNo || '').padEnd(7)
+  data.slice(0, 10).forEach((kot) => {
+    const kotNo = String(kot.kotNo || '').substring(0, 5).padEnd(5);
+    const table = String(kot.table_name || '').padEnd(6);
+    const item = String(kot.item_name || '').substring(0, 9).padEnd(9);
+    const qty = String(kot.quantity || 0).padStart(3);
+    const time = kot.TxnDatetime 
+      ? new Date(kot.TxnDatetime).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})
+      : '--:--';
+    
+    
+    html += `${kotNo} ${table} ${item} ${qty} ${time}\n`;
   });
 
-  html += '\n';
+  
+  
+  
   return html;
-}
+};
 
-function generateReverseBillSummaryHTML(reverseBills) {
-  let html = 'REVERSE BILL SUMMARY\n\n';
-  html += 'Bill No  Table  Reversed Amount  Reason    Time\n';
-  html += '-------- ------ ---------------- --------- --------\n';
+const generateReverseBillsHTML = (data) => {
+  if (!data?.length) return '';
+  
+  let html = '═' + '═'.repeat(47) + '═\n';
+  html += '       REVERSE BILL SUMMARY        \n';
+  html += '═' + '═'.repeat(47) + '═\n';
+  html += 'BillNo Table    Amount    Time\n';
+  
 
-  reverseBills.forEach(r => {
-    const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-String(r.billNo || '').padEnd(8)
+  let totalRev = 0;
+  data.slice(0, 10).forEach((bill) => {
+    const billNo = (bill.billNo || '').substring(0, 7).padEnd(7);
+    const table = (bill.table_name || '').padEnd(7);
+    const amt = centerText(Number(bill.reversedAmount || 0).toLocaleString(),9);
+    const time = bill.TxnDatetime 
+      ? new Date(bill.TxnDatetime).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})
+      : '--:--';
+    
+    html += `${billNo} ${table} ${amt} ${time}\n`;
+    totalRev += Number(bill.reversedAmount || 0);
   });
 
-  html += '\n';
+  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
+  html += 'TOTAL'.padEnd(16) + centerText(totalRev.toLocaleString(), 9) + '\n';
+  html += '═' + '═'.repeat(47) + '═\n\n';
   return html;
-}
+};
 
-function generateNCKOTSalesSummaryHTML(ncKOTs) {
-  let html = 'NC KOT SALES SUMMARY\n\n';
-  html += 'NC Name    Purpose    Item Name          Qty  Amount\n';
-  html += '---------- ---------- ------------------ ---- ------\n';
+const generateNCKOTsHTML = (data) => {
+  if (!data?.length) return '';
 
-  let totalAmount = 0;
+  let html = '═' + '═'.repeat(47) + '═\n';
+  html += '           NC KOT SUMMARY           \n';
+  html += '═' + '═'.repeat(47) + '═\n';
+  html += 'NCName   Purpose    Qty    Amt\n';
+ 
 
-  ncKOTs.forEach(n => {
-    html += `${n.ncName.substring(0,10).padEnd(10)} ${n.purpose.substring(0,10).padEnd(10)} ${n.itemName.substring(0,18).padEnd(18)} ${String(n.quantity).padStart(4)} ${n.amount.toFixed(2).padStart(6)}\n`;
-    totalAmount += n.amount;
+  let totalQty = 0;
+  let totalAmt = 0;
+
+  data.slice(0, 12).forEach(n => {
+    const NCName  = String(n.ncName  || 'N/A').substring(0, 9).padEnd(10);
+    const purpose = String(n.purpose || 'N/A').substring(0, 9).padEnd(10);
+    const qty = centerText(n.quantity || 0, 4);
+    const amount  = (Number(n.amount) || 0).toFixed(2).padStart(9);
+
+    html += `${NCName}${purpose}${qty}${amount}\n`;
+
+    totalQty += Number(n.quantity || 0);
+    totalAmt += Number(n.amount || 0);
   });
 
-  html += '---------- ---------- ------------------ ---- ------\n';
-  html += `TOTAL NC AMOUNT                            ${totalAmount.toFixed(2).padStart(6)}\n\n`;
+  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
+  html += 'TOTAL'.padEnd(20) + centerText(totalQty, 4) + totalAmt.toFixed(2).padStart(9) + '\n';
+  html += '═' + '═'.repeat(47) + '═\n\n';
 
   return html;
-}
+};
+
+
+
 
 const getClosingBalance = (req, res) => {
   try {
@@ -806,11 +1020,11 @@ const getClosingBalance = (req, res) => {
       lastDayend = db.prepare(`
         SELECT closing_balance, opening_balance, dayend_date, curr_date
         FROM trn_dayend
-        WHERE hotel_id = ?
+        WHERE outlet_id = ? AND hotel_id = ?
           AND curr_date IS NOT NULL
         ORDER BY dayend_date DESC, id DESC
         LIMIT 1
-      `).get(outlet_id);
+      `).get(outlet_id, hotel_id);
     } else {
       // If outlet_id is not provided, just match by hotel_id
       // This will get the most recent dayend record for this hotel (regardless of outlet)
@@ -868,11 +1082,11 @@ const checkOpeningBalanceRequired = (req, res) => {
       lastDayend = db.prepare(`
         SELECT opening_balance, closing_balance, dayend_date, curr_date
         FROM trn_dayend
-        WHERE hotel_id = ?
+        WHERE outlet_id = ? AND hotel_id = ?
           AND curr_date IS NOT NULL
         ORDER BY dayend_date DESC, id DESC
         LIMIT 1
-      `).get(outlet_id);
+      `).get(outlet_id, hotel_id);
     } else {
       lastDayend = db.prepare(`
         SELECT opening_balance, closing_balance, dayend_date, curr_date
@@ -979,6 +1193,7 @@ const saveOpeningBalance = (req, res) => {
     });
   }
 };
+
 
 
 module.exports = {

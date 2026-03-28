@@ -7,14 +7,69 @@ import {
   Row,
   Col,
   Alert,
+  Spinner,
 } from 'react-bootstrap';
 import { useAuthContext } from '@/common';
 import SettlementModal from './SettelmentModel';
 import OutletPaymentModeService from '@/common/api/outletpaymentmode';
 import SettlementService from '@/common/api/settlements';
 import PaginationComponent from '@/components/Common/PaginationComponent';
+import BillPreviewPrint from '@/views/apps/PrintReport/BillPrint';
+import ReportsService from '@/common/api/billPrint';
+import F8PasswordModal from '@/components/F8PasswordModal'; // Import F8 password modal
 
-interface Settlement {  TaxNo?: string;
+// Add interface for Bill data from duplicate bill API
+interface DuplicateBillData {
+  items: BillItem[];
+  orderNo: string;
+  selectedTable: string;
+  selectedWaiter: string;
+  customerName: string;
+  mobileNumber: string;
+  currentTxnId: string;
+  taxCalc: {
+    taxableValue: number;
+    subtotal: number;
+    cgstAmt: number;
+    sgstAmt: number;
+    igstAmt: number;
+    grandTotal: number;
+  };
+  taxRates: {
+    cgst: number;
+    sgst: number;
+    igst: number;
+  };
+  discount: number;
+  reason: string;
+  roundOffEnabled: boolean;
+  roundOffValue: number;
+  selectedPaymentModes: string[];
+  restaurantName: string;
+  outletName: string;
+  billDate: string;
+}
+
+interface BillItem {
+  id: number;
+  name: string;
+  price: number;
+  qty: number;
+  isNCKOT: number;
+  NCName: string;
+  NCPurpose: string;
+  kotNo?: number;
+  note?: string;
+  modifier?: string;
+  isBilled?: number;
+  alternativeItem?: string;
+  variantId?: number;
+  variantName?: string;
+  hsn?: string;
+}
+
+interface Settlement {
+  TaxNo?: string;
   SettlementID: number;
   OrderNo: string;
   table_name?: string;
@@ -29,8 +84,8 @@ interface Settlement {  TaxNo?: string;
   InsertDate: string;
   isSettled: number;
   outletPaymentModes: PaymentMode[];
-  SettlementIDs?: number[];          // when grouped
-  PaymentTypes?: string[];           // when grouped
+  SettlementIDs?: number[];
+  PaymentTypes?: string[];
   paymentBreakdown?: Record<string, number>;
 }
 
@@ -41,13 +96,13 @@ interface PaymentMode {
 }
 
 const EditSettlementPage: React.FC = () => {
-const { user } = useAuthContext();
+  const { user } = useAuthContext();
   const currentUser = user;
   const currDate = user?.currDate || '';
 
   // ── Main States ───────────────────────────────────────────────────
   const [settlements, setSettlements] = useState<Settlement[]>([]);
-const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState({
     orderNo: '',
     hotelId: '',
     outletId: '',
@@ -71,7 +126,6 @@ const [filters, setFilters] = useState({
   const [initialSelectedModes, setInitialSelectedModes] = useState<string[]>([]);
   const [initialPaymentAmounts, setInitialPaymentAmounts] = useState<Record<string, string>>({});
   const [initialIsMixed, setInitialIsMixed] = useState(false);
-  // FIXED: Track initial tip and cash received for editing
   const [initialTip, setInitialTip] = useState(0);
   const [initialCashReceived, setInitialCashReceived] = useState(0);
 
@@ -89,10 +143,27 @@ const [filters, setFilters] = useState({
     type: 'success',
   });
 
-  // Fetch all available payment modes - only when selectedOutletId is valid
+  // ── Bill Preview Print States ────────────────────────────────────
+  const [showBillPreview, setShowBillPreview] = useState(false);
+  const [selectedBillData, setSelectedBillData] = useState<Settlement | null>(null);
+  const [billLoading, setBillLoading] = useState(false);
+  const [duplicateBillData, setDuplicateBillData] = useState<DuplicateBillData | null>(null);
+  
+  // ── F8 Password Modal States ─────────────────────────────────────
+  const [showF8Modal, setShowF8Modal] = useState(false);
+  const [pendingPrintGroup, setPendingPrintGroup] = useState<Settlement | null>(null);
+  const [f8Error, setF8Error] = useState<string>('');
+  const [f8Loading, setF8Loading] = useState(false);
+
+  // Helper function to check if date is backdated
+  const isBackdated = (billDate: string): boolean => {
+    if (!billDate || !currDate) return false;
+    return new Date(billDate) < new Date(currDate);
+  };
+
+  // Fetch all available payment modes
   useEffect(() => {
     const fetchPaymentModes = async () => {
-      // Only fetch if we have a valid outlet ID
       if (!selectedOutletId || selectedOutletId === null) {
         setOutletPaymentModes([]);
         return;
@@ -100,7 +171,6 @@ const [filters, setFilters] = useState({
       
       try {
         const response = await OutletPaymentModeService.list({ outletid: selectedOutletId.toString() });
-        // Handle ApiResponse format - response.data contains the array
         const data = response.data;
         if (!Array.isArray(data)) {
           throw new Error('Expected an array of payment modes');
@@ -114,7 +184,7 @@ const [filters, setFilters] = useState({
     fetchPaymentModes();
   }, [selectedOutletId]);
 
-  // Fetch settlements list - using proper API response format like other pages
+  // Fetch settlements list
   const fetchSettlements = async () => {
     try {
       const params: any = { ...filters };
@@ -123,11 +193,9 @@ const [filters, setFilters] = useState({
       }
       const res = await SettlementService.list(params);
 
-      // Check for success response - matching other pages API response format
       if (res.success) {
         const data = res.data;
         const settlementsData = Array.isArray(data) ? data : [];
-        // Cast to local Settlement interface type
         setSettlements(settlementsData as unknown as Settlement[]);
       } else {
         setNotification({ show: true, message: res.message || 'Failed to fetch settlements', type: 'danger' });
@@ -205,7 +273,7 @@ const [filters, setFilters] = useState({
 
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
-    setCurrentPage(1); // Reset to first page when page size changes
+    setCurrentPage(1);
   };
 
   // ── Edit Handlers ─────────────────────────────────────────────────
@@ -230,7 +298,6 @@ const [filters, setFilters] = useState({
       setInitialPaymentAmounts({});
     }
 
-    // FIXED: Pass actual tip and received amounts from fetched data
     setInitialTip(group.TipAmount || 0);
     setInitialCashReceived(group.Receive || 0);
 
@@ -243,7 +310,6 @@ const [filters, setFilters] = useState({
     setLoading(true);
 
     try {
-      // Always use replace strategy: delete all for OrderNo and insert new
       await SettlementService.replace({
         OrderNo: editing.OrderNo,
         newSettlements: newSettlements.filter(s => s.Amount > 0),
@@ -273,13 +339,101 @@ const [filters, setFilters] = useState({
     }
   };
 
+  // ── Print Bill Handlers with F8 Password ─────────────────────────
+  const handlePrintDuplicateBill = (group: Settlement) => {
+    // Check if bill is backdated
+    if (isBackdated(group.InsertDate)) {
+      // Open F8 password modal for backdated bills
+      setPendingPrintGroup(group);
+      setF8Error('');
+      setShowF8Modal(true);
+    } else {
+      // Directly fetch and print for current date bills
+      fetchAndPrintBill(group);
+    }
+  };
+
+  const handleF8PasswordSubmit = async (password: string, txnId?: string) => {
+    if (!pendingPrintGroup) return;
+    
+    setF8Loading(true);
+    setF8Error('');
+    
+    try {
+      // Call your F8 password verification API here
+      // Example: await F8Service.verifyPassword({ password, txnId });
+      
+      // For now, let's assume password verification is successful
+      // In production, replace this with actual API call
+      
+      // After successful verification, fetch and print the bill
+      await fetchAndPrintBill(pendingPrintGroup);
+      
+      // Close the modal on success
+      setShowF8Modal(false);
+      setPendingPrintGroup(null);
+    } catch (error: any) {
+      setF8Error(error?.message || 'Invalid password. Please try again.');
+    } finally {
+      setF8Loading(false);
+    }
+  };
+
+  const fetchAndPrintBill = async (group: Settlement) => {
+    setBillLoading(true);
+    setSelectedBillData(group);
+    
+    try {
+      const response = await ReportsService.getDuplicateBill({
+        billNo: group.OrderNo,
+        outletId: selectedOutletId || Number(currentUser?.outletid) || 1
+      });
+
+      console.log('API RESPONSE:', response);
+
+      if (response.success && response.data) {
+        const billData = response.data;
+        setDuplicateBillData(billData);
+        setShowBillPreview(true);
+      } else {
+        throw new Error(response.message || 'Failed to fetch bill details');
+      }
+
+    } catch (error: any) {
+      console.error('Failed to fetch bill details:', error);
+      setNotification({
+        show: true,
+        message: error?.message || 'Failed to fetch bill details for printing. Please check if the order exists.',
+        type: 'danger',
+      });
+    } finally {
+      setBillLoading(false);
+    }
+  };
+
+  // Format items for BillPreviewPrint component
+  const formatItemsForPrint = (items: BillItem[]) => {
+    return items.map(item => ({
+      ...item,
+      isBilled: 1,
+      alternativeItem: item.NCName || '',
+      modifier: item.modifier ? [item.modifier] : [],
+      variantName: item.variantName,
+      note: item.note,
+    }));
+  };
+
+  // Get unique KOT numbers from items
+  const getKOTNumbers = (items: BillItem[]): number[] => {
+    const kots = items.map(item => item.kotNo).filter(Boolean);
+    return [...new Set(kots)] as number[];
+  };
+
   // ── UI ────────────────────────────────────────────────────────────
   return (
     <div className="container-fluid p-3" style={{ minHeight: '100vh' }}>
       <h3 className="mb-4">Edit Settlements</h3>
       
-      
-
       <Alert
         show={notification.show}
         variant={notification.type}
@@ -294,7 +448,7 @@ const [filters, setFilters] = useState({
         <Row className="g-3">
           <Col md={3}>
             <Form.Control
-               placeholder="Order No"
+              placeholder="Order No"
               value={filters.orderNo}
               onChange={e => setFilters({ ...filters, orderNo: e.target.value })}
             />
@@ -348,34 +502,65 @@ const [filters, setFilters] = useState({
           </tr>
         </thead>
         <tbody>
-          {groupedSettlements.map(group => (
-            <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
-              <td>{group.SettlementIDs?.join(', ')}</td>
-              <td><strong>{group.TaxNo || group.OrderNo}</strong><br/><small className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small></td>
-              <td>{group.table_name || 'N/A'}</td>
-              <td>
-                {Object.entries(group.paymentBreakdown || {}).map(
-                  ([type, amount]) => (
-                    <div key={type} className="small">
-                      {type}: ₹{amount.toFixed(2)}
-                    </div>
-                  )
-                )}
-              </td>
-
-              <td>{group.HotelID}</td>
-              <td>₹{group.Amount.toFixed(2)}</td>
-<td>
-  {group.InsertDate
-    ? new Date(group.InsertDate).toLocaleString('en-IN')
-    : '-'}
-</td>              <td>
-                <Button size="sm" variant="primary" onClick={() => handleEdit(group)}>
-                  Edit
-                </Button>
-              </td>
-            </tr>
-          ))}
+          {paginatedGroupedSettlements.map(group => {
+            const isBillBackdated = isBackdated(group.InsertDate);
+            
+            return (
+              <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
+                <td>{group.SettlementIDs?.join(', ')}</td>
+                <td>
+                  <strong>{group.TaxNo || group.OrderNo}</strong>
+                  <br/>
+                  <small className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small>
+                </td>
+                <td>{group.table_name || 'N/A'}</td>
+                <td>
+                  {Object.entries(group.paymentBreakdown || {}).map(
+                    ([type, amount]) => (
+                      <div key={type} className="small">
+                        {type}: ₹{amount.toFixed(2)}
+                      </div>
+                    )
+                  )}
+                </td>
+                <td>{group.HotelID}</td>
+                <td>₹{group.Amount.toFixed(2)}</td>
+                <td>
+                  {group.InsertDate
+                    ? new Date(group.InsertDate).toLocaleString('en-IN')
+                    : '-'}
+                </td>
+                <td>
+                  <div className="d-flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="primary" 
+                      onClick={() => handleEdit(group)}
+                      disabled={isBillBackdated} // Disable edit button for backdated bills
+                      title={isBillBackdated ? "Cannot edit backdated bills" : ""}
+                    >
+                      Edit
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="info" 
+                      onClick={() => handlePrintDuplicateBill(group)}
+                      disabled={billLoading}
+                    >
+                      {billLoading && selectedBillData?.OrderNo === group.OrderNo ? (
+                        <>
+                          <Spinner animation="border" size="sm" className="me-1" />
+                          Loading...
+                        </>
+                      ) : (
+                        'Print Bill'
+                      )}
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </Table>
 
@@ -406,6 +591,56 @@ const [filters, setFilters] = useState({
         table_name={editing?.table_name || null}
       />
 
+      {/* F8 Password Modal */}
+      <F8PasswordModal
+        show={showF8Modal}
+        onHide={() => {
+          setShowF8Modal(false);
+          setPendingPrintGroup(null);
+          setF8Error('');
+        }}
+        onSubmit={handleF8PasswordSubmit}
+        error={f8Error}
+        loading={f8Loading}
+        txnId={pendingPrintGroup?.OrderNo}
+        title="F8 Action - Password Required"
+        description="This bill has been backdated. Please enter your password to proceed with printing."
+      />
+
+      {/* Bill Preview Print Modal */}
+      {showBillPreview && duplicateBillData && selectedBillData && (
+        <BillPreviewPrint
+          show={showBillPreview}
+          onHide={() => {
+            setShowBillPreview(false);
+            setSelectedBillData(null);
+            setDuplicateBillData(null);
+          }}
+          formData={user?.outletSettings || {}}
+          user={user}
+          items={formatItemsForPrint(duplicateBillData.items)}
+          selectedWaiter={duplicateBillData.selectedWaiter || user?.name}
+          currentKOTNos={getKOTNumbers(duplicateBillData.items)}
+          currentKOTNo={getKOTNumbers(duplicateBillData.items)[0] || null}
+          orderNo={duplicateBillData.orderNo}
+          selectedTable={duplicateBillData.selectedTable || selectedBillData.table_name}
+          activeTab="Dine-in"
+          customerName={duplicateBillData.customerName || selectedBillData.CustomerName}
+          mobileNumber={duplicateBillData.mobileNumber || selectedBillData.MobileNo}
+          currentTxnId={duplicateBillData.currentTxnId}
+          taxCalc={duplicateBillData.taxCalc}
+          taxRates={duplicateBillData.taxRates}
+          discount={duplicateBillData.discount}
+          reason={duplicateBillData.reason}
+          roundOffEnabled={duplicateBillData.roundOffEnabled}
+          roundOffValue={duplicateBillData.roundOffValue}
+          selectedPaymentModes={duplicateBillData.selectedPaymentModes || selectedBillData.PaymentTypes || []}
+          selectedOutletId={selectedOutletId}
+          restaurantName={duplicateBillData.restaurantName || user?.hotel_name}
+          outletName={duplicateBillData.outletName || user?.outlet_name}
+          billDate={duplicateBillData.billDate || selectedBillData.InsertDate}
+        />
+      )}
     </div>
   );
 };
