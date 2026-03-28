@@ -235,11 +235,13 @@ const getDuplicateBill = (req, res) => {
         t.BilledDate,
         t.Steward AS selectedWaiter,
         mt.table_name AS selectedTable,
+        h.hotel_name AS restaurantName,
         mo.outlet_name,
         u.username
       FROM TAxnTrnbill t
       LEFT JOIN msttablemanagement mt ON t.TableID = mt.tableid
       LEFT JOIN mst_outlets mo ON t.outletid = mo.outletid
+      LEFT JOIN msthotelmasters h ON mo.hotelid = h.hotelid
       LEFT JOIN mst_users u ON t.UserId = u.userid
       WHERE ${whereClause}
       ORDER BY t.TxnID DESC
@@ -334,9 +336,9 @@ const getDuplicateBill = (req, res) => {
         roundOffEnabled,
         roundOffValue,
         selectedPaymentModes: payments.map(p => p.PaymentType),
-        restaurantName: bill.outlet_name || 'Restaurant',
+        restaurantName: bill.restaurantName || bill.outlet_name || 'Restaurant',
         outletName: bill.outlet_name,
-        billDate:  bill.TxnDatetime
+        billDate: bill.TxnDatetime
       }
     });
   } catch (error) {

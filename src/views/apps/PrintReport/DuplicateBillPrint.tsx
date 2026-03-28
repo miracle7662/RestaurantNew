@@ -235,7 +235,7 @@ const handleSearch = async (e: React.FormEvent) => {
           roundOffEnabled={billData.roundOffEnabled}
           roundOffValue={billData.roundOffValue}
           selectedPaymentModes={billData.selectedPaymentModes}
-          restaurantName={billData.restaurantName || user?.hotel_name}
+          restaurantName={billData.restaurantName || user?.hotel_name || billData.outletName}
           outletName={billData.outletName || user?.outlet_name}
           billDate={billData.txnDatetime || billData.billDate}
           selectedOutletId={searchParams.outletId}

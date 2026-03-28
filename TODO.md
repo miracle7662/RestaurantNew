@@ -1,38 +1,48 @@
-# TODO: Show TxnDatetime in billDate field (✅ **COMPLETE**)
+# Duplicate Bill Print Fix: Restaurant Name Issue
 
-## Completed Steps ✅
+## Plan Status: ✅ APPROVED
 
-### Step 1: ✅ Read & Analyzed BillPrint.tsx (BillPreviewPrint)
-- Confirmed: Uses `new Date()` → always current time
-- Date/Time display in HTML template (lines ~570-580)
+**Issue**: DuplicateBillPrint.tsx shows outlet name twice instead of restaurant name
+**Root Cause**: Backend `/reports/duplicate-bill` sends `outlet_name` for BOTH restaurantName & outletName
 
-### Step 2: ✅ Edited BillPrint.tsx  
-- Added `billDate?: string` prop to interface
-- Added `billDate` destructuring in component
-- **Key Fix**: Replaced `new Date()` with `${billDate ? new Date(billDate)... : fallback}` in Date/Time fields
-- Fixed duplicate prop declarations
-- TS errors resolved
+## Steps (In Order)
 
-### Step 3: ✅ Edited DuplicateBillPrint.tsx  
-- Added `txnDatetime: data.TxnDatetime` mapping
-- Pass `billDate={billData.txnDatetime || billData.billDate}` to BillPreviewPrint
+### ✅ Step 1: Create TODO.md [COMPLETE]
+- File created with exact plan
 
-### Step 4: ✅ Ready for Testing
-**Test these changes**:
+### ✅ Step 2: Edit backend/controllers/Reportcontroller.js (PRIMARY FIX) [COMPLETE]
+**Changes:**
+1. ✓ Query: Added `mo.brand_name AS restaurantName` 
+2. ✓ Response: `restaurantName: bill.restaurantName || bill.outlet_name || 'Restaurant'`
+
+### ✅ Step 3: Minor edit src/views/apps/PrintReport/DuplicateBillPrint.tsx [COMPLETE]
+**Safety net:** `restaurantName={billData.restaurantName || user?.hotel_name || billData.outletName}`
+
+### ⏳ Step 4: Test Changes
+**Safety net:** Improve fallback → `billData.restaurantName || user?.hotel_name || billData.outletName`
+
+### ⏳ Step 4: Test Changes
 ```
-1. npm run dev (if not running)
-2. Navigate to Duplicate/Backdated Bill Print
-3. Enter Bill No + optional Bill Date 
-4. Click "Load Bill for Printing" 
-5. Verify **Date/Time shows actual TxnDatetime** (not current time)
-6. Print preview should show correct transaction timestamp
+1. Save files
+2. Backend: cd backend && npm start (restart server)
+3. Frontend: npm run dev (if needed)
+4. Test: Duplicate Bill Print → Load bill → Verify restaurant name shows separately from outlet
+5. Print preview → Both names distinct
 ```
 
-### Step 5: ✅ Task Complete
-**Result**: Duplicate bill prints now show actual **TxnDatetime** (full timestamp with time) instead of current date/time.
+### ⏳ Step 5: Update TODO.md & Complete [After Step 4]
+- Mark steps ✅
+- attempt_completion
 
-Updated files:
-- `src/views/apps/PrintReport/DuplicateBillPrint.tsx`
-- `src/views/apps/PrintReport/BillPrint.tsx`
-- `TODO.md` (this file)
+## Current Progress: 3/5 COMPLETE
+✅ Steps 1-3 done (TODO.md, backend controller, frontend safety net)
+
+### ⏳ Step 4: Test Changes
+```
+1. Backend restart: cd backend && npm start
+2. Frontend: npm run dev
+3. Test Duplicate Bill Print → restaurant name now shows correctly (separate from outlet)
+4. Print preview confirms fix
+```
+
 
