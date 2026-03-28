@@ -7,14 +7,65 @@ import {
   Row,
   Col,
   Alert,
+  Spinner,
 } from 'react-bootstrap';
 import { useAuthContext } from '@/common';
 import SettlementModal from './SettelmentModel';
 import OutletPaymentModeService from '@/common/api/outletpaymentmode';
 import SettlementService from '@/common/api/settlements';
 import PaginationComponent from '@/components/Common/PaginationComponent';
-import BillPreviewPrint from '@/views/apps/PrintReport/BillPrint'; // Import the BillPreviewPrint component
-import { Spinner } from 'react-bootstrap';
+import BillPreviewPrint from '@/views/apps/PrintReport/BillPrint';
+import ReportsService from '@/common/api/billPrint'; // Import ReportsService for duplicate bill
+
+// Add interface for Bill data from duplicate bill API
+interface DuplicateBillData {
+  items: BillItem[];
+  orderNo: string;
+  selectedTable: string;
+  selectedWaiter: string;
+  customerName: string;
+  mobileNumber: string;
+  currentTxnId: string;
+  taxCalc: {
+    taxableValue: number;
+    subtotal: number;
+    cgstAmt: number;
+    sgstAmt: number;
+    igstAmt: number;
+    grandTotal: number;
+  };
+  taxRates: {
+    cgst: number;
+    sgst: number;
+    igst: number;
+  };
+  discount: number;
+  reason: string;
+  roundOffEnabled: boolean;
+  roundOffValue: number;
+  selectedPaymentModes: string[];
+  restaurantName: string;
+  outletName: string;
+  billDate: string;
+}
+
+interface BillItem {
+  id: number;
+  name: string;
+  price: number;
+  qty: number;
+  isNCKOT: number;
+  NCName: string;
+  NCPurpose: string;
+  kotNo?: number;
+  note?: string;
+  modifier?: string;
+  isBilled?: number;
+  alternativeItem?: string;
+  variantId?: number;
+  variantName?: string;
+  hsn?: string;
+}
 
 interface Settlement {
   TaxNo?: string;
@@ -32,8 +83,8 @@ interface Settlement {
   InsertDate: string;
   isSettled: number;
   outletPaymentModes: PaymentMode[];
-  SettlementIDs?: number[];          // when grouped
-  PaymentTypes?: string[];           // when grouped
+  SettlementIDs?: number[];
+  PaymentTypes?: string[];
   paymentBreakdown?: Record<string, number>;
 }
 
@@ -43,40 +94,14 @@ interface PaymentMode {
   mode_name: string;
 }
 
-// Add this interface for bill items if needed
-interface BillItem {
-  id: number;
-  name: string;
-  price: number;
-  qty: number;
-  isBilled: number;
-  isNCKOT: number;
-  NCName: string;
-  NCPurpose: string;
-  table_name?: string;
-  isNew?: boolean;
-  alternativeItem?: string;
-  modifier?: string[];
-  item_no?: number;
-  originalQty?: number;
-  kotNo?: number;
-  txnDetailId?: number;
-  isReverse?: boolean;
-  revQty?: number;
-  hsn?: string;
-  note?: string;
-  variantId?: number;
-  variantName?: string;
-}
-
 const EditSettlementPage: React.FC = () => {
-const { user } = useAuthContext();
+  const { user } = useAuthContext();
   const currentUser = user;
   const currDate = user?.currDate || '';
 
   // ── Main States ───────────────────────────────────────────────────
   const [settlements, setSettlements] = useState<Settlement[]>([]);
-const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState({
     orderNo: '',
     hotelId: '',
     outletId: '',
@@ -100,7 +125,6 @@ const [filters, setFilters] = useState({
   const [initialSelectedModes, setInitialSelectedModes] = useState<string[]>([]);
   const [initialPaymentAmounts, setInitialPaymentAmounts] = useState<Record<string, string>>({});
   const [initialIsMixed, setInitialIsMixed] = useState(false);
-  // FIXED: Track initial tip and cash received for editing
   const [initialTip, setInitialTip] = useState(0);
   const [initialCashReceived, setInitialCashReceived] = useState(0);
 
@@ -120,14 +144,13 @@ const [filters, setFilters] = useState({
 
   // ── Bill Preview Print States ────────────────────────────────────
   const [showBillPreview, setShowBillPreview] = useState(false);
-  const [selectedBillData, setSelectedBillData] = useState<any>(null);
-  const [billItems, setBillItems] = useState<BillItem[]>([]);
+  const [selectedBillData, setSelectedBillData] = useState<Settlement | null>(null);
   const [billLoading, setBillLoading] = useState(false);
+  const [duplicateBillData, setDuplicateBillData] = useState<DuplicateBillData | null>(null);
 
-  // Fetch all available payment modes - only when selectedOutletId is valid
+  // Fetch all available payment modes
   useEffect(() => {
     const fetchPaymentModes = async () => {
-      // Only fetch if we have a valid outlet ID
       if (!selectedOutletId || selectedOutletId === null) {
         setOutletPaymentModes([]);
         return;
@@ -135,7 +158,6 @@ const [filters, setFilters] = useState({
       
       try {
         const response = await OutletPaymentModeService.list({ outletid: selectedOutletId.toString() });
-        // Handle ApiResponse format - response.data contains the array
         const data = response.data;
         if (!Array.isArray(data)) {
           throw new Error('Expected an array of payment modes');
@@ -149,7 +171,7 @@ const [filters, setFilters] = useState({
     fetchPaymentModes();
   }, [selectedOutletId]);
 
-  // Fetch settlements list - using proper API response format like other pages
+  // Fetch settlements list
   const fetchSettlements = async () => {
     try {
       const params: any = { ...filters };
@@ -158,11 +180,9 @@ const [filters, setFilters] = useState({
       }
       const res = await SettlementService.list(params);
 
-      // Check for success response - matching other pages API response format
       if (res.success) {
         const data = res.data;
         const settlementsData = Array.isArray(data) ? data : [];
-        // Cast to local Settlement interface type
         setSettlements(settlementsData as unknown as Settlement[]);
       } else {
         setNotification({ show: true, message: res.message || 'Failed to fetch settlements', type: 'danger' });
@@ -240,7 +260,7 @@ const [filters, setFilters] = useState({
 
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
-    setCurrentPage(1); // Reset to first page when page size changes
+    setCurrentPage(1);
   };
 
   // ── Edit Handlers ─────────────────────────────────────────────────
@@ -265,7 +285,6 @@ const [filters, setFilters] = useState({
       setInitialPaymentAmounts({});
     }
 
-    // FIXED: Pass actual tip and received amounts from fetched data
     setInitialTip(group.TipAmount || 0);
     setInitialCashReceived(group.Receive || 0);
 
@@ -278,7 +297,6 @@ const [filters, setFilters] = useState({
     setLoading(true);
 
     try {
-      // Always use replace strategy: delete all for OrderNo and insert new
       await SettlementService.replace({
         OrderNo: editing.OrderNo,
         newSettlements: newSettlements.filter(s => s.Amount > 0),
@@ -309,50 +327,56 @@ const [filters, setFilters] = useState({
   };
 
   // ── Print Bill Handlers ───────────────────────────────────────────
-  const handlePrintDuplicateBill = async (group: Settlement) => {
-    setBillLoading(true);
-    setSelectedBillData(group);
-    
-    try {
-      // Fetch the order items for this OrderNo
-      // You'll need to implement this API call based on your backend
-      const orderDetails = await fetchOrderDetails(group.OrderNo);
-      
-      // Prepare bill items from the order details
-      const items: BillItem[] = orderDetails.items || [];
-      setBillItems(items);
-      
+const handlePrintDuplicateBill = async (group: Settlement) => {
+  setBillLoading(true);
+  setSelectedBillData(group);
+  
+  try {
+    const response = await ReportsService.getDuplicateBill({
+      billNo: group.OrderNo,
+      outletId: selectedOutletId || Number(currentUser?.outletid) || 1
+    });
+
+    // ✅ ADD THIS LINE HERE
+    console.log('API RESPONSE:', response);
+
+    if (response.success && response.data) {
+      const billData = response.data;
+      setDuplicateBillData(billData);
       setShowBillPreview(true);
-    } catch (error) {
-      console.error('Failed to fetch bill details:', error);
-      setNotification({
-        show: true,
-        message: 'Failed to fetch bill details for printing',
-        type: 'danger',
-      });
-    } finally {
-      setBillLoading(false);
+    } else {
+      throw new Error(response.message || 'Failed to fetch bill details');
     }
+
+  } catch (error: any) {
+    console.error('Failed to fetch bill details:', error);
+    setNotification({
+      show: true,
+      message: error?.message || 'Failed to fetch bill details for printing. Please check if the order exists.',
+      type: 'danger',
+    });
+  } finally {
+    setBillLoading(false);
+  }
+};
+
+  // Format items for BillPreviewPrint component
+  const formatItemsForPrint = (items: BillItem[]) => {
+    return items.map(item => ({
+      ...item,
+      isBilled: 1,
+      alternativeItem: item.NCName || '',
+      modifier: item.modifier ? [item.modifier] : [],
+      // Ensure all required fields are present
+      variantName: item.variantName,
+      note: item.note,
+    }));
   };
 
-  // Helper function to fetch order details
-  const fetchOrderDetails = async (orderNo: string) => {
-    // Replace this with your actual API call to fetch order items
-    try {
-      // Example API call - you need to implement this based on your backend
-      // const response = await OrderService.getOrderDetails(orderNo);
-      // return response.data;
-      
-      // For now, return dummy data structure
-      return {
-        items: [],
-        customerName: selectedBillData?.CustomerName,
-        mobileNumber: selectedBillData?.MobileNo,
-        tableName: selectedBillData?.table_name,
-      };
-    } catch (error) {
-      throw error;
-    }
+  // Get unique KOT numbers from items
+  const getKOTNumbers = (items: BillItem[]): number[] => {
+    const kots = items.map(item => item.kotNo).filter(Boolean);
+    return [...new Set(kots)] as number[];
   };
 
   // ── UI ────────────────────────────────────────────────────────────
@@ -374,7 +398,7 @@ const [filters, setFilters] = useState({
         <Row className="g-3">
           <Col md={3}>
             <Form.Control
-               placeholder="Order No"
+              placeholder="Order No"
               value={filters.orderNo}
               onChange={e => setFilters({ ...filters, orderNo: e.target.value })}
             />
@@ -428,7 +452,7 @@ const [filters, setFilters] = useState({
           </tr>
         </thead>
         <tbody>
-          {groupedSettlements.map(group => (
+          {paginatedGroupedSettlements.map(group => (
             <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
               <td>{group.SettlementIDs?.join(', ')}</td>
               <td>
@@ -512,40 +536,37 @@ const [filters, setFilters] = useState({
       />
 
       {/* Bill Preview Print Modal */}
-      {showBillPreview && selectedBillData && (
+      {showBillPreview && duplicateBillData && selectedBillData && (
         <BillPreviewPrint
           show={showBillPreview}
           onHide={() => {
             setShowBillPreview(false);
             setSelectedBillData(null);
-            setBillItems([]);
+            setDuplicateBillData(null);
           }}
           formData={user?.outletSettings || {}}
           user={user}
-          items={billItems}
-          selectedWaiter={user?.name}
-          currentKOTNos={[]}
-          currentKOTNo={null}
-          orderNo={selectedBillData.OrderNo}
-          selectedTable={selectedBillData.table_name}
-          activeTab="Dine-in" // or determine from order type
-          customerName={selectedBillData.CustomerName}
-          mobileNumber={selectedBillData.MobileNo}
-          currentTxnId={selectedBillData.OrderNo}
-          taxCalc={{
-            subtotal: selectedBillData.Amount || 0,
-            cgstAmt: 0,
-            sgstAmt: 0,
-            igstAmt: 0,
-            grandTotal: selectedBillData.Amount || 0,
-          }}
-          taxRates={{ cgst: 0, sgst: 0, igst: 0 }}
-          discount={0}
-          selectedPaymentModes={selectedBillData.PaymentTypes || []}
+          items={formatItemsForPrint(duplicateBillData.items)}
+          selectedWaiter={duplicateBillData.selectedWaiter || user?.name}
+          currentKOTNos={getKOTNumbers(duplicateBillData.items)}
+          currentKOTNo={getKOTNumbers(duplicateBillData.items)[0] || null}
+          orderNo={duplicateBillData.orderNo}
+          selectedTable={duplicateBillData.selectedTable || selectedBillData.table_name}
+          activeTab="Dine-in" // You can determine this from order type if available
+          customerName={duplicateBillData.customerName || selectedBillData.CustomerName}
+          mobileNumber={duplicateBillData.mobileNumber || selectedBillData.MobileNo}
+          currentTxnId={duplicateBillData.currentTxnId}
+          taxCalc={duplicateBillData.taxCalc}
+          taxRates={duplicateBillData.taxRates}
+          discount={duplicateBillData.discount}
+          reason={duplicateBillData.reason}
+          roundOffEnabled={duplicateBillData.roundOffEnabled}
+          roundOffValue={duplicateBillData.roundOffValue}
+          selectedPaymentModes={duplicateBillData.selectedPaymentModes || selectedBillData.PaymentTypes || []}
           selectedOutletId={selectedOutletId}
-          restaurantName={user?.hotel_name}
-          outletName={user?.outlet_name}
-          billDate={selectedBillData.InsertDate}
+          restaurantName={duplicateBillData.restaurantName || user?.hotel_name}
+          outletName={duplicateBillData.outletName || user?.outlet_name}
+          billDate={duplicateBillData.billDate || selectedBillData.InsertDate}
         />
       )}
     </div>

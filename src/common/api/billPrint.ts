@@ -164,25 +164,31 @@ const BillPrintService = {
   /**
    * Get duplicate bill data by bill number for reprint
    */
-getDuplicateBill: (params: { billNo: string; billDate?: string; outletId: number }): Promise<ApiResponse<any>> => {
-    const queryParams = new URLSearchParams({
-      billNo: params.billNo,
-      outletId: params.outletId.toString()
-    });
+getDuplicateBill: (
+  params: { billNo: string; billDate?: string; outletId: number }
+): Promise<ApiResponse<any>> => {
 
-    if (params.billDate) {
-      queryParams.append('billDate', params.billDate);
-    }
+  const queryParams = new URLSearchParams({
+    billNo: params.billNo,
+    outletId: params.outletId.toString()
+  });
 
-    const url = `/reports/duplicate-bill?${queryParams.toString()}`;
-    // console.log('[DEBUG] getDuplicateBill - Request URL:', url);
-    // console.log('[DEBUG] getDuplicateBill - Params:', params);
+  if (params.billDate) {
+    const formattedDate = params.billDate.split(' ')[0]; // ✅ FIX
+    queryParams.append('billDate', formattedDate);
+  }
 
-    return HttpClient.get<ApiResponse<any>>(url).then((response) => {
-      console.log('[DEBUG] getDuplicateBill - SUCCESS Response:', response.data);
+  const url = `/reports/duplicate-bill?${queryParams.toString()}`;
+
+  console.log('[DEBUG] URL:', url);
+
+  return HttpClient.get<ApiResponse<any>>(url)
+    .then((response) => {
+      console.log('[SUCCESS]:', response.data);
       return response;
-    }).catch((error) => {
-     
+    })
+    .catch((error) => {
+      console.error('[ERROR]:', error);
       throw error;
     });
 }
