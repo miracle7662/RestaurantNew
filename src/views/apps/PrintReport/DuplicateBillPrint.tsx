@@ -37,13 +37,14 @@ interface DuplicateBillData {
   restaurantName?: string;
   outletName?: string;
   billDate?: string;
+  txnDatetime?: string;   // ✅ ADD THIS
+
 }
 
 
 
 const DuplicateBillPrint: React.FC = () => {
   const { user } = useAuthContext();
-  const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [formData, setFormData] = useState({} as OutletSettings);
@@ -86,21 +87,19 @@ const handleSearch = async (e: React.FormEvent) => {
 
   try {
     // Format billDate for backend (YYYY-MM-DD)
-    const formattedBillDate = searchParams.billDate
-      ? new Date(searchParams.billDate).toISOString().split('T')[0]
-      : undefined;
+   
 
     console.log('[DEBUG] handleSearch - Starting search with params:', {
       billNo: searchParams.billNo,
       outletId: searchParams.outletId,
-      billDate: formattedBillDate,
+      
     });
 
     // Call GET version of duplicate bill
     const res = await BillPrintService.getDuplicateBill({
       billNo: searchParams.billNo,
       outletId: searchParams.outletId,
-      billDate: formattedBillDate,
+      
     });
 
     // Axios only enters here if HTTP status is 2xx
@@ -116,7 +115,8 @@ const handleSearch = async (e: React.FormEvent) => {
     setBillData({
   ...data,
   orderNo: data.TxnNo || data.orderNo,
-  billDate: formattedBillDate || new Date().toISOString().split('T')[0],
+  billDate: data.billDate || data.BillDate,
+  txnDatetime: data.TxnDatetime,
   taxRates: data.taxRates || { cgst: 0, sgst: 0, igst: 0 },
   taxCalc: {
     taxableValue: parseFloat(data.taxCalc?.taxableValue || data.taxCalc?.subtotal || '0'),
@@ -237,6 +237,7 @@ const handleSearch = async (e: React.FormEvent) => {
           selectedPaymentModes={billData.selectedPaymentModes}
           restaurantName={billData.restaurantName || user?.hotel_name}
           outletName={billData.outletName || user?.outlet_name}
+          billDate={billData.txnDatetime || billData.billDate}
           selectedOutletId={searchParams.outletId}
         activeTab="Quick Bill"
         />

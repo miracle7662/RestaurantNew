@@ -335,6 +335,7 @@ const getDuplicateBill = (req, res) => {
         roundOffValue,
         selectedPaymentModes: payments.map(p => p.PaymentType),
         restaurantName: bill.outlet_name || 'Restaurant',
+        outletName: bill.outlet_name,
         billDate:  bill.TxnDatetime
       }
     });

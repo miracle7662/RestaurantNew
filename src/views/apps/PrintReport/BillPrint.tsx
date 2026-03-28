@@ -72,6 +72,7 @@ interface BillPreviewPrintProps {
   restaurantName?: string;
   outletName?: string;
   dialogClassName?: string;
+  billDate?: string;
 }
 
 const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
