@@ -495,7 +495,7 @@ const EditSettlementPage: React.FC = () => {
             <th>Tax No / Order No</th>
             <th>Table</th>
             <th>Payment Breakdown</th>
-            <th>Hotel ID</th>
+            
             <th>Amount</th>
             <th>Date</th>
             <th>Actions</th>
@@ -523,7 +523,7 @@ const EditSettlementPage: React.FC = () => {
                     )
                   )}
                 </td>
-                <td>{group.HotelID}</td>
+               
                 <td>₹{group.Amount.toFixed(2)}</td>
                 <td>
                   {group.InsertDate
