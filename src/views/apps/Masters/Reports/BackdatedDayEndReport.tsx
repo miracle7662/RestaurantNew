@@ -1,295 +1,277 @@
-import React, { useEffect, useState } from "react";
-import { Button, Form, Card, Spinner, Container, Row, Col } from 'react-bootstrap';
-import { Printer, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "react-hot-toast";
-import { useAuthContext } from "@/common/context/useAuthContext";
-import DayendService from "@/common/api/dayend";
-import SettingsService from "@/common/api/settings";
-
-// ─────────────────────────────────────────────
-// Convert plain-text receipt → styled HTML (copied from DayEndReportPreview)
-// ─────────────────────────────────────────────
-function plaintextToStyledHTML(raw: string): string {
-  const HEADERS = [
-    "BILL DETAILS", "CREDIT SUMMARY", "PAYMENT SUMMARY", "DISCOUNT SUMMARY",
-    "REVERSE KOTs SUMMARY", "REVERSE BILL SUMMARY", "NC KOT SUMMARY",
-    "DAILY COLLECTION SUMMARY", "BILL WISE COLLECTION SUMMARY",
-    "REVERSE BILLS SUMMARY", "REVERSE KOT", "MATO",
-  ];
-
-  const SECTION_RE = new RegExp(`^(${HEADERS.join("|")})`, "i");
-  const TOTAL_RE = /^(TOTAL|GRAND TOTAL|TOTAL CREDIT|TOTAL DISCOUNT|TOTAL REVERSED)/i;
-  const DASHES_RE = /^[-─=]{5,}/;
-
-  const lines = raw.split("\n");
-  let out = "";
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    if (trimmed === "") {
-      out += `<div style="height:5px"></div>`;
-      continue;
-    }
-
-    if (SECTION_RE.test(trimmed)) {
-      out += `
-        <div style="
-          font-family:'Courier New',Courier,monospace;
-          font-size:11px;
-          font-weight:bold;
-          text-align:center;
-          text-transform:uppercase;
-          letter-spacing:0.4px;
-          border-top:1px solid #000;
-          border-bottom:1px solid #000;
-          padding:2px 0;
-          margin:7px 0 3px;
-        ">${trimmed}</div>`;
-      continue;
-    }
-
-    if (DASHES_RE.test(trimmed)) {
-      out += `<div style="border-top:1px dashed #555;margin:2px 0;"></div>`;
-      continue;
-    }
-
-    if (TOTAL_RE.test(trimmed)) {
-      out += `
-        <div style="
-          font-family:'Courier New',Courier,monospace;
-          font-size:11px;
-          font-weight:bold;
-          white-space:pre;
-          border-top:1px solid #000;
-          padding-top:2px;
-          margin-top:1px;
-        ">${trimmed}</div>`;
-      continue;
-    }
-
-    out += `
-      <div style="
-        font-family:'Courier New',Courier,monospace;
-        font-size:10.5px;
-        white-space:pre;
-        line-height:1.4;
-        overflow:hidden;
-        text-overflow:ellipsis;
-      ">${trimmed}</div>`;
-  }
-
-  return out;
-}
-
-function isPlainTextReceipt(html: string): boolean {
-  const tagCount = (html.match(/</g) || []).length;
-  const lineCount = (html.match(/\n/g) || []).length;
-  return tagCount < lineCount * 0.3;
-}
+import React, { useState, useEffect } from 'react';
+import { Button, Card, Form, Row, Col, Modal, InputGroup, Alert } from 'react-bootstrap';
+import { Calendar, Printer, FileText, CreditCard, DollarSign, Tag, RefreshCw, BarChart } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import { useAuthContext } from '@/common/context/useAuthContext';
+import DayendService, { DayendReportPayload } from '@/common/api/dayend';
 
 const BackdatedDayEndReport: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
   
-  const [formData, setFormData] = useState({
-    dayEndEmpID: '',
-    businessDate: ''
-  });
-  const [previewHTML, setPreviewHTML] = useState("");
-  const [printerName, setPrinterName] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedReports, setSelectedReports] = useState({
+    billDetails: true,
+    creditSummary: true,
+    paymentSummary: true,
+    discountSummary: true,
+    reverseKOTSummary: true,
+    reverseBillSummary: true,
+    ncKOTSummary: true,
+  });
 
-  // Load employees + printer
+  // Default to today
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Load DayEnd employees
-       
+    const today = new Date().toISOString().split('T')[0];
+    setSelectedDate(today);
+  }, []);
 
-        // Load printer (same as DayEndReportPreview)
-        const outletId = user?.outletid || user?.hotelid;
-        if (outletId) {
-          const printerData = await SettingsService.getReportPrinterById(Number(outletId));
-          setPrinterName(printerData[0]?.printer_name || null);
-        }
-      } catch (err) {
-        toast.error("Failed to load data");
-        console.error(err);
-      }
-    };
-    loadData();
-  }, [user]);
+  const handleGenerateClick = () => {
+    if (!selectedDate) {
+      toast.error('Please select a date');
+      return;
+    }
+    setShowReportModal(true);
+  };
 
-  const handleGenerateReport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.businessDate  ) {
-      toast.error("Please select  and Date");
+  const handleGenerateReports = async () => {
+    const selectedReportKeys = Object.keys(selectedReports).filter(
+      key => selectedReports[key as keyof typeof selectedReports]
+    );
+
+    if (selectedReportKeys.length === 0) {
+      toast.error("Please select at least one report to generate.");
       return;
     }
 
-    setGenerating(true);
+    if (!user) {
+      toast.error("User information is not available. Please log in again.");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const payload = {
-        DayEndEmpID: Number(formData.dayEndEmpID),
-        businessDate: formData.businessDate,
-        selectedReports: ['billDetails', 'paymentSummary', 'discountSummary'] // Default reports
+      const payload: DayendReportPayload = {
+        DayEndEmpID: user.id,
+        businessDate: selectedDate,
+        selectedReports: selectedReportKeys,
       };
 
+      console.log('🔍 Report payload:', payload);
       const response = await DayendService.generateReportHTML(payload);
-      if (response.success && response.html) {
-        setPreviewHTML(response.html);
-        toast.success("Report generated successfully!");
+      console.log('📄 API Response:', response);
+
+      if (response.success && response.html && response.html.trim().length > 50) {
+        // Store HTML for preview
+        sessionStorage.setItem('dayEndReportHTML', response.html);
+        const outletId = user?.outletid || user?.hotelid;
+        sessionStorage.setItem('dayEndReportOutletId', outletId?.toString() || '');
+        
+        console.log('✅ Stored HTML length:', response.html.length, 'OutletId:', outletId);
+        toast.success('✅ Report generated! Opening preview...');
+        setShowReportModal(false);
+        navigate('/apps/Masters/Reports/DayEndReportPreview');
       } else {
-        toast.error(response.message || "Failed to generate report");
+        console.error('❌ Empty report HTML. Backend debug needed.');
+        toast.error(`Failed to generate reports. No data found for ${selectedDate}`);
       }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to generate report");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const getFullHTML = () => `
-    <html>
-      <head>
-        <style>
-          @page { size: 80mm auto; margin: 0; }
-          body {
-            width: 72mm; margin-left: 3mm;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 11px; line-height: 1.3;
-            white-space: pre-wrap;
-          }
-        </style>
-      </head>
-      <body>${previewHTML}</body>
-    </html>`;
-
-  const handlePrint = async () => {
-    if (!previewHTML) return;
-    
-    try {
-      setLoading(true);
-      const printersRaw = (window as any).electronAPI?.getInstalledPrinters?.() || [];
-      const printers = Array.isArray(printersRaw) ? printersRaw : [];
-      
-      let finalPrinter = null;
-      if (printerName && printers.length > 0) {
-        const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, "");
-        const match = printers.find(
-          (p: any) => normalize(p.name).includes(normalize(printerName)) ||
-                      normalize(p.displayName || "").includes(normalize(printerName))
-        );
-        finalPrinter = match?.name;
-      }
-      
-      if (!finalPrinter && printers.length > 0) {
-        const fallback = printers.find((p: any) => p.isDefault) || printers[0];
-        finalPrinter = fallback?.name;
-      }
-
-      if (finalPrinter && (window as any).electronAPI?.directPrint) {
-        await (window as any).electronAPI.directPrint(getFullHTML(), finalPrinter);
-        toast.success("Printed successfully!");
-      } else {
-        toast.error("No printer available or Print API not ready");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Print failed");
+    } catch (error) {
+      console.error('Error generating reports:', error);
+      toast.error("An error occurred while generating reports.");
     } finally {
       setLoading(false);
     }
   };
 
-  const renderContent = previewHTML 
-    ? isPlainTextReceipt(previewHTML) 
-      ? plaintextToStyledHTML(previewHTML) 
-      : previewHTML.replace(/<html[^>]*>/gi, "").replace(/<\/html>/gi, "").replace(/<head[\s\S]*?<\/head>/gi, "").replace(/<body[^>]*>/gi, "").replace(/<\/body>/gi, "")
-    : "";
-
   return (
-    <Container className="py-4">
-      <Row>
-        <Col md={8} className="mx-auto">
-          <Card>
-            <Card.Header className="bg-primary text-white">
-              <h4>Backdated Day End Report</h4>
-            </Card.Header>
-            <Card.Body>
-              <Form onSubmit={handleGenerateReport}>
-                <Row>
-                  
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Business Date *</Form.Label>
+    <div className="page-content">
+      <div className="container-fluid">
+        <div className="row">
+          <div className="col-12">
+            <div className="page-title-box d-sm-flex align-items-center justify-content-between">
+              <h4 className="mb-sm-0">Backdated Day End Report</h4>
+            </div>
+          </div>
+        </div>
+
+        <Row>
+          <Col lg={12}>
+            <Card>
+              <Card.Header>
+                <h5 className="card-title mb-0">Select Date & Generate Report</h5>
+              </Card.Header>
+              <Card.Body>
+                <Row className="g-3">
+                  <Col md={4}>
+                    <Form.Group>
+                      <Form.Label>
+                        <Calendar className="me-1 mb-1" size={16} />
+                        Select Date
+                      </Form.Label>
                       <Form.Control
                         type="date"
-                        value={formData.businessDate}
-                        onChange={(e) => setFormData({ ...formData, businessDate: e.target.value })}
-                        required
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
                       />
                     </Form.Group>
                   </Col>
+                  <Col md={8} className="d-flex align-items-end">
+                    <Button 
+                      variant="primary" 
+                      onClick={handleGenerateClick}
+                      disabled={!selectedDate}
+                    >
+                      <Printer className="me-1 mb-1" size={16} />
+                      Generate Day End Report
+                    </Button>
+                  </Col>
                 </Row>
-                <div className="text-center">
-                  <Button variant="primary" type="submit" disabled={generating}>
-                    {generating ? (
-                      <>
-                        <Spinner size="sm" className="me-2" />
-                        Generating...
-                      </>
-                    ) : (
-                      'Generate Report'
-                    )}
-                  </Button>
-                </div>
-              </Form>
-            </Card.Body>
-          </Card>
-
-          {previewHTML && (
-            <Card className="mt-4">
-              <Card.Header className="d-flex justify-content-between align-items-center bg-light">
-                <div>
-                  <Button variant="outline-secondary" size="sm" onClick={() => setPreviewHTML("")}>
-                    <ArrowLeft size={14} className="me-1" /> New Report
-                  </Button>
-                </div>
-                <Button 
-                  variant="dark" 
-                  size="sm" 
-                  onClick={handlePrint} 
-                  disabled={loading}
-                >
-                  <Printer size={14} className="me-1" />
-                  {loading ? "Printing..." : "Print Report"}
-                </Button>
-              </Card.Header>
-              <Card.Body style={{ maxHeight: "70vh", overflowY: "auto" }}>
-                <div 
-                  style={{ 
-                    maxWidth: "340px", 
-                    margin: "0 auto",
-                    background: "#fffef5",
-                    boxShadow: "2px 5px 14px rgba(0,0,0,0.25)",
-                    padding: "20px 15px",
-                    backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 18px,rgba(0,0,0,0.022) 19px)",
-                  }}
-                  dangerouslySetInnerHTML={{ __html: renderContent }} 
-                />
               </Card.Body>
             </Card>
-          )}
-        </Col>
-      </Row>
-    </Container>
+          </Col>
+        </Row>
+
+        {selectedDate && (
+          <Alert variant="info" className="mt-3">
+            Click the button above to generate the day end report for {selectedDate}.
+          </Alert>
+        )}
+      </div>
+
+      {/* Report Selection Modal - Similar to DayEnd component */}
+      <Modal show={showReportModal} onHide={() => setShowReportModal(false)} centered size="sm">
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="fw-bold text-primary">Select Reports</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-3">
+          <div className="mb-3">
+            <InputGroup>
+              <InputGroup.Text>
+                <Calendar size={16} />
+              </InputGroup.Text>
+              <Form.Control
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
+            </InputGroup>
+          </div>
+          <div>
+            <div className="fw-semibold mb-2">Choose Reports</div>
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <FileText size={16} className="report-icon me-2" />
+                  Bill Details
+                </>
+              }
+              checked={selectedReports.billDetails}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, billDetails: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <CreditCard size={16} className="report-icon me-2" />
+                  Credit Summary
+                </>
+              }
+              checked={selectedReports.creditSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, creditSummary: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <DollarSign size={16} className="report-icon me-2" />
+                  Payment Summary
+                </>
+              }
+              checked={selectedReports.paymentSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, paymentSummary: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <Tag size={16} className="report-icon me-2" />
+                  Discount Summary
+                </>
+              }
+              checked={selectedReports.discountSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, discountSummary: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <RefreshCw size={16} className="report-icon me-2" />
+                  Reverse KOTs Summary
+                </>
+              }
+              checked={selectedReports.reverseKOTSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseKOTSummary: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <RefreshCw size={16} className="report-icon me-2" />
+                  Reverse Bill Summary
+                </>
+              }
+              checked={selectedReports.reverseBillSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseBillSummary: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <BarChart size={16} className="report-icon me-2" />
+                  NC KOT Sales Summary
+                </>
+              }
+              checked={selectedReports.ncKOTSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, ncKOTSummary: e.target.checked }))}
+            />
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <Button variant="secondary" onClick={() => setShowReportModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleGenerateReports}
+            disabled={loading}
+          >
+            {loading ? 'Generating...' : 'Generate Reports'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <style>{`
+        .report-checkbox {
+          margin-bottom: 0.5rem;
+        }
+        .report-icon {
+          margin-right: 0.5rem;
+          color: #6c757d;
+        }
+      `}</style>
+    </div>
   );
 };
 
 export default BackdatedDayEndReport;
-

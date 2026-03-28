@@ -13,8 +13,11 @@ import SettlementModal from './SettelmentModel';
 import OutletPaymentModeService from '@/common/api/outletpaymentmode';
 import SettlementService from '@/common/api/settlements';
 import PaginationComponent from '@/components/Common/PaginationComponent';
+import BillPreviewPrint from '@/views/apps/PrintReport/BillPrint'; // Import the BillPreviewPrint component
+import { Spinner } from 'react-bootstrap';
 
-interface Settlement {  TaxNo?: string;
+interface Settlement {
+  TaxNo?: string;
   SettlementID: number;
   OrderNo: string;
   table_name?: string;
@@ -38,6 +41,32 @@ interface PaymentMode {
   id: number;
   paymenttypeid: number;
   mode_name: string;
+}
+
+// Add this interface for bill items if needed
+interface BillItem {
+  id: number;
+  name: string;
+  price: number;
+  qty: number;
+  isBilled: number;
+  isNCKOT: number;
+  NCName: string;
+  NCPurpose: string;
+  table_name?: string;
+  isNew?: boolean;
+  alternativeItem?: string;
+  modifier?: string[];
+  item_no?: number;
+  originalQty?: number;
+  kotNo?: number;
+  txnDetailId?: number;
+  isReverse?: boolean;
+  revQty?: number;
+  hsn?: string;
+  note?: string;
+  variantId?: number;
+  variantName?: string;
 }
 
 const EditSettlementPage: React.FC = () => {
@@ -88,6 +117,12 @@ const [filters, setFilters] = useState({
     message: '',
     type: 'success',
   });
+
+  // ── Bill Preview Print States ────────────────────────────────────
+  const [showBillPreview, setShowBillPreview] = useState(false);
+  const [selectedBillData, setSelectedBillData] = useState<any>(null);
+  const [billItems, setBillItems] = useState<BillItem[]>([]);
+  const [billLoading, setBillLoading] = useState(false);
 
   // Fetch all available payment modes - only when selectedOutletId is valid
   useEffect(() => {
@@ -273,13 +308,58 @@ const [filters, setFilters] = useState({
     }
   };
 
+  // ── Print Bill Handlers ───────────────────────────────────────────
+  const handlePrintDuplicateBill = async (group: Settlement) => {
+    setBillLoading(true);
+    setSelectedBillData(group);
+    
+    try {
+      // Fetch the order items for this OrderNo
+      // You'll need to implement this API call based on your backend
+      const orderDetails = await fetchOrderDetails(group.OrderNo);
+      
+      // Prepare bill items from the order details
+      const items: BillItem[] = orderDetails.items || [];
+      setBillItems(items);
+      
+      setShowBillPreview(true);
+    } catch (error) {
+      console.error('Failed to fetch bill details:', error);
+      setNotification({
+        show: true,
+        message: 'Failed to fetch bill details for printing',
+        type: 'danger',
+      });
+    } finally {
+      setBillLoading(false);
+    }
+  };
+
+  // Helper function to fetch order details
+  const fetchOrderDetails = async (orderNo: string) => {
+    // Replace this with your actual API call to fetch order items
+    try {
+      // Example API call - you need to implement this based on your backend
+      // const response = await OrderService.getOrderDetails(orderNo);
+      // return response.data;
+      
+      // For now, return dummy data structure
+      return {
+        items: [],
+        customerName: selectedBillData?.CustomerName,
+        mobileNumber: selectedBillData?.MobileNo,
+        tableName: selectedBillData?.table_name,
+      };
+    } catch (error) {
+      throw error;
+    }
+  };
+
   // ── UI ────────────────────────────────────────────────────────────
   return (
     <div className="container-fluid p-3" style={{ minHeight: '100vh' }}>
       <h3 className="mb-4">Edit Settlements</h3>
       
-      
-
       <Alert
         show={notification.show}
         variant={notification.type}
@@ -351,7 +431,11 @@ const [filters, setFilters] = useState({
           {groupedSettlements.map(group => (
             <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
               <td>{group.SettlementIDs?.join(', ')}</td>
-              <td><strong>{group.TaxNo || group.OrderNo}</strong><br/><small className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small></td>
+              <td>
+                <strong>{group.TaxNo || group.OrderNo}</strong>
+                <br/>
+                <small className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small>
+              </td>
               <td>{group.table_name || 'N/A'}</td>
               <td>
                 {Object.entries(group.paymentBreakdown || {}).map(
@@ -362,17 +446,38 @@ const [filters, setFilters] = useState({
                   )
                 )}
               </td>
-
               <td>{group.HotelID}</td>
               <td>₹{group.Amount.toFixed(2)}</td>
-<td>
-  {group.InsertDate
-    ? new Date(group.InsertDate).toLocaleString('en-IN')
-    : '-'}
-</td>              <td>
-                <Button size="sm" variant="primary" onClick={() => handleEdit(group)}>
-                  Edit
-                </Button>
+              <td>
+                {group.InsertDate
+                  ? new Date(group.InsertDate).toLocaleString('en-IN')
+                  : '-'}
+              </td>
+              <td>
+                <div className="d-flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="primary" 
+                    onClick={() => handleEdit(group)}
+                  >
+                    Edit
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="info" 
+                    onClick={() => handlePrintDuplicateBill(group)}
+                    disabled={billLoading}
+                  >
+                    {billLoading && selectedBillData?.OrderNo === group.OrderNo ? (
+                      <>
+                        <Spinner animation="border" size="sm" className="me-1" />
+                        Loading...
+                      </>
+                    ) : (
+                      'Print Bill'
+                    )}
+                  </Button>
+                </div>
               </td>
             </tr>
           ))}
@@ -406,6 +511,43 @@ const [filters, setFilters] = useState({
         table_name={editing?.table_name || null}
       />
 
+      {/* Bill Preview Print Modal */}
+      {showBillPreview && selectedBillData && (
+        <BillPreviewPrint
+          show={showBillPreview}
+          onHide={() => {
+            setShowBillPreview(false);
+            setSelectedBillData(null);
+            setBillItems([]);
+          }}
+          formData={user?.outletSettings || {}}
+          user={user}
+          items={billItems}
+          selectedWaiter={user?.name}
+          currentKOTNos={[]}
+          currentKOTNo={null}
+          orderNo={selectedBillData.OrderNo}
+          selectedTable={selectedBillData.table_name}
+          activeTab="Dine-in" // or determine from order type
+          customerName={selectedBillData.CustomerName}
+          mobileNumber={selectedBillData.MobileNo}
+          currentTxnId={selectedBillData.OrderNo}
+          taxCalc={{
+            subtotal: selectedBillData.Amount || 0,
+            cgstAmt: 0,
+            sgstAmt: 0,
+            igstAmt: 0,
+            grandTotal: selectedBillData.Amount || 0,
+          }}
+          taxRates={{ cgst: 0, sgst: 0, igst: 0 }}
+          discount={0}
+          selectedPaymentModes={selectedBillData.PaymentTypes || []}
+          selectedOutletId={selectedOutletId}
+          restaurantName={user?.hotel_name}
+          outletName={user?.outlet_name}
+          billDate={selectedBillData.InsertDate}
+        />
+      )}
     </div>
   );
 };
