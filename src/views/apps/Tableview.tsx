@@ -151,7 +151,7 @@ export default function App() {
                 // Fetch bill status for each table from backend using OrderService
                 const response = await OrderService.getBillStatus(item.tableid);
                 const data = response;
-               
+
 
                 let txnId: number | null = null;
                 let billNo: string | null = null;
@@ -345,10 +345,10 @@ export default function App() {
   }, [departments]);
 
   // Filter tables to only show specified statuses - memoized to prevent infinite loops
-  const filteredTables = useMemo(() => 
+  const filteredTables = useMemo(() =>
     allTables.filter(table =>
       table.status === 'available' || table.status === 'running' || table.status === 'printed' || table.status === 'running-kot'
-    ), 
+    ),
     [allTables]
   );
 
@@ -413,41 +413,41 @@ export default function App() {
   };
 
   const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    e.stopPropagation();   // 🔥 IMPORTANT
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();   // 🔥 IMPORTANT
 
-    const input = tableInput.trim();
-    if (input) {
-      const tables = selectedDepartmentId === 'all'
-        ? allTables
-        : tablesByDepartment[selectedDepartmentId] || [];
+      const input = tableInput.trim();
+      if (input) {
+        const tables = selectedDepartmentId === 'all'
+          ? allTables
+          : tablesByDepartment[selectedDepartmentId] || [];
 
-      const table = tables.find(t => t.name === input);
+        const table = tables.find(t => t.name === input);
 
-      if (table) {
-        if (table.status === 'printed' || 
-           (table.status === 'running-kot' && table.billNo)) {
+        if (table) {
+          if (table.status === 'printed' ||
+            (table.status === 'running-kot' && table.billNo)) {
 
-          setSelectedTable(table);
-          setShowModal(true);
-        } else {
-          navigate('/apps/Billview', {
-            state: {
-              tableId: table.id,
-              tableName: table.name,
-              outletId: table.outletid
-            }
-          });
+            setSelectedTable(table);
+            setShowModal(true);
+          } else {
+            navigate('/apps/Billview', {
+              state: {
+                tableId: table.id,
+                tableName: table.name,
+                outletId: table.outletid
+              }
+            });
+          }
         }
       }
+      setTableInput('');
     }
-    setTableInput('');
-  }
-};
+  };
 
 
-const fetchTakeawayOrders = async () => {
+  const fetchTakeawayOrders = async () => {
     try {
       console.log('Fetching takeaway orders for outletId:', user?.outletid);
       const response = await OrderService.getPendingOrders('takeaway', user?.outletid);
@@ -633,21 +633,19 @@ const fetchTakeawayOrders = async () => {
 
               <div className="d-flex gap-2">
                 <button
-                  className={`btn btn-sm px-3 d-flex align-items-center gap-1
-        ${activeFilter === 'All'
+                  className={`btn btn-sm px-3 d-flex align-items-center gap-1 custom-hover
+    ${activeFilter === 'All'
                       ? 'btn-danger'
-                      : 'btn-outline-danger text-muted'}`}
+                      : 'btn-outline-danger'}`}
                   onClick={() => setActiveFilter('All')}
                 >
                   <i className="fi fi-rr-apps"></i>
-
                 </button>
-
                 <button
-                  className={`btn btn-sm px-3 d-flex align-items-center gap-1
-        ${activeFilter === 'Pickup'
+                  className={`btn btn-sm px-3 d-flex align-items-center gap-1 custom-hover
+    ${activeFilter === 'Pickup'
                       ? 'btn-primary'
-                      : 'btn-outline-danger text-muted'}`}
+                      : 'btn-outline-danger'}`}
                   onClick={() => setActiveFilter('Pickup')}
                 >
                   <i className="fi fi-rr-shopping-bag"></i>
@@ -655,10 +653,10 @@ const fetchTakeawayOrders = async () => {
                 </button>
 
                 <button
-                  className={`btn btn-sm px-3 d-flex align-items-center gap-1
-        ${activeFilter === 'Delivery'
+                  className={`btn btn-sm px-3 d-flex align-items-center gap-1 custom-hover
+    ${activeFilter === 'Delivery'
                       ? 'btn-primary'
-                      : 'btn-outline-danger text-muted'}`}
+                      : 'btn-outline-danger'}`}
                   onClick={() => setActiveFilter('Delivery')}
                 >
                   <i className="fi fi-rr-truck-moving"></i>
@@ -718,17 +716,17 @@ const fetchTakeawayOrders = async () => {
                           <div
                             className="d-flex align-items-center justify-content-center rounded"
                             style={{
-                              ...bgStyle,
                               width: '30px',
                               height: '26px',
+                              backgroundColor: orderType === 'Pickup' ? '#0d6efd' : '#fd7e14', // dark bg
                             }}
                             title={orderType}
                           >
                             {orderType === 'Pickup' && (
-                              <i className="fi fi-rr-shopping-bag text-primary fs-6"></i>
+                              <i className="fi fi-rr-shopping-bag text-white fs-6"></i>
                             )}
                             {orderType === 'Delivery' && (
-                              <i className="fi fi-rr-truck-moving text-warning fs-6"></i>
+                              <i className="fi fi-rr-truck-moving text-white fs-6"></i>
                             )}
                           </div>
                         )}

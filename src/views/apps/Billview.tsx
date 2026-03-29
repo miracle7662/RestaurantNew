@@ -116,6 +116,7 @@ interface ReverseModalItem {
   itemName: string;
   cancelQty: number;
   rate: number;
+  revKotNo:number;
 }
 
 interface FormData {
@@ -2209,7 +2210,7 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
         ...item,
         name: item.itemName || "",   
         price: item.rate,
-        revKotNo: reverseKotNo,
+        revKotNo: item.revKotNo ,  // ✅ IMPORTANT
         isReverse: true,
         revQty: item.cancelQty  
       })));
