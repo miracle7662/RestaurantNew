@@ -290,33 +290,45 @@ const DayEnd = () => {
   console.log("Frontend sending payload:", payload);
 
   try {
-    const response = await DayendService.saveDayEnd(payload);
-   
-    console.log("Backend response:", response);
+  const response = await DayendService.saveDayEnd(payload);
 
-    if (response.success && response.success) {
-      toast.success(response.message || "✅ Day-End saved successfully!");
-      setOrders([]); // Clear the orders table after successful day-end
-      // Update reportDate to the actual dayend_date from backend
-      if (response.data && response.data.dayend_date) {
-        setReportDate(response.data.dayend_date);
-      }
-      setShowReportModal(true);
-    } else {
-      // Backend may return pending table info
-      toast.error(response.message || "❌ Day-End failed!");
+  console.log("Backend response:", response);
 
-       if (response.data?.pendingTables?.length) {
-  toast(
-    `⚠️ Pending Tables: ${response.data.pendingTables.join(", ")}`,
-    { icon: "🪑" }
-  );
-}
+  // ✅ SUCCESS
+  if (response.success) {
+    toast.success(response.message || "✅ Day-End saved successfully!");
+
+    setOrders([]);
+
+    if (response.data?.dayend_date) {
+      setReportDate(response.data.dayend_date);
     }
-  } catch (error) {
-    console.error("Error saving day-end:", error);
-    toast.error("⚠️ An error occurred while saving Day-End. Please try again.");
+
+    setShowReportModal(true);
+    return;
   }
+
+  // ❌ FAILURE (handle pending tables first)
+  if (response.data?.pendingTables?.length) {
+    const tableNames = response.data.pendingTables
+      .map((t: any) => (typeof t === "string" ? t : t.name || t.id))
+      .join(", ");
+
+    toast.error(
+      `🪑 ${response.message || "Pending Tables"}: ${tableNames}`,
+      { duration: 8000 }
+    );
+
+    return; // 🔥 stop here
+  }
+
+  // fallback
+  toast.error(response.message || "❌ Day-End failed!");
+
+} catch (error) {
+  console.error("Error saving day-end:", error);
+  toast.error("⚠️ An error occurred while saving Day-End. Please try again.");
+}
 };
 
 

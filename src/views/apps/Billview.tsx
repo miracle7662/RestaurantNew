@@ -3379,10 +3379,10 @@ const handleF8Action = useCallback(() => {
 
                 // Filter by itemCodeFilter if typing
                const filtered = itemCodeFilter
-  ? deptVariants.filter(v =>
-      v.item_no.toString() === itemCodeFilter
-    )
-  : deptVariants.slice(0, 50);
+                ? deptVariants.filter(v =>
+                    v.item_no.toString() === itemCodeFilter
+                  )
+                : deptVariants.slice(0, 50);
 
                 return filtered.map(variant => (
                   <option
@@ -3538,7 +3538,7 @@ const handleF8Action = useCallback(() => {
                             <td>
                               <Form.Control
                                 type="text"
-value={item.SpecialInst}
+                                value={item.SpecialInst}
                                 disabled={!item.isEditable}
                                 onChange={(e) => handleItemChange(index, 'SpecialInst', e.target.value)}
                                 onKeyDown={(e) => {

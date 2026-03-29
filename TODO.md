@@ -1,13 +1,7 @@
-# Fix Duplicate Bill Error for Takeaway/Quickbill Print
+# Day End Pending Tables Fix - TODO
 
-## Plan Breakdown
-1. ✅ [Complete] Understand error: `bill` undefined in `getDuplicateBill` because query only searches `TxnNo`, not `orderNo`
-2. ✅ [Complete] Edit `backend/controllers/Reportcontroller.js`:
-   - Update `billQuery` WHERE to search `(t.TxnNo = ? OR t.orderNo = ?)`
-   - Fix `params = [outletId, billNo, billNo]`
-   - Update `paymentsQuery` to use `bill.TxnNo || bill.orderNo`
-   - Add logging and validation
-3. 🔄 [Pending] Restart backend server: `cd backend && npm start` (or your start command)
-4. 🔄 [Pending] Test takeaway/quickbill print - check console for new logs
-5. ✅ [Complete] Task done
-
+## Plan Breakdown:
+- [x] Step 1: Edit backend/controllers/Dayendcontroller.js with SQL query fix, console.log update, and response format change
+- [x] Step 3: Update frontend DayEnd.tsx to handle new pendingTables format + TypeScript fix in dayend.ts
+- [ ] Step 2: Test the Day End API endpoint with an occupied table (status=1)
+- [ ] Step 4: Mark complete and test full Day End flow

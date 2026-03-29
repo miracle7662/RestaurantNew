@@ -138,8 +138,12 @@ export interface DayendSaveResponse {
   id?: number
   dayend_date?: string
   curr_date?: string
-  pendingTables?: number[]
+  pendingTables?: Array<string | {id: number, name: string}>
+  
 }
+  
+
+
 
 
 /** Report generation payload */

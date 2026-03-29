@@ -266,7 +266,7 @@ const saveDayEnd = async (req, res) => {
     // ✅ STEP 1: CHECK PENDING TABLES BEFORE DAYEND
     // ===========================================
     const pendingTables = db.prepare(`
-      SELECT TableID
+      SELECT tableid AS TableID, table_name
       FROM msttablemanagement
       WHERE outletid = ?
         AND hotelid = ?
@@ -274,12 +274,15 @@ const saveDayEnd = async (req, res) => {
     `).all(outlet_id, hotel_id);
 
     if (pendingTables.length > 0) {
-      console.log("⛔ Pending Tables Found:", pendingTables.map(t => t.TableID));
-      return res.status(400).json({
-        success: false,
-        message: "Day End cannot be completed — Some tables still have pending bills!",
-        pendingTables: pendingTables.map(t => t.TableID)
-      });
+      console.log("⛔ Pending Tables Found:", pendingTables.map(t => `${t.TableID} (${t.table_name})`));
+      return res.status(200).json({
+  success: false,
+  message: `Day End cannot be completed — Tables with pending bills: ${pendingTables.map(t => t.table_name).join(', ')}`,
+  pendingTables: pendingTables.map(t => ({
+    id: t.TableID,
+    name: t.table_name
+  }))
+});
     }
     // ===========================================
 
