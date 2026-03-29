@@ -494,7 +494,7 @@ const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSu
       }
 
     } catch (error: any) {
-      console.error("Fetch States Error:", error);
+      // console.error("Fetch States Error:", error);
       toast.error('Failed to fetch states');
     } finally {
       setLoading(false);

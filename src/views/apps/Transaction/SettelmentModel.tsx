@@ -233,7 +233,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     try {
       await onSettle(settlements, tip);
     } catch (err) {
-      console.error(err);
+      // console.error(err);
       toast.error('Settlement failed');
     }
   };

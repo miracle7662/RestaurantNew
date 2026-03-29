@@ -177,7 +177,7 @@ const EditSettlementPage: React.FC = () => {
         }
         setOutletPaymentModes(data);
       } catch (err) {
-        console.error('Failed to load payment modes:', err);
+        // console.error('Failed to load payment modes:', err);
         setOutletPaymentModes([]);
       }
     };
@@ -202,7 +202,7 @@ const EditSettlementPage: React.FC = () => {
         setSettlements([]);
       }
     } catch (err) {
-      console.error(err);
+      // console.error(err);
       setNotification({ show: true, message: 'Failed to fetch settlements', type: 'danger' });
       setSettlements([]);
     }
@@ -389,7 +389,7 @@ const EditSettlementPage: React.FC = () => {
         outletId: selectedOutletId || Number(currentUser?.outletid) || 1
       });
 
-      console.log('API RESPONSE:', response);
+      // console.log('API RESPONSE:', response);
 
       if (response.success && response.data) {
         const billData = response.data;
@@ -400,7 +400,7 @@ const EditSettlementPage: React.FC = () => {
       }
 
     } catch (error: any) {
-      console.error('Failed to fetch bill details:', error);
+      // console.error('Failed to fetch bill details:', error);
       setNotification({
         show: true,
         message: error?.message || 'Failed to fetch bill details for printing. Please check if the order exists.',

@@ -125,7 +125,7 @@ const ModifyOutletSettingsModal: React.FC<{
             toast.error(`Failed to fetch outlet settings: ${response.message || 'Unknown error'}`);
           }
         } catch (error) {
-          console.error('Error fetching outlet settings:', error);
+          // console.error('Error fetching outlet settings:', error);
           toast.error('Failed to fetch outlet settings. Please try again.');
         } finally {
           setLoading(false);
@@ -137,7 +137,7 @@ const ModifyOutletSettingsModal: React.FC<{
           const waiters = await fetchWaiterUsers(selectedOutlet.outletid!);
           setWaiterUsers(waiters);
         } catch (error) {
-          console.error('Error fetching waiter users:', error);
+          // console.error('Error fetching waiter users:', error);
           toast.error('Failed to fetch waiter users.');
         }
       };
@@ -191,7 +191,7 @@ const ModifyOutletSettingsModal: React.FC<{
         toast.error(`Failed to update outlet settings: ${response.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error updating outlet settings:', error);
+      // console.error('Error updating outlet settings:', error);
       toast.error('Failed to update outlet settings. Please try again.');
     } finally {
       setLoading(false);

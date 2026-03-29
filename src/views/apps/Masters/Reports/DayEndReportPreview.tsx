@@ -134,7 +134,7 @@ const DayEndReportPreview: React.FC = () => {
         const printerData = await SettingsService.getReportPrinterById(Number(outletIdToUse));
         setPrinterName(printerData[0]?.printer_name || null);
       } catch (err) {
-        console.error(err);
+        // console.error(err);
         toast.error("Failed to load printer settings.");
       }
     };
@@ -194,7 +194,7 @@ const DayEndReportPreview: React.FC = () => {
         toast.error("Print API not available");
       }
     } catch (err) {
-      console.error(err);
+      // console.error(err);
       toast.error("Print failed");
     } finally {
       setLoading(false);

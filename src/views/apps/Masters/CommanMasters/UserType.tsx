@@ -65,7 +65,7 @@ const fetchUserType = async () => {
       toast.error(response.message || 'Failed to fetch user types');
     }
   } catch (err) {
-    console.error(err);
+    // console.error(err);
     toast.error('Failed to fetch user types');
   } finally {
     setLoading(false);

@@ -103,7 +103,7 @@ const ItemMainGroup: React.FC = () => {
       }
 
     } catch (error) {
-      console.error("Fetch ItemMainGroup Error:", error);
+      // console.error("Fetch ItemMainGroup Error:", error);
       toast.error("Failed to fetch Item Main Group");
     } finally {
       setLoading(false);

@@ -267,7 +267,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
       // Handle different response formats based on HttpClient interceptor
       const rawData = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
-      console.log('Fetched menu items:', rawData);
+      // console.log('Fetched menu items:', rawData);
       setMenuItems(rawData);
 
       // Map fetched menu items to card items
@@ -285,7 +285,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       setCardItems(mappedItems);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch menu items');
-      console.error(err);
+      // console.error(err);
     } finally {
       setLoading(false);
     }
@@ -317,7 +317,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
           () => { }
         );
       } catch (error) {
-        console.error('Fetch error:', error);
+        // console.error('Fetch error:', error);
         setCardItems([]);
         setError('Failed to fetch menu items');
       } finally {
@@ -433,15 +433,15 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       item.itemCode.toLowerCase().includes(code.toLowerCase())
     );
 
-    console.log('Code search:', code, 'Matched items:', matchedItems.length);
-    console.log('MenuItems sample:', menuItems.slice(0, 2));
+    // console.log('Code search:', code, 'Matched items:', matchedItems.length);
+    // console.log('MenuItems sample:', menuItems.slice(0, 2));
 
     // Build code search results with variant priority logic
     const results: CodeSearchResult[] = [];
 
     matchedItems.forEach((item) => {
       const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
-      console.log('Menu item for', item.itemCode, ':', menuItem?.department_details?.length, 'details');
+      // console.log('Menu item for', item.itemCode, ':', menuItem?.department_details?.length, 'details');
 
       let hasValidVariants = false;
       const validVariants: VariantOption[] = [];
@@ -491,7 +491,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     });
 
 
-    console.log('Total results:', results.length);
+    // console.log('Total results:', results.length);
     setCodeSearchResults(results.slice(0, 10)); // Limit to 10 results
 
     // Always show dropdown when typing and there are results

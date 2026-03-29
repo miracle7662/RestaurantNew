@@ -107,7 +107,7 @@ const ItemGroup: React.FC = () => {
       }
 
     } catch (error) {
-      console.error("ItemGroup Fetch Error:", error);
+      // console.error("ItemGroup Fetch Error:", error);
       toast.error("Failed to fetch Item Groups");
     } finally {
       setLoading(false);

@@ -73,7 +73,7 @@ const HoteltypeMasters: React.FC = () => {
       toast.error(response.message || 'Failed to fetch hotel types');
     }
   } catch (err) {
-    console.error(err);
+    // console.error(err);
     toast.error('Failed to fetch hotel types');
   } finally {
     setLoading(false);

@@ -120,8 +120,8 @@ const HandoverPage = () => {
       try {
         const response = await HandoverService.getHandoverData(filters);
         if (response.success) {
-          console.log("Fetched orders data:", response.data.orders);
-          console.log("RevKOT numbers in orders:", response.data.orders.map((order: any) => order.revKotNo));
+          // console.log("Fetched orders data:", response.data.orders);
+          // console.log("RevKOT numbers in orders:", response.data.orders.map((order: any) => order.revKotNo));
           setOrders(response.data.orders);
         } else {
           throw new Error(response.message || 'Failed to fetch data');
@@ -142,7 +142,7 @@ const HandoverPage = () => {
         });
         
         if (response.success) {
-          console.log('Fetched handover users data:', response.data);
+          // console.log('Fetched handover users data:', response.data);
           let filteredUsers = (response.data || []).filter((u: HandoverUser) =>
             u.role_level === 'outlet_user' && u.status === 0 && u.userid !== user?.userid
           );
@@ -150,14 +150,14 @@ const HandoverPage = () => {
           if (user?.role_level === 'outlet_user' && user?.outletid) {
             filteredUsers = filteredUsers.filter((u: HandoverUser) => u.outletid === user.outletid);
           }
-          console.log('Filtered handover users:', filteredUsers);
+          // console.log('Filtered handover users:', filteredUsers);
           setHandoverUsers(filteredUsers);
         } else {
-          console.error('Failed to fetch handover users:', response.message);
+          // console.error('Failed to fetch handover users:', response.message);
           setHandoverUsers([]);
         }
       } catch (err) {
-        console.error('Error fetching handover users:', err);
+        // console.error('Error fetching handover users:', err);
         setHandoverUsers([]);
       }
     };
@@ -304,7 +304,7 @@ const HandoverPage = () => {
         throw new Error(response.message || 'Failed to complete handover');
       }
     } catch (error) {
-      console.error('Error during handover:', error);
+      // console.error('Error during handover:', error);
       alert(`An error occurred during handover: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
@@ -349,7 +349,7 @@ const HandoverPage = () => {
         alert(`Error: ${response.message}`);
       }
     } catch (err) {
-      console.error("Error saving cash denomination:", err);
+      // console.error("Error saving cash denomination:", err);
       alert("An error occurred while saving. Please check the console.");
     }
   };
@@ -365,7 +365,7 @@ const HandoverPage = () => {
         return false;
       }
     } catch (error) {
-      console.error('Password verification error:', error);
+      // console.error('Password verification error:', error);
       return false;
     }
   };

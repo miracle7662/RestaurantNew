@@ -73,7 +73,7 @@ const Unitmaster: React.FC = () => {
     setunitmasterItem(units);
 
   } catch (err) {
-    console.error(err);
+    // console.error(err);
     toast.error('Failed to fetch Unitmaster');
   } finally {
     setLoading(false);

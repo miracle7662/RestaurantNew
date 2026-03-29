@@ -102,7 +102,7 @@ const States: React.FC = () => {
   try {
     const response = await StateService.list();
 
-    console.log("STATE RESPONSE:", response);
+    // console.log("STATE RESPONSE:", response);
 
     if (response.success && response.data) {
       setStateItems(response.data);
@@ -112,8 +112,8 @@ const States: React.FC = () => {
     }
 
   } catch (error: any) {
-    console.log("FULL ERROR:", error);
-    console.log("BACKEND ERROR:", error.response?.data);
+    // console.log("FULL ERROR:", error);
+    // console.log("BACKEND ERROR:", error.response?.data);
     toast.error('Failed to fetch states');
   } finally {
     setLoading(false);

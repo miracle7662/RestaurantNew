@@ -55,7 +55,7 @@ const fetchData = async () => {
     }
 
   } catch (err: any) {
-    console.error('Error fetching data:', err);
+    // console.error('Error fetching data:', err);
     setError('Failed to fetch data');
   } finally {
     setLoading(false);

@@ -187,7 +187,7 @@ const Menu: React.FC = () => {
         setCardItems(updatedCardItems);
       }
     } catch (err) {
-      console.error('Fetch Menu error:', err);
+      // console.error('Fetch Menu error:', err);
       toast.error('Failed to fetch menu');
     } finally {
       setLoading(false);
@@ -202,13 +202,13 @@ const Menu: React.FC = () => {
       const response = await MenuService.list({ hotelid, outletid });
       
       if (response.success) {
-        console.log('Fetched menu items:', response.data);
+        // console.log('Fetched menu items:', response.data);
         setMenuItems(response.data || []);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to fetch menu items');
       toast.error('Failed to fetch Menu Items');
-      console.error(err);
+      // console.error(err);
     } finally {
       setLoading(false);
     }
@@ -228,10 +228,10 @@ const Menu: React.FC = () => {
       const response = await MenuService.getVariantTypes();
       if (response.success) {
         setVariantTypes(response.data || []);
-        console.log('Fetched variant types:', response.data);
+        // console.log('Fetched variant types:', response.data);
       }
     } catch (err) {
-      console.error('Error fetching variant types:', err);
+      // console.error('Error fetching variant types:', err);
     }
   };
 
@@ -261,7 +261,7 @@ const Menu: React.FC = () => {
           toast.success('Status updated successfully');
         }
       } catch (err) {
-        console.error('Error updating status:', err);
+        // console.error('Error updating status:', err);
         toast.error('Failed to update status');
       }
     }
@@ -310,7 +310,7 @@ const Menu: React.FC = () => {
         );
         toast.success('Group status updated successfully');
       } catch (err) {
-        console.error('Error updating group status:', err);
+        // console.error('Error updating group status:', err);
         toast.error('Failed to update group status');
       }
     }
@@ -340,7 +340,7 @@ const Menu: React.FC = () => {
       if (response.success) {
         toast.success(`Successfully imported ${response.data?.imported || 0} items`);
         if (response.data?.errors && response.data.errors.length > 0) {
-          console.warn('Import errors:', response.data.errors);
+          // console.warn('Import errors:', response.data.errors);
         }
         handleSuccess();
         setShowImportModal(false);
@@ -348,7 +348,7 @@ const Menu: React.FC = () => {
         toast.error(response.message || 'Failed to import menu items');
       }
     } catch (err: any) {
-      console.error('Import error:', err);
+      // console.error('Import error:', err);
       toast.error(err.message || 'Failed to import menu items');
     } finally {
       setImporting(false);
@@ -410,7 +410,7 @@ const Menu: React.FC = () => {
                   link.remove();
                   toast.success('Menu exported successfully');
                 } catch (err: any) {
-                  console.error('Export error:', err);
+                  // console.error('Export error:', err);
                   toast.error('Failed to export menu');
                 }
               }}
@@ -667,7 +667,7 @@ const Menu: React.FC = () => {
                         window.URL.revokeObjectURL(url);
                         toast.success('Template downloaded successfully');
                       } catch (err) {
-                        console.error('Template download error:', err);
+                        // console.error('Template download error:', err);
                         toast.error('Failed to download template');
                       }
                     }}
@@ -744,7 +744,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         setItemNo(response.data?.nextItemNo || null);
       }
     } catch (err) {
-      console.error('Error fetching max item number:', err);
+      // console.error('Error fetching max item number:', err);
     }
   };
 
@@ -816,12 +816,12 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       setStatus(mstmenu.status ?? 1);
 
       // 🔥 FIXED: Load NEW STOCK FIELDS FROM API RESPONSE (0→false, 1→true) 🔥
-      console.log('Loading stock fields:', {
-        is_ingredients_required: mstmenu?.is_ingredients_required,
-        consume_on_bill: mstmenu?.consume_on_bill,
-        reverse_stock_cancel_kot: mstmenu?.reverse_stock_cancel_kot,
-        allow_negative_stock: mstmenu?.allow_negative_stock
-      });
+      // console.log('Loading stock fields:', {
+      //   is_ingredients_required: mstmenu?.is_ingredients_required,
+      //   consume_on_bill: mstmenu?.consume_on_bill,
+      //   reverse_stock_cancel_kot: mstmenu?.reverse_stock_cancel_kot,
+      //   allow_negative_stock: mstmenu?.allow_negative_stock
+      // });
       setIsIngredientsRequired(mstmenu?.is_ingredients_required === 1);
       setConsumeOnBill(mstmenu?.consume_on_bill === 1);
       setReverseStockCancelKot(mstmenu?.reverse_stock_cancel_kot === 1);
@@ -863,7 +863,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           fetchWarehouses(setWarehouses, setLoading),
         ]);
       } catch (err) {
-        console.error('Error loading data:', err);
+        // console.error('Error loading data:', err);
         toast.error('Failed to load dropdown data');
       } finally {
         setLoading(false);
@@ -942,7 +942,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               if (itemDetailsResponse.success) {
                 const itemDetails = itemDetailsResponse.data;
                 
-                console.log('Item details fetched:', itemDetails);
+                // console.log('Item details fetched:', itemDetails);
                 
                 // Extract variant values from department_details
                 const existingVariantValueIds: number[] = [];
@@ -999,7 +999,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                 }
               }
             } catch (err) {
-              console.error('Error fetching item details:', err);
+              // console.error('Error fetching item details:', err);
               toast.error('Failed to load existing department rates');
             }
           }
@@ -1048,7 +1048,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           setNewItem((prev) => ({ ...prev, departmentRates: [] }));
         }
       } catch (err) {
-        console.error('Error fetching departments:', err);
+        // console.error('Error fetching departments:', err);
         toast.error('Failed to fetch departments');
         setDepartments([]);
         setNewItem((prev) => ({ ...prev, departmentRates: [] }));
@@ -1227,7 +1227,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         await fetchMaxItemNo();
       }
     } catch (err: any) {
-      console.error(`${isEdit ? 'Update' : 'Add'} Item error:`, err);
+      // console.error(`${isEdit ? 'Update' : 'Add'} Item error:`, err);
       toast.error(`Failed to ${isEdit ? 'update' : 'add'} item: ${err.message || 'Unexpected error occurred'}`);
     } finally {
       setLoading(false);

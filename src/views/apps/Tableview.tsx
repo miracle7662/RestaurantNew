@@ -140,7 +140,7 @@ export default function App() {
           return;
         }
         const response = await TableManagementService.list();
-        console.log('TableManagement API response:', response);
+        // console.log('TableManagement API response:', response);
         if (response.success && Array.isArray(response.data)) {
           const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
           if (filteredData.length > 0) {
@@ -207,7 +207,7 @@ export default function App() {
           setAllTables([]);
         }
       } catch (err) {
-        console.error('Table fetch error:', err);
+        // console.error('Table fetch error:', err);
         setError('Failed to fetch tables. Please check the API endpoint.');
         setAllTables([]);
       } finally {
@@ -449,18 +449,18 @@ export default function App() {
 
   const fetchTakeawayOrders = async () => {
     try {
-      console.log('Fetching takeaway orders for outletId:', user?.outletid);
+      // console.log('Fetching takeaway orders for outletId:', user?.outletid);
       const response = await OrderService.getPendingOrders('takeaway', user?.outletid);
-      console.log('Takeaway orders response:', response);
+      // console.log('Takeaway orders response:', response);
       if (response.success) {
-        console.log('Setting takeaway orders:', response.data);
+        // console.log('Setting takeaway orders:', response.data);
         setTakeawayOrders(response.data || []);
       } else {
-        console.error('API returned success=false:', response.message);
+        // console.error('API returned success=false:', response.message);
         setTakeawayOrders([]);
       }
     } catch (error) {
-      console.error('Error fetching takeaway orders:', error);
+      // console.error('Error fetching takeaway orders:', error);
       setTakeawayOrders([]);
     }
   };
@@ -679,10 +679,7 @@ export default function App() {
                   // Determine order type for icon and navigation
                   const orderType = order.type === 'Pickup' ? 'Pickup' : order.type === 'Delivery' ? 'Delivery' : 'TAKEAWAY';
 
-                  const bgStyle =
-                    orderType === 'Pickup'
-                      ? { backgroundColor: '#E7F1FF', border: '1px solid #B6D4FE' }
-                      : { backgroundColor: '#FFF3CD', border: '1px solid #FFECB5' };
+                  
 
                   return (
                     <div

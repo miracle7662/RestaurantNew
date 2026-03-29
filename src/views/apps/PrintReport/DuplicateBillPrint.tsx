@@ -66,7 +66,7 @@ const DuplicateBillPrint: React.FC = () => {
       const printSettings = printRes?.data || printRes;
       setFormData({ ...formData, ...previewSettings, ...printSettings });
     } catch (err) {
-      console.error('Failed to load settings:', err);
+      // console.error('Failed to load settings:', err);
     }
   };
 
@@ -90,11 +90,11 @@ const handleSearch = async (e: React.FormEvent) => {
     // Format billDate for backend (YYYY-MM-DD)
    
 
-    console.log('[DEBUG] handleSearch - Starting search with params:', {
-      billNo: searchParams.billNo,
-      outletId: searchParams.outletId,
+    // console.log('[DEBUG] handleSearch - Starting search with params:', {
+    //   billNo: searchParams.billNo,
+    //   outletId: searchParams.outletId,
       
-    });
+    // });
 
     // Call GET version of duplicate bill
     const res = await BillPrintService.getDuplicateBill({
@@ -108,10 +108,10 @@ const handleSearch = async (e: React.FormEvent) => {
 
     const data = res.data.data || res.data;
 
-    console.log('[DEBUG] handleSearch - Bill data loaded:', {
-      orderNo: data.orderNo || data.TxnNo,
-      itemsCount: data.items?.length || 0
-    });
+    // console.log('[DEBUG] handleSearch - Bill data loaded:', {
+    //   orderNo: data.orderNo || data.TxnNo,
+    //   itemsCount: data.items?.length || 0
+    // });
     const orderType = data.Order_Type || data.orderType || '';
 
 
@@ -137,20 +137,20 @@ const handleSearch = async (e: React.FormEvent) => {
 
   } catch (err: any) {
     // Handles network errors and 404 responses from backend
-    console.error('[DEBUG] handleSearch - Full error details:', {
-      message: err.message,
-      response: err.response?.data,
-      status: err.response?.status,
-      url: err.config?.url,
-      method: err.config?.method,
-    });
+    // console.error('[DEBUG] handleSearch - Full error details:', {
+    //   message: err.message,
+    //   response: err.response?.data,
+    //   status: err.response?.status,
+    //   url: err.config?.url,
+    //   method: err.config?.method,
+    // });
 
     // Show message from backend if available, else generic error
     const errorMsg = err.response?.data?.message || err.message || 'Failed to fetch bill data';
     toast.error(errorMsg);
   } finally {
     setSearchLoading(false);
-    console.log('[DEBUG] handleSearch - Search complete');
+    // console.log('[DEBUG] handleSearch - Search complete');
   }
 };
 
@@ -158,8 +158,6 @@ const handleSearch = async (e: React.FormEvent) => {
     setShowPreview(false);
     setBillData({} as DuplicateBillData);
   };
-
- 
 
   return (
     <Container className="py-4">

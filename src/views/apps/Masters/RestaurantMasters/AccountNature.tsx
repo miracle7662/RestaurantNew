@@ -69,15 +69,15 @@ const AccountNature: React.FC = () => {
   // Log session values when they change
   useEffect(() => {
     if (user?.id) {
-      console.log(`User ID received: ${user.id}`);
+      // console.log(`User ID received: ${user.id}`);
     } else {
-      console.warn('Warning: User ID is missing');
+      // console.warn('Warning: User ID is missing');
     }
 
     if (user?.hotelid) {
-      console.log(`Hotel ID received: ${user.hotelid}`);
+      // console.log(`Hotel ID received: ${user.hotelid}`);
     } else {
-      console.warn('Warning: Hotel ID is missing');
+      // console.warn('Warning: Hotel ID is missing');
     }
   }, [user?.id, user?.hotelid]);
 

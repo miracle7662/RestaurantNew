@@ -11,8 +11,8 @@ export default function OpeningBalancePage() {
 
   const handleSubmit = async (data: { opening_balance: number }) => {
     try {
-      console.log('Opening Balance Data:', data)
-      console.log('User object:', user)
+      // console.log('Opening Balance Data:', data)
+      // console.log('User object:', user)
       
       // Call the save opening balance API
       const response = await DayendService.saveOpeningBalance({
@@ -22,9 +22,9 @@ export default function OpeningBalancePage() {
         user_id: Number(user.id)
         
       })
-      console.log("hotelid:", user?.hotelid)
-console.log("userid:", user?.id)
-console.log("outletid:", user?.outletid)
+//       console.log("hotelid:", user?.hotelid)
+// console.log("userid:", user?.id)
+// console.log("outletid:", user?.outletid)
       
       console.log('Save Opening Balance Response:', response)
 
@@ -33,7 +33,7 @@ console.log("outletid:", user?.outletid)
       // ✅ After submit go to dashboard
       navigate('/')
     } catch (error) {
-      console.error(error)
+      // console.error(error)
     }
   }
 

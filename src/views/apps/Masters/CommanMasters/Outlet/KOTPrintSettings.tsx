@@ -102,7 +102,7 @@ const KOTPrintSettings: React.FC = () => {
           setSettings(data);
         }
       } catch (error) {
-        console.error('Failed to load KOT print settings:', error);
+        // console.error('Failed to load KOT print settings:', error);
         toast.error('Failed to load settings');
       } finally {
         setLoading(false);
@@ -141,7 +141,7 @@ const KOTPrintSettings: React.FC = () => {
       await applyKotSettings(Number(outletId), settings);
       toast.success('KOT print settings updated successfully');
     } catch (error) {
-      console.error('Failed to update settings:', error);
+      // console.error('Failed to update settings:', error);
       toast.error('Failed to update settings');
     } finally {
       setSaving(false);

@@ -24,7 +24,7 @@ const BillPrintSettings: React.FC = () => {
   };
 
   const handleUpdate = () => {
-    console.log('Bill print settings updated');
+    // console.log('Bill print settings updated');
     // Add your update logic here (e.g., API call to save settings)
   };
 

@@ -75,7 +75,7 @@ const KitchenAllocation: React.FC = () => {
         setDepartments(Array.isArray(departmentsRes.data) ? departmentsRes.data : []);
         setKitchenMainGroups(Array.isArray(kitchenMainGroupsRes.data) ? kitchenMainGroupsRes.data : []);
       } catch (err) {
-        console.error('Error fetching filter options:', err);
+        // console.error('Error fetching filter options:', err);
         setError('Failed to load filter options. Please check your connection.');
       }
     };
@@ -105,7 +105,7 @@ const KitchenAllocation: React.FC = () => {
       setPrinterName(res?.[0]?.printer_name || null);
 
     } catch (err) {
-      console.error('Error fetching printer:', err);
+      // console.error('Error fetching printer:', err);
       toast.error('Failed to load printer settings.');
       setPrinterName(null);
     }
@@ -161,8 +161,8 @@ const KitchenAllocation: React.FC = () => {
         filterId
       });
 
-      console.log('KitchenAllocation data received:', result.data.slice(0, 5)); // Log first 5 items to check item_no
-      console.log('Sample item_no values:', result.data.slice(0, 5).map(item => ({item_no: item.item_no, item_name: item.item_name})));
+      // console.log('KitchenAllocation data received:', result.data.slice(0, 5)); // Log first 5 items to check item_no
+      // console.log('Sample item_no values:', result.data.slice(0, 5).map(item => ({item_no: item.item_no, item_name: item.item_name})));
 
       if (result.success) {
         setData(result.data);
@@ -171,7 +171,7 @@ const KitchenAllocation: React.FC = () => {
       }
     } catch (err: any) {
       setError(err.message || 'Error fetching data');
-      console.error(err);
+      // console.error(err);
     } finally {
       setLoading(false);
     }
@@ -210,7 +210,7 @@ const KitchenAllocation: React.FC = () => {
       // Get system printers via Electron API (asynchronous)
       const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
       const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
-      console.log("System Printers:", systemPrinters);
+      // console.log("System Printers:", systemPrinters);
 
       if (systemPrinters.length === 0) {
         toast.error("No printers detected on this system. Please check printer connections and drivers.");
@@ -244,7 +244,7 @@ const KitchenAllocation: React.FC = () => {
           finalPrinterName = fallbackPrinter.name;
           usedFallback = true;
           if (printerName) {
-            console.warn(`Configured printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
+            // console.warn(`Configured printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
             toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
           }
         } else {
@@ -258,10 +258,10 @@ const KitchenAllocation: React.FC = () => {
         return;
       }
       if (usedFallback) {
-        console.log("Fallback printer used");
+        // console.log("Fallback printer used");
       }
 
-      console.log(`Printing to printer: ${finalPrinterName}`);
+      // console.log(`Printing to printer: ${finalPrinterName}`);
 
  const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty), 0);
 const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount), 0);
@@ -372,7 +372,7 @@ const reportHTML = `
         toast.error("Electron print API not available.");
       }
     } catch (err) {
-      console.error("Print error:", err);
+      // console.error("Print error:", err);
       toast.error("Failed to print Kitchen Allocation Report.");
     } finally {
       setLoading(false);
@@ -413,7 +413,7 @@ const reportHTML = `
       }
 
     } catch (error: any) {
-      console.error('Error fetching item details:', error);
+      // console.error('Error fetching item details:', error);
       setModalData([]);
       toast.error(error.message || 'Failed to fetch item details');
     } finally {

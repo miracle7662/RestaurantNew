@@ -191,10 +191,10 @@ function SettingsPage() {
     const fetchPrinters = async () => {
       try {
         const printerList = await window.electronAPI.getInstalledPrinters();
-        console.log('Printers fetched from system:', printerList);
+        // console.log('Printers fetched from system:', printerList);
         setPrinters(printerList);
       } catch (error) {
-        console.error('Failed to fetch printers:', error);
+        // console.error('Failed to fetch printers:', error);
       }
     };
     fetchPrinters();

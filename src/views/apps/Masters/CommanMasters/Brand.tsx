@@ -84,25 +84,25 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
   const fetchHotelData = async () => {
     if (!brand) return;
 
-    console.log('Brand object:', brand);
-    console.log('Brand.hotelid:', brand.hotelid);
+    // console.log('Brand object:', brand);
+    // console.log('Brand.hotelid:', brand.hotelid);
 
     setFetchingHotelData(true);
     try {
       const hotelid = brand.hotelid || brand.hotelid;
-      console.log('Using hotel ID:', hotelid);
+      // console.log('Using hotel ID:', hotelid);
 
       if (!hotelid) {
-        console.error('No hotel ID found in brand object');
+        // console.error('No hotel ID found in brand object');
         toast.error('No hotel ID found');
         return;
       }
 
       const hotelDataResult = await BrandService.getBrandById(hotelid);
-      console.log('Fetched hotel data:', hotelDataResult);
+      // console.log('Fetched hotel data:', hotelDataResult);
       setHotelData(hotelDataResult);
     } catch (err: any) {
-      console.error('Error fetching hotel data:', err);
+      // console.error('Error fetching hotel data:', err);
       toast.error(err.message || 'Error fetching hotel data');
     } finally {
       setFetchingHotelData(false);
@@ -144,7 +144,7 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
         created_by_id: 1
       };
 
-      console.log('Creating user with payload:', payload);
+      // console.log('Creating user with payload:', payload);
 
       await BrandService.createUser(payload);
       toast.success('Hotel Admin created successfully!');
@@ -154,7 +154,7 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
       onSuccess();
       onHide();
     } catch (err) {
-      console.error('Error creating user:', err);
+      // console.error('Error creating user:', err);
       toast.error('Something went wrong');
     } finally {
       setLoading(false);
@@ -326,8 +326,8 @@ const BrandList: React.FC = () => {
       const brands = await BrandService.getBrands(params);
 
 
-      console.log('Fetched HotelMasters:', brands); // Debug log to inspect backend data
-      console.log('Sample hotel data:', brands); // Log first item to see structure
+      // console.log('Fetched HotelMasters:', brands); // Debug log to inspect backend data
+      // console.log('Sample hotel data:', brands); // Log first item to see structure
       setHotelMastersItem(brands);
       setFilteredHotelMasters(brands);
     } catch (err) {
@@ -338,7 +338,7 @@ const BrandList: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    console.log('Current user:', user);
+    // console.log('Current user:', user);
     if (user) {
       fetchHotelMasters();
     }
@@ -394,7 +394,7 @@ const BrandList: React.FC = () => {
         size: 150,
         cell: (info) => {
           const statusValue = info.getValue<string | number>();
-          console.log('Status value:', statusValue, typeof statusValue); // Debug log
+          // console.log('Status value:', statusValue, typeof statusValue); // Debug log
           return <div style={{ textAlign: 'center' }}>{statusValue == '0' || statusValue === 0 ? 'Active' : 'Inactive'}</div>;
         },
       },
@@ -839,14 +839,14 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
         payload.hotelid = hotelid;
         payload.updated_by_id = userId; // use actual user ID
 
-        console.log('Updating HotelMasters:', payload);
+        // console.log('Updating HotelMasters:', payload);
 
         await BrandService.updateBrand(hotelid, payload);
       } else {
         // === ADD ===
         payload.created_by_id = userId; // use actual user ID
 
-        console.log('Creating HotelMasters:', payload);
+        // console.log('Creating HotelMasters:', payload);
 
         await BrandService.addBrand(payload);
       }
@@ -865,7 +865,7 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
       onSuccess();
       onHide();
     } catch (err: any) {
-      console.error('HotelMasters save error:', err);
+      // console.error('HotelMasters save error:', err);
       toast.error(err.message || 'Something went wrong');
     } finally {
       setLoading(false);

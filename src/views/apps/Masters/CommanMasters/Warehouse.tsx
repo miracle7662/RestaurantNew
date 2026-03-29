@@ -256,7 +256,7 @@ const Warehouse: React.FC = () => {
                 setWarehouse_name(warehouse.warehouse_name);
                 setLocation(warehouse.location);
                 setStatus(String(warehouse.status) === '0' ? 'Active' : 'Inactive');
-                console.log('Edit warehouse status:', warehouse.status, typeof warehouse.status);
+                // console.log('Edit warehouse status:', warehouse.status, typeof warehouse.status);
             } else {
                 setWarehouse_name('');
                 setLocation('');
@@ -299,7 +299,7 @@ const Warehouse: React.FC = () => {
                             marketid: marketId,
                         }),
                 };
-                console.log('Sending to backend:', payload);
+                // console.log('Sending to backend:', payload);
 
                 if (isEditMode) {
                     await WarehouseService.update(warehouse!.warehouseid, payload);
@@ -326,7 +326,7 @@ const Warehouse: React.FC = () => {
                 onSuccess();
                 onHide();
             } catch (err) {
-                console.error(`${isEditMode ? 'Edit' : 'Add'} Warehouse error:`, err);
+                // console.error(`${isEditMode ? 'Edit' : 'Add'} Warehouse error:`, err);
                 toast.error('Something went wrong');
             } finally {
                 setLoading(false);

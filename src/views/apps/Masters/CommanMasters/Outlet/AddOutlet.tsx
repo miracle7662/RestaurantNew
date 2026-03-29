@@ -533,7 +533,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         }
 
         // Log the response for debugging
-        console.log('Backend Response:', JSON.stringify(data, null, 2));
+        // console.log('Backend Response:', JSON.stringify(data, null, 2));
 
         // Parse nested JSON fields and map to formData
         const allFormData: OutletSettings = {
@@ -774,7 +774,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         setFormData(allFormData);
         setSuccess('Outlet settings fetched successfully.');
       } catch (error) {
-        console.error('Error fetching outlet settings:', error);
+        // console.error('Error fetching outlet settings:', error);
         setError('Failed to fetch outlet settings.');
       } finally {
         setLoading(false);
@@ -830,7 +830,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
     setSuccess(null);
 
     try {
-      console.log('Updating settings for outletid:', outletid, 'hotelId:', hotelId); // Debug log
+      // console.log('Updating settings for outletid:', outletid, 'hotelId:', hotelId); // Debug log
 
       // Bill Preview Settings Payload
       // Use formData.outlet_name or fallback to Outlet.outlet_name if available
@@ -1081,15 +1081,15 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Failed to update settings';
       setError(`Error updating settings: ${errorMessage}`);
-      console.error('Error updating settings:', err.response?.status, err.response?.data, err.message);
+      // console.error('Error updating settings:', err.response?.status, err.response?.data, err.message);
       if (err.response?.status === 404) {
-        console.log('Endpoint not found. Check the following URLs:', {
-          billPreview: `${baseUrl}/api/outlets/bill-preview-settings/${outletid}`,
-          kotPrint: `${baseUrl}/api/outlets/kot-print-settings/${outletid}`,
-          billPrint: `${baseUrl}/api/outlets/bill-print-settings/${outletid}`,
-          general: `${baseUrl}/api/outlets/general-settings/${outletid}`,
-          onlineOrders: `${baseUrl}/api/outlets/online-orders-settings/${outletid}`,
-        });
+        // console.log('Endpoint not found. Check the following URLs:', {
+        //   billPreview: `${baseUrl}/api/outlets/bill-preview-settings/${outletid}`,
+        //   kotPrint: `${baseUrl}/api/outlets/kot-print-settings/${outletid}`,
+        //   billPrint: `${baseUrl}/api/outlets/bill-print-settings/${outletid}`,
+        //   general: `${baseUrl}/api/outlets/general-settings/${outletid}`,
+        //   onlineOrders: `${baseUrl}/api/outlets/online-orders-settings/${outletid}`,
+        // });
       }
 
 

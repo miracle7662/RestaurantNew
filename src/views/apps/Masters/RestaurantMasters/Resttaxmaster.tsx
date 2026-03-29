@@ -190,7 +190,7 @@ const RestTaxMaster: React.FC = () => {
         response = await RestTaxMasterService.create(payload);
         setSuccess('Rest tax created successfully');
       }
-      console.log(response);
+      // console.log(response);
       setShowModal(false);
       resetForm();
       await fetchData();

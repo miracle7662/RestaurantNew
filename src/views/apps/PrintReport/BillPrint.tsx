@@ -131,20 +131,20 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
   const loadOutletSettings = async (outletId: number) => {
     try {
-      console.log('BillPrint: Loading outlet settings for outletId:', outletId);
+      // console.log('BillPrint: Loading outlet settings for outletId:', outletId);
       const [billPreviewRes, billPrintRes] = await Promise.all([
         BillPrintService.getBillPreviewSettings(outletId),
         BillPrintService.getBillPrintSettings(outletId)
       ]);
       const billPreviewSettings = billPreviewRes?.data || billPreviewRes;
       const billPrintSettings = billPrintRes?.data || billPrintRes;
-      console.log('BillPrint: Fetched billPreviewSettings:', billPreviewSettings);
-      console.log('BillPrint: Fetched billPrintSettings:', billPrintSettings);
+      // console.log('BillPrint: Fetched billPreviewSettings:', billPreviewSettings);
+      // console.log('BillPrint: Fetched billPrintSettings:', billPrintSettings);
       const newFormData = applyBillSettings(localFormData, billPreviewSettings, billPrintSettings);
-      console.log('BillPrint: New form data after applyBillSettings:', newFormData);
+      // console.log('BillPrint: New form data after applyBillSettings:', newFormData);
       setLocalFormData(newFormData);
     } catch (err) {
-      console.error('Failed to load outlet settings', err);
+      // console.error('Failed to load outlet settings', err);
     }
   };
 
@@ -167,23 +167,23 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
     const fetchPrinter = async () => {
       if (!outletId) {
-        console.log('No outletId, skipping fetch');
+        // console.log('No outletId, skipping fetch');
         return;
       }
 
-      console.log('Fetching printer for outletId:', outletId);
+      // console.log('Fetching printer for outletId:', outletId);
 
       try {
         const res = await BillPrintService.getBillPrinterSettings(outletId);
         const data = res?.data || res;
-        console.log('API response data:', data);
+        // console.log('API response data:', data);
         const printer = data?.printer_name || null;
-        console.log('Setting printerName to:', printer);
+        // console.log('Setting printerName to:', printer);
         setPrinterName(printer);
 
 
       } catch (err) {
-        console.error('Error fetching printer:', err);
+        // console.error('Error fetching printer:', err);
         toast.error('Failed to load printer settings.');
         setPrinterName(null);
       }
@@ -211,7 +211,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
             setLocalOutletName(data.outlet_name || 'Outlet Name');
           }
         } catch (error) {
-          console.error('Error fetching outlet details:', error);
+          // console.error('Error fetching outlet details:', error);
           setLocalRestaurantName(user?.hotel_name || 'Restaurant Name');
           setLocalOutletName(user?.outlet_name || 'Outlet Name');
         }
@@ -272,9 +272,9 @@ html, body {
   };
 
   const handlePrintBill = async () => {
-    console.log('Print Bill button clicked');
-    console.log('Current printerName:', printerName);
-    console.log('Current outletId:', outletId);
+    // console.log('Print Bill button clicked');
+    // console.log('Current printerName:', printerName);
+    // console.log('Current outletId:', outletId);
 
     try {
       setLoading(true);
@@ -284,7 +284,7 @@ html, body {
       // Get system printers via Electron API (asynchronous)
       const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
       const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
-      console.log("System Printers:", systemPrinters);
+      // console.log("System Printers:", systemPrinters);
 
       if (systemPrinters.length === 0) {
         toast.error("No printers detected on this system. Please check printer connections and drivers.");
@@ -328,7 +328,7 @@ html, body {
       }
 
       if (usedFallback) {
-        console.log("Fallback printer used");
+        // console.log("Fallback printer used");
       }
 
       // Generate KOT HTML for printing
@@ -350,7 +350,7 @@ html, body {
         toast.error("Electron print API not available.");
       }
     } catch (err) {
-      console.error("Print error:", err);
+      // console.error("Print error:", err);
       toast.error("Failed to print KOT.");
     } finally {
       setLoading(false);

@@ -134,7 +134,7 @@ const ReportPage = () => {
           const response = await brandService.getBrandById(String(user.hotelid));
           setHotelDetails(response.data);
         } catch (error) {
-          console.error("Failed to fetch hotel details", error);
+          // console.error("Failed to fetch hotel details", error);
         }
       }
       setLoading(false);
@@ -164,7 +164,7 @@ const ReportPage = () => {
         const data = await ReportService.getPaymentModesByOutlet(filters.outlet || '');
         setDynamicPaymentModes(data);
       } catch (error) {
-        console.error("Error fetching payment modes:", error);
+        // console.error("Error fetching payment modes:", error);
         setDynamicPaymentModes([]);
       }
     };
@@ -202,7 +202,7 @@ const ReportPage = () => {
       const response = await ReportService.getDailySalesReport({ start, end });
       
       if (response.success && response.data) {
-        console.log("Fetched bills data:", response.data.orders);
+        // console.log("Fetched bills data:", response.data.orders);
         const orders: any[] = response.data.orders || [];
         const allBills: Bill[] = orders.map((order: any) => ({
           orderNo: order.orderNo,
@@ -266,7 +266,7 @@ const ReportPage = () => {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error fetching report data:', err);
+      // console.error('Error fetching report data:', err);
     } finally {
       setLoading(false);
     }
@@ -494,7 +494,7 @@ const ReportPage = () => {
 
   const exportToExcel = () => {
     // 1. Get hotel info from user context
-    console.log("User context data:", user);
+    // console.log("User context data:", user);
 
     // Ensure dynamicPaymentModes is always an array to prevent errors
     // const paymentModes = Array.isArray(dynamicPaymentModes) ? dynamicPaymentModes : [];

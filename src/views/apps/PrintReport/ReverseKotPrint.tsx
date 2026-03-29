@@ -94,7 +94,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   "Outlet Name"
 );
       } catch (error) {
-        console.error("Error fetching printer/outlet:", error);
+        // console.error("Error fetching printer/outlet:", error);
         toast.error("Failed to load printer/outlet settings");
         setPrinterName(null);
         setLocalRestaurantName(user?.hotel_name || "");
@@ -275,7 +275,7 @@ ${generateContent}
       toast.success("Reverse KOT Printed");
       onHide();
     } catch (err) {
-      console.error(err);
+      // console.error(err);
       toast.error("Print failed");
     } finally {
       setLoading(false);

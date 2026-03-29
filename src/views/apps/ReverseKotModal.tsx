@@ -65,14 +65,14 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     useEffect(() => {
         const fetchNextRevKot = async () => {
             if (show && outletid) {
-                console.log('Fetching next reverse KOT for outlet:', outletid);
+                // console.log('Fetching next reverse KOT for outlet:', outletid);
                 try {
                     const response = await OrderService.fetchGlobalReverseKOTNumber(outletid, currDate);
                     if (response.data?.nextRevKOT) {
                         setNextRevKotNo(response.data.nextRevKOT);
                     }
                 } catch (error) {
-                    console.error('Error fetching global reverse KOT number:', error);
+                    // console.error('Error fetching global reverse KOT number:', error);
                     toast.error('Failed to fetch reverse KOT number');
                 }
             }
@@ -171,7 +171,7 @@ useEffect(() => {
             return;
         }
 
-        console.log('Modal sending:', filteredItems);
+        // console.log('Modal sending:', filteredItems);
 
         onSave(filteredItems);
         onClose();

@@ -41,7 +41,7 @@ const KOTAllocationPrintPreview: React.FC = () => {
           const response = await brandService.getBrandById(String(user.hotelid));
           setHotelDetails(response.data);
         } catch (error) {
-          console.error("Failed to fetch hotel details", error);
+          // console.error("Failed to fetch hotel details", error);
         }
       }
     };

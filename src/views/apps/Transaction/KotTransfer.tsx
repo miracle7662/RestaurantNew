@@ -113,10 +113,10 @@ const [proposedPax, setProposedPax] = useState<number>(1);
       if (data.success) {
         setDepartments(data.data);
       } else {
-        console.error('Failed to fetch departments');
+        // console.error('Failed to fetch departments');
       }
     } catch (error) {
-      console.error('Error fetching departments:', error);
+      // console.error('Error fetching departments:', error);
     }
   };
 
@@ -138,7 +138,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
         setTables(mappedTables);
       }
     } catch (error) {
-      console.error('Error fetching tables:', error);
+      // console.error('Error fetching tables:', error);
     }
   };
 
@@ -187,7 +187,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
         }
 
       } catch (error) {
-        console.error('Error fetching initial data:', error);
+        // console.error('Error fetching initial data:', error);
       } finally {
         setLoading(false);
       }
@@ -270,7 +270,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
         setProposedItems(mappedItems);
       }
     } catch (error) {
-      console.error(`Error fetching items for table ${tableId}:`, error);
+      // console.error(`Error fetching items for table ${tableId}:`, error);
     }
   };
 
@@ -325,7 +325,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
   };
 
   const handleSelectedTableChange = async (tableId: string) => {
-    console.log('Selected Table ID:', handleSelectedTableChange);
+    // console.log('Selected Table ID:', handleSelectedTableChange);
     const numericTableId = Number(tableId);
     setSelectedTableId(numericTableId);
     const srcTable = tables.find(t => t.id === tableId);
@@ -453,7 +453,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
           hotelid: user?.hotelid || user?.hotelId,
           outletid: tableOutletId || user?.outletid || user?.outletId
         };
-        console.log('SAVE PAYLOAD:', payload);
+        // console.log('SAVE PAYLOAD:', payload);
         result = await OrderService.transferTable(payload);
       } else {
         const payload: TransferKOTPayload = {
@@ -471,7 +471,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
           hotelid: user?.hotelid || user?.hotelId,
           outletid: tableOutletId || user?.outletid || user?.outletId
         };
-        console.log('SAVE PAYLOAD:', payload);
+        // console.log('SAVE PAYLOAD:', payload);
         result = await OrderService.transferKOT(payload);
       }
 
@@ -492,7 +492,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
       onSuccess?.();
 
     } catch (error) {
-      console.error('Error saving transfer:', error);
+      // console.error('Error saving transfer:', error);
       alert('An error occurred while saving the transfer.');
     }
   };

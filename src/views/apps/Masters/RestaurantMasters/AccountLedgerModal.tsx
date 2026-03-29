@@ -76,7 +76,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
         setStates(response.data);
       }
     } catch (err) {
-      console.error('Error loading states:', err);
+      // console.error('Error loading states:', err);
       toast.error('Failed to load states');
     }
   }, []);
@@ -91,7 +91,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
         setCities([]);
       }
     } catch (err) {
-      console.error('Error loading cities:', err);
+      // console.error('Error loading cities:', err);
       toast.error('Failed to load cities');
     }
   }, []);
@@ -102,7 +102,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
       const data = await AccountTypeService.list();
       setAccountTypes(data);
     } catch (err) {
-      console.error('Error loading account types:', err);
+      // console.error('Error loading account types:', err);
       toast.error('Failed to load account types');
     }
   }, []);
@@ -116,7 +116,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
         LedgerNo: response.nextLedgerNo.toString(),
       }));
     } catch (err) {
-      console.error('Error getting next ledger number:', err);
+      // console.error('Error getting next ledger number:', err);
       toast.error('Failed to get next ledger number');
     }
   }, []);

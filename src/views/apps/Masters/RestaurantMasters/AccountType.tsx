@@ -84,10 +84,10 @@ const AccountType: React.FC = () => {
 
     try {
       const response = await AccountNatureService.list();
-       console.log("API Response:", response);
+      //  console.log("API Response:", response);
       setAccountNatures(response || []);
     } catch (err) {
-      console.error('Failed to fetch account natures:', err);
+      // console.error('Failed to fetch account natures:', err);
     }
   };
 
@@ -101,15 +101,15 @@ const AccountType: React.FC = () => {
   // Log session values when they change
   useEffect(() => {
     if (session.userId) {
-      console.log(`User ID received: ${session.userId}`);
+      // console.log(`User ID received: ${session.userId}`);
     } else {
-      console.warn('Warning: User ID is missing');
+      // console.warn('Warning: User ID is missing');
     }
 
     if (session.hotelid) {
-      console.log(`Hotel ID received: ${session.hotelid}`);
+      // console.log(`Hotel ID received: ${session.hotelid}`);
     } else {
-      console.warn('Warning: Hotel ID is missing');
+      // console.warn('Warning: Hotel ID is missing');
     }
   }, [session.userId, session.hotelid]);
 
