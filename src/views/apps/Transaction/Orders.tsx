@@ -1480,21 +1480,23 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
     resetBillingPanel();
     setActiveNavTab('ALL'); // Show all department tables
   };
-  const handlePrintBill = async () => {
+  const handlePrintBill = async (txnId?: number) => {
+    const id = txnId || currentTxnId;
+
     if (items.length === 0) {
       toast.error('No items to print a bill for.');
       return;
     }
 
-    if (!currentTxnId) {
-      toast.error('Cannot print bill. No transaction ID found. Please save the KOT first.');
+    if (!id) {
+      toast.error("No TxnID found");
       return;
     }
 
     setLoading(true);
     try {
       // 1. Call the new endpoint to mark the bill as billed
-      const printResult = await OrderService.markBillAsBilled(currentTxnId, {
+      const printResult = await OrderService.markBillAsBilled(id, {
         outletId: selectedOutletId || Number(user?.outletid),
         customerName: customerName || null,
         mobileNo: mobileNumber || null,
@@ -1581,20 +1583,24 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
     try {
       setLoading(true);
 
-      // 1️⃣ First: Save and Print KOT (this already returns nothing)
-      await handlePrintAndSaveKOT();
+      // 1️⃣ Save + Print KOT
+      const txnId = await handlePrintAndSaveKOT();
 
-      // 2️⃣ Second: Print the Bill (it uses currentTxnId internally)
-      await handlePrintBill();
+      if (!txnId) {
+        throw new Error("TxnID not found after KOT save");
+      }
+
+      // 2️⃣ Print Bill with txnId
+      await handlePrintBill(txnId); // 👈 pass karo
 
       toast.success("KOT and Bill printed successfully!");
 
-      // 3️⃣ Final UI cleanup
       setShowPrintBoth(false);
       setItems([]);
       setCurrentTxnId(null);
       setOrderNo(null);
-      window.location.reload(); // Refresh to clear state and table color updates
+      window.location.reload();
+
     } catch (error: any) {
       toast.error(error.message || "Failed to print KOT and Bill");
     } finally {
@@ -1661,7 +1667,7 @@ const tableNameForKOT =
       if (!resolvedOutletId) {
         toast.error("Outlet could not be determined. Please select an outlet.");
         setLoading(false);
-        return;
+        return null;
       }
 
       let currentTaxRates = { ...taxRates };
@@ -1841,9 +1847,11 @@ const tableNameForKOT =
 
         // Update TxnNo and TxnID from the response
         if (resp?.data) {
-          const { orderNo, TxnID, } = resp.data;
+          const { orderNo, TxnID } = resp.data;
           setOrderNo(orderNo ?? null);
-          setCurrentTxnId(TxnID ?? null);
+          const txnId = TxnID ?? null;
+          setCurrentTxnId(txnId);
+
           // Robustly set KOT number, checking for different possible casings
           const receivedKotNo = resp.data.KOTNo ??
             resp.data.KOTNo ??
@@ -1857,92 +1865,102 @@ const tableNameForKOT =
             if (!receivedKotNo) return prev;
             return [...new Set([...(prev || []), receivedKotNo])];
           });
-        }
 
-        // Optimistically update the table status to green (1)
-        if (selectedTable) {
-          setTableItems(prevTables =>
-            prevTables.map(table =>
-              table.table_name === selectedTable
-                ? { ...table, status: 1 } // 1 for occupied/green
-                : table
-            )
-          );
-        }
-        setIsPrintMode(false);
-        // 🔥 HARD RESET after KOT save
-        setItems([]);
-        setPrintItems([]);
-        setReverseQtyItems([]);
-        setReversedItems([]);
-        setReverseQtyMode(false);
-        setIsGroupedView(true);
-        // setCurrentKOTNo(null);
-        // setCurrentKOTNos([]);
-        // setCurrentTxnId(null);
-        // setOrderNo(null);
+          if (!txnId) {
+            throw new Error("TxnID not found after KOT save");
+          }
 
-        // IMPORTANT
-        setPersistentTxnId(null);
-        setPersistentTableId(0);
-        setSourceTableId(null);
-        // ✅ Clear customer details after KOT save for Dine-in, Pickup, Delivery
-        if (['Dine-in', 'Pickup', 'Delivery'].includes(activeTab)) {
-          setMobileNumber('');
-          setCustomerName('');
-          setOrderNo(null);
-        }
+          // Optimistically update the table status to green (1)
+          if (selectedTable) {
+            setTableItems(prevTables =>
+              prevTables.map(table =>
+                table.table_name === selectedTable
+                  ? { ...table, status: 1 } // 1 for occupied/green
+                  : table
+              )
+            );
+          }
+          setIsPrintMode(false);
+          // 🔥 HARD RESET after KOT save
+          setItems([]);
+          setPrintItems([]);
+          setReverseQtyItems([]);
+          setReversedItems([]);
+          setReverseQtyMode(false);
+          setIsGroupedView(true);
+          // setCurrentKOTNo(null);
+          // setCurrentKOTNos([]);
+          // setCurrentTxnId(null);
+          // setOrderNo(null);
 
-        // After saving KOT, prepare items for printing and show print modal
-        let kotItemsToPrint;
-        if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
-          // For these tabs, print all items as the order KOT
-          kotItemsToPrint = items.map(i => ({
-            ...i,
-            isNew: true,
-            kotNo: currentKOTNo || undefined
-          }));
+          // IMPORTANT
+          setPersistentTxnId(null);
+          setPersistentTableId(0);
+          setSourceTableId(null);
+          // ✅ Clear customer details after KOT save for Dine-in, Pickup, Delivery
+          if (['Dine-in', 'Pickup', 'Delivery'].includes(activeTab)) {
+            setMobileNumber('');
+            setCustomerName('');
+            setOrderNo(null);
+          }
+
+          // After saving KOT, prepare items for printing and show print modal
+          let kotItemsToPrint;
+          if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
+            // For these tabs, print all items as the order KOT
+            kotItemsToPrint = items.map(i => ({
+              ...i,
+              isNew: true,
+              kotNo: currentKOTNo || undefined
+            }));
+          } else {
+            // For Dine-in, print only new items
+            kotItemsToPrint = newItemsToKOT.map(i => ({
+              ...i,
+              isNew: true,
+              kotNo: currentKOTNo || undefined
+            }));
+          }
+
+          // Ensure selectedTable is set for the preview
+          if (!selectedTable && selectedTableRecord) {
+            setSelectedTable(selectedTableRecord.table_name);
+          }
+
+          setPrintItems(kotItemsToPrint);
+          setShowKotPreviewModal(true);
+          setKotNote(''); // Clear KOT note after printing
+
+          // If it was a quick bill, refresh the quick bill data
+          if (activeTab === 'Quick Bill') {
+            await fetchQuickBillData();
+          }
+
+          // Refresh saved KOTs list in the background without blocking UI
+          OrderService.getSavedKOTs({ isBilled: 0 })
+            .then(listResp => {
+              const list = listResp?.data || listResp;
+              if (Array.isArray(list)) setSavedKOTs(list);
+            })
+            .catch(err => {
+              console.warn('refresh saved KOTs failed', err);
+            });
+
+          return txnId; // ✅ RETURN txnId
         } else {
-          // For Dine-in, print only new items
-          kotItemsToPrint = newItemsToKOT.map(i => ({
-            ...i,
-            isNew: true,
-            kotNo: currentKOTNo || undefined
-          }));
+          toast.error(resp?.message || 'Failed to save KOT');
+          return null;
         }
-
-        // Ensure selectedTable is set for the preview
-        if (!selectedTable && selectedTableRecord) {
-          setSelectedTable(selectedTableRecord.table_name);
-        }
-
-        setPrintItems(kotItemsToPrint);
-        setShowKotPreviewModal(true);
-        setKotNote(''); // Clear KOT note after printing
-
-        // If it was a quick bill, refresh the quick bill data
-        if (activeTab === 'Quick Bill') {
-          await fetchQuickBillData();
-        }
-
-        // Refresh saved KOTs list in the background without blocking UI
-        OrderService.getSavedKOTs({ isBilled: 0 })
-          .then(listResp => {
-            const list = listResp?.data || listResp;
-            if (Array.isArray(list)) setSavedKOTs(list);
-          })
-          .catch(err => {
-            console.warn('refresh saved KOTs failed', err);
-          });
       } else {
-        toast.error(resp?.message || 'Failed to save KOT');
+        throw new Error(resp?.message || 'Failed to save KOT');
       }
     } catch (e: any) {
       toast.error(e?.message || 'Error saving KOT');
+      return null;
     } finally {
       setLoading(false);
     }
-  }; 
+  };
   const handlePrintAndSettle = async () => {
     if (items.length === 0) {
       toast.error('No items to process.');
@@ -4479,13 +4497,9 @@ setSelectedDeptId(deptId ?? 0);
                             {/* Unbilled items exist */}
                             {items.length > 0 && items.some(item => item.isBilled === 0) && (
                               <>
-                                <Button
-                                  size="sm"
-                                  variant="primary"
-                                  onClick={handlePrintBill}
-                                >
-                                  🖨️ Bill (F10)
-                                </Button>
+                                <Button onClick={() => handlePrintBill(txnId)}>
+  Print Bill
+</Button>
                                 <Button
                                   size="sm"
                                   variant="success"
@@ -4500,13 +4514,13 @@ setSelectedDeptId(deptId ?? 0);
                            {items.length > 0 && items.every(item => item.isBilled === 1) && (
 
                               <>
-                                <Button
-                                  size="sm"
-                                  variant="primary"
-                                  onClick={handlePrintBill}
-                                >
-                                  🖨️ Bill
-                                </Button>
+                               <Button
+  size="sm"
+  variant="primary"
+  onClick={() => handlePrintBill(txnId)}
+>
+  🖨️ Bill
+</Button>
                                 <Button
                                   size="sm"
                                   variant="success"

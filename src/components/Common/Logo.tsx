@@ -1,4 +1,4 @@
-import logo from '@/assets/images/logos/logo.jpeg'
+import logo from '/logo.jpeg'
 
 const Logo = ({ onClick }: { onClick?: () => void }) => {
  return (

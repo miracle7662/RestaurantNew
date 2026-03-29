@@ -1,12 +1,11 @@
-# TODO: Add Selected Waiter Display to ReverseKotPrint.tsx and NcKotPrint.tsx
+# TODO: Fix handlePrintAndSaveKOT Async State Issue
 
-## Steps:
-- [x] Step 1: Edit ReverseKotPrint.tsx - Add selectedWaiter prop, destructure, and display in generateContent HTML (after User line).
-- [x] Step 1: Edit ReverseKotPrint.tsx ✓
-- [x] Step 2: Edit NcKotPrint.tsx ✓
-- [x] Step 3: Pass selectedWaiter prop from Orders.tsx to all 3 print modals ✓
-- [x] Step 4: Test and complete. ✅ NC KOT waiter display fixed!
+## Plan Steps (Approved by User)
+- [ ] 1. Update `handlePrintAndSaveKOT()` in Orders.tsx: Extract `txnId = resp?.data?.TxnID`, `setCurrentTxnId(txnId)`, `return txnId;`, throw if missing.
+- [ ] 2. Update `handlePrintKotAndBill()`: `const txnId = await handlePrintAndSaveKOT(); if(!txnId) throw Error; await handlePrintBill(txnId);`
+- [ ] 3. Update `handlePrintBill(txnId?: number)`: Use `const id = txnId || currentTxnId;`
+- [ ] 4. Test: Quick Bill → F9 → Verify KOT+Bill prints without "No TxnID" error.
+- [ ] 5. Mark complete, attempt_completion.
 
-**Status**: COMPLETE 🚀
+**Status**: Starting edits...
 
-**Test**: Select waiter → Items → NCKOT → Verify "Waiter: [name]" in print preview
