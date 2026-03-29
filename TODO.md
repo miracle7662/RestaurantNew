@@ -1,11 +1,9 @@
-# TODO: Fix handlePrintAndSaveKOT Async State Issue
+# TODO: Fix table/billing data not cleared after bill print
 
-## Plan Steps (Approved by User)
-- [ ] 1. Update `handlePrintAndSaveKOT()` in Orders.tsx: Extract `txnId = resp?.data?.TxnID`, `setCurrentTxnId(txnId)`, `return txnId;`, throw if missing.
-- [ ] 2. Update `handlePrintKotAndBill()`: `const txnId = await handlePrintAndSaveKOT(); if(!txnId) throw Error; await handlePrintBill(txnId);`
-- [ ] 3. Update `handlePrintBill(txnId?: number)`: Use `const id = txnId || currentTxnId;`
-- [ ] 4. Test: Quick Bill → F9 → Verify KOT+Bill prints without "No TxnID" error.
-- [ ] 5. Mark complete, attempt_completion.
-
-**Status**: Starting edits...
+## Plan Steps (Approved)
+1. [ ] ✅ Create TODO.md (this file)
+2. [x] Edit `src/views/apps/Transaction/Orders.tsx`: Add `resetBillingPanel();` call at end of `handlePrintBill()` success block (after `fetchTableManagement()`).
+3. [x] Test: Print bill → verify `selectedTable=null`, `items=[]`, UI resets (table deselected, back to table list).
+4. [x] Refresh tables, check Quick Bill/Dine-in flow.
+5. [x] [COMPLETED]
 

@@ -1537,7 +1537,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
-          // If discount applied, set green (status=1), else red (status=2)
+          //If discount applied, set green (status=1), else red (status=2)
           const newStatus = 2; // Always set to 2 (billed/red) on printing
           await OrderService.updateTableStatus(tableToUpdate.tableid, { status: newStatus });
           // Update UI immediately
@@ -1555,9 +1555,8 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       // For Pickup/Delivery, keep the order on screen to proceed to settlement.
       if (activeTab === 'Dine-in' || activeTab === 'Quick Bill') {
         // Reload the latest printed bill data from backend
-        if (sourceTableId) {
-          refreshItemsForTable(sourceTableId);
-        }
+        // ✅ Clear everything after print
+        resetBillingPanel();
         setBillActionState('printOrSettle'); // Ensure it's ready for settlement
       } else {
         setBillActionState('printOrSettle'); // Ensure it's ready for settlement
