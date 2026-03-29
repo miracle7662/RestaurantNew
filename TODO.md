@@ -1,20 +1,12 @@
-# Day End Opening Balance Integration
-Repo: d:/Github/RestaurantNew
+# TODO: Add Selected Waiter Display to ReverseKotPrint.tsx and NcKotPrint.tsx
 
-## Plan Summary
-✅ Backend ready: checkOpeningBalanceRequired/saveOpeningBalance
-✅ Service ready: DayendService methods exist
-⏳ Frontend: Add check → modal → save flow in handleSaveDayEnd
+## Steps:
+- [x] Step 1: Edit ReverseKotPrint.tsx - Add selectedWaiter prop, destructure, and display in generateContent HTML (after User line).
+- [x] Step 1: Edit ReverseKotPrint.tsx ✓
+- [x] Step 2: Edit NcKotPrint.tsx ✓
+- [x] Step 3: Pass selectedWaiter prop from Orders.tsx to all 3 print modals ✓
+- [x] Step 4: Test and complete. ✅ NC KOT waiter display fixed!
 
-## Implementation Steps
-- [ ] Step 1: Add states (showOpeningBalanceModal, openingBalance, openingBalanceRequired)
-- [ ] Step 2: In handleSaveDayEnd → checkOpeningBalanceRequired API
-- [ ] Step 3: New OpeningBalanceModal component
-- [ ] Step 4: handleOpeningBalanceSave → proceed to dayend save
-- [ ] Step 5: Test flow (required=true/false)
-- [ ] Step 6: Update TODO.md ✅
+**Status**: COMPLETE 🚀
 
-**Status:** Planning complete → Ready for edits
-
-**Priority:** HIGH - Completes dayend financial flow
-
+**Test**: Select waiter → Items → NCKOT → Verify "Waiter: [name]" in print preview

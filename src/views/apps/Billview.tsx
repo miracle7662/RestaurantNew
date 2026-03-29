@@ -3679,6 +3679,7 @@ const handleF8Action = useCallback(() => {
       </Modal>
       <NCKotPrint
         show={showNCKotPrintModal}
+        selectedWaiter={waiter} 
         onHide={() => {
           setShowNCKotPrintModal(false);
           navigate('/apps/Tableview');
@@ -4006,6 +4007,7 @@ onHide={() => {
       <ReverseKotPrint
         key={reversePrintTrigger}
         show={showReverseKotPrintModal}
+        selectedWaiter={waiter} 
         onHide={() => {
           setShowReverseKotPrintModal(false);
           setReverseSnapshot([]);

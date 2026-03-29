@@ -16,6 +16,7 @@ interface MenuItem {
 
 interface ReverseKotPrintProps {
   show: boolean;
+  selectedWaiter?: string;
   onHide: () => void;
   items: MenuItem[];
   restaurantName?: string;
@@ -29,6 +30,7 @@ interface ReverseKotPrintProps {
 
 const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   show,
+  selectedWaiter,
   onHide,
   items,
   restaurantName,
@@ -146,7 +148,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   <div style="font-size: 10pt;">
     <div><strong>Reverse KOT No:</strong> ${reverseKotNos}</div>
     <div><strong>Date:</strong> ${dateTime}</div>
-    <div><strong>User:</strong> ${user?.username || "-"}</div>
+    <div><strong>Waiter:</strong> ${selectedWaiter || user?.name || "-"}</div>
   </div>
 
   <!-- RIGHT SIDE (TABLE BOX) -->

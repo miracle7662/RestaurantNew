@@ -4650,6 +4650,7 @@ setSelectedDeptId(deptId ?? 0);
           {/* NEW: Reverse KOT Print Modal */}
             <ReverseKotPrint
             show={showReverseKotPrintModal}
+            selectedWaiter={selectedWaiter}
             onHide={() => {
               setShowReverseKotPrintModal(false);
               setReverseSnapshot([]); // 🔥 FIX: Clear snapshot on close
@@ -4668,15 +4669,16 @@ setSelectedDeptId(deptId ?? 0);
           />
 
 
-          <NCKotPrint
+          <NCKotPrint             
             show={showNCKotPrintModal}
-            onHide={() => setShowNCKotPrintModal(false)}
+            selectedWaiter={selectedWaiter}
             items={ncPrintItems}
             tableName={activeTab === 'Dine-in' ? selectedTable ?? 'Table' : activeTab}
             user={user}
             restaurantName={user?.hotel_name}
             outletName={user?.outlet_name}
             date={user?.currDate} 
+            onHide={() => setShowNCKotPrintModal(false)}
             />
 
           <Modal
@@ -4879,11 +4881,11 @@ setSelectedDeptId(deptId ?? 0);
               />
             </Modal.Body>
           </Modal>
-<KotPreviewPrint
+        <KotPreviewPrint
             show={showKotPreviewModal}
-            selectedWaiter={selectedWaiter}
+            selectedWaiter={selectedWaiter}           
             onHide={() => setShowKotPreviewModal(false)}
-onClose={() => {
+            onClose={() => {
               setShowKotPreviewModal(false);
               // Clear the order state after KOT print
               setItems([]);  
