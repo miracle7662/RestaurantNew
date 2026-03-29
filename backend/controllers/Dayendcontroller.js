@@ -263,7 +263,7 @@ const saveDayEnd = async (req, res) => {
     console.log("💰 Calculated Closing Balance (Cash):", closing_balance);
 
     // ===========================================
-    // ✅ STEP 1: CHECK PENDING TABLES BEFORE DAYEND
+    // ✅ STEP 1: CHECK PENDING TABLES & BILLS BEFORE DAYEND
     // ===========================================
     const pendingTables = db.prepare(`
       SELECT tableid AS TableID, table_name
@@ -273,17 +273,48 @@ const saveDayEnd = async (req, res) => {
         AND status = 1
     `).all(outlet_id, hotel_id);
 
-    if (pendingTables.length > 0) {
-      console.log("⛔ Pending Tables Found:", pendingTables.map(t => `${t.TableID} (${t.table_name})`));
-      return res.status(200).json({
-  success: false,
-  message: `Day End cannot be completed — Tables with pending bills: ${pendingTables.map(t => t.table_name).join(', ')}`,
-  pendingTables: pendingTables.map(t => ({
+    // ✅ NEW: Check pending non-table bills (pickup/delivery/quickbill/takeaway)
+    const pendingBills = db.prepare(`
+  SELECT 
+    TxnID, 
+    COALESCE(TxnNo, '') as TxnNo,
+    COALESCE(table_name, 'Unnamed') as table_name
+  FROM TAxnTrnbill 
+  WHERE outletid = ? 
+    AND hotelid = ?
+    AND isDayEnd = 0 
+    AND isSetteled = 0   -- ✅ ONLY UNSETTLED
+    AND table_name IN ('Pickup','Delivery','Quick Bill','Takeaway')
+`).all(outlet_id, hotel_id);
+
+const allPending = [
+  ...pendingTables.map(t => ({
+    type: 'Table',
     id: t.TableID,
     name: t.table_name
+  })),
+  ...pendingBills.map(b => ({
+    type: 'Bill',
+    id: b.TxnID,
+    name: b.TxnNo 
+      ? `${b.table_name} (${b.TxnNo})`
+      : `${b.table_name} (ID: ${b.TxnID})`
   }))
-});
+];
+
+    if (allPending.length > 0) {
+      console.log("⛔ Pending Items Found:", allPending.map(p => `${p.type}:${p.id} (${p.name})`));
+      return res.status(200).json({
+        success: false,
+        message: `Day End cannot be completed — Pending Tables/Bills: ${allPending.map(p => p.name).join(', ')}`,
+        pendingTables: allPending.map(item => ({
+          id: item.id,
+          name: item.name,
+          type: item.type
+        }))
+      });
     }
+    
     // ===========================================
 
     // Get last record

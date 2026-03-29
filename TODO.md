@@ -1,17 +1,20 @@
-# Modern Billing Panel Implementation
-Current Working Directory: d:/Github/RestaurantNew
+# Day End Opening Balance Integration
+Repo: d:/Github/RestaurantNew
 
-## Plan Progress
-✅ **Step 1:** Create `src/assets/scss/components/BillingPanel.module.scss`  
-✅ **Step 2:** Update `src/views/apps/Transaction/Orders.tsx` (replace inline styles)  
-✅ **Step 3:** Import SCSS module in Orders.tsx  
-⏳ **Step 4:** Test responsive layouts (mobile/desktop)  
-⏳ **Step 5:** Test print preview (80mm thermal)  
-⏳ **Step 6:** Verify all buttons/functionality  
-⏳ **Step 7:** Lint & build check  
+## Plan Summary
+✅ Backend ready: checkOpeningBalanceRequired/saveOpeningBalance
+✅ Service ready: DayendService methods exist
+⏳ Frontend: Add check → modal → save flow in handleSaveDayEnd
 
-**Status:** Implementation in progress...
+## Implementation Steps
+- [ ] Step 1: Add states (showOpeningBalanceModal, openingBalance, openingBalanceRequired)
+- [ ] Step 2: In handleSaveDayEnd → checkOpeningBalanceRequired API
+- [ ] Step 3: New OpeningBalanceModal component
+- [ ] Step 4: handleOpeningBalanceSave → proceed to dayend save
+- [ ] Step 5: Test flow (required=true/false)
+- [ ] Step 6: Update TODO.md ✅
 
-## Next Action
-Complete SCSS module → Update Orders.tsx JSX → Mark complete
+**Status:** Planning complete → Ready for edits
+
+**Priority:** HIGH - Completes dayend financial flow
 

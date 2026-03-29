@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import  { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 
 import {
@@ -59,8 +59,8 @@ interface Order {
   items: number;
   kotNo: string;
   revKotNo: string;
-  discount: number;
-  ncKot: string;
+discount: number;
+ncKot: string;
   ncName?: string;
   ncPurpose?: string;
   cgst: number;
@@ -92,14 +92,14 @@ const DayEnd = () => {
   const dd = String(today.getDate()).padStart(2, '0');
   const mm = String(today.getMonth() + 1).padStart(2, '0');
   const yyyy = today.getFullYear();
-
+ 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState("summary");
-
-  const [DayEndBy,] = useState(user?.username || "");
+  
+  const [DayEndBy, ] = useState(user?.username || "");
   const [orders, setOrders] = useState<Order[]>([]);
   const [, setLoading] = useState(true);
   const [, setError] = useState<string | null>(null);
@@ -116,7 +116,7 @@ const DayEnd = () => {
     2: 0,
     1: 0,
   });
-
+  
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordVerified, setPasswordVerified] = useState(false);
   const [showOnlyNotDayEnded, setShowOnlyNotDayEnded] = useState(false);
@@ -139,10 +139,10 @@ const DayEnd = () => {
         if (!response.success) {
           throw new Error('Network response was not ok');
         }
-
+        
         if (response.success) {
-          // console.log("Fetched orders data:", response.data.orders); // Debug log to check revKotNo presence
-          // console.log("RevKOT numbers in orders:", response.data.orders.map((order: any) => order.revKotNo));
+          console.log("Fetched orders data:", response.data.orders); // Debug log to check revKotNo presence
+          console.log("RevKOT numbers in orders:", response.data.orders.map((order: any) => order.revKotNo));
           setOrders(response.data.orders);
         } else {
           throw new Error(response.message || 'Failed to fetch data');
@@ -258,8 +258,8 @@ const DayEnd = () => {
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = (order.orderNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.table.toString().toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
+     order.table.toString().toLowerCase()
+  .includes(searchTerm.toLowerCase()) ||
       (order.waiter || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.captain || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.user || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -274,62 +274,62 @@ const DayEnd = () => {
   };
 
 
-  const handleSaveDayEnd = async () => {
-    if (orders.length === 0) {
-      toast.error("No orders to process for Day-End.");
-      return;
-    }
+ const handleSaveDayEnd = async () => {
+  if (orders.length === 0) {
+    toast.error("No orders to process for Day-End.");
+    return;
+  }
 
-    const payload = {
-      dayend_total_amt: totalSales,
-      outlet_id: orders[0]?.outletid || user?.outletid,
-      hotel_id: user?.hotelid,
-      created_by_id: user?.id,
-    };
-
-    // console.log("Frontend sending payload:", payload);
-
-    try {
-      const response = await DayendService.saveDayEnd(payload);
-
-      // console.log("Backend response:", response);
-
-      // ✅ SUCCESS
-      if (response.success) {
-        toast.success(response.message || "✅ Day-End saved successfully!");
-
-        setOrders([]);
-
-        if (response.data?.dayend_date) {
-          setReportDate(response.data.dayend_date);
-        }
-
-        setShowReportModal(true);
-        return;
-      }
-
-      // ❌ FAILURE (handle pending tables first)
-      if (response.data?.pendingTables?.length) {
-        const tableNames = response.data.pendingTables
-          .map((t: any) => (typeof t === "string" ? t : t.name || t.id))
-          .join(", ");
-
-        toast.error(
-          `🪑 ${response.message || "Pending Tables"}: ${tableNames}`,
-          { duration: 8000 }
-        );
-
-        return; // 🔥 stop here
-      }
-
-      // fallback
-      toast.error(response.message || "❌ Day-End failed!");
-
-    } catch (error) {
-      // console.error("Error saving day-end:", error);
-      toast.error("⚠️ An error occurred while saving Day-End. Please try again.");
-    }
+  const payload = {
+    dayend_total_amt: totalSales,
+    outlet_id: orders[0]?.outletid || user?.outletid,
+    hotel_id: user?.hotelid,
+    created_by_id: user?.id,
   };
+
+  console.log("Frontend sending payload:", payload);
+
+  try {
+  const response = await DayendService.saveDayEnd(payload);
+
+  console.log("Backend response:", response);
+
+  // ✅ SUCCESS
+  if (response.success) {
+    toast.success(response.message || "✅ Day-End saved successfully!");
+
+    setOrders([]);
+
+    if (response.data?.dayend_date) {
+      setReportDate(response.data.dayend_date);
+    }
+
+    setShowReportModal(true);
+    return;
+  }
+
+  // ❌ FAILURE (handle pending tables first)
+  if (response.data?.pendingTables?.length) {
+    const tableNames = response.data.pendingTables
+      .map((t: any) => (typeof t === "string" ? t : t.name || t.id))
+      .join(", ");
+
+    toast.error(
+      `🪑 ${response.message || "Pending Tables"}: ${tableNames}`,
+      { duration: 8000 }
+    );
+
+    return; // 🔥 stop here
+  }
+
+  // fallback
+  toast.error(response.message || "❌ Day-End failed!");
+
+} catch (error) {
+  console.error("Error saving day-end:", error);
+  toast.error("⚠️ An error occurred while saving Day-End. Please try again.");
+}
+};
 
 
   const handleClose = () => {
@@ -352,43 +352,43 @@ const DayEnd = () => {
 
 
   const handleSaveCashDenomination = async () => {
-    const payload = {
-      denominations: cashDenominations,
-      total: countedCashTotal,
-      expected: totalCash,
-      difference: countedCashTotal - totalCash,
-      reason,
-      DayEndBy,
-      userId: user?.id, // NEVER hardcode 1
-    };
-
-    try {
-      setLoading(true);
-
-      const response = await DayendService.saveDayEndCashDenomination(payload);
-
-      if (!response || !response.success) {
-        throw new Error(response?.message || "Failed to save cash denomination");
-      }
-
-      alert(
-        `Day-End Cash Denomination saved successfully! Total Counted Cash: ₹${countedCashTotal.toLocaleString()}`
-      );
-
-      handleCloseCashModal();
-
-    } catch (err) {
-      // console.error("Error saving cash denomination:", err);
-      alert("An error occurred while saving. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  const payload = {
+    denominations: cashDenominations,
+    total: countedCashTotal,
+    expected: totalCash,
+    difference: countedCashTotal - totalCash,
+    reason,
+    DayEndBy,
+    userId: user?.id, // NEVER hardcode 1
   };
+
+  try {
+    setLoading(true);
+
+    const response = await DayendService.saveDayEndCashDenomination(payload);
+
+    if (!response || !response.success ) {
+      throw new Error(response?.message || "Failed to save cash denomination");
+    }
+
+    alert(
+      `Day-End Cash Denomination saved successfully! Total Counted Cash: ₹${countedCashTotal.toLocaleString()}`
+    );
+
+    handleCloseCashModal();
+
+  } catch (err) {
+    console.error("Error saving cash denomination:", err);
+    alert("An error occurred while saving. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handlePasswordVerify = async (password: string): Promise<boolean> => {
     try {
       if (!user?.token) {
-        // console.error('Authentication token is missing for password verification.');
+        console.error('Authentication token is missing for password verification.');
         // Optionally, display a user-friendly message here, e.g., toast.error('Authentication required. Please log in again.');
         return false;
       }
@@ -401,7 +401,7 @@ const DayEnd = () => {
         return false;
       }
     } catch (error) {
-      // console.error('Password verification error:', error);
+      console.error('Password verification error:', error);
       return false;
     }
   };
@@ -426,25 +426,25 @@ const DayEnd = () => {
         selectedReports: selectedReportKeys,
       };
 
-      // console.log('🔍 Report payload:', payload);
+      console.log('🔍 Report payload:', payload);
       const response = await DayendService.generateReportHTML(payload);
-      // console.log('📄 API Response:', response);
+      console.log('📄 API Response:', response);
 
       if (response.success && response.html && response.html.trim().length > 50) { // Validate HTML content
         // Store HTML and outletId
         sessionStorage.setItem('dayEndReportHTML', response.html);
         const outletId = orders[0]?.outletid || user?.outletid || user?.hotelid;
         sessionStorage.setItem('dayEndReportOutletId', outletId?.toString() || '');
-
-        // console.log('✅ Stored HTML length:', response.html.length, 'OutletId:', outletId);
+        
+        console.log('✅ Stored HTML length:', response.html.length, 'OutletId:', outletId);
         toast.success('✅ Report generated! Opening preview...');
         navigate('/apps/Masters/Reports/DayEndReportPreview');
       } else {
-        // console.error('❌ Empty report HTML. Backend debug needed.');
+        console.error('❌ Empty report HTML. Backend debug needed.');
         toast.error(`Failed to generate reports. HTML empty. Check backend console: Found 0 records?`);
       }
     } catch (error) {
-      // console.error('Error generating reports:', error);
+      console.error('Error generating reports:', error);
       toast.error("An error occurred while generating reports.");
     }
   };
@@ -462,32 +462,32 @@ const DayEnd = () => {
 
 
 
-  const getFormattedTime = (timeStr: string) => {
-    const utcDate = new Date(timeStr);
-    // If invalid date, return as-is
-    if (isNaN(utcDate.getTime())) return timeStr;
-    // Convert to Indian Standard Time
-    return utcDate.toLocaleTimeString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  };
+ const getFormattedTime = (timeStr: string) => {
+  const utcDate = new Date(timeStr);
+  // If invalid date, return as-is
+  if (isNaN(utcDate.getTime())) return timeStr;
+  // Convert to Indian Standard Time
+  return utcDate.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
 
-  const getFormattedDate = (dateStr: string) => {
-    const dateObj = new Date(dateStr);
+const getFormattedDate = (dateStr: string) => {
+  const dateObj = new Date(dateStr);
 
-    if (isNaN(dateObj.getTime())) {
-      return dateStr; // Return original string if date is invalid
-    }
+  if (isNaN(dateObj.getTime())) {
+    return dateStr; // Return original string if date is invalid
+  }
 
-    return dateObj.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
+  return dateObj.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
 
 
   return (
@@ -740,784 +740,784 @@ const DayEnd = () => {
       `}</style>
       {passwordVerified ? (
         <Container fluid className="p-0 bg-light main-container">
-          {/* Header Section - Compact */}
-          <Card className="mb-0 shadow-sm border-0">
-            <Card.Header className="bg-white border-0 header-compact">
-              <Row>
-                <Col>
-                  <h5 className="fw-bold text-primary mb-0">Day End</h5>
-                </Col>
-              </Row>
-            </Card.Header>
-          </Card>
-          {/* Tabs Navigation - Sticky */}
-          <div className="tabs-header">
-            <Tabs
-              activeKey={activeTab}
-              onSelect={(k) => k && setActiveTab(k)}
-              className="mb-0"
+        {/* Header Section - Compact */}
+        <Card className="mb-0 shadow-sm border-0">
+          <Card.Header className="bg-white border-0 header-compact">
+            <Row>
+              <Col>
+                <h5 className="fw-bold text-primary mb-0">Day End</h5>
+              </Col>
+            </Row>
+          </Card.Header>
+        </Card>
+        {/* Tabs Navigation - Sticky */}
+        <div className="tabs-header">
+          <Tabs
+            activeKey={activeTab}
+            onSelect={(k) => k && setActiveTab(k)}
+            className="mb-0"
+          >
+            <Tab
+              eventKey="summary"
+              title={
+                <span className="d-flex align-items-center">
+                  <BarChart3 size={14} className="me-1" />
+                  Summary
+                </span>
+              }
             >
-              <Tab
-                eventKey="summary"
-                title={
-                  <span className="d-flex align-items-center">
-                    <BarChart3 size={14} className="me-1" />
-                    Summary
-                  </span>
-                }
-              >
-                {/* Summary Tab Content - Compact */}
-                <div className="p-1">
-                  <Row className="summary-cards">
-                    {[
-                      {
-                        title: "Total Orders",
-                        value: summary.totalOrders,
-                        icon: <CheckCircle className="text-primary" size={24} />,
-                        subtitle: `${summary.completed} completed`
-                      },
-                      {
-                        title: "Total KOTs",
-                        value: summary.totalKOTs,
-                        icon: <Printer className="text-success" size={24} />,
-                        subtitle: "Kitchen orders"
-                      },
-                      {
-                        title: "Total Sales",
-                        value: `₹${summary.totalSales.toLocaleString()}`,
-                        icon: <DollarSign className="text-warning" size={24} />,
-                        subtitle: `Avg: ₹${summary.averageOrderValue}`
-                      },
-                      {
-                        title: "Pending",
-                        value: summary.pending,
-                        icon: <AlertTriangle className="text-danger" size={24} />,
-                        subtitle: "Need attention"
-                      },
-                      {
-                        title: "Total Discount",
-                        value: `₹${Math.abs(totalDiscount).toLocaleString()}`,
-                        icon: <AlertTriangle className="text-info" size={24} />,
-                        subtitle: "Savings applied"
-                      },
-                      {
-                        title: "Total Tax",
-                        value: `₹${(totalCGST + totalSGST).toLocaleString()}`,
-                        icon: <DollarSign className="text-success" size={24} />,
-                        subtitle: "GST collected"
-                      },
-                      {
-                        title: "Total Items",
-                        value: totalItems,
-                        icon: <CheckCircle className="text-primary" size={24} />,
-                        subtitle: "Items served"
-                      },
-                      {
-                        title: "Total Tables",
-                        value: new Set(orders.map(o => o.table)).size,
-                        icon: <Printer className="text-warning" size={24} />,
-                        subtitle: "Tables used"
-                      },
-                    ].map((item, idx) => (
-                      <Col xl={3} lg={6} md={12} className="metric-card" key={idx}>
-                        <Card className="h-100 border-0 shadow-sm">
-                          <Card.Body className="card-body-compact d-flex align-items-center">
-                            <div className="flex-shrink-0 me-3">
-                              <div className="p-3 rounded-circle bg-light">
-                                {item.icon}
-                              </div>
-                            </div>
-                            <div className="flex-grow-1">
-                              <div className="text-muted mb-1">{item.title}</div>
-                              <h4 className="fw-bold text-dark mb-0">{item.value}</h4>
-                              <p className="text-muted mb-0 small">{item.subtitle}</p>
-                            </div>
-                          </Card.Body>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
-
-                  {/* Payment Breakdown - Compact */}
-                  <Row className="payment-section">
-                    <Col md={8}>
+              {/* Summary Tab Content - Compact */}
+              <div className="p-1">
+                <Row className="summary-cards">
+                  {[
+                    {
+                      title: "Total Orders",
+                      value: summary.totalOrders,
+                      icon: <CheckCircle className="text-primary" size={24} />,
+                      subtitle: `${summary.completed} completed`
+                    },
+                    {
+                      title: "Total KOTs",
+                      value: summary.totalKOTs,
+                      icon: <Printer className="text-success" size={24} />,
+                      subtitle: "Kitchen orders"
+                    },
+                    {
+                      title: "Total Sales",
+                      value: `₹${summary.totalSales.toLocaleString()}`,
+                      icon: <DollarSign className="text-warning" size={24} />,
+                      subtitle: `Avg: ₹${summary.averageOrderValue}`
+                    },
+                    {
+                      title: "Pending",
+                      value: summary.pending,
+                      icon: <AlertTriangle className="text-danger" size={24} />,
+                      subtitle: "Need attention"
+                    },
+                    {
+                      title: "Total Discount",
+                      value: `₹${Math.abs(totalDiscount).toLocaleString()}`,
+                      icon: <AlertTriangle className="text-info" size={24} />,
+                      subtitle: "Savings applied"
+                    },
+                    {
+                      title: "Total Tax",
+                      value: `₹${(totalCGST + totalSGST).toLocaleString()}`,
+                      icon: <DollarSign className="text-success" size={24} />,
+                      subtitle: "GST collected"
+                    },
+                    {
+                      title: "Total Items",
+                      value: totalItems,
+                      icon: <CheckCircle className="text-primary" size={24} />,
+                      subtitle: "Items served"
+                    },
+                    {
+                      title: "Total Tables",
+                      value: new Set(orders.map(o => o.table)).size,
+                      icon: <Printer className="text-warning" size={24} />,
+                      subtitle: "Tables used"
+                    },
+                  ].map((item, idx) => (
+                    <Col xl={3} lg={6} md={12} className="metric-card" key={idx}>
                       <Card className="h-100 border-0 shadow-sm">
-                        <Card.Header className="bg-white border-0 header-compact">
-                          <h6 className="mb-0 fw-bold">Payment Details</h6>
-                        </Card.Header>
-                        <Card.Body className="p-2">
-                          <div className="chart-container">
-                            <Pie data={paymentData} options={paymentOptions} />
+                        <Card.Body className="card-body-compact d-flex align-items-center">
+                          <div className="flex-shrink-0 me-3">
+                            <div className="p-3 rounded-circle bg-light">
+                              {item.icon}
+                            </div>
+                          </div>
+                          <div className="flex-grow-1">
+                            <div className="text-muted mb-1">{item.title}</div>
+                            <h4 className="fw-bold text-dark mb-0">{item.value}</h4>
+                            <p className="text-muted mb-0 small">{item.subtitle}</p>
                           </div>
                         </Card.Body>
                       </Card>
                     </Col>
-                    <Col md={4}>
-                      <Card className="h-100 border-0 shadow-sm">
-                        <Card.Header className="bg-white border-0 header-compact">
-                          <h6 className="mb-0 fw-bold">Quick Stats</h6>
-                        </Card.Header>
-                        <Card.Body className="stats-container">
-                          <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span>Settled Orders</span>
-                            <Badge bg="success" className="fs-5">{summary.completed}</Badge>
-                          </div>
-                          <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span>Pending Orders</span>
-                            <Badge bg="warning" className="fs-5">{summary.pending}</Badge>
-                          </div>
-                          <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span>Cancelled Orders</span>
-                            <Badge bg="danger" className="fs-5">{summary.cancelled}</Badge>
-                          </div>
-                        </Card.Body>
-                      </Card>
-                    </Col>
-                  </Row>
-                </div>
-              </Tab>
+                  ))}
+                </Row>
 
-              <Tab
-                eventKey="orders"
-                title={
-                  <span className="d-flex align-items-center">
-                    <Eye size={14} className="me-1" />
-                    Orders Detail
-                  </span>
-                }
-              >
-                {/* Orders Tab Content - Compact */}
-                <div className="p-0">
-                  {/* Filters - Compact */}
-                  <Card className="mb-1 border-0 shadow-sm bg-light">
-                    <Card.Body className="filters-section">
-                      <Row className="g-2">
-                        <Col md={6}>
-                          <InputGroup size="sm">
-                            <InputGroup.Text>
-                              <Search size={14} />
-                            </InputGroup.Text>
-                            <Form.Control
-                              placeholder="Search orders, tables, waiters..."
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                              size="sm"
-                            />
-                          </InputGroup>
-                        </Col>
-                        <Col md={3}>
-                          <Form.Select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
+                {/* Payment Breakdown - Compact */}
+                <Row className="payment-section">
+                  <Col md={8}>
+                    <Card className="h-100 border-0 shadow-sm">
+                      <Card.Header className="bg-white border-0 header-compact">
+                        <h6 className="mb-0 fw-bold">Payment Details</h6>
+                      </Card.Header>
+                      <Card.Body className="p-2">
+                        <div className="chart-container">
+                          <Pie data={paymentData} options={paymentOptions} />
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                  <Col md={4}>
+                    <Card className="h-100 border-0 shadow-sm">
+                      <Card.Header className="bg-white border-0 header-compact">
+                        <h6 className="mb-0 fw-bold">Quick Stats</h6>
+                      </Card.Header>
+                      <Card.Body className="stats-container">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <span>Settled Orders</span>
+                          <Badge bg="success" className="fs-5">{summary.completed}</Badge>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <span>Pending Orders</span>
+                          <Badge bg="warning" className="fs-5">{summary.pending}</Badge>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <span>Cancelled Orders</span>
+                          <Badge bg="danger" className="fs-5">{summary.cancelled}</Badge>
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                </Row>
+              </div>
+            </Tab>
+
+            <Tab
+              eventKey="orders"
+              title={
+                <span className="d-flex align-items-center">
+                  <Eye size={14} className="me-1" />
+                  Orders Detail
+                </span>
+              }
+            >
+              {/* Orders Tab Content - Compact */}
+              <div className="p-0">
+                {/* Filters - Compact */}
+                <Card className="mb-1 border-0 shadow-sm bg-light">
+                  <Card.Body className="filters-section">
+                    <Row className="g-2">
+                      <Col md={6}>
+                        <InputGroup size="sm">
+                          <InputGroup.Text>
+                            <Search size={14} />
+                          </InputGroup.Text>
+                          <Form.Control
+                            placeholder="Search orders, tables, waiters..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                             size="sm"
-                          >
-                            <option value="all">All Status</option>
-                            <option value="settled">Settled</option>
-                            <option value="pending">Pending</option>
-                          </Form.Select>
-                        </Col>
-                        <Col md={3}>
-                          <div className="d-flex gap-1">
-                            <Button variant="outline-primary" size="sm">
-                              <Filter size={14} className="me-1" />
-                              Filter
-                            </Button>
-                            <Button variant="outline-secondary" size="sm">
-                              <Download size={14} className="me-1" />
-                              Export
-                            </Button>
-                          </div>
-                        </Col>
-                        <Col md={3}>
-                          <Form.Check
-                            type="checkbox"
-                            label="Show only not day-ended"
-                            checked={showOnlyNotDayEnded}
-                            onChange={(e) => setShowOnlyNotDayEnded(e.target.checked)}
-
                           />
-                        </Col>
-                      </Row>
-                    </Card.Body>
-                  </Card>
-
-                  {/* Orders Table - Compact with increased height for 15 rows */}
-                  <Card className="border-0 shadow-sm mb-0">
-                    <Card.Body className="p-0">
-                      <div className="table-container">
-                        <Table hover className="mb-0">
-                          <thead className="table-light">
-                            <tr>
-                              <th>Bill No</th>
-                              <th>Table</th>
-                              <th>Total Amount</th>
-                              <th>Discount</th>
-                              <th>Gross Amount</th>
-                              <th>CGST</th>
-                              <th>SGST</th>
-                              <th>Round off</th>
-                              <th>Rev Amt</th>
-                              <th>KOT No</th>
-                              <th>Rev KOT No</th>
-                              <th>NC Name</th>
-                              <th>NC Purpose</th>
-                              <th>isNCKOT</th>
-                              <th>Outlet ID</th>
-                              <th>Water</th>
-                              <th>Payment Type</th>
-                              <th>Cash</th>
-                              <th>Reverse Bill</th>
-                              <th>Credit</th>
-                              <th>Card</th>
-                              <th>GPay</th>
-                              <th>PhonePe</th>
-                              <th>QR Code</th>
-                              <th>Captain</th>
-                              <th>User</th>
-                              <th>Total Items</th>
-                              <th>Time</th>
-                              <th>Date</th>
-                              <th>Status</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredOrders.map((order, idx) => {
-                              const formattedTime = getFormattedTime(order.time);
-                              const formattedDate = getFormattedDate(order.date);
-
-                              const rowClasses = ['table-row-compact'];
-                              if (order.discount > 0) {
-                                rowClasses.push('table-row-discount');
-                              }
-                              if (order.ncKot) {
-                                rowClasses.push('table-row-nckot');
-                              }
-                              if (order.reverseBill == 1) {
-                                rowClasses.push('table-row-reversed');
-                              }
-
-                              return (
-                                <tr key={idx} className={rowClasses.join(' ')}>
-                                  <td className="fw-semibold">{order.orderNo}</td>
-                                  <td>
-                                    <Badge bg="light" text="dark" className="fs-6">
-                                      {order.table}
-                                    </Badge>
-                                  </td>
-                                  <td className="fw-semibold" style={{ textAlign: 'right' }}>₹{order.amount.toLocaleString()}</td>
-                                  <td style={{ textAlign: 'right' }}>-₹{order.discount.toLocaleString()}</td>
-                                  <td style={{ textAlign: 'right' }}>₹{(order.grossAmount || 0).toLocaleString()}</td>
-                                  <td style={{ textAlign: 'right' }}>₹{order.cgst.toLocaleString()}</td>
-                                  <td style={{ textAlign: 'right' }}>₹{order.sgst.toLocaleString()}</td>
-                                  <td style={{ textAlign: 'right' }}>₹{(order.roundOff || 0).toLocaleString()}</td>
-                                  <td style={{ textAlign: 'right' }}>₹{(order.revAmt || 0).toLocaleString()}</td>
-                                  <td>
-                                    <small className="text-muted">{order.kotNo}</small>
-                                  </td>
-                                  <td>
-                                    <small className="text-muted">
-                                      {order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
-                                    </small>
-                                  </td>
-                                  <td>{order.ncName || ''}</td>
-                                  <td title={order.ncPurpose || ''} style={{ whiteSpace: 'normal' }}>
-                                    {order.ncPurpose || ''}
-                                  </td>
-                                  <td style={{ textAlign: 'center' }}>
-                                    <Badge bg={order.ncKot ? "primary" : "secondary"} className="fs-6">
-                                      {order.ncKot ? 'Yes' : 'No'}
-                                    </Badge>
-                                  </td>
-                                  <td>{order.outletid}</td>
-                                  <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
-                                  <td title={order.paymentType || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
-                                    {order.paymentType || ''}
-                                  </td>
-                                  <td style={{ textAlign: 'right' }}>₹{(order.cash || 0).toLocaleString()}</td>
-                                  <td style={{ textAlign: 'right' }}>
-                                    {order.reverseBill == 1
-                                      ? `₹${(order.revAmt || 0).toLocaleString()}`
-                                      : 'No'}
-                                  </td>
-                                  <td style={{ textAlign: 'right' }}>₹{(order.credit || 0).toLocaleString()}</td>
-                                  <td style={{ textAlign: 'right' }}>₹{(order.card || 0).toLocaleString()}</td>
-                                  <td style={{ textAlign: 'right' }}>₹{(order.gpay || 0).toLocaleString()}</td>
-                                  <td style={{ textAlign: 'right' }}>₹{(order.phonepe || 0).toLocaleString()}</td>
-                                  <td style={{ textAlign: 'right' }}>₹{(order.qrcode || 0).toLocaleString()}</td>
-                                  <td>{order.captain || order.waiter || ''}</td>
-                                  <td>{order.user || ''}</td>
-                                  <td style={{ textAlign: 'center' }}>
-                                    <Badge bg="outline-primary" text="primary" className="fs-6">
-                                      {order.items}
-                                    </Badge>
-                                  </td>
-                                  <td>
-                                    <small className="text-muted">{formattedTime}</small>
-                                  </td>
-                                  <td>
-                                    <small className="text-muted">{formattedDate}</small>
-                                  </td>
-                                  <td style={{ textAlign: 'center' }}>
-                                    <StatusBadge status={order.status} />
-                                  </td>
-                                  <td style={{ textAlign: 'center' }}>
-                                    <Button
-                                      variant="outline-primary"
-                                      size="sm"
-                                      onClick={() => handleViewDetails(order)}
-                                      className="p-1"
-                                    >
-                                      <Eye size={12} />
-                                    </Button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                          <tfoot>
-                            <tr className="table-success">
-                              <td>Total</td>
-                              <td></td>
-
-                              <td style={{ textAlign: 'right' }}>₹{totalSales.toLocaleString()}</td>
-                              <td style={{ textAlign: 'right' }}>-₹{totalDiscount.toLocaleString()}</td>
-                              <td style={{ textAlign: 'right' }}>₹{totalGrossAmount.toLocaleString()}</td>
-                              <td style={{ textAlign: 'right' }}>₹{totalCGST.toLocaleString()}</td>
-                              <td style={{ textAlign: 'right' }}>₹{totalSGST.toLocaleString()}</td>
-                              <td style={{ textAlign: 'right' }}>₹{totalRoundOff.toLocaleString()}</td>
-                              <td style={{ textAlign: 'right' }}>₹{totalRevAmt.toLocaleString()}</td>
-                              <td></td>
-                              <td></td>
-                              <td></td> {/* NC Name */}
-                              <td></td> {/* NC Purpose */}
-                              <td style={{ textAlign: 'center' }}>{orders.filter(o => o.ncKot).length}</td> {/* isNCKOT count */}
-                              <td></td>
-                              <td style={{ textAlign: 'right' }}>₹{totalWater.toLocaleString()}</td>
-                              <td></td>
-                              <td style={{ textAlign: 'right' }}>₹{totalCash.toLocaleString()}</td>
-                              <td></td>
-                              <td style={{ textAlign: 'right' }}>₹{totalCredit.toLocaleString()}</td>
-                              <td style={{ textAlign: 'right' }}>₹{totalCard.toLocaleString()}</td>
-                              <td style={{ textAlign: 'right' }}>₹{totalGpay.toLocaleString()}</td>
-                              <td style={{ textAlign: 'right' }}>₹{totalPhonepe.toLocaleString()}</td>
-                              <td style={{ textAlign: 'right' }}>₹{totalQrcode.toLocaleString()}</td>
-                              <td></td>
-                              <td></td>
-                              <td style={{ textAlign: 'center' }}>{totalItems}</td>
-                              <td></td>
-                              <td></td>
-                              <td></td>
-                              <td></td>
-                            </tr>
-                          </tfoot>
-                        </Table>
-                      </div>
-                    </Card.Body>
-                  </Card>
-
-                  <Card
-                    className="shadow-sm border-0 mt-4"
-                    style={{
-                      backgroundColor: "#f1f3f5", // light gray shade
-                      padding: "12px 16px",       // more inner space (height)
-                      minHeight: "70px",          // ensure footer looks taller
-                      borderRadius: "8px",
-                    }}
-                  >
-                    <div className="d-flex align-items-center flex-wrap gap-3">
-                      {/* Day End By */}
-                      <div className="d-flex align-items-center gap-2">
-                        <span className="fw-semibold text-secondary small">Day End By:</span>
-                        <Form.Control
-                          type="text"
-                          placeholder="Enter name"
-                          value={DayEndBy}
-
-                          readOnly
+                        </InputGroup>
+                      </Col>
+                      <Col md={3}>
+                        <Form.Select
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value)}
                           size="sm"
-                          style={{ width: "140px" }}
-                        />
-                      </div>
-
-
-                      {/* Cash Denomination */}
-                      <div className="d-flex align-items-center gap-2">
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          onClick={handleOpenCashModal}
-                          style={{ minWidth: "150px" }}
                         >
-                          Cash Denomination
-                        </Button>
-                      </div>
+                          <option value="all">All Status</option>
+                          <option value="settled">Settled</option>
+                          <option value="pending">Pending</option>
+                        </Form.Select>
+                      </Col>
+                      <Col md={3}>
+                        <div className="d-flex gap-1">
+                          <Button variant="outline-primary" size="sm">
+                            <Filter size={14} className="me-1" />
+                            Filter
+                          </Button>
+                          <Button variant="outline-secondary" size="sm">
+                            <Download size={14} className="me-1" />
+                            Export
+                          </Button>
+                        </div>
+                      </Col>
+                      <Col md={3}>
+                        <Form.Check
+                          type="checkbox"
+                          label="Show only not day-ended"
+                          checked={showOnlyNotDayEnded}
+                          onChange={(e) => setShowOnlyNotDayEnded(e.target.checked)}
+                          
+                        />
+                      </Col>
+                    </Row>
+                  </Card.Body>
+                </Card>
 
-                      {/* Action Buttons */}
-                      <div className="ms-auto d-flex align-items-center gap-2">
-                        <Button variant="success" size="sm" onClick={handleSaveDayEnd}>
-                          DayEnd
-                        </Button>
-                        <Button variant="secondary" size="sm" onClick={handleClose}>
-                          Close
-                        </Button>
-                      </div>
+                {/* Orders Table - Compact with increased height for 15 rows */}
+                <Card className="border-0 shadow-sm mb-0">
+                  <Card.Body className="p-0">
+                    <div className="table-container">
+                      <Table hover className="mb-0">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Bill No</th>
+                            <th>Table</th>
+                            <th>Total Amount</th>
+                            <th>Discount</th>
+                            <th>Gross Amount</th>
+                            <th>CGST</th>
+                            <th>SGST</th>
+                            <th>Round off</th>
+                            <th>Rev Amt</th>
+                            <th>KOT No</th>
+                            <th>Rev KOT No</th>
+                            <th>NC Name</th>
+                            <th>NC Purpose</th>
+                            <th>isNCKOT</th>
+                            <th>Outlet ID</th>
+                            <th>Water</th>
+                            <th>Payment Type</th>
+                            <th>Cash</th>
+                            <th>Reverse Bill</th>
+                            <th>Credit</th>
+                            <th>Card</th>
+                            <th>GPay</th>
+                            <th>PhonePe</th>
+                            <th>QR Code</th>
+                            <th>Captain</th>
+                            <th>User</th>
+                            <th>Total Items</th>
+                            <th>Time</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredOrders.map((order, idx) => {
+                            const formattedTime = getFormattedTime(order.time);
+                            const formattedDate = getFormattedDate(order.date);
+
+                            const rowClasses = ['table-row-compact'];
+                            if (order.discount > 0) {
+                              rowClasses.push('table-row-discount');
+                            }
+                            if (order.ncKot) {
+                              rowClasses.push('table-row-nckot');
+                            }
+                            if (order.reverseBill == 1) {
+                              rowClasses.push('table-row-reversed');
+                            }
+
+                            return (
+                              <tr key={idx} className={rowClasses.join(' ')}>
+                                <td className="fw-semibold">{order.orderNo}</td>
+                                <td>
+                                  <Badge bg="light" text="dark" className="fs-6">
+                                    {order.table}
+                                  </Badge>
+                                </td>
+                                <td className="fw-semibold" style={{ textAlign: 'right' }}>₹{order.amount.toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>-₹{order.discount.toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.grossAmount || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{order.cgst.toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{order.sgst.toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.roundOff || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.revAmt || 0).toLocaleString()}</td>
+                                <td>
+                                  <small className="text-muted">{order.kotNo}</small>
+                                </td>
+                                <td>
+                                  <small className="text-muted">
+                                    {order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
+                                  </small>
+                                </td>
+                                <td>{order.ncName || ''}</td>
+                                <td title={order.ncPurpose || ''} style={{whiteSpace:'normal'}}>
+                                  {order.ncPurpose || ''}
+                                </td>
+                                <td style={{textAlign:'center'}}>
+                                  <Badge bg={order.ncKot ? "primary" : "secondary"} className="fs-6">
+                                    {order.ncKot ? 'Yes' : 'No'}
+                                  </Badge>
+                                </td>
+                                <td>{order.outletid}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
+                                <td title={order.paymentType || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
+                                  {order.paymentType || ''}
+                                </td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.cash || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>
+                                  {order.reverseBill == 1
+                                    ? `₹${(order.revAmt || 0).toLocaleString()}` 
+                                    : 'No'}
+                                </td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.credit || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.card || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.gpay || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.phonepe || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.qrcode || 0).toLocaleString()}</td>
+                                <td>{order.captain || order.waiter || ''}</td>
+                                <td>{order.user || ''}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <Badge bg="outline-primary" text="primary" className="fs-6">
+                                    {order.items}
+                                  </Badge>
+                                </td>
+                                <td>
+                                  <small className="text-muted">{formattedTime}</small>
+                                </td>
+                                <td>
+                                  <small className="text-muted">{formattedDate}</small>
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <StatusBadge status={order.status} />
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    onClick={() => handleViewDetails(order)}
+                                    className="p-1"
+                                  >
+                                    <Eye size={12} />
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr className="table-success">
+                            <td>Total</td>
+                            <td></td>
+                            
+                            <td style={{ textAlign: 'right' }}>₹{totalSales.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>-₹{totalDiscount.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalGrossAmount.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalCGST.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalSGST.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalRoundOff.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalRevAmt.toLocaleString()}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td> {/* NC Name */}
+                            <td></td> {/* NC Purpose */}
+                            <td style={{ textAlign: 'center' }}>{orders.filter(o => o.ncKot).length}</td> {/* isNCKOT count */}
+                            <td></td>
+                            <td style={{ textAlign: 'right' }}>₹{totalWater.toLocaleString()}</td>
+                            <td></td>
+                            <td style={{ textAlign: 'right' }}>₹{totalCash.toLocaleString()}</td>
+                            <td></td>
+                            <td style={{ textAlign: 'right' }}>₹{totalCredit.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalCard.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalGpay.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalPhonepe.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalQrcode.toLocaleString()}</td>
+                            <td></td>
+                            <td></td>
+                            <td style={{ textAlign: 'center' }}>{totalItems}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      </Table>
                     </div>
-                  </Card>
+                  </Card.Body>
+                </Card>
+
+                <Card
+                  className="shadow-sm border-0 mt-4"
+                  style={{
+                    backgroundColor: "#f1f3f5", // light gray shade
+                    padding: "12px 16px",       // more inner space (height)
+                    minHeight: "70px",          // ensure footer looks taller
+                    borderRadius: "8px",
+                  }}
+                >
+                  <div className="d-flex align-items-center flex-wrap gap-3">
+                    {/* Day End By */}
+                    <div className="d-flex align-items-center gap-2">
+                      <span className="fw-semibold text-secondary small">Day End By:</span>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter name"
+                        value={DayEndBy}
+                        
+                        readOnly
+                        size="sm"
+                        style={{ width: "140px" }}
+                      />
+                    </div>
+
+
+                    {/* Cash Denomination */}
+                    <div className="d-flex align-items-center gap-2">
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={handleOpenCashModal}
+                        style={{ minWidth: "150px" }}
+                      >
+                        Cash Denomination
+                      </Button>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="ms-auto d-flex align-items-center gap-2">
+                      <Button variant="success" size="sm" onClick={handleSaveDayEnd}>
+                        DayEnd
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={handleClose}>
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
 
 
 
-                </div>
-              </Tab>
-            </Tabs>
-          </div>
+              </div>
+            </Tab>
+          </Tabs>
+        </div>
 
 
 
-          {/* Order Details Modal - Compact */}
-          <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg" className="modal-compact">
-            <Modal.Header closeButton className="py-1">
-              <Modal.Title className="small">Order Details - {selectedOrder?.orderNo}</Modal.Title>
-            </Modal.Header>
-            <Modal.Body className="p-1">
-              {selectedOrder && (
-                <>
-                  <Row className="g-2 small">
-                    <Col md={6}>
-                      <strong>Bill No:</strong> {selectedOrder.orderNo}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Outlet ID:</strong> {selectedOrder.outletid}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Table:</strong> {selectedOrder.table}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Total Amount:</strong> ₹{selectedOrder.amount.toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Discount:</strong> ₹{selectedOrder.discount.toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Gross Amount:</strong> ₹{(selectedOrder.grossAmount || 0).toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>CGST:</strong> ₹{selectedOrder.cgst.toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>SGST:</strong> ₹{selectedOrder.sgst.toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Round off:</strong> ₹{(selectedOrder.roundOff || 0).toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Rev Amt:</strong> ₹{(selectedOrder.revAmt || 0).toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>KOT No:</strong> {selectedOrder.kotNo}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Reverse KOT No:</strong>
-                      <div>
-                        {selectedOrder?.revKotNo ? selectedOrder.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
-                      </div>
-                    </Col>
-                    <Col md={6}>
-                      <strong>Reverse Bill:</strong> {selectedOrder.reverseBill || ''}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Water:</strong> ₹{(selectedOrder.water || 0).toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Captain:</strong> {selectedOrder.captain || selectedOrder.waiter || ''}
-                    </Col>
-                    <Col md={6}>
-                      <strong>User:</strong> {selectedOrder.user || ''}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Total Items:</strong> {selectedOrder.items}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Time:</strong> {getFormattedTime(selectedOrder.time)}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Date:</strong> {getFormattedDate(selectedOrder.time)}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Payment:</strong> {selectedOrder.type}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Status:</strong> <StatusBadge status={selectedOrder.status} />
-                    </Col>
-                    <Col md={12}><hr className="my-1" /></Col>
-                    <Col md={12}><strong>Payment Breakdown:</strong></Col>
-                    <Col md={6}>
-                      <strong>Payment Type:</strong> {selectedOrder.paymentType || ''}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Cash:</strong> ₹{(selectedOrder.cash || 0).toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Credit:</strong> ₹{(selectedOrder.credit || 0).toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>Card:</strong> ₹{(selectedOrder.card || 0).toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>GPay:</strong> ₹{(selectedOrder.gpay || 0).toLocaleString()}
-                    </Col>
-                    <Col md={6}>
-                      <strong>PhonePe:</strong> ₹{(selectedOrder.phonepe || 0).toLocaleString()}
-                    </Col>
-                    <Col md={6}><strong>QR Code:</strong> ₹{(selectedOrder.qrcode || 0).toLocaleString()}</Col>
-                  </Row>
-                  <Col md={12}>
-                    <hr className="my-1" />
-                    <strong>Order Summary:</strong>
-                    <div className="mt-1 p-2 bg-light rounded small">
-                      <div className="d-flex justify-content-between">
-                        <span>Total Amount:</span>
-                        <strong>₹{selectedOrder.amount}</strong>
-                      </div>
-                      <div className="d-flex justify-content-between">
-                        <span>Number of Items:</span>
-                        <span>{selectedOrder.items}</span>
-                      </div>
+        {/* Order Details Modal - Compact */}
+        <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg" className="modal-compact">
+          <Modal.Header closeButton className="py-1">
+            <Modal.Title className="small">Order Details - {selectedOrder?.orderNo}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-1">
+            {selectedOrder && (
+              <>
+                <Row className="g-2 small">
+                  <Col md={6}>
+                    <strong>Bill No:</strong> {selectedOrder.orderNo}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Outlet ID:</strong> {selectedOrder.outletid}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Table:</strong> {selectedOrder.table}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Total Amount:</strong> ₹{selectedOrder.amount.toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Discount:</strong> ₹{selectedOrder.discount.toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Gross Amount:</strong> ₹{(selectedOrder.grossAmount || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>CGST:</strong> ₹{selectedOrder.cgst.toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>SGST:</strong> ₹{selectedOrder.sgst.toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Round off:</strong> ₹{(selectedOrder.roundOff || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Rev Amt:</strong> ₹{(selectedOrder.revAmt || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>KOT No:</strong> {selectedOrder.kotNo}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Reverse KOT No:</strong>
+                    <div>
+                      {selectedOrder?.revKotNo ? selectedOrder.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
                     </div>
                   </Col>
-                </>
-              )}
-            </Modal.Body>
-            <Modal.Footer className="p-1">
-            </Modal.Footer>
-          </Modal>
-
-          {/* Cash Denomination Modal - Small Centered */}
-          <Modal
-            show={showCashModal}
-            onHide={handleCloseCashModal}
-            size="sm"
-            centered
-            backdrop="static"
-            className="cash-denom-modal"
-          >
-            {/* Header */}
-            <Modal.Header closeButton className="bg-light py-2 border-bottom">
-              <Modal.Title className="fs-6 fw-semibold text-dark">
-                💵 Cash Denomination Entry
-              </Modal.Title>
-            </Modal.Header>
-
-            {/* Body */}
-            <Modal.Body style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1rem' }}>
-              <div className="cash-denom-list">
-                {Object.entries(cashDenominations).map(([denomStr, count]) => {
-                  const denom = parseInt(denomStr);
-                  const amount = denom * count;
-                  return (
-                    <div
-                      key={denom}
-                      className="d-flex justify-content-between align-items-center border rounded p-2 mb-2 bg-white shadow-sm"
-                    >
-                      <span className="fw-semibold text-primary fs-6">{denom}</span>
-                      <Form.Control
-                        type="number"
-                        size="sm"
-                        min={0}
-                        value={count}
-                        onChange={(e) =>
-                          handleCountChange(denom, parseInt(e.target.value) || 0)
-                        }
-                        className="text-center mx-3"
-                        style={{ width: '80px' }}
-                      />
-                      <span className="fw-semibold text-success">
-                        {amount.toLocaleString()}
-                      </span>
+                  <Col md={6}>
+                    <strong>Reverse Bill:</strong> {selectedOrder.reverseBill || ''}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Water:</strong> ₹{(selectedOrder.water || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Captain:</strong> {selectedOrder.captain || selectedOrder.waiter || ''}
+                  </Col>
+                  <Col md={6}>
+                    <strong>User:</strong> {selectedOrder.user || ''}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Total Items:</strong> {selectedOrder.items}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Time:</strong> {getFormattedTime(selectedOrder.time)}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Date:</strong> {getFormattedDate(selectedOrder.time)}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Payment:</strong> {selectedOrder.type}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Status:</strong> <StatusBadge status={selectedOrder.status} />
+                  </Col>
+                  <Col md={12}><hr className="my-1" /></Col>
+                  <Col md={12}><strong>Payment Breakdown:</strong></Col>
+                  <Col md={6}>
+                    <strong>Payment Type:</strong> {selectedOrder.paymentType || ''}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Cash:</strong> ₹{(selectedOrder.cash || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Credit:</strong> ₹{(selectedOrder.credit || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Card:</strong> ₹{(selectedOrder.card || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>GPay:</strong> ₹{(selectedOrder.gpay || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>PhonePe:</strong> ₹{(selectedOrder.phonepe || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}><strong>QR Code:</strong> ₹{(selectedOrder.qrcode || 0).toLocaleString()}</Col>
+                </Row>
+                <Col md={12}>
+                  <hr className="my-1" />
+                  <strong>Order Summary:</strong>
+                  <div className="mt-1 p-2 bg-light rounded small">
+                    <div className="d-flex justify-content-between">
+                      <span>Total Amount:</span>
+                      <strong>₹{selectedOrder.amount}</strong>
                     </div>
-                  );
-                })}
-              </div>
-            </Modal.Body>
+                    <div className="d-flex justify-content-between">
+                      <span>Number of Items:</span>
+                      <span>{selectedOrder.items}</span>
+                    </div>
+                  </div>
+                </Col>
+              </>
+            )}
+          </Modal.Body>
+          <Modal.Footer className="p-1">
+          </Modal.Footer>
+        </Modal>
 
-            {/* Totals Section */}
-            <div className="px-4 pb-2 border-top bg-light">
-              <div className="d-flex justify-content-between py-1">
-                <span className="fw-bold text-dark">Total Cash:</span>
-                <span className="fw-semibold text-success">
-                  {countedCashTotal.toLocaleString()}
-                </span>
-              </div>
+        {/* Cash Denomination Modal - Small Centered */}
+        <Modal
+          show={showCashModal}
+          onHide={handleCloseCashModal}
+          size="sm"
+          centered
+          backdrop="static"
+          className="cash-denom-modal"
+        >
+          {/* Header */}
+          <Modal.Header closeButton className="bg-light py-2 border-bottom">
+            <Modal.Title className="fs-6 fw-semibold text-dark">
+              💵 Cash Denomination Entry
+            </Modal.Title>
+          </Modal.Header>
 
-              <div className="d-flex justify-content-between py-1">
-                <span className="fw-bold text-dark">Total CashExpected:</span>
-                <span className="fw-semibold text-primary" title="Total cash from all settled orders">
-                  {totalCash.toLocaleString()}
-                </span>
-              </div>
+          {/* Body */}
+          <Modal.Body style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1rem' }}>
+            <div className="cash-denom-list">
+              {Object.entries(cashDenominations).map(([denomStr, count]) => {
+                const denom = parseInt(denomStr);
+                const amount = denom * count;
+                return (
+                  <div
+                    key={denom}
+                    className="d-flex justify-content-between align-items-center border rounded p-2 mb-2 bg-white shadow-sm"
+                  >
+                    <span className="fw-semibold text-primary fs-6">{denom}</span>
+                    <Form.Control
+                      type="number"
+                      size="sm"
+                      min={0}
+                      value={count}
+                      onChange={(e) =>
+                        handleCountChange(denom, parseInt(e.target.value) || 0)
+                      }
+                      className="text-center mx-3"
+                      style={{ width: '80px' }}
+                    />
+                    <span className="fw-semibold text-success">
+                      {amount.toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Modal.Body>
 
-              <div className="d-flex justify-content-between py-1 border-top mt-1">
-                <span className="fw-bold text-dark">Surplus / Deficit:</span>
-                <span
-                  className={`fw-bold ${countedCashTotal - totalCash >= 0 ? 'text-success' : 'text-danger'
-                    }`}
-                >
-                  {(countedCashTotal - totalCash).toLocaleString()}
-                </span>
-              </div>
-
-              {/* Reason Field */}
-              <div className="mt-3">
-                <Form.Group controlId="reason">
-                  <Form.Label className="fw-semibold text-secondary small mb-1">
-                    Reason (if Surplus / Deficit)
-                  </Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    placeholder="Enter reason..."
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  />
-                </Form.Group>
-              </div>
+          {/* Totals Section */}
+          <div className="px-4 pb-2 border-top bg-light">
+            <div className="d-flex justify-content-between py-1">
+              <span className="fw-bold text-dark">Total Cash:</span>
+              <span className="fw-semibold text-success">
+                {countedCashTotal.toLocaleString()}
+              </span>
             </div>
 
-            {/* Footer */}
-            <Modal.Footer className="border-0 pt-0">
-              <Button
-                variant="success"
-                size="sm"
-                onClick={handleSaveCashDenomination}
-                disabled={!reason && countedCashTotal !== totalCash} // reason required if mismatch
+            <div className="d-flex justify-content-between py-1">
+              <span className="fw-bold text-dark">Total CashExpected:</span>
+              <span className="fw-semibold text-primary" title="Total cash from all settled orders">
+                {totalCash.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="d-flex justify-content-between py-1 border-top mt-1">
+              <span className="fw-bold text-dark">Surplus / Deficit:</span>
+              <span
+                className={`fw-bold ${countedCashTotal - totalCash >= 0 ? 'text-success' : 'text-danger'
+                  }`}
               >
-                💾 Save
-              </Button>
-              <Button variant="outline-secondary" size="sm" onClick={handleCloseCashModal}>
-                ✖ Close
-              </Button>
-            </Modal.Footer>
-          </Modal>
+                {(countedCashTotal - totalCash).toLocaleString()}
+              </span>
+            </div>
 
-          {/* Report Selection Modal */}
-          <Modal show={showReportModal} onHide={() => setShowReportModal(false)} centered size="sm">
-            <Modal.Header closeButton className="border-0 pb-0">
-              <Modal.Title className="fw-bold text-primary">Select Reports</Modal.Title>
-            </Modal.Header>
-            <Modal.Body className="p-3">
-              <div className="mb-3">
-                <InputGroup>
-                  <InputGroup.Text>
-                    <Calendar size={16} />
-                  </InputGroup.Text>
+            {/* Reason Field */}
+            <div className="mt-3">
+              <Form.Group controlId="reason">
+                <Form.Label className="fw-semibold text-secondary small mb-1">
+                  Reason (if Surplus / Deficit)
+                </Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  placeholder="Enter reason..."
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </Form.Group>
+            </div>
+          </div>
 
-                  <Form.Control
-                    type="date"
-                    value={reportDate}
-                    onChange={(e) => setReportDate(e.target.value)}
-                  />
-                </InputGroup>
+          {/* Footer */}
+          <Modal.Footer className="border-0 pt-0">
+            <Button
+              variant="success"
+              size="sm"
+              onClick={handleSaveCashDenomination}
+              disabled={!reason && countedCashTotal !== totalCash} // reason required if mismatch
+            >
+              💾 Save
+            </Button>
+            <Button variant="outline-secondary" size="sm" onClick={handleCloseCashModal}>
+              ✖ Close
+            </Button>
+          </Modal.Footer>
+        </Modal>
 
-              </div>
-              <div>
-                <div className="fw-semibold mb-2">Choose Reports</div>
-                <Form.Check
-                  type="checkbox"
-                  className="report-checkbox"
-                  label={
-                    <>
-                      <FileText size={16} className="report-icon" />
-                      Bill Details
-                    </>
-                  }
-                  checked={selectedReports.billDetails}
-                  onChange={(e) => setSelectedReports(prev => ({ ...prev, billDetails: e.target.checked }))}
-                />
-                <Form.Check
-                  type="checkbox"
-                  className="report-checkbox"
-                  label={
-                    <>
-                      <CreditCard size={16} className="report-icon" />
-                      Credit Summary
-                    </>
-                  }
-                  checked={selectedReports.creditSummary}
-                  onChange={(e) => setSelectedReports(prev => ({ ...prev, creditSummary: e.target.checked }))}
-                />
-                <Form.Check
-                  type="checkbox"
-                  className="report-checkbox"
-                  label={
-                    <>
-                      <DollarSign size={16} className="report-icon" />
-                      Payment Summary
-                    </>
-                  }
-                  checked={selectedReports.paymentSummary}
-                  onChange={(e) => setSelectedReports(prev => ({ ...prev, paymentSummary: e.target.checked }))}
-                />
-                <Form.Check
-                  type="checkbox"
-                  className="report-checkbox"
-                  label={
-                    <>
-                      <Tag size={16} className="report-icon" />
-                      Discount Summary
-                    </>
-                  }
-                  checked={selectedReports.discountSummary}
-                  onChange={(e) => setSelectedReports(prev => ({ ...prev, discountSummary: e.target.checked }))}
-                />
-                <Form.Check
-                  type="checkbox"
-                  className="report-checkbox"
-                  label={
-                    <>
-                      <RefreshCw size={16} className="report-icon" />
-                      Reverse KOTs Summary
-                    </>
-                  }
-                  checked={selectedReports.reverseKOTSummary}
-                  onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseKOTSummary: e.target.checked }))}
-                />
-                <Form.Check
-                  type="checkbox"
-                  className="report-checkbox"
-                  label={
-                    <>
-                      <RefreshCw size={16} className="report-icon" />
-                      Reverse Bill Summary
-                    </>
-                  }
-                  checked={selectedReports.reverseBillSummary}
-                  onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseBillSummary: e.target.checked }))}
-                />
-                <Form.Check
-                  type="checkbox"
-                  className="report-checkbox"
-                  label={
-                    <>
-                      <BarChart size={16} className="report-icon" />
-                      NC KOT Sales Summary
-                    </>
-                  }
-                  checked={selectedReports.ncKOTSummary}
-                  onChange={(e) => setSelectedReports(prev => ({ ...prev, ncKOTSummary: e.target.checked }))}
-                />
-              </div>
-            </Modal.Body>
-            <Modal.Footer className="border-0 pt-0">
-              <Button variant="secondary" onClick={() => setShowReportModal(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" onClick={handleGenerateReports}>
-                Generate Reports
-              </Button>
-            </Modal.Footer>
-          </Modal>
+        {/* Report Selection Modal */}
+        <Modal show={showReportModal} onHide={() => setShowReportModal(false)} centered size="sm">
+          <Modal.Header closeButton className="border-0 pb-0">
+            <Modal.Title className="fw-bold text-primary">Select Reports</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-3">
+            <div className="mb-3">
+              <InputGroup>
+  <InputGroup.Text>
+    <Calendar size={16} />
+  </InputGroup.Text>
 
-        </Container>
+  <Form.Control
+    type="date"
+    value={reportDate}
+    onChange={(e) => setReportDate(e.target.value)}
+  />
+</InputGroup>
+
+            </div>
+            <div>
+              <div className="fw-semibold mb-2">Choose Reports</div>
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <FileText size={16} className="report-icon" />
+                    Bill Details
+                  </>
+                }
+                checked={selectedReports.billDetails}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, billDetails: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <CreditCard size={16} className="report-icon" />
+                    Credit Summary
+                  </>
+                }
+                checked={selectedReports.creditSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, creditSummary: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <DollarSign size={16} className="report-icon" />
+                    Payment Summary
+                  </>
+                }
+                checked={selectedReports.paymentSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, paymentSummary: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <Tag size={16} className="report-icon" />
+                    Discount Summary
+                  </>
+                }
+                checked={selectedReports.discountSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, discountSummary: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <RefreshCw size={16} className="report-icon" />
+                    Reverse KOTs Summary
+                  </>
+                }
+                checked={selectedReports.reverseKOTSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseKOTSummary: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <RefreshCw size={16} className="report-icon" />
+                    Reverse Bill Summary
+                  </>
+                }
+                checked={selectedReports.reverseBillSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseBillSummary: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <BarChart size={16} className="report-icon" />
+                    NC KOT Sales Summary
+                  </>
+                }
+                checked={selectedReports.ncKOTSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, ncKOTSummary: e.target.checked }))}
+              />
+            </div>
+          </Modal.Body>
+          <Modal.Footer className="border-0 pt-0">
+            <Button variant="secondary" onClick={() => setShowReportModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleGenerateReports}>
+              Generate Reports
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
+      </Container>
       ) : (
         <HandoverPasswordModal
           show={showPasswordModal}
