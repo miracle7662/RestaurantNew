@@ -1577,7 +1577,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
     } finally {
       setLoading(false);
     }
-  };
+     };
 
   const handlePrintKotAndBill = async () => {
     try {
@@ -1599,7 +1599,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       setItems([]);
       setCurrentTxnId(null);
       setOrderNo(null);
-      window.location.reload();
+     
 
     } catch (error: any) {
       toast.error(error.message || "Failed to print KOT and Bill");
@@ -4497,9 +4497,13 @@ setSelectedDeptId(deptId ?? 0);
                             {/* Unbilled items exist */}
                             {items.length > 0 && items.some(item => item.isBilled === 0) && (
                               <>
-                                <Button onClick={() => handlePrintBill(txnId)}>
-  Print Bill
-</Button>
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                 onClick={() => handlePrintBill()}
+                                >
+                                  🖨️ Bill (F10)
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="success"
@@ -4514,13 +4518,13 @@ setSelectedDeptId(deptId ?? 0);
                            {items.length > 0 && items.every(item => item.isBilled === 1) && (
 
                               <>
-                               <Button
-  size="sm"
-  variant="primary"
-  onClick={() => handlePrintBill(txnId)}
->
-  🖨️ Bill
-</Button>
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                  onClick={() => handlePrintBill()}
+                                >
+                                  🖨️ Bill
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="success"
