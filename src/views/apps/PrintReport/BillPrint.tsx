@@ -406,7 +406,8 @@ html, body {
           
            ${(showAll || localFormData.show_item_hsn_code_bill) ? `<div>HSN: ${localFormData.hsn || 'N/A'}</div>` : ''}
            
-          ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${localFormData.fssai_no || 'N/A'}</div>` : ''}
+       ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${localFormData.fssai_no || 'N/A'}</div>` : ''}\n  
+         ${(showAll || true) ? `<div style="font-size: 8pt;">GST No: ${user?.trn_gstno || 'N/A'}</div>` : ''}
            ${(showAll || localFormData.field1) ? `<div style="font-size: 8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
          
         </div>
@@ -574,9 +575,9 @@ ${(showAll || localFormData.show_customer_bill || localFormData.show_customer_gs
     `;
   };
 
-  // if (autoPrint) {
-  //   return null;
-  // }
+  if (autoPrint) {
+    return null;
+  }
 
   return (
     <Modal
