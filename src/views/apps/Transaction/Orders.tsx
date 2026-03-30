@@ -4688,6 +4688,7 @@ setSelectedDeptId(deptId ?? 0);
 
           <NCKotPrint             
             show={showNCKotPrintModal}
+            autoPrint={true}
             selectedWaiter={selectedWaiter}
             items={ncPrintItems}
             tableName={activeTab === 'Dine-in' ? selectedTable ?? 'Table' : activeTab}

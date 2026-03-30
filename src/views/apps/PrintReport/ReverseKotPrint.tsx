@@ -16,6 +16,7 @@ interface MenuItem {
 
 interface ReverseKotPrintProps {
   show: boolean;
+  autoPrint?: boolean; // 👈 add this
   selectedWaiter?: string;
   onHide: () => void;
   items: MenuItem[];
@@ -30,6 +31,7 @@ interface ReverseKotPrintProps {
 
 const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   show,
+  autoPrint,
   selectedWaiter,
   onHide,
   items,
@@ -42,6 +44,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   reversePrintTrigger
 }) => {
   const [loading, setLoading] = useState(false);
+  const [hasPrinted, setHasPrinted] = useState(false);  // ✅ NEW
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [localRestaurantName, setLocalRestaurantName] = useState("");
   const [localOutletName, setLocalOutletName] = useState("");
@@ -108,6 +111,37 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 
     fetchPrinterAndOutlet();
   }, [show, user]);
+
+  // ✅ NEW: Auto Print Logic (MAIN 🔥)
+  useEffect(() => {
+    if (
+      autoPrint &&
+      show &&
+      !loading &&
+      !isLoadingNames &&
+      !hasPrinted &&
+      printerName &&
+      reverseItems.length > 0
+    ) {
+      setHasPrinted(true);
+      handlePrint();
+    }
+  }, [
+    autoPrint,
+    show,
+    loading,
+    isLoadingNames,
+    hasPrinted,
+    printerName,
+    reverseItems
+  ]);
+
+  // ✅ NEW: Reset when modal closes
+  useEffect(() => {
+    if (!show) {
+      setHasPrinted(false);
+    }
+  }, [show]);
 
   /** 🔹 DateTime */
   const dateTime = useMemo(() => {
@@ -283,6 +317,11 @@ ${generateContent}
       setLoading(false);
     }
   };
+
+  // ✅ NEW: Hide modal in auto mode (optional but BEST UX)
+  if (autoPrint) {
+    return null;
+  }
 
   return (
     <Modal show={show} onHide={onHide} centered backdrop="static">

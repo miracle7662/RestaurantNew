@@ -15,6 +15,7 @@ interface MenuItem {
 
 interface NCKotPrintProps {
   show: boolean;
+  autoPrint?: boolean;
   selectedWaiter?: string;
   onHide: () => void;
   items: MenuItem[];
@@ -28,6 +29,7 @@ interface NCKotPrintProps {
 const NCKotPrint: React.FC<NCKotPrintProps> = ({
   show,
   selectedWaiter,
+  autoPrint,
   onHide,
   items,
   user,
@@ -38,6 +40,7 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
+  const [hasPrinted, setHasPrinted] = useState(false);
   const [localRestaurantName, setLocalRestaurantName] = useState("");
   const [localOutletName, setLocalOutletName] = useState("");
 
@@ -288,6 +291,32 @@ ${ncItems
     }
   };
 
+  // Main Auto-Print Logic
+  useEffect(() => {
+    if (
+      autoPrint &&
+      show &&
+      !loading &&
+      !hasPrinted &&
+      printerName &&
+      ncItems.length > 0
+    ) {
+      setHasPrinted(true);
+      handlePrint();
+    }
+  }, [autoPrint, show, loading, hasPrinted, printerName, ncItems]);
+
+  // Reset hasPrinted when modal is closed
+  useEffect(() => {
+    if (!show) {
+      setHasPrinted(false);
+    }
+  }, [show]);
+
+  if (autoPrint) {
+    return null;
+  }
+
   return (
     <Modal show={show} onHide={onHide} centered>
       <Modal.Header closeButton>
@@ -297,6 +326,93 @@ ${ncItems
       <Modal.Body>
         {loading ? (
           <div className="text-center">
+            <Spinner />
+          </div>
+        ) : (
+          <div
+            style={{
+              width: "302px",
+              margin: "0 auto",
+              background: "#fff",
+              padding: "10px",
+              border: "1px solid #ccc",
+              fontFamily: "monospace",   // ← Fixed: Print-like font
+              fontSize: "12px"           // ← Fixed: Print-like size
+            }}
+            dangerouslySetInnerHTML={{ __html: generatePreviewContent }}
+          />
+        )}
+      </Modal.Body>
+
+      <Modal.Footer>
+        <Button onClick={onHide}>Close</Button>
+        <Button variant="danger" onClick={handlePrint}>
+          Print
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
+export default NCKotPrint;text-center">
+            <Spinner />
+          </div>
+        ) : (
+          <div
+            style={{
+              width: "302px",
+              margin: "0 auto",
+              background: "#fff",
+              padding: "10px",
+              border: "1px solid #ccc",
+              fontFamily: "monospace",   // ← Fixed: Print-like font
+              fontSize: "12px"           // ← Fixed: Print-like size
+            }}
+            dangerouslySetInnerHTML={{ __html: generatePreviewContent }}
+          />
+        )}
+      </Modal.Body>
+
+      <Modal.Footer>
+        <Button onClick={onHide}>Close</Button>
+        <Button variant="danger" onClick={handlePrint}>
+          Print
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
+export default NCKotPrint;text-center">
+            <Spinner />
+          </div>
+        ) : (
+          <div
+            style={{
+              width: "302px",
+              margin: "0 auto",
+              background: "#fff",
+              padding: "10px",
+              border: "1px solid #ccc",
+              fontFamily: "monospace",   // ← Fixed: Print-like font
+              fontSize: "12px"           // ← Fixed: Print-like size
+            }}
+            dangerouslySetInnerHTML={{ __html: generatePreviewContent }}
+          />
+        )}
+      </Modal.Body>
+
+      <Modal.Footer>
+        <Button onClick={onHide}>Close</Button>
+        <Button variant="danger" onClick={handlePrint}>
+          Print
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
+export default NCKotPrint;text-center">
             <Spinner />
           </div>
         ) : (
