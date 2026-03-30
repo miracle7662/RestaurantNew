@@ -105,19 +105,19 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
 
   const loadOutletSettings = async (outletId: number) => {
-    console.log('loadOutletSettings called with outletId:', outletId);
+    // console.log('loadOutletSettings called with outletId:', outletId);
     try {
       const kotData = await fetchKotPrintSettings(outletId);
-      console.log('fetchKotPrintSettings returned:', kotData);
+      // console.log('fetchKotPrintSettings returned:', kotData);
       if (kotData) {
         const newFormData = applyKotSettings(localFormData, kotData);
-        console.log('New form data after applyKotSettings:', newFormData);
+        // console.log('New form data after applyKotSettings:', newFormData);
         setLocalFormData(newFormData);
       } else {
-        console.log('No KOT data returned from fetchKotPrintSettings');
+        // console.log('No KOT data returned from fetchKotPrintSettings');
       }
     } catch (err) {
-      console.error('Failed to load outlet settings', err);
+      // console.error('Failed to load outlet settings', err);
       toast.error('Failed to load KOT print settings.');
     }
   };
@@ -127,9 +127,9 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     if (!show) return;
 
     const outlet = selectedOutletId ?? Number(user?.outletid);
-    console.log('KOT Settings Load Debug:', { selectedOutletId, userOutletId: user?.outletid, outlet, show });
+    // console.log('KOT Settings Load Debug:', { selectedOutletId, userOutletId: user?.outletid, outlet, show });
     if (!outlet || isNaN(outlet)) {
-      console.log('Skipping outlet settings load - invalid outlet ID');
+      // console.log('Skipping outlet settings load - invalid outlet ID');
       return;
     }
 
@@ -157,7 +157,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         const data = printerRes?.data || printerRes;
         setPrinterName(data?.printer_name || null);
       } catch (err) {
-        console.error('Error fetching printer:', err);
+        // console.error('Error fetching printer:', err);
         toast.error('Failed to load printer settings.');
         setPrinterName(null);
       }
@@ -175,7 +175,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
             setLocalOutletName(data.outlet_name || 'Outlet Name');
           }
         } catch (error) {
-          console.error('Error fetching outlet details:', error);
+          // console.error('Error fetching outlet details:', error);
           setLocalRestaurantName(user?.hotel_name || 'Restaurant Name');
           setLocalOutletName(user?.outlet_name || 'Outlet Name');
         }
@@ -209,7 +209,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         // IMPORTANT: backend sends 0 / 1
         setEnableKotPrint(Number(data?.enableKotPrint) || 0);
       } catch (err) {
-        console.error("KOT setting fetch failed", err);
+        // console.error("KOT setting fetch failed", err);
         setEnableKotPrint(0);
       } finally {
         setLoadingSetting(false);
@@ -322,7 +322,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
       const systemPrintersRaw = await window.electronAPI?.getInstalledPrinters?.() || [];
       const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
-      console.log("System Printers:", systemPrinters);
+      // console.log("System Printers:", systemPrinters);
 
       if (systemPrinters.length === 0) {
         toast.error("No printers detected on this system. Please check printer connections and drivers.");
@@ -351,7 +351,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         if (fallbackPrinter) {
           finalPrinterName = fallbackPrinter.name;
           usedFallback = true;
-          console.warn(`Configured printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
+          // console.warn(`Configured printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
           toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
         } else {
           toast.error("No suitable printer found, including fallbacks.");
@@ -365,10 +365,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       }
 
       if (usedFallback) {
-        console.log("Fallback printer used");
+        // console.log("Fallback printer used");
       }
 
-      console.log(`Printing to printer: ${finalPrinterName}`);
+      // console.log(`Printing to printer: ${finalPrinterName}`);
 
       // Generate KOT HTML for printing
       const kotHTML = generateKOTHTML();
@@ -392,7 +392,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         toast.error("Electron print API not available.");
       }
     } catch (err) {
-      console.error("Print error:", err);
+      // console.error("Print error:", err);
       toast.error("Failed to print KOT.");
     } finally {
       setLoading(false);
@@ -419,20 +419,20 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const generateKOTContent = useMemo(() => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
 
-    console.log('KOT SETTINGS USED 👉', localFormData);
+    // console.log('KOT SETTINGS USED 👉', localFormData);
 
     // Determine the names to use: outlet props first, then local state, then user object, then defaults
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
     const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
-    console.log('KOT Print Debug:', {
-      restaurantName,
+    // console.log('KOT Print Debug:', {
+    //   restaurantName,
 
-      displayRestaurantName,
-      outletName,
-      localOutletName,
-      userOutletName: user?.outlet_name,
-      displayOutletName
-    });
+    //   displayRestaurantName,
+    //   outletName,
+    //   localOutletName,
+    //   userOutletName: user?.outlet_name,
+    //   displayOutletName
+    // });
 
     // Map activeTab to key suffix
     const tabKeyMap: { [key: string]: string } = {
@@ -455,7 +455,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       return '';
     })();
 
-    console.log('ACTIVE TAB 👉', activeTab, 'TAB KEY 👉', tabKey);
+    // console.log('ACTIVE TAB 👉', activeTab, 'TAB KEY 👉', tabKey);
 
     // Get KOT no prefix
     const kotNoPrefix = localFormData[`${tabKey}_kot_no`] || '';
