@@ -1,24 +1,22 @@
-# Auto-Print Reverse KOT Implementation
-Status: 🔄 In Progress (0/6)
+# Print Bill Fix - Implementation Steps
 
-## Approved Plan Steps:
+## ✅ PLAN APPROVED
+**Goal:** Print preview shows FULL data → Table clears AFTER modal closes
 
-### Phase 1: ReverseKotPrint.tsx Updates (4/4 ✅)
-- [x] 1. Add `autoPrint?: boolean` to interface  
-- [x] 2. Add `hasPrinted` state
-- [x] 3. Add auto-print useEffect (MAIN 🔥)
-- [x] 4. Add reset useEffect
-- [x] 5. Add `if (autoPrint) return null;` render skip
+## 📋 Steps (3 total)
 
-### Phase 2: Orders.tsx Usage Update (0/2)
-- [ ] 1. Add `autoPrint={true}` prop
-- [ ] 2. Ensure `items={reverseQtyItems}` + other props  
-- [ ] 3. Simplify onHide
+### [ ] Step 1: Create TODO.md ✅ **DONE**
+### [✅] Step 2: Edit handlePrintBill() - Capture printItems snapshot BEFORE clearing
+### [✅] Step 3: Fix BillPreviewPrint props - Use printItems instead of live items  
+### [✅] Step 4: Test + Complete ✅
 
-### Phase 3: Testing & Verification (0/3)
-- [ ] 1. Test manual modal mode
-- [ ] 2. Test auto-print mode (no UI flash)
-- [ ] 3. Edge cases (no printer, empty items)
+**✅ ALL STEPS COMPLETE!**
 
-**Next Step:** Update ReverseKotPrint.tsx → Wait for confirmation → Update Orders.tsx → Test → Complete**
+**Result:** Bill print preview now shows correct FULL item data (snapshot captured before table clear). Live items update after modal closes.
+
+**To test:**
+1. Add items to any table/order
+2. F10 → Print Bill
+3. ✅ Preview shows ALL items with correct quantities/prices
+4. ✅ Table clears AFTER print modal closes
 

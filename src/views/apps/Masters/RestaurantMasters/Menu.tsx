@@ -1746,7 +1746,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                               </th>
                             )}
 
-                          <th style={{ padding: '4px 8px' }}>Tax Group</th>
+                         
 
                         </tr>
                       </thead>
@@ -1836,29 +1836,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                 )}
 
 {/* Tax Group */}
-                                <td style={{ padding: '4px 8px' }}>
-                                  <Form.Select 
-                                    className="rounded-lg py-1"
-                                    value={deptRate.taxgroupid ?? ''}
-                                    onChange={(e) => {
-                                      setNewItem((prev) => ({
-                                        ...prev,
-                                        departmentRates: prev.departmentRates.map((dr) =>
-                                          dr.departmentid === deptRate.departmentid
-                                            ? { ...dr, taxgroupid: e.target.value ? Number(e.target.value) : null }
-                                            : dr
-                                        ),
-                                      }));
-                                    }}
-                                  >
-                                    <option value="">Select</option>
-                                    {taxGroups.map((tg) => (
-                                      <option key={tg.taxgroupid} value={tg.taxgroupid}>
-                                        {tg.taxgroup_name}
-                                      </option>
-                                    ))}
-                                  </Form.Select>
-                                </td>
+                               
 
 
 
