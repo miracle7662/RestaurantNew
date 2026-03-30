@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAuthContext } from '@/common/context/useAuthContext';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
 import { OutletSettings } from 'src/utils/applyOutletSettings';
@@ -124,6 +125,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   }, [currentKOTNos, items]);
   const [localOutletName, setLocalOutletName] = React.useState<string>('');
   const [, setIsLoadingNames] = React.useState(true);
+  const { user: authUser } = useAuthContext();
 
   const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
   const displayOutletName = outletName || localOutletName || user?.outlet_name || 'Outlet Name';
@@ -377,7 +379,7 @@ html, body {
   };
 
   const generateBillContent = (isPreview = false) => {
-    // DEBUG LOGS - Remove after testing
+     // DEBUG LOGS - Remove after testing
     console.log('=== BILL PRINT DEBUG ===');
     console.log('showAll:', );
     console.log('localFormData.show_customer_bill:', localFormData.show_customer_bill);
@@ -399,15 +401,15 @@ html, body {
         <div style="text-align: center; margin-bottom: 10px;">
           ${(showAll || localFormData.show_logo_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${(showAll || localFormData.show_brand_name_bill) ? displayRestaurantName : ''}</div>` : ''}
           ${(showAll || localFormData.show_outlet_name_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${displayOutletName}</div>` : ''}
-          <div style="font-size: 8pt;">${user?.outlet_address || ''}</div>
+<div style="font-size: 8pt;">${authUser?.address || user?.outlet_address || ''}</div>
+            ${(showAll || true) ? `<div style="font-size: 8pt;">GST No: ${user?.trn_gstno || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.email) ? `<div style="font-size: 8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.website) ? `<div style="font-size: 8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.show_phone_on_bill) ? `<div style="font-size: 8pt;">Phone: ${user?.outlet_phone || 'N/A'}</div>` : ''}
           
            ${(showAll || localFormData.show_item_hsn_code_bill) ? `<div>HSN: ${localFormData.hsn || 'N/A'}</div>` : ''}
            
-       ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${localFormData.fssai_no || 'N/A'}</div>` : ''}\n  
-         ${(showAll || true) ? `<div style="font-size: 8pt;">GST No: ${user?.trn_gstno || 'N/A'}</div>` : ''}
+          ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${localFormData.fssai_no || 'N/A'}</div>` : ''}
            ${(showAll || localFormData.field1) ? `<div style="font-size: 8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
          
         </div>
@@ -428,12 +430,12 @@ html, body {
           <div style="flex: 1; white-space: nowrap;"><strong>KOT No </strong><br />${allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")}</div>
           <div style="flex: 1;"></div>
         </div>
-${(showAll || localFormData.show_customer_bill || localFormData.show_customer_gst_bill) && (customerName || mobileNumber) ? `
+       ${(showAll || localFormData.show_customer_bill) && (customerName || mobileNumber) ? `
   <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
   <div style="font-size: 9pt; margin-bottom: 8px;">
     ${customerName ? `<div><strong>Customer:</strong> ${customerName}</div>` : ''}
     ${mobileNumber ? `<div><strong>Mobile:</strong> ${mobileNumber}</div>` : ''}
-    <div><strong>GSTIN:</strong> ${user?.trn_gstno || 'N/A'}</div>
+    ${(showAll || localFormData.show_customer_gst_bill) ? `<div><strong>GSTIN:</strong> N/A</div>` : ''}
     ${(showAll || (activeTab === 'Pickup' && localFormData.show_customer_address_pickup_bill)) ? `<div><strong>Address:</strong> N/A</div>` : ''}
   </div>
 ` : ''}

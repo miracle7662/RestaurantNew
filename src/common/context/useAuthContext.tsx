@@ -25,6 +25,7 @@ type User = {
   hotel_name?: string
   outlet_name?: string
   brand_name?: string
+  address?: string
   currDate?: string
 }
 

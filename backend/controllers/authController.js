@@ -22,7 +22,7 @@ exports.login = async (req, res) => {
         if (email) {
             // Login with email (for SuperAdmin)
             user = db.prepare(`
-             SELECT u.*, h.trn_gstno,
+SELECT u.*, h.trn_gstno, h.address AS address,
                    b.hotel_name as brand_name,
                    h.hotel_name as hotel_name,
                    u.outletid
@@ -94,7 +94,8 @@ role_level: user.role_level,
             outletid: user.outletid,
             outlet_name: user.outlet_name, // Adjusted to use outlet_name alias
             brand_name: user.brand_name,
-            hotel_name: user.hotel_name,  
+            hotel_name: user.hotel_name,
+            address: user.address,
             created_by_id: user.created_by_id || null, // Ensure it’s included, even if null
             token: token
         };
@@ -143,7 +144,7 @@ exports.getCurrentUser = async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         
         const user = db.prepare(`
-            SELECT u.*, h.trn_gstno,
+            SELECT u.*, h.trn_gstno, h.address AS address,
                   
                    b.hotel_name AS brand_name,
                    h.hotel_name AS hotel_name,
@@ -168,6 +169,7 @@ exports.getCurrentUser = async (req, res) => {
 role: user.role_level,
             role_level: user.role_level,
             trn_gstno: user.trn_gstno,
+            address: user.address,
             brand_id: user.brand_id,
             hotelid: user.hotelid,
             outletid: user.outletid ,

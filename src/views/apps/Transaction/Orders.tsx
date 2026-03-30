@@ -4967,6 +4967,7 @@ setSelectedDeptId(deptId ?? 0);
           />
           <BillPreviewPrint
             show={showBillPrintModal}
+           
             //  autoPrint={true}  // 👈 Direct print (no modal)
             onHide={() => {
               setShowBillPrintModal(false);
