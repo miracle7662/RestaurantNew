@@ -15,7 +15,7 @@ exports.listAccountNatures = (req, res) => {
     res.json(accountnatures);
 
   } catch (error) {
-    console.error('Error fetching account natures:', error);
+    // console.error('Error fetching account natures:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
@@ -41,7 +41,7 @@ exports.getAccountNatureById = (req, res) => {
     }
 
   } catch (error) {
-    console.error('Error fetching account nature:', error);
+    // console.error('Error fetching account nature:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
@@ -71,7 +71,7 @@ exports.createAccountNature = (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating account nature:', error);
+    // console.error('Error creating account nature:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
@@ -112,7 +112,7 @@ exports.updateAccountNature = (req, res) => {
     res.json({ message: 'Account Nature updated successfully' });
 
   } catch (error) {
-    console.error('Error updating account nature:', error);
+    // console.error('Error updating account nature:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
@@ -142,7 +142,7 @@ exports.deleteAccountNature = (req, res) => {
     res.json({ message: 'Account Nature deleted successfully' });
 
   } catch (error) {
-    console.error('Error deleting account nature:', error);
+    // console.error('Error deleting account nature:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };

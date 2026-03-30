@@ -198,8 +198,14 @@ const ReportPage = () => {
         }
       }
       
-      // Use ReportService for common API call
-      const response = await ReportService.getDailySalesReport({ start, end });
+      // Use ReportService for common API call with caseType
+      const caseType = reportCategory === 'reverseKOTs' ? 'reverseKOTs' :
+                      reportCategory === 'ncKOT' ? 'ncKOT' :
+                      reportCategory === 'creditSummary' ? 'creditSummary' :
+                      reportCategory === 'discountSummary' ? 'discountSummary' :
+                      reportCategory === 'kitchenWise' ? 'kitchenWise' :
+                      'billSummary'; // default
+      const response = await ReportService.getDailySalesReport({ start, end, caseType });
       
       if (response.success && response.data) {
         // console.log("Fetched bills data:", response.data.orders);

@@ -474,7 +474,7 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
   const [f8RevKotPasswordLoading, setF8RevKotPasswordLoading] = useState(false);
   const [showReverseBillConfirmationModal, setShowReverseBillConfirmationModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
-  const [givenBy, setGivenBy] = useState('');
+const [givenBy, setGivenBy] = useState<string>(user?.name || '');
   const [reason, setReason] = useState('');
   const [DiscPer, setDiscPer] = useState(0);
   const handleDiscountModalKeyDown = (e: React.KeyboardEvent) => {

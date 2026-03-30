@@ -18,7 +18,7 @@ const runQuery = (query, params = []) => {
     try {
       const stmt = db.prepare(query)
       const info = stmt.run(params)
-      resolve({ id: info.lastInsertRowid || info.lastInsertROWID || 0, changes: info.changes })
+      resolve({ id: info.lastInsertRowid || info.lastInsertRowid || 0, changes: info.changes })
     } catch (err) {
       reject(err)
     }
@@ -71,12 +71,12 @@ module.exports = {
         ORDER BY m.Name DESC
       `);
 
-      console.log('Executing query with params:', hotelid, date);
+      // console.log('Executing query with params:', hotelid, date);
       const rows = stmt.all(hotelid, date);
-      console.log('Query returned', rows.length, 'rows');
+      // console.log('Query returned', rows.length, 'rows');
       res.json(rows)
     } catch (error) {
-      console.error('Error in getCustomers:', error)
+      // console.error('Error in getCustomers:', error)
       res.status(500).json({ error: error.message, stack: error.stack })
     }
   },
@@ -139,7 +139,7 @@ module.exports = {
 
     const hotelid = req.hotelid;
 
-    console.log('getLedger called with hotelid:', hotelid);
+    // console.log('getLedger called with hotelid:', hotelid);
 
     const stmt = db.prepare(`
       SELECT
@@ -175,7 +175,7 @@ module.exports = {
     res.json(rows);
 
   } catch (error) {
-    console.error('Error in getLedger:', error);
+    // console.error('Error in getLedger:', error);
     res.status(500).json({ error: error.message });
   }
 },
@@ -205,7 +205,7 @@ module.exports = {
             accountTypeName = row.AccName
           }
         } catch (err) {
-          console.error('Failed to fetch account type name in createLedger:', err)
+          // console.error('Failed to fetch account type name in createLedger:', err)
         }
       }
 
@@ -242,7 +242,7 @@ module.exports = {
       const result = await runQuery(query, params)
       res.json({ success: true, id: result.id })
     } catch (err) {
-      console.error('Error in createLedger:', err, 'Received data:', req.body)
+      // console.error('Error in createLedger:', err, 'Received data:', req.body)
       res.status(500).json({ error: err.message })
     }
   },
@@ -268,7 +268,7 @@ module.exports = {
             accountTypeName = row.AccName
           }
         } catch (err) {
-          console.error('Failed to fetch account type name in updateLedger:', err)
+          // console.error('Failed to fetch account type name in updateLedger:', err)
         }
       }
 
@@ -315,7 +315,7 @@ module.exports = {
       const result = await runQuery(query, params)
       res.json({ success: true, changes: result.changes })
     } catch (err) {
-      console.error('Error in updateLedger:', err, 'Received data:', req.body)
+      // console.error('Error in updateLedger:', err, 'Received data:', req.body)
       res.status(500).json({ error: err.message })
     }
   },
@@ -368,7 +368,7 @@ module.exports = {
       const rows = stmt.all(hotelid);
       res.json(rows)
     } catch (error) {
-      console.error('Error in getCashBankLedgers:', error)
+      // console.error('Error in getCashBankLedgers:', error)
       res.status(500).json({ error: error.message })
     }
   },
@@ -391,7 +391,7 @@ module.exports = {
       const rows = stmt.all(hotelid);
       res.json(rows)
     } catch (error) {
-      console.error('Error in getOppBankList:', error)
+      // console.error('Error in getOppBankList:', error)
       res.status(500).json({ error: error.message })
     }
   },
@@ -444,7 +444,7 @@ module.exports = {
         res.status(404).json({ error: 'Customer not found' })
       }
     } catch (error) {
-      console.error('Error in getCustomerByNo:', error)
+      // console.error('Error in getCustomerByNo:', error)
       res.status(500).json({ error: error.message })
     }
   },
@@ -496,7 +496,7 @@ module.exports = {
         res.status(404).json({ error: 'Farmer not found' })
       }
     } catch (error) {
-      console.error('Error in getFarmerByNo:', error)
+      // console.error('Error in getFarmerByNo:', error)
       res.status(500).json({ error: error.message })
     }
   },
@@ -541,7 +541,7 @@ module.exports = {
       const rows = stmt.all(hotelid);
       res.json(rows);
     } catch (error) {
-      console.error('Error in getsodacustomer:', error);
+      // console.error('Error in getsodacustomer:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -748,7 +748,7 @@ ORDER BY m.Name DESC
       const rows = stmt.all(...params);
       res.json(rows);
     } catch (error) {
-      console.error('Error in getOutstandingCustomersAndFarmers:', error);
+      // console.error('Error in getOutstandingCustomersAndFarmers:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -771,7 +771,7 @@ ORDER BY m.Name DESC
 
       res.json({ nextLedgerNo });
     } catch (error) {
-      console.error('Error in getNextLedgerNo:', error);
+      // console.error('Error in getNextLedgerNo:', error);
       res.status(500).json({ error: error.message });
     }
   },

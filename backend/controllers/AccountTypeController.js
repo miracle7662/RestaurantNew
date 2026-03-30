@@ -15,7 +15,7 @@ exports.listAccountTypes = (req, res) => {
     res.json(accountTypes);
 
   } catch (error) {
-    console.error('Error fetching account types:', error);
+    // console.error('Error fetching account types:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
@@ -41,7 +41,7 @@ exports.getAccountTypeById = (req, res) => {
     }
 
   } catch (error) {
-    console.error('Error fetching account type:', error);
+    // console.error('Error fetching account type:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
@@ -86,7 +86,7 @@ exports.createAccountType = (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating account type:', error);
+    // console.error('Error creating account type:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
@@ -137,7 +137,7 @@ exports.updateAccountType = (req, res) => {
     res.json({ message: 'Account Type updated successfully' });
 
   } catch (error) {
-    console.error('Error updating account type:', error);
+    // console.error('Error updating account type:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
@@ -167,7 +167,7 @@ exports.deleteAccountType = (req, res) => {
     res.json({ message: 'Account Type deleted successfully' });
 
   } catch (error) {
-    console.error('Error deleting account type:', error);
+    // console.error('Error deleting account type:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };

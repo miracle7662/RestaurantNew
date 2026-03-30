@@ -225,7 +225,7 @@ ${ncItems.map(i => `
 <div><b>NC:</b> ${ncItems[0]?.NCName || "-"}</div>
 <div><b>Purpose:</b> ${ncItems[0]?.NCPurpose || "-"}</div>
 <div><b>Date:</b> ${dateTime}</div>
-    <div><b>User:</b> ${user?.username}</div>
+   
     <div><b>Waiter:</b> ${selectedWaiter || user?.name || '-'}</div>
     <div><b>Table:</b> ${tableName || '-'}</div>
 

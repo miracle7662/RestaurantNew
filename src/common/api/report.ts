@@ -100,12 +100,12 @@ const ReportService = {
    * Get daily sales report data
    * @param params - Query parameters (start date, end date, outletid)
    */
-  getDailySalesReport: async (params: ReportParams): Promise<ReportApiResponse> => {
+  getDailySalesReport: async (params: ReportParams & { caseType?: string }): Promise<ReportApiResponse> => {
     try {
-      // Build query string
       const queryParams = new URLSearchParams()
       if (params.start) queryParams.append('start', params.start)
       if (params.end) queryParams.append('end', params.end)
+      if (params.caseType) queryParams.append('caseType', params.caseType)
       
       const response = await HttpClient.get<ReportApiResponse>(
         `/reports?${queryParams.toString()}`

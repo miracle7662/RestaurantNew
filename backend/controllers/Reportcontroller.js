@@ -3,12 +3,12 @@ const db = require('../config/db');
 
 const getReportData = (req, res) => {
   try {
-    // Get start and end dates from query params, default to today if not provided
     const today = new Date().toISOString().split('T')[0];
     const startDate = req.query.start || today;
     const endDate = req.query.end || today;
+    const caseType = req.query.caseType || 'billSummary';
 
-    const query = `
+    let baseQuery = `
       SELECT
           t.TxnID,
           t.TxnNo,
@@ -67,13 +67,43 @@ const getReportData = (req, res) => {
       LEFT JOIN msttablemanagement mt ON t.TableID = mt.tableid
       LEFT JOIN mst_outlets mo ON mt.outletid = mo.outletid
       LEFT JOIN msttable_department d ON mt.departmentid = d.departmentid
-      WHERE t.isCancelled = 0
-        AND DATE(t.TxnDatetime) BETWEEN ? AND ?
-      GROUP BY t.TxnID, t.TxnNo
-      ORDER BY t.TxnDatetime DESC;
-    `;
+      WHERE t.isCancelled = 0`;
 
-    const rows = db.prepare(query).all(startDate, endDate);
+    let whereConditions = [];
+    let groupByClause = ' GROUP BY t.TxnID, t.TxnNo';
+    let orderByClause = ' ORDER BY t.TxnDatetime DESC';
+    let params = [startDate, endDate];
+
+    // Casewise filtering
+    switch(caseType) {
+      case 'reverseKOTs':
+        whereConditions.push('t.isreversebill = 1');
+        break;
+      case 'ncKOT':
+        whereConditions.push('NCKOT IS NOT NULL AND NCKOT != ""');
+        break;
+      case 'creditSummary':
+        whereConditions.push("(SELECT COUNT(*) FROM TrnSettlement s WHERE s.OrderNo = t.TxnNo AND s.PaymentType LIKE '%credit%' AND s.isSettled = 1) > 0");
+        break;
+      case 'discountSummary':
+        whereConditions.push('t.Discount > 0');
+        break;
+      case 'kitchenWise':
+        groupByClause = ' GROUP BY t.Steward';
+        orderByClause = ' ORDER BY SUM(t.Amount) DESC';
+        break;
+      // Add more cases...
+      default:
+        // billSummary - only billed bills
+        whereConditions.push('t.isBilled = 1');
+    }
+
+    if (whereConditions.length > 0) {
+      baseQuery += ' AND ' + whereConditions.join(' AND ');
+    }
+    baseQuery += ' AND DATE(t.TxnDatetime) BETWEEN ? AND ?' + groupByClause + orderByClause;
+
+    const rows = db.prepare(baseQuery).all(...params);
     const transactions = {};
 
     rows.forEach(row => {
@@ -157,37 +187,24 @@ const getReportData = (req, res) => {
 
     const orders = Object.values(transactions);
 
-    const totalSales = orders.reduce((sum, o) => sum + (o.amount || 0), 0);
+    // Case-specific summary
+    const caseSummary = {
+      caseType,
+      totalOrders: orders.length,
+      totalSales: orders.reduce((sum, o) => sum + (o.amount || 0), 0),
+      totalDiscount: orders.reduce((sum, o) => sum + (o.discount || 0), 0),
+      averageOrderValue: orders.length ? orders.reduce((sum, o) => sum + (o.amount || 0), 0) / orders.length : 0,
+    };
+
     const summary = {
       totalOrders: orders.length,
       totalKOTs: orders.length,
-      totalSales,
-      cash: orders.reduce((sum, o) => sum + (o.cash || 0), 0),
-      card: orders.reduce((sum, o) => sum + (o.card || 0), 0),
-      gpay: orders.reduce((sum, o) => sum + (o.gpay || 0), 0),
-      phonepe: orders.reduce((sum, o) => sum + (o.phonepe || 0), 0),
-      qrcode: orders.reduce((sum, o) => sum + (o.qrcode || 0), 0),
-      pending: orders.filter(o => o.status === 'Pending').length,
-      completed: orders.filter(o => o.status === 'Settled').length,
-      cancelled: 0,
-      averageOrderValue: orders.length ? Math.round(totalSales / orders.length) : 0,
+      caseSummary
     };
-
-    const totalDiscount = orders.reduce((sum, o) => sum + o.discount, 0);
-    const totalCGST = orders.reduce((sum, o) => sum + o.cgst, 0);
-    const totalSGST = orders.reduce((sum, o) => sum + o.sgst, 0);
-
-    const paymentMethods = [
-      { type: "Cash", amount: summary.cash, percentage: totalSales ? ((summary.cash / totalSales) * 100).toFixed(1) : "0" },
-      { type: "Card", amount: summary.card, percentage: totalSales ? ((summary.card / totalSales) * 100).toFixed(1) : "0" },
-      { type: "GPay", amount: summary.gpay, percentage: totalSales ? ((summary.gpay / totalSales) * 100).toFixed(1) : "0" },
-      { type: "PhonePe", amount: summary.phonepe, percentage: totalSales ? ((summary.phonepe / totalSales) * 100).toFixed(1) : "0" },
-      { type: "QR Code", amount: summary.qrcode, percentage: totalSales ? ((summary.qrcode / totalSales) * 100).toFixed(1) : "0" },
-    ];
 
     res.json({
       success: true,
-      data: { orders, summary, paymentMethods, totalDiscount, totalCGST, totalSGST },
+      data: { orders, summary, caseSummary, caseType },
     });
   } catch (error) {
     console.error('Error fetching handover data:', error);

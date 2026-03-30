@@ -16,7 +16,7 @@ exports.addCountry = (req, res) => {
       data: { id: result.lastInsertRowid, country_name, country_code, country_capital, status, created_by_id, created_date }
     });
   } catch (error) {
-    console.error("Error adding country:", error);
+    // console.error("Error adding country:", error);
     res.status(500).json({ success: false, message: "Failed to add country", error: error.message });
   }
 };
@@ -39,7 +39,7 @@ exports.updateCountry = (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error updating country:", error);
+    // console.error("Error updating country:", error);
     res.status(500).json({ success: false, message: "Failed to update country", error: error.message });
   }
 };
@@ -57,7 +57,7 @@ exports.deleteCountry = (req, res) => {
     res.status(200).json({ success: true, message: "Country deleted successfully", data: { id } });
 
   } catch (error) {
-    console.error("Error deleting country:", error);
+    // console.error("Error deleting country:", error);
     res.status(500).json({ success: false, message: "Failed to delete country", error: error.message });
   }
 };
