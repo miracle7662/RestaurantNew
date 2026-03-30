@@ -22,7 +22,7 @@ exports.login = async (req, res) => {
         if (email) {
             // Login with email (for SuperAdmin)
             user = db.prepare(`
-             SELECT u.*, 
+             SELECT u.*, h.trn_gstno,
                    b.hotel_name as brand_name,
                    h.hotel_name as hotel_name,
                    u.outletid
@@ -37,7 +37,7 @@ exports.login = async (req, res) => {
         } else {
             // Login with username (for Hotel Admin)
             user = db.prepare(`
-            SELECT u.*, 
+            SELECT u.*, h.trn_gstno,
                    b.hotel_name as brand_name,
                    h.hotel_name as hotel_name,
                    u.outletid                  
@@ -69,8 +69,9 @@ exports.login = async (req, res) => {
                 userid: user.userid,
                 username: user.username,
                 email: user.email,
-                role_level: user.role_level,
-                brand_id: user.brand_id,
+role_level: user.role_level,
+            trn_gstno: user.trn_gstno,
+            brand_id: user.brand_id,
                 hotelid: user.hotelid,
                 outletid: user.outletid, // Ensure this is included
                 created_by_id: user.created_by_id || null // Ensure it’s included, even if null
@@ -87,6 +88,7 @@ exports.login = async (req, res) => {
             name: user.full_name,
             role: user.role_level,
             role_level: user.role_level,
+            trn_gstno: user.trn_gstno,
             brand_id: user.brand_id,
             hotelid: user.hotelid,
             outletid: user.outletid,
@@ -141,7 +143,7 @@ exports.getCurrentUser = async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         
         const user = db.prepare(`
-            SELECT u.*, 
+            SELECT u.*, h.trn_gstno,
                   
                    b.hotel_name AS brand_name,
                    h.hotel_name AS hotel_name,
@@ -163,8 +165,9 @@ exports.getCurrentUser = async (req, res) => {
             username: user.username,
             email: user.email,
             name: user.full_name,
-            role: user.role_level,
+role: user.role_level,
             role_level: user.role_level,
+            trn_gstno: user.trn_gstno,
             brand_id: user.brand_id,
             hotelid: user.hotelid,
             outletid: user.outletid ,

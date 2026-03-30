@@ -1556,7 +1556,6 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       if (activeTab === 'Dine-in' || activeTab === 'Quick Bill') {
         // Reload the latest printed bill data from backend
         // ✅ Clear everything after print
-        resetBillingPanel();
         setBillActionState('printOrSettle'); // Ensure it's ready for settlement
       } else {
         setBillActionState('printOrSettle'); // Ensure it's ready for settlement
@@ -4968,7 +4967,7 @@ setSelectedDeptId(deptId ?? 0);
           />
           <BillPreviewPrint
             show={showBillPrintModal}
-             autoPrint={true}  // 👈 Direct print (no modal)
+            //  autoPrint={true}  // 👈 Direct print (no modal)
             onHide={() => {
               setShowBillPrintModal(false);
               if (printThenSettleFlow) {

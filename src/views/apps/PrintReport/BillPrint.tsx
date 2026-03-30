@@ -377,6 +377,17 @@ html, body {
   };
 
   const generateBillContent = (isPreview = false) => {
+    // DEBUG LOGS - Remove after testing
+    console.log('=== BILL PRINT DEBUG ===');
+    console.log('showAll:', );
+    console.log('localFormData.show_customer_bill:', localFormData.show_customer_bill);
+    console.log('localFormData.show_customer_gst_bill:', localFormData.show_customer_gst_bill);
+    console.log('customerName:', customerName);
+    console.log('mobileNumber:', mobileNumber);
+    console.log('user.trn_gstno:', user?.trn_gstno);
+    console.log('Customer section condition:', (  localFormData.show_customer_bill || localFormData.show_customer_gst_bill) && (customerName || mobileNumber));
+    console.log('localFormData keys:', Object.keys(localFormData));
+    console.log('======================');
     // For preview, show all values regardless of settings
     const showAll = isPreview;
 
@@ -416,12 +427,12 @@ html, body {
           <div style="flex: 1; white-space: nowrap;"><strong>KOT No </strong><br />${allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")}</div>
           <div style="flex: 1;"></div>
         </div>
-       ${(showAll || localFormData.show_customer_bill) && (customerName || mobileNumber) ? `
+${(showAll || localFormData.show_customer_bill || localFormData.show_customer_gst_bill) && (customerName || mobileNumber) ? `
   <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
   <div style="font-size: 9pt; margin-bottom: 8px;">
     ${customerName ? `<div><strong>Customer:</strong> ${customerName}</div>` : ''}
     ${mobileNumber ? `<div><strong>Mobile:</strong> ${mobileNumber}</div>` : ''}
-    ${(showAll || localFormData.show_customer_gst_bill) ? `<div><strong>GSTIN:</strong> N/A</div>` : ''}
+    <div><strong>GSTIN:</strong> ${user?.trn_gstno || 'N/A'}</div>
     ${(showAll || (activeTab === 'Pickup' && localFormData.show_customer_address_pickup_bill)) ? `<div><strong>Address:</strong> N/A</div>` : ''}
   </div>
 ` : ''}
@@ -563,9 +574,9 @@ html, body {
     `;
   };
 
-  if (autoPrint) {
-    return null;
-  }
+  // if (autoPrint) {
+  //   return null;
+  // }
 
   return (
     <Modal

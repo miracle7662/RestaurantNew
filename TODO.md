@@ -1,22 +1,24 @@
-# Print Bill Fix - Implementation Steps
+# GSTIN Bill Preview Fix - UPDATE PLAN
 
-## ✅ PLAN APPROVED
-**Goal:** Print preview shows FULL data → Table clears AFTER modal closes
+## ✅ Status
+- [x] Debug logs confirm: settings undefined, customer empty, user.trn_gstno ✅ available
+- [x] BillPrintService.getBillPrintSettings exists (missing fields from backend)
+- [x] BillPreviewPrint receives customerName/mobileNumber props (empty in test)
+- [x] Condition analyzed: `localFormData.show_customer_gst_bill && (customerName || mobileNumber)`
 
-## 📋 Steps (3 total)
+## 🔧 Plan (File-level)
+**Primary File: src/views/apps/PrintReport/BillPrint.tsx**
+1. **Fallback defaults:** `localFormData.show_customer_gst_bill ?? true`
+2. **Independent GSTIN section:** Show GSTIN even without customer details when setting enabled
+3. **Enhanced condition:** `(showAll || (localFormData.show_customer_gst_bill ?? true))`
+4. **More debug:** Log API response from getBillPrintSettings()
 
-### [ ] Step 1: Create TODO.md ✅ **DONE**
-### [✅] Step 2: Edit handlePrintBill() - Capture printItems snapshot BEFORE clearing
-### [✅] Step 3: Fix BillPreviewPrint props - Use printItems instead of live items  
-### [✅] Step 4: Test + Complete ✅
+**No dependent file edits needed** (props already passed from Orders.tsx/Billview.tsx)
 
-**✅ ALL STEPS COMPLETE!**
+## Followup Steps
+1. Apply edit to BillPrint.tsx
+2. Test bill preview → F12 console → verify logs
+3. `npm run dev` if needed
+4. Confirm GSTIN shows with user.trn_gstno
 
-**Result:** Bill print preview now shows correct FULL item data (snapshot captured before table clear). Live items update after modal closes.
-
-**To test:**
-1. Add items to any table/order
-2. F10 → Print Bill
-3. ✅ Preview shows ALL items with correct quantities/prices
-4. ✅ Table clears AFTER print modal closes
-
+**Ready for implementation**

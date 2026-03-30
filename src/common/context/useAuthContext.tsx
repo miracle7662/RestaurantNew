@@ -21,6 +21,7 @@ type User = {
   token: string
   outletid?: number
   hotelid?: number
+  trn_gstno?: string
   hotel_name?: string
   outlet_name?: string
   brand_name?: string
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user.token) {
         localStorage.setItem("token", user.token)
       }
+      console.log('User saved to context:', user);
       setUser(user)
     },
     [setUser],
@@ -83,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
              console.log('Current user data:', currentUser)
             console.log('Curr date data:', currDateData)
+            
             
          saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.data.curr_date })
             console.log('User session restored from localStorage.')
