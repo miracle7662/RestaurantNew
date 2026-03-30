@@ -73,6 +73,7 @@ interface BillPreviewPrintProps {
   outletName?: string;
   dialogClassName?: string;
   billDate?: string;
+  autoPrint?: boolean;
 }
 
 const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
@@ -103,13 +104,15 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   restaurantName,
   outletName,
   dialogClassName,
-  billDate
+  billDate,
+  autoPrint
 }) => {
   const [loading, setLoading] = React.useState(false);
   const [printerName, setPrinterName] = React.useState<string | null>(null);
   const [outletId, setOutletId] = React.useState<number | null>(null);
   const [localFormData, setLocalFormData] = React.useState<OutletSettings>(formData);
   const [localRestaurantName, setLocalRestaurantName] = React.useState<string>('');
+  const [hasPrinted, setHasPrinted] = React.useState(false);
 
   // Collect all unique KOT numbers from items if currentKOTNos is not provided or empty
   const allKOTNos = React.useMemo(() => {
@@ -222,6 +225,21 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
     fetchOutletDetails();
   }, [outletId, restaurantName, outletName, user]);
+
+  // MAIN AUTO-PRINT LOGIC (exact KOT pattern)
+  React.useEffect(() => {
+    if (autoPrint && show && !loading && !hasPrinted && printerName) {
+      setHasPrinted(true);
+      handlePrintBill();
+    }
+  }, [autoPrint, show, loading, hasPrinted, printerName]);
+
+  // Reset hasPrinted when modal closes
+  React.useEffect(() => {
+    if (!show) {
+      setHasPrinted(false);
+    }
+  }, [show]);
 
   const generateBillHTML = () => {
     return `
@@ -344,7 +362,8 @@ html, body {
           onPrint();
         }
 
-        // Close modal after printing with delay to prevent job cancellation
+        // Bonus UX: auto close + hide
+        if (onClose) onClose();
         setTimeout(onHide, 300);
       } else {
         toast.error("Electron print API not available.");
@@ -543,6 +562,10 @@ html, body {
     </div>
     `;
   };
+
+  if (autoPrint) {
+    return null;
+  }
 
   return (
     <Modal

@@ -3931,6 +3931,7 @@ onHide={() => {
 
       <BillPreviewPrint
         show={showBillPrintModal}
+        autoPrint={true}  // 👈 Direct print (no modal)
         onHide={() => setShowBillPrintModal(false)}
 
         formData={formData}
