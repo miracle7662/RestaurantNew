@@ -1,25 +1,65 @@
-# NC KOT Enhancement - **IN PROGRESS** 🔄
+# Direct Bill Print Implementation (Orders.tsx F10 Button)
+Status: [0/8] In Progress
 
-✅ **Previous Task:** discountSummary Fix - **COMPLETED** ✅
+## Breakdown of Approved Plan
 
-## 📋 NC KOT Implementation Steps
+### ✅ 1. Create TODO.md [COMPLETED]
+- Track all implementation steps
 
-### ✅ Step 1: Backend verification ✓
-- 'ncKOT' filters `NCKOT IS NOT NULL AND NCKOT != ""` ✓
-- Returns individual TxnID bills with ncKot/GROUP_CONCAT, ncPurpose, ncName ✓
+### 🔄 2. Extract Print Logic from BillPrint.tsx
+```
+Orders.tsx:
+- Copy generateBillContent() HTML template logic  
+- Copy handlePrintBill() Electron directPrint() logic
+- Adapt for Orders.tsx state (items, taxCalc, customerName, etc.)
+```
 
-### ✅ Step 2: Update calculateNCKOTDetails()
-- Map filteredBills → individual bills with ncKotDetails {ncKot, ncPurpose, ncName}
+### 🔄 3. Modify handlePrintBill() in Orders.tsx  
+```
+Current flow:
+F10 → markBillAsBilled() → setShowBillPrintModal(true) ❌
 
-### [ ] Step 3: Update renderNCKOTSection()
-- 15-col table like discountSummary:
-  | Bill No | Date | Customer | NC KOT | NC Purpose | NC Name | Gross | Net | Total | Payment | Waiter | Captain | Order Type | Outlet | Table |
-- Header: "📋 NC KOT Summary (X bills)"
-- Totals footer ✓
+New flow:  
+F10 → markBillAsBilled() → generate HTML → directPrint() → refresh ✅
+- Remove setShowBillPrintModal(true)
+- Add direct print after API success
+```
 
-### [ ] Step 4: Test & cleanup
-- Select ncKOT → verify individual TxnDatetime bills + NC details table
-- Update TODO complete
-- attempt_completion
+### 🔄 4. Add Required States/Imports
+```
+Orders.tsx imports:
+- BillPrintService.getBillPrinterSettings()
+- applyBillSettings() utility
+- Electron directPrint API access
+```
 
-**Current Progress:** Backend ready, frontend updates next.
+### 🔄 5. Handle Edge Cases
+```
+- No printer found → fallback + toast
+- Print success → table status red → UI refresh  
+- QuickBill tab → list refresh
+- Customer data persistence
+```
+
+### 🔄 6. Test F10 Keyboard Shortcut
+```
+- Browser devtools → F10 → Verify direct print (no modal)
+- Table status changes to red (status=2)
+- Bill history updates
+```
+
+### 🔄 7. Optional: Add Direct Print Toggle
+```
+Outlet setting: direct_bill_print (0=modal, 1=direct)
+Fallback to modal if no printer/Electron
+```
+
+### 🔄 8. Final Verification & Cleanup
+```
+- Cross-tab testing (Dine-in, QuickBill, Pickup)
+- Error handling (no items, no txnId)
+- Performance: <2s print time
+```
+
+**Next Step**: Extract print logic → implement handlePrintBill()
+
