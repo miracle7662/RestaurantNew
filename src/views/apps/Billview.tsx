@@ -3679,6 +3679,7 @@ const handleF8Action = useCallback(() => {
       </Modal>
       <NCKotPrint
         show={showNCKotPrintModal}
+         autoPrint={true} 
         selectedWaiter={waiter} 
         onHide={() => {
           setShowNCKotPrintModal(false);
@@ -4008,6 +4009,7 @@ onHide={() => {
       <ReverseKotPrint
         key={reversePrintTrigger}
         show={showReverseKotPrintModal}
+         autoPrint={true} 
         selectedWaiter={waiter} 
         onHide={() => {
           setShowReverseKotPrintModal(false);

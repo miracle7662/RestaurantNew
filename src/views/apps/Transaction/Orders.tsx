@@ -4667,6 +4667,7 @@ setSelectedDeptId(deptId ?? 0);
           {/* NEW: Reverse KOT Print Modal */}
             <ReverseKotPrint
             show={showReverseKotPrintModal}
+             autoPrint={true} 
             selectedWaiter={selectedWaiter}
             onHide={() => {
               setShowReverseKotPrintModal(false);
