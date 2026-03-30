@@ -198,7 +198,8 @@ const ReportPage = () => {
         }
       }
       
-      // Use ReportService for common API call with caseType
+      // Use ReportService for common API call
+     // Use ReportService for common API call with caseType
       const caseType = reportCategory === 'reverseKOTs' ? 'reverseKOTs' :
                       reportCategory === 'ncKOT' ? 'ncKOT' :
                       reportCategory === 'creditSummary' ? 'creditSummary' :

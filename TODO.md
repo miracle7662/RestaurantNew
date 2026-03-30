@@ -1,12 +1,25 @@
-# Billview.tsx Admin Name Fix - TODO
+# NC KOT Enhancement - **IN PROGRESS** 🔄
 
-**Status: [IN PROGRESS]**
+✅ **Previous Task:** discountSummary Fix - **COMPLETED** ✅
 
-## Plan Breakdown:
-- [x] 1. Fix givenBy state initialization in Billview.tsx ✓
-- [x] 2. Test F3 discount modal (admin name shows) 
-- [ ] 3. Test non-admin login (field populated + readonly)  
-- [ ] 4. Verify no regressions (discount logic unchanged)
-- [ ] 5. attempt_completion
+## 📋 NC KOT Implementation Steps
 
-**Next:** Test F3 manually → "Given By" shows name. Reply "tests passed" to complete.
+### ✅ Step 1: Backend verification ✓
+- 'ncKOT' filters `NCKOT IS NOT NULL AND NCKOT != ""` ✓
+- Returns individual TxnID bills with ncKot/GROUP_CONCAT, ncPurpose, ncName ✓
+
+### ✅ Step 2: Update calculateNCKOTDetails()
+- Map filteredBills → individual bills with ncKotDetails {ncKot, ncPurpose, ncName}
+
+### [ ] Step 3: Update renderNCKOTSection()
+- 15-col table like discountSummary:
+  | Bill No | Date | Customer | NC KOT | NC Purpose | NC Name | Gross | Net | Total | Payment | Waiter | Captain | Order Type | Outlet | Table |
+- Header: "📋 NC KOT Summary (X bills)"
+- Totals footer ✓
+
+### [ ] Step 4: Test & cleanup
+- Select ncKOT → verify individual TxnDatetime bills + NC details table
+- Update TODO complete
+- attempt_completion
+
+**Current Progress:** Backend ready, frontend updates next.
