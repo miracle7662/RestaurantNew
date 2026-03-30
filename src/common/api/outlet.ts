@@ -255,6 +255,7 @@ export interface BillPrintSettings {
   hide_item_rate_column: number
   hide_item_total_column: number
   hide_total_without_tax: number
+  trn_gstno: number   
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

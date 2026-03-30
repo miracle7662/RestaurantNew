@@ -387,6 +387,7 @@ html, body {
     console.log('customerName:', customerName);
     console.log('mobileNumber:', mobileNumber);
     console.log('user.trn_gstno:', user?.trn_gstno);
+console.log('showAll:', 'localFormData.trn_gstno:', user.trn_gstno);
     console.log('Customer section condition:', (  localFormData.show_customer_bill || localFormData.show_customer_gst_bill) && (customerName || mobileNumber));
     console.log('localFormData keys:', Object.keys(localFormData));
     console.log('======================');
@@ -402,7 +403,7 @@ html, body {
           ${(showAll || localFormData.show_logo_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${(showAll || localFormData.show_brand_name_bill) ? displayRestaurantName : ''}</div>` : ''}
           ${(showAll || localFormData.show_outlet_name_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${displayOutletName}</div>` : ''}
 <div style="font-size: 8pt;">${authUser?.address || user?.outlet_address || ''}</div>
-            ${(showAll || true) ? `<div style="font-size: 8pt;">GST No: ${user?.trn_gstno || 'N/A'}</div>` : ''}
+${(showAll || localFormData.trn_gstno || !!user?.trn_gstno) ? `<div style="font-size: 8pt;">GST No: ${user?.trn_gstno || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.email) ? `<div style="font-size: 8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.website) ? `<div style="font-size: 8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.show_phone_on_bill) ? `<div style="font-size: 8pt;">Phone: ${user?.outlet_phone || 'N/A'}</div>` : ''}

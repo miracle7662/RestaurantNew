@@ -472,6 +472,7 @@ exports.addOutlet = (req, res) => {
     const billPrintStmt = db.prepare(`
       INSERT INTO mstbills_print_settings (
         outletid,
+       
         bill_title_dine_in,
         bill_title_pickup,
         bill_title_delivery,
@@ -529,11 +530,13 @@ exports.addOutlet = (req, res) => {
         hide_item_rate_column,
         hide_item_total_column,
         hide_total_without_tax
+        trn_gstno,
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     billPrintStmt.run(
       outletId,
+     
       1, // bill_title_dine_in
       1, // bill_title_pickup
       1, // bill_title_delivery
@@ -591,6 +594,8 @@ exports.addOutlet = (req, res) => {
       0, // hide_item_rate_column
       0, // hide_item_total_column
       0 // hide_total_without_tax
+      , '' // trn_gstno
+      
     );
 
     // Insert default settings into mstgeneral_settings
@@ -1733,6 +1738,7 @@ exports.updateBillPrintSettings = (req, res) => {
 
     const stmt = db.prepare(`
       UPDATE mstbills_print_settings SET
+       
         bill_title_dine_in = ?,
         bill_title_pickup = ?,
         bill_title_delivery = ?,
@@ -1789,11 +1795,13 @@ exports.updateBillPrintSettings = (req, res) => {
         hide_item_quantity_column = ?,
         hide_item_rate_column = ?,
         hide_item_total_column = ?,
-        hide_total_without_tax = ?
+        hide_total_without_tax = ?,
+         trn_gstno = ?
       WHERE outletid = ?
     `);
 
     stmt.run([
+     
       data.bill_title_dine_in,
       data.bill_title_pickup,
       data.bill_title_delivery,
@@ -1851,6 +1859,7 @@ exports.updateBillPrintSettings = (req, res) => {
       data.hide_item_rate_column,
       data.hide_item_total_column,
       data.hide_total_without_tax,
+      data.trn_gstno,
       outletid
     ]);
 
@@ -2564,7 +2573,7 @@ exports.getBillPrintSettings = (req, res) => {
     }
 
     const settings = db
-      .prepare('SELECT * FROM mstbills_print_settings WHERE outletid = ?')
+     .prepare('SELECT * FROM mstbills_print_settings WHERE outletid = ?')
       .get(outletid);
 
     if (!settings) {

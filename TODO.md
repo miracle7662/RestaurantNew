@@ -1,9 +1,10 @@
-# Task: Show login address from useAuthContext below outlet name in BillPrint.tsx
+# TODO: Fix GST No not showing on bill print
 
-## TODO Steps:
-- [x] Step 1: Create TODO.md with plan steps
-- [x] Step 2: Import useAuthContext in BillPrint.tsx
-- [x] Step 3: Use authUser.address in bill header below outlet name
-- [ ] Step 4: Test bill print functionality
-- [ ] Step 5: Mark complete and attempt_completion
+## Plan Steps (Approved by user):
+1. [x] Add debug console.log for `showAll` in `generateBillContent()` in `src/views/apps/PrintReport/BillPrint.tsx`
+2. [x] Update GST condition to `(showAll || localFormData.trn_gstno || !!user?.trn_gstno)` for robust fallback
+3. [ ] Test bill print and check browser console logs
+4. [ ] Instruct user to enable "44. trn_gstno ON" in Outlet settings if flag is false
+5. [ ] Mark complete if fixed
 
+**Current Progress:** Ready to implement step 1-2 in BillPrint.tsx

@@ -165,6 +165,7 @@ interface OutletSettings {
   hide_item_rate_column: boolean;
   hide_item_total_column: boolean;
   hide_total_without_tax: boolean;
+   trn_gstno: boolean;
   // General settings
   customize_url_links: string
   allow_charges_after_bill_print: boolean;
@@ -389,6 +390,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
     hide_item_rate_column: false,
     hide_item_total_column: false,
     hide_total_without_tax: false,
+      trn_gstno: false,
     // General settings
     customize_url_links: '',
     allow_charges_after_bill_print: false,
@@ -654,6 +656,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           hide_item_rate_column: convertToBoolean(data.bill_print_settings?.hide_item_rate_column ?? false),
           hide_item_total_column: convertToBoolean(data.bill_print_settings?.hide_item_total_column ?? false),
           hide_total_without_tax: convertToBoolean(data.bill_print_settings?.hide_total_without_tax ?? false),
+          trn_gstno: convertToBoolean(data.bill_print_settings?.trn_gstno ?? false),
 
           // General Settings
           customize_url_links: data.general_settings?.customize_url_links || '',
@@ -950,6 +953,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         hide_item_rate_column: formData.hide_item_rate_column ? 1 : 0,
         hide_item_total_column: formData.hide_item_total_column ? 1 : 0,
         hide_total_without_tax: formData.hide_total_without_tax ? 1 : 0,
+        trn_gstno: formData. trn_gstno ? 1 : 0,
       };
 
       // General Settings Payload
@@ -3471,6 +3475,26 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                                 id="hide_total_without_tax"
                                 style={{ borderColor: '#ccc' }}
                                 checked={formData.hide_total_without_tax}
+                                onChange={handleInputChange}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                      <div className="row mb-2">
+                        <div className="col-md-6">
+                          <h6 className="fw-bold mb-3">44.  trn_gstno ON</h6>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="ms-3">
+                            <div className="form-check form-switch">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="trn_gstno"
+                                style={{ borderColor: '#ccc' }}
+                                checked={formData.trn_gstno}
                                 onChange={handleInputChange}
                               />
                             </div>

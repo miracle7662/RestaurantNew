@@ -1556,7 +1556,6 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       if (activeTab === 'Dine-in' || activeTab === 'Quick Bill') {
         // Reload the latest printed bill data from backend
         // ✅ Clear everything after print
-       
         setBillActionState('printOrSettle'); // Ensure it's ready for settlement
       } else {
         setBillActionState('printOrSettle'); // Ensure it's ready for settlement
@@ -4970,12 +4969,15 @@ setSelectedDeptId(deptId ?? 0);
             show={showBillPrintModal}
             //  autoPrint={true}  // 👈 Direct print (no modal)
             onHide={() => {
-              setShowBillPrintModal(false);
-              if (printThenSettleFlow) {
-                setShowSettlementModal(true);
-                setPrintThenSettleFlow(false);
-              }
-            }}
+    setShowBillPrintModal(false);
+
+    resetBillingPanel(); // ✅ yaha karo (after print)
+
+    if (printThenSettleFlow) {
+      setShowSettlementModal(true);
+      setPrintThenSettleFlow(false);
+    }
+  }}
             formData={formData}
             user={user}
             items={items}

@@ -482,6 +482,7 @@ CREATE TABLE IF NOT EXISTS mstbill_preview_settings (
     field3 VARCHAR(100),
     field4 VARCHAR(100),
     fssai_no VARCHAR(50),
+    trn_gstno TEXT,
     FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
 );
 
@@ -1280,7 +1281,11 @@ try {
   // Column might already exist, ignore error
 }
 
-
-
+// Migration: Add trn_gstno to mstbills_print_settings
+try {
+  db.exec("ALTER TABLE mstbills_print_settings ADD COLUMN trn_gstno TEXT");
+} catch (e) {
+  // Column might already exist, ignore error
+}
 
 module.exports = db

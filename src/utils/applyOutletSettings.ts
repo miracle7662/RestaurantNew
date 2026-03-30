@@ -92,6 +92,7 @@ export interface OutletSettings {
   hide_item_rate_column?: boolean;
   hide_item_total_column?: boolean;
   hide_total_without_tax?: boolean;
+  trn_gstno?: boolean;
   
   outlet_name?: string;
   email?: string;
@@ -260,5 +261,7 @@ export const applyBillSettings = (prev: any, preview: any, print: any) => {
     hide_item_rate_column: safePrint.hide_item_rate_column ?? prev.hide_item_rate_column,
     hide_item_total_column: safePrint.hide_item_total_column ?? prev.hide_item_total_column,
     hide_total_without_tax: safePrint.hide_total_without_tax ?? prev.hide_total_without_tax,
+    trn_gstno: safePrint.trn_gstno ?? prev.trn_gstno,
   };
 };
+
