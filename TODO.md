@@ -1,10 +1,23 @@
-# TODO: Fix GST No not showing on bill print
+ # Fix trn_gstno field not fetching - Progress Tracker
 
-## Plan Steps (Approved by user):
-1. [x] Add debug console.log for `showAll` in `generateBillContent()` in `src/views/apps/PrintReport/BillPrint.tsx`
-2. [x] Update GST condition to `(showAll || localFormData.trn_gstno || !!user?.trn_gstno)` for robust fallback
-3. [ ] Test bill print and check browser console logs
-4. [ ] Instruct user to enable "44. trn_gstno ON" in Outlet settings if flag is false
-5. [ ] Mark complete if fixed
+## ✅ Step 1: Fix backend/controllers/outletController.js
+- Added trn_gstno to destructuring (now accepts from frontend)
+- Backend ready to save trn_gstno string in mstbills_print_settings
 
-**Current Progress:** Ready to implement step 1-2 in BillPrint.tsx
+## [ ] Step 2: Fix src/common/api/outlet.ts  
+- Add trn_gstno?: string to OutletPayload
+- Fix BillPrintSettings trn_gstno: string
+
+## [ ] Step 3: Fix src/views/apps/Masters/CommanMasters/Outlet/AddOutlet.tsx
+- Change trn_gstno to string/text input
+- Fix formData init/mapping/payload to string
+- Update UI from checkbox to input field
+
+## [ ] Step 4: Test & Verify
+- Restart backend: cd backend && node server.js
+- Create outlet with trn_gstno → check DB
+- Verify fetch in AddOutlet form
+- Test update
+
+## Status: Starting implementation...
+
