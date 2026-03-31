@@ -69,6 +69,7 @@ export interface Outlet {
 
 /** Outlet payload for create/update */
 export interface OutletPayload {
+  trn_gstno?: string
   outletid?: number
   outlet_name: string
   hotelid?: number
@@ -255,8 +256,7 @@ export interface BillPrintSettings {
   hide_item_rate_column: number
   hide_item_total_column: number
   hide_total_without_tax: number
-  trn_gstno: number   
-}
+ trn_gstno: number   }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
  * General Settings Type Definition

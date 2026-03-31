@@ -63,35 +63,27 @@ ipcMain.handle("direct-print", (event, { html, printerName }) => {
    ========================= */
 function startBackend() {
   const isDev = !app.isPackaged;
-  const backendPath = isDev
-    ? path.join(__dirname, "backend", "server.js")
-    : path.join(process.resourcesPath, "backend", "server.js");
 
-  // 🔥 DEBUG LOGS - Yeh console mein dikhega
-  console.log('🔍 isPackaged:', app.isPackaged);
-  console.log('🔍 Backend Path:', backendPath);
-  console.log('🔍 Path exists:', require('fs').existsSync(backendPath));
-  console.log('🔍 ResourcesPath:', process.resourcesPath);
+  try {
+    const backendPath = isDev
+      ? path.join(__dirname, "backend", "server.js")
+      : path.join(process.resourcesPath, "app.asar.unpacked", "backend", "server.js");
 
-  const env = { ...process.env };
-  if (!isDev) {
-    env.ELECTRON_USER_DATA_PATH = app.getPath("userData");
+    console.log("🚀 Starting backend...");
+    console.log("Backend Path:", backendPath);
+
+    // ✅ Pass userData path
+    if (!isDev) {
+      process.env.ELECTRON_USER_DATA_PATH = app.getPath("userData");
+    }
+
+    // ✅ Directly run backend (NO spawn)
+    const { startServer } = require(backendPath);
+    startServer();
+
+  } catch (err) {
+    console.error("❌ Backend failed:", err);
   }
-
-  backendProcess = spawn('node', [backendPath], {
-    cwd: path.dirname(backendPath),
-    stdio: "inherit",
-    windowsHide: true,   // ✅ Hide CMD window in dev
-    env: env,
-  });
-
-  backendProcess.on("close", (code) => {
-    console.log(`Backend exited with code ${code}`);
-  });
-
-  backendProcess.on("error", (err) => {
-    console.error(`Backend spawn ERROR:`, err.message);
-  });
 }
 
 /* =========================
@@ -131,6 +123,8 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+
 
 /* =========================
    App Events - FIXED

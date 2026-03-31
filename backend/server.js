@@ -117,6 +117,8 @@ app.get('/api/health', (req, res) => {
 // ✅ Start server
 
 
+const startTime = new Date().toISOString();
 app.listen(port, () => {
+    console.log(`✅ Backend ready at ${startTime}`);
     console.log(`Server running at http://localhost:${port}`);
 });

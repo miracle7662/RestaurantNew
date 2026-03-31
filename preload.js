@@ -2,6 +2,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  getBackendStatus: () => ipcRenderer.invoke('get-backend-status'),
   getInstalledPrinters: () => ipcRenderer.invoke('get-installed-printers'),
   
   // directPrint(html, printerName) -> returns Promise<boolean>

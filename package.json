@@ -28,7 +28,7 @@
     "preview": "vite preview",
     "format": "prettier --write 'src/**/*.{ts,tsx}'",
     "electron-start": "electron main.cjs",
-    "dev-electron": "concurrently \"npm run dev\" \"npm run backend\" \"npm run electron-start\"",
+    "dev-electron": "concurrently \"npm run dev\" \"npm run electron-start\"",
     "build-electron": "npm run build && npm run electron-start",
     "backend": "cd backend && node server.js",
     "backend:install": "echo 'Backend dependencies are managed from root package.json'",
@@ -173,33 +173,39 @@
     "webpack-cli": "^6.0.1",
     "webpack-dev-server": "^5.2.2"
   },
-  "build": {
-    "appId": "com.miracle.restaurant.app",
-    "productName": "Miracle Restaurant",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "dist/**",
-      "main.cjs",
-      "preload.js",
-      "backend/**",
-      "!backend/node_modules/.cache/**"
-    ],
-    "extraResources": [
-      {
-        "from": "backend",
-        "to": "backend"
-      }
-    ],
-    "asarUnpack": [
-      "backend/**",
-      "**/better-sqlite3/**/*"
-    ],
-    "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico"
-    },
+"build": {
+  "appId": "com.miracle.restaurant.app",
+  "productName": "Miracle Restaurant",
+
+  "directories": {
+    "output": "dist"
+  },
+
+  "files": [
+    "dist/**",
+    "main.cjs",
+    "preload.js",
+    "backend/**"
+  ],
+
+  "asarUnpack": [
+    "backend/**"
+  ],
+
+  "win": {
+    "target": "nsis",
+    "icon": "build/icon.ico"
+  },
+
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Miracle Restaurant"
+  }
+},
+"nsis": {
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
