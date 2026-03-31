@@ -89,6 +89,7 @@ interface FormData {
 }
 const Order = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>('');
+  const [prevTable, setPrevTable] = useState<string | null>(null);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [reverseQtyMode, setReverseQtyMode] = useState<boolean>(false); // New state for Reverse Qty Mode
   const [activeTab, setActiveTab] = useState<string>('Dine-in');
@@ -885,16 +886,16 @@ const fetchAllBills = async (customFilters = {}) => {
     }
   }, [searchTable, filteredTables]);
 
-  const handleTableClick = (seat: string) => {
+  const handleTableClick = async (seat: string) => {
     console.log('Button clicked for table:', seat);
+    
+    // Check if this is a new table (not re-selecting same)
+    const isNewTable = prevTable !== seat;
+    
     // Force reset selectedTable to null first to allow re-selection of the same table
     setReverseQtyMode(false); // Turn off reverse mode on table change
     setIsGroupedView(true); // Reset to grouped view on table change
     setSelectedTable(seat); // Set immediately to avoid timing issues
-    setShowOrderDetails(true);
-    setItems([]); // Reset items for the new table
-    setCurrentKOTNo(null); // Reset KOT number for the new table
-    setCurrentKOTNos([]); // Reset multiple KOT numbers for the new table
     setShowOrderDetails(true);
     setInvalidTable('');
 
@@ -908,6 +909,8 @@ const fetchAllBills = async (customFilters = {}) => {
     setIsSaveReverseDisabled(false);
     setReverseQtyItems([]); // Clear pending reversed items
 
+    // Update prevTable BEFORE processing
+    setPrevTable(seat);
 
     // Find the full table object to get its ID, case-insensitively
     const tableList = Array.isArray(filteredTables) && filteredTables.length > 0 ? filteredTables : tableItems;
@@ -929,14 +932,26 @@ const fetchAllBills = async (customFilters = {}) => {
       // Capture original table status for order tag logic
       setOriginalTableStatus(selectedTableObj.status);
 
-      // Refetch items for the selected table
-      refreshItemsForTable(tableIdNum);
+      // ALWAYS refetch items for the selected table (backend data)
+      await refreshItemsForTable(tableIdNum);
+      
+      // ✅ FIXED: Clear customer ONLY for NEW tables (post-refresh)
+      if (isNewTable) {
+        console.log('🧹 Clearing customer for NEW table:', seat);
+        setCustomerName('');
+        setMobileNumber('');
+        setCustomerId(null);
+      }
 
     } else {
       console.warn('Selected table object not found for seat:', seat);
       setItems([]); // Clear items if table not found
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
+      // Always clear for invalid table
+      setCustomerName('');
+      setMobileNumber('');
+      setCustomerId(null);
       setOriginalTableStatus(null);
     }
     console.log('After handleTableClick - selectedTable:', seat, 'showOrderDetails:', true);
@@ -956,7 +971,7 @@ const fetchAllBills = async (customFilters = {}) => {
     }
   };
 
-const handleTabClick = (tab: string) => {
+const handleTabClick = async (tab: string) => {
     console.log('Tab clicked:', tab);
     setActiveTab(tab);
     setActiveNavTab('ALL'); // Reset main nav tab to avoid conflicts
@@ -982,6 +997,12 @@ const handleTabClick = (tab: string) => {
       setReverseQtyItems([]);
       setShowSaveReverseButton(false);
       setShowPrintBoth(false);
+
+      // ✅ FIXED: ALWAYS clear customer for new tabs (unconditional)
+      console.log('🧹 Clearing customer for new tab:', tab);
+      setCustomerName('');
+      setMobileNumber('');
+      setCustomerId(null);
 
       // Ensure outlet ID is set for Pickup, Delivery, Quick Bill
       if (['Pickup', 'Delivery', 'Quick Bill'].includes(tab)) {
@@ -1049,11 +1070,6 @@ if (tab === 'Billing') {
       }
     } else {
       setShowOrderDetails(false);
-      if (tab === 'Dine-in') {
-        setActiveNavTab('ALL'); // Go back to Dine-in tables view
-      }
-    }
-  };
 
   useEffect(() => {
     const hasNewItems = items.some(item => item.isNew);
@@ -1520,10 +1536,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
           }, 150);
         }
 
-      // Clear customer fields after successful print
-      setMobileNumber('');
-      setCustomerName('');
-      setCustomerId(null);
+   
 
       // Set the TxnNo from the API response to update the UI for printing
       if (printResult.data && printResult.data.TxnNo) {
@@ -4967,7 +4980,7 @@ setSelectedDeptId(deptId ?? 0);
           />
           <BillPreviewPrint
             show={showBillPrintModal}
-            autoPrint={true}  // 👈 Direct print (no modal)
+            // autoPrint={true}  // 👈 Direct print (no modal)
             onHide={() => {
     setShowBillPrintModal(false);
 
@@ -4998,8 +5011,10 @@ setSelectedDeptId(deptId ?? 0);
             selectedPaymentModes={selectedPaymentModes}
             selectedWaiter={selectedWaiter}
             onPrint={() => {
-              // Handle print callback if needed
-            }}
+  setMobileNumber('');
+  setCustomerName('');
+  setCustomerId(null);
+}}
             onClose={() => setShowBillPrintModal(false)}
             selectedOutletId={selectedOutletId}
             restaurantName={user?.hotel_name}

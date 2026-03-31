@@ -1,21 +1,16 @@
-## BillPrint Customer Display Fix - Task Progress
+# TODO: Fix Customer Clear on Table/Tab Change
 
-### Approved Plan:
-1. **✅ Create TODO.md** - Track progress (Current step)
-2. **Add comprehensive debug logging** to BillPrint.tsx:
-   - Raw API response from bill print settings
-   - `applyBillSettings` input/output 
-   - Exact condition values: `localFormData.show_customer_bill`, `customerName`, `mobileNumber`
-3. **Test bill print** → Check browser console for logs
-4. **Fix boolean conversion** in `applyBillSettings` if needed
-5. **Verify settings flow**: AddOutlet.tsx → DB → BillPrint.tsx
-6. **Add fallback display** for debugging
-7. **Clean up debug logs** after fix
-8. **attempt_completion** ✅
+## Current Progress
+✅ **Step 0**: Plan approved by user
 
-### Current Status: 
-- ✅ Step 1: TODO.md created
-- ✅ Step 2: Debug logs added to BillPrint.tsx (RAW API + applyBillSettings + Customer condition)
-- **Next**: Step 3 - Test bill print → Open BillPrint modal → Check browser console (F12 → Console tab) → Share debug output
+## Remaining Steps
+- [ ] 1. Add prevTable tracking state/ref in Orders.tsx
+- [ ] 2. Edit `handleTableClick()`: Clear customer post-refresh if new table
+- [ ] 3. Edit `handleTabClick()`: Clear customer for new tabs unconditionally
+- [ ] 4. Enhance `resetBillingPanel()`: Force customer clear
+- [ ] 5. Edit KOT save success: Clear customer post-success
+- [ ] 6. Test table switching → customer fields clear
+- [ ] 7. Test tab switching (Pickup/Delivery) → customer fields clear
+- [ ] 8. Verify existing order load still restores customer correctly
+- [ ] 9. `attempt_completion`
 
-**Instructions**: Test bill print after each step and share console output.
