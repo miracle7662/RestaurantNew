@@ -4976,7 +4976,7 @@ const Order = () => {
             reverseQtyMode={reverseQtyMode}
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
-            // autoPrint={true}
+            autoPrint={true}
             kotNote={kotNote}
             orderNo={orderNo}
             date={user?.currDate}
@@ -4986,16 +4986,18 @@ const Order = () => {
           <BillPreviewPrint
             show={showBillPrintModal}
             // autoPrint={true}  // 👈 Direct print (no modal)
-            onHide={() => {
-              setShowBillPrintModal(false);
+           onHide={async () => {
+  setShowBillPrintModal(false);
 
-              if (printThenSettleFlow) {
-                setShowSettlementModal(true);
-                setPrintThenSettleFlow(false);
-              } else {
-                resetBillingPanel(); // ✅ sirf normal print me reset karo
-              }
-            }}
+  await fetchTableManagement(); // ✅ now valid
+
+  if (printThenSettleFlow) {
+    setShowSettlementModal(true);
+    setPrintThenSettleFlow(false);
+  } else {
+    resetBillingPanel(); // ✅ normal print
+  }
+}}
             formData={formData}
             user={user}
             items={items}

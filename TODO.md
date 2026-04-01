@@ -1,50 +1,30 @@
-# TODO: Fix Backend startServer Error - IN PROGRESS
+# KOT Customer Fix - TODO
 
-## Approved Plan Summary
-**Issue**: `TypeError: startServer is not a function` in main.cjs:82  
-**Root Cause**: backend/server.js auto-starts server on require() but exports nothing  
-**Fix**: Export `{ app, startServer(app, port) }` from backend/server.js; control startup from main.cjs  
+✅ [DONE] Plan approved by user
+✅ [DONE] Created TODO.md
 
-## Step-by-Step Progress
-- [✅] **Step 1**: Edit backend/server.js - Export app + startServer function (remove auto app.listen)
-- [✅] **Step 2**: Edit main.cjs - Use exported startServer(app)
-- [ ] **Step 3**: Test backend startup (check console logs, /api/health)
-- [ ] **Step 4**: Verify frontend API calls work
-- [ ] **Step 5**: Test Electron prod build if needed
-- [✅] **Step 6**: Mark COMPLETE ✅
+## 📋 Steps to Complete:
 
-**Next Action**: Run `npm run electron:serve` (or `electron .`) and check console for \"✅ Backend ready\". Test http://localhost:3001/api/health
+✅ **Debug logs added & tested** - Props EMPTY, Settings OK
 
-## Testing Commands
-```bash
-# Test backend health
-curl http://localhost:3001/api/health
+✅ **generateKOTContent logs added** - Props still EMPTY
 
-# Run Electron
-npm run electron:serve  # or electron .
-```
+✅ **Orders.tsx KotPreviewPrint** → **FIXED** ✅ Added `customerName={customerName} mobileNumber={mobileNumber}` props
 
-**Status**: ✅ FIXED - Backend startup code changes complete!
+## 🔍 **TEST NOW:**
 
-## Quick Test Instructions
-1. **Terminal 1** (Backend/Electron): `npm run electron:serve` or `electron .`
-   - Expected console:
-     ```
-     🚀 Starting backend...
-     Backend Path: d:/Github/RestaurantNew/backend/server.js
-     ✅ Backend ready at 2024-...
-     Server running at http://localhost:3001
-     ⏳ Waiting for backend (4 sec)...
-     ✅ Creating window...
-     ```
+1. **Delivery tab** → Fill customer/mobile → **F9 KOT print**
+2. **Check browser console** → **NEW** `🔍 generateKOTContent PROPS:` should show **customer values**
+3. **Share console output** → If props populated ✅ **KOT shows customer**!
 
-2. **Terminal 2** (Health check): `curl http://localhost:3001/api/health`
-   - Expected: `{"status":"OK","message":"Server is running","cors":"enabled"}`
+### 4. **Final verification** ⏳
+- Test Delivery/Pickup/QuickBill KOT → ✅ Customer displays
+- Remove ALL debug `console.log` from KotPrint.tsx  
+- `attempt_completion`
 
-3. **Frontend**: Open app → Test API calls (login, orders, etc.) → No network errors.
 
-4. **Prod Test** (optional): `npm run build && electron dist/electron/main.js`
-
-If all pass → Backend startServer error resolved permanently!
-
+### 5. **Final verification** ⏳
+- Remove debug logs
+- Test all tabs
+- `attempt_completion`
 

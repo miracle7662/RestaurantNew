@@ -435,12 +435,12 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     // });
 
     // Map activeTab to key suffix
-   const tabKeyMap: { [key: string]: string } = {
-  'Dine-in': 'dine_in',
-  'Pickup': 'pickup',
-  'Delivery': 'delivery',
-  'Quick Bill': 'quick_bill'
-};
+    const tabKeyMap: { [key: string]: string } = {
+      'Dine-in': 'dine_in',
+      'Pickup': 'pickup',
+      'Delivery': 'delivery',
+      'Quick Bill': 'quick_bill'
+    };
     const tabKey = tabKeyMap[activeTab] || 'dine_in';
 
     // Determine order tag for KOT header - only show if settings enabled
