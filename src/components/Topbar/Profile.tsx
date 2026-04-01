@@ -47,7 +47,7 @@ const Profile = () => {
 
   const handleLogout = () => {
     removeSession()
-    navigate('/auth/login', { replace: true })
+navigate('/auth/minimal/login', { replace: true })
   }
 
   const handleCloseOffcanvas = () => {
