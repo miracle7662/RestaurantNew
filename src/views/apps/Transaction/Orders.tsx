@@ -4973,7 +4973,7 @@ const Order = () => {
             reverseQtyMode={reverseQtyMode}
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
-            //autoPrint={true}
+            autoPrint={true}
             kotNote={kotNote}
             orderNo={orderNo}
             date={user?.currDate}
@@ -4982,7 +4982,7 @@ const Order = () => {
           />
           <BillPreviewPrint
             show={showBillPrintModal}
-            // autoPrint={true}  // 👈 Direct print (no modal)
+            autoPrint={true}  // 👈 Direct print (no modal)
             onHide={async () => {
               setShowBillPrintModal(false);
 

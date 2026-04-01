@@ -116,13 +116,14 @@ app.get('/api/health', (req, res) => {
 
 // ✅ Export app and startServer function
 
-function startServer(app, port = 3001) {
+function startServer(port = 3001) {
   const startTime = new Date().toISOString();
+
   app.listen(port, () => {
     console.log(`✅ Backend ready at ${startTime}`);
     console.log(`Server running at http://localhost:${port}`);
   });
 }
 
-module.exports = { app, startServer };
+module.exports = { startServer };
 

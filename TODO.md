@@ -1,69 +1,27 @@
-# Fix Bill Print Issue: No Items/Qty/Rate/Amount in Bill Preview
+# Fix Backend 'Cannot access app before initialization' Error
 
-**Status**: [ ] 0% Complete
+## Plan Breakdown
 
-## Approved Plan Steps
+### Step 1: [✅ COMPLETED] Edit main.cjs - Replace require/destructure with child_process.spawn
+- ✅ Changed startBackend() to spawn 'node backend/server.js'
+- ✅ Added process event handlers & lifecycle management
 
-### [✅] Step 1: Add Bill Print State ✓
-**File**: `src/views/apps/Transaction/Orders.tsx`
-- Add state: `billPrintData` object to hold `{items, orderNo, customerName, taxCalc, taxRates, discount, selectedWaiter, selectedTable, mobileNumber, currentKOTNos}`
-- Initialize as `{items: [], orderNo: null, ...}`
+### Step 2: [✅ COMPLETED] Edit backend/server.js - Add self-start logic
+- ✅ Added `if (require.main === module) { startServer(app); }`
 
-### [✅] Step 2: Update handlePrintBill(txnId) ✓
-**File**: `src/views/apps/Transaction/Orders.tsx`
-```tsx
-handlePrintBill(txnId?: number) => {
-  // 1. Prepare bill data BEFORE clearing items
-  const billData = {
-    items: [...items],  // Snapshot current items
-    orderNo: orderNo || `BILL-${Date.now()}`,
-    customerName, mobileNumber,
-    taxCalc, taxRates, discount,
-    selectedWaiter, selectedTable,
-    currentKOTNos, currentKOTNo,
-    activeTab
-  };
-  setBillPrintData(billData);
-  
-  // 2. Existing backend call (mark as billed)
-  await OrderService.markBillAsBilled(id, {...});
-  
-  // 3. Open modal with data ✅
-  setShowBillPrintModal(true);
-}
-```
+### Step 3: [IN PROGRESS] Test
+- ✅ Killed node.exe processes (electron.exe not running)
+- [PENDING] Restart Electron app (run from VSCode terminal: `npm start` or executable)
+- [PENDING] Check console: expect "🚀 Starting backend...", "✅ Backend ready at ..."
+- [PENDING] Verify `http://localhost:3001/api/health` → {"status":"OK",...}
 
-### [ ] Step 3: Update BillPreviewPrint JSX Usage
-**File**: `src/views/apps/Transaction/Orders.tsx`
-```tsx
-<BillPreviewPrint
-  show={showBillPrintModal}
-  items={billPrintData.items}
-  orderNo={billPrintData.orderNo}
-  customerName={billPrintData.customerName}
-  // ... all 15+ required props
-  onHide={() => {
-    setShowBillPrintModal(false);
-    setBillPrintData({items: [], orderNo: null, ...}); // Reset
-  }}
-  autoPrint={true}
-/>
-```
+### Step 4: [PENDING] Rebuild dist/ for production
+- Run `npm run build` or check package.json scripts
+- Test packed app
 
-### [ ] Step 4: Fix handlePrintKotAndBill Flow
-**File**: `src/views/apps/Transaction/Orders.tsx`
-- Move `setItems([])` AFTER bill modal closes
-- Add `onHide` callback to reset state post-print
+**Progress: 2/4 completed - Test the app now!**
 
-### [ ] Step 5: Test & Verify
-```
-1. F9 → KOT prints ✅ (already works)
-2. QuickBill → F9 → "Print KOT & Bill" → Bill shows items/qty/rate/amount ✅
-3. Dine-in Table → Add items → F9 → Bill preview has data ✅
-4. Verify print preview HTML renders correctly
-```
-
-**Next Action**: Complete Step 1 → Confirm → Step 2 → etc.
-
-**Progress**: 0/5 steps complete
-
+## Next Action
+1. Start the Electron app
+2. Share console output if backend still fails
+3. Backend should now spawn cleanly without ReferenceError

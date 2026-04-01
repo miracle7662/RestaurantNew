@@ -78,8 +78,10 @@ function startBackend() {
     }
 
     // ✅ Use exported functions
-    const { app, startServer } = require(backendPath);
-    startServer(app);
+      // ✅ FIXED
+    const backend = require(backendPath);
+    backend.startServer();
+
 
   } catch (err) {
     console.error("❌ Backend failed:", err);
