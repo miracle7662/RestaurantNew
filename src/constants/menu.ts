@@ -114,7 +114,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
   {
     key: 'Logout',
     label: 'logout',
-    url: '/apps/logout',
+    url: '/auth/minimal/login',
     icon: 'fi fi-sr-sign-out-alt',
     parentKey: 'apps',
   },
