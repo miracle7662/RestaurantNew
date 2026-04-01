@@ -165,9 +165,9 @@ const Order = () => {
   const [authPassword, setAuthPassword] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
 
-// State to track reverse quantity items for KOT printing
-const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
-const [reverseSnapshot, setReverseSnapshot] = useState<MenuItem[]>([]); // 🔥 FIX: Snapshot for print modal
+  // State to track reverse quantity items for KOT printing
+  const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
+  const [reverseSnapshot, setReverseSnapshot] = useState<MenuItem[]>([]); // 🔥 FIX: Snapshot for print modal
   const [tableNameSnapshot, setTableNameSnapshot] = useState<string>('');
 
   // NEW: Reverse KOT Print Modal states
@@ -240,52 +240,52 @@ const [reverseSnapshot, setReverseSnapshot] = useState<MenuItem[]>([]); // 🔥 
   const [defaultWaiterId, setDefaultWaiterId] = useState<number | null>(null);
   const [defaultPax, setDefaultPax] = useState<number>(1);
 
-// 🔥 NEW: isOrderBilled() helper for payment gating
-const isOrderBilled = (): boolean => {
-  // Check 1: Any item explicitly marked as billed
-  const hasBilledItems = items.some(item => item.isBilled === 1);
-  
-  // Check 2: Current table status = 2 (billed/printed/red)
-  const currentTableStatus = tableItems.find(t => t.table_name === selectedTable)?.status;
-  const tableIsBilled = currentTableStatus === 2;
-  
-  return hasBilledItems || tableIsBilled;
-};
+  // 🔥 NEW: isOrderBilled() helper for payment gating
+  const isOrderBilled = (): boolean => {
+    // Check 1: Any item explicitly marked as billed
+    const hasBilledItems = items.some(item => item.isBilled === 1);
 
-// Auto-set default waiter/pax when table selected + data ready (Dine-in tables)
- useEffect(() => {
-  const isDineIn = activeTab === 'Dine-in';
-  const isOtherTab = ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab);
+    // Check 2: Current table status = 2 (billed/printed/red)
+    const currentTableStatus = tableItems.find(t => t.table_name === selectedTable)?.status;
+    const tableIsBilled = currentTableStatus === 2;
 
-  const shouldSetWaiter =
-    defaultWaiterId &&
-    waiterUsers.length > 0 &&
-    !selectedWaiter &&
-    (
-      (isDineIn && selectedTable) ||        // ✅ Dine-in → table click
-      (isOtherTab && items.length > 0)      // ✅ Others → item add
-    );
+    return hasBilledItems || tableIsBilled;
+  };
 
-  if (shouldSetWaiter) {
-    const defaultWaiter = waiterUsers.find(w => w.userId === defaultWaiterId);
+  // Auto-set default waiter/pax when table selected + data ready (Dine-in tables)
+  useEffect(() => {
+    const isDineIn = activeTab === 'Dine-in';
+    const isOtherTab = ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab);
 
-    if (defaultWaiter) {
-      setSelectedWaiter(defaultWaiter.employee_name || defaultWaiter.username);
-      console.log(`✅ [${activeTab}] Auto-set waiter:`, defaultWaiter.employee_name || defaultWaiter.username);
+    const shouldSetWaiter =
+      defaultWaiterId &&
+      waiterUsers.length > 0 &&
+      !selectedWaiter &&
+      (
+        (isDineIn && selectedTable) ||        // ✅ Dine-in → table click
+        (isOtherTab && items.length > 0)      // ✅ Others → item add
+      );
+
+    if (shouldSetWaiter) {
+      const defaultWaiter = waiterUsers.find(w => w.userId === defaultWaiterId);
+
+      if (defaultWaiter) {
+        setSelectedWaiter(defaultWaiter.employee_name || defaultWaiter.username);
+        console.log(`✅ [${activeTab}] Auto-set waiter:`, defaultWaiter.employee_name || defaultWaiter.username);
+      }
+
+      setPax(defaultPax);
     }
+  }, [
+    activeTab,
+    selectedTable,
+    items,            // 🔥 important
+    defaultWaiterId,
+    waiterUsers,
+    defaultPax,
+    selectedWaiter
+  ]);
 
-    setPax(defaultPax);
-  }
-}, [
-  activeTab,
-  selectedTable,
-  items,            // 🔥 important
-  defaultWaiterId,
-  waiterUsers,
-  defaultPax,
-  selectedWaiter
-]);
-  
 
   // Original: Set default when modal opens (manual override)
   useEffect(() => {
@@ -357,7 +357,7 @@ const isOrderBilled = (): boolean => {
 
   // Shared calculation function for round-off
   const calculateRoundOff = (grandTotal: number, roundOffTo: number, roundOffEnabled: boolean) => {
-    console.log('Calculating round-off...', grandTotal, roundOffTo, roundOffEnabled, calculateRoundOff );
+    console.log('Calculating round-off...', grandTotal, roundOffTo, roundOffEnabled, calculateRoundOff);
     if (roundOffEnabled) {
       const { roundedAmount, roundOffValue } = applyRoundOff(grandTotal, roundOffTo);
       return { finalGrandTotal: roundedAmount, appliedRoundOff: roundOffValue };
@@ -367,7 +367,7 @@ const isOrderBilled = (): boolean => {
 
   const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
   const showKotButton = (selectedTable || ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) && hasModifications;
-const fetchAllBills = async (customFilters = {}) => {
+  const fetchAllBills = async (customFilters = {}) => {
     try {
       const response = await OrderService.getAllBills(customFilters, user);
       if (response.success) {
@@ -476,7 +476,7 @@ const fetchAllBills = async (customFilters = {}) => {
       }
 
       // Step 2: If no billed bill found (e.g., 404), fetch unbilled items (existing logic)
-        const unbilledItemsRes = await OrderService.getUnbilledItemsByTable(tableIdNum);
+      const unbilledItemsRes = await OrderService.getUnbilledItemsByTable(tableIdNum);
 
       if (unbilledItemsRes.success && unbilledItemsRes.data && Array.isArray(unbilledItemsRes.data.items)) {
         const fetchedItems: MenuItem[] = unbilledItemsRes.data.items.map((item: any) => {
@@ -721,53 +721,53 @@ const fetchAllBills = async (customFilters = {}) => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
- const fetchDepartments = async () => {
-  setLoading(true);
+  const fetchDepartments = async () => {
+    setLoading(true);
 
-  // 🚨 fail fast
-  if (user?.role_level === 'outlet_user' && !user.outletid) {
-    toast.error('No outlet assigned to this user.');
-    setDepartments([]);
-    setLoading(false);
-    return;
-  }
-
-  try {
-    const params: { hotelid: number; outletid?: number } = { hotelid: user.hotelid };
-    if (user.role_level === 'outlet_user' && user.outletid) {
-      params.outletid = Number(user.outletid);
-    }
-    const response = await TableDepartmentService.list(params) as any;
-    console.log('Raw departments data:', response);
-
-    if (response.success && Array.isArray(response.data)) {
-      const departmentsData = response.data;
-
-      if (departmentsData.length === 0) {
-        toast.error('No departments found.');
-        setDepartments([]);
-        return;
-      }
-
-      const formattedDepartments = departmentsData.map((item: any) => ({
-        departmentid: item.departmentid,
-        department_name: item.department_name,
-        outletid: item.outletid,
-      }));
-
-      setDepartments(formattedDepartments);
-    } else {
-      toast.error('Invalid data format received from TableDepartment API.');
+    // 🚨 fail fast
+    if (user?.role_level === 'outlet_user' && !user.outletid) {
+      toast.error('No outlet assigned to this user.');
       setDepartments([]);
+      setLoading(false);
+      return;
     }
-  } catch (err) {
-    console.error('Departments fetch error:', err);
-    toast.error('Failed to fetch departments. Please check the API endpoint.');
-    setDepartments([]);
-  } finally {
-    setLoading(false);
-  }
-};
+
+    try {
+      const params: { hotelid: number; outletid?: number } = { hotelid: user.hotelid };
+      if (user.role_level === 'outlet_user' && user.outletid) {
+        params.outletid = Number(user.outletid);
+      }
+      const response = await TableDepartmentService.list(params) as any;
+      console.log('Raw departments data:', response);
+
+      if (response.success && Array.isArray(response.data)) {
+        const departmentsData = response.data;
+
+        if (departmentsData.length === 0) {
+          toast.error('No departments found.');
+          setDepartments([]);
+          return;
+        }
+
+        const formattedDepartments = departmentsData.map((item: any) => ({
+          departmentid: item.departmentid,
+          department_name: item.department_name,
+          outletid: item.outletid,
+        }));
+
+        setDepartments(formattedDepartments);
+      } else {
+        toast.error('Invalid data format received from TableDepartment API.');
+        setDepartments([]);
+      }
+    } catch (err) {
+      console.error('Departments fetch error:', err);
+      toast.error('Failed to fetch departments. Please check the API endpoint.');
+      setDepartments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
   const fetchOutletsData = async () => {
     console.log('Full user object:', JSON.stringify(user, null, 2));
     if (!user || !user.id) {
@@ -888,10 +888,10 @@ const fetchAllBills = async (customFilters = {}) => {
 
   const handleTableClick = async (seat: string) => {
     console.log('Button clicked for table:', seat);
-    
+
     // Check if this is a new table (not re-selecting same)
     const isNewTable = prevTable !== seat;
-    
+
     // Force reset selectedTable to null first to allow re-selection of the same table
     setReverseQtyMode(false); // Turn off reverse mode on table change
     setIsGroupedView(true); // Reset to grouped view on table change
@@ -934,7 +934,7 @@ const fetchAllBills = async (customFilters = {}) => {
 
       // ALWAYS refetch items for the selected table (backend data)
       await refreshItemsForTable(tableIdNum);
-      
+
       // ✅ FIXED: Clear customer ONLY for NEW tables (post-refresh)
       if (isNewTable) {
         console.log('🧹 Clearing customer for NEW table:', seat);
@@ -971,7 +971,7 @@ const fetchAllBills = async (customFilters = {}) => {
     }
   };
 
-const handleTabClick = (tab: string) => {
+  const handleTabClick = (tab: string) => {
     console.log('Tab clicked:', tab);
     setActiveTab(tab);
     setActiveNavTab('ALL'); // Reset main nav tab to avoid conflicts
@@ -1008,7 +1008,7 @@ const handleTabClick = (tab: string) => {
         setSourceTableId(tab === 'Quick Bill' ? -1 : 0);  // Virtual table IDs for pickup/delivery/quickbill
         const outletId = Number(user?.outletid);
         setSelectedOutletId(outletId);
-        
+
         // ✅ FIXED: Use mst_setting departmentid for pickup/delivery/quickbill tax
         const fetchMstSettingDept = async () => {
           try {
@@ -1034,7 +1034,7 @@ const handleTabClick = (tab: string) => {
         };
 
         fetchMstSettingDept();
-        
+
         // Force reload outlet settings immediately after setting department
         // This ensures round off settings are loaded before any order is created
         if (outletId) {
@@ -1058,7 +1058,7 @@ const handleTabClick = (tab: string) => {
       }
 
       setShowOrderDetails(true);
-if (tab === 'Billing') {
+      if (tab === 'Billing') {
         setShowBillingPage(true);
         setShowOrderDetails(false); // Don't show order details for billing tab
         fetchAllBills(); // Auto-filters via service
@@ -1102,7 +1102,7 @@ if (tab === 'Billing') {
     setShowNewCustomerForm(false);
   };
 
-const handleIncreaseQty = (itemId: number, variantId?: number) => {
+  const handleIncreaseQty = (itemId: number, variantId?: number) => {
     setItems(currentItems => {
       const newItems = [...currentItems];
       // 🔥 FIX: Match by id + variantId + isNew (prevents cross-variant increment)
@@ -1117,7 +1117,7 @@ const handleIncreaseQty = (itemId: number, variantId?: number) => {
     });
   };
 
-const handleDecreaseQty = (itemId: number, variantId?: number) => {
+  const handleDecreaseQty = (itemId: number, variantId?: number) => {
     setItems(currentItems => {
       const newItems = [...currentItems];
       // 🔥 FIX: Match by id + variantId + isNew
@@ -1199,9 +1199,9 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
   useEffect(() => {
     // Don't reset department/outlet for Pickup/Delivery/Quick Bill tabs - they should keep their settings
     if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
-      return; 
+      return;
     }
-    
+
     const selectedDepartment = departments.find(d => d.department_name === activeNavTab) || null;
     if (selectedDepartment) {
       setSelectedDeptId(Number(selectedDepartment.departmentid));
@@ -1287,14 +1287,14 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
     const activeItems = items.filter(item => !item.isReverse);
     const lineTotal = activeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-    
-  /* ═══════════════════════════════════════════════════════════════════════════════
- * - Runtime Calculation 
- * ═══════════════════════════════════════════════════════════════════════════════ */
+
+    /* ═══════════════════════════════════════════════════════════════════════════════
+   * - Runtime Calculation 
+   * ═══════════════════════════════════════════════════════════════════════════════ */
 
     // Calculate runtime discount based on discountInputValue and DiscountType
-    const discountAmount = DiscountType === 1 
-      ? (lineTotal * discountInputValue) / 100 
+    const discountAmount = DiscountType === 1
+      ? (lineTotal * discountInputValue) / 100
       : discountInputValue;
 
     let finalSubtotal: number, taxableValue: number, cgstAmt: number, sgstAmt: number, igstAmt: number, cessAmt: number, grandTotal: number;
@@ -1302,12 +1302,12 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
     if (includeTaxInInvoice === 1) {
       // Inclusive Tax: Prices include tax.
       const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
-      
+
       // Step 1: Calculate discount on gross amount (lineTotal) - using runtime discountAmount
-      
+
       // Step 2: Get discounted gross amount
       const discountedGross = lineTotal - discountAmount;
-      
+
       // Step 3: Extract pre-tax base from discounted gross amount
       const preTaxBase = combinedPer > 0 ? discountedGross / (1 + combinedPer / 100) : discountedGross;
       taxableValue = preTaxBase > 0 ? preTaxBase : 0; // Ensure non-negative
@@ -1342,7 +1342,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
     // Simple roundoff logic similar to Billview.tsx
     const roundedFinalAmount = Math.round(grandTotal);
     const appliedRoundOff = Number((roundedFinalAmount - grandTotal).toFixed(2));
-    
+
     setRoundOffValue(appliedRoundOff);
 
     setTaxCalc({
@@ -1528,19 +1528,19 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       }
 
       toast.success('Bill marked as printed!');
-        
-        // Focus Mode logic for Bill print: Navigate back when focusMode OFF
-        if (!focusMode && activeTab === 'Dine-in') {
-          setShowOrderDetails(false);
-          setTimeout(() => {
-            if (tableSearchInputRef.current) {
-              tableSearchInputRef.current.focus();
-              tableSearchInputRef.current.select();
-            }
-          }, 150);
-        }
 
-   
+      // Focus Mode logic for Bill print: Navigate back when focusMode OFF
+      if (!focusMode && activeTab === 'Dine-in') {
+        setShowOrderDetails(false);
+        setTimeout(() => {
+          if (tableSearchInputRef.current) {
+            tableSearchInputRef.current.focus();
+            tableSearchInputRef.current.select();
+          }
+        }, 150);
+      }
+
+
 
       // Set the TxnNo from the API response to update the UI for printing
       if (printResult.data && printResult.data.TxnNo) {
@@ -1592,7 +1592,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
     } finally {
       setLoading(false);
     }
-     };
+  };
 
   const handlePrintKotAndBill = async () => {
     try {
@@ -1614,7 +1614,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       setItems([]);
       setCurrentTxnId(null);
       setOrderNo(null);
-     
+
 
     } catch (error: any) {
       toast.error(error.message || "Failed to print KOT and Bill");
@@ -1634,14 +1634,14 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       const reverseItemsToKOT = reverseQtyMode ? reverseQtyItems : [];
       setLoading(true);
 
-const tableNameForKOT =
-  activeTab === 'Pickup'
-    ? 'Pickup'
-    : activeTab === 'Delivery'
-      ? 'Delivery'
-      : activeTab === 'Quick Bill'
-        ? 'Quick Bill'
-      : selectedTable || null;
+      const tableNameForKOT =
+        activeTab === 'Pickup'
+          ? 'Pickup'
+          : activeTab === 'Delivery'
+            ? 'Delivery'
+            : activeTab === 'Quick Bill'
+              ? 'Quick Bill'
+              : selectedTable || null;
       setSelectedTable(tableNameForKOT);
       const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
         .find((t: any) => t && t.table_name && selectedTable && t.table_name.toLowerCase() === selectedTable.toLowerCase())
@@ -1827,7 +1827,7 @@ const tableNameForKOT =
         PAX: pax || 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
         curr_date: user?.currDate, // Pass curr_date for KOT number generation based on business date
-        KOTUsedDate: user?.currDate ,
+        KOTUsedDate: user?.currDate,
 
         // Frontend calculated totals - send to backend
         GrossAmt: Number(taxCalc.subtotal.toFixed(2)),
@@ -1848,7 +1848,7 @@ const tableNameForKOT =
         console.log("KOT SAVE RESPONSE: ", resp.data);
 
         toast.success('KOT saved successfully!');
-        
+
         // Focus Mode logic: Navigate back to table list when focusMode OFF
         if (!focusMode && activeTab === 'Dine-in') {
           setShowOrderDetails(false);
@@ -2031,7 +2031,7 @@ const tableNameForKOT =
     setIsSaveReverseDisabled(true);
 
     try {
-           const response = await OrderService.createReverseKOT({
+      const response = await OrderService.createReverseKOT({
         txnId: persistentTxnId,
         tableId: persistentTableId,
         kotType: 'Reverse',
@@ -2048,13 +2048,13 @@ const tableNameForKOT =
         userId: user?.id,
         reversalReason: 'Full Reverse from UI', // You can add a specific reason here if needed
         curr_date: user?.currDate,
-        
+
       });
 
       if (response.success) {
         toast.success('Reverse KOT processed successfully!');
 
-// 2️⃣ FIXED: Table status update - FORCE status=0 if all items fully reversed (use txnDetailId matching)
+        // 2️⃣ FIXED: Table status update - FORCE status=0 if all items fully reversed (use txnDetailId matching)
         if (selectedTable) {
           const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
           if (tableToUpdate) {
@@ -2062,18 +2062,18 @@ const tableNameForKOT =
             // Post-backend remaining qty should be reflected in items[] already via refreshItemsForTable
             const totalRemainingQty = items.reduce((sum, item) => sum + item.qty, 0);
             const allReversed = totalRemainingQty <= 0;
-            
+
             const newStatus = allReversed ? 0 : 1;
-            console.log('🔧 F8 Reversal DEBUG:', { 
-              totalRemainingQty, 
-              allReversed, 
-              newStatus, 
+            console.log('🔧 F8 Reversal DEBUG:', {
+              totalRemainingQty,
+              allReversed,
+              newStatus,
               tableId: tableToUpdate.tableid,
-              itemCount: items.length 
+              itemCount: items.length
             });
-            
+
             await OrderService.updateTableStatus(tableToUpdate.tableid, { status: newStatus });
-            
+
             if (allReversed) {
               toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
             } else {
@@ -2081,7 +2081,7 @@ const tableNameForKOT =
             }
           }
         }
-        
+
         // 3️⃣ FORCE REFRESH table list to sync status change
         await fetchTableManagement();
 
@@ -2201,7 +2201,7 @@ const tableNameForKOT =
   const handleLoadQuickBill = async (bill: any) => {
     try {
       setLoading(true);
-// Keep Quick Bill list visible on left
+      // Keep Quick Bill list visible on left
       // setShowOrderDetails(true); // Show order panel ONLY if needed
 
       // 2. Fetch FULL bill data including header (tax, discount, dept)
@@ -2222,21 +2222,21 @@ const tableNameForKOT =
       setOrderNo(fullBill.header.TxnNo);
       setCurrentKOTNo(fullBill.header.KOTNo || null);
       setCurrentKOTNos([fullBill.header.KOTNo || 0].filter(Boolean));
-      
+
       // ✅ RESTORE CUSTOMER
       setCustomerName(fullBill.header.CustomerName || '');
       setMobileNumber(fullBill.header.MobileNo || '');
       setCustomerId(fullBill.header.customerid || null);
 
       // ✅ RESTORE OUTLET + DEPT (CRITICAL for TAX)
-      setSelectedOutletId(header.outletid ?? null);      
+      setSelectedOutletId(header.outletid ?? null);
       // Dept fallback: header → mst_setting → first dept
       let deptId = fullBill.header.departmentid;
       if (!deptId && selectedOutletId) {
         try {
           const mstRes = await OrderService.getMstSettingByOutlet(selectedOutletId);
-          deptId = mstRes.data?.departmentid ?? 0;        
-        } catch {}
+          deptId = mstRes.data?.departmentid ?? 0;
+        } catch { }
       }
       if (!deptId && departments.length > 0) {
         deptId = departments[0].departmentid;
@@ -2646,7 +2646,7 @@ const tableNameForKOT =
       tipData
     });
 
-    
+
     let currentSettlements = [];
     let totalPaid = 0;
 
@@ -2658,7 +2658,7 @@ const tableNameForKOT =
       currentSettlements = selectedPaymentModes.map(modeName => ({ PaymentType: modeName, Amount: parseFloat(paymentAmounts[modeName]) || 0 }));
     }
 
-   const payableTotal = Number(taxCalc.grandTotal.toFixed(2));
+    const payableTotal = Number(taxCalc.grandTotal.toFixed(2));
     const difference = Number((payableTotal - totalPaid).toFixed(2));
 
     if (!currentTxnId) {
@@ -2682,7 +2682,7 @@ const tableNameForKOT =
         // Get received_amount and refund_amount from settlements data
         const receivedAmount = s.received_amount || 0;
         const refundAmount = s.refund_amount || 0;
-        
+
         return {
           PaymentTypeID: paymentModeDetails?.paymenttypeid,
           PaymentType: s.PaymentType,
@@ -2690,7 +2690,7 @@ const tableNameForKOT =
           received_amount: receivedAmount,
           refund_amount: refundAmount,
           TipAmount: finalTip,
-           OrderNo: orderNo ?? undefined,
+          OrderNo: orderNo ?? undefined,
           HotelID: user?.hotelid,
           Name: user?.name, // Cashier/User name
           InsertDate: `${user?.currDate} ${new Date().toTimeString().split(' ')[0]}`, // Use curr_date from useAuthContext
@@ -2706,16 +2706,16 @@ const tableNameForKOT =
         bill_amount: payableTotal,
         total_received: totalReceived,
         total_refund: totalRefund,
-         TipAmount: finalTip,
+        TipAmount: finalTip,
         settlements: settlementsPayload
       });
-      
+
       if (!result.success) {
         throw new Error(result.message || 'Failed to settle bill.');
       }
 
 
-      
+
       // Always refresh Quick Bill list after settlement (works regardless of tab)
       if (activeTab === 'Quick Bill' || true) {  // Force refresh
         console.log('🔄 Calling fetchQuickBillData()...');
@@ -2753,7 +2753,7 @@ const tableNameForKOT =
           await OrderService.updateTableStatus(tableToUpdate.tableid, { status: 0 });
         }
       }
-      
+
       // 🔥 FIX: Navigate to ALL tables view after settlement
       setActiveNavTab('ALL');  // Show ALL departments/tables
       setActiveTab('Dine-in');
@@ -2762,7 +2762,7 @@ const tableNameForKOT =
         setShowOrderDetails(false);  // Hide order panel after refresh
         setShowPendingOrdersView(false);
       }, 200);  // Small delay for table render
-      
+
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
       setOrderNo(null);
@@ -2822,7 +2822,7 @@ const tableNameForKOT =
 
         // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
         await fetchTableManagement();
-         // 🔥 FIX: Clear KOT states consistently after NCKOT
+        // 🔥 FIX: Clear KOT states consistently after NCKOT
         setCurrentKOTNo(null);
         setCurrentKOTNos([]);
         setCurrentTxnId(null);
@@ -2906,7 +2906,7 @@ const tableNameForKOT =
       }
       const fullBill = fullBillRes.data;
       const header = fullBill.header ?? {};     // ✅ FIX 1
-   
+
 
       // 3. Set the active tab to match the order type
       const orderType = order.type.charAt(0).toUpperCase() + order.type.slice(1);
@@ -2919,25 +2919,26 @@ const tableNameForKOT =
       setOrderNo(fullBill.header.TxnNo);
       setCurrentKOTNo(fullBill.header.KOTNo || null);
       setCurrentKOTNos([fullBill.header.KOTNo || 0].filter(Boolean));
-      
+
       // ✅ RESTORE CUSTOMER
       setCustomerName(fullBill.header.CustomerName || order.customer?.name || '');
       setMobileNumber(fullBill.header.MobileNo || order.customer?.mobile || '');
       setCustomerId(fullBill.header.customerid || order.customerid || null);
 
       // ✅ RESTORE OUTLET + DEPT (CRITICAL for TAX)
-setSelectedOutletId(header.outletid ?? null);      
+      setSelectedOutletId(header.outletid ?? null);
       // Dept fallback: header → mst_setting → first dept
       let deptId = fullBill.header.departmentid;
       if (!deptId && selectedOutletId) {
         try {
           const mstRes = await OrderService.getMstSettingByOutlet(selectedOutletId);
-deptId = mstRes.data?.departmentid ?? 0;        } catch {}
+          deptId = mstRes.data?.departmentid ?? 0;
+        } catch { }
       }
       if (!deptId && departments.length > 0) {
         deptId = departments[0].departmentid;
       }
-setSelectedDeptId(deptId ?? 0);
+      setSelectedDeptId(deptId ?? 0);
       // ✅ RESTORE DISCOUNT (CRITICAL for TOTALS)
       if (fullBill.header.Discount || fullBill.header.DiscPer) {
         setDiscountType(fullBill.header.DiscountType ?? 1);
@@ -3021,7 +3022,7 @@ setSelectedDeptId(deptId ?? 0);
   };
 
   const handlePendingMakePayment = async (order: any) => {
-     if (!isOrderBilled()) {
+    if (!isOrderBilled()) {
       toast.error('Please print bill first');
       return;
     }
@@ -3031,7 +3032,7 @@ setSelectedDeptId(deptId ?? 0);
     // 🔥 FIXED: Removed manual taxCalc override - let useEffect compute w/ taxes
     setDiscount(0); // Reset discount
     setSelectedOutletId(order.outletid); // Set the outlet ID from the order
-    
+
     // 🔥 NEW: Load dept & taxes for accurate taxCalc
     try {
       const mstRes = await OrderService.getMstSettingByOutlet(order.outletid);
@@ -3041,10 +3042,10 @@ setSelectedDeptId(deptId ?? 0);
         console.log(`✅ Pending order taxes loading: outlet=${order.outletid}, dept=${deptId}`);
         // taxRates useEffect will auto-trigger on selectedDeptId change
       }
-    } catch(e) {
+    } catch (e) {
       console.error('Pending order tax setup failed:', e);
     }
-    
+
     await fetchPaymentModesForOutlet(order.outletid);
     setShowSettlementModal(true); // Show modal after payment modes are fetched
   };
@@ -3452,7 +3453,7 @@ setSelectedDeptId(deptId ?? 0);
                               {(table.status === 2 || table.status === 4) && (
                                 <div className="d-flex flex-column align-items-center" style={{ fontSize: '11px', lineHeight: '1', color: 'white' }}>
                                   <span>{table.billNo || 'N/A'}</span>
-                                 <span>₹{Math.round(table.billAmount || 0)}</span>
+                                  <span>₹{Math.round(table.billAmount || 0)}</span>
 
                                   <span>{table.billPrintedTime || 'N/A'}</span>
                                 </div>
@@ -3527,7 +3528,7 @@ setSelectedDeptId(deptId ?? 0);
                             currentBills.map((bill) => (
                               <tr key={bill.TxnID}>
                                 <td style={cellStyle}>{bill.TxnNo}</td>
-                                <td style={cellStyle}>{bill.table_name }</td>
+                                <td style={cellStyle}>{bill.table_name}</td>
                                 <td style={cellStyle}>{bill.OrderType}</td>
                                 <td style={cellStyle}>{bill.CustomerName}</td>
                                 <td style={cellStyle}>{bill.Mobile}</td>
@@ -3853,7 +3854,7 @@ setSelectedDeptId(deptId ?? 0);
               <div className="d-flex justify-content-between align-items-center bg-white border rounded p-2">
                 <span className="fw-bold flex-grow-1 text-center">{getKOTLabel()}</span>
                 {reverseQtyMode && <span className="badge bg-danger me-2">Reverse Qty Mode: Active</span>}
-{(items.some(item => item.isNew) || ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) && (
+                {(items.some(item => item.isNew) || ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) && (
                   <button
                     className="btn btn-sm btn-outline-primary p-1 me-1"
                     style={{ lineHeight: 1 }}
@@ -4473,8 +4474,8 @@ setSelectedDeptId(deptId ?? 0);
                       })()}</span>
                     </div>
                   )}
-                  
-                   {roundOffValue !== 0 && (
+
+                  {roundOffValue !== 0 && (
                     <div className="d-flex justify-content-between">
                       <span>Round Off ({roundOffTo})</span>
                       <span>{roundOffValue >= 0 ? '+' : ''}{roundOffValue.toFixed(2)}</span>
@@ -4515,7 +4516,7 @@ setSelectedDeptId(deptId ?? 0);
                                 <Button
                                   size="sm"
                                   variant="primary"
-                                 onClick={() => handlePrintBill()}
+                                  onClick={() => handlePrintBill()}
                                 >
                                   🖨️ Bill (F10)
                                 </Button>
@@ -4530,7 +4531,7 @@ setSelectedDeptId(deptId ?? 0);
                             )}
 
                             {/* All items are billed */}
-                           {items.length > 0 && items.every(item => item.isBilled === 1) && (
+                            {items.length > 0 && items.every(item => item.isBilled === 1) && (
 
                               <>
                                 <Button
@@ -4681,9 +4682,9 @@ setSelectedDeptId(deptId ?? 0);
             </Modal.Footer>
           </Modal>
           {/* NEW: Reverse KOT Print Modal */}
-            <ReverseKotPrint
+          <ReverseKotPrint
             show={showReverseKotPrintModal}
-             autoPrint={true} 
+            autoPrint={true}
             selectedWaiter={selectedWaiter}
             onHide={() => {
               setShowReverseKotPrintModal(false);
@@ -4703,7 +4704,7 @@ setSelectedDeptId(deptId ?? 0);
           />
 
 
-          <NCKotPrint             
+          <NCKotPrint
             show={showNCKotPrintModal}
             autoPrint={true}
             selectedWaiter={selectedWaiter}
@@ -4712,9 +4713,9 @@ setSelectedDeptId(deptId ?? 0);
             user={user}
             restaurantName={user?.hotel_name}
             outletName={user?.outlet_name}
-            date={user?.currDate} 
+            date={user?.currDate}
             onHide={() => setShowNCKotPrintModal(false)}
-            />
+          />
 
           <Modal
             show={showTaxModal}
@@ -4808,7 +4809,7 @@ setSelectedDeptId(deptId ?? 0);
             dialogClassName="bill-preview-80mm"
           />
           {/* Custom CSS for 80mm Bill Preview Modal */}
-         <style>{`
+          <style>{`
 .bill-preview-80mm .modal-dialog {
   max-width: 320px;
   margin: auto;
@@ -4916,14 +4917,14 @@ setSelectedDeptId(deptId ?? 0);
               />
             </Modal.Body>
           </Modal>
-        <KotPreviewPrint
+          <KotPreviewPrint
             show={showKotPreviewModal}
-            selectedWaiter={selectedWaiter}           
+            selectedWaiter={selectedWaiter}
             onHide={() => setShowKotPreviewModal(false)}
             onClose={() => {
               setShowKotPreviewModal(false);
               // Clear the order state after KOT print
-              setItems([]);  
+              setItems([]);
               setPrintItems([]);
               setReverseQtyItems([]);
               setReversedItems([]);
@@ -4949,7 +4950,7 @@ setSelectedDeptId(deptId ?? 0);
                   setShowOrderDetails(false);
                   setSelectedTable(null);
                 }
-            } else if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+              } else if (activeTab === 'Pickup' || activeTab === 'Delivery') {
                 // Navigate back to table page for Pickup/Delivery
                 setActiveTab('Dine-in');
                 setActiveNavTab('ALL');
@@ -4986,15 +4987,15 @@ setSelectedDeptId(deptId ?? 0);
             show={showBillPrintModal}
             // autoPrint={true}  // 👈 Direct print (no modal)
             onHide={() => {
-    setShowBillPrintModal(false);
+              setShowBillPrintModal(false);
 
-    resetBillingPanel(); // ✅ yaha karo (after print)
-
-    if (printThenSettleFlow) {
-      setShowSettlementModal(true);
-      setPrintThenSettleFlow(false);
-    }
-  }}
+              if (printThenSettleFlow) {
+                setShowSettlementModal(true);
+                setPrintThenSettleFlow(false);
+              } else {
+                resetBillingPanel(); // ✅ sirf normal print me reset karo
+              }
+            }}
             formData={formData}
             user={user}
             items={items}
@@ -5015,10 +5016,10 @@ setSelectedDeptId(deptId ?? 0);
             selectedPaymentModes={selectedPaymentModes}
             selectedWaiter={selectedWaiter}
             onPrint={() => {
-  setMobileNumber('');
-  setCustomerName('');
-  setCustomerId(null);
-}}
+              setMobileNumber('');
+              setCustomerName('');
+              setCustomerId(null);
+            }}
             onClose={() => setShowBillPrintModal(false)}
             selectedOutletId={selectedOutletId}
             restaurantName={user?.hotel_name}
