@@ -26,7 +26,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
 
   {
     key: 'Tableview',
-    label: 'Tableview',
+    label: 'Orders',
     url: '/apps/Tableview',
     icon: 'fi fi-rr-grid',
     parentKey: 'apps',
@@ -463,6 +463,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
   // Email Templates
 ]
 export { MENU_ITEMS }
+
 
 const HORIZONTAL_MENU_ITEMS: MenuItemTypes[] = [
   {
