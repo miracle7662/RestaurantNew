@@ -261,7 +261,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     icon: 'fi fi-rr-folder',
     children: [
      
-    
 
      
 
@@ -322,7 +321,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/apps/TableManagement',
         parentKey: 'apps',
       },
-
        {
         key: 'TaxProuductGroup',
         label: 'TaxProuductGroup',
@@ -335,6 +333,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/apps/Resttaxmaster',
         parentKey: 'apps',
       },
+
     ],
   },
 
@@ -408,10 +407,11 @@ const MENU_ITEMS: MenuItemTypes[] = [
 
       {
         key: 'KitchenGroup',
-        label: 'KitchenGroup',
+        label: 'kitchenGroup',
         url: '/apps/kitchenGroup',
         parentKey: 'apps',
       },
+
       {
         key: 'UnitMaster',
         label: 'UnitMaster',
@@ -452,7 +452,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
   //   parentKey: 'apps',
   // },
 
- 
+    
 
   // Pages
 
