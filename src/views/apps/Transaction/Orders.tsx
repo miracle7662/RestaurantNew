@@ -971,7 +971,7 @@ const fetchAllBills = async (customFilters = {}) => {
     }
   };
 
-const handleTabClick = async (tab: string) => {
+const handleTabClick = (tab: string) => {
     console.log('Tab clicked:', tab);
     setActiveTab(tab);
     setActiveNavTab('ALL'); // Reset main nav tab to avoid conflicts
@@ -998,8 +998,7 @@ const handleTabClick = async (tab: string) => {
       setShowSaveReverseButton(false);
       setShowPrintBoth(false);
 
-      // ✅ FIXED: ALWAYS clear customer for new tabs (unconditional)
-      console.log('🧹 Clearing customer for new tab:', tab);
+      // ✅ FIX: Clear customer details for new tab/order type
       setCustomerName('');
       setMobileNumber('');
       setCustomerId(null);
@@ -1070,6 +1069,11 @@ if (tab === 'Billing') {
       }
     } else {
       setShowOrderDetails(false);
+      if (tab === 'Dine-in') {
+        setActiveNavTab('ALL'); // Go back to Dine-in tables view
+      }
+    }
+  };
 
   useEffect(() => {
     const hasNewItems = items.some(item => item.isNew);
