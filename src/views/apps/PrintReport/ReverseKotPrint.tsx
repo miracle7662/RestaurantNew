@@ -180,7 +180,6 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 
   <!-- LEFT SIDE (Details) -->
   <div style="font-size: 10pt;">
-    {/* <div><strong>Reverse KOT No:</strong> {reverseKotNos}</div> */}
     <div><strong>Date:</strong> ${dateTime}</div>
     <div><strong>Waiter:</strong> ${selectedWaiter || user?.name || "-"}</div>
   </div>

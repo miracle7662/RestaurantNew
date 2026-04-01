@@ -2075,8 +2075,6 @@ const Order = () => {
 
             if (allReversed) {
               toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
-            } else {
-              toast.success('Partial reversal complete. Table status = 1 (Running)');
             }
           }
         }

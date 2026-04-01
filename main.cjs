@@ -1,6 +1,8 @@
 const electron = require("electron");
 const { app, BrowserWindow, Menu, ipcMain } = electron;
 const path = require("path");
+
+const isDev = !app.isPackaged;
 const { spawn } = require("child_process");
 
 let mainWindow;
@@ -24,11 +26,9 @@ ipcMain.handle("get-installed-printers", async () => {
 ipcMain.handle("direct-print", (event, { html, printerName }) => {
   return new Promise((resolve, reject) => {
     try {
-      const win = new BrowserWindow({
-        width: 302,
-        height: 600,
-        show: false,
-        webPreferences: {
+          const win = new BrowserWindow({width: 302, height: 600,  show: false,
+          icon: path.join(__dirname, 'build/icon.ico'),
+          webPreferences: {
           contextIsolation: true,
           nodeIntegration: false,
         }
@@ -90,11 +90,10 @@ function startBackend() {
    Create Main Window
    ========================= */
 function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1300,
-    height: 900,
-    webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+     mainWindow = new BrowserWindow({width: 1300, height: 900, 
+     icon: path.join(__dirname, 'build/icon.ico'),
+     webPreferences: {
+     preload: path.join(__dirname, "preload.js"),
     },
   });
 
