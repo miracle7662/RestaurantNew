@@ -1912,12 +1912,8 @@ const Order = () => {
           setPersistentTxnId(null);
           setPersistentTableId(0);
           setSourceTableId(null);
-          // ✅ Clear customer details after KOT save for Dine-in, Pickup, Delivery
-          if (['Dine-in', 'Pickup', 'Delivery'].includes(activeTab)) {
-            setMobileNumber('');
-            setCustomerName('');
-            setOrderNo(null);
-          }
+// 🔥 FIXED: Customer clearing moved to KotPrint onClose() - prevents blank print
+          // Customer details now persist until after KOT print completes
 
           // After saving KOT, prepare items for printing and show print modal
           let kotItemsToPrint;
@@ -1942,9 +1938,25 @@ const Order = () => {
             setSelectedTable(selectedTableRecord.table_name);
           }
 
+          // 🔥 FIXED: Store customer data BEFORE modal to persist through print
+          const tempCustomerData = {
+            customerName,
+            mobileNumber,
+            customerid,
+            orderNo
+          };
+          
           setPrintItems(kotItemsToPrint);
           setShowKotPreviewModal(true);
           setKotNote(''); // Clear KOT note after printing
+
+          // Pass cleanup function to modal
+          setTimeout(() => {
+            const kotModalElement = document.querySelector('.kot-preview-modal');
+            if (kotModalElement) {
+              (kotModalElement as any).tempCustomerData = tempCustomerData;
+            }
+          }, 100);
 
           // If it was a quick bill, refresh the quick bill data
           if (activeTab === 'Quick Bill') {
@@ -4976,7 +4988,7 @@ const Order = () => {
             reverseQtyMode={reverseQtyMode}
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
-            autoPrint={true}
+            // autoPrint={true}
             kotNote={kotNote}
             orderNo={orderNo}
             date={user?.currDate}
