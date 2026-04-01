@@ -4986,18 +4986,18 @@ const Order = () => {
           <BillPreviewPrint
             show={showBillPrintModal}
             // autoPrint={true}  // 👈 Direct print (no modal)
-           onHide={async () => {
-  setShowBillPrintModal(false);
+            onHide={async () => {
+              setShowBillPrintModal(false);
 
-  await fetchTableManagement(); // ✅ now valid
+              await fetchTableManagement(); // ✅ now valid
 
-  if (printThenSettleFlow) {
-    setShowSettlementModal(true);
-    setPrintThenSettleFlow(false);
-  } else {
-    resetBillingPanel(); // ✅ normal print
-  }
-}}
+              if (printThenSettleFlow) {
+                setShowSettlementModal(true);
+                setPrintThenSettleFlow(false);
+              } else {
+                resetBillingPanel(); // ✅ normal print
+              }
+            }}
             formData={formData}
             user={user}
             items={items}
