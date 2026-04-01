@@ -10,7 +10,7 @@ const TitleHelmet = ({ title }: PageTitleProps) => {
   return (
     <>
       <Helmet>
-        <title>{title} | Window - React Admin & Dashboard</title>
+        <title>{title} |  Miracle POS </title>
       </Helmet>
     </>
   )

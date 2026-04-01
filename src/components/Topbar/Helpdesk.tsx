@@ -14,19 +14,19 @@ const Helpdesk = () => {
     { to: '/apps/chat', label: 'Chats' },
     { to: '/apps/email', label: 'Emails' },
     { to: '/apps/contact', label: 'Contact' },
-    { to: '/apps/invoice', label: 'Invoice' },
-    { to: '/apps/kanban', label: 'Kanban' },
-    { to: '/apps/calendar', label: 'Calendar' },
+    // { to: '/apps/invoice', label: 'Invoice' },
+    // { to: '/apps/kanban', label: 'Kanban' },
+    // { to: '/apps/calendar', label: 'Calendar' },
   ]
 
-  const shoutcuts = [
-    { to: '/user-profile/overview', label: 'User Profile' },
-    { to: '/account-settings/account', label: 'Account Settings' },
-  ]
+  // const shoutcuts = [
+  //   { to: '/user-profile/overview', label: 'User Profile' },
+  //   { to: '/account-settings/account', label: 'Account Settings' },
+  // ]
   const docs = [
     { to: '../docs/support.html', label: 'Support' },
-    { to: '../docs/changelog.html', label: 'Changelog' },
-    { to: '../docs/index.html', label: 'Documentation' },
+    { to: '../docs/changelog.html', label: 'support@miracleinfotech.org' },
+     { to: '../docs/index.html', label: '9422076621' },
   ]
 
   return (
@@ -71,12 +71,12 @@ const Helpdesk = () => {
                     {label}
                   </Link>
                 ))}
-                <p className="fs-11 fw-semibold text-uppercase text-muted mt-4 mb-1">Shoutcuts</p>
+                {/* <p className="fs-11 fw-semibold text-uppercase text-muted mt-4 mb-1">Shoutcuts</p>
                 {shoutcuts.map(({ to, label }) => (
                   <Link key={to} to={to} className="px-0 dropdown-item">
                     {label}
                   </Link>
-                ))}
+                ))} */}
               </Col>
             </Row>
           </PerfectScrollbar>

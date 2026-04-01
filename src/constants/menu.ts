@@ -15,11 +15,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
   // Menu 1
 
   // Apps
-  {
-    key: 'apps',
-    label: 'WebApps',
-    isTitle: true,
-  },
+
   {
     key: '  Orders',
     label: 'POS',
@@ -29,10 +25,27 @@ const MENU_ITEMS: MenuItemTypes[] = [
   },
 
   {
+    key: 'Tableview',
+    label: 'Tableview',
+    url: '/apps/Tableview',
+    icon: 'fi fi-rr-grid',
+    parentKey: 'apps',
+  },
+
+
+  {
     key: 'Settlement',
     label: 'Settlement',
     url: '/apps/Settlement',
     icon: 'fi fi-rr-credit-card',
+    parentKey: 'apps',
+  },
+
+    {
+    key: 'KitchenAllocation',
+    label: 'Kitchen Allocation',
+    url: '/apps/KitchenAllocation',
+    icon: 'fi fi-rr-apps',
     parentKey: 'apps',
   },
 
@@ -52,13 +65,13 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
-  {
-    key: 'KotTransfer',
-    label: 'KotTransfer',
-    url: '/apps/KotTransfer',
-    icon: 'fi fi-rr-refresh',
-    parentKey: 'apps',
-  },
+  // {
+  //   key: 'KotTransfer',
+  //   label: 'KotTransfer',
+  //   url: '/apps/KotTransfer',
+  //   icon: 'fi fi-rr-refresh',
+  //   parentKey: 'apps',
+  // },
 
   {
     key: 'Customers',
@@ -67,6 +80,13 @@ const MENU_ITEMS: MenuItemTypes[] = [
     icon: 'fi fi-rr-user',
     parentKey: 'apps',
   },
+    {
+        key: 'Menu',
+        label: 'Menu',
+        url: '/apps/menu',
+        icon: 'fi fi-rr-list',
+        parentKey: 'apps',
+      },
 
   // {
   //   key: 'Reports',
@@ -75,20 +95,12 @@ const MENU_ITEMS: MenuItemTypes[] = [
   //   icon: 'fi fi-rs-mobile',
   //   parentKey: 'apps',
   // },
-
   {
     key: 'DailySalesReport',
     label: 'Report',
     url: '/Reports/DailySalesReport',
     icon: 'fi fi-rr-chart-histogram',
     parentKey: 'Reports',
-  },
-  {
-    key: 'BackdatedDayEndReport',
-    label: 'Backdated DayEnd Report',
-    url: '/apps/Masters/Reports/BackdatedDayEndReport',
-    icon: 'fi fi-rr-print',
-    parentKey: 'apps',
   },
 
   {
@@ -107,11 +119,38 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
+  
+
+
+
   //Menu 2
 
+  // {
+  //   key: 'SuperAdmin',
+  //   label: 'SuperAdmin',
+  //   isTitle: true,
+  // },
+
+  
+
+  
+
+  
+
+  // {
+  //   key: 'Billview',
+  //   label: 'Billview',
+  //   url: '/apps/Billview',
+  //   icon: 'fi fi-rr-file-invoice-dollar',
+  //   parentKey: 'apps',
+  // },
+
+
+
+
   {
-    key: 'SuperAdmin',
-    label: 'SuperAdmin',
+    key: 'HotelAdmin',
+    label: 'HotelAdmin',
     isTitle: true,
   },
 
@@ -121,44 +160,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/OutletConfigration/Brand',
     icon: 'fi fi-rr-building ',
     parentKey: 'OutletConfigration',
-  },
-
-  {
-    key: 'Warehouse',
-    label: 'Warehouse',
-    url: '/apps/Warehouse',
-    icon: 'fi fi-rr-boxes',
-    parentKey: 'apps',
-  },
-
-  {
-    key: 'Tableview',
-    label: 'Tableview',
-    url: '/apps/Tableview',
-    icon: 'fi fi-rr-grid',
-    parentKey: 'apps',
-  },
-
-  {
-    key: 'Billview',
-    label: 'Billview',
-    url: '/apps/Billview',
-    icon: 'fi fi-rr-file-invoice-dollar',
-    parentKey: 'apps',
-  },
-
-  {
-    key: 'DuplicateBillPrint',
-    label: 'Duplicate Bill Print',
-    url: '/apps/DuplicateBillPrint',
-    icon: 'fi fi-rr-print',
-    parentKey: 'apps',
-  },
-
-  {
-    key: 'HotelAdmin',
-    label: 'HotelAdmin',
-    isTitle: true,
   },
 
   {
@@ -212,6 +213,13 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/OutletConfigration/OrderTypeConfiguration',
         parentKey: 'OutletConfigration',
       },
+
+      {
+    key: 'Warehouse',
+    label: 'Warehouse',
+    url: '/apps/Warehouse',
+    parentKey: 'apps',
+  },
       // {
       //   key: 'AddOutlet',
       //   label: 'AddOutlet',
@@ -252,31 +260,10 @@ const MENU_ITEMS: MenuItemTypes[] = [
     isTitle: false,
     icon: 'fi fi-rr-folder',
     children: [
-      {
-        key: 'TaxProuductGroup',
-        label: 'TaxProuductGroup',
-        url: '/apps/TaxProuductGroup',
-        parentKey: 'apps',
-      },
-      {
-        key: 'Resttaxmaster',
-        label: 'Resttaxmaster',
-        url: '/apps/Resttaxmaster',
-        parentKey: 'apps',
-      },
-      {
-        key: 'TableManagement',
-        label: 'TableManagement',
-        url: '/apps/TableManagement',
-        parentKey: 'apps',
-      },
+     
+    
 
-      {
-        key: 'TableDepartment',
-        label: 'TableDepartment',
-        url: '/apps/TableDepartment',
-        parentKey: 'apps',
-      },
+     
 
       {
         key: 'country ',
@@ -313,6 +300,41 @@ const MENU_ITEMS: MenuItemTypes[] = [
       },
 
      
+    ],
+  },
+
+   {
+    key: 'TableManagement',
+    label: 'TableManagement',
+    isTitle: false,
+    icon: 'fi fi-rr-dashboard',
+    children: [
+     
+      {
+        key: 'TableDepartment',
+        label: 'TableDepartment',
+        url: '/apps/TableDepartment',
+        parentKey: 'apps',
+      },
+       {
+        key: 'TableManagement',
+        label: 'TableManagement',
+        url: '/apps/TableManagement',
+        parentKey: 'apps',
+      },
+
+       {
+        key: 'TaxProuductGroup',
+        label: 'TaxProuductGroup',
+        url: '/apps/TaxProuductGroup',
+        parentKey: 'apps',
+      },
+      {
+        key: 'Resttaxmaster',
+        label: 'RestTaxMaster',
+        url: '/apps/Resttaxmaster',
+        parentKey: 'apps',
+      },
     ],
   },
 
@@ -386,7 +408,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
 
       {
         key: 'KitchenGroup',
-        label: 'kitchenGroup',
+        label: 'KitchenGroup',
         url: '/apps/kitchenGroup',
         parentKey: 'apps',
       },
@@ -414,11 +436,11 @@ const MENU_ITEMS: MenuItemTypes[] = [
   //   parentKey: 'apps',
   // },
 
-  {
-    key: 'invoice',
-    label: 'Invoice',
-    url: '/apps/invoice',
-    icon: 'fi fi-rr-file-invoice',
+    {
+    key: 'BackdatedDayEndReport',
+    label: 'Backdated DayEnd Report',
+    url: '/apps/Masters/Reports/BackdatedDayEndReport',
+    icon: 'fi fi-rr-print',
     parentKey: 'apps',
   },
 
@@ -430,13 +452,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
   //   parentKey: 'apps',
   // },
 
-    {
-    key: 'KitchenAllocation',
-    label: 'Kitchen Allocation',
-    url: '/apps/KitchenAllocation',
-    icon: 'fi fi-rr-apps',
-    parentKey: 'apps',
-  },
+ 
 
   // Pages
 

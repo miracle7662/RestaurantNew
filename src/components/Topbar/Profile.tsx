@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { Dropdown } from 'react-bootstrap'
 import { useAuthContext } from '@/common/context/useAuthContext'
-import { profileDataGroup1, profileDataGroup2, profileDataGroup3 } from './data/profileData'
+import { profileDataGroup1,  profileDataGroup3 } from './data/profileData'
 import NotificationOffcanvas from './Notifications/NotificationOffcanvas'
 import profilePic from '@/assets/images/avatars/1.png'
 import Avatar from './../UiElements/Base/Avatars/Avatar'
@@ -88,14 +88,14 @@ navigate('/auth/minimal/login', { replace: true })
             </Link>
           </div>
           <div className="dropdown-divider"></div>
-          <div className="px-2 py-2">
+          {/* <div className="px-2 py-2">
             {profileDataGroup2.map(({ redirectTo, icon, label }, idx) => (
               <Link to={redirectTo} className="dropdown-item" key={idx}>
                 <i className={icon}></i>
                 <span className="ms-3">{label}</span>
               </Link>
             ))}
-          </div>
+          </div> */}
           <div className="dropdown-divider"></div>
           <div className="px-2 pb-2">
 {profileDataGroup3.map(({ redirectTo, icon, label }, idx) => {

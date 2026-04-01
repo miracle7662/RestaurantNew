@@ -16,23 +16,23 @@ export const profileDataGroup1: ProfileOption[] = [
     redirectTo: '/apps/email',
   },
 ]
-export const profileDataGroup2: ProfileOption[] = [
-  {
-    label: 'Pricing',
-    icon: 'fi fi-rr-usd-circle',
-    redirectTo: '/other-pages/pricing',
-  },
-  {
-    label: 'Projects',
-    icon: 'fi fi-rr-file-invoice-dollar',
-    redirectTo: '/user-profile/projects',
-  },
-  {
-    label: 'Settings',
-    icon: 'fi fi-rr-settings',
-    redirectTo: '/account-settings/account',
-  },
-]
+// export const profileDataGroup2: ProfileOption[] = [
+//   {
+//     label: 'Pricing',
+//     icon: 'fi fi-rr-usd-circle',
+//     redirectTo: '/other-pages/pricing',
+//   },
+//   {
+//     label: 'Projects',
+//     icon: 'fi fi-rr-file-invoice-dollar',
+//     redirectTo: '/user-profile/projects',
+//   },
+//   {
+//     label: 'Settings',
+//     icon: 'fi fi-rr-settings',
+//     redirectTo: '/account-settings/account',
+//   },
+// ]
 export const profileDataGroup3: ProfileOption[] = [
   {
     label: 'Logout',
