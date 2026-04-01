@@ -1,12 +1,14 @@
-# KOT Customer Details Fix - TODO
+# GST No Display Fix - Task Progress
 
-## Approved Plan Status: ✅ APPROVED
+## Plan Summary
+- Fix GST No display logic in BillPrint.tsx: Show only if `localFormData.trn_gstno` (setting) is true OR in preview mode (`showAll`).
+- Remove fallback `!!user?.trn_gstno` that bypasses setting.
 
-### 1. [ ] Create TODO.md ✅ **DONE**
-### 2. [ ] Edit Orders.tsx - Remove premature clearing + Add tempCustomerData + Update onClose
-### 3. [ ] Test KOT print (Pickup/Delivery/Quick Bill) - verify customer prints
-### 4. [ ] Test Dine-in - verify post-print clearing works
-### 5. [ ] Update TODO.md progress
-### 6. [ ] attempt_completion
+## Steps
+- [x] 1. Create TODO.md ✅
+- [ ] 2. Edit BillPrint.tsx condition
+- [ ] 3. Test with setting ON/OFF
+- [ ] 4. Complete task
 
-**Current Step:** Edit Orders.tsx
+**Status**: Ready for code edit.
+

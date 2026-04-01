@@ -472,7 +472,6 @@ exports.addOutlet = (req, res) => {
     const billPrintStmt = db.prepare(`
       INSERT INTO mstbills_print_settings (
         outletid,
-       
         bill_title_dine_in,
         bill_title_pickup,
         bill_title_delivery,
@@ -529,8 +528,8 @@ exports.addOutlet = (req, res) => {
         hide_item_quantity_column,
         hide_item_rate_column,
         hide_item_total_column,
-        hide_total_without_tax
-        trn_gstno,
+        hide_total_without_tax,
+        trn_gstno
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -1796,7 +1795,7 @@ exports.updateBillPrintSettings = (req, res) => {
         hide_item_rate_column = ?,
         hide_item_total_column = ?,
         hide_total_without_tax = ?,
-         trn_gstno = ?
+        trn_gstno = ?
       WHERE outletid = ?
     `);
 
@@ -2105,7 +2104,6 @@ exports.getOutletBillingSettings = (req, res) => {
         o.outlet_name,
         o.outlet_code,
         o.hotelid,
-       
         bps.bill_printsetting_id,
         bps.bill_title_dine_in,
         bps.bill_title_pickup,
@@ -2164,6 +2162,7 @@ exports.getOutletBillingSettings = (req, res) => {
         bps.hide_item_rate_column,
         bps.hide_item_total_column,
         bps.hide_total_without_tax,
+        bps.trn_gstno,
         gs.customize_url_links,
         gs.allow_charges_after_bill_print,
         gs.allow_discount_after_bill_print,
@@ -2366,6 +2365,7 @@ exports.getOutletBillingSettings = (req, res) => {
         hide_item_rate_column: !!settings.hide_item_rate_column,
         hide_item_total_column: !!settings.hide_item_total_column,
         hide_total_without_tax: !!settings.hide_total_without_tax,
+        trn_gstno: !!settings.trn_gstno, 
       } : null,
       general_settings: settings.gs_created_at ? {
         customize_url_links: settings.customize_url_links,
@@ -2650,6 +2650,7 @@ exports.getBillPrintSettings = (req, res) => {
       hide_item_rate_column: bool(settings.hide_item_rate_column),
       hide_item_total_column: bool(settings.hide_item_total_column),
       hide_total_without_tax: bool(settings.hide_total_without_tax),
+      trn_gstno: bool(settings.trn_gstno),
     };
 
     res.json({
