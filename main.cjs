@@ -77,9 +77,9 @@ function startBackend() {
       process.env.ELECTRON_USER_DATA_PATH = app.getPath("userData");
     }
 
-    // ✅ Directly run backend (NO spawn)
-    const { startServer } = require(backendPath);
-    startServer();
+    // ✅ Use exported functions
+    const { app, startServer } = require(backendPath);
+    startServer(app);
 
   } catch (err) {
     console.error("❌ Backend failed:", err);

@@ -1285,7 +1285,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
     try {
       console.log('Fetching outlet details for ID:', outletId);
       const response = await OrderService.getOutletById(outletId);
-      const outletData = response.data.data || response.data;
+     const outletData = response?.data?.data ?? response?.data ?? {};
       console.log('Outlet API response:', outletData);
       setRestaurantName(outletData.brand_name || outletData.hotel_name || user?.hotel_name || 'Restaurant Name');
       setOutletName(outletData.outlet_name || user?.outlet_name || 'Outlet Name');
