@@ -1,16 +1,20 @@
-# TODO: Fix Customer Clear on Table/Tab Change
+# Clear Auth on App Close - Implementation Plan
 
-## Current Progress
-✅ **Step 0**: Plan approved by user
+## Status: ✅ Complete
 
-## Remaining Steps
-- [ ] 1. Add prevTable tracking state/ref in Orders.tsx
-- [ ] 2. Edit `handleTableClick()`: Clear customer post-refresh if new table
-- [ ] 3. Edit `handleTabClick()`: Clear customer for new tabs unconditionally
-- [ ] 4. Enhance `resetBillingPanel()`: Force customer clear
-- [ ] 5. Edit KOT save success: Clear customer post-success
-- [ ] 6. Test table switching → customer fields clear
-- [ ] 7. Test tab switching (Pickup/Delivery) → customer fields clear
-- [ ] 8. Verify existing order load still restores customer correctly
-- [ ] 9. `attempt_completion`
+### Step 1: [✅ Complete] Create TODO.md for tracking
+### Step 2: [✅ Complete] Edit main.cjs - Add before-quit and window-all-closed handlers
+### Step 3: Test in dev mode (`npm run dev-electron`)
+### Step 4: Test prod build (`npm run build-electron`)
+### Step 5: [Final] Verify login shows on relaunch after quit
+
+**Notes:**
+- Clears localStorage/sessionStorage on before-quit
+- Kills backendProcess on window-all-closed
+- macOS handling preserved
+
+**Updated main.cjs:**
+- Added handlers after `app.whenReady()`
+- Ready for testing!
+
 

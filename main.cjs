@@ -143,3 +143,18 @@ app.whenReady().then(async () => {
   console.log('✅ Creating window...');
   createWindow();
 });
+
+// Clear auth data on app close (before quit)
+app.on("before-quit", () => {
+  // Clear localStorage and sessionStorage to logout user
+  const { session } = require("electron");
+  session.defaultSession.clearStorageData({
+    storages: ["localStorage", "sessionStorage"],
+  });
+});
+
+app.on("window-all-closed", () => {
+  if (backendProcess) backendProcess.kill();
+  if (process.platform !== "darwin") app.quit();
+});
+
