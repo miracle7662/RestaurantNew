@@ -218,7 +218,7 @@ const Order = () => {
   const [kotNote, setKotNote] = useState<string>('');
   const [billPrintItems, setBillPrintItems] = useState<MenuItem[]>([]);
   const [printTaxCalc, setPrintTaxCalc] = useState(taxCalc);
-const [printKotNo, setPrintKotNo] = useState<number | null>(null);
+const [, setPrintKotNo] = useState<number | null>(null);
 
   // States for Pending Orders Modal (Pickup/Delivery)
   const [showPendingOrdersView, setShowPendingOrdersView] = useState<boolean>(false);
