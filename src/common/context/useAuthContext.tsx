@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user.token) {
         localStorage.setItem("token", user.token)
       }
-      console.log('User saved to context:', user);
+      // console.log('User saved to context:', user);
       setUser(user)
     },
     [setUser],
@@ -82,14 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
              })  
             if (currDateData.success) {
   const currDate = currDateData.data.curr_date
-  console.log("Business Date:", currDate)
+   console.log("Business Date:", currDate)
 }
-             console.log('Current user data:', currentUser)
-            console.log('Curr date data:', currDateData)
+             // console.log('Current user data:', currentUser)
+            // console.log('Curr date data:', currDateData)
             
             
          saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.data.curr_date })
-            console.log('User session restored from localStorage.')
+            // console.log('User session restored from localStorage.')
           } else {
             removeSession()
           }
