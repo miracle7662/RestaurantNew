@@ -207,7 +207,7 @@ const getReportData = (req, res) => {
       data: { orders, summary, caseSummary, caseType },
     });
   } catch (error) {
-    console.error('Error fetching handover data:', error);
+    // console.error('Error fetching handover data:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch handover data' });
   }
 };
@@ -220,7 +220,7 @@ const getDuplicateBill = (req, res) => {
       return res.status(400).json({ success: false, message: 'billNo and outletId required' });
     }
 
-    console.log('🔍 Searching duplicate bill - billNo:', billNo, 'outletId:', outletId, 'billDate:', billDate || 'any');
+    // console.log('🔍 Searching duplicate bill - billNo:', billNo, 'outletId:', outletId, 'billDate:', billDate || 'any');
 
     // Build WHERE clause - search both TxnNo and orderNo for takeaway bills
     let whereClause = 't.outletid = ? AND t.isCancelled = 0 AND t.isBilled = 1 AND (t.TxnNo = ? OR t.orderNo = ?)';

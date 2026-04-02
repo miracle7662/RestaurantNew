@@ -180,15 +180,15 @@ getDuplicateBill: (
 
   const url = `/reports/duplicate-bill?${queryParams.toString()}`;
 
-  console.log('[DEBUG] URL:', url);
+  // console.log('[DEBUG] URL:', url);
 
   return HttpClient.get<ApiResponse<any>>(url)
     .then((response) => {
-      console.log('[SUCCESS]:', response.data);
+      // console.log('[SUCCESS]:', response.data);
       return response;
     })
     .catch((error) => {
-      console.error('[ERROR]:', error);
+      // console.error('[ERROR]:', error);
       throw error;
     });
 }

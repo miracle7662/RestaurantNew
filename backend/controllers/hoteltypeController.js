@@ -25,7 +25,7 @@ exports.gethoteltype = (req, res) => {
       data: hoteltypes
     });
   } catch (error) {
-    console.error('Error fetching hotel types:', error);
+    // console.error('Error fetching hotel types:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch hotel types', data: [] });
   }
 };
@@ -55,7 +55,7 @@ exports.addhoteltype = (req, res) => {
         
           res.status(201).json({ success: true, data: newHoteltype });
   } catch (error) {
-    console.error('Error adding hotel type:', error);
+    // console.error('Error adding hotel type:', error);
     res.status(500).json({ success: false, message: 'Failed to add hotel type', data: null });
   }
 };
@@ -88,7 +88,7 @@ exports.updatehoteltype = (req, res) => {
         
         res.json({ success: true, data: updatedHoteltype });
   } catch (error) {
-    console.error('Error updating hotel type:', error);
+    // console.error('Error updating hotel type:', error);
     res.status(500).json({ success: false, message: 'Failed to update hotel type', data: null });
   }
 };
@@ -106,7 +106,7 @@ exports.deletehoteltype = (req, res) => {
         
         res.json({ success: true, data: { hoteltypeid: Number(id) }, message: 'Hotel type deleted successfully' });
   } catch (error) {
-    console.error('Error deleting hotel type:', error);
+    // console.error('Error deleting hotel type:', error);
     res.status(500).json({ success: false, message: 'Failed to delete hotel type', data: null });
   }
 };
@@ -123,7 +123,7 @@ exports.gethoteltypeById = (req, res) => {
 
     res.json({ success: true, data: hoteltype });
   } catch (error) {
-    console.error('Error fetching hotel type:', error);
+    // console.error('Error fetching hotel type:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch hotel type', data: null });
   }
 };
@@ -134,7 +134,7 @@ exports.gethoteltypeCount = (req, res) => {
         const count = db.prepare('SELECT COUNT(*) as count FROM msthoteltype').get();
         res.json(count);
     } catch (error) {
-        console.error('Error fetching hotel type count:', error);
+        // console.error('Error fetching hotel type count:', error);
         res.status(500).json({ error: 'Failed to fetch count' });
     }
 };

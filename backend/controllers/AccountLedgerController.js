@@ -31,7 +31,7 @@ module.exports = {
   // ------------------------------------
   getCustomers: async (req, res) => {
     try {
-      console.log('getCustomers called with hotelid:', req.hotelid);
+      // console.log('getCustomers called with hotelid:', req.hotelid);
       const hotelid = req.hotelid;
       const date = req.query.date || 'now';
 

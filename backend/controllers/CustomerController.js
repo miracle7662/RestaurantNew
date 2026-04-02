@@ -222,7 +222,7 @@ exports.getCustomerByMobile = (req, res) => {
       });
     }
   } catch (err) {
-    console.error("Error fetching customer:", err);
+    // console.error("Error fetching customer:", err);
     res.status(500).json({ 
       success: false, 
       data: null, 

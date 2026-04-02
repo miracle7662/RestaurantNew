@@ -178,7 +178,7 @@ WHERE ((t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isrever
       }
     });
   } catch (error) {
-    console.error('Error fetching handover data:', error);
+    // console.error('Error fetching handover data:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch handover data' });
   }
 };
@@ -221,7 +221,7 @@ const saveCashDenomination = (req, res) => {
 
     res.json({ success: true, message: 'Cash denomination saved successfully.', id: info.lastInsertRowid });
   } catch (error) {
-    console.error('Error saving cash denomination:', error);
+    // console.error('Error saving cash denomination:', error);
     res.status(500).json({ success: false, message: 'Failed to save cash denomination data.' });
   }
 };
@@ -246,7 +246,7 @@ const saveHandover = (req, res) => {
 
     res.json({ success: true, message: `Handover successful. ${info.changes} bills updated.` });
   } catch (error) {
-    console.error('Error saving handover:', error);
+    // console.error('Error saving handover:', error);
     res.status(500).json({ success: false, message: 'Failed to save handover data.' });
   }
 };

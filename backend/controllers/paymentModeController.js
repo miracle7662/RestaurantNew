@@ -103,7 +103,7 @@ exports.getAllPaymentModes = (req, res) => {
 // Update payment mode sequence for an outlet
 exports.updatePaymentModeSequence = (req, res) => {
   try {
-    console.log('Received req.body:', req.body);
+    // console.log('Received req.body:', req.body);
     let { outletid, orderedPaymentTypeIds } = req.body;
 
     outletid = parseInt(outletid);

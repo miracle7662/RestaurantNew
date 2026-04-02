@@ -55,11 +55,11 @@ ORDER BY
             }
         }
 
-        // Debug logging
-        console.log('Filter Type:', filterType);
-        console.log('Filter ID:', filterId);
-        console.log('SQL Query:', query);
-        console.log('Parameters:', params);
+        // // Debug logging
+        // console.log('Filter Type:', filterType);
+        // console.log('Filter ID:', filterId);
+        // console.log('SQL Query:', query);
+        // console.log('Parameters:', params);
 
         const results = db.prepare(query).all(...params);
 
@@ -119,8 +119,8 @@ const getItemDetails = async (req, res) => {
     // ✅ ORDER BY ONLY ONCE — AT THE END
     query += ` ORDER BY t.TxnDatetime DESC`;
 
-    console.log('FINAL SQL:', query);
-    console.log('PARAMS:', params);
+    // console.log('FINAL SQL:', query);
+    // console.log('PARAMS:', params);
 
     const results = db.prepare(query).all(...params);
 
@@ -131,7 +131,7 @@ const getItemDetails = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching item details:', error);
+    // console.error('Error fetching item details:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve item details',

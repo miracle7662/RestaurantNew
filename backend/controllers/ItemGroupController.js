@@ -23,11 +23,11 @@ const db = require('../config/db');
 exports.getItemGroup = (req, res) => {
   try {
     const { hotelid } = req.query;
-    console.log('ItemGroup - Received hotelid:', hotelid);
+    // console.log('ItemGroup - Received hotelid:', hotelid);
     
     // If no hotelid provided, return empty array - must have hotelid to view items
     if (!hotelid || hotelid === 'undefined' || hotelid === '' || hotelid === 'null') {
-      console.log('ItemGroup - No valid hotelid provided, returning empty array');
+      // console.log('ItemGroup - No valid hotelid provided, returning empty array');
       return res.status(200).json({
         success: true,
         message: "Item Groups fetched successfully",
@@ -51,14 +51,14 @@ exports.getItemGroup = (req, res) => {
     
     query += ' ORDER BY ig.itemgroupname';
     
-    console.log('ItemGroup - SQL Query:', query);
-    console.log('ItemGroup - SQL Params:', params);
+    // console.log('ItemGroup - SQL Query:', query);
+    // console.log('ItemGroup - SQL Params:', params);
     
     const ItemGroup = db.prepare(query).all(...params);
-    console.log('ItemGroup - Fetched count:', ItemGroup.length);
+    //console.log('ItemGroup - Fetched count:', ItemGroup.length);
     if (ItemGroup.length > 0) {
-      console.log('ItemGroup - First item hotelid:', ItemGroup[0].hotelid);
-      console.log('ItemGroup - Last item hotelid:', ItemGroup[ItemGroup.length - 1].hotelid);
+      // console.log('ItemGroup - First item hotelid:', ItemGroup[0].hotelid);
+      // console.log('ItemGroup - Last item hotelid:', ItemGroup[ItemGroup.length - 1].hotelid);
     }
     
     res.status(200).json({
@@ -68,7 +68,7 @@ exports.getItemGroup = (req, res) => {
       error: null
     });
   } catch (error) {
-    console.error('Error fetching Item Groups:', error);
+    // console.error('Error fetching Item Groups:', error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch Item Groups",

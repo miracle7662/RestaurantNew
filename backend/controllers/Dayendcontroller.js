@@ -5,7 +5,7 @@ const db = require('../config/db');
 const getDayendData = (req, res) => {
   try {
     // Get all billed or settled bills with their details
-    console.log('🔍 Executing DayEndReport query...');
+    // console.log('🔍 Executing DayEndReport query...');
 
     const query = `
       SELECT
@@ -180,7 +180,7 @@ AND (
       }
     });
   } catch (error) {
-    console.error('Error fetching dayend data:', error);
+    // console.error('Error fetching dayend data:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch dayend data' });
   }
 };
@@ -225,7 +225,7 @@ const saveDayEndCashDenomination = (req, res) => {
 
     res.json({ success: true, message: 'Day-End cash denomination saved successfully.', id: info.lastInsertRowid });
   } catch (error) {
-    console.error('Error saving day-end cash denomination:', error);
+    // console.error('Error saving day-end cash denomination:', error);
     res.status(500).json({ success: false, message: 'Failed to save day-end cash denomination data.' });
   }
 };
@@ -237,8 +237,8 @@ const saveDayEnd = async (req, res) => {
     if (!outlet_id || !hotel_id || !created_by_id)
       return res.status(400).json({ success: false, message: "Missing fields" });
 
-    console.log("=== DAY END PROCESS ===");
-    console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", created_by_id, "Amount:", dayend_total_amt);
+    // console.log("=== DAY END PROCESS ===");
+    // console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", created_by_id, "Amount:", dayend_total_amt);
 
     // ===========================================
     // ✅ CALCULATE CLOSING BALANCE (Cash received during the day)
@@ -260,7 +260,7 @@ const saveDayEnd = async (req, res) => {
       }
     });
 
-    console.log("💰 Calculated Closing Balance (Cash):", closing_balance);
+    // console.log("💰 Calculated Closing Balance (Cash):", closing_balance);
 
     // ===========================================
     // ✅ STEP 1: CHECK PENDING TABLES & BILLS BEFORE DAYEND
@@ -303,7 +303,7 @@ const allPending = [
 ];
 
     if (allPending.length > 0) {
-      console.log("⛔ Pending Items Found:", allPending.map(p => `${p.type}:${p.id} (${p.name})`));
+      // console.log("⛔ Pending Items Found:", allPending.map(p => `${p.type}:${p.id} (${p.name})`));
       return res.status(200).json({
         success: false,
         message: `Day End cannot be completed — Pending Tables/Bills: ${allPending.map(p => p.name).join(', ')}`,
@@ -324,7 +324,7 @@ const allPending = [
       ORDER BY id DESC LIMIT 1
     `).get(outlet_id, hotel_id);
 
-    console.log("Last record:", last);
+    // console.log("Last record:", last);
 
     let dayend_date, curr_date;
 
@@ -391,13 +391,13 @@ if (last) {
     lock_datetime = indiaTime.toISOString().replace('T', ' ').slice(0, 19);
 }
 
-console.log("Lock DateTime selected:", lock_datetime);
+// console.log("Lock DateTime selected:", lock_datetime);
 
-console.log("Lock DateTime selected:", lock_datetime);
+// console.log("Lock DateTime selected:", lock_datetime);
 
-    console.log("Lock DateTime selected:", lock_datetime);
+//     console.log("Lock DateTime selected:", lock_datetime);
 
-    console.log("Inserting new dayend record...");
+//     console.log("Inserting new dayend record...");
 
     // Insert the dayend record with closing_balance
     const result = db.prepare(`
@@ -429,14 +429,14 @@ console.log("Lock DateTime selected:", lock_datetime);
       WHERE isDayEnd = 0 AND ((isCancelled = 0 AND (isBilled = 1 OR isSetteled = 1)) OR isreversebill = 1)
     `).run({ created_by_id });
 
-    console.log(`Updated ${updateTxn.changes} transactions in TAxnTrnbill`);
+    // console.log(`Updated ${updateTxn.changes} transactions in TAxnTrnbill`);
 
     // Verify the inserted data
     const storedData = db.prepare(`
       SELECT id, dayend_date, curr_date, system_datetime, lock_datetime, closing_balance FROM trn_dayend WHERE id = ?
     `).get(lastInsertId);
 
-    console.log("✅ Dayend completed successfully:", storedData);
+    // console.log("✅ Dayend completed successfully:", storedData);
 
     return res.json({
       success: true,
