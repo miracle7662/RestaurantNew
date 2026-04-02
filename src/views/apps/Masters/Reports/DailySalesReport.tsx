@@ -4,11 +4,14 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { Alert } from 'react-bootstrap';
-import { useAuthContext } from "@/common";
+import { useAuthContext } from "@/common/context/useAuthContext";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import brandService, { BrandData } from "@/common/api/brand";
 import { OutletData } from "@/common/api/outlet";
 import ReportService from "@/common/api/report";
+import DayendService, { DayendReportPayload } from "@/common/api/dayend";
 
 interface Bill {
   [key: string]: any; // Index signature for dynamic property access in export functions
@@ -123,6 +126,8 @@ const ReportPage = () => {
   const [dynamicPaymentModes, setDynamicPaymentModes] = useState<PaymentMode[]>([]);
   const [hotelDetails, setHotelDetails] = useState<BrandData | null>(null);
   const { user } = useAuthContext();
+  const navigate = useNavigate();
+  const [backdatedDate, setBackdatedDate] = useState(""); // ⬅ NEW for backdated reports
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -170,6 +175,13 @@ const ReportPage = () => {
     };
     fetchPaymentModes();
   }, [filters.outlet]);
+
+  // ⬅ NEW: Set default backdated date from custom range
+  useEffect(() => {
+    if (customRange.start && !backdatedDate) {
+      setBackdatedDate(customRange.start);
+    }
+  }, [customRange.start, backdatedDate]);
 
   const loadBills = async (startDate?: string, endDate?: string) => {
     try {
@@ -482,6 +494,39 @@ const ReportPage = () => {
   const handoverReport = calculateHandoverReport();
   const billReprinted = calculateBillReprinted();
   const kotUsedSummary = calculateKotUsedSummary();
+
+  // ⬅ NEW: Generate backdated day end report (replaces mock dayEnd section)
+  const generateBackdatedDayEnd = async () => {
+    if (!backdatedDate) {
+      toast.error('Please select a date');
+      return;
+    }
+    if (!user) {
+      toast.error("User not logged in");
+      return;
+    }
+    
+    try {
+      const payload: DayendReportPayload = {
+        DayEndEmpID: user.id,
+        businessDate: backdatedDate,
+        selectedReports: ['billDetails', 'creditSummary', 'paymentSummary', 'discountSummary'],
+      };
+      
+      const response = await DayendService.generateReportHTML(payload);
+      if (response.success && response.html) {
+        sessionStorage.setItem('dayEndReportHTML', response.html);
+        sessionStorage.setItem('dayEndReportOutletId', (user.outletid || user.hotelid || '').toString());
+        toast.success('✅ Report generated! Opening preview...');
+        navigate('/apps/Masters/Reports/DayEndReportPreview');
+      } else {
+        toast.error('No data found for selected date');
+      }
+    } catch (error) {
+      console.error('Generate error:', error);
+      toast.error('Failed to generate report');
+    }
+  };
 
   const handleCustomFilter = () => {
     // Reload data with custom date range if provided
@@ -1312,7 +1357,7 @@ const ReportPage = () => {
         <Card.Header style={{ backgroundColor: "#E3F2FD" }}>
           <h5 className="mb-0">📋 Bill Summary with Credit Card Details</h5>
         </Card.Header>
-        <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh' }}>
+        <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh' ,padding: '0.5rem'}}>
           <Table bordered hover responsive size="sm">
             <thead style={{ backgroundColor: "#FFF3E0" }}>
               <tr>
@@ -1984,9 +2029,42 @@ const ReportPage = () => {
   const renderDayEndSection = () => (
     <Card className="p-2 shadow-sm border-0">
       <Card.Header style={{ backgroundColor: "#E8F5E9" }}>
-        <h5 className="mb-0">📅 Day End Report</h5>
+        <h5 className="mb-0">📅 Backdated Day End Report</h5>
       </Card.Header>
-      <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh' }}>
+
+     <Card.Body className="p-1">
+  <Row className="g-3 align-items-end mb-1">
+    
+    {/* Date Picker */}
+    <Col md={3}>
+      <Form.Group>
+        <Form.Label>Select Backdated Date</Form.Label>
+        <Form.Control
+          type="date"
+          value={backdatedDate}
+          onChange={(e) => setBackdatedDate(e.target.value)}
+        />
+      </Form.Group>
+    </Col>
+
+    {/* Button */}
+    <Col md={3}>
+      <Button 
+        variant="primary" 
+        className="w-100"
+        size="lg"
+        onClick={generateBackdatedDayEnd}
+        disabled={!backdatedDate}
+      >
+        Generate & Preview Day End Report
+      </Button>
+    </Col>
+
+  </Row>
+
+  
+</Card.Body>
+       <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh',padding: '0.5rem' }}>
         <Table bordered hover responsive size="sm">
           <thead style={{ backgroundColor: "#FFF3E0" }}>
             <tr>

@@ -13,7 +13,6 @@ const KotTransfer = React.lazy(() => import('../views/apps/Transaction/KotTransf
 
 
 // DAaily Reports
-import Reports from '../views/apps/Transaction/Reports'
 
 // Daily Reports
 import DailySalesReport from '../views/apps/Masters/Reports/DailySalesReport'
@@ -317,12 +316,7 @@ const appsRoutes: RoutesProps = {
       route: PrivateRoute,
     },
 
-     {
-      path: '/apps/Reports',
-      name: ' Reports',
-      element: <  Reports/>,
-      route: PrivateRoute,
-    },
+     
 
      {
       path: '/apps/Settings',

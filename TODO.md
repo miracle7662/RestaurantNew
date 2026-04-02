@@ -1,12 +1,18 @@
-# UI Mode Dynamic Sidebar Implementation
+# Backdated Day End Report Integration - TODO
 
-## [x] 0. Planning ✅
+## Plan Progress Tracker
 
-## [x] 1. Create UIModeContext (src/common/context/useUIModeContext.tsx) ✅
-## [x] 2. Update src/common/menu/index.ts - Add getFilteredMenuItems() ✅
-## [x] 3. Update src/common/context/index.ts - Re-export useUIModeContext ✅
-## [x] 4. Update src/Layouts/Navigation.tsx - Use context & filtered menu ✅
-## [x] 5. Update src/Layouts/Menu.tsx - Already accepts menuItems prop ✅
-## [x] 6. Update src/App.tsx - Wrap with UIModeProvider ✅
-## [x] 7. Update src/views/apps/Settings.tsx - Use context for sync ✅
-## [ ] 8. Test: Settings → Change UI Mode → Sidebar updates
+✅ **Step 1: Create TODO.md** - Tracking started
+
+**Step 2: Implement plan in DailySalesReport.tsx** ⏳ [PENDING]
+- Add required imports
+- Add backdatedDate state + generate function  
+- Replace renderDayEndSection() with backdated UI
+- Set default date from customRange
+
+**Step 3: Test functionality** ⏳ [PENDING]  
+- Select "Day End Report" → button appears
+- Pick date → Generate → Preview opens
+- Print works via DayEndReportPreview
+
+**Step 4: attempt_completion** ⏳ [PENDING]
