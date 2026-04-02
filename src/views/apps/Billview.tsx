@@ -2053,7 +2053,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
         await loadBillForTable(targetTableId);
       }
     } catch (error) {
-      console.error('Error saving KOT:', error);
+      // console.error('Error saving KOT:', error);
       toast.error('Error saving KOT');
     }
   };
@@ -2097,7 +2097,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
           try {
             await OrderService.updateTableStatus(tableId, { status: 0 });
           } catch (statusError) {
-            console.error('Error updating table status:', statusError);
+            // console.error('Error updating table status:', statusError);
             // Continue even if table status update fails - the table may have been deleted already
           }
         }
@@ -2106,7 +2106,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
         try {
           await fetchTableManagement();
         } catch (fetchError) {
-          console.error('Error fetching table management:', fetchError);
+          // console.error('Error fetching table management:', fetchError);
         }
 
         // ✅ 2️⃣ UI CLEAR (already correct)
@@ -2141,7 +2141,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
       return;
     }
 
-    console.log('Modal sending:', reverseItemsFromModal);
+    // console.log('Modal sending:', reverseItemsFromModal);
 
     try {
       const result = await OrderService.createReverseKOT({
@@ -2161,7 +2161,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
         reversalReason: 'Reverse from Billview',
         curr_date: user?.currDate,
       });
-      console.log('Reverse KOT API response:', result);
+      // console.log('Reverse KOT API response:', result);
 
       // Since HttpClient returns response.data directly
       if (!result?.success) {
@@ -2184,13 +2184,13 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
           
           const newStatus = allReversed ? 0 : 1;
           
-          console.log('🔧 F8 Reversal DEBUG (Billview):', {
-            totalRemainingQty,
-            allReversed,
-            newStatus,
-            tableId: tableToUpdate.tablemanagementid || tableId,
-            itemCount: billItems.length
-          });
+          // console.log('🔧 F8 Reversal DEBUG (Billview):', {
+          //   totalRemainingQty,
+          //   allReversed,
+          //   newStatus,
+          //   tableId: tableToUpdate.tablemanagementid || tableId,
+          //   itemCount: billItems.length
+          // });
           
           await OrderService.updateTableStatus(tableToUpdate.tablemanagementid || tableId, { status: newStatus });
           
@@ -2223,7 +2223,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
       // 🔥 Navigate moved to ReverseKotPrint onHide
 
     } catch (err: any) {
-      console.error(err);
+      // console.error(err);
       toast.error(err?.message || 'Reverse failed');
     }
   };
@@ -2236,9 +2236,9 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
       });
       toast.success('KOT printed successfully');
       // Handle print data if needed
-      console.log('KOT Print Data:', response.data);
+       console.log('KOT Print Data:', response.data);
     } catch (error) {
-      console.error('Error printing KOT:', error);
+      // console.error('Error printing KOT:', error);
       toast.error('Error printing KOT');
     }
   };
@@ -2273,7 +2273,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
       setShowBillPrintModal(true);
 
     } catch (error) {
-      console.error('Error printing bill:', error);
+      // console.error('Error printing bill:', error);
       toast.error('Error printing bill');
     }
   };
@@ -2316,7 +2316,7 @@ const PrintAndSettle = async () => {
       }
 
     } catch (error) {
-      console.error('Error printing bill:', error);
+      // console.error('Error printing bill:', error);
       toast.error('Error printing bill');
     }
   };
@@ -2344,7 +2344,7 @@ const PrintAndSettle = async () => {
       }));
       setTableItems(tableManagementData);
     } catch (error) {
-      console.error('Error fetching table management:', error);
+      // console.error('Error fetching table management:', error);
     }
   };
 
@@ -2378,7 +2378,7 @@ const PrintAndSettle = async () => {
       toast.error("Please save the KOT before applying a discount.");
       return;
     }
-    console.log('Applying discount with input value:', discountInputValue, 'and type:', DiscountType);
+    // console.log('Applying discount with input value:', discountInputValue, 'and type:', DiscountType);
 
     let appliedDiscount = 0;
     let appliedDiscPer = 0;
@@ -2423,7 +2423,7 @@ const PrintAndSettle = async () => {
       };
 
       const response = await OrderService.applyDiscount(txnId, payload);
-      console.log('Apply Discount API response:', response);
+      // console.log('Apply Discount API response:', response);
 
       // HttpClient returns response.data directly due to interceptor, so response IS the result
       const result = response;
@@ -2539,7 +2539,7 @@ const PrintAndSettle = async () => {
       navigate('/apps/Tableview');
 
     } catch (error: any) {
-      console.error('Error settling bill:', error);
+      // console.error('Error settling bill:', error);
       toast.error(error.message || 'An error occurred during settlement.');
     } finally {
       setLoading(false);
@@ -2640,7 +2640,7 @@ const handleF8Action = useCallback(() => {
     
     // Force password modal for billed tables (print bill ho gaya)
     if (isBillPrintedState) {
-      console.log('💰 Billed table detected - forcing password modal');
+      // console.log('💰 Billed table detected - forcing password modal');
       setShowF8RevKotPasswordModal(true);
       return;
     }

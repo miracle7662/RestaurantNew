@@ -274,7 +274,7 @@ const Order = () => {
 
       if (defaultWaiter) {
         setSelectedWaiter(defaultWaiter.employee_name || defaultWaiter.username);
-        console.log(`✅ [${activeTab}] Auto-set waiter:`, defaultWaiter.employee_name || defaultWaiter.username);
+        // console.log(`✅ [${activeTab}] Auto-set waiter:`, defaultWaiter.employee_name || defaultWaiter.username);
       }
 
       setPax(defaultPax);
@@ -377,7 +377,7 @@ const Order = () => {
         setAllBills(response.data);
       }
     } catch (err) {
-      console.error("Error fetching all bills:", err);
+      // console.error("Error fetching all bills:", err);
     }
   };
   const refreshItemsForTable = useCallback(async (tableIdNum: number) => {
@@ -579,7 +579,7 @@ const Order = () => {
         // setPersistentTableId(null);
       }
     } catch (error) {
-      console.error('Error fetching/refetching items for table:', error);
+      // console.error('Error fetching/refetching items for table:', error);
       setItems([]);
       setReversedItems([]);
       setOrderNo(null);
@@ -606,7 +606,7 @@ const Order = () => {
     setLoading(true);
     try {
       const response = await TableManagementService.list() as any;
-      console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
+      // console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
       if (response.success && Array.isArray(response.data)) {
         let filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
         if (user.role_level === 'outlet_user' && user.outletid) {
@@ -668,7 +668,7 @@ const Order = () => {
         setFilteredTables([]);
       }
     } catch (err) {
-      console.error('Table fetch error:', err);
+      // console.error('Table fetch error:', err);
       setErrorMessage('Failed to fetch tables. Please check the API endpoint.');
       setTableItems([]);
       setFilteredTables([]);
@@ -710,7 +710,7 @@ const Order = () => {
         const list = resp?.data || resp;
         if (Array.isArray(list)) setSavedKOTs(list);
       } catch (err) {
-        console.warn('getSavedKOTs initial load failed');
+        // console.warn('getSavedKOTs initial load failed');
       }
     })();
   }, []);
@@ -741,7 +741,7 @@ const Order = () => {
         params.outletid = Number(user.outletid);
       }
       const response = await TableDepartmentService.list(params) as any;
-      console.log('Raw departments data:', response);
+      // console.log('Raw departments data:', response);
 
       if (response.success && Array.isArray(response.data)) {
         const departmentsData = response.data;
@@ -764,7 +764,7 @@ const Order = () => {
         setDepartments([]);
       }
     } catch (err) {
-      console.error('Departments fetch error:', err);
+      // console.error('Departments fetch error:', err);
       toast.error('Failed to fetch departments. Please check the API endpoint.');
       setDepartments([]);
     } finally {
@@ -772,38 +772,38 @@ const Order = () => {
     }
   };
   const fetchOutletsData = async () => {
-    console.log('Full user object:', JSON.stringify(user, null, 2));
+    // console.log('Full user object:', JSON.stringify(user, null, 2));
     if (!user || !user.id) {
       setErrorMessage('User not logged in or user ID missing.');
       setLoading(false);
-      console.log('User data issue:', user);
+      // console.log('User data issue:', user);
       return;
     }
     if (user.role_level === 'outlet_user' && (!user.hotelid || !user.outletid)) {
       setErrorMessage('Outlet user missing required hotelid or outletid.');
       setLoading(false);
-      console.log('Outlet user data issue:', user);
+      // console.log('Outlet user data issue:', user);
       return;
     }
     if (user.role_level !== 'outlet_user' && !user.hotelid) {
       setErrorMessage('User missing required hotelid.');
       setLoading(false);
-      console.log('User data issue:', user);
+      // console.log('User data issue:', user);
       return;
     }
     try {
       setLoading(true);
       setErrorMessage('');
       if (user.role_level === 'outlet_user' && user.outletid) {
-        console.log('Outlet user detected, fetching outlets with outletid filter:', user.outletid);
+        // console.log('Outlet user detected, fetching outlets with outletid filter:', user.outletid);
         await fetchOutletsForDropdown(user, setOutlets, setLoading);
       } else {
-        console.log('Fetching all outlets for user:', { userid: user.id, hotelid: user.hotelid, outletid: user.outletid });
+        // console.log('Fetching all outlets for user:', { userid: user.id, hotelid: user.hotelid, outletid: user.outletid });
         await fetchOutletsForDropdown(user, setOutlets, setLoading);
       }
-      console.log('Outlets fetched:', outlets);
+      // console.log('Outlets fetched:', outlets);
     } catch (error: any) {
-      console.error('Error in fetchOutletsData:', error);
+      // console.error('Error in fetchOutletsData:', error);
       setErrorMessage(
         error.response?.status === 404
           ? 'Outlets API endpoint not found. Please check backend configuration.'
@@ -833,21 +833,21 @@ const Order = () => {
 
   useEffect(() => {
     if (!loading && outlets.length === 0 && !errorMessage && user) {
-      console.log('No outlets found:', { loading, outletsLength: outlets.length, errorMessage, user });
+      // console.log('No outlets found:', { loading, outletsLength: outlets.length, errorMessage, user });
     }
   }, [outlets, loading, errorMessage, user]);
 
   useEffect(() => {
-    console.log('Outlets state changed:', outlets);
-    console.log('Departments state changed:', departments);
-    console.log('TableItems state changed:', tableItems);
+    // console.log('Outlets state changed:', outlets);
+    // console.log('Departments state changed:', departments);
+    // console.log('TableItems state changed:', tableItems);
   }, [outlets, departments, tableItems]);
 
   useEffect(() => {
-    console.log('ActiveNavTab:', activeNavTab, 'Outlets:', outlets, 'Departments:', departments, 'TableItems:', tableItems);
+    // console.log('ActiveNavTab:', activeNavTab, 'Outlets:', outlets, 'Departments:', departments, 'TableItems:', tableItems);
     let filtered: TableItem[] = [];
     if (!Array.isArray(tableItems)) {
-      console.error('tableItems is not an array:', tableItems);
+      // console.error('tableItems is not an array:', tableItems);
       setFilteredTables([]);
       return;
     }
@@ -873,7 +873,7 @@ const Order = () => {
       }
     }
     setFilteredTables(filtered);
-    console.log(`Filtered tables for ${activeNavTab}:`, JSON.stringify(filtered, null, 2));
+    // console.log(`Filtered tables for ${activeNavTab}:`, JSON.stringify(filtered, null, 2));
   }, [activeNavTab, outlets, departments, tableItems]);
 
   useEffect(() => {
@@ -890,7 +890,7 @@ const Order = () => {
   }, [searchTable, filteredTables]);
 
   const handleTableClick = async (seat: string) => {
-    console.log('Button clicked for table:', seat);
+    // console.log('Button clicked for table:', seat);
 
     // Check if this is a new table (not re-selecting same)
     const isNewTable = prevTable !== seat;
@@ -927,7 +927,7 @@ const Order = () => {
       const deptId = Number(selectedTableObj.departmentid) || null;
       const outletId = Number(selectedTableObj.outletid) || (user?.outletid ? Number(user.outletid) : null);
       setSourceTableId(tableIdNum);
-      console.log("SOURCE TABLE ID:", tableIdNum);
+      // console.log("SOURCE TABLE ID:", tableIdNum);
 
       setSelectedDeptId(deptId);
       setSelectedOutletId(outletId);
@@ -940,14 +940,14 @@ const Order = () => {
 
       // ✅ FIXED: Clear customer ONLY for NEW tables (post-refresh)
       if (isNewTable) {
-        console.log('🧹 Clearing customer for NEW table:', seat);
+        // console.log('🧹 Clearing customer for NEW table:', seat);
         setCustomerName('');
         setMobileNumber('');
         setCustomerId(null);
       }
 
     } else {
-      console.warn('Selected table object not found for seat:', seat);
+      // console.warn('Selected table object not found for seat:', seat);
       setItems([]); // Clear items if table not found
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
@@ -957,7 +957,7 @@ const Order = () => {
       setCustomerId(null);
       setOriginalTableStatus(null);
     }
-    console.log('After handleTableClick - selectedTable:', seat, 'showOrderDetails:', true);
+    // console.log('After handleTableClick - selectedTable:', seat, 'showOrderDetails:', true);
   };
 
   const fetchQuickBillData = async () => {
@@ -969,13 +969,13 @@ const Order = () => {
         toast.error(response.message || "Failed to fetch quick bill data");
       }
     } catch (err) {
-      console.error("Failed to fetch quick bill data", err);
+      // console.error("Failed to fetch quick bill data", err);
       toast.error("An error occurred while fetching quick bills.");
     }
   };
 
   const handleTabClick = (tab: string) => {
-    console.log('Tab clicked:', tab);
+    // console.log('Tab clicked:', tab);
     setActiveTab(tab);
     setActiveNavTab('ALL'); // Reset main nav tab to avoid conflicts
     setShowPendingOrdersView(false); // Reset pending orders view
@@ -1019,17 +1019,17 @@ const Order = () => {
               const mstRes = await OrderService.getMstSettingByOutlet(outletId);
               if (mstRes.success && mstRes.data) {
                 const mstDeptId = mstRes.data.departmentid || 1; // Fallback to dept 1
-                console.log(`🔥 [${tab}] mst_setting.deptid =`, mstDeptId, 'outletId:', outletId);
+                // console.log(`🔥 [${tab}] mst_setting.deptid =`, mstDeptId, 'outletId:', outletId);
                 setSelectedDeptId(mstDeptId);
               } else {
                 // Fallback to first department
                 const defaultDept = departments.find(d => d.outletid === outletId);
-                console.log(`⚠️ [${tab}] mst_setting NOT FOUND, using fallback deptid:`, defaultDept?.departmentid);
+                // console.log(`⚠️ [${tab}] mst_setting NOT FOUND, using fallback deptid:`, defaultDept?.departmentid);
                 setSelectedDeptId(defaultDept?.departmentid || (departments[0]?.departmentid || null));
               }
             }
           } catch (error) {
-            console.error(`❌ [${tab}] Error fetching mst_setting:`, error);
+            // console.error(`❌ [${tab}] Error fetching mst_setting:`, error);
             // Fallback to first department
             const defaultDept = departments.find(d => d.outletid === outletId);
             setSelectedDeptId(defaultDept?.departmentid || (departments[0]?.departmentid || null));
@@ -1052,7 +1052,7 @@ const Order = () => {
                 setRoundOffSettingsLoaded(true); // Mark settings as loaded
               }
             } catch (error) {
-              console.error('Error fetching round off settings:', error);
+              // console.error('Error fetching round off settings:', error);
               setRoundOffSettingsLoaded(true); // Mark as loaded even on error to prevent hanging
             }
           };
