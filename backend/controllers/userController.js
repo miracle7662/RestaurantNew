@@ -42,7 +42,7 @@ exports.getUsers = (req, res) => {
         const users = db.prepare(query).all(...params);
         res.json(users);
     } catch (error) {
-        console.error('Error fetching users:', error);
+        // console.error('Error fetching users:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -64,11 +64,11 @@ exports.createUser = async (req, res) => {
         } = req.body;
 
         // Debug: Log the received data
-        console.log('Received user creation request:');
-        console.log('Request body:', req.body);
-        console.log('brand_id:', brand_id, 'type:', typeof brand_id);
-        console.log('hotelid:', hotelid, 'type:', typeof hotelid);
-        console.log('parent_user_id:', parent_user_id, 'type:', typeof parent_user_id);
+        // console.log('Received user creation request:');
+        // console.log('Request body:', req.body);
+        // console.log('brand_id:', brand_id, 'type:', typeof brand_id);
+        // console.log('hotelid:', hotelid, 'type:', typeof hotelid);
+        // console.log('parent_user_id:', parent_user_id, 'type:', typeof parent_user_id);
 
         // Validate required fields
         if (!username || !email || !password || !full_name || !role_level) {

@@ -9,15 +9,15 @@ const runMigrations = () => {
     
     if (!columns.includes('parentTableId')) {
       db.prepare("ALTER TABLE msttablemanagement ADD COLUMN parentTableId INTEGER").run();
-      console.log("Added parentTableId column to msttablemanagement");
+      // console.log("Added parentTableId column to msttablemanagement");
     }
     
     if (!columns.includes('isTemporary')) {
       db.prepare("ALTER TABLE msttablemanagement ADD COLUMN isTemporary INTEGER DEFAULT 0").run();
-      console.log("Added isTemporary column to msttablemanagement");
+      // console.log("Added isTemporary column to msttablemanagement");
     }
   } catch (error) {
-    console.error("Migration error:", error.message);
+    // console.error("Migration error:", error.message);
   }
 };
 
@@ -68,7 +68,7 @@ exports.getAllTables = (req, res) => {
       data: rows,
     });
   } catch (error) {
-    console.error("Error fetching tables:", error);
+    // console.error("Error fetching tables:", error);
     res.status(500).json({ success: false, message: "Failed to fetch tables", error: error.message });
   }
 };
@@ -99,7 +99,7 @@ exports.createTable = (req, res) => {
 
     res.json({ success: true, message: "Table created successfully", id: result.lastInsertRowid });
   } catch (error) {
-    console.error("Error creating table:", error);
+    // console.error("Error creating table:", error);
     res.status(500).json({ success: false, message: "Failed to create table", error: error.message });
   }
 };
@@ -137,7 +137,7 @@ exports.updateTable = (req, res) => {
 
     res.json({ success: true, message: "Table updated successfully" });
   } catch (error) {
-    console.error("Error updating table:", error);
+    // console.error("Error updating table:", error);
     res.status(500).json({ success: false, message: "Failed to update table", error: error.message });
   }
 };
@@ -157,7 +157,7 @@ exports.deleteTable = (req, res) => {
 
     res.json({ success: true, message: "Table deleted successfully" });
   } catch (error) {
-    console.error("Error deleting table:", error);
+    // console.error("Error deleting table:", error);
     res.status(500).json({ success: false, message: "Failed to delete table", error: error.message });
   }
 };
@@ -178,7 +178,7 @@ exports.updateTableStatus = (req, res) => {
 
     res.json({ success: true, message: "Table status updated successfully" });
   } catch (error) {
-    console.error("Error updating table status:", error);
+    // console.error("Error updating table status:", error);
     res.status(500).json({ success: false, message: "Failed to update table status", error: error.message });
   }
 };
@@ -213,7 +213,7 @@ exports.getAllTablesWithOutlets = (req, res) => {
     const tables = db.prepare(query).all(hotelid);
     res.json(tables);
   } catch (error) {
-    console.error('Error fetching tables with outlets:', error);
+    // console.error('Error fetching tables with outlets:', error);
     res.status(500).json({ error: 'Failed to fetch tables' });
   }
 };
@@ -296,7 +296,7 @@ exports.createSubTable = (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error creating sub-table:", error);
+    // console.error("Error creating sub-table:", error);
     res.status(500).json({ success: false, message: "Failed to create sub-table", error: error.message });
   }
 };

@@ -40,7 +40,7 @@ exports.getOutletUsers = (req, res) => {
     const users = db.prepare(query).all(...params);
     res.json({ success: true, data: users });
   } catch (error) {
-    console.error('Error fetching outlet users:', error);
+    // console.error('Error fetching outlet users:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
@@ -80,7 +80,7 @@ exports.getOutletsForDropdown = (req, res) => {
     const outlets = db.prepare(query).all(...params)
     res.json({ success: true, data: outlets })
   } catch (error) {
-    console.error('Error fetching outlets for dropdown:', error)
+    // console.error('Error fetching outlets for dropdown:', error)
     res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
@@ -275,7 +275,7 @@ exports.createOutletUser = async (req, res) => {
       }
     })
   } catch (error) {
-    console.error('Error creating outlet user:', error)
+    // console.error('Error creating outlet user:', error)
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message })
   }
 }
@@ -317,7 +317,7 @@ exports.updateOutletUser = async (req, res) => {
       updated_by_id
     } = req.body;
 
-    console.log('Update outlet user request:', { userid, body: req.body });
+    // console.log('Update outlet user request:', { userid, body: req.body });
 
     // Check if user exists and is an outlet user
     const existingUser = db.prepare('SELECT role_level, hotelid FROM mst_users WHERE userid = ?').get(userid);
@@ -394,10 +394,10 @@ exports.updateOutletUser = async (req, res) => {
 
     // Execute update query if there are fields to update
     if (updateFields.length > 2) {
-      console.log('Update query:', `UPDATE mst_users SET ${updateFields.join(', ')} WHERE userid = ?`);
-      console.log('Update params:', params);
+      // console.log('Update query:', `UPDATE mst_users SET ${updateFields.join(', ')} WHERE userid = ?`);
+      // console.log('Update params:', params);
       params.forEach((param, index) => {
-        console.log(`Param ${index}: ${param} (type: ${typeof param})`);
+        // console.log(`Param ${index}: ${param} (type: ${typeof param})`);
       });
       const stmt = db.prepare(`UPDATE mst_users SET ${updateFields.join(', ')} WHERE userid = ?`);
       stmt.run(...params);
@@ -435,7 +435,7 @@ exports.updateOutletUser = async (req, res) => {
 
     res.json({ success: true, message: 'Outlet user updated successfully' });
   } catch (error) {
-    console.error('Error updating outlet user:', error);
+    // console.error('Error updating outlet user:', error);
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }
 };
@@ -453,7 +453,7 @@ exports.deleteOutletUser = (req, res) => {
 
     res.json({ success: true, message: 'Outlet user deleted successfully' })
   } catch (error) {
-    console.error('Error deleting outlet user:', error)
+    // console.error('Error deleting outlet user:', error)
     res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
@@ -487,7 +487,7 @@ exports.getOutletUserById = (req, res) => {
     user.outletid = user.outletid ? [user.outletid] : []
     res.json({ success: true, data: user })
   } catch (error) {
-    console.error('Error fetching outlet user:', error)
+    // console.error('Error fetching outlet user:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch outlet user' })
   }
 }
@@ -502,7 +502,7 @@ exports.getDesignations = (req, res) => {
       .all()
     res.json({ success: true, data: designations })
   } catch (error) {
-    console.error('Error fetching designations:', error)
+    // console.error('Error fetching designations:', error)
     res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
@@ -515,7 +515,7 @@ exports.getUserTypes = (req, res) => {
       .all()
     res.status(200).json({success: true, message: 'User types fetched successfully', data: userTypes})
   } catch (error) {
-    console.error('Error fetching user types:', error)
+    // console.error('Error fetching user types:', error)
     res.status(500).json({ success: false, message: 'Internal server error', data: null})
   }
 }
@@ -557,7 +557,7 @@ exports.getHotelAdmins = (req, res) => {
     const hotelAdmins = db.prepare(query).all(...params)
     res.status(200).json({ success: true, message: 'Hotel admin fetched successfully', data: hotelAdmins })
   } catch (error) {
-    console.error('Error fetching hotel admins:', error)
+    // console.error('Error fetching hotel admins:', error)
     res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
@@ -571,7 +571,7 @@ exports.getWaiterUsers = (req, res) => {
       return res.status(400).json({ message: 'Outlet ID is required' });
     }
 
-    console.log('Fetching waiter users for outletId:', outletId);
+    // console.log('Fetching waiter users for outletId:', outletId);
 
     const query = `
       SELECT u.userid as userId,
@@ -593,7 +593,7 @@ exports.getWaiterUsers = (req, res) => {
       data: waiters
     });
   } catch (error) {
-    console.error('Error fetching waiter users:', error);
+    // console.error('Error fetching waiter users:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -633,7 +633,7 @@ exports.getHotelAdminById = (req, res) => {
       data: hotelAdmin
     })
   } catch (error) {
-    console.error('Error fetching hotel admin:', error)
+    // console.error('Error fetching hotel admin:', error)
     res.status(500).json({success: false, error: 'Failed to fetch hotel admin' })
   }
 }
@@ -674,7 +674,7 @@ exports.updateHotelAdmin = async (req, res) => {
 
      res.status(200).json({success: true, message: 'Hotel admin updated successfully',data: null })
   } catch (error) {
-    console.error('Error updating hotel admin:', error)
+    // console.error('Error updating hotel admin:', error)
      res.status(500).json({ success: false, message: 'Internal server error', data: null})
   }
 }

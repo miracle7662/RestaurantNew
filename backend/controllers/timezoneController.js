@@ -81,7 +81,7 @@ exports.getTimezones = (req, res) => {
         // Return in ApiResponse format matching frontend expectations
         res.json({ data: timezones, success: true, message: 'Timezones fetched successfully' });
     } catch (error) {
-        console.error('Error fetching timezones:', error);
+        // console.error('Error fetching timezones:', error);
         res.status(500).json({ data: [], success: false, message: 'Failed to fetch timezones' });
     }
 };

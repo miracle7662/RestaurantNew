@@ -268,18 +268,18 @@ const getDuplicateBill = (req, res) => {
 
     const bill = db.prepare(billQuery).get(...params);
 
-    console.log('🔍 DEBUG DuplicateBill - Raw bill data:', {
-      TxnID: bill.TxnID,
-      TxnNo: bill.TxnNo,
-      orderNo: bill.orderNo,
-      Amount: bill.Amount, 
-      GrossAmt: bill.GrossAmt,
-      Discount: bill.Discount,
-      CGST: bill.CGST
-    });
+    // console.log('🔍 DEBUG DuplicateBill - Raw bill data:', {
+    //   TxnID: bill.TxnID,
+    //   TxnNo: bill.TxnNo,
+    //   orderNo: bill.orderNo,
+    //   Amount: bill.Amount, 
+    //   GrossAmt: bill.GrossAmt,
+    //   Discount: bill.Discount,
+    //   CGST: bill.CGST
+    // });
 
     if (!bill) {
-      console.log('❌ No bill found with billNo/outletId:', billNo, outletId);
+      // console.log('❌ No bill found with billNo/outletId:', billNo, outletId);
       return res.status(404).json({ success: false, message: 'Bill not found' });
     }
 
@@ -363,7 +363,7 @@ const getDuplicateBill = (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching duplicate bill:', error);
+    // console.error('Error fetching duplicate bill:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch bill data' });
   }
 };

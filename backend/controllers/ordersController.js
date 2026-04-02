@@ -33,12 +33,12 @@ exports.getTaxesByOutletAndDepartment = (req, res) => {
       ).get(departmentId);
       
       if (fallbackRow) {
-        console.log('Using fallback row:', fallbackRow);
-        console.log('Fallback - Individual tax values from DB:');
-        console.log('- cgst (restcgst):', fallbackRow.cgst, 'Type:', typeof fallbackRow.cgst);
-        console.log('- sgst (restsgst):', fallbackRow.sgst, 'Type:', typeof fallbackRow.sgst);
-        console.log('- igst (restigst):', fallbackRow.igst, 'Type:', typeof fallbackRow.igst);
-        console.log('- cess (restcess):', fallbackRow.cess, 'Type:', typeof fallbackRow.cess);
+        // console.log('Using fallback row:', fallbackRow);
+        // console.log('Fallback - Individual tax values from DB:');
+        // console.log('- cgst (restcgst):', fallbackRow.cgst, 'Type:', typeof fallbackRow.cgst);
+        // console.log('- sgst (restsgst):', fallbackRow.sgst, 'Type:', typeof fallbackRow.sgst);
+        // console.log('- igst (restigst):', fallbackRow.igst, 'Type:', typeof fallbackRow.igst);
+        // console.log('- cess (restcess):', fallbackRow.cess, 'Type:', typeof fallbackRow.cess);
         
         const fallbackTaxes = {
           cgst: Number(fallbackRow.cgst) || 0,
@@ -47,8 +47,8 @@ exports.getTaxesByOutletAndDepartment = (req, res) => {
           cess: Number(fallbackRow.cess) || 0
         };
         
-        console.log('Fallback computed taxes:', fallbackTaxes);
-        console.log('Fallback IGST specifically:', fallbackTaxes.igst, 'Type:', typeof fallbackTaxes.igst);
+        // console.log('Fallback computed taxes:', fallbackTaxes);
+        // console.log('Fallback IGST specifically:', fallbackTaxes.igst, 'Type:', typeof fallbackTaxes.igst);
         
         return res.status(200).json({
           success: true,
@@ -61,8 +61,8 @@ exports.getTaxesByOutletAndDepartment = (req, res) => {
       }
     }
 
-    console.log('Query params:', { departmentId, outletId });
-    console.log('Raw deptRow:', deptRow);
+    // console.log('Query params:', { departmentId, outletId });
+    // console.log('Raw deptRow:', deptRow);
 
     if (!deptRow) {
       return res.status(404).json({ success: false, message: 'Department not found' });
@@ -87,11 +87,11 @@ exports.getTaxesByOutletAndDepartment = (req, res) => {
     const taxRow = deptRow;
 
     // Debug individual tax values
-    console.log('Individual tax values from DB:');
-    console.log('- cgst (restcgst):', taxRow.cgst, 'Type:', typeof taxRow.cgst);
-    console.log('- sgst (restsgst):', taxRow.sgst, 'Type:', typeof taxRow.sgst);
-    console.log('- igst (restigst):', taxRow.igst, 'Type:', typeof taxRow.igst);
-    console.log('- cess (restcess):', taxRow.cess, 'Type:', typeof taxRow.cess);
+    // console.log('Individual tax values from DB:');
+    // console.log('- cgst (restcgst):', taxRow.cgst, 'Type:', typeof taxRow.cgst);
+    // console.log('- sgst (restsgst):', taxRow.sgst, 'Type:', typeof taxRow.sgst);
+    // console.log('- igst (restigst):', taxRow.igst, 'Type:', typeof taxRow.igst);
+    // console.log('- cess (restcess):', taxRow.cess, 'Type:', typeof taxRow.cess);
 
     const taxes = taxRow
       ? { 
@@ -102,9 +102,9 @@ exports.getTaxesByOutletAndDepartment = (req, res) => {
         }
       : { cgst: 0, sgst: 0, igst: 0, cess: 0 };
 
-    console.log('Tax row found:', taxRow);
-    console.log('Computed taxes:', taxes);
-    console.log('IGST specifically:', taxes.igst, 'Type:', typeof taxes.igst);
+    // console.log('Tax row found:', taxRow);
+    // console.log('Computed taxes:', taxes);
+    // console.log('IGST specifically:', taxes.igst, 'Type:', typeof taxes.igst);
 
     return res.status(200).json({
       success: true,
@@ -115,7 +115,7 @@ exports.getTaxesByOutletAndDepartment = (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Error fetching taxes by outlet/department:', err.message);
+    // console.error('Error fetching taxes by outlet/department:', err.message);
     return res.status(500).json({ success: false, message: 'Failed to fetch taxes', error: err.message });
   }
 };
@@ -130,7 +130,7 @@ exports.getShiftTypes = (req, res) => {
     const rows = db.prepare(sql).all();
     res.json(rows);
   } catch (err) {
-    console.error("❌ Error fetching shifts:", err);
+    // console.error("❌ Error fetching shifts:", err);
     res.status(500).json({ error: err.message });
   }
 };

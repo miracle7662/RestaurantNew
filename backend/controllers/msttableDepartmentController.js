@@ -33,8 +33,8 @@ exports.getAllDepartments = (req, res) => {
 
     query += ` ORDER BY d.department_name ASC`;
 
-    console.log("Final Query:", query);
-    console.log("Params:", params);
+    // console.log("Final Query:", query);
+    // console.log("Params:", params);
 
     const rows = db.prepare(query).all(...params);
 
@@ -45,7 +45,7 @@ exports.getAllDepartments = (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching departments:', error);
+    // console.error('Error fetching departments:', error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch departments",

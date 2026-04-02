@@ -9,7 +9,7 @@ exports.getUserType = (req, res) => {
             data: userTypes
         });
     } catch (error) {
-        console.error('Error fetching user types:', error);
+        // console.error('Error fetching user types:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch user types', data: [] });
     }
 };
@@ -33,7 +33,7 @@ exports.addUserType = (req, res) => {
 
         res.status(201).json({ success: true, data: newUserType });
     } catch (error) {
-        console.error('Error adding user type:', error);
+        // console.error('Error adding user type:', error);
         res.status(500).json({ success: false, message: 'Failed to add user type' });
     }
 };

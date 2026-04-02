@@ -2,7 +2,7 @@ const db = require('../config/db')
 
 // Welcome endpoint with logging
 exports.welcome = (req, res) => {
-  console.log(`Request received: ${req.method} ${req.path}`)
+  // console.log(`Request received: ${req.method} ${req.path}`)
   res.json({ message: 'Welcome to the API!' })
 }
 
@@ -24,7 +24,7 @@ exports.getBrands = (req, res) => {
     const brands = db.prepare(query).all(...params)
     res.json({ success: true, message: 'Brands fetched successfully', data: brands })
   } catch (error) {
-    console.error('Error fetching brands:', error)
+    // console.error('Error fetching brands:', error)
     res.status(500).json({ success: false, message: 'Failed to fetch brands', data: null })
   }
 }
@@ -34,7 +34,7 @@ exports.getOutlets = (req, res) => {
     const { role_level, brandId, hotelid, userid } = req.query;
     const user = req.user || {};
 
-    console.log('Received req.query:', req.query);
+    // console.log('Received req.query:', req.query);
 
     let query = `
       SELECT DISTINCT o.*,
@@ -69,13 +69,13 @@ exports.getOutlets = (req, res) => {
     }
 
     query += ' ORDER BY o.outlet_name';
-    console.log('Constructed query:', query, 'with params:', params);
+    // console.log('Constructed query:', query, 'with params:', params);
     const outlets = db.prepare(query).all(...params);
-    console.log('Found outlets:', outlets);
+    // console.log('Found outlets:', outlets);
 
     res.status(200).json ({success: true, message: 'Outlets fetched successfully',data: outlets})
   } catch (error) {
-    console.error('Error fetching outlets:', error);
+    // console.error('Error fetching outlets:', error);
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
@@ -98,11 +98,11 @@ exports.getOutletsByHotel = (req, res) => {
     `;
 
     const outlets = db.prepare(query).all(hotelid);
-    console.log('Found outlets for hotel:', hotelid, outlets);
+    // console.log('Found outlets for hotel:', hotelid, outlets);
 
     res.json({ success: true, message: 'Outlets fetched successfully', data: outlets });
   } catch (error) {
-    console.error('Error fetching outlets by hotel:', error);
+    // console.error('Error fetching outlets by hotel:', error);
     res.status(500).json({ success: false, message: 'Internal server error', data: null });
   }
 };
@@ -819,7 +819,7 @@ generalSettingsStmt.run(
   } catch (error) {
     // Rollback the transaction on error
     db.exec('ROLLBACK');
-    console.error('Error adding outlet:', error)
+    // console.error('Error adding outlet:', error)
     res.status(500).json({ success: false, message: 'Failed to add outlet', data: null })
   }
 }
@@ -970,7 +970,7 @@ exports.updateOutlet = (req, res) => {
       }
     })
   } catch (error) {
-    console.error('Error updating outlet:', error)
+    // console.error('Error updating outlet:', error)
     res.status(500).json({ success: false, message: 'Failed to update outlet', data: null })
   }
 }
@@ -982,7 +982,7 @@ exports.deleteOutlet = (req, res) => {
     stmt.run(id)
     res.json({ success: true, message: 'Outlet deleted successfully', data: null })
   } catch (error) {
-    console.error('Error deleting outlet:', error)
+    // console.error('Error deleting outlet:', error)
     res.status(500).json({ success: false, message: 'Failed to delete outlet', data: null })
   }
 }
@@ -1007,7 +1007,7 @@ exports.getOutletById = (req, res) => {
 
     res.json(outlet)
   } catch (error) {
-    console.error('Error fetching outlet:', error)
+    // console.error('Error fetching outlet:', error)
     res.status(500).json({ error: 'Failed to fetch outlet' })
   }
 }
@@ -1036,7 +1036,7 @@ exports.getOutletSettings = (req, res) => {
       data: settings
     })
   } catch (error) {
-    console.error('Error fetching outlet settings:', error)
+    // console.error('Error fetching outlet settings:', error)
     res.status(500).json({
       success: false,
       message: 'Failed to fetch outlet settings',
@@ -1452,7 +1452,7 @@ const insertStmt = db.prepare(`
   } catch (error) {
     // Rollback transaction on error
     db.exec('ROLLBACK')
-    console.error('Error updating outlet settings:', error)
+    // console.error('Error updating outlet settings:', error)
     res.status(500).json({ error: 'Failed to update outlet settings' })
   }
 }
@@ -1560,7 +1560,7 @@ exports.updateBillPreviewSettings = (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error updating bill preview settings:", error);
+    // console.error("Error updating bill preview settings:", error);
     res
       .status(500)
       .json({ error: "Failed to update bill preview settings" });
@@ -1725,7 +1725,7 @@ exports.updateKotPrintSettings = (req, res) => {
       hide_item_Amt_column: !!hide_item_Amt_column
     });
   } catch (error) {
-    console.error("Error updating KOT print settings:", error);
+    // console.error("Error updating KOT print settings:", error);
     res.status(500).json({ error: "Failed to update KOT print settings" });
   }
 };
@@ -1864,7 +1864,7 @@ exports.updateBillPrintSettings = (req, res) => {
 
     res.json({ message: "Bill Print Settings updated successfully!" });
   } catch (err) {
-    console.error("Error updating Bill Print Settings:", err);
+    // console.error("Error updating Bill Print Settings:", err);
     res.status(500).json({ error: "Failed to update Bill Print Settings" });
   }
 };
@@ -2000,7 +2000,7 @@ exports.updateGeneralSettings = (req, res) => {
 
     res.json({ success: true, message: "General settings updated successfully" });
   } catch (err) {
-    console.error("Error updating general settings:", err);
+    // console.error("Error updating general settings:", err);
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
@@ -2080,7 +2080,7 @@ exports.updateOnlineOrdersSettings = (req, res) => {
      
     });
   } catch (error) {
-    console.error("Error updating online orders settings:", error);
+    // console.error("Error updating online orders settings:", error);
     res
       .status(500)
       .json({ error: "Failed to update online orders settings" });
@@ -2503,7 +2503,7 @@ exports.getOutletBillingSettings = (req, res) => {
       data: response
     });
   } catch (error) {
-    console.error('Error fetching outlet billing settings:', error);
+    // console.error('Error fetching outlet billing settings:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch outlet billing settings', 
@@ -2559,7 +2559,7 @@ exports.getBillPreviewSettings = (req, res) => {
       data: response
     });
   } catch (error) {
-    console.error('Error fetching bill preview settings:', error);
+    // console.error('Error fetching bill preview settings:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch bill preview settings', data: null });
   }
 };
@@ -2659,7 +2659,7 @@ exports.getBillPrintSettings = (req, res) => {
       data: response
     });
   } catch (error) {
-    console.error('Error fetching bill print settings:', error);
+    // console.error('Error fetching bill print settings:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch bill print settings', data: null });
   }
 };
@@ -2728,7 +2728,7 @@ exports.getKotPrintSettings = (req, res) => {
       data: response
     });
   } catch (error) {
-    console.error('Error fetching KOT print settings:', error);
+    // console.error('Error fetching KOT print settings:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch KOT print settings', data: null });
   }
 };
@@ -2752,7 +2752,7 @@ exports.getAllTablesWithOutlets = (req, res) => {
     const tables = db.prepare(query).all();
     res.json(tables);
   } catch (error) {
-    console.error('Error fetching tables with outlets:', error);
+    // console.error('Error fetching tables with outlets:', error);
     res.status(500).json({ error: 'Failed to fetch tables' });
   }
 };

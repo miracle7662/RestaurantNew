@@ -28,7 +28,7 @@ exports.getStartTimes = (req, res) => {
         // Return in ApiResponse format matching frontend expectations
         res.json({ data: startTimes, success: true, message: 'Start times fetched successfully' });
     } catch (error) {
-        console.error('Error fetching start times:', error);
+        // console.error('Error fetching start times:', error);
         res.status(500).json({ data: [], success: false, message: 'Failed to fetch start times' });
     }
 };
@@ -61,7 +61,7 @@ exports.getCloseTimes = (req, res) => {
         // Return in ApiResponse format matching frontend expectations
         res.json({ data: closeTimes, success: true, message: 'Close times fetched successfully' });
     } catch (error) {
-        console.error('Error fetching close times:', error);
+        // console.error('Error fetching close times:', error);
         res.status(500).json({ data: [], success: false, message: 'Failed to fetch close times' });
     }
 };

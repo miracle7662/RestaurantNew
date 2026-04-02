@@ -61,7 +61,7 @@ let query = `
         
         res.json({ success: true, data: menuItemsWithDetails, count: menuItemsWithDetails.length });
     } catch (error) {
-        console.error('Error fetching menu items:', error);
+        // console.error('Error fetching menu items:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
@@ -105,7 +105,7 @@ exports.getMenuItemById = (req, res) => {
         
         res.json({ success: true, data: { ...menuItem, department_details: allDetails }, message: 'Menu item fetched successfully' });
     } catch (error) {
-        console.error('Error fetching menu item:', error);
+        // console.error('Error fetching menu item:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch menu item', details: error.message, data: null });
     }
 };
@@ -255,7 +255,7 @@ exports.createMenuItemWithDetails = async (req, res) => {
             res.json({ success: true, data: { ...createdItem, department_details: allDetails }, message: 'Menu item created successfully' });
         })();
     } catch (error) {
-        console.error('Error creating menu item with details:', error);
+        // console.error('Error creating menu item with details:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
@@ -410,7 +410,7 @@ exports.updateMenuItemWithDetails = async (req, res) => {
             res.json({ success: true, data: { ...updatedItem, department_details: allDetails }, message: 'Menu item updated successfully' });
         })();
     } catch (error) {
-        console.error('Error updating menu item with details:', error);
+        // console.error('Error updating menu item with details:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
@@ -432,7 +432,7 @@ exports.deleteMenuItem = (req, res) => {
 
         res.json({ success: true, message: 'Menu item deleted successfully', data: { restitemid: parseInt(id) } });
     } catch (error) {
-        console.error('Error deleting menu item:', error);
+        // console.error('Error deleting menu item:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
@@ -486,7 +486,7 @@ exports.getAllVariantTypesWithValues = (req, res) => {
         const variantTypesWithValues = Array.from(variantTypesMap.values());
         res.json({ success: true, data: variantTypesWithValues, count: variantTypesWithValues.length });
     } catch (error) {
-        console.error('Error fetching variant types with values:', error);
+        // console.error('Error fetching variant types with values:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
@@ -504,7 +504,7 @@ exports.getMaxItemNo = (req, res) => {
     }
     res.json({ success: true, data: { nextItemNo: row.nextItemNo } });
   } catch (error) {
-    console.error("Error fetching max item number:", error);
+    // console.error("Error fetching max item number:", error);
     res.status(500).json({ success: false, message: 'Failed to fetch max item number', error: error.message, data: null });
   }
 };
@@ -612,7 +612,7 @@ let query = `
     res.send(buffer);
     
   } catch (error) {
-    console.error('Error exporting menu items:', error);
+    // console.error('Error exporting menu items:', error);
     res.status(500).json({ success: false, message: 'Failed to export menu items', error: error.message, data: null });
   }
 };
@@ -772,7 +772,7 @@ exports.importMenuItems = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error importing menu items:', error);
+    // console.error('Error importing menu items:', error);
     res.status(500).json({ success: false, message: 'Failed to import menu items', error: error.message, data: null });
   }
 };
@@ -842,7 +842,7 @@ exports.downloadSampleTemplate = (req, res) => {
     res.send(buffer);
     
   } catch (error) {
-    console.error('Error downloading sample template:', error);
+    // console.error('Error downloading sample template:', error);
     res.status(500).json({ success: false, message: 'Failed to download sample template', error: error.message, data: null });
   }
 };

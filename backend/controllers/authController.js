@@ -102,32 +102,32 @@ role_level: user.role_level,
 
         // Log login details based on user role
         if (user.role_level === 'hotel_admin') {
-            console.log('🏨 Hotel Admin Login Details:');
-            console.log('   Login User ID:', user.userid);
-            console.log('   Username:', user.username);
-            console.log('   Hotel ID:', user.hotelid);
-            console.log('   Brand ID:', user.brand_id);
-            console.log('   Hotel Name:', user.hotel_name);
-            console.log('   Brand Name:', user.brand_name);
-            console.log('   Full Name:', user.full_name);
-            console.log('   Email:', user.email);
-            console.log('   Phone:', user.phone);
-            console.log('   Login Time:', new Date().toISOString());
-            console.log('   ---');
+            // console.log('🏨 Hotel Admin Login Details:');
+            // console.log('   Login User ID:', user.userid);
+            // console.log('   Username:', user.username);
+            // console.log('   Hotel ID:', user.hotelid);
+            // console.log('   Brand ID:', user.brand_id);
+            // console.log('   Hotel Name:', user.hotel_name);
+            // console.log('   Brand Name:', user.brand_name);
+            // console.log('   Full Name:', user.full_name);
+            // console.log('   Email:', user.email);
+            // console.log('   Phone:', user.phone);
+            // console.log('   Login Time:', new Date().toISOString());
+            // console.log('   ---');
         } else if (user.role_level === 'superadmin') {
-            console.log('👑 SuperAdmin Login Details:');
-            console.log('   Login User ID:', user.userid);
-            console.log('   Username:', user.username);
-            console.log('   Email:', user.email);
-            console.log('   Full Name:', user.full_name);
-            console.log('   Login Time:', new Date().toISOString());
-            console.log('   ---');
+            // console.log('👑 SuperAdmin Login Details:');
+            // console.log('   Login User ID:', user.userid);
+            // console.log('   Username:', user.username);
+            // console.log('   Email:', user.email);
+            // console.log('   Full Name:', user.full_name);
+            // console.log('   Login Time:', new Date().toISOString());
+            // console.log('   ---');
         }
 
         res.json(userResponse);
 
     } catch (error) {
-        console.error('Login error:', error);
+        // console.error('Login error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -180,7 +180,7 @@ role: user.role_level,
         res.json(userResponse);
 
     } catch (error) {
-        console.error('Get current user error:', error);
+        // console.error('Get current user error:', error);
         res.status(401).json({ message: 'Invalid token' });
     }
 };
@@ -230,7 +230,7 @@ exports.verifyF8Password = async (req, res) => {
         res.json({ success: true, message: 'Password verified successfully' });
 
     } catch (error) {
-        console.error('F8 password verification error:', error);
+        // console.error('F8 password verification error:', error);
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({ success: false, message: 'Invalid token' });
         }
@@ -328,14 +328,14 @@ exports.verifyBillCreatorPassword = async (req, res) => {
         }
 
         // Log the verification attempt
-        console.log('🔐 Bill Creator Password Verification:');
-        console.log('   Current User ID:', currentUser.userid);
-        console.log('   Current Username:', currentUser.username);
-        console.log('   Bill Creator ID:', billCreator.userid);
-        console.log('   Bill Creator Username:', billCreator.username);
-        console.log('   Transaction ID:', txnId);
-        console.log('   Verification Time:', new Date().toISOString());
-        console.log('   ---');
+        // console.log('🔐 Bill Creator Password Verification:');
+        // console.log('   Current User ID:', currentUser.userid);
+        // console.log('   Current Username:', currentUser.username);
+        // console.log('   Bill Creator ID:', billCreator.userid);
+        // console.log('   Bill Creator Username:', billCreator.username);
+        // console.log('   Transaction ID:', txnId);
+        // console.log('   Verification Time:', new Date().toISOString());
+        // console.log('   ---');
 
         res.json({
             success: true,
@@ -349,7 +349,7 @@ exports.verifyBillCreatorPassword = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Bill creator password verification error:', error);
+        // console.error('Bill creator password verification error:', error);
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({ success: false, message: 'Invalid token' });
         }
@@ -397,7 +397,7 @@ exports.verifyPassword = async (req, res) => {
         res.json({ success: true, message: 'Password verified successfully' });
 
     } catch (error) {
-        console.error('Password verification error:', error);
+        // console.error('Password verification error:', error);
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({ success: false, message: 'Invalid token' });
         }
@@ -468,7 +468,7 @@ exports.verifyCreatorPassword = async (req, res) => {
         res.json({ success: true, message: 'Admin password verified successfully' });
 
     } catch (error) {
-        console.error('Creator password verification error:', error);
+        // console.error('Creator password verification error:', error);
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({ success: false, message: 'Invalid token' });
         }
@@ -529,13 +529,13 @@ exports.createInitialSuperAdmin = async () => {
                 );
             });
 
-            console.log('✅ Initial SuperAdmin created successfully');
-            console.log('📧 Email: superadmin@miracle.com');
-            console.log('🔑 Password: superadmin123');
+            // console.log('✅ Initial SuperAdmin created successfully');
+            // console.log('📧 Email: superadmin@miracle.com');
+            // console.log('🔑 Password: superadmin123');
         } else {
-            console.log('ℹ️ SuperAdmin already exists');
+            // console.log('ℹ️ SuperAdmin already exists');
         }
     } catch (error) {
-        console.error('❌ Error creating SuperAdmin:', error);
+        // console.error('❌ Error creating SuperAdmin:', error);
     }
 };

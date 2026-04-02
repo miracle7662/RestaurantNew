@@ -12,7 +12,7 @@ exports.getAll = (req, res) => {
     `).all();
     res.json(rows);
   } catch (err) {
-    console.error('Error fetching rest taxes:', err.message);
+    // console.error('Error fetching rest taxes:', err.message);
     res.status(500).json({ error: 'Failed to fetch data', details: err.message });
   }
 };
@@ -30,7 +30,7 @@ exports.getById = (req, res) => {
     if (!row) return res.status(404).json({ error: 'Not found' });
     res.json(row);
   } catch (err) {
-    console.error('Error fetching rest tax by ID:', err.message);
+    // console.error('Error fetching rest tax by ID:', err.message);
     res.status(500).json({ error: 'Failed to fetch data by ID', details: err.message });
   }
 };
@@ -45,7 +45,7 @@ exports.create = (req, res) => {
       taxgroupid, status, created_by_id
     } = req.body;
 
-    console.log("Received body:", req.body); // Debugging
+    // console.log("Received body:", req.body); // Debugging
 
     const stmt = db.prepare(`
       INSERT INTO mst_resttaxmaster (
@@ -71,7 +71,7 @@ exports.create = (req, res) => {
     );
     res.json({ success: true, resttaxid: result.lastInsertRowid });
   } catch (err) {
-    console.error('Error creating rest tax:', err.message);
+    // console.error('Error creating rest tax:', err.message);
     res.status(500).json({ error: 'Failed to create record', details: err.message });
   }
 };
@@ -115,7 +115,7 @@ exports.update = (req, res) => {
 
     res.json({ success: result.changes > 0 });
   } catch (err) {
-    console.error('Error updating rest tax:', err.message);
+    // console.error('Error updating rest tax:', err.message);
     res.status(500).json({ error: 'Failed to update record', details: err.message });
   }
 };
@@ -127,7 +127,7 @@ exports.remove = (req, res) => {
     const result = stmt.run(Number(req.params.id) || null);
     res.json({ success: result.changes > 0 });
   } catch (err) {
-    console.error('Error deleting rest tax:', err.message);
+    // console.error('Error deleting rest tax:', err.message);
     res.status(500).json({ error: 'Failed to delete record', details: err.message });
   }
 };

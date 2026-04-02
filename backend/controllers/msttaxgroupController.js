@@ -9,7 +9,7 @@ const baseSelectSql = `
 `;
 
 function sendErrorResponse(res, message, error, statusCode = 500) {
-  console.error(message, error);
+  // console.error(message, error);
   res.status(statusCode).json({
     success: false,
     message,

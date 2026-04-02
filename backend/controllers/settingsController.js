@@ -86,7 +86,7 @@ exports.createKotPrinterSetting = async (req, res) => {
 
     res.json({ success: true, msg: 'KOT Setting Added' });
   } catch (e) {
-    console.error('KOT INSERT ERROR:', e.message);
+    // console.error('KOT INSERT ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -110,7 +110,7 @@ exports.deleteKotPrinterSetting = async (req, res) => {
 
     res.json({ success: true, msg: 'KOT printer setting deleted successfully' });
   } catch (e) {
-    console.error('KOT DELETE ERROR:', e.message);
+    // console.error('KOT DELETE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -187,7 +187,7 @@ exports.createBillPrinterSetting = async (req, res) => {
 
     res.json({ success: true, msg: 'Bill Printer Setting Added' });
   } catch (e) {
-    console.error('BILL INSERT ERROR:', e.message);
+    // console.error('BILL INSERT ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -211,7 +211,7 @@ exports.deleteBillPrinterSetting = async (req, res) => {
 
     res.json({ success: true, msg: 'Bill printer setting deleted successfully' });
   } catch (e) {
-    console.error('BILL DELETE ERROR:', e.message);
+    // console.error('BILL DELETE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -336,7 +336,7 @@ exports.createDepartmentWisePrinter = async (req, res) => {
 
 
     if (!outletid) {
-      console.log('outletid is missing');
+      // console.log('outletid is missing');
       return res.status(400).json({ error: 'outletid is required' });
     }
 
@@ -350,7 +350,7 @@ exports.createDepartmentWisePrinter = async (req, res) => {
     
     res.json({ msg: 'Department-wise Setting Added' });
   } catch (e) {
-    console.error('Error in createDepartmentWisePrinter:', e);
+    // console.error('Error in createDepartmentWisePrinter:', e);
     res.status(500).json({ error: e.message });
   }
 };
@@ -361,12 +361,12 @@ exports.createDepartmentWisePrinter = async (req, res) => {
 
 exports.getLabelPrinterSettings = async (req, res) => {
   try {
-    console.log('Fetching label printer settings...');
+    // console.log('Fetching label printer settings...');
     const rows = getAll('SELECT * FROM label_printer_settings');
-    console.log('Label printer settings data:', rows);
+    // console.log('Label printer settings data:', rows);
     res.json(rows);
   } catch (e) {
-    console.error('Error fetching label printer settings:', e.message);
+    // console.error('Error fetching label printer settings:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -467,8 +467,8 @@ exports.updateReportPrinter = async (req, res) => {
     const { id } = req.params;
     const { printer_name, paper_size, auto_print } = req.body;
 
-    console.log('Updating report printer with ID:', id);
-    console.log('Request body:', { printer_name, paper_size, auto_print });
+    // console.log('Updating report printer with ID:', id);
+    // console.log('Request body:', { printer_name, paper_size, auto_print });
 
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
@@ -481,10 +481,10 @@ exports.updateReportPrinter = async (req, res) => {
       [printer_name, paper_size, auto_print ? 1 : 0, id]
     );
 
-    console.log('Update result:', result);
+    // console.log('Update result:', result);
     res.json({ msg: 'Report Printer Updated' });
   } catch (e) {
-    console.error('Error updating report printer:', e.message);
+    // console.error('Error updating report printer:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -520,7 +520,7 @@ exports.deleteReportPrinter = async (req, res) => {
 
     res.json({ success: true, msg: 'Report printer setting deleted successfully' });
   } catch (e) {
-    console.error('REPORT PRINTER DELETE ERROR:', e.message);
+    // console.error('REPORT PRINTER DELETE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -575,7 +575,7 @@ exports.getMstSettingByOutlet = async (req, res) => {
 
     if (!row || row.length === 0) {
       // Auto-create default takeaway setting (dept=1)
-      console.log(`Auto-creating mst_setting for outlet ${outletid}`);
+      // console.log(`Auto-creating mst_setting for outlet ${outletid}`);
       await runQuery(
         `INSERT INTO mst_setting (hotelid, outletid, departmentid, created_by_id)
          VALUES (?, ?, 1, 1)`,
@@ -587,7 +587,7 @@ exports.getMstSettingByOutlet = async (req, res) => {
 
     res.json({ success: true, data: { departmentid: row[0].departmentid } });
   } catch (e) {
-    console.error('mst_setting GET ERROR:', e.message);
+    // console.error('mst_setting GET ERROR:', e.message);
     res.status(500).json({ success: false, error: e.message });
   }
 };
@@ -606,7 +606,7 @@ exports.getTakeawaySetting = async (req, res) => {
     );
 
     if (!rows || rows.length === 0) {
-      console.log(`Auto-creating takeaway setting for outlet ${id}`);
+      // console.log(`Auto-creating takeaway setting for outlet ${id}`);
       await runQuery(
         `INSERT INTO mst_setting (hotelid, outletid, departmentid, created_by_id)
          VALUES (?, ?, 1, 1)`,
@@ -621,7 +621,7 @@ exports.getTakeawaySetting = async (req, res) => {
 
     res.json(rows[0]);
   } catch (e) {
-    console.error('Takeaway GET ERROR:', e.message);
+    // console.error('Takeaway GET ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -657,7 +657,7 @@ exports.updateTakeawaySetting = async (req, res) => {
 
     res.json({ success: true, msg: 'Takeaway setting updated successfully' });
   } catch (e) {
-    console.error('Takeaway UPDATE ERROR:', e.message);
+    // console.error('Takeaway UPDATE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -684,7 +684,7 @@ exports.getUIMode = async (req, res) => {
 
     res.json(rows[0]);
   } catch (e) {
-    console.error('UI Mode GET ERROR:', e.message);
+    // console.error('UI Mode GET ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -725,7 +725,7 @@ exports.saveUIMode = async (req, res) => {
 
     res.json({ success: true, msg: 'UI Mode setting saved successfully', ui_mode });
   } catch (e) {
-    console.error('UI Mode SAVE ERROR:', e.message);
+    // console.error('UI Mode SAVE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };

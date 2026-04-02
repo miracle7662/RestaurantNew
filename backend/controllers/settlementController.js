@@ -79,7 +79,7 @@ s.TxnNo AS TaxNo,
       data: settlements
     });
   } catch (error) {
-    console.error(error);
+    // console.error(error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch settlements'
@@ -141,7 +141,7 @@ exports.updateSettlement = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('updateSettlement error:', error);
+    // console.error('updateSettlement error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update settlement'
@@ -227,7 +227,7 @@ exports.createSettlement = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('createSettlement error:', error);
+    // console.error('createSettlement error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create settlement'
@@ -407,7 +407,7 @@ if (!userId) {
     });
 
   } catch (error) {
-    console.error('replaceSettlement error:', error);
+    // console.error('replaceSettlement error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to replace settlements'
@@ -468,7 +468,7 @@ exports.deleteSettlement = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error in deleteSettlement:', error);
+    // console.error('Error in deleteSettlement:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to reverse settlement'

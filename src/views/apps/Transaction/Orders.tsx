@@ -1195,7 +1195,7 @@ const Order = () => {
       });
       setShowSaveReverseButton(true);
     } catch (error) {
-      console.error('❌ Error processing reverse quantity:', error);
+      // console.error('❌ Error processing reverse quantity:', error);
       toast.error('Error processing reverse quantity');
     }
   };
@@ -1224,9 +1224,9 @@ const Order = () => {
     }
     (async () => {
       try {
-        console.log(`🔥 TAX FETCH → outletId: ${selectedOutletId}, deptId: ${selectedDeptId}, activeTab: ${activeTab}`);
+        // console.log(`🔥 TAX FETCH → outletId: ${selectedOutletId}, deptId: ${selectedDeptId}, activeTab: ${activeTab}`);
         const resp = await OrderService.getTaxesByOutletAndDepartment({ outletid: selectedOutletId ?? undefined, departmentid: selectedDeptId });
-        console.log('✅ Tax API response:', resp);
+        // console.log('✅ Tax API response:', resp);
         if (resp?.success && resp?.data?.taxes) {
           const t = resp.data.taxes;
           const newRates = {
@@ -1235,14 +1235,14 @@ const Order = () => {
             igst: Number(t.igst) || 0,
             cess: Number(t.cess) || 0,
           };
-          console.log(`✅ [${activeTab}] APPLYING TAX → CGST:${newRates.cgst}% SGST:${newRates.sgst}% IGST:${newRates.igst}% CESS:${newRates.cess}%`);
+          // console.log(`✅ [${activeTab}] APPLYING TAX → CGST:${newRates.cgst}% SGST:${newRates.sgst}% IGST:${newRates.igst}% CESS:${newRates.cess}%`);
           setTaxRates(newRates);
         } else {
-          console.log(`⚠️ [${activeTab}] No tax data found, setting zeros`);
+          // console.log(`⚠️ [${activeTab}] No tax data found, setting zeros`);
           setTaxRates({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
         }
       } catch (e) {
-        console.error(`❌ [${activeTab}] Tax fetch error:`, e);
+        // console.error(`❌ [${activeTab}] Tax fetch error:`, e);
         setTaxRates({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
       }
     })();
@@ -1283,7 +1283,7 @@ const Order = () => {
         grandTotal
       });
 
-      console.log("✅ Active Items Total (After Reverse):", grandTotal);
+      // console.log("✅ Active Items Total (After Reverse):", grandTotal);
       return;
     }
     // Correctly calculate subtotal based on active (non-reversed) items
@@ -1361,7 +1361,7 @@ const Order = () => {
         setFormData(prev => applyKotSettings(prev, kotData));
       }
     } catch (err) {
-      console.error('Failed to load outlet settings', err);
+      // console.error('Failed to load outlet settings', err);
     }
   };
 
@@ -1389,14 +1389,14 @@ const Order = () => {
             setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0);
 
             // Debug console for tax mode
-            console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
+            // console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
           } else {
             setReverseQtyConfig('PasswordRequired'); // Default to password required
             setIncludeTaxInInvoice(0);
             setRoundOffSettingsLoaded(true); // Mark as loaded even if settings not found
           }
         } catch (error) {
-          console.error("Failed to fetch outlet settings for Reverse Qty Mode", error);
+          // console.error("Failed to fetch outlet settings for Reverse Qty Mode", error);
           setReverseQtyConfig('PasswordRequired'); // Default to password required
           setIncludeTaxInInvoice(0);
           setRoundOffSettingsLoaded(true); // Mark as loaded even on error
@@ -1418,7 +1418,7 @@ const Order = () => {
             setOutletPaymentModes([]);
           }
         } catch (error) {
-          console.error("Failed to fetch payment modes", error);
+          // console.error("Failed to fetch payment modes", error);
           setOutletPaymentModes([]);
         }
       };
@@ -1430,7 +1430,7 @@ const Order = () => {
           const waiters = await fetchWaiterUsers(selectedOutletId);
           setWaiterUsers(waiters);
         } catch (error) {
-          console.error('Failed to fetch waiter users:', error);
+          // console.error('Failed to fetch waiter users:', error);
         }
       };
       fetchWaiters();
@@ -1447,7 +1447,7 @@ const Order = () => {
             setDefaultPax(1);
           }
         } catch (error) {
-          console.error("Failed to fetch outlet settings", error);
+          // console.error("Failed to fetch outlet settings", error);
           setDefaultWaiterId(null);
           setDefaultPax(1);
         }
@@ -1590,7 +1590,7 @@ const Order = () => {
 
 
     } catch (error: any) {
-      console.error('Error printing bill:', error);
+      // console.error('Error printing bill:', error);
       toast.error(error.message || 'An error occurred while printing the bill.');
     } finally {
       setLoading(false);
@@ -1751,7 +1751,7 @@ const handlePrintKotAndBill = async () => {
             setTaxRates(currentTaxRates);
           }
         } catch (taxError) {
-          console.error("Error fetching taxes for non-dine-in KOT:", taxError);
+          // console.error("Error fetching taxes for non-dine-in KOT:", taxError);
           toast.error("Could not fetch tax rates for the order.");
           // Do not proceed if taxes can't be fetched, as it would lead to incorrect billing.
         }
@@ -1767,7 +1767,7 @@ const handlePrintKotAndBill = async () => {
 
         // Determine order tag for KOT header
         const order_tag = originalTableStatus === 0 ? (formData.new_order_tag_label || 'New') : (formData.running_order_tag_label || 'Running');
-        console.log('orderTag determined:', order_tag, 'originalTableStatus:', originalTableStatus, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
+        // console.log('orderTag determined:', order_tag, 'originalTableStatus:', originalTableStatus, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
 
         const lineSubtotal = Number(i.price) * qtyDelta;
         const cgstPer = Number(currentTaxRates.cgst) || 0;
@@ -1885,12 +1885,12 @@ const handlePrintKotAndBill = async () => {
         Amount: Number(taxCalc.grandTotal.toFixed(2)),
       };
 
-      console.log('TxnDatetime from useAuthContext:', user?.curr_date);
-      console.log('Sending payload to createKOT:', JSON.stringify(kotPayload, null, 2));
+      // console.log('TxnDatetime from useAuthContext:', user?.curr_date);
+      // console.log('Sending payload to createKOT:', JSON.stringify(kotPayload, null, 2));
       const resp = await OrderService.createKOT(kotPayload);
       if (resp?.success) {
         // Debugging: Log the entire data response to check field names
-        console.log("KOT SAVE RESPONSE: ", resp.data);
+       // console.log("KOT SAVE RESPONSE: ", resp.data);
 
         toast.success('KOT saved successfully!');
 
@@ -2004,7 +2004,7 @@ const handlePrintKotAndBill = async () => {
               if (Array.isArray(list)) setSavedKOTs(list);
             })
             .catch(err => {
-              console.warn('refresh saved KOTs failed', err);
+              // console.warn('refresh saved KOTs failed', err);
             });
 
           return txnId; // ✅ RETURN txnId
@@ -2061,7 +2061,7 @@ const handlePrintKotAndBill = async () => {
       setPrintThenSettleFlow(true);
 
     } catch (error: any) {
-      console.error('Error in Print & Settle:', error);
+      // console.error('Error in Print & Settle:', error);
       toast.error(error.message || 'An error occurred while printing bill.');
     } finally {
       setLoading(false);
@@ -2110,13 +2110,13 @@ const handlePrintKotAndBill = async () => {
             const allReversed = totalRemainingQty <= 0;
 
             const newStatus = allReversed ? 0 : 1;
-            console.log('🔧 F8 Reversal DEBUG:', {
-              totalRemainingQty,
-              allReversed,
-              newStatus,
-              tableId: tableToUpdate.tableid,
-              itemCount: items.length
-            });
+            // console.log('🔧 F8 Reversal DEBUG:', {
+            //   totalRemainingQty,
+            //   allReversed,
+            //   newStatus,
+            //   tableId: tableToUpdate.tableid,
+            //   itemCount: items.length
+            // });
 
             await OrderService.updateTableStatus(tableToUpdate.tableid, { status: newStatus });
 
@@ -2209,7 +2209,7 @@ const handlePrintKotAndBill = async () => {
           try {
             await refreshItemsForTable(sourceTableId);
           } catch (refreshError) {
-            console.error('Error refreshing items after F8 auth:', refreshError);
+            // console.error('Error refreshing items after F8 auth:', refreshError);
             toast.error('Failed to refresh items. Please try again.');
             return;
           }
@@ -2219,7 +2219,7 @@ const handlePrintKotAndBill = async () => {
         setF8PasswordError(data.message || 'Invalid password');
       }
     } catch (error) {
-      console.error('F8 password verification error:', error);
+      // console.error('F8 password verification error:', error);
       setF8PasswordError('An error occurred. Please try again.');
     } finally {
       setF8PasswordLoading(false);
@@ -2313,12 +2313,12 @@ const handlePrintKotAndBill = async () => {
 
       // ✅ 6. FORCE TAX RECALC (100ms delay for useEffect)
       setTimeout(() => {
-        console.log('🔥 QuickBill loaded → taxCalc:', taxCalc.grandTotal, 'vs list:', bill.GrandTotal);
+        // console.log('🔥 QuickBill loaded → taxCalc:', taxCalc.grandTotal, 'vs list:', bill.GrandTotal);
       }, 100);
 
       // toast.success('Quick Bill loaded with taxes & discount');
     } catch (error: any) {
-      console.error('Error loading Quick Bill:', error);
+      // console.error('Error loading Quick Bill:', error);
       toast.error('Failed to load bill details');
     } finally {
       setLoading(false);
@@ -2397,7 +2397,7 @@ const handlePrintKotAndBill = async () => {
         if (tabIndex < allTabs.length) {
           const selectedTab = allTabs[tabIndex];
           setActiveNavTab(selectedTab);
-          console.log(`Ctrl + ${tabIndex} pressed, activating tab: ${selectedTab}`);
+          // console.log(`Ctrl + ${tabIndex} pressed, activating tab: ${selectedTab}`);
         }
       }
       if (e.key === "F10" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
@@ -2497,7 +2497,7 @@ const handlePrintKotAndBill = async () => {
               }
             }
           } catch (error) {
-            console.error("Failed to fetch latest outlet settings for Reverse Qty Mode", error);
+            //console.error("Failed to fetch latest outlet settings for Reverse Qty Mode", error);
             // Default to password required if error occurs
             setReverseQtyConfig('PasswordRequired');
             setShowAuthModal(true);
@@ -2566,7 +2566,7 @@ const handlePrintKotAndBill = async () => {
   }, []);
 
   useEffect(() => {
-    console.log('State update - showOrderDetails:', showOrderDetails, 'selectedTable:', selectedTable);
+   // console.log('State update - showOrderDetails:', showOrderDetails, 'selectedTable:', selectedTable);
   }, [showOrderDetails, selectedTable]);
 
   const handleApplyDiscount = async () => {
@@ -2681,14 +2681,14 @@ const handlePrintKotAndBill = async () => {
   ]);
   const handleSettleAndPrint = async (settlementsData?: any[], tipData?: number) => {
     // 🔍 DEBUG – YAHI ADD KARO
-    console.log({
-      selectedPaymentModes,
-      paymentAmounts,
-      grandTotal: taxCalc.grandTotal,
-      tip,
-      settlementsData,
-      tipData
-    });
+    // console.log({
+    //   selectedPaymentModes,
+    //   paymentAmounts,
+    //   grandTotal: taxCalc.grandTotal,
+    //   tip,
+    //   settlementsData,
+    //   tipData
+    // });
 
 
     let currentSettlements = [];
@@ -2762,9 +2762,9 @@ const handlePrintKotAndBill = async () => {
 
       // Always refresh Quick Bill list after settlement (works regardless of tab)
       if (activeTab === 'Quick Bill' || true) {  // Force refresh
-        console.log('🔄 Calling fetchQuickBillData()...');
+        // console.log('🔄 Calling fetchQuickBillData()...');
         await fetchQuickBillData();
-        console.log('✅ Quick Bill list refreshed');
+        // console.log('✅ Quick Bill list refreshed');
       }
 
       toast.success('Settlement successful and bill printed!');
@@ -2812,7 +2812,7 @@ const handlePrintKotAndBill = async () => {
       setOrderNo(null);
 
     } catch (error: any) {
-      console.error('Error settling bill:', error);
+      // console.error('Error settling bill:', error);
       toast.error(error.message || 'An error occurred during settlement.');
     } finally {
       setLoading(false);
@@ -3009,12 +3009,12 @@ const handlePrintKotAndBill = async () => {
 
       // ✅ 6. FORCE TAX RECALC (100ms delay for useEffect)
       setTimeout(() => {
-        console.log('🔥 Order loaded → taxCalc:', taxCalc.grandTotal, 'vs card:', order.total);
+        // console.log('🔥 Order loaded → taxCalc:', taxCalc.grandTotal, 'vs card:', order.total);
       }, 100);
 
       // toast.success('Order loaded with taxes & discount');
     } catch (error: any) {
-      console.error('Error loading pending order:', error);
+      // console.error('Error loading pending order:', error);
       toast.error('Failed to load order details');
     } finally {
       setLoading(false);
@@ -3060,7 +3060,7 @@ const handlePrintKotAndBill = async () => {
         setOutletPaymentModes([]);
       }
     } catch (error) {
-      console.error("Failed to fetch payment modes", error);
+      // console.error("Failed to fetch payment modes", error);
       setOutletPaymentModes([]);
     }
   };
@@ -3083,11 +3083,11 @@ const handlePrintKotAndBill = async () => {
       const deptId = mstRes.data?.departmentid || departments.find(d => d.outletid === order.outletid)?.departmentid;
       if (deptId) {
         setSelectedDeptId(deptId);
-        console.log(`✅ Pending order taxes loading: outlet=${order.outletid}, dept=${deptId}`);
+        // console.log(`✅ Pending order taxes loading: outlet=${order.outletid}, dept=${deptId}`);
         // taxRates useEffect will auto-trigger on selectedDeptId change
       }
     } catch (e) {
-      console.error('Pending order tax setup failed:', e);
+      // console.error('Pending order tax setup failed:', e);
     }
 
     await fetchPaymentModesForOutlet(order.outletid);
@@ -3412,7 +3412,7 @@ const handlePrintKotAndBill = async () => {
                                         className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
                                         style={{ width: '90px', height: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '2px' }}
                                         onClick={() => {
-                                          console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                          // console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
                                           handleTableClick(table.table_name);
                                         }}
                                       >
@@ -3460,7 +3460,7 @@ const handlePrintKotAndBill = async () => {
                                   className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
                                   style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                                   onClick={() => {
-                                    console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                    // console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
                                     handleTableClick(table.table_name);
                                   }}
                                 >
@@ -3489,7 +3489,7 @@ const handlePrintKotAndBill = async () => {
                               className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
                               style={{ width: '90px', height: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '2px' }}
                               onClick={() => {
-                                console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                // console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
                                 handleTableClick(table.table_name);
                               }}
                             >
@@ -4398,7 +4398,7 @@ const handlePrintKotAndBill = async () => {
                                   }
                                 }
                               } catch (error) {
-                                console.error("Failed to fetch latest outlet settings for Reverse Qty Mode", error);
+                                // console.error("Failed to fetch latest outlet settings for Reverse Qty Mode", error);
                                 // Default to password required if error occurs
                                 setReverseQtyConfig('PasswordRequired');
                                 setShowAuthModal(true);
@@ -4617,7 +4617,7 @@ const handlePrintKotAndBill = async () => {
               const list = resp?.data || resp
               if (Array.isArray(list)) setSavedKOTs(list)
             } catch (err) {
-              console.warn('getSavedKOTs modal load failed')
+              // console.warn('getSavedKOTs modal load failed')
             }
           }}>
             <Modal.Header closeButton>

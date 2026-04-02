@@ -192,15 +192,15 @@ exports.getBillById = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createBill = async (req, res) => {
   try {
-    console.log('Received createBill body:', JSON.stringify(req.body, null, 2))
-    console.log(
-      'Discount fields - DiscPer:',
-      req.body.DiscPer,
-      'Discount:',
-      req.body.Discount,
-      'DiscountType:',
-      req.body.DiscountType,
-    )
+    // // console.log('Received createBill body:', JSON.stringify(req.body, null, 2))
+    // console.log(
+    //   'Discount fields - DiscPer:',
+    //   req.body.DiscPer,
+    //   'Discount:',
+    //   req.body.Discount,
+    //   'DiscountType:',
+    //   req.body.DiscountType,
+    // )
     const {
       outletid,
       TxnNo,
@@ -254,13 +254,13 @@ exports.createBill = async (req, res) => {
 
     const isHeaderNCKOT = details.some((item) => toBool(item.isNCKOT))
 
-    console.log('Details array length:', details.length)
+    // console.log('Details array length:', details.length)
     if (details.length > 0) {
-      console.log('First detail item:', JSON.stringify(details[0], null, 2))
+      // console.log('First detail item:', JSON.stringify(details[0], null, 2))
     }
 
-    console.log('NCName:', NCName)
-    console.log('NCPurpose:', NCPurpose)
+    // console.log('NCName:', NCName)
+      // console.log('NCPurpose:', NCPurpose)
     
     // Use frontend calculated values directly
     const finalGross = Number(GrossAmt) || 0
@@ -274,7 +274,7 @@ exports.createBill = async (req, res) => {
     const finalAmount = Number(Amount) || 0
     const finalTaxableValue = Number(TaxableValue) || 0
 
-    console.log('Using frontend values - Gross:', finalGross, 'Amount:', finalAmount)
+    // console.log('Using frontend values - Gross:', finalGross, 'Amount:', finalAmount)
 
     const trx = db.transaction(() => {
       let txnNo = TxnNo
@@ -420,7 +420,7 @@ exports.createBill = async (req, res) => {
       .all(txnId)
     res.json(ok('Bill created', { ...header, customerid: header.customerid, details: items }))
   } catch (error) {
-    console.error('Error in createBill:', error)
+    // console.error('Error in createBill:', error)
     res
       .status(500)
       .json({ success: false, message: 'Failed to create bill', data: null, error: error.message })
@@ -491,8 +491,8 @@ exports.updateBill = async (req, res) => {
     const finalRoundOff = Number(RoundOFF) || 0
     const finalAmount = Number(Amount) || 0
     const finalTaxableValue = Number(TaxableValue) || 0
-
-    console.log('Using frontend values for updateBill - Gross:', finalGross, 'Amount:', finalAmount)
+// 
+    // console.log('Using frontend values for updateBill - Gross:', finalGross, 'Amount:', finalAmount)
 
     const txn = db.transaction(() => {
       const u = db.prepare(`
@@ -660,9 +660,9 @@ exports.deleteBill = async (req, res) => {
 exports.settleBill = async (req, res) => {
   try {
     // --- Logging for Debugging ---
-    console.log(`[${new Date().toISOString()}] --- settleBill Request Received ---`)
-    console.log('Request Params (ID):', req.params.id)
-    console.log('Request Body (settlements):', JSON.stringify(req.body, null, 2))
+    // console.log(`[${new Date().toISOString()}] --- settleBill Request Received ---`)
+    // console.log('Request Params (ID):', req.params.id)
+    // console.log('Request Body (settlements):', JSON.stringify(req.body, null, 2))
 
     const { id } = req.params
     const { settlements = [], curr_date, TipAmount } = req.body
@@ -676,7 +676,7 @@ exports.settleBill = async (req, res) => {
     const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     if (!bill)
       return res.status(404).json({ success: false, message: 'Bill not found', data: null })
-    console.log('Found bill:', JSON.stringify(bill, null, 2))
+      // console.log('Found bill:', JSON.stringify(bill, null, 2))
 
     const tx = db.transaction(() => {
       const ins = db.prepare(`
@@ -684,7 +684,7 @@ INSERT INTO TrnSettlement (PaymentTypeID, PaymentType, Amount, Batch, Name, Orde
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
       `)
       for (const s of settlements) {
-        console.log('Processing settlement:', JSON.stringify(s, null, 2))
+        // console.log('Processing settlement:', JSON.stringify(s, null, 2))
         
         // Use InsertDate from request body if provided, otherwise use current datetime
         const insertDate = s.InsertDate ? s.InsertDate : new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -725,7 +725,7 @@ ins.run(
 
       // Set table status to vacant (0) after settlement
       if (bill.TableID) {
-        console.log(`Updating table ${bill.TableID} status to vacant.`)
+        // console.log(`Updating table ${bill.TableID} status to vacant.`)
         
         // Get the table info to check if it's a sub-table
         const tableInfo = db.prepare(`SELECT * FROM msttablemanagement WHERE tableid = ?`).get(bill.TableID);
@@ -733,8 +733,8 @@ ins.run(
         // Determine the parent table ID - if this table is a sub-table, use its parentTableId, otherwise use its own tableid
         const parentTableIdToUse = tableInfo && tableInfo.parentTableId ? tableInfo.parentTableId : bill.TableID;
         
-        console.log(`Table info:`, tableInfo);
-        console.log(`Using parentTableId: ${parentTableIdToUse} for deleting sub-tables`);
+        // console.log(`Table info:`, tableInfo);
+        // console.log(`Using parentTableId: ${parentTableIdToUse} for deleting sub-tables`);
         
         // Update the main table status to vacant
         db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(bill.TableID)
@@ -746,7 +746,7 @@ ins.run(
       }
     })
 
-    console.log('Executing database transaction...')
+    // console.log('Executing database transaction...')
     tx()
 
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
@@ -763,11 +763,11 @@ ins.run(
       )
       .all(header.orderNo || null, header.HotelID || null)
 
-    console.log('--- settleBill Success ---')
+    // console.log('--- settleBill Success ---')
     res.json(ok('Bill settled', { ...header, customerid: header.customerid, details: items, settlement: stl }))
   } catch (error) {
-    console.error('--- ERROR in settleBill ---')
-    console.error(error)
+    // console.error('--- ERROR in settleBill ---')
+    // console.error(error)
     res
       .status(500)
       .json({ success: false, message: 'Failed to settle bill', data: null, error: error.message })
@@ -874,7 +874,7 @@ exports.updateBillItemsIsBilled = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createKOT = async (req, res) => {
   try {
-    console.log('Received createKOT body:', JSON.stringify(req.body, null, 2))
+    // console.log('Received createKOT body:', JSON.stringify(req.body, null, 2))
     // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
     const {
     outletid,
@@ -910,12 +910,12 @@ exports.createKOT = async (req, res) => {
     items: details = [],
   } = req.body
 
-    console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
-    console.log('Received Calculated Values from Frontend:', { GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount })
+    // console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
+    // console.log('Received Calculated Values from Frontend:', { GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount })
     let order_tag = req.body.order_tag
 
     if (!Array.isArray(details) || details.length === 0) {
-      console.log('Details array is empty or not an array')
+      // console.log('Details array is empty or not an array')
       return res.status(400).json({ success: false, message: 'details array is required' })
     }
 
@@ -942,7 +942,7 @@ exports.createKOT = async (req, res) => {
             'SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled, GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount FROM TAxnTrnbill WHERE TxnID = ?',
           )
           .get(payloadTxnId)
-        console.log('Existing bill found by TxnID:', existingBill)
+        // console.log('Existing bill found by TxnID:', existingBill)
       } else if (TableID && TableID > 0) {
         existingBill = db
           .prepare(
@@ -952,7 +952,7 @@ exports.createKOT = async (req, res) => {
         `,
           )
           .get(Number(TableID))
-        console.log('Existing bill found by TableID:', existingBill)
+        // console.log('Existing bill found by TableID:', existingBill)
       }
 
       // Use frontend calculated values or fall back to existing/0
@@ -967,7 +967,7 @@ exports.createKOT = async (req, res) => {
 
       if (existingBill) {
         txnId = existingBill.TxnID
-        console.log(`Using existing unbilled transaction. TxnID: ${txnId} for TableID: ${TableID}`)
+        // console.log(`Using existing unbilled transaction. TxnID: ${txnId} for TableID: ${TableID}`)
 
         // ✅ If the existing bill was already billed, reset its status to allow for re-billing.
         if (existingBill.isBilled === 1) {
@@ -1032,7 +1032,7 @@ const isHomeDeliveryUpdateFlag = toBool(req.body.isHomeDelivery ?? (Order_Type =
           txnId,
         )
       } else {
-        console.log(`No existing bill for table ${TableID}. Creating a new one.`)
+        // console.log(`No existing bill for table ${TableID}. Creating a new one.`)
         // For Pickup/Delivery, outletid comes from the payload, not a table.
         const headerOutletId = outletid || (details.length > 0 ? details[0].outletid : null)
         let txnNo = null
@@ -1093,7 +1093,7 @@ const isHomeDeliveryFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'De
         db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(
           Number(TableID),
         )
-        console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`)
+        // console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`)
       }
 
       // 2. Generate a new KOT number by finding the max KOT for the current day for that outlet.
@@ -1110,7 +1110,7 @@ const isHomeDeliveryFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'De
         .get(outletid, kotDate)
 
       const kotNo = (maxKOTResult?.maxKOT || 0) + 1
-      console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`)
+      // console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`)
 
       const insertDetailStmt = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
@@ -1160,13 +1160,13 @@ const isHomeDeliveryFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'De
           if (menuData) itemNo = menuData.item_no
         }
 
-        console.log('Inserting item with order_tag:', order_tag)
-console.log('🚀 Saving KOT Item with Variant:', {
-            ItemID: item.ItemID,
-            item_name: item.item_name,
-            VariantID: item.VariantID || item.variantId,
-            VariantName: item.VariantName || item.variantName
-          });
+        // console.log('Inserting item with order_tag:', order_tag)
+// console.log('🚀 Saving KOT Item with Variant:', {
+//             ItemID: item.ItemID,
+//             item_name: item.item_name,
+//             VariantID: item.VariantID || item.variantId,
+//             VariantName: item.VariantName || item.variantName
+//           });
           
           insertDetailStmt.run({
           TxnID: txnId,
@@ -1223,7 +1223,7 @@ VariantID: item.VariantID || item.variantId || null,
 
     res.json(ok('KOT processed successfully', { ...header, customerid: header.customerid, details: mappedItems, KOTNo: kotNo }))
   } catch (error) {
-    console.error('Error in createKOT:', error)
+    // console.error('Error in createKOT:', error)
     res
       .status(500)
       .json({
@@ -1270,7 +1270,7 @@ exports.createReverseKOT = async (req, res) => {
       .get(outletid, kotDate)
 
     const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1
-    console.log(`Generated RevKOT number: ${newRevKOTNo} for outlet ${outletid}`)
+    // console.log(`Generated RevKOT number: ${newRevKOTNo} for outlet ${outletid}`)
 
     const trx = db.transaction(() => {
       let isFullReverse = false
@@ -1531,7 +1531,7 @@ exports.createReverseKOT = async (req, res) => {
       }
     })
   } catch (error) {
-    console.error('Error in createReverseKOT:', error)
+    // console.error('Error in createReverseKOT:', error)
     res
       .status(500)
       .json({ success: false, message: 'Failed to process reversed items.', error: error.message })
@@ -1756,7 +1756,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       VariantName: r.VariantName || null,
     }))
 
-    console.log('Unbilled items for tableId', tableId, ':', items)
+    // console.log('Unbilled items for tableId', tableId, ':', items)
 
     res.json({
       success: true,
@@ -2090,7 +2090,7 @@ exports.handleF8KeyPress = async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('Error in handleF8KeyPress:', error)
+    // console.error('Error in handleF8KeyPress:', error)
     res.status(500).json({
       success: false,
       message: 'Failed to process F8 key press',
@@ -2229,7 +2229,7 @@ exports.reverseQuantity = async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('Error in reverseQuantity:', error)
+    // console.error('Error in reverseQuantity:', error)
     res.status(500).json({
       success: false,
       message: 'Failed to reverse quantity',
@@ -2470,7 +2470,7 @@ exports.generateTxnNo = async (req, res) => {
 
     res.json(ok('TxnNo generated and bill created', { txnNo, txnId }))
   } catch (error) {
-    console.error('Error generating TxnNo:', error)
+    // console.error('Error generating TxnNo:', error)
     res
       .status(500)
       .json({ success: false, message: 'Failed to generate TxnNo: ' + error.message, data: null })
@@ -2555,7 +2555,7 @@ exports.saveDayEnd = async (req, res) => {
       }),
     )
   } catch (error) {
-    console.error('Error saving day end:', error)
+    // console.error('Error saving day end:', error)
     res
       .status(500)
       .json({ success: false, message: 'Failed to save day end', error: error.message })
@@ -2593,7 +2593,7 @@ exports.applyNCKOT = async (req, res) => {
       db.prepare('UPDATE TAxnTrnbilldetails SET isNCKOT = 1 WHERE TxnID = ?').run(Number(id))
 
       // Show the UPDATE statement for table status
-      console.log(`UPDATE msttablemanagement SET Status = 0 WHERE TableID = ${bill.TableID}`)
+      // console.log(`UPDATE msttablemanagement SET Status = 0 WHERE TableID = ${bill.TableID}`)
       db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ? `).run(bill.TableID)  
       db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
          
@@ -2603,7 +2603,7 @@ exports.applyNCKOT = async (req, res) => {
     tx()
     res.json(ok('NCKOT applied to the entire bill successfully.'))
   } catch (error) {
-    console.error('Error in applyNCKOT:', error)
+    // console.error('Error in applyNCKOT:', error)
     res
       .status(500)
       .json({ success: false, message: 'Failed to apply NCKOT', data: null, error: error.message })
@@ -2770,7 +2770,7 @@ exports.applyDiscountToBill = async (req, res) => {
 
     res.json(ok('Discount applied successfully to the existing KOT.'))
   } catch (error) {
-    console.error('Error in applyDiscountToBill:', error)
+    // console.error('Error in applyDiscountToBill:', error)
     res
       .status(500)
       .json({
@@ -3156,7 +3156,7 @@ exports.reverseBill = async (req, res) => {
         // Determine the parent table ID - if this table is a sub-table, use its parentTableId, otherwise use its own tableid
         const parentTableIdToUse = tableInfo && tableInfo.parentTableId ? tableInfo.parentTableId : bill.TableID;
         
-        console.log(`ReverseBill - Using parentTableId: ${parentTableIdToUse} for deleting sub-tables`);
+        // console.log(`ReverseBill - Using parentTableId: ${parentTableIdToUse} for deleting sub-tables`);
         
         // Update the main table status to vacant
         const updateTableStmt = db.prepare(`
@@ -3175,7 +3175,7 @@ exports.reverseBill = async (req, res) => {
     trx(txnId) // Pass txnId to the transaction
     res.json({ success: true, message: 'Bill has been reversed successfully.' })
   } catch (error) {
-    console.error('Error reversing bill:', error)
+    // console.error('Error reversing bill:', error)
     res
       .status(500)
       .json({ success: false, message: 'Internal server error while reversing the bill.' })
@@ -3205,7 +3205,7 @@ exports.getBillStatusByTable = async (req, res) => {
 
     res.json({ success: true, data: bill })
   } catch (error) {
-    console.error('Error fetching bill status:', error)
+    // console.error('Error fetching bill status:', error)
     res.status(500).json({ success: false, message: 'Error fetching bill status' })
   }
 }
@@ -3256,7 +3256,7 @@ exports.saveFullReverse = async (req, res) => {
     trx()
     res.json({ success: true, message: 'Full bill reversed successfully.' })
   } catch (error) {
-    console.error('Error in saveFullReverse:', error)
+    // console.error('Error in saveFullReverse:', error)
     res
       .status(500)
       .json({ success: false, message: 'Failed to process full reversal.', error: error.message })
@@ -3463,7 +3463,7 @@ exports.transferKOT = (req, res) => {
     res.json({ success: true, message: 'KOT transfer completed successfully' })
 
   } catch (err) {
-    console.error('KOT Transfer Error:', err)
+    // console.error('KOT Transfer Error:', err)
     res.status(500).json({
       success: false,
       message: 'KOT transfer failed',
@@ -3719,7 +3719,7 @@ exports.transferTable = (req, res) => {
 
     res.json({ success: true, message: 'Table transfer completed successfully' })
   } catch (err) {
-    console.error('Table Transfer Error:', err)
+    // console.error('Table Transfer Error:', err)
     res.status(500).json({
       success: false,
       message: 'Table transfer failed',
@@ -3794,7 +3794,7 @@ exports.getGlobalReverseKOTNumber = async (req, res) => {
     const nextRevKOT = (result?.maxRevKOT || 0) + 1
 
     res.json(ok('Fetched next global reverse KOT number', { nextRevKOT }))
-    console.log(nextRevKOT)
+    // console.log(nextRevKOT)
   } catch (error) {
     res
       .status(500)
