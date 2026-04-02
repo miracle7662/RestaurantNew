@@ -1227,6 +1227,7 @@ CREATE TABLE IF NOT EXISTS  mst_setting (
     hotelid INTEGER NOT NULL,
     outletid INTEGER NOT NULL,
     departmentid INTEGER NOT NULL,
+    ui_mode TEXT NOT NULL,
     created_by_id INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP

@@ -72,4 +72,10 @@ router.get('/mst-setting/:outletid', settingsController.getMstSettingByOutlet);
 router.get('/takeaway/:id', settingsController.getTakeawaySetting);
 router.put('/takeaway', settingsController.updateTakeawaySetting);
 
+// -------------------------
+// 🔄 UI Mode Settings (NEW)
+// -------------------------
+router.get('/ui-mode/:outletid', settingsController.getUIMode);
+router.put('/ui-mode', settingsController.saveUIMode);
+
 module.exports = router;

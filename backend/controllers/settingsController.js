@@ -651,7 +651,7 @@ exports.updateTakeawaySetting = async (req, res) => {
       [hotelid, outletid, departmentid, created_by_id, settingid]
     );
 
-    if (result.affectedRows === 0) {
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Takeaway setting not found' });
     }
 
@@ -661,3 +661,72 @@ exports.updateTakeawaySetting = async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 };
+
+// ------------------------------------------
+// 🚀 UI Mode Settings (NEW)
+// ------------------------------------------
+
+/**
+ * Get UI Mode setting by outletid
+ */
+exports.getUIMode = async (req, res) => {
+  try {
+    const { outletid } = req.params;
+
+    const rows = await getAll(
+      "SELECT ui_mode FROM mst_setting WHERE outletid = ? LIMIT 1",
+      [outletid]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.json({ ui_mode: 'Orders' }); // Default
+    }
+
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('UI Mode GET ERROR:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+/**
+ * Save/Update UI Mode setting by outletid (UPSERT pattern)
+ */
+exports.saveUIMode = async (req, res) => {
+  try {
+    const {
+      ui_mode,
+      hotelid,
+      outletid,
+      created_by_id
+    } = req.body;
+
+    if (!ui_mode || !outletid || !created_by_id) {
+      return res.status(400).json({ error: 'ui_mode, outletid, and created_by_id are required' });
+    }
+
+    // First try UPDATE
+    let result = await runQuery(
+      `UPDATE mst_setting 
+       SET ui_mode = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE outletid = ?`,
+      [ui_mode, outletid]
+    );
+
+    if (result.changes === 0) {
+      // INSERT if no existing record
+      await runQuery(
+        `INSERT INTO mst_setting (hotelid, outletid, ui_mode, departmentid, created_by_id)
+         VALUES (?, ?, ?, 1, ?)`, // default departmentid=1
+        [hotelid || 1, outletid, ui_mode, created_by_id]
+      );
+    }
+
+    res.json({ success: true, msg: 'UI Mode setting saved successfully', ui_mode });
+  } catch (e) {
+    console.error('UI Mode SAVE ERROR:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+};
+

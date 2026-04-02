@@ -1,40 +1,60 @@
-## Default Page Setting Implementation - TODO
+# UI Mode Save Fix - Progress Tracker
 
-### Completed: [0/10]
+## ✅ Approved Plan Steps
 
-**BACKEND (3 steps):**
-- [x] 1. Add `default_page` column to `mst_setting` table (ENUM('POS','Orders') DEFAULT 'POS') [Manual DB migration needed]
-- [x] 2. `backend/controllers/settingsController.js` - Added getDefaultPageSettings/getDefaultPage/upsertDefaultPage ✓
-- [x] 3. `backend/routes/settingsRoutes.js` - Added /default-page routes ✓
+### ⬜ Step 1: Create TODO.md [DONE]
+- Track all implementation steps
 
-**FRONTEND API & CONTEXT (3 steps):**
-- [x] 4. `src/common/api/settings.ts` - Added getDefaultPage/saveDefaultPage ✓
-- [x] 5. Created `src/common/context/DefaultPageContext.tsx` ✓
-- [x] 6. `src/App.tsx` - Wrapped with DefaultPageProvider ✓
+### ⬜ Step 2: Edit src/views/apps/Settings.tsx
+**Changes**:
+- Add `disabled={uiLoading || !selectedOutlet}` to UI Mode Form.Select
+- Add warning message: `!selectedOutlet && !uiLoading ? '⚠️ Select outlet first'`
+- Add console.log for condition failure
+- Auto-select first outlet on component mount if available
+- Ensure useEffect deps correct for UI mode loading
 
-**UI & MENU (2 steps):**
-- [ ] 7. `src/views/apps/Settings.tsx` - Add "Default Page" dropdown in General tab
-- [ ] 8. `src/Layouts/Menu.tsx` - Filter MENU_ITEMS based on defaultPage context
+### ⬜ Step 3: Test Changes
+```
+1. npm run dev (or restart backend/frontend)
+2. Open Settings → General tab
+3. Select outlet first → Change UI Mode → Verify:
+   ✅ Console: '💾 Saving UI Mode: {...}'
+   ✅ Network: PUT /settings/ui-mode
+   ✅ Message: '✅ UI Mode updated successfully!'
+   ✅ DB: mst_setting.ui_mode updated for outletid
+```
 
-**ROUTE PROTECTION (1 step):**
-- [ ] 9. `src/routes/PrivateRoute.tsx` - Add route guards for /apps/orders & /apps/Tableview
+### ⬜ Step 4: Verify Backend
+```
+Check if backend server running and /settings/ui-mode endpoint accessible
+Check browser Network tab for 200 OK response
+```
 
-**TESTING (1 step):**
-- [ ] 10. Test full flow + Backend restart + Frontend dev server
+### ⬜ Step 5: attempt_completion
+```
+✅ Task complete: UI Mode now saves reliably with proper UX feedback
+```
 
-**FRONTEND API & CONTEXT (3 steps):**
-- [ ] 4. `src/common/api/settings.ts` - Add getDefaultPage/saveDefaultPage API calls
-- [ ] 5. Create `src/common/context/DefaultPageContext.tsx` - Provider + fetch logic
-- [ ] 6. `src/App.tsx` - Wrap app with DefaultPageProvider
+## ✅ Completed (2/5)
+### ✅ Step 1: Create TODO.md [DONE]
+### ✅ Step 2: Edit src/views/apps/Settings.tsx [DONE]
 
-**UI & MENU (2 steps):**
-- [ ] 7. `src/views/apps/Settings.tsx` - Add "Default Page" dropdown in General tab
-- [ ] 8. `src/Layouts/Menu.tsx` - Filter MENU_ITEMS based on defaultPage context
+### ⬜ Step 3: Test Changes
+```
+1. npm run dev (or restart backend/frontend)
+2. Open Settings → General tab
+3. Change UI Mode → Verify:
+   ✅ Console: '🔄 UI Mode change attempt' + '💾 Saving UI Mode'
+   ✅ Warning if no outlet: '⚠️ Please select an outlet first'
+   ✅ Success message + toast
+   ✅ Network: PUT /settings/ui-mode → 200 OK
+```
 
-**ROUTE PROTECTION (1 step):**
-- [ ] 9. `src/routes/PrivateRoute.tsx` / `src/routes/index.tsx` - Add route guards for /apps/orders & /apps/Tableview
+### ⬜ Step 4: Backend/DB Verification
+- Check server logs
+- Verify mst_setting.ui_mode column updated
 
-**TESTING (1 step):**
-- [ ] 10. Test full flow + Backend restart (`cd backend && npm start`) + Frontend dev server
+### ⬜ Step 5: attempt_completion
 
-**Next Step:** Backend DB migration → settingsController → settingsRoutes
+**Current Progress**: 2/5 steps complete  
+**Next**: Test the fix

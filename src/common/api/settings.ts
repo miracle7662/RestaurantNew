@@ -198,6 +198,20 @@ saveTakeawaySetting: (payload: {
     return HttpClient.put('/settings/takeaway', payload);
   },
 
+  // UI Mode Settings
+  getUIMode: (outletid: number) => {
+    return HttpClient.get<any>(`/settings/ui-mode/${outletid}`);
+  },
+
+  saveUIMode: (payload: {
+    ui_mode: string;
+    hotelid?: number;
+    outletid: number;
+    created_by_id: number;
+  }) => {
+    return HttpClient.put('/settings/ui-mode', payload);
+  },
+
   /**
    * Get mst_setting departmentid by outletid for tax selection
    */
