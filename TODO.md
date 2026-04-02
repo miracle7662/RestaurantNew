@@ -1,17 +1,20 @@
-## TODO: Fix handlePrintKotAndBill → Bill Preview Items Not Showing
+# Task: Navigate to Table Grid Page after handlePrintKotAndBill
 
-### ✅ Plan Approved - Step-by-Step Implementation
+## Plan Implementation Steps
 
-**Step 1 [IN PROGRESS]** ⏳ Read BillPrint.tsx to confirm items rendering logic  
-**Step 2** ✏️ Edit Orders.tsx: Add `setPrintItems(items.filter(item => item.qty > 0))` in `handlePrintBill()`  
-**Step 3** 🔍 Update `resetBillingPanel()` to clear bill print states  
-**Step 4** 🧪 Test F9/F10 bill print flow (Quick Bill + Dine-in)  
-**Step 5** ✅ Run `npm run dev` → Verify items show in bill preview modal  
-**Step 6** 🎉 attempt_completion
+### 1. ✅ Create TODO.md
+### 2. ✅ Edit src/views/apps/Transaction/Orders.tsx
+   - ✅ Added navigation timeout block in handlePrintKotAndBill after print success
+   
+### 3. ✅ Optional: Update BillPrintModal onHide
+   - ✅ Existing onHide already handles navigation via resetBillingPanel + fetchTableManagement
 
-**Expected Result**: Items data renders correctly in BillPreviewPrint modal when pressing F9/F10.
+### 4. 🟢 Test Changes
+   - npm run dev
+   - Quick Bill tab → Add items → Print KOT & Bill (F9) → Verify navigates to Dine-in ALL table grid
+   - Check table turns red (status=2)
+   - Test other flows (regular KOT, settlement) unchanged
 
----
+### 5. 🟢 attempt_completion
 
-*Progress tracked automatically. Steps marked as completed when tools confirm success.*
-
+**Progress: 4/5 Complete**

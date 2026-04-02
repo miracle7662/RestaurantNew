@@ -217,6 +217,8 @@ const Order = () => {
   const [tip, setTip] = useState<number>(0);
   const [kotNote, setKotNote] = useState<string>('');
   const [billPrintItems, setBillPrintItems] = useState<MenuItem[]>([]);
+  const [printTaxCalc, setPrintTaxCalc] = useState(taxCalc);
+const [printKotNo, setPrintKotNo] = useState<number | null>(null);
 
   // States for Pending Orders Modal (Pickup/Delivery)
   const [showPendingOrdersView, setShowPendingOrdersView] = useState<boolean>(false);
@@ -1595,13 +1597,19 @@ const Order = () => {
     }
   };
 
- const handlePrintKotAndBill = async () => {
+const handlePrintKotAndBill = async () => {
   try {
     setLoading(true);
 
-    // ✅ Store current items BEFORE any operation
+    // ✅ STEP 1: Snapshot everything BEFORE async calls
     const currentItems = [...items];
-    setBillPrintItems(currentItems); // Store in state for BillPreviewPrint
+    const currentTaxCalc = { ...taxCalc };
+    const currentKotNo = currentKOTNo;
+
+    // ✅ Store snapshot for printing
+    setBillPrintItems(currentItems);
+    setPrintTaxCalc(currentTaxCalc);
+    setPrintKotNo(currentKotNo);
 
     // 1️⃣ Save KOT
     const txnId = await handlePrintAndSaveKOT();
@@ -1610,7 +1618,7 @@ const Order = () => {
       throw new Error("TxnID not found after KOT save");
     }
 
-    // 2️⃣ Mark bill as billed and print
+    // 2️⃣ Mark bill as billed
     const printResult = await OrderService.markBillAsBilled(txnId, {
       outletId: selectedOutletId || Number(user?.outletid),
       customerName: customerName || null,
@@ -1619,29 +1627,39 @@ const Order = () => {
     });
 
     if (!printResult.success) {
-      throw new Error(printResult.message || 'Failed to mark bill as printed.');
+      throw new Error(printResult.message || "Failed to mark bill as printed.");
     }
 
-    toast.success('Bill marked as printed!');
+    toast.success("Bill marked as printed!");
 
-    // Set the TxnNo
-    if (printResult.data && printResult.data.TxnNo) {
+    // ✅ Set TxnNo (Order No)
+    if (printResult.data?.TxnNo) {
       setOrderNo(printResult.data.TxnNo);
     }
 
-    // ✅ Show bill print modal with stored items
+    // ✅ STEP 3: Show modal AFTER everything is ready
     setShowBillPrintModal(true);
 
     toast.success("KOT and Bill printed successfully!");
-
     setShowPrintBoth(false);
-    
-    // Clear items only after everything is done
-    if (activeTab !== 'Quick Bill') {
+
+    // ✅ STEP 4: Clear AFTER modal trigger (safe)
+    if (activeTab !== "Quick Bill") {
       setItems([]);
       setCurrentTxnId(null);
       setOrderNo(null);
     }
+     setTimeout(() => {
+      setActiveTab('Dine-in');
+      setActiveNavTab('ALL');
+      setShowOrderDetails(false);
+      
+      fetchTableManagement();
+      if (tableSearchInputRef.current) {
+        tableSearchInputRef.current.focus();
+        tableSearchInputRef.current.select();
+      }
+    }, 150);
 
   } catch (error: any) {
     toast.error(error.message || "Failed to print KOT and Bill");
@@ -1924,7 +1942,9 @@ const Order = () => {
           }
           setIsPrintMode(false);
           // 🔥 HARD RESET after KOT save
-          setItems([]);
+           if (activeTab !== 'Quick Bill') {
+            setItems([]);
+          }
           setPrintItems([]);
           setReverseQtyItems([]);
           setReversedItems([]);
@@ -5033,7 +5053,7 @@ const Order = () => {
             customerName={customerName}
             mobileNumber={mobileNumber}
             currentTxnId={currentTxnId?.toString()}
-            taxCalc={taxCalc}
+            taxCalc={printTaxCalc}
             taxRates={taxRates}
             discount={discount}
             reason={reason}
