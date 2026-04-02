@@ -436,13 +436,13 @@ const MENU_ITEMS: MenuItemTypes[] = [
   //   parentKey: 'apps',
   // },
 
-    {
-    key: 'BackdatedDayEndReport',
-    label: 'Backdated DayEnd Report',
-    url: '/apps/Masters/Reports/BackdatedDayEndReport',
-    icon: 'fi fi-rr-print',
-    parentKey: 'apps',
-  },
+  //   {
+  //   key: 'BackdatedDayEndReport',
+  //   label: 'Backdated DayEnd Report',
+  //   url: '/apps/Masters/Reports/BackdatedDayEndReport',
+  //   icon: 'fi fi-rr-print',
+  //   parentKey: 'apps',
+  // },
 
   //  {
   //   key: 'KotPrint',

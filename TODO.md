@@ -1,15 +1,9 @@
-# Role-Based Menu Implementation Plan
+# Task: Superadmin login shows only Brand.tsx in sidebar
 
-Current progress: [x] 25% complete
-
-## Steps:
-- [x] Step 1: Update src/common/menu/index.ts - Extract role-based menus and add getRoleBasedMenuItems(role, uiMode) function.
-- [x] Step 2: Update src/Layouts/Navigation.tsx - Import useUser, get role_level, use new role-based menu filter.
-- [ ] Step 3: Test login as outlet_user and hotel_admin to verify menus.
-- [ ] Step 4: Run npm run dev, verify no errors.
-
-**Details:** 
-- Roles: 'outlet_user' shows POS/Orders/Settlement.../Logout.
-- 'hotel_admin' shows HotelAdmin/Brand/HotelConfigration/Masters etc.
-- Preserve uiMode filter (POS/Tableview toggle).
+## Steps to complete:
+- [x] 1. Create TODO.md with plan steps
+- [x] 2. Edit src/common/menu/index.ts to add superadmin-specific menu with only Brand item
+- [x] 3. Verify the change
+- [ ] 4. Test superadmin login sidebar
+- [ ] 5. attempt_completion
 
