@@ -1,18 +1,15 @@
-# Backdated Day End Report Integration - TODO
+# Role-Based Menu Implementation Plan
 
-## Plan Progress Tracker
+Current progress: [x] 25% complete
 
-✅ **Step 1: Create TODO.md** - Tracking started
+## Steps:
+- [x] Step 1: Update src/common/menu/index.ts - Extract role-based menus and add getRoleBasedMenuItems(role, uiMode) function.
+- [x] Step 2: Update src/Layouts/Navigation.tsx - Import useUser, get role_level, use new role-based menu filter.
+- [ ] Step 3: Test login as outlet_user and hotel_admin to verify menus.
+- [ ] Step 4: Run npm run dev, verify no errors.
 
-**Step 2: Implement plan in DailySalesReport.tsx** ⏳ [PENDING]
-- Add required imports
-- Add backdatedDate state + generate function  
-- Replace renderDayEndSection() with backdated UI
-- Set default date from customRange
+**Details:** 
+- Roles: 'outlet_user' shows POS/Orders/Settlement.../Logout.
+- 'hotel_admin' shows HotelAdmin/Brand/HotelConfigration/Masters etc.
+- Preserve uiMode filter (POS/Tableview toggle).
 
-**Step 3: Test functionality** ⏳ [PENDING]  
-- Select "Day End Report" → button appears
-- Pick date → Generate → Preview opens
-- Print works via DayEndReportPreview
-
-**Step 4: attempt_completion** ⏳ [PENDING]

@@ -1,4 +1,5 @@
 import { HORIZONTAL_MENU_ITEMS, MENU_ITEMS, MenuItemTypes } from '@/constants/menu'
+
 const getMenuItems = () => {
   return MENU_ITEMS
 }
@@ -26,6 +27,27 @@ export const getFilteredMenuItems = (items: MenuItemTypes[], uiMode: string): Me
   }).filter(Boolean) as MenuItemTypes[]; // Remove nulls
 };
 
+// Role-based menu extraction
+const OUTLET_USER_END_INDEX = MENU_ITEMS.findIndex(item => item.key === 'HotelAdmin');
+const outletUserMenu: MenuItemTypes[] = MENU_ITEMS.slice(0, OUTLET_USER_END_INDEX).filter(item => 
+  item.key !== 'KotTransfer' && item.key !== 'Reports' // Ignore commented items
+);
+
+const hotelAdminMenu: MenuItemTypes[] = MENU_ITEMS.slice(OUTLET_USER_END_INDEX);
+
+export const getRoleBasedMenuItems = (role: string, uiMode: string): MenuItemTypes[] => {
+  let baseMenu: MenuItemTypes[];
+  if (role === 'hotel_admin') {
+    baseMenu = hotelAdminMenu;
+  } else if (role === 'outlet_user') {
+    baseMenu = outletUserMenu;
+  } else {
+    baseMenu = outletUserMenu; // default to outlet
+  }
+  
+  // Apply uiMode filter recursively
+  return getFilteredMenuItems(baseMenu, uiMode);
+};
 
 const getHorizontalMenuItems = () => {
   return HORIZONTAL_MENU_ITEMS
@@ -60,4 +82,5 @@ const findMenuItem = (
   return null
 }
 
-export { findAllParent, findMenuItem, getMenuItems, getHorizontalMenuItems }
+export { findAllParent, findMenuItem, getMenuItems, getHorizontalMenuItems,  outletUserMenu, hotelAdminMenu }
+
