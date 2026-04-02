@@ -237,7 +237,7 @@ export const fetchCountries = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch countries')
-    console.error('Fetch countries error:', err)
+    // console.error('Fetch countries error:', err)
     setCountryItems([])
   }
 }
@@ -257,7 +257,7 @@ export const fetchStates = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch states')
-    console.error('Fetch states error:', err)
+    // console.error('Fetch states error:', err)
   }
 }
 
@@ -278,7 +278,7 @@ export const fetchCities = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch cities')
-    console.error('Fetch cities error:', err)
+    // console.error('Fetch cities error:', err)
   }
 }
 
@@ -298,7 +298,7 @@ export const fetchMarkets = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch markets')
-    console.error('Fetch markets error:', err)
+    // console.error('Fetch markets error:', err)
   }
 }
 
@@ -311,7 +311,7 @@ export const fetchHotelType = async (
     const response = await HotelTypeService.list()
     // HttpClient returns the unwrapped response due to interceptor
     const data: HotelTypeItem[] = Array.isArray(response.data) ? response.data : (response as any).data || []
-    console.log('Fetched hotel types:', data)
+    // console.log('Fetched hotel types:', data)
     setHoteltype(data)
 
     if (data.length > 0) {
@@ -323,7 +323,7 @@ export const fetchHotelType = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch hotel types')
-    console.error('Fetch hotel type error:', err)
+    // console.error('Fetch hotel type error:', err)
   }
 }
 
@@ -347,7 +347,7 @@ export const fetchKitchenCategory = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch kitchen categories')
-    console.error('Fetch kitchen categories error:', err)
+    // console.error('Fetch kitchen categories error:', err)
     setKitchen_Category([])
   }
 }
@@ -371,7 +371,7 @@ export const fetchKitchenMainGroup = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch kitchen main groups')
-    console.error('Fetch kitchen main groups error:', err)
+    // console.error('Fetch kitchen main groups error:', err)
     setKitchen_main_Group([])
   }
 }
@@ -391,7 +391,7 @@ export const fetchKitchenSubCategory = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch kitchen sub categories')
-    console.error('Fetch kitchen sub categories error:', err)
+    // console.error('Fetch kitchen sub categories error:', err)
   }
 }
 
@@ -411,7 +411,7 @@ export const fetchItemGroup = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch item groups')
-    console.error('Fetch item groups error:', err)
+    // console.error('Fetch item groups error:', err)
     setItemGroup([])
   }
 }
@@ -432,7 +432,7 @@ export const fetchItemMainGroup = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch item main groups')
-    console.error('Fetch item main groups error:', err)
+    // console.error('Fetch item main groups error:', err)
     setItemMainGroup([])
   }
 }
@@ -453,7 +453,7 @@ export const fetchItemGroupsWithMenuItems = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch item groups with menu items')
-    console.error('Fetch item groups with menu items error:', err)
+    // console.error('Fetch item groups with menu items error:', err)
     setItemGroup([])
   }
 }
@@ -473,7 +473,7 @@ export const fetchDesignation = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch designations')
-    console.error('Fetch designations error:', err)
+    // console.error('Fetch designations error:', err)
     setDesignation([])
   }
 }
@@ -493,7 +493,7 @@ export const fetchUserType = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch user types')
-    console.error('Fetch user types error:', err)
+    // console.error('Fetch user types error:', err)
     setUserType([])
   }
 }
@@ -523,7 +523,7 @@ export const fetchMenu = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch menu categories')
-    console.error('Fetch menu categories error:', err)
+    // console.error('Fetch menu categories error:', err)
     setMenuCategory([])
   }
 }
@@ -534,13 +534,13 @@ export const fetchTableManagement = async (
   currenttablemanagementid?: string,
 ) => {
   try {
-    console.log('Fetching table management from API')
+    // console.log('Fetching table management from API')
     const response = await TableManagementService.list()
-    console.log('Table management response:', response)
+    // console.log('Table management response:', response)
     // HttpClient returns the unwrapped response due to interceptor
     if (response.success) {
       const data: TableItem[] = Array.isArray(response.data) ? response.data : (response as any).data || []
-      console.log('Table management data:', data)
+      // console.log('Table management data:', data)
       setTableManagement(data)
       if (data.length > 0 && !currenttablemanagementid) {
         settablemanagementid(data[0].tablemanagementid)
@@ -550,7 +550,7 @@ export const fetchTableManagement = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch table management')
-    console.error('Fetch table management error:', err)
+    // console.error('Fetch table management error:', err)
     setTableManagement([])
   }
 }
@@ -571,7 +571,7 @@ export const fetchData = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch tax groups')
-    console.error('Fetch tax groups error:', err)
+    // console.error('Fetch tax groups error:', err)
     setTaxGroup([])
   }
 }
@@ -592,7 +592,7 @@ export const fetchunitmaster = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch stock units')
-    console.error('Fetch stock units error:', err)
+    // console.error('Fetch stock units error:', err)
     setStockUnits([])
   }
 }
@@ -602,7 +602,7 @@ export const fetchBrands = async (
   setBrands: (brands: Brand[]) => void,
 ): Promise<void> => {
   try {
-    console.log('Fetching brands for user:', user)
+    // console.log('Fetching brands for user:', user)
     const params: { role_level?: string; hotelid?: number } = {}
 
     if (user?.role_level) {
@@ -614,18 +614,18 @@ export const fetchBrands = async (
 
     // HttpClient interceptor unwraps the response, so we get data directly
     const data = await OutletService.getBrands(params)
-    console.log('Brands response:', data)
+    // console.log('Brands response:', data)
 
     if (Array.isArray(data)) {
       setBrands(data)
     } else if (data?.data && Array.isArray(data.data)) {
       setBrands(data.data)
     } else {
-      console.error('Invalid brands response format:', data)
+      // console.error('Invalid brands response format:', data)
       toast.error('Invalid response from server')
     }
   } catch (error: any) {
-    console.error('Error fetching brands:', error)
+    // console.error('Error fetching brands:', error)
     toast.error(error?.message || 'Failed to fetch brands. Please check if the backend server is running.')
   }
 }
@@ -637,7 +637,7 @@ export const fetchOutlets = async (
 ) => {
   try {
     setLoading(true)
-    console.log('Fetching outlets...')
+    // console.log('Fetching outlets...')
 
     const params: any = {
       role_level: user?.role_level,
@@ -655,17 +655,17 @@ export const fetchOutlets = async (
       params.created_by_id = user.userid
     }
 
-    console.log('Fetching outlets with params:', params)
-    console.log('Current user details:', {
-      userid: user?.userid,
-      role_level: user?.role_level,
-      brand_id: user?.brand_id,
-      hotelid: user?.hotelid,
-      outletid: params.outletid,
-    })
+    // console.log('Fetching outlets with params:', params)
+    // console.log('Current user details:', {
+    //   userid: user?.userid,
+    //   role_level: user?.role_level,
+    //   brand_id: user?.brand_id,
+    //   hotelid: user?.hotelid,
+    //   outletid: params.outletid,
+    // })
 
     const response = await OutletService.getOutlets(params)
-    console.log('Outlet response:', response)
+    // console.log('Outlet response:', response)
 
     if (response && response.data) {
       const sortedOutlets = response.data.sort((a: any, b: any) => {
@@ -673,11 +673,11 @@ export const fetchOutlets = async (
       })
       setOutlets(sortedOutlets)
     } else {
-      console.error('Invalid response format:', response)
+      // console.error('Invalid response format:', response)
       toast.error('Invalid response from server')
     }
   } catch (error: any) {
-    console.error('Error fetching outlets:', error)
+    // console.error('Error fetching outlets:', error)
     toast.error(error?.message || 'Failed to fetch outlets. Please check if the backend server is running.')
   } finally {
     setLoading(false)
@@ -691,7 +691,7 @@ export const fetchOutletsForDropdown = async (
 ) => {
   try {
     setLoading(true)
-    console.log('Fetching outlets for dropdown...')
+    // console.log('Fetching outlets for dropdown...')
 
     const params = {
       role_level: user?.role_level || 'outlet_user',
@@ -700,30 +700,30 @@ export const fetchOutletsForDropdown = async (
       brandId: user?.brand_id || null,
     }
 
-    console.log('Fetching dropdown outlets with params:', params)
-    console.log('Current user details:', {
-      userid: user?.id,
-      role_level: user?.role_level,
-      brand_id: user?.brand_id,
-      hotelid: user?.hotelid,
-    })
+    // console.log('Fetching dropdown outlets with params:', params)
+    // console.log('Current user details:', {
+    //   userid: user?.id,
+    //   role_level: user?.role_level,
+    //   brand_id: user?.brand_id,
+    //   hotelid: user?.hotelid,
+    // })
 
     const response = await OutletService.getOutletsForDropdown(params)
-    console.log('Dropdown outlet response:', response)
+    // console.log('Dropdown outlet response:', response)
 
     if (response && response.data) {
       const sortedOutlets = response.data.sort((a: any, b: any) => {
         return a.outlet_name.localeCompare(b.outlet_name)
       })
       setOutlets(sortedOutlets)
-      console.log('Sorted outlets set:', sortedOutlets)
+      // console.log('Sorted outlets set:', sortedOutlets)
     } else {
-      console.error('Invalid response format:', response)
+      // console.error('Invalid response format:', response)
       toast.error('No outlets found or invalid response from server')
       setOutlets([])
     }
   } catch (error: any) {
-    console.error('Error fetching dropdown outlets:', error)
+    // console.error('Error fetching dropdown outlets:', error)
     if (error.response?.status === 404) {
       toast.error('Outlets endpoint not found. Please check backend route configuration.')
     } else if (error.response?.status === 400) {
@@ -753,7 +753,7 @@ export const fetchShiftTypes = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch shift types')
-    console.error('Fetch shift types error:', err)
+    // console.error('Fetch shift types error:', err)
     setShiftTypes([])
   }
 }
@@ -770,7 +770,7 @@ export const fetchWarehouses = async (
     setWarehouses(data)
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch warehouses')
-    console.error('Fetch warehouses error:', err)
+    // console.error('Fetch warehouses error:', err)
     setWarehouses([])
   } finally {
     setLoading(false)
@@ -785,11 +785,11 @@ export const fetchTableDepartment = async (
 ) => {
   try {
     const response = await TableDepartmentService.list({ hotelid })
-    console.log('Table departments response:', response)
+    // console.log('Table departments response:', response)
     // HttpClient returns the unwrapped response due to interceptor
     if (response.success) {
       const data: TableDepartmentItem[] = Array.isArray(response.data) ? response.data : (response as any).data || []
-      console.log('Table departments data:', data)
+      // console.log('Table departments data:', data)
       setTableDepartment(data)
       if (data.length > 0 && !currenttabledepartmentid) {
         settabledepartmentid(data[0].departmentid)
@@ -799,7 +799,7 @@ export const fetchTableDepartment = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch table departments')
-    console.error('Fetch table departments error:', err)
+    // console.error('Fetch table departments error:', err)
     setTableDepartment([])
   }
 }
@@ -816,11 +816,11 @@ export const fetchUsers = async (
       hotelId: user?.hotelid,
       outletid: user?.outletid,
     }
-    console.log('Fetching users with params:', params)
-    console.log('User object:', user)
+    // console.log('Fetching users with params:', params)
+    // console.log('User object:', user)
 
     const response = await OutletUserService.getOutletUsers(params)
-    console.log('Users data received:', response.data)
+    // console.log('Users data received:', response.data)
     // HttpClient returns the unwrapped response due to interceptor
     const data: UserItem[] = Array.isArray(response.data) ? response.data : (response as any).data || []
     setUsers(data)
@@ -829,7 +829,7 @@ export const fetchUsers = async (
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch users')
-    console.error('Fetch users error:', err)
+    // console.error('Fetch users error:', err)
     setUsers([])
   }
 }
@@ -842,7 +842,7 @@ export const fetchCustomerByMobile = async (
 ) => {
   try {
     const response = await CustomerService.getByMobile(value)
-    console.log('Customer API response:', response)
+    // console.log('Customer API response:', response)
 
     // HttpClient returns the unwrapped response due to interceptor
     if (response.success === true && response.data && (response.data as any).customerid) {
@@ -850,20 +850,20 @@ export const fetchCustomerByMobile = async (
       setCustomerName(customer.name)
       setCustomerId(customer.customerid)
       setCustomerAddress(`${customer.address1 || ''} ${customer.address2 || ''}`.trim())
-      console.log('Customer found:', customer.name)
+      // console.log('Customer found:', customer.name)
     } else {
       setCustomerName('')
       setCustomerAddress('')
-      console.log('Customer not found')
+      // console.log('Customer not found')
       setCustomerId(null)
     }
   } catch (err: any) {
-    console.error('Customer fetch error:', err)
+    // console.error('Customer fetch error:', err)
     // For 404, treat as customer not found
     if (err?.message?.includes('404') || err?.response?.status === 404) {
       setCustomerName('')
       setCustomerAddress('')
-      console.log('Customer not found (404)')
+      // console.log('Customer not found (404)')
       setCustomerId(null)
     } else {
       setCustomerName('')
@@ -881,7 +881,7 @@ export const getTaxesByOutletAndDepartment = async (params: { outletid?: number;
     // HttpClient returns the unwrapped response due to interceptor
     return (response as any).data || response
   } catch (err: any) {
-    console.error('Error fetching taxes:', err)
+    // console.error('Error fetching taxes:', err)
     return { success: false }
   }
 }

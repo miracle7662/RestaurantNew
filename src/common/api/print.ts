@@ -68,7 +68,7 @@ const PrintService = {
         outletDetails: outletRes.data
       }
     } catch (error) {
-      console.error('Failed to fetch print settings:', error)
+      // console.error('Failed to fetch print settings:', error)
       throw error
     }
   }

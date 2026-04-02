@@ -50,7 +50,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         const parsedSession = JSON.parse(storedSession);
         setSessionState(parsedSession);
       } catch (error) {
-        console.error('Error parsing stored session:', error);
+        // console.error('Error parsing stored session:', error);
       }
     }
   }, []);

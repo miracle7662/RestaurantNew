@@ -112,7 +112,7 @@ const ReportService = {
       )
       return response
     } catch (error) {
-      console.error('Error fetching daily sales report:', error)
+      // console.error('Error fetching daily sales report:', error)
       throw error
     }
   },
@@ -129,7 +129,7 @@ const ReportService = {
       )
       return response
     } catch (error) {
-      console.error('Error fetching payment modes:', error)
+      // console.error('Error fetching payment modes:', error)
       throw error
     }
   }

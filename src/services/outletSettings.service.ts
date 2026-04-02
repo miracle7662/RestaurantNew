@@ -31,7 +31,7 @@ export const fetchBillSettings = async (outletId: number): Promise<{ billPreview
       billPrintSettings: billPrintRes?.data ?? billPrintRes
     };
   } catch (error: any) {
-    console.error('Failed to fetch bill settings:', error);
+    // console.error('Failed to fetch bill settings:', error);
     // Return empty objects on error to prevent crashes
     return {
       billPreviewSettings: {},

@@ -149,7 +149,7 @@ class APICore {
     const decoded: any = jwtDecode(user.token)
     const currentTime = Date.now() / 1000
     if (decoded.exp < currentTime) {
-      console.warn('access token expired')
+      // console.warn('access token expired')
       return false
     } else {
       return true
