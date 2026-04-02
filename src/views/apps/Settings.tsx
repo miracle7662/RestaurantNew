@@ -15,6 +15,7 @@ import { fetchOutlets } from '../../utils/commonfunction';
 import { OutletData } from '../../common/api/outlet';
 import { useAuthContext } from "@/common/context/useAuthContext";
 import SettingsService from '@/common/api/settings';
+import { useUIModeContext } from '@/common/context';
 
 
 interface KotPrinterSetting {
@@ -170,8 +171,8 @@ function SettingsPage() {
   const [saveMessage, setSaveMessage] = useState('');
 
   // UI Mode states
-  const [uiMode, setUiMode] = useState('Orders');
-  const [uiLoading, setUiLoading] = useState(false);
+  const { uiMode, updateUIMode } = useUIModeContext();
+  const [uiLoading, ] = useState(false);
   const [uiSaveMessage, setUiSaveMessage] = useState('');
 
   const [labelPrinterName, setLabelPrinterName] = useState("");
@@ -291,32 +292,7 @@ function SettingsPage() {
   // Fetch current UI Mode setting & auto-select outlet
  
   // Fetch current UI Mode setting
-  useEffect(() => {
-    const fetchUIMode = async () => {
-      if (!user || !selectedOutlet) return;
-      try {
-        console.log('🔍 fetchUIMode: outletId =', selectedOutlet);
-        setUiLoading(true);
-        const response = await SettingsService.getUIMode(selectedOutlet);
-        console.log('📥 fetchUIMode response:', response);
-        
-        if (response && response.ui_mode) {
-          setUiMode(response.ui_mode);
-        } else {
-          console.log('No ui_mode found, defaulting to Orders');
-          setUiMode('Orders');
-        }
-      } catch (err) {
-        console.error('❌ fetchUIMode ERROR:', err);
-        toast.error('Failed to load UI Mode');
-        setUiMode('Orders');
-      } finally {
-        setUiLoading(false);
-      }
-    };
-
-    fetchUIMode();
-  }, [user, selectedOutlet]);
+  // UI Mode auto-managed by context
 
   // Fetch report printer settings on component mount
   useEffect(() => {
@@ -999,52 +975,28 @@ function SettingsPage() {
                     <Form.Select
                       value={uiMode}
                       onChange={async (e) => {
-                        const newUIMode = e.target.value;
-                        console.log('🔄 UI Mode change attempt:', { newUIMode, hasUser: !!user, hasOutlet: !!selectedOutlet });
-                        
-                        if (!user) {
-                          console.warn('⚠️ Save blocked: No user logged in');
-                          toast.warning('Please login first');
-                          return;
-                        }
-                        
-                       
-                        
-                        setUiMode(newUIMode);
-                        setUiLoading(true);
-                        
+                        const newUIMode = e.target.value as 'Orders' | 'Tableview';
                         try {
-                          const payload = {
-                            ui_mode: newUIMode,
-                            hotelid: user.hotelid,
-                            outletid: user.outletid || 1,
-                            created_by_id: user.id || 1
-                          };
-                          console.log('💾 Saving UI Mode:', payload);
-                          await SettingsService.saveUIMode(payload);
+                          await updateUIMode(newUIMode);
                           setUiSaveMessage('✅ UI Mode updated successfully!');
                           toast.success('UI Mode updated!');
                           setTimeout(() => setUiSaveMessage(''), 2000);
                         } catch (err) {
-                          console.error('❌ UI Mode save failed:', err);
                           setUiSaveMessage('❌ Save failed');
                           toast.error('Failed to save UI Mode');
-                          // Revert on error
-                          setUiMode(uiMode);
-                        } finally {
-                          setUiLoading(false);
                         }
                       }}
                       disabled={uiLoading || !user}
                     >
-                      <option value="Orders">Orders</option>
-                      <option value="POS">POS</option>
+                      <option value="POS"> POS </option>
+                      <option value="Orders"> Orders </option>
                     </Form.Select>
                     {uiSaveMessage && (
                       <div className={`small mt-1 ${uiSaveMessage.includes('✅') ? 'text-success' : 'text-danger'}`}>
                         {uiSaveMessage}
                       </div>
                     )}
+                   
                     
                   </Form.Group>
                 </Col>

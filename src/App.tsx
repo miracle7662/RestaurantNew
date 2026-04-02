@@ -11,11 +11,15 @@ import './assets/scss/theme.scss'
 
 configureBackend()
 
+import { UIModeProvider } from './common/context'
+
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <ThemeRoutes />
+        <UIModeProvider>
+          <ThemeRoutes />
+        </UIModeProvider>
       </AuthProvider>
     </ThemeProvider>
   )

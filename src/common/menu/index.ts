@@ -3,6 +3,30 @@ const getMenuItems = () => {
   return MENU_ITEMS
 }
 
+export const getFilteredMenuItems = (items: MenuItemTypes[], uiMode: string): MenuItemTypes[] => {
+  return items.map(item => {
+    // Recursively filter children
+    const filteredChildren = item.children ? getFilteredMenuItems(item.children, uiMode) : undefined;
+    
+    // Filter POS/Tableview based on uiMode (parentKey: 'apps')
+    if (item.parentKey === 'apps') {
+      if (uiMode === 'Tableview' && item.key === '  Orders') {
+        return null; // Hide POS
+      }
+      if (uiMode !== 'Tableview' && item.key === 'Tableview') {
+        return null; // Hide Tableview
+      }
+    }
+    
+    // Keep item if not filtered, with filtered children
+    return {
+      ...item,
+      children: filteredChildren?.length ? filteredChildren : undefined
+    };
+  }).filter(Boolean) as MenuItemTypes[]; // Remove nulls
+};
+
+
 const getHorizontalMenuItems = () => {
   return HORIZONTAL_MENU_ITEMS
 }
