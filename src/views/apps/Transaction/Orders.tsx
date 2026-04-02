@@ -1611,9 +1611,11 @@ const Order = () => {
       toast.success("KOT and Bill printed successfully!");
 
       setShowPrintBoth(false);
-      setItems([]);
-      setCurrentTxnId(null);
-      setOrderNo(null);
+      if (activeTab !== 'Quick Bill') {
+        setItems([]);
+        setCurrentTxnId(null);
+        setOrderNo(null);
+      }
 
 
     } catch (error: any) {
@@ -1896,8 +1898,10 @@ const Order = () => {
             );
           }
           setIsPrintMode(false);
-          // 🔥 HARD RESET after KOT save
-          setItems([]);
+          // 🔥 HARD RESET after KOT save - SKIP for Quick Bill
+          if (activeTab !== 'Quick Bill') {
+            setItems([]);
+          }
           setPrintItems([]);
           setReverseQtyItems([]);
           setReversedItems([]);
@@ -4973,7 +4977,7 @@ const Order = () => {
             reverseQtyMode={reverseQtyMode}
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
-            autoPrint={true}
+            //autoPrint={true}
             kotNote={kotNote}
             orderNo={orderNo}
             date={user?.currDate}
@@ -4982,7 +4986,7 @@ const Order = () => {
           />
           <BillPreviewPrint
             show={showBillPrintModal}
-            autoPrint={true}  // 👈 Direct print (no modal)
+            //autoPrint={true}  // 👈 Direct print (no modal)
             onHide={async () => {
               setShowBillPrintModal(false);
 

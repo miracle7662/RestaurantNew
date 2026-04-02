@@ -1,5 +1,6 @@
-import { useState, useEffect} from "react";
-import { Card, Table, Form, Button, Row, Col, Dropdown } from "react-bootstrap";
+import  { useState, useEffect } from "react";
+import { Card, Table, Form, Button, Row, Col, Dropdown, Modal, InputGroup } from "react-bootstrap";
+import { Calendar, FileText, CreditCard, DollarSign, Tag, RefreshCw, BarChart } from 'lucide-react';
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -127,7 +128,18 @@ const ReportPage = () => {
   const [hotelDetails, setHotelDetails] = useState<BrandData | null>(null);
   const { user } = useAuthContext();
   const navigate = useNavigate();
-  const [backdatedDate, setBackdatedDate] = useState(""); // ⬅ NEW for backdated reports
+  const [backdatedDate, setBackdatedDate] = useState("");
+  const [showDayEndModal, setShowDayEndModal] = useState(false);
+  const [selectedReports, setSelectedReports] = useState({
+    billDetails: true,
+    creditSummary: true,
+    paymentSummary: true,
+    discountSummary: true,
+    reverseKOTSummary: true,
+    reverseBillSummary: true,
+    ncKOTSummary: true,
+  });
+  const [generateLoading, setGenerateLoading] = useState(false);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -495,29 +507,43 @@ const ReportPage = () => {
   const billReprinted = calculateBillReprinted();
   const kotUsedSummary = calculateKotUsedSummary();
 
-  // ⬅ NEW: Generate backdated day end report (replaces mock dayEnd section)
-  const generateBackdatedDayEnd = async () => {
+  const handleOpenDayEndModal = () => {
     if (!backdatedDate) {
       toast.error('Please select a date');
       return;
     }
+    setShowDayEndModal(true);
+  };
+
+  const handleGenerateReports = async () => {
+    const selectedReportKeys = Object.keys(selectedReports).filter(
+      (key) => selectedReports[key as keyof typeof selectedReports]
+    );
+
+    if (selectedReportKeys.length === 0) {
+      toast.error("Please select at least one report to generate.");
+      return;
+    }
+
     if (!user) {
       toast.error("User not logged in");
       return;
     }
-    
+
+    setGenerateLoading(true);
     try {
       const payload: DayendReportPayload = {
         DayEndEmpID: user.id,
         businessDate: backdatedDate,
-        selectedReports: ['billDetails', 'creditSummary', 'paymentSummary', 'discountSummary'],
+        selectedReports: selectedReportKeys,
       };
-      
+
       const response = await DayendService.generateReportHTML(payload);
       if (response.success && response.html) {
         sessionStorage.setItem('dayEndReportHTML', response.html);
         sessionStorage.setItem('dayEndReportOutletId', (user.outletid || user.hotelid || '').toString());
         toast.success('✅ Report generated! Opening preview...');
+        setShowDayEndModal(false);
         navigate('/apps/Masters/Reports/DayEndReportPreview');
       } else {
         toast.error('No data found for selected date');
@@ -525,6 +551,8 @@ const ReportPage = () => {
     } catch (error) {
       console.error('Generate error:', error);
       toast.error('Failed to generate report');
+    } finally {
+      setGenerateLoading(false);
     }
   };
 
@@ -2053,7 +2081,7 @@ const ReportPage = () => {
         variant="primary" 
         className="w-100"
         size="lg"
-        onClick={generateBackdatedDayEnd}
+        onClick={handleOpenDayEndModal}
         disabled={!backdatedDate}
       >
         Generate & Preview Day End Report
@@ -2064,6 +2092,136 @@ const ReportPage = () => {
 
   
 </Card.Body>
+
+      {/* Day End Report Selection Modal */}
+      <Modal show={showDayEndModal} onHide={() => setShowDayEndModal(false)} centered size="sm">
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="fw-bold text-primary">Select Reports</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-3">
+          <div className="mb-3">
+            <InputGroup>
+              <InputGroup.Text>
+                <Calendar size={16} />
+              </InputGroup.Text>
+              <Form.Control
+                type="date"
+                value={backdatedDate}
+                onChange={(e) => setBackdatedDate(e.target.value)}
+              />
+            </InputGroup>
+          </div>
+          <div>
+            <div className="fw-semibold mb-2">Choose Reports</div>
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <FileText size={16} className="report-icon me-2" />
+                  Bill Details
+                </>
+              }
+              checked={selectedReports.billDetails}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, billDetails: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <CreditCard size={16} className="report-icon me-2" />
+                  Credit Summary
+                </>
+              }
+              checked={selectedReports.creditSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, creditSummary: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <DollarSign size={16} className="report-icon me-2" />
+                  Payment Summary
+                </>
+              }
+              checked={selectedReports.paymentSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, paymentSummary: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <Tag size={16} className="report-icon me-2" />
+                  Discount Summary
+                </>
+              }
+              checked={selectedReports.discountSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, discountSummary: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <RefreshCw size={16} className="report-icon me-2" />
+                  Reverse KOTs Summary
+                </>
+              }
+              checked={selectedReports.reverseKOTSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseKOTSummary: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <RefreshCw size={16} className="report-icon me-2" />
+                  Reverse Bill Summary
+                </>
+              }
+              checked={selectedReports.reverseBillSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseBillSummary: e.target.checked }))}
+            />
+            <Form.Check
+              type="checkbox"
+              className="report-checkbox mb-2"
+              label={
+                <>
+                  <BarChart size={16} className="report-icon me-2" />
+                  NC KOT Sales Summary
+                </>
+              }
+              checked={selectedReports.ncKOTSummary}
+              onChange={(e) => setSelectedReports(prev => ({ ...prev, ncKOTSummary: e.target.checked }))}
+            />
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <Button variant="secondary" onClick={() => setShowDayEndModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleGenerateReports}
+            disabled={generateLoading}
+          >
+            {generateLoading ? 'Generating...' : 'Generate Reports'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <style>{`
+        .report-checkbox {
+          margin-bottom: 0.5rem;
+        }
+        .report-icon {
+          margin-right: 0.5rem;
+          color: #6c757d;
+        }
+      `}</style>
        <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh',padding: '0.5rem' }}>
         <Table bordered hover responsive size="sm">
           <thead style={{ backgroundColor: "#FFF3E0" }}>

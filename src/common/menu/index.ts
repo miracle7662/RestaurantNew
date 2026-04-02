@@ -36,29 +36,13 @@ const outletUserMenu: MenuItemTypes[] = MENU_ITEMS.slice(0, OUTLET_USER_END_INDE
 const hotelAdminMenu: MenuItemTypes[] = MENU_ITEMS.slice(OUTLET_USER_END_INDEX);
 
 export const getRoleBasedMenuItems = (role: string, uiMode: string): MenuItemTypes[] => {
-  if (role === 'superadmin') {
-    // Superadmin menu: ONLY Brand item
-    const superadminMenu: MenuItemTypes[] = [
-      {
-        key: 'HotelAdmin',
-        label: 'HotelAdmin',
-        isTitle: true,
-      },
-      {
-        key: 'Brand',
-        label: 'Brand',
-        url: '/OutletConfigration/Brand',
-        icon: 'fi fi-rr-building ',
-        parentKey: undefined, // Top-level for superadmin
-      }
-    ];
-    return getFilteredMenuItems(superadminMenu, uiMode);
+  // Show full menu for superadmin and hotel_admin
+  if (role === 'superadmin' || role === 'hotel_admin') {
+    return getFilteredMenuItems(MENU_ITEMS, uiMode);
   }
 
   let baseMenu: MenuItemTypes[];
-  if (role === 'hotel_admin') {
-    baseMenu = hotelAdminMenu;
-  } else if (role === 'outlet_user') {
+  if (role === 'outlet_user') {
     baseMenu = outletUserMenu;
   } else {
     baseMenu = outletUserMenu; // default to outlet

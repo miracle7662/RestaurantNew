@@ -16,6 +16,13 @@ const MENU_ITEMS: MenuItemTypes[] = [
 
   // Apps
 
+    {
+    key: '',
+    label: '',
+    isTitle: true,
+  },
+
+
   {
     key: '  Orders',
     label: 'POS',
