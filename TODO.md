@@ -1,20 +1,6 @@
-# Task: Navigate to Table Grid Page after handlePrintKotAndBill
+# Dark Mode Toggle Moon Icon Task
 
-## Plan Implementation Steps
-
-### 1. ✅ Create TODO.md
-### 2. ✅ Edit src/views/apps/Transaction/Orders.tsx
-   - ✅ Added navigation timeout block in handlePrintKotAndBill after print success
-   
-### 3. ✅ Optional: Update BillPrintModal onHide
-   - ✅ Existing onHide already handles navigation via resetBillingPanel + fetchTableManagement
-
-### 4. 🟢 Test Changes
-   - npm run dev
-   - Quick Bill tab → Add items → Print KOT & Bill (F9) → Verify navigates to Dine-in ALL table grid
-   - Check table turns red (status=2)
-   - Test other flows (regular KOT, settlement) unchanged
-
-### 5. 🟢 attempt_completion
-
-**Progress: 4/5 Complete**
+## Steps:
+- [x] 1. Understand project files and create edit plan (completed)
+- [x] 2. Edit src/components/Topbar/DarkLight.tsx to add conditional moon/sun icons
+- [x] 3. Test the toggle functionality (verified: dev server at http://localhost:5174/, header toggle shows moon/sun correctly, switches theme)\n- [x] 4. Mark complete and demo\n\n✅ Task completed! View at http://localhost:5174/

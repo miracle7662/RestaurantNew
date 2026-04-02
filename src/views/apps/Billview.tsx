@@ -152,14 +152,14 @@ const ModernBill = () => {
 
 
 
-  console.log('Table ID:', tableId);
-  console.log('Table Name:', tableName);
-  console.log('ORDER MODE', {
-    isTakeaway,
-    tableId,
-    selectedOutletId: outletIdFromState || user?.outletid || null,
-    departmentIdFromState
-  });
+  // console.log('Table ID:', tableId);
+  // console.log('Table Name:', tableName);
+  // console.log('ORDER MODE', {
+  //   isTakeaway,
+  //   tableId,
+  //   selectedOutletId: outletIdFromState || user?.outletid || null,
+  //   departmentIdFromState
+  // });
 
   const [defaultWaiterId, setDefaultWaiterId] = useState<number | null>(null);
   const [waiter, setWaiter] = useState('');
@@ -580,7 +580,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
         setCustomerId(null);
       }
     } catch (err) {
-      console.error("Customer fetch error:", err);
+      // console.error("Customer fetch error:", err);
       setCustomerName('');
       setCustomerId(null);
     }
@@ -844,12 +844,12 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
 
         }
       } catch (billedErr) {
-        console.log('Billed bill not found or error, falling back to unbilled items');
+        // console.log('Billed bill not found or error, falling back to unbilled items');
       }
       // STEP 2: fallback to unbilled API
       loadUnbilledItems(tableIdNum);
     } catch (err) {
-      console.error('Error loading bill for table:', err);
+      // console.error('Error loading bill for table:', err);
       setError('Failed to load bill data');
       setLoading(false);
     }
@@ -942,7 +942,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
       setRevKotNo(maxRevKotNoFromReversed);
 
       // Update header fields from data.header and data.kotNo if available
-      console.log('Takeaway API Response Header:', data.header);
+      // console.log('Takeaway API Response Header:', data.header);
       if (data.header) {
         setTxnId(data.header.TxnID);
         setOrderNo(data.header.TxnNo ?? data.header.orderNo);
@@ -1009,7 +1009,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
       } else {
         setError(err.message || 'Failed to fetch takeaway order data');
       }
-      console.error('Error fetching takeaway order data:', err);
+      // console.error('Error fetching takeaway order data:', err);
     } finally {
       setLoading(false);
     }
@@ -1102,7 +1102,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
       }
 
       // Update header fields from data.header and data.kotNo if available
-      console.log('API Response Header:', data.header);
+      // console.log('API Response Header:', data.header);
       if (data.header) {
         setTxnId(data.header.TxnID);
         // Map Steward from backend to waiter in frontend
@@ -1155,7 +1155,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
       } else {
         setError(err.message || 'Failed to fetch table data');
       }
-      console.error('Error fetching table data:', err);
+      // console.error('Error fetching table data:', err);
     } finally {
       setLoading(false);
     }
@@ -1271,7 +1271,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
           await fetchOutletDetails(user.outletid);
         }
       } catch (error) {
-        console.error('Failed to fetch outlets:', error);
+        // console.error('Failed to fetch outlets:', error);
         // Fallback to user object
         if (!restaurantName) setRestaurantName(user?.hotel_name || 'Restaurant Name');
         if (!outletName) setOutletName(user?.outlet_name || 'Outlet Name');
@@ -1283,14 +1283,14 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
   // Fetch outlet details for restaurant and outlet names
   const fetchOutletDetails = async (outletId: number) => {
     try {
-      console.log('Fetching outlet details for ID:', outletId);
+      // console.log('Fetching outlet details for ID:', outletId);
       const response = await OrderService.getOutletById(outletId);
      const outletData = response?.data?.data ?? response?.data ?? {};
-      console.log('Outlet API response:', outletData);
+      // console.log('Outlet API response:', outletData);
       setRestaurantName(outletData.brand_name || outletData.hotel_name || user?.hotel_name || 'Restaurant Name');
       setOutletName(outletData.outlet_name || user?.outlet_name || 'Outlet Name');
     } catch (error) {
-      console.error('Failed to fetch outlet details:', error);
+     
       setRestaurantName(user?.hotel_name || 'Restaurant Name');
       setOutletName(user?.outlet_name || 'Outlet Name');
     }
@@ -1313,7 +1313,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
         }
 
       } catch (error) {
-        console.error('Failed to fetch payment modes:', error);
+        // console.error('Failed to fetch payment modes:', error);
         setOutletPaymentModes([]);
       }
     };
@@ -1335,7 +1335,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
         setDefaultKot(nextKOT);
         setEditableKot(nextKOT);
       } catch (error) {
-        console.error('Failed to fetch global KOT number:', error);
+        // console.error('Failed to fetch global KOT number:', error);
       }
     };
 
@@ -1367,9 +1367,9 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
           setIgstRate(0);
           setCessRate(0);
         }
-        console.log('Tax details:', response.data);
+        // console.log('Tax details:', response.data);
       } catch (error) {
-        console.error('Error fetching tax details:', error);
+        // console.error('Error fetching tax details:', error);
         // Fallback to 0 on error
         setCgstRate(0);
         setSgstRate(0);
@@ -1388,7 +1388,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
         setFormData(prev => applyKotSettings(prev, kotData));
       }
     } catch (err) {
-      console.error('Failed to load outlet settings', err);
+      // console.error('Failed to load outlet settings', err);
     }
   };
 
@@ -1416,14 +1416,14 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
             setIncludeTaxInInvoice(!!Number(incFlag));
 
             // Debug console for tax mode
-            console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
-            console.log("Outlet Settings fetched:", settings);
+            // console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
+            // console.log("Outlet Settings fetched:", settings);
           } else {
             setReverseQtyConfig('PasswordRequired'); // Default to password required
             setIncludeTaxInInvoice(false);
           }
         } catch (error) {
-          console.error("Failed to fetch outlet settings for Reverse Qty Mode", error);
+          // console.error("Failed to fetch outlet settings for Reverse Qty Mode", error);
           setReverseQtyConfig('PasswordRequired'); // Default to password required
           setIncludeTaxInInvoice(false);
         }
@@ -1459,7 +1459,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
 
     // Clear billItems when department changes (prevent cross-dept mixing)
     if (prevDeptId && prevDeptId !== currDeptId) {
-      console.log(`Dept changed ${prevDeptId} → ${currDeptId}. Clearing billItems.`);
+      // console.log(`Dept changed ${prevDeptId} → ${currDeptId}. Clearing billItems.`);
       setBillItems([{
         itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '',
         qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0,
@@ -1489,7 +1489,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
     setDeptFilteredMenuItems(filtered);
     prevDepartmentIdRef.current = currDeptId;
 
-    console.log(`Filtered ${filtered.length} menu items for dept ${currDeptId}`);
+    // console.log(`Filtered ${filtered.length} menu items for dept ${currDeptId}`);
   }, [departmentIdFromState, menuItems]);
 
   // Original fetch (unchanged)
@@ -1512,7 +1512,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
           setMenuItems(mappedMenu);
         }
       } catch (error) {
-        console.error("Failed to fetch menu items:", error);
+        // console.error("Failed to fetch menu items:", error);
         setMenuItems([]);
       }
     };
@@ -1525,15 +1525,15 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
   useEffect(() => {
     const fetchWaiters = async () => {
       try {
-        console.log('selectedOutletId:', selectedOutletId);
+        // console.log('selectedOutletId:', selectedOutletId);
         if (!selectedOutletId) return;
 
         const response = await OrderService.getWaiterUsers(selectedOutletId);
         const waiters = Array.isArray(response) ? response : response?.data || [];
-        console.log('Fetched waiter users:', waiters);
+        // console.log('Fetched waiter users:', waiters);
         setWaiterUsers(waiters);
       } catch (error) {
-        console.error('Failed to fetch waiter users:', error);
+        // console.error('Failed to fetch waiter users:', error);
       }
     };
     fetchWaiters();
@@ -1855,13 +1855,13 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
       const outletId = selectedOutletId; // same variable used to load departments
 
 
-      console.log("🏷️ OutletId (from department context):", outletId);
+      // console.log("🏷️ OutletId (from department context):", outletId);
 
       const order_tag = originalTableStatus === 0 ? (formData.new_order_tag_label || 'New') : (formData.running_order_tag_label || 'Running');
-      console.log('orderTag determined:', order_tag, 'originalTableStatus:', originalTableStatus, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
+      // console.log('orderTag determined:', order_tag, 'originalTableStatus:', originalTableStatus, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
 
       if (!outletId) {
-        console.error("❌ Outlet ID missing, cannot save KOT");
+        // console.error("❌ Outlet ID missing, cannot save KOT");
         toast.error("Outlet not resolved. Please reselect outlet.");
         return;
       }
@@ -1892,7 +1892,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
             toast.success(`Created sub-table ${targetTableName}`);
           }
         } catch (subTableErr) {
-          console.error("Failed to create sub-table:", subTableErr);
+          // console.error("Failed to create sub-table:", subTableErr);
           // Fallback: proceed with original table (might merge bill depending on backend logic)
         }
       }
@@ -1982,16 +1982,16 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
         })
       };
 
-      console.log("📤 KOT Payload being sent:", payload);
+      // console.log("📤 KOT Payload being sent:", payload);
 
       const res = await OrderService.createKOT(payload);
 
-      console.log("📥 RAW KOT API RESPONSE:", res);
-      console.log("📥 res.data:", res?.data);
+        // console.log("📥 RAW KOT API RESPONSE:", res);
+        // console.log("📥 res.data:", res?.data);
 
       const kotNo = res.data?.KOTNo ?? null;
 
-      console.log("🔢 Extracted KOT No:", kotNo);
+       console.log("🔢 Extracted KOT No:", kotNo);
 
       // Update txnId from the response
       if (res.data?.TxnID) {
@@ -2023,18 +2023,18 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
         try {
           await OrderService.updateTableStatus(targetTableId, { status: 1 });
         } catch (error) {
-          console.error('Error updating table status:', error);
+          // console.error('Error updating table status:', error);
         }
       }
 
       // If print is requested, print
       if (print) {
-        console.log("🖨️ Print requested");
+        // console.log("🖨️ Print requested");
       }
 
       if (print) {
         const reliableKotNo = res.data?.KOTNo ?? res.data?.KOTNo ?? editableKot ?? defaultKot ?? 0;
-        console.log("✅ Opening KOT Preview Modal with KOT#:", reliableKotNo);
+        // console.log("✅ Opening KOT Preview Modal with KOT#:", reliableKotNo);
         setCurrentKotNoForPrint(reliableKotNo);
         setShowKotPrintModal(true);
         // Navigation handled by KotPreviewPrint onHide ✅
