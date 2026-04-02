@@ -37,9 +37,9 @@ const F8PasswordModal: React.FC<F8PasswordModalProps> = ({
   };
 
   return (
-    <Modal show={show} onHide={handleHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>{title}</Modal.Title>
+<Modal show={show} onHide={handleHide} centered size="sm">
+      <Modal.Header closeButton  className="btn-close-white" style={{ backgroundColor: '#dc3545', color: 'white' }}>
+        <Modal.Title className="text-white fw-bold">{title} </Modal.Title>
       </Modal.Header>
       <Form onSubmit={handleSubmit}>
         <Modal.Body>

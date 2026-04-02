@@ -57,11 +57,16 @@ const HandoverPasswordModal: React.FC<HandoverPasswordModalProps> = ({
       centered
       backdrop="static"
       keyboard={false}
+      size="sm"
     >
-      <Modal.Header className="bg-primary text-white">
-        <Modal.Title className="d-flex align-items-center">
-          <Lock size={20} className="me-2" />
-          Password Verification Required
+      <Modal.Header
+        closeButton
+        closeVariant="white"
+        className="bg-danger"
+      >
+        <Modal.Title className="d-flex align-items-center text-white mb-0">
+          <Lock size={20} className="me-2 text-white" />
+          Password  Required
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
