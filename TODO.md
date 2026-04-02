@@ -1,9 +1,17 @@
-# Task: Fix Quick Bill panel clearing after handlePrintKotAndBill()
+## TODO: Fix handlePrintKotAndBill → Bill Preview Items Not Showing
 
-## Steps:
-- [ ] Step 1: Edit Orders.tsx - Modify handlePrintBill() to conditionally skip setItems([]) for Quick Bill
-- [ ] Step 2: Edit Orders.tsx - Modify handlePrintKotAndBill() end to conditionally skip final clears for Quick Bill  
-- [ ] Step 3: Test Quick Bill flow: add items → print → verify panel persists
-- [ ] Step 4: Complete task
+### ✅ Plan Approved - Step-by-Step Implementation
 
-**Approved Plan**: Skip clearing items[]/billing panel for Quick Bill tab only. Items/totals persist post-print.
+**Step 1 [IN PROGRESS]** ⏳ Read BillPrint.tsx to confirm items rendering logic  
+**Step 2** ✏️ Edit Orders.tsx: Add `setPrintItems(items.filter(item => item.qty > 0))` in `handlePrintBill()`  
+**Step 3** 🔍 Update `resetBillingPanel()` to clear bill print states  
+**Step 4** 🧪 Test F9/F10 bill print flow (Quick Bill + Dine-in)  
+**Step 5** ✅ Run `npm run dev` → Verify items show in bill preview modal  
+**Step 6** 🎉 attempt_completion
+
+**Expected Result**: Items data renders correctly in BillPreviewPrint modal when pressing F9/F10.
+
+---
+
+*Progress tracked automatically. Steps marked as completed when tools confirm success.*
+

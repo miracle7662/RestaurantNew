@@ -216,6 +216,7 @@ const Order = () => {
   const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([]);
   const [tip, setTip] = useState<number>(0);
   const [kotNote, setKotNote] = useState<string>('');
+  const [billPrintItems, setBillPrintItems] = useState<MenuItem[]>([]);
 
   // States for Pending Orders Modal (Pickup/Delivery)
   const [showPendingOrdersView, setShowPendingOrdersView] = useState<boolean>(false);
@@ -1594,36 +1595,60 @@ const Order = () => {
     }
   };
 
-  const handlePrintKotAndBill = async () => {
-    try {
-      setLoading(true);
+ const handlePrintKotAndBill = async () => {
+  try {
+    setLoading(true);
 
-      // 1️⃣ Save + Print KOT
-      const txnId = await handlePrintAndSaveKOT();
+    // ✅ Store current items BEFORE any operation
+    const currentItems = [...items];
+    setBillPrintItems(currentItems); // Store in state for BillPreviewPrint
 
-      if (!txnId) {
-        throw new Error("TxnID not found after KOT save");
-      }
+    // 1️⃣ Save KOT
+    const txnId = await handlePrintAndSaveKOT();
 
-      // 2️⃣ Print Bill with txnId
-      await handlePrintBill(txnId); // 👈 pass karo
-
-      toast.success("KOT and Bill printed successfully!");
-
-      setShowPrintBoth(false);
-      if (activeTab !== 'Quick Bill') {
-        setItems([]);
-        setCurrentTxnId(null);
-        setOrderNo(null);
-      }
-
-
-    } catch (error: any) {
-      toast.error(error.message || "Failed to print KOT and Bill");
-    } finally {
-      setLoading(false);
+    if (!txnId) {
+      throw new Error("TxnID not found after KOT save");
     }
-  };
+
+    // 2️⃣ Mark bill as billed and print
+    const printResult = await OrderService.markBillAsBilled(txnId, {
+      outletId: selectedOutletId || Number(user?.outletid),
+      customerName: customerName || null,
+      mobileNo: mobileNumber || null,
+      customerid: customerid || null,
+    });
+
+    if (!printResult.success) {
+      throw new Error(printResult.message || 'Failed to mark bill as printed.');
+    }
+
+    toast.success('Bill marked as printed!');
+
+    // Set the TxnNo
+    if (printResult.data && printResult.data.TxnNo) {
+      setOrderNo(printResult.data.TxnNo);
+    }
+
+    // ✅ Show bill print modal with stored items
+    setShowBillPrintModal(true);
+
+    toast.success("KOT and Bill printed successfully!");
+
+    setShowPrintBoth(false);
+    
+    // Clear items only after everything is done
+    if (activeTab !== 'Quick Bill') {
+      setItems([]);
+      setCurrentTxnId(null);
+      setOrderNo(null);
+    }
+
+  } catch (error: any) {
+    toast.error(error.message || "Failed to print KOT and Bill");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handlePrintAndSaveKOT = async () => {
     try {
@@ -1898,10 +1923,8 @@ const Order = () => {
             );
           }
           setIsPrintMode(false);
-          // 🔥 HARD RESET after KOT save - SKIP for Quick Bill
-          if (activeTab !== 'Quick Bill') {
-            setItems([]);
-          }
+          // 🔥 HARD RESET after KOT save
+          setItems([]);
           setPrintItems([]);
           setReverseQtyItems([]);
           setReversedItems([]);
@@ -4977,7 +5000,7 @@ const Order = () => {
             reverseQtyMode={reverseQtyMode}
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
-            //autoPrint={true}
+            autoPrint={true}
             kotNote={kotNote}
             orderNo={orderNo}
             date={user?.currDate}
@@ -4986,10 +5009,10 @@ const Order = () => {
           />
           <BillPreviewPrint
             show={showBillPrintModal}
-            //autoPrint={true}  // 👈 Direct print (no modal)
+            // autoPrint={true}  // 👈 Direct print (no modal)
             onHide={async () => {
               setShowBillPrintModal(false);
-
+              setBillPrintItems([]); // Clear stored items
               await fetchTableManagement(); // ✅ now valid
 
               if (printThenSettleFlow) {
@@ -5001,7 +5024,7 @@ const Order = () => {
             }}
             formData={formData}
             user={user}
-            items={items}
+            items={billPrintItems.length > 0 ? billPrintItems : items} // 👈 Use stored items first
             currentKOTNos={currentKOTNos}
             currentKOTNo={currentKOTNo}
             orderNo={orderNo ?? undefined}
