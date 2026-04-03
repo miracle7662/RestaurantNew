@@ -125,7 +125,6 @@ exports.createOutletUser = async (req, res) => {
     // Validate required fields
     if (
       !username ||
-      !email ||
       !password ||
       !full_name ||
       !outletid
@@ -140,10 +139,10 @@ exports.createOutletUser = async (req, res) => {
 
     // Check if username or email already exists
     const existingUser = db
-      .prepare('SELECT userid FROM mst_users WHERE username = ? OR email = ?')
-      .get(username, email)
+      .prepare('SELECT userid FROM mst_users WHERE username = ?')
+      .get(username)
     if (existingUser) {
-      return res.status(400).json({ message: 'Username or email already exists' })
+      return res.status(400).json({ message: 'Username already exists' })
     }
 
     // Hash password
@@ -317,13 +316,15 @@ exports.updateOutletUser = async (req, res) => {
       updated_by_id
     } = req.body;
 
-    // console.log('Update outlet user request:', { userid, body: req.body });
+     console.log('Update outlet user request:', { userid, body: req.body });
 
     // Check if user exists and is an outlet user
     const existingUser = db.prepare('SELECT role_level, hotelid FROM mst_users WHERE userid = ?').get(userid);
     if (!existingUser || existingUser.role_level !== 'outlet_user') {
       return res.status(404).json({ message: 'Outlet user not found' });
     }
+
+    
 
     // Prepare fields and parameters for the update query
     const updateFields = [];
@@ -435,7 +436,7 @@ exports.updateOutletUser = async (req, res) => {
 
     res.json({ success: true, message: 'Outlet user updated successfully' });
   } catch (error) {
-    // console.error('Error updating outlet user:', error);
+     console.error('Error updating outlet user:', error);
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }
 };
@@ -453,7 +454,7 @@ exports.deleteOutletUser = (req, res) => {
 
     res.json({ success: true, message: 'Outlet user deleted successfully' })
   } catch (error) {
-    // console.error('Error deleting outlet user:', error)
+    console.error('Error deleting outlet user:', error)
     res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }

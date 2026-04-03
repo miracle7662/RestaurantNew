@@ -244,16 +244,16 @@ const Order = () => {
   const [defaultPax, setDefaultPax] = useState<number>(1);
 
   // 🔥 NEW: isOrderBilled() helper for payment gating
-  // const isOrderBilled = (): boolean => {
-  //   // Check 1: Any item explicitly marked as billed
-  //   const hasBilledItems = items.some(item => item.isBilled === 1);
+  const isOrderBilled = (): boolean => {
+    // Check 1: Any item explicitly marked as billed
+    const hasBilledItems = items.some(item => item.isBilled === 1);
 
-  //   // Check 2: Current table status = 2 (billed/printed/red)
-  //   const currentTableStatus = tableItems.find(t => t.table_name === selectedTable)?.status;
-  //   const tableIsBilled = currentTableStatus === 2;
+    // Check 2: Current table status = 2 (billed/printed/red)
+    const currentTableStatus = tableItems.find(t => t.table_name === selectedTable)?.status;
+    const tableIsBilled = currentTableStatus === 2;
 
-  //   return hasBilledItems || tableIsBilled;
-  // };
+    return hasBilledItems || tableIsBilled;
+  };
 
   // Auto-set default waiter/pax when table selected + data ready (Dine-in tables)
   useEffect(() => {
@@ -3077,10 +3077,10 @@ const handlePrintKotAndBill = async () => {
   };
 
   const handlePendingMakePayment = async (order: any) => {
-    // if (!isOrderBilled()) {
-    //   toast.error('Please print bill first');
-    //   return;
-    // }
+    if (!isOrderBilled()) {
+      toast.error('Please print bill first');
+      return;
+    }
     setCurrentTxnId(order.id);
     setOrderNo(order.kotNo || `Order-${order.id}`);
     setItems(order.items.map((i: any) => ({ ...i, isBilled: 0, isNew: false }))); // Treat items as existing

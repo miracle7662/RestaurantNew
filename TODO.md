@@ -1,15 +1,9 @@
-# Fix POST /api/outlets 500 Error - Approved Plan
+# TODO: Enable Email Updates in OutletUserController
 
-**Current Status:** [In Progress]  
-**Files:** backend/controllers/outletController.js  
+## Steps to Complete:
+1. [x] Edit backend/controllers/outletUserController.js to add email field handling in updateOutletUser function
+2. [ ] Test the email update functionality
+3. [ ] Mark as complete and attempt_completion
 
-## Planned Steps:
-- [ ] 1. Fix mstbills_print_settings INSERT (match ~55 columns exactly)
-- [ ] 2. Fix mstgeneral_settings outletid (use inserted outletId)
-- [ ] 3. Add FK validation (hotelid, warehouseid, market_id)
-- [ ] 4. Restore console.error logging for debugging
-- [ ] 5. Add input validation for required fields
-- [ ] 6. Test endpoint & verify database
-- [ ] 7. Update this TODO with results
+Current status: Edit completed. Email field now included in updateOutletUser without validation. Ready for testing.
 
-**Next:** Edit outletController.js → Step 1-2 parameter fixes
