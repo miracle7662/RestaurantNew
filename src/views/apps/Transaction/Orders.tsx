@@ -3037,6 +3037,18 @@ const handlePrintKotAndBill = async () => {
     else if (order.customerid) setCustomerId(order.customerid);
     setSelectedOutletId(order.outletid);
 
+    // 🔥 NEW: Load dept & taxes for accurate taxCalc (matches handlePendingMakePayment)
+    try {
+      const mstRes = await OrderService.getMstSettingByOutlet(order.outletid);
+      const deptId = mstRes.data?.departmentid || departments.find(d => d.outletid === order.outletid)?.departmentid;
+      if (deptId) {
+        setSelectedDeptId(deptId);
+        // console.log(`✅ Pending print: outlet=${order.outletid}, dept=${deptId}`);
+      }
+    } catch(e) {
+      // console.error('Pending print dept lookup failed:', e);
+    }
+
     const existingItems = order.items.map((item: any) => ({
       ...item,
       id: item.ItemID,

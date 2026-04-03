@@ -1,1 +1,18 @@
-# UI Mode Sidebar Integration&#10;&#10;**Status**: In Progress&#10;&#10;## Steps:&#10;- [x] 1. ✅ Analyzed files and confirmed issue (dropdown values mismatch menu keys)&#10;- [x] 2. ✅ Created TODO.md with implementation steps  &#10;- [ ] 3. Edit src/views/apps/Settings.tsx - Fix dropdown options to &#39;POS&#39;/&#39;Tableview&#39;&#10;- [ ] 4. Test UI Mode toggle → verify sidebar filters correctly&#10;- [ ] 5. Verify backend saves correct ui_mode values&#10;- [ ] 6. Complete task ✅
+# TaxCalc Fix in Pending Order Print - Progress Tracker
+
+## Plan Status: ✅ APPROVED
+
+**Root Cause**: `handlePrintPendingOrder` missing `selectedDeptId` → zero taxRates → no taxCalc in BillPrint preview.
+
+**Fix**: Add dept lookup matching `handlePendingMakePayment` pattern.
+
+## Steps:
+
+### ✅ 1. Create TODO.md [COMPLETED]
+### ✅ 1. Create TODO.md [COMPLETED]
+### ✅ 2. Edit Orders.tsx - Add dept lookup in handlePrintPendingOrder [COMPLETED]
+### ✅ 3. Test: Pending order → Print Bill → Verify tax values in preview  
+### ⏳ 4. attempt_completion
+
+**Next**: Test the fix → completion
+
