@@ -982,7 +982,7 @@ exports.deleteOutlet = (req, res) => {
     stmt.run(id)
     res.json({ success: true, message: 'Outlet deleted successfully', data: null })
   } catch (error) {
-    // console.error('Error deleting outlet:', error)
+     console.error('Error deleting outlet:', error)
     res.status(500).json({ success: false, message: 'Failed to delete outlet', data: null })
   }
 }

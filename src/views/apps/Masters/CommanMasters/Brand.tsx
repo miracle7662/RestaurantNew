@@ -75,6 +75,8 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
   const [fetchingHotelData, setFetchingHotelData] = useState(false);
   const [hotelData, setHotelData] = useState<any>(null);
 
+  const { user } = useAuthContext();
+
   // Fetch hotel data when modal opens
   useEffect(() => {
     if (show && brand) {
@@ -141,8 +143,8 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
         role_level: 'hotel_admin',
         brand_id: hotelid,
         hotelid: hotelid,
-        parent_user_id: 1,
-        created_by_id: 1
+        parent_user_id: user?.id || 1,
+        created_by_id: user?.id || 1,
       };
 
       // console.log('Creating user with payload:', payload);
@@ -830,6 +832,8 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
         status: statusValue,
         created_date: currentDate, // only for create
         updated_date: currentDate, // only for update
+        created_by_id: userId, // only for create
+        updated_by_id: userId, // only for update
       };
 
       if (isEditMode) {
