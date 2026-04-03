@@ -114,28 +114,36 @@ const Unitmaster: React.FC = () => {
         },
       },
       {
-        id: 'actions',
-        header: () => <div style={{ textAlign: 'center' }}>Action</div>,
-        size: 150,
-        cell: ({ row }) => (
-          <div className="d-flex gap-2 justify-content-center">
-            <button
-              className="btn btn-sm btn-success"
-              onClick={() => handleEditClick(row.original)}
-              title="Edit Unitmaster"
-            >
-              <i className="fi fi-rr-edit"></i>
-            </button>
-            <button
-              className="btn btn-sm btn-danger"
-              onClick={() => handleDeleteunitmaster(row.original)}
-              title="Delete Unitmaster"
-            >
-              <i className="fi fi-rr-trash"></i>
-            </button>
-          </div>
-        ),
-      },
+  id: 'actions',
+  header: () => <div style={{ textAlign: 'center' }}>Action</div>,
+  size: 150,
+  cell: ({ row }) => {
+    const data = row.original;
+    const isDefault = Number(data.hotelid) === 0; // ✅ check
+
+    return (
+      <div className="d-flex gap-2 justify-content-center">
+        <button
+          className="btn btn-sm btn-success"
+          onClick={() => handleEditClick(data)}
+          title={isDefault ? "Default unit cannot be edited" : "Edit Unitmaster"}
+          disabled={isDefault}   // ✅ disable
+        >
+          <i className="fi fi-rr-edit"></i>
+        </button>
+
+        <button
+          className="btn btn-sm btn-danger"
+          onClick={() => handleDeleteunitmaster(data)}
+          title={isDefault ? "Default unit cannot be deleted" : "Delete Unitmaster"}
+          disabled={isDefault}   // ✅ disable
+        >
+          <i className="fi fi-rr-trash"></i>
+        </button>
+      </div>
+    );
+  },
+}
     ],
     []
   );

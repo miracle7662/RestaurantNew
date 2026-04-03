@@ -260,11 +260,13 @@ const fetchData = async () => {
                             <td>{group.created_by}</td>
                             <td>{new Date(group.created_date).toLocaleDateString()}</td>
                             <td>
-                              <Button
+<Button
                                 variant="warning"
                                 size="sm"
                                 className="me-2"
                                 onClick={() => handleEdit(group)}
+                                disabled={group.hotelid === 0}
+                                title={group.hotelid === 0 ? "Edit disabled for hotelid 0" : undefined}
                               >
                                 Edit
                               </Button>

@@ -34,7 +34,7 @@ exports.getAllTaxGroups = (req, res) => {
     const params = [];
 
     if (hotelid) {
-      sql += ' WHERE tg.hotelid = ?';
+      sql += ' WHERE tg.hotelid = 0 OR tg.hotelid = ?';  // ✅ FIX
       params.push(hotelid);
     }
 

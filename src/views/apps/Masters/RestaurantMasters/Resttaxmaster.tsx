@@ -342,6 +342,8 @@ const RestTaxMaster: React.FC = () => {
                                 size="sm"
                                 className="me-2"
                                 onClick={() => handleEdit(tax)}
+                                disabled={tax.hotelid === 0}
+                                title={tax.hotelid === 0 ? "Edit disabled for hotelid 0" : undefined}
                               >
                                 Edit
                               </Button>

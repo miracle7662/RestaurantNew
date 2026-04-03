@@ -1,8 +1,1 @@
- # Task: Add hotelid filtering to restTaxMasterController.getAll (like unitmaster)
-
-## TODO Steps:
-- [x] Step 1: Edit backend/controllers/restTaxMasterController.js to add hotelid filtering to exports.getAll
-- [x] Step 2: Frontend updated - resttaxmaster.ts & Resttaxmaster.tsx now pass hotelid param like unitmaster
-- [x] Step 3: Task fully complete (backend + frontend)
-
-**Progress:** Backend + Frontend complete for restTaxMaster & taxGroups (TaxProductGroup). All now filter by hotelid like unitmaster.
+# TODO: Modify getAllTaxGroups for hotelid=0\n\n1. ✅ Create TODO.md with plan steps\n2. Read controller file contents\n3. Create edit plan and get user approval\n4. Edit msttaxgroupController.js - change if condition to skip WHERE when parseInt(hotelid) === 0\n5. Update TODO.md with completion\n6. Test API endpoint\n7. attempt_completion
