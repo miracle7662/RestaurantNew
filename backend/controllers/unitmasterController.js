@@ -3,7 +3,9 @@ const db = require('../config/db');
 // Get All
 exports.getunitmaster = (req, res) => {
     try {
-        const unitmaster = db.prepare('SELECT * FROM mstunitmaster').all();
+        const hotelid = req.query.hotelid || req.hotelid;
+        console.log("REQ HOTEL ID (query/auth):", req.query.hotelid, "/", req.hotelid, "=>", hotelid);
+        const unitmaster = db.prepare('SELECT * FROM mstunitmaster WHERE hotelid = ?').all(hotelid);
 
         res.status(200).json({
             success: true,
@@ -126,9 +128,10 @@ exports.updateunitmaster = (req, res) => {
 exports.deleteunitmaster = (req, res) => {
     try {
         const { id } = req.params;
+        const hotelid = req.query.hotelid || req.hotelid;
 
-        const stmt = db.prepare('DELETE FROM mstunitmaster WHERE unitid = ?');
-        stmt.run(id);
+        const stmt = db.prepare('DELETE FROM mstunitmaster WHERE unitid = ? AND hotelid = ?');
+        stmt.run(id, hotelid);
 
         res.status(200).json({
             success: true,

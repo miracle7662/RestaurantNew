@@ -17,10 +17,12 @@ export interface UnitMaster {
   unit_name: string
   client_code: string
   status: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  hotelid: string
+  marketid: string
+  created_by_id: string
+  created_date: string
+  updated_by_id: string
+  updated_date: string
 }
 
 /** Unit Master payload for create/update */
@@ -48,7 +50,7 @@ const UnitmasterService = {
   /**
    * Get all unit masters with optional search
    */
-  list: (params?: { q?: string }): Promise<ApiResponse<UnitMaster[]>> =>
+  list: (params?: { q?: string; hotelid?: string }): Promise<ApiResponse<UnitMaster[]>> =>
     HttpClient.get<ApiResponse<UnitMaster[]>>('/unitmaster', { params }),
 
   /**

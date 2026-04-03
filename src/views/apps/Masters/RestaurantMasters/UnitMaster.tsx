@@ -17,8 +17,8 @@ import {
 
 interface unitmasterItem {
   unit_name: string;
-  unitid: string;
-  status: string;
+  unitid: number;
+  status: number;
   created_by_id: string;
   created_date: string;
   updated_by_id: string;
@@ -61,19 +61,20 @@ const Unitmaster: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedunitmaster, setSelectedunitmaster] = useState<unitmasterItem | null>(null);
 
+  const { user } = useAuthContext();
   const fetchunitmaster = async () => {
   try {
     setLoading(true);
 
-    const response = await UnitmasterService.list();
+    const response = await UnitmasterService.list({ hotelid: user.hotelid });
 
     // If API returns { success, data }
-    const units = (response as any).data || [];
+   const units = response.data ?? [];
 
     setunitmasterItem(units);
 
   } catch (err) {
-    // console.error(err);
+     console.error(err);
     toast.error('Failed to fetch Unitmaster');
   } finally {
     setLoading(false);
@@ -186,7 +187,7 @@ const Unitmaster: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await UnitmasterService.remove(parseInt(unitmaster.unitid));
+        await UnitmasterService.remove(Number(unitmaster.unitid));
         toast.success('Deleted successfully');
         fetchunitmaster();
         setSelectedunitmaster(null);
@@ -280,7 +281,7 @@ const Unitmaster: React.FC = () => {
 
         try {
           if (isEditMode) {
-            await UnitmasterService.update(parseInt(unitmaster!.unitid), payload);
+            await UnitmasterService.update(Number(unitmaster!.unitid), payload);
           } else {
             await UnitmasterService.create(payload);
           }
@@ -289,7 +290,7 @@ const Unitmaster: React.FC = () => {
             const updatedUnitmaster = {
               ...unitmaster,
               unit_name,
-              status: statusValue.toString(),
+              status: statusValue,
               updated_by_id: userId,
               updated_date: currentDate,
               unitid: unitmaster.unitid,
