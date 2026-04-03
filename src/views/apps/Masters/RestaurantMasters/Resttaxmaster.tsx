@@ -351,6 +351,8 @@ const RestTaxMaster: React.FC = () => {
                                 variant="danger"
                                 size="sm"
                                 onClick={() => handleDelete(tax.resttaxid)}
+                                 disabled={tax.hotelid === 0}
+                                title={tax.hotelid === 0 ? "Edit disabled for hotelid 0" : undefined}
                               >
                                 Delete
                               </Button>

@@ -274,6 +274,8 @@ const fetchData = async () => {
                                 variant="danger"
                                 size="sm"
                                 onClick={() => handleDelete(group.taxgroupid)}
+                                 disabled={group.hotelid === 0}
+                                title={group.hotelid === 0 ? "Edit disabled for hotelid 0" : undefined}
                               >
                                 Delete
                               </Button>
