@@ -39,7 +39,7 @@ export default function useLogin() {
 })
     saveSession({ ...res, currDate: currDateData.data.curr_date })
   } catch (dateError) {
-    console.error('Failed to fetch business date:', dateError)
+    // console.error('Failed to fetch business date:', dateError)
     saveSession(res)
   }
 
@@ -97,7 +97,7 @@ export default function useLogin() {
             saveSession({ ...res, currDate: currDateData.data.curr_date })
           } catch (dateError) {
             // If fetching currDate fails, still save the session without it
-            console.error('Failed to fetch business date:', dateError)
+            // console.error('Failed to fetch business date:', dateError)
             saveSession(res)
           }
 

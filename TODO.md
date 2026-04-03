@@ -1,17 +1,15 @@
-# Fix User Creation 404 Error in Brand.tsx
+# Fix POST /api/outlets 500 Error - Approved Plan
 
-## Task: Resolve POST http://localhost:3001/api/api/users 404 (double /api/)
+**Current Status:** [In Progress]  
+**Files:** backend/controllers/outletController.js  
 
-### Plan Approved:
-- **Primary Fix**: Update `src/common/api/brand.ts` - Change `BrandService.createUser('/api/users')` → `'/users'`
-- **Backend**: Confirmed `/api/users` endpoint working
-- **Verification**: Test user creation modal in Brand.tsx
+## Planned Steps:
+- [ ] 1. Fix mstbills_print_settings INSERT (match ~55 columns exactly)
+- [ ] 2. Fix mstgeneral_settings outletid (use inserted outletId)
+- [ ] 3. Add FK validation (hotelid, warehouseid, market_id)
+- [ ] 4. Restore console.error logging for debugging
+- [ ] 5. Add input validation for required fields
+- [ ] 6. Test endpoint & verify database
+- [ ] 7. Update this TODO with results
 
-### Steps:
-- [ ] 1. Edit `src/common/api/brand.ts` (remove `/api` from users endpoint)
-- [ ] 2. Test user creation in Brand.tsx (RegisterUserModal & AddUserModal)
-- [ ] 3. Verify Network tab: Request should hit `http://localhost:3001/api/users`
-- [ ] 4. Mark complete & attempt_completion
-
-**Current Step: 1/4**
-
+**Next:** Edit outletController.js → Step 1-2 parameter fixes
