@@ -381,11 +381,11 @@ html, body {
   const generateBillContent = (isPreview = false) => {
      // DEBUG LOGS - Remove after testing
    
-    console.log('user.trn_gstno:', user?.trn_gstno);
-   console.log('showAll:', 'localFormData.trn_gstno:', user.trn_gstno);
-    console.log('Customer section condition:', (  localFormData.show_customer_bill || localFormData.show_customer_gst_bill) && (customerName || mobileNumber));
-    console.log('localFormData keys:', Object.keys(localFormData));
-    console.log('======================');
+  //   console.log('user.trn_gstno:', user?.trn_gstno);
+  //  console.log('showAll:', 'localFormData.trn_gstno:', user.trn_gstno);
+  //   console.log('Customer section condition:', (  localFormData.show_customer_bill || localFormData.show_customer_gst_bill) && (customerName || mobileNumber));
+  //   console.log('localFormData keys:', Object.keys(localFormData));
+  //   console.log('======================');
     // For preview, show all values regardless of settings
     const showAll = isPreview;
 

@@ -151,7 +151,7 @@ app.whenReady().then(async () => {
   // 3. Ab window banao
   console.log('✅ Creating window...');
   createWindow();
-  Menu.setApplicationMenu(null);
+  // Menu.setApplicationMenu(null);
 });
 
 // Clear auth data on app close (before quit)

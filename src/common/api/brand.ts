@@ -128,8 +128,9 @@ const BrandService = {
    * Create a new user
    */
   createUser: (userData: BrandUser): Promise<ApiResponse<any>> =>
-    HttpClient.post<ApiResponse<any>>('/api/users', userData)
+    HttpClient.post<ApiResponse<any>>('/users', userData)
 
 }
 
 export default BrandService
+
