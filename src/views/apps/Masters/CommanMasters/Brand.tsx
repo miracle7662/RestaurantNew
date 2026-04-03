@@ -155,7 +155,7 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
       onSuccess();
       onHide();
     } catch (err) {
-       console.error('Error creating user:', err);
+      //console.error('Error creating user:', err);
       toast.error('Something went wrong');
     } finally {
       setLoading(false);

@@ -69,8 +69,8 @@ function startBackend() {
       ? path.join(__dirname, "backend", "server.js")
       : path.join(process.resourcesPath, "app.asar.unpacked", "backend", "server.js");
 
-    console.log("🚀 Starting backend...");
-    console.log("Backend Path:", backendPath);
+    // console.log("🚀 Starting backend...");
+    // console.log("Backend Path:", backendPath);
 
     // ✅ Pass userData path
     if (!isDev) {
@@ -84,7 +84,7 @@ function startBackend() {
 
 
   } catch (err) {
-    console.error("❌ Backend failed:", err);
+    // console.error("❌ Backend failed:", err);
   }
 }
 
@@ -120,7 +120,7 @@ mainWindow = new BrowserWindow({
   // Get printers once the page finishes loading
   mainWindow.webContents.on("did-finish-load", async () => {
     const printers = await mainWindow.webContents.getPrintersAsync();
-    console.log("Installed Printers:", printers);
+    // console.log("Installed Printers:", printers);
   });
 
   mainWindow.on("closed", () => {
@@ -134,7 +134,7 @@ mainWindow = new BrowserWindow({
    App Events - FIXED
    ========================= */
 app.whenReady().then(async () => {
-  console.log('🚀 App starting...');
+  // console.log('🚀 App starting...');
   
   // Set Windows app user model ID for proper taskbar icon
   if (process.platform === 'win32') {
@@ -145,11 +145,11 @@ app.whenReady().then(async () => {
   startBackend();
   
   // 2. 4 second wait backend ready hone tak
-  console.log('⏳ Waiting for backend (4 sec)...');
+  // console.log('⏳ Waiting for backend (4 sec)...');
   await new Promise(resolve => setTimeout(resolve, 4000));
   
   // 3. Ab window banao
-  console.log('✅ Creating window...');
+  // console.log('✅ Creating window...');
   createWindow();
   // Menu.setApplicationMenu(null);
 });
