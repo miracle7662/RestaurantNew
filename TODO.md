@@ -1,1 +1,6 @@
-# TODO: Modify getAllTaxGroups for hotelid=0\n\n1. ✅ Create TODO.md with plan steps\n2. Read controller file contents\n3. Create edit plan and get user approval\n4. Edit msttaxgroupController.js - change if condition to skip WHERE when parseInt(hotelid) === 0\n5. Update TODO.md with completion\n6. Test API endpoint\n7. attempt_completion
+# Fix restitemid ReferenceError TODO
+
+## [x] 1. Edit backend/controllers/mstrestmenuController.js - Remove erroneous debug console.log before INSERT
+## [x] 2. Test create menu item endpoint  
+## [x] 3. Verify other functions (update/delete)
+## [x] 4. Complete task
