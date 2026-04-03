@@ -1,5 +1,5 @@
 {
-  "name": "miracle-restaurant",
+  "name": "miracle-pos",
   "private": true,
   "version": "1.0.0",
   "author": "Miracle",
@@ -34,7 +34,7 @@
     "backend:install": "echo 'Backend dependencies are managed from root package.json'",
     "dev:full": "concurrently \"npm run dev\" \"npm run backend\"",
     "build:win": "npm run build && electron-rebuild && electron-builder --win",
-     "postinstall": "electron-rebuild",
+    "postinstall": "electron-rebuild",
     "install:all": "npm install"
   },
   "dependencies": {
@@ -173,39 +173,25 @@
     "webpack-cli": "^6.0.1",
     "webpack-dev-server": "^5.2.2"
   },
-"build": {
-  "appId": "com.miracle.restaurant.app",
-  "productName": "Miracle Restaurant",
-
-  "directories": {
-    "output": "dist"
-  },
-
-  "files": [
-    "dist/**",
-    "main.cjs",
-    "preload.js",
-    "backend/**"
-  ],
-
-  "asarUnpack": [
-    "backend/**"
-  ],
-
-  "win": {
-    "target": "nsis",
-    "icon": "build/icon.ico"
-  },
-
-  "nsis": {
-    "oneClick": false,
-    "allowToChangeInstallationDirectory": true,
-    "createDesktopShortcut": true,
-    "createStartMenuShortcut": true,
-    "shortcutName": "Miracle Restaurant"
-  }
-},
-"nsis": {
+  "build": {
+    "appId": "com.miracle.restaurant.app",
+    "productName": "Miracle POS",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist/**",
+      "main.cjs",
+      "preload.js",
+      "backend/**"
+    ],
+    "asarUnpack": [
+      "backend/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
@@ -214,7 +200,7 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
-      "shortcutName": "Miracle Restaurant"
+      "shortcutName": "Miracle POS"
     }
   }
 }

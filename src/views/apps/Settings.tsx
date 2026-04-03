@@ -989,7 +989,7 @@ function SettingsPage() {
                       disabled={uiLoading || !user}
                     >
                       <option value="POS"> POS </option>
-                      <option value="Orders"> Orders </option>
+<option value="Tableview"> Orders </option>
                     </Form.Select>
                     {uiSaveMessage && (
                       <div className={`small mt-1 ${uiSaveMessage.includes('✅') ? 'text-success' : 'text-danger'}`}>

@@ -1,6 +1,8 @@
 import { ThemeSettings, useThemeContext } from '@/common/context'
 
 const DarkLight = () => {
+  const { settings, updateSettings } = useThemeContext()
+
   const toggleDarkMode = () => {
     if (settings.theme === 'dark') {
       updateSettings({ theme: ThemeSettings.theme.light })
@@ -9,12 +11,19 @@ const DarkLight = () => {
     }
   }
 
-  const { settings, updateSettings } = useThemeContext()
   return (
     <div>
       <div className="header-btn">
-        <div id="light-dark-mode" onClick={toggleDarkMode}>
-          <i className="dark-light-icon-toggle fi fi-rr-moon fs-20 text-white" />
+        <div
+          id="light-dark-mode"
+          onClick={toggleDarkMode}
+          style={{ cursor: 'pointer' }}
+        >
+          {settings.theme === 'dark' ? (
+            <i className="fi fi-rr-sun fs-20 text-white" title="Light Mode" />
+          ) : (
+            <i className="fi fi-rr-moon fs-20 text-white" title="Dark Mode" />
+          )}
         </div>
       </div>
     </div>

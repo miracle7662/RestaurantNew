@@ -26,8 +26,8 @@ ipcMain.handle("get-installed-printers", async () => {
 ipcMain.handle("direct-print", (event, { html, printerName }) => {
   return new Promise((resolve, reject) => {
     try {
-          const win = new BrowserWindow({width: 302, height: 600,  show: false,
-          icon: path.join(__dirname, 'build/icon.ico'),
+      const win = new BrowserWindow({width: 302, height: 600,  show: false,
+          icon: path.resolve(__dirname, 'build/icon.ico'),
           webPreferences: {
           contextIsolation: true,
           nodeIntegration: false,
@@ -92,15 +92,14 @@ function startBackend() {
    Create Main Window
    ========================= */
 function createWindow() {
-     mainWindow = new BrowserWindow({width: 1300, height: 900, 
-     icon: path.join(__dirname, 'build/icon.ico'),
-     webPreferences: {
-     preload: path.join(__dirname, "preload.js"),
+mainWindow = new BrowserWindow({
+    width: 1300,
+    height: 900,
+    icon: path.resolve(__dirname, 'build/icon.ico'),
+    webPreferences: {
+      preload: path.resolve(__dirname, "preload.js"),
     },
   });
-
-  // ✅ Use outer scope isDev (move it up or pass as param)
-  const isDev = !app.isPackaged;
 
   if (isDev) {
     mainWindow.loadURL("http://localhost:5173");
@@ -108,13 +107,17 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, "dist", "index.html"));
   }
 
+  // Modify headers for development
   mainWindow.webContents.session.webRequest.onBeforeSendHeaders(
     (details, callback) => {
-      details.requestHeaders["Origin"] = "http://localhost:5173";
+      if (isDev) {
+        details.requestHeaders["Origin"] = "http://localhost:5173";
+      }
       callback({ requestHeaders: details.requestHeaders });
     }
   );
 
+  // Get printers once the page finishes loading
   mainWindow.webContents.on("did-finish-load", async () => {
     const printers = await mainWindow.webContents.getPrintersAsync();
     console.log("Installed Printers:", printers);
@@ -133,6 +136,11 @@ function createWindow() {
 app.whenReady().then(async () => {
   console.log('🚀 App starting...');
   
+  // Set Windows app user model ID for proper taskbar icon
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.miracle.restaurant.app');
+  }
+  
   // 1. Pehle backend start
   startBackend();
   
@@ -143,6 +151,7 @@ app.whenReady().then(async () => {
   // 3. Ab window banao
   console.log('✅ Creating window...');
   createWindow();
+  Menu.setApplicationMenu(null);
 });
 
 // Clear auth data on app close (before quit)

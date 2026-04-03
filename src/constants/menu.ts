@@ -26,7 +26,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
   {
     key: '  Orders',
     label: 'POS',
-    url: '/apps/orders',
+    url: '/apps/Orders',
     icon: 'fi fi-rr-utensils',
     parentKey: 'apps',
   },

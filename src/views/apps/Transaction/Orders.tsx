@@ -217,7 +217,7 @@ const Order = () => {
   const [tip, setTip] = useState<number>(0);
   const [kotNote, setKotNote] = useState<string>('');
   const [billPrintItems, setBillPrintItems] = useState<MenuItem[]>([]);
-  const [printTaxCalc, setPrintTaxCalc] = useState(taxCalc);
+ 
   const [, setPrintKotNo] = useState<number | null>(null);
 
   // States for Pending Orders Modal (Pickup/Delivery)
@@ -1603,12 +1603,11 @@ const handlePrintKotAndBill = async () => {
 
     // ✅ STEP 1: Snapshot everything BEFORE async calls
     const currentItems = [...items];
-    const currentTaxCalc = { ...taxCalc };
     const currentKotNo = currentKOTNo;
 
     // ✅ Store snapshot for printing
     setBillPrintItems(currentItems);
-    setPrintTaxCalc(currentTaxCalc);
+   
     setPrintKotNo(currentKotNo);
 
     // 1️⃣ Save KOT
@@ -5053,7 +5052,7 @@ const handlePrintKotAndBill = async () => {
             customerName={customerName}
             mobileNumber={mobileNumber}
             currentTxnId={currentTxnId?.toString()}
-            taxCalc={printTaxCalc}
+            taxCalc={taxCalc}
             taxRates={taxRates}
             discount={discount}
             reason={reason}

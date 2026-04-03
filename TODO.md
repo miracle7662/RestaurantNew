@@ -1,6 +1,1 @@
-# Dark Mode Toggle Moon Icon Task
-
-## Steps:
-- [x] 1. Understand project files and create edit plan (completed)
-- [x] 2. Edit src/components/Topbar/DarkLight.tsx to add conditional moon/sun icons
-- [x] 3. Test the toggle functionality (verified: dev server at http://localhost:5174/, header toggle shows moon/sun correctly, switches theme)\n- [x] 4. Mark complete and demo\n\n✅ Task completed! View at http://localhost:5174/
+# UI Mode Sidebar Integration&#10;&#10;**Status**: In Progress&#10;&#10;## Steps:&#10;- [x] 1. ✅ Analyzed files and confirmed issue (dropdown values mismatch menu keys)&#10;- [x] 2. ✅ Created TODO.md with implementation steps  &#10;- [ ] 3. Edit src/views/apps/Settings.tsx - Fix dropdown options to &#39;POS&#39;/&#39;Tableview&#39;&#10;- [ ] 4. Test UI Mode toggle → verify sidebar filters correctly&#10;- [ ] 5. Verify backend saves correct ui_mode values&#10;- [ ] 6. Complete task ✅
