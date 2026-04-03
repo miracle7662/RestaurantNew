@@ -51,7 +51,7 @@ const TaxGroupService = {
   /**
    * Get all tax groups with optional search
    */
-  list: (params?: { q?: string }): Promise<ApiResponse<{ taxGroups: TaxGroup[]; count: number }>> =>
+  list: (params?: { q?: string; hotelid?: string }): Promise<ApiResponse<{ taxGroups: TaxGroup[]; count: number }>> =>
     HttpClient.get<ApiResponse<{ taxGroups: TaxGroup[]; count: number }>>('/taxgroup', { params }),
 
   /**

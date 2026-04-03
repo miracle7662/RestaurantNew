@@ -72,7 +72,7 @@ const RestTaxMaster: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const restTaxesRes = await RestTaxMasterService.list();
+      const restTaxesRes = await RestTaxMasterService.list({ hotelid: user?.hotelid?.toString() || '0' });
       const taxes = Array.isArray(restTaxesRes) ? restTaxesRes : [];
       setRestTaxes(taxes);
       setFilteredRestTaxes(taxes);

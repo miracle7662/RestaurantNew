@@ -3,13 +3,15 @@ const db = require('../config/db');
 // Get all rest tax masters
 exports.getAll = (req, res) => {
   try {
+    const hotelid = req.query.hotelid || req.hotelid || 0;
     const rows = db.prepare(`
       SELECT t.*, h.hotel_name ,mu.username, tg.taxgroup_name 
       FROM mst_resttaxmaster t
       LEFT JOIN msthotelmasters h ON t.hotelid = h.hotelid
       LEFT JOIN msttaxgroup tg ON t.taxgroupid = tg.taxgroupid
       left join mst_users mu on mu.userid=t.created_by_id
-    `).all();
+      WHERE t.hotelid = 0 OR t.hotelid = ?
+    `).all(hotelid);
     res.json(rows);
   } catch (err) {
     // console.error('Error fetching rest taxes:', err.message);

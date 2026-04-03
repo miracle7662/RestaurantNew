@@ -44,7 +44,7 @@ const fetchData = async () => {
 
   try {
     // Fetch tax groups
-    const taxGroupsRes = await taxGroupsService.list();
+    const taxGroupsRes = await taxGroupsService.list({ hotelid: user?.hotelid?.toString() || '0' });
     const taxGroupsData = taxGroupsRes.data.taxGroups ?? []; // data is { taxGroups: [...], count: X }
     setTaxGroups(taxGroupsData);
     setFilteredTaxGroups(taxGroupsData);

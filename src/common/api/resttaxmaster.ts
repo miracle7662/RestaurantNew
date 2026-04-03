@@ -54,7 +54,7 @@ const RestTaxMasterService = {
   /**
    * Get all restaurant tax masters with optional search
    */
-  list: (params?: { q?: string }): Promise<ApiResponse<RestTaxMaster[]>> =>
+  list: (params?: { q?: string; hotelid?: string }): Promise<ApiResponse<RestTaxMaster[]>> =>
     HttpClient.get<ApiResponse<RestTaxMaster[]>>('/resttaxmaster', { params }),
 
   /**

@@ -3,9 +3,14 @@ const db = require('../config/db');
 // Get All
 exports.getunitmaster = (req, res) => {
     try {
-        const hotelid = req.query.hotelid || req.hotelid;
-        console.log("REQ HOTEL ID (query/auth):", req.query.hotelid, "/", req.hotelid, "=>", hotelid);
-        const unitmaster = db.prepare('SELECT * FROM mstunitmaster WHERE hotelid = ?').all(hotelid);
+        const hotelid = req.query.hotelid || req.hotelid || 0;
+
+        const unitmaster = db.prepare(`
+            SELECT * FROM mstunitmaster 
+            WHERE hotelid = 0 OR hotelid = ?
+        `).all(hotelid);
+
+        console.log("DATA:", unitmaster);
 
         res.status(200).json({
             success: true,
@@ -15,6 +20,7 @@ exports.getunitmaster = (req, res) => {
         });
 
     } catch (error) {
+        console.error(error);
         res.status(500).json({
             success: false,
             message: "Failed to fetch unit master",
@@ -23,7 +29,6 @@ exports.getunitmaster = (req, res) => {
         });
     }
 };
-
 
 // Add
 exports.addunitmaster = (req, res) => {
