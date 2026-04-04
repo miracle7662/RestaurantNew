@@ -3834,8 +3834,9 @@ const handlePrintKotAndBill = async () => {
                             </div>
                             <div className="mt-auto">
                               <div className="d-flex justify-content-between fw-bold border-top pt-2">
-                                <span> {order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
-                                <span> ₹{order.total.toFixed(2)}</span>
+                                <span>{order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
+                                <span> ₹{(order.Amount || order.GrandTotal || order.amount || order.total || 0).toFixed(2)}</span>
+
                               </div>
                               <div className="d-flex gap-2 mt-3">
                                 <Button
