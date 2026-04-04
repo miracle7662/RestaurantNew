@@ -160,19 +160,40 @@ exports.createMenuItemWithDetails = async (req, res) => {
                     is_ingredients_required, consume_on_bill, reverse_stock_cancel_kot, 
                     allow_negative_stock, opening_stock_quantity, opening_stock_unit_id,
                     consume_raw_materials_on_bill, consume_raw_materials_on_kot, store_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, datetime('now'),
-                    ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
             const result = stmt.run(
-                parsedHotelId, outletid ? parseInt(outletid) : null, item_no, item_name, print_name, short_name, kitchen_category_id,
-                kitchen_sub_category_id, kitchen_main_group_id, item_group_id, item_main_group_id,
-                stock_unit ? parseInt(stock_unit) : null, price, taxgroupid, is_runtime_rates || 0, is_common_to_all_departments || 0,
-                item_description, item_hsncode, created_by_id,
-                // 🔥 NEW STOCK FIELD VALUES (default 0/null if not provided) 🔥
-                is_ingredients_required || 0, consume_on_bill || 1, reverse_stock_cancel_kot || 0, 
-                allow_negative_stock || 0, opening_stock_quantity || 0, opening_stock_unit_id || null,
-                0, 0, null
+                 parsedHotelId,
+                outletid ? parseInt(outletid) : null,
+                item_no,
+                item_name,
+                print_name,
+                short_name,
+                kitchen_category_id ? parseInt(kitchen_category_id) : null,
+                kitchen_sub_category_id ? parseInt(kitchen_sub_category_id) : null,
+                kitchen_main_group_id ? parseInt(kitchen_main_group_id) : null,
+                item_group_id ? parseInt(item_group_id) : null,
+                item_main_group_id ? parseInt(item_main_group_id) : null,
+                stock_unit ? parseInt(stock_unit) : null,
+                parseFloat(price || 0),
+                parseInt(taxgroupid || 0),
+                is_runtime_rates || 0,
+                is_common_to_all_departments || 0,
+                item_description || null,
+                item_hsncode || null,
+                1, // status
+                parseInt(created_by_id || 0),
+                new Date().toISOString().slice(0, 19).replace('T', ' '), // created_date DATETIME format
+                is_ingredients_required || 0,
+                consume_on_bill || 1,
+                reverse_stock_cancel_kot || 0,
+                allow_negative_stock || 0,
+                parseFloat(opening_stock_quantity || 0),
+                opening_stock_unit_id ? parseInt(opening_stock_unit_id) : null,
+                0, // consume_raw_materials_on_bill default
+                0, // consume_raw_materials_on_kot default
+                null  // store_name default
             );
 
             const restitemid = result.lastInsertRowid;
@@ -255,7 +276,7 @@ exports.createMenuItemWithDetails = async (req, res) => {
             res.json({ success: true, data: { ...createdItem, department_details: allDetails }, message: 'Menu item created successfully' });
         })();
     } catch (error) {
-        // console.error('Error creating menu item with details:', error);
+        console.error('Error creating menu item with details:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
