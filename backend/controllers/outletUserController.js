@@ -316,7 +316,7 @@ exports.updateOutletUser = async (req, res) => {
       updated_by_id
     } = req.body;
 
-     console.log('Update outlet user request:', { userid, body: req.body });
+    //  console.log('Update outlet user request:', { userid, body: req.body });
 
     // Check if user exists and is an outlet user
     const existingUser = db.prepare('SELECT role_level, hotelid FROM mst_users WHERE userid = ?').get(userid);
@@ -454,7 +454,7 @@ exports.deleteOutletUser = (req, res) => {
 
     res.json({ success: true, message: 'Outlet user deleted successfully' })
   } catch (error) {
-    console.error('Error deleting outlet user:', error)
+    // console.error('Error deleting outlet user:', error)
     res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }

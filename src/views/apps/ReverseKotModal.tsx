@@ -200,7 +200,7 @@ useEffect(() => {
                         { label: 'REV KOT NO', value: nextRevKotNo },
                         { label: 'WAITER', value: waiter },
                         { label: 'PAX', value: pax },
-{ label: 'DATE', value: currDate || date }
+                        { label: 'DATE', value: currDate || date }
                     ].map((info, idx) => (
                         <Col key={idx}>
                             <Card
