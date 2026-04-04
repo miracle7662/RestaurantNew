@@ -243,18 +243,6 @@ const Order = () => {
   const [defaultWaiterId, setDefaultWaiterId] = useState<number | null>(null);
   const [defaultPax, setDefaultPax] = useState<number>(1);
 
-  // 🔥 NEW: isOrderBilled() helper for payment gating
-  const isOrderBilled = (): boolean => {
-    // Check 1: Any item explicitly marked as billed
-    const hasBilledItems = items.some(item => item.isBilled === 1);
-
-    // Check 2: Current table status = 2 (billed/printed/red)
-    const currentTableStatus = tableItems.find(t => t.table_name === selectedTable)?.status;
-    const tableIsBilled = currentTableStatus === 2;
-
-    return hasBilledItems || tableIsBilled;
-  };
-
   // Auto-set default waiter/pax when table selected + data ready (Dine-in tables)
   useEffect(() => {
     const isDineIn = activeTab === 'Dine-in';
@@ -3076,34 +3064,30 @@ const handlePrintKotAndBill = async () => {
     }
   };
 
-  const handlePendingMakePayment = async (order: any) => {
-    if (!isOrderBilled()) {
-      toast.error('Please print bill first');
-      return;
-    }
-    setCurrentTxnId(order.id);
-    setOrderNo(order.kotNo || `Order-${order.id}`);
-    setItems(order.items.map((i: any) => ({ ...i, isBilled: 0, isNew: false }))); // Treat items as existing
-    // 🔥 FIXED: Removed manual taxCalc override - let useEffect compute w/ taxes
-    setDiscount(0); // Reset discount
-    setSelectedOutletId(order.outletid); // Set the outlet ID from the order
+ const handlePendingMakePayment = async (order: any) => {
+  // ✅ Now isBilled will be available from API
+  if (order.isBilled !== 1) {
+    toast.error('Please print the bill first before making payment');
+    return;
+  }
+  
+  setCurrentTxnId(order.id);
+  setOrderNo(order.kotNo || `Order-${order.id}`);
+  setItems(order.items.map((i: any) => ({ ...i, isBilled: 0, isNew: false })));
+  setDiscount(0);
+  setSelectedOutletId(order.outletid);
 
-    // 🔥 NEW: Load dept & taxes for accurate taxCalc
-    try {
-      const mstRes = await OrderService.getMstSettingByOutlet(order.outletid);
-      const deptId = mstRes.data?.departmentid || departments.find(d => d.outletid === order.outletid)?.departmentid;
-      if (deptId) {
-        setSelectedDeptId(deptId);
-        // console.log(`✅ Pending order taxes loading: outlet=${order.outletid}, dept=${deptId}`);
-        // taxRates useEffect will auto-trigger on selectedDeptId change
-      }
-    } catch (e) {
-      // console.error('Pending order tax setup failed:', e);
+  try {
+    const mstRes = await OrderService.getMstSettingByOutlet(order.outletid);
+    const deptId = mstRes.data?.departmentid || departments.find(d => d.outletid === order.outletid)?.departmentid;
+    if (deptId) {
+      setSelectedDeptId(deptId);
     }
+  } catch (e) {}
 
-    await fetchPaymentModesForOutlet(order.outletid);
-    setShowSettlementModal(true); // Show modal after payment modes are fetched
-  };
+  await fetchPaymentModesForOutlet(order.outletid);
+  setShowSettlementModal(true);
+};
   const handlePendingOrderTabClick = (type: 'pickup' | 'delivery') => {
     setActiveNavTab(type.charAt(0).toUpperCase() + type.slice(1)); // Set the active tab
     setShowOrderDetails(false);

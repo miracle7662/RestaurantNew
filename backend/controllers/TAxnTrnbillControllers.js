@@ -2809,6 +2809,7 @@ exports.getPendingOrders = async (req, res) => {
         b.*,
         b.CustomerName,
         b.orderNo,
+        b.isBilled,  -- ✅ ADD THIS LINE
         (SELECT MAX(d2.KOTNo) FROM TAxnTrnbilldetails d2 WHERE d2.TxnID = b.TxnID) as KOTNo,
         b.outletid,
         b.MobileNo,
@@ -2819,7 +2820,8 @@ exports.getPendingOrders = async (req, res) => {
             -- ✅ Show remaining quantity after reversal
             'Qty', (d.Qty - COALESCE(d.RevQty, 0)),
             'RuntimeRate', d.RuntimeRate,
-            'item_name', m.item_name
+            'item_name', m.item_name,
+            'isBilled', d.isBilled  
           )
         ) as _details
       FROM TAxnTrnbill b
@@ -2837,6 +2839,7 @@ exports.getPendingOrders = async (req, res) => {
       txnId: r.TxnID,
       kotNo: r.KOTNo,
       orderNo: r.orderNo,
+      isBilled: r.isBilled,
       outletid: r.outletid,
       customer: {
         name: r.CustomerName || '',
