@@ -803,37 +803,67 @@ exports.downloadSampleTemplate = (req, res) => {
   try {
     const XLSX = require('xlsx');
     
-    // Sample data with examples (static template - no DB dependency to avoid errors)
+    // 🔥 COMPLETE TEMPLATE - ALL DB FIELDS with examples 🔥
+    // Use exact column names that importMenuItems() will read
+    // Yes/No → 1/0, exact names for FK mapping
     const sampleData = [
       {
         'Item No': 'AUTO',
-        'Item Name': 'Example: Chicken Biryani',
+        'Item Name': 'Chicken Biryani',
         'Print Name': 'CHICKEN BIRYANI',
         'Short Name': 'C.BIRYANI',
         'Price': 250.00,
-        'Description': 'Delicious chicken biryani with aromatic spices',
-        'HSN Code': '210690',
+        'Description': 'Chicken biryani with basmati rice and aromatic spices',
+        'HSN Code': '21069099',
         'Status': 'Active',
+        'Item Main Group': 'Food',
         'Item Group': 'Main Course',
+        'Kitchen Main Group': 'Indian',
         'Kitchen Category': 'Non-Veg',
+        'Kitchen Sub Category': 'Biryani',
         'Tax Group': 'GST 18%',
         'Runtime Rates': 'No',
-        'Common to All Departments': 'Yes'
+        'Common to All Departments': 'Yes',
+        // 🔥 NEW STOCK FIELDS 🔥
+        'Is Ingredients Required': 'No',
+        'Consume on Bill': 'Yes',
+        'Reverse Stock Cancel KOT': 'No',
+        'Allow Negative Stock': 'No',
+        'Opening Stock Qty': 50,
+        'Opening Stock Unit ID': 1, // UnitMaster.unitid
+        // 🔥 NEW RAW MATERIALS FIELDS 🔥
+        'Consume Raw on Bill': 'No',
+        'Consume Raw on KOT': 'No',
+        'Store Name': 1 // Warehouse.warehouseid
       },
       {
         'Item No': 'AUTO',
-        'Item Name': 'Example: Veg Pulao',
+        'Item Name': 'Veg Pulao',
         'Print Name': 'VEG PULAO',
         'Short Name': 'V.PULAO',
         'Price': 150.00,
-        'Description': 'Fragrant vegetable pulao',
-        'HSN Code': '210690',
+        'Description': 'Mixed vegetable pulao with basmati rice',
+        'HSN Code': '21069099',
         'Status': 'Active',
+        'Item Main Group': 'Food',
         'Item Group': 'Main Course',
+        'Kitchen Main Group': 'Indian',
         'Kitchen Category': 'Veg',
-        'Tax Group': 'GST 18%',
+        'Kitchen Sub Category': 'Rice',
+        'Tax Group': 'GST 5%',
         'Runtime Rates': 'No',
-        'Common to All Departments': 'Yes'
+        'Common to All Departments': 'Yes',
+        // 🔥 NEW STOCK FIELDS 🔥
+        'Is Ingredients Required': 'Yes',
+        'Consume on Bill': 'Yes',
+        'Reverse Stock Cancel KOT': 'Yes',
+        'Allow Negative Stock': 'No',
+        'Opening Stock Qty': 100,
+        'Opening Stock Unit ID': 1,
+        // 🔥 NEW RAW MATERIALS FIELDS 🔥
+        'Consume Raw on Bill': 'Yes',
+        'Consume Raw on KOT': 'No',
+        'Store Name': 2
       }
     ];
     
@@ -841,29 +871,66 @@ exports.downloadSampleTemplate = (req, res) => {
     
     // Create template sheet
     const wsTemplate = XLSX.utils.json_to_sheet(sampleData);
-    wsTemplate['!cols'] = [
-      { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 10 },
-      { wch: 35 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 18 },
-      { wch: 20 }, { wch: 15 }, { wch: 25 }
-    ];
-    XLSX.utils.book_append_sheet(wb, wsTemplate, 'Import Template');
     
-    // Write to buffer - use 'buffer' type to get a proper Node.js Buffer
+    // Optimized column widths for all fields
+    wsTemplate['!cols'] = [
+      { wch: 12 }, // Item No
+      { wch: 30 }, // Item Name  
+      { wch: 20 }, // Print Name
+      { wch: 15 }, // Short Name
+      { wch: 10 }, // Price
+      { wch: 35 }, // Description
+      { wch: 12 }, // HSN Code
+      { wch: 10 }, // Status
+      { wch: 18 }, // Item Main Group
+      { wch: 18 }, // Item Group
+      { wch: 18 }, // Kitchen Main Group
+      { wch: 18 }, // Kitchen Category
+      { wch: 20 }, // Kitchen Sub Category
+      { wch: 15 }, // Tax Group
+      { wch: 15 }, // Runtime Rates
+      { wch: 22 }, // Common to All Departments
+      { wch: 20 }, // Is Ingredients Required
+      { wch: 15 }, // Consume on Bill
+      { wch: 22 }, // Reverse Stock Cancel KOT
+      { wch: 18 }, // Allow Negative Stock
+      { wch: 15 }, // Opening Stock Qty
+      { wch: 18 }, // Opening Stock Unit ID
+      { wch: 18 }, // Consume Raw on Bill
+      { wch: 16 }, // Consume Raw on KOT
+      { wch: 15 }  // Store Name
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, wsTemplate, 'Menu Import Template');
+    
+    // Instructions sheet
+    const instructions = [
+      ['IMPORTANT INSTRUCTIONS:'],
+      ['1. Use EXACT names from dropdowns for Item Group, Kitchen Category, etc.'],
+      ['2. Status: Active/Inactive'],
+      ['3. Boolean fields (Yes/No):'],
+      ['   - Yes → 1, No → 0 (automatic conversion)'],
+      ['   - Is Ingredients Required: Yes/No'],
+      ['   - Consume on Bill: Yes/No'],
+      ['   - etc.'],
+      ['4. Item No: Leave as AUTO or enter manually'],
+      ['5. Opening Stock Unit ID: unitid from unitmaster table'],
+      ['6. Store Name: warehouseid from warehouse table'],
+      [''],
+      ['SAMPLE ROWS BELOW ↓']
+    ];
+    const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
+    XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
+    
     const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
     
-    // Set proper headers for Excel file download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=menu_import_template.xlsx');
     res.setHeader('Content-Length', buffer.length);
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    
-    // Send the buffer directly
     res.send(buffer);
     
   } catch (error) {
-    // console.error('Error downloading sample template:', error);
-    res.status(500).json({ success: false, message: 'Failed to download sample template', error: error.message, data: null });
+    console.error('Error downloading sample template:', error);
+    res.status(500).json({ success: false, message: 'Failed to download sample template', error: error.message });
   }
 };
