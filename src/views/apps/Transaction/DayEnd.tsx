@@ -516,8 +516,8 @@ const getFormattedDate = (dateStr: string) => {
           z-index: 10;
           background-color: #f8f9fa;
           border-bottom: 1px solid #dee2e6;
-          padding: 0.25rem 0.5rem;
-          font-size: 0.75rem;
+          padding: 0.4rem 0.75rem;
+          font-size: 0.85rem;
           white-space: nowrap;
         }
         .table-container tfoot td {
@@ -528,8 +528,8 @@ const getFormattedDate = (dateStr: string) => {
           border-top: 2px solid #28a745;
           font-weight: bold;
           color: #155724 !important;
-          padding: 0.25rem 0.5rem;
-          font-size: 0.8rem;
+          padding: 0.4rem 0.75rem;
+          font-size: 0.9rem;
           white-space: nowrap;
         }
         .table-container .table-success {
@@ -543,19 +543,19 @@ const getFormattedDate = (dateStr: string) => {
           margin-bottom: 0;
           table-layout: fixed;
           width: 100%;
-          min-width: 2400px;
+          min-width: 3200px;
           border-collapse: separate;
         }
         .table-container th,
         .table-container td {
           word-wrap: break-word;
           overflow-wrap: break-word;
-          padding: 0.25rem 0.5rem;
+          padding: 0.4rem 0.75rem;
           vertical-align: middle;
           border: 1px solid #dee2e6;
         }
         .table-container tbody td {
-          font-size: 0.8rem;
+          font-size: 0.9rem;
         }
         .table-container .table-row-compact td {
           padding: 0.25rem 0.5rem;
@@ -637,7 +637,7 @@ const getFormattedDate = (dateStr: string) => {
         .table-container th:nth-child(29),
         .table-container td:nth-child(29) { width: 7%; } /* Outlet ID */
         .table-container th:nth-child(30),
-        .table-container td:nth-child(30) { width: 6%; text-align: center; } /* Actions */
+        .table-container td:nth-child(30) { width: 6%ter; } /* Actions */
         .summary-cards {
           margin-bottom: 1rem;
         }
