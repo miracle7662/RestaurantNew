@@ -534,13 +534,14 @@ exports.exportMenuItems = (req, res) => {
   try {
     const { hotelid, outletid } = req.query;
     const XLSX = require('xlsx');
-
-    let query = `
+    
+let query = `
       SELECT DISTINCT m.restitemid, m.item_no, m.item_name, m.print_name, m.short_name,
              m.price, m.item_description, m.item_hsncode, m.status,
              m.kitchen_category_id, m.kitchen_sub_category_id, m.kitchen_main_group_id,
              m.item_group_id, m.item_main_group_id, m.stock_unit, m.taxgroupid,
              m.is_runtime_rates, m.is_common_to_all_departments,
+             -- 🔥 NEW STOCK FIELDS 🔥
              m.is_ingredients_required, m.consume_on_bill, m.reverse_stock_cancel_kot,
              m.allow_negative_stock, m.opening_stock_quantity, m.opening_stock_unit_id,
              m.consume_raw_materials_on_bill, m.consume_raw_materials_on_kot, m.store_name,
@@ -548,26 +549,26 @@ exports.exportMenuItems = (req, res) => {
              ig.itemgroupname AS groupname,
              kmg.Kitchen_main_Group AS kitchen_main_group_name,
              kc.Kitchen_Category AS kitchen_category_name,
-             ksc.Kitchen_sub_Category AS kitchen_sub_category_name,
+             ksc.Kitchen_sub_category AS kitchen_sub_category_name,
              tg.taxgroup_name
       FROM mstrestmenu m
       LEFT JOIN mst_outlets o ON m.outletid = o.outletid
       LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
-      LEFT JOIN mst_Item_Group ig ON m.item_group_id = ig.item_groupid
-      LEFT JOIN mstkitchenmaingroup kmg ON m.kitchen_main_group_id = kmg.kitchenmaingroupid
-      LEFT JOIN mstkitchencategory kc ON m.kitchen_category_id = kc.kitchencategoryid
-      LEFT JOIN mstkitchensubcategory ksc ON m.kitchen_sub_category_id = ksc.kitchensubcategoryid
+      LEFT JOIN mst_item_group ig ON m.item_group_id = ig.item_groupid
+      LEFT JOIN mst_kitchen_main_group kmg ON m.kitchen_main_group_id = kmg.kitchenmaingroupid
+      LEFT JOIN mst_kitchen_category kc ON m.kitchen_category_id = kc.kitchencategoryid
+      LEFT JOIN mst_kitchen_sub_category ksc ON m.kitchen_sub_category_id = ksc.kitchensubcategoryid
       LEFT JOIN msttaxgroup tg ON m.taxgroupid = tg.taxgroupid
       WHERE m.status IN (0,1)
     `;
-
+    
     const params = [];
-
+    
     if (hotelid) {
       query += ' AND m.hotelid = ?';
       params.push(parseInt(hotelid));
     }
-
+    
     if (outletid) {
       const parsedOutletId = parseInt(outletid);
       const outlet = db.prepare('SELECT hotelid FROM mst_outlets WHERE outletid = ?').get(parsedOutletId);
@@ -579,11 +580,11 @@ exports.exportMenuItems = (req, res) => {
         params.push(parsedOutletId);
       }
     }
-
+    
     query += ' ORDER BY m.item_name ASC';
-
+    
     const menuItems = db.prepare(query).all(...params);
-
+    
     const exportData = menuItems.map((item, index) => ({
       'Sr.No': index + 1,
       'Item No': item.item_no || '',
@@ -612,91 +613,95 @@ exports.exportMenuItems = (req, res) => {
       'Consume Raw on KOT': item.consume_raw_materials_on_kot === 1 ? 'Yes' : 'No',
       'Store Name': item.store_name || '',
     }));
-
+    
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportData);
-
-    // Auto-set column widths
-    ws['!cols'] = Object.keys(exportData[0] || {}).map(() => ({ wch: 20 }));
-
+    
+    ws['!cols'] = [
+      { wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
+      { wch: 10 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 20 },
+      { wch: 15 }, { wch: 15 }, { wch: 25 },
+    ];
+    
     XLSX.utils.book_append_sheet(wb, ws, 'Menu Items');
-
+    
     const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-
+    
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=menu_items_export.xlsx');
     res.send(buffer);
-
+    
   } catch (error) {
-    console.error('Error exporting menu items:', error);
+    // console.error('Error exporting menu items:', error);
     res.status(500).json({ success: false, message: 'Failed to export menu items', error: error.message, data: null });
   }
 };
 
-// Import menu items from Excel
 // Import menu items from Excel
 exports.importMenuItems = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
-
+    
     const XLSX = require('xlsx');
     const buffer = req.file.buffer;
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(worksheet);
-
+    
     if (!data || data.length === 0) {
       return res.status(400).json({ success: false, message: 'No data found in Excel file' });
     }
-
+    
     const { hotelid, outletid, created_by_id } = req.body;
-
-    if (!hotelid) return res.status(400).json({ success: false, message: 'hotelid is required' });
-
+    
+    if (!hotelid) {
+      return res.status(400).json({ success: false, message: 'hotelid is required' });
+    }
+    
     const parsedHotelId = parseInt(hotelid);
     const parsedOutletId = outletid ? parseInt(outletid) : null;
     const parsedCreatedById = created_by_id ? parseInt(created_by_id) : 2;
-
-    // Validate hotel
-    const hotel = db.prepare('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?').get(parsedHotelId);
-    if (!hotel) return res.status(400).json({ success: false, message: `Invalid hotelid: ${hotelid}` });
-
-    // Load master data maps
-    const itemGroupsMap = {};
-    db.prepare('SELECT item_groupid, itemgroupname FROM mst_Item_Group WHERE status = 0').all()
-      .forEach(ig => itemGroupsMap[ig.itemgroupname.toLowerCase()] = ig.item_groupid);
-
-    const kitchenCategoriesMap = {};
-    db.prepare('SELECT kitchencategoryid, Kitchen_Category FROM mstkitchencategory WHERE status = 0').all()
-      .forEach(kc => kitchenCategoriesMap[kc.Kitchen_Category.toLowerCase()] = kc.kitchencategoryid);
-
-    const mainGroupsMap = {};
-    db.prepare('SELECT item_maingroupid, item_group_name FROM mst_Item_Main_Group WHERE status = 0').all()
-      .forEach(mg => mainGroupsMap[mg.item_group_name.toLowerCase()] = mg.item_maingroupid);
-
-    const taxGroupsMap = {};
-    db.prepare('SELECT taxgroupid, taxgroup_name FROM msttaxgroup WHERE status = 0').all()
-      .forEach(tg => taxGroupsMap[tg.taxgroup_name.toLowerCase()] = tg.taxgroupid);
-
-    // Departments mapping
-    let deptQuery = 'SELECT departmentid, department_name FROM msttable_department WHERE status = 0';
-    const deptParams = [];
-    if (parsedOutletId) {
-      deptQuery += ' AND outletid = ?';
-      deptParams.push(parsedOutletId);
-    } else {
-      deptQuery += ' AND outletid IS NULL';
+    
+    const hotel = db.prepare('SELECT hotelid, hotel_name FROM msthotelmasters WHERE hotelid = ?').get(parsedHotelId);
+    if (!hotel) {
+      return res.status(400).json({ success: false, message: `Invalid hotelid: ${hotelid}` });
     }
+    
+    const itemGroups = db.prepare('SELECT item_groupid, itemgroupname FROM mst_item_group WHERE status = 0').all();
+    const itemGroupsMap = {};
+    itemGroups.forEach(ig => { itemGroupsMap[ig.itemgroupname.toLowerCase()] = ig.item_groupid; });
+    
+    const kitchenCategories = db.prepare('SELECT kitchencategoryid, Kitchen_Category FROM mst_kitchen_category WHERE status = 0').all();
+    const kitchenCategoriesMap = {};
+    kitchenCategories.forEach(kc => { kitchenCategoriesMap[kc.Kitchen_Category.toLowerCase()] = kc.kitchencategoryid; });
+    
+    const taxGroups = db.prepare('SELECT taxgroupid, taxgroup_name FROM msttaxgroup WHERE status = 0').all();
+    const taxGroupsMap = {};
+    taxGroups.forEach(tg => { taxGroupsMap[tg.taxgroup_name.toLowerCase()] = tg.taxgroupid; });
+    
+    let deptQuery = 'SELECT departmentid, department_name FROM msttable_department WHERE status = 0';
+    let deptParams = [];
+    if (parsedOutletId) {
+      const outlet = db.prepare('SELECT hotelid FROM mst_outlets WHERE outletid = ?').get(parsedOutletId);
+      if (outlet && outlet.hotelid === parsedHotelId) {
+        deptQuery += ' AND (outletid = ? OR outletid IS NULL)';
+        deptParams.push(parsedOutletId);
+      }
+    } else {
+      deptQuery += ' AND hotelid = ?';
+      deptParams.push(parsedHotelId);
+    }
+    const departments = db.prepare(deptQuery).all(...deptParams);
     const departmentsMap = {};
-    db.prepare(deptQuery).all(...deptParams)
-      .forEach(d => departmentsMap[d.department_name.toLowerCase()] = d.departmentid);
-
+    departments.forEach(d => { departmentsMap[d.department_name.toLowerCase()] = d.departmentid; });
+    
     const importedItems = [];
     const errors = [];
-
+    
     db.transaction(() => {
       data.forEach((row, index) => {
         try {
@@ -704,47 +709,43 @@ exports.importMenuItems = async (req, res) => {
             errors.push({ row: index + 2, message: 'Item Name is required' });
             return;
           }
-
+          
           const itemName = row['Item Name'].toString().trim();
           const itemNo = row['Item No'] ? row['Item No'].toString().trim() : null;
           const price = row['Price'] ? parseFloat(row['Price']) : 0;
-
-          const itemGroupId = row['Item Group'] ? itemGroupsMap[row['Item Group'].toString().toLowerCase().trim()] : null;
-          const kitchenCategoryId = row['Kitchen Category'] ? kitchenCategoriesMap[row['Kitchen Category'].toString().toLowerCase().trim()] : null;
-          const mainGroupId = row['Kitchen Main Group'] ? mainGroupsMap[row['Kitchen Main Group'].toString().toLowerCase().trim()] : null;
-          const taxGroupId = row['Tax Group'] ? taxGroupsMap[row['Tax Group'].toString().toLowerCase().trim()] : null;
-
-          // Skip if FK references are missing
-          if (row['Item Group'] && !itemGroupId) {
-            errors.push({ row: index + 2, message: `Item Group not found: ${row['Item Group']}` });
-            return;
+          
+          let itemGroupId = null;
+          if (row['Item Group']) {
+            const igName = row['Item Group'].toString().toLowerCase().trim();
+            itemGroupId = itemGroupsMap[igName] || null;
           }
-          if (row['Kitchen Category'] && !kitchenCategoryId) {
-            errors.push({ row: index + 2, message: `Kitchen Category not found: ${row['Kitchen Category']}` });
-            return;
+          
+          let kitchenCategoryId = null;
+          if (row['Kitchen Category']) {
+            const kcName = row['Kitchen Category'].toString().toLowerCase().trim();
+            kitchenCategoryId = kitchenCategoriesMap[kcName] || null;
           }
-          if (row['Kitchen Main Group'] && !mainGroupId) {
-            errors.push({ row: index + 2, message: `Kitchen Main Group not found: ${row['Kitchen Main Group']}` });
-            return;
+          
+          let taxGroupId = null;
+          if (row['Tax Group']) {
+            const tgName = row['Tax Group'].toString().toLowerCase().trim();
+            taxGroupId = taxGroupsMap[tgName] || null;
           }
-          if (row['Tax Group'] && !taxGroupId) {
-            errors.push({ row: index + 2, message: `Tax Group not found: ${row['Tax Group']}` });
-            return;
-          }
-
+          
           const status = row['Status'] && row['Status'].toString().toLowerCase() === 'active' ? 1 : 0;
           const isRuntimeRates = row['Runtime Rates'] && row['Runtime Rates'].toString().toLowerCase() === 'yes' ? 1 : 0;
           const isCommonToAll = row['Common to All Departments'] && row['Common to All Departments'].toString().toLowerCase() === 'yes' ? 1 : 0;
-
-          // Insert into mstrestmenu
-          const result = db.prepare(`
+          
+          const stmt = db.prepare(`
             INSERT INTO mstrestmenu (
               hotelid, outletid, item_no, item_name, print_name, short_name,
-              kitchen_category_id, kitchen_main_group_id, item_group_id, price, taxgroupid,
+              kitchen_category_id, item_group_id, stock_unit, price, taxgroupid,
               is_runtime_rates, is_common_to_all_departments, item_description, item_hsncode,
               status, created_by_id, created_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-          `).run(
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, datetime('now'))
+          `);
+          
+          const result = stmt.run(
             parsedHotelId,
             parsedOutletId,
             itemNo,
@@ -752,8 +753,8 @@ exports.importMenuItems = async (req, res) => {
             row['Print Name'] || null,
             row['Short Name'] || null,
             kitchenCategoryId,
-            mainGroupId,
             itemGroupId,
+            null,
             price,
             taxGroupId,
             isRuntimeRates,
@@ -763,31 +764,36 @@ exports.importMenuItems = async (req, res) => {
             status,
             parsedCreatedById
           );
-
+          
           const restitemid = result.lastInsertRowid;
-
-          // Insert into mstrestmenudetails for each department
-          Object.values(departmentsMap).forEach(departmentid => {
-            db.prepare(`
+          
+          if (departments.length > 0 && price > 0) {
+            const detailStmt = db.prepare(`
               INSERT INTO mstrestmenudetails (restitemid, departmentid, item_rate, hotelid)
               VALUES (?, ?, ?, ?)
-            `).run(restitemid, departmentid, price, parsedHotelId);
-          });
-
+            `);
+            
+            departments.forEach(dept => {
+              detailStmt.run(restitemid, dept.departmentid, price, parsedHotelId);
+            });
+          }
+          
           importedItems.push({ restitemid, item_name: itemName, item_no: itemNo });
+          
         } catch (rowError) {
           errors.push({ row: index + 2, message: rowError.message });
         }
       });
     })();
-
+    
     res.json({
       success: true,
-      data: { imported: importedItems.length, errors },
+      data: { imported: importedItems.length, errors: errors },
       message: `Successfully imported ${importedItems.length} items${errors.length > 0 ? ` with ${errors.length} errors` : ''}`
     });
-
+    
   } catch (error) {
+    // console.error('Error importing menu items:', error);
     res.status(500).json({ success: false, message: 'Failed to import menu items', error: error.message, data: null });
   }
 };
