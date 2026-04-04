@@ -112,7 +112,12 @@ exports.getMenuItemById = (req, res) => {
 
 exports.createMenuItemWithDetails = async (req, res) => {
     try {
+        // 🔥 DEBUG LOGGING START 🔥
+        console.log('=== MENU CREATE DEBUG START ===');
+        console.log('Full req.body:', JSON.stringify(req.body, null, 2));
+        
         if (!req.body || Object.keys(req.body).length === 0) {
+            console.log('ERROR: Empty request body');
             return res.status(400).json({ message: 'Request body is missing or empty' });
         }
 
@@ -126,6 +131,19 @@ exports.createMenuItemWithDetails = async (req, res) => {
             is_ingredients_required, consume_on_bill, reverse_stock_cancel_kot, 
             allow_negative_stock, opening_stock_quantity, opening_stock_unit_id
         } = req.body;
+
+        // 🔥 PARSED FK VALUES DEBUG 🔥
+        console.log('Parsed FK values:');
+        console.log('- hotelid:', hotelid);
+        console.log('- outletid:', outletid);
+        console.log('- kitchen_category_id:', kitchen_category_id);
+        console.log('- kitchen_sub_category_id:', kitchen_sub_category_id);
+        console.log('- kitchen_main_group_id:', kitchen_main_group_id);
+        console.log('- item_group_id:', item_group_id);
+        console.log('- item_main_group_id:', item_main_group_id);
+        console.log('- stock_unit:', stock_unit);
+        console.log('- taxgroupid:', taxgroupid);
+        console.log('- opening_stock_unit_id:', opening_stock_unit_id);
 
         if (!item_name || !price || !hotelid) {
             return res.status(400).json({ message: 'Required fields missing', missing: { item_name, price, hotelid } });
@@ -156,15 +174,16 @@ exports.createMenuItemWithDetails = async (req, res) => {
                     kitchen_sub_category_id, kitchen_main_group_id, item_group_id, item_main_group_id,
                     stock_unit, price, taxgroupid, is_runtime_rates, is_common_to_all_departments,
                     item_description, item_hsncode, status, created_by_id, created_date,
-                    -- 🔥 NEW STOCK FIELDS + RAW MATERIALS 🔥
                     is_ingredients_required, consume_on_bill, reverse_stock_cancel_kot, 
                     allow_negative_stock, opening_stock_quantity, opening_stock_unit_id,
                     consume_raw_materials_on_bill, consume_raw_materials_on_kot, store_name
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
+
+
             const result = stmt.run(
-                 parsedHotelId,
+                parsedHotelId,
                 outletid ? parseInt(outletid) : null,
                 item_no,
                 item_name,
@@ -233,6 +252,7 @@ exports.createMenuItemWithDetails = async (req, res) => {
                         }
                     } else {
                         const itemRate = detail.item_rate || detail.rate || 0;
+                        
                         insertDetailStmt.run(
                             restitemid,
                             parsedDepartmentId,
