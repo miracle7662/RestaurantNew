@@ -1,55 +1,43 @@
-# SettlementModal Customer Fields - Implementation TODO
+# Customer Modal Implementation Plan - BLACKBOXAI
 
-**Status**: ✅ PLAN APPROVED  
-**Target**: `src/views/apps/Transaction/SettelmentModel.tsx`  
-**Goal**: Show customer fields (mobile+country, name, add btn) **ONLY** when Credit selected, in RIGHT section.
+**Status**: ✅ Approved by user - Ready to implement
 
-## Step-by-Step Implementation Plan
+## Step 1: [PENDING] Create TODO.md ✅ COMPLETED
+- Create this file with implementation steps
 
-### ✅ STEP 1: Create TODO.md [COMPLETED]
+## Step 2: [PENDING] Edit src/views/apps/Transaction/SettelmentModel.tsx
+```
+Primary changes needed:
 
-### ✅ STEP 2: Add Credit Detection Logic
-```
-✅ Added hasCreditMode computed value
-✅ Added useEffect to reset customer data when !show || !hasCreditMode
-```
+1. ✅ Import: Add `import Customers from './Customers';`
 
-### ✅ STEP 3: Read Current File Content
-```
-✅ File read successfully (3423 lines)
-```
+2. ✅ State: Add `const [showCustomerModal, setShowCustomerModal] = useState(false);`
 
-### ✅ STEP 4: Move Customer Fields to RIGHT Section (Col md=8)
-```
-✅ Added conditional customer section in RIGHT Col md=8 (after Selected Payments)
-✅ Customer card with "Credit Required" badge (bg-info-subtle)
-✅ Simplified +91 mobile input (digits only, maxLength=10)
-✅ Auto-fetch preserved (useEffect unchanged)
-✅ Visual validation: red/green borders + messages
-✅ Responsive Row xs={4,5,3} layout
-✅ Add button placeholder
-```
+3. ✅ Handler: Add `const handleCustomerModalToggle = () => setShowCustomerModal(prev => !prev);`
 
-### ⏳ STEP 5: Add Visual Validation
+4. ✅ Button: Update existing button with `onClick={handleCustomerModalToggle}`
+
+5. ✅ Modal JSX: Add full customer modal with Customers component:
 ```
-[X] Red border/shake if Credit selected && !customerId
-[X] Green checkmark if customer found
-[X] Responsive: Row→Col layout
+<Modal show={showCustomerModal} onHide={handleCustomerModalToggle} size="xl" centered>
+  <Modal.Header closeButton>
+    <Modal.Title>Customer Management</Modal.Title>
+  </Modal.Header>
+  <Modal.Body style={{padding: 0, maxHeight: '80vh', overflowY: 'auto'}}>
+    <Customers />
+  </Modal.Body>
+</Modal>
+```
 ```
 
-### ⏳ STEP 6: Test & Update TODO
-```
-[X] Test: Cash→hide, Credit→show, mixed→show, deselect→hide+clear
-[X] Mark steps ✅
-[X] attempt_completion
-```
+## Step 3: [PENDING] Testing
+- Verify modal opens on "Add New" button click
+- Verify Customers component renders correctly inside modal
+- Verify customer add/edit functionality works
+- Verify modal closes properly
 
-## Current Progress
-```
-STEP 1: ✅ TODO.md created
-STEP 2: ⏳ Pending
-...
-```
+## Step 4: [PENDING] Final Completion
+- Use `attempt_completion` tool
 
-**Next**: Execute Steps 2-6 sequentially. Reply with each step completion for verification.
+**Next Action**: Implement Step 2 (file edit)
 

@@ -1,9 +1,7 @@
 // SettlementModal.tsx
 import React, { useState, useEffect } from 'react';
 import { fetchCustomerByMobile } from '@/utils/commonfunction';
-
-
-
+import Customers from './Customers';
 
 import { Modal, Row, Col, Form, Button, Card } from 'react-bootstrap';
 import toast from 'react-hot-toast';
@@ -58,6 +56,11 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   initialCashReceived = 0,  // FIXED: Destructure the prop
   table_name,
 }) => {
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+
+  const handleCustomerModalToggle = () => {
+    setShowCustomerModal(prev => !prev);
+  };
 
 
 
@@ -487,7 +490,12 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
                   
                   {/* Add New Customer */}
                   <Col xs={3}>
-                    <Button variant="outline-primary" size="sm" className="w-100 h-100">
+                    <Button 
+                      variant="outline-primary" 
+                      size="sm" 
+                      className="w-100 h-100"
+                      onClick={handleCustomerModalToggle}
+                    >
                       <i className="fas fa-plus me-1"></i>Add New
                     </Button>
                   </Col>
@@ -598,6 +606,22 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       </Modal.Body>
 
       {/* Simplified Footer – now only buttons, since summary is in right column */}
+      {/* Customer Management Modal */}
+      <Modal 
+        show={showCustomerModal} 
+        onHide={handleCustomerModalToggle} 
+        size="xl" 
+        centered
+        style={{ maxHeight: '90vh' }}
+      >
+        <Modal.Header closeButton className="bg-light">
+          <Modal.Title className="fw-bold">Customer Management</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ padding: 0, height: '70vh', overflowY: 'auto' }}>
+          <Customers />
+        </Modal.Body>
+      </Modal>
+
       <Modal.Footer className="border-0 pt-3 pb-4 px-4 d-flex gap-3 justify-content-end">
         <Button
           variant="outline-secondary"
