@@ -3048,6 +3048,14 @@ const handlePrintKotAndBill = async () => {
 
     // 2. Trigger the print action. The useEffect will handle the rest.
     setPrintTrigger(c => c + 1);
+
+     setPendingOrders(prevOrders => 
+    prevOrders.map(o => 
+      o.id === order.id 
+        ? { ...o, isBilled: 1 }  // Set isBilled = 1 after printing
+        : o
+    )
+  );
   };
 
   const fetchPaymentModesForOutlet = async (outletId: number) => {
