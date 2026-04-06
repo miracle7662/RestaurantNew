@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Row, Col, Form } from 'react-bootstrap';
+import { Row, Col, Form,  Button,Modal } from 'react-bootstrap';
 import TableDepartmentService from '@/common/api/tabledepartment';
 import { toast } from 'react-toastify';
+import MenuService from '@/common/api/menu';
 
 
 import {
@@ -160,6 +161,9 @@ function SettingsPage() {
   const [reportEnablePrint, setReportEnablePrint] = useState(true);
   const [, setEditingReportId] = useState<number | null>(null);
   const [selectedOutlet, setSelectedOutlet] = useState<number | null>( null);
+  // Import modal states
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   // General tab states
   const [departmentId, setDepartmentId] = useState('');
@@ -811,6 +815,55 @@ function SettingsPage() {
     }
   };
 
+  // Handle import menu items from Excel (copied from Menu.tsx)
+  const [importErrors, setImportErrors] = useState<any[]>([]);
+  
+  const handleImport = async (file: File) => {
+    if (!user?.hotelid) {
+      toast.error('Hotel ID is required for import');
+      return;
+    }
+    
+    setImporting(true);
+    setImportErrors([]);
+    try {
+      const response = await MenuService.importMenu(
+        file, 
+        Number(user.hotelid), 
+        user.outletid ? Number(user.outletid) : undefined,
+        user.id
+      );
+      
+      if (response.success) {
+        toast.success(`Successfully imported ${response.data?.imported || 0} items`);
+        
+        // Handle errors properly
+        if (response.data?.errors && response.data.errors.length > 0) {
+          setImportErrors(response.data.errors);
+          
+          // Show detailed errors modal or toast
+          if (response.data.errors.length === 1) {
+            toast.warn(response.data.errors[0].message);
+          } else {
+            toast.warn(`${response.data.errors.length} rows had issues - check console/details`);
+            console.table(response.data.errors);
+          }
+        } else {
+          setShowImportModal(false);
+        }
+        
+        fetchKotPrinters(); // Refresh data
+      } else {
+        toast.error(response.message || 'Failed to import menu items');
+      }
+    } catch (err: any) {
+      console.error('Import error:', err);
+      toast.error(err.message || 'Failed to import menu items');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const clearDeptForm = () => {
     setSelectedDeptPrinter('');
     setSelectedDeptOrderType('');
@@ -1001,8 +1054,105 @@ function SettingsPage() {
                   </Form.Group>
                 </Col>
               </Row>
+              
+              {/* Import Menu Button */}
+              <Row className="mt-3">
+                <Col md={12}>
+                  <Button
+                    variant="outline-info"
+                    size="sm"
+                    onClick={() => setShowImportModal(true)}
+                    style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500' }}
+                    title="Import Menu Items"
+                  >
+                    Import Menu Items
+                  </Button>
+                </Col>
+              </Row>
             </div>
           )}
+          
+          {/* Import Modal (copied from Menu.tsx) */}
+          <Modal show={showImportModal} onHide={() => setShowImportModal(false)} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>Import Menu Items</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <Form>
+                <Form.Group className="mb-3">
+                  <Form.Label>Select Excel File</Form.Label>
+                  <Form.Control
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={(e: any) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        handleImport(file);
+                      }
+                    }}
+                  />
+                  <Form.Text className="text-muted">
+                    Download sample template: 
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      onClick={async () => {
+                        try {
+                          const response: any = await MenuService.downloadSampleTemplate();
+                          const blob = response instanceof Blob ? response : response.data;
+                          const url = window.URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.setAttribute('download', 'menu_import_template.xlsx');
+                          document.body.appendChild(link);
+                          link.click();
+                          link.remove();
+                          window.URL.revokeObjectURL(url);
+                          toast.success('Template downloaded successfully');
+                        } catch (err) {
+                          console.error('Template download error:', err);
+                          toast.error('Failed to download template');
+                        }
+                      }}
+                    >
+                      Download Template
+                    </Button>
+                  </Form.Text>
+                </Form.Group>
+{importing && (
+                  <div className="text-center my-3">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-2">Importing menu items...</p>
+                  </div>
+                )}
+                {importErrors.length > 0 && (
+                  <div className="alert alert-warning mt-3">
+                    <h6><i className="bi bi-exclamation-triangle me-2"></i>Import Warnings:</h6>
+                    <ul className="mb-0 small">
+                      {importErrors.map((err, idx) => (
+                        <li key={idx}>Row {err.row}: {err.message}</li>
+                      ))}
+                    </ul>
+                    <Button 
+                      variant="outline-warning" 
+                      size="sm" 
+                      className="mt-2"
+                      onClick={() => setImportErrors([])}
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                )}
+              </Form>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowImportModal(false)}>
+                Close
+              </Button>
+            </Modal.Footer>
+          </Modal>
 
           {activeTab === "printer" && (
             <div className="p-3" style={{ maxHeight: '80vh', overflowY: 'auto' }}>

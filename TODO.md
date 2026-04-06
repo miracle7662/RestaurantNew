@@ -1,44 +1,17 @@
-# Credit Settlement Feature - Test Verification TODO
+# RestaurantNew Import Fix Task
 
-## Status: ✅ Plan Approved - Testing Phase
+## Approved Plan Summary
+Fix "Item Group not found" error during menu import:
+1. Backend: Update template + improve validation messages
+2. Frontend: Better error display in Settings.tsx
 
-### Step 1: Environment Setup [✅]
-- [✅] Frontend: npm run dev (localhost:5174)
-- [🔄] Backend: Restart after fix (`cd backend && npm start`)
-- [✅] DB: TrnSettlement schema confirmed
+## Steps to Complete
+- [x] Step 1: Edit backend/controllers/menuExportController.js (template + validation) ✅
+- [ ] Step 2: Test backend import via curl/Postman 
+- [x] Step 3: Edit src/views/apps/Settings.tsx (error handling/UI) ✅
+- [ ] Step 4: Test full flow in app
+- [ ] Step 5: Verify Menu.tsx consistency
+- [ ] Step 6: Update this TODO.md ✅ Complete
+- [ ] Step 7: attempt_completion
 
-### Step 2: Create Test Customer [PENDING]
-- [ ] Add sample customer via Customers modal or direct DB
-- [ ] Verify GET /customers/by-mobile?mobile=XXXXXXXXXX returns data
-
-### Step 3: Test Credit Flow [PENDING]
-- [ ] Create bill/table order
-- [ ] Open SettlementModal → Select Credit
-- [ ] Enter mobile → Verify auto-fetch customerName/ID
-- [ ] \"Add New\" works (if needed)
-- [ ] Validation blocks non-verified customer
-- [ ] Settle → Success toast + print
-
-### Step 4: Backend/DB Verification [PENDING]
-\`\`\`sql
-SELECT OrderNo, PaymentType, customerid, CustomerName, MobileNo 
-FROM TrnSettlement 
-WHERE LOWER(PaymentType) LIKE '\%credit\%';
-\`\`\`
-- [ ] Query shows inserted Credit record with customer data
-- [ ] Fields populated: customerid, CustomerName, MobileNo
-
-### Step 5: Edge Cases [PENDING]
-- [ ] Invalid mobile → \"Customer not found\" + block settle
-- [ ] Deselect Credit → Customer fields hide/reset
-- [ ] Mixed payment with Credit → Only Credit requires customer
-
-### Step 7: Backend Bug Fix [✅]
-- [✅] settlementController.js: Parse Credit customer data from payload
-- [ ] Restart backend → Test insert
-
-### Step 6: Completion [PENDING]
-- [ ] All tests PASS → Update TODO.md ✅
-- [ ] attempt_completion with demo commands
-
-
+Current: Steps 1&3 complete. Test then verify Menu.tsx.

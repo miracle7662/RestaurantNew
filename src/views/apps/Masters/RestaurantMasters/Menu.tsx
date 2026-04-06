@@ -156,8 +156,7 @@ const Menu: React.FC = () => {
   const [selectedItemGroup, setSelectedItemGroup] = useState<number | null>(null); // State for selected item group filter
   const [error, setError] = useState<string | null>(null); // State for error handling
   const [variantTypes, setVariantTypes] = useState<VariantType[]>([]); // State for variant types
-  const [showImportModal, setShowImportModal] = useState(false); // Import modal state
-  const [importing, setImporting] = useState(false); // Import loading state
+
   const { user } = useAuthContext();
 
 
@@ -321,39 +320,7 @@ const Menu: React.FC = () => {
     fetchMenuItems(user?.hotelid, user?.outletid);
   };
 
-  // Handle import menu items from Excel
-  const handleImport = async (file: File) => {
-    if (!user?.hotelid) {
-      toast.error('Hotel ID is required for import');
-      return;
-    }
-    
-    setImporting(true);
-    try {
-      const response = await MenuService.importMenu(
-        file, 
-        Number(user.hotelid), 
-        user.outletid ? Number(user.outletid) : undefined,
-        user.id
-      );
-      
-      if (response.success) {
-        toast.success(`Successfully imported ${response.data?.imported || 0} items`);
-        if (response.data?.errors && response.data.errors.length > 0) {
-          // console.warn('Import errors:', response.data.errors);
-        }
-        handleSuccess();
-        setShowImportModal(false);
-      } else {
-        toast.error(response.message || 'Failed to import menu items');
-      }
-    } catch (err: any) {
-      // console.error('Import error:', err);
-      toast.error(err.message || 'Failed to import menu items');
-    } finally {
-      setImporting(false);
-    }
-  };
+
 
   return (
     <div style={{ backgroundColor: '#f4f6f9', minHeight: '100vh' }}>
@@ -419,15 +386,7 @@ const Menu: React.FC = () => {
             >
               Export
             </Button>
-            <Button
-              variant="outline-info"
-              size="sm"
-              onClick={() => setShowImportModal(true)}
-              style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500' }}
-              title="Import Menu"
-            >
-              Import
-            </Button>
+
           </div>
         </div>
       </Navbar>
@@ -628,70 +587,7 @@ const Menu: React.FC = () => {
           isEdit={true}
         />
 
-        {/* Import Modal */}
-        <Modal show={showImportModal} onHide={() => setShowImportModal(false)} centered>
-          <Modal.Header closeButton>
-            <Modal.Title>Import Menu Items</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Form>
-              <Form.Group className="mb-3">
-                <Form.Label>Select Excel File</Form.Label>
-                <Form.Control
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e: any) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      handleImport(file);
-                    }
-                  }}
-                />
-                <Form.Text className="text-muted">
-                  Download sample template: 
-                  <Button 
-                    variant="link" 
-                    size="sm" 
-                  onClick={async () => {
-                      try {
-                        const response: any = await MenuService.downloadSampleTemplate();
-                        // Handle blob response - HttpClient interceptor returns response.data
-                        const blob = response instanceof Blob ? response : response.data;
-                        const url = window.URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.setAttribute('download', 'menu_import_template.xlsx');
-                        document.body.appendChild(link);
-                        link.click();
-                        link.remove();
-                        window.URL.revokeObjectURL(url);
-                        toast.success('Template downloaded successfully');
-                      } catch (err) {
-                        // console.error('Template download error:', err);
-                        toast.error('Failed to download template');
-                      }
-                    }}
-                  >
-                    Download Template
-                  </Button>
-                </Form.Text>
-              </Form.Group>
-              {importing && (
-                <div className="text-center my-3">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                  <p className="mt-2">Importing menu items...</p>
-                </div>
-              )}
-            </Form>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowImportModal(false)}>
-              Close
-            </Button>
-          </Modal.Footer>
-        </Modal>
+
       </div>
     </div>
   );
