@@ -883,6 +883,7 @@ CREATE TABLE IF NOT EXISTS TrnSettlement (
     InsertDate DATETIME DEFAULT CURRENT_TIMESTAMP,
     isSettled INTEGER DEFAULT 1,
     RefferedBy TEXT,
+    customerid INTEGER,
     CustomerName TEXT,
     MobileNo TEXT,
     Address TEXT,
@@ -1285,6 +1286,13 @@ try {
 // Migration: Add trn_gstno to mstbills_print_settings
 try {
   db.exec("ALTER TABLE mstbills_print_settings ADD COLUMN trn_gstno TEXT");
+} catch (e) {
+  // Column might already exist, ignore error
+}
+
+// Migration: Add guestid column to TrnSettlement
+try {
+  db.exec("ALTER TABLE TrnSettlement ADD COLUMN customerid INTEGER");
 } catch (e) {
   // Column might already exist, ignore error
 }

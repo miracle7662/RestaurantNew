@@ -1,7 +1,15 @@
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 
+
+/* ───────── Dynamic Base URL (FIXED) ───────── */
+const getBaseURL = () => {
+  const { protocol, hostname } = window.location;
+
+  // 🚀 Always use current machine (localhost ya IP auto detect)
+  return `${protocol}//${hostname}:3001/api`;
+};
 const _httpClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3001/api",
+  baseURL: getBaseURL(),
   timeout: 15000,
   headers: { "Content-Type": "application/json" },
 });
