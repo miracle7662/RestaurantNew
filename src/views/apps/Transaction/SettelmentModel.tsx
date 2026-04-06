@@ -1,5 +1,8 @@
 // SettlementModal.tsx
 import React, { useState, useEffect } from 'react';
+import { fetchCustomerByMobile } from '@/utils/commonfunction';
+import Customers from './Customers';
+
 import { Modal, Row, Col, Form, Button, Card } from 'react-bootstrap';
 import toast from 'react-hot-toast';
 
@@ -16,6 +19,9 @@ interface Settlement {
   received_amount: number;
   refund_amount: number;
   TipAmount: number;
+  customerid?: number | null;
+  mobile?: string;
+  customerName?: string;
 }
 
 interface SettlementModalProps {
@@ -50,6 +56,11 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   initialCashReceived = 0,  // FIXED: Destructure the prop
   table_name,
 }) => {
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+
+  const handleCustomerModalToggle = () => {
+    setShowCustomerModal(prev => !prev);
+  };
 
 
 
@@ -58,6 +69,48 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   const [paymentAmounts, setPaymentAmounts] = useState<{ [key: string]: string }>(initialPaymentAmounts);
   const [tip, setTip] = useState<number>(initialTip);
   const [activePaymentIndex, setActivePaymentIndex] = useState(0);
+
+// Credit mode detection
+  const hasCreditMode = selectedPaymentModes.some(mode => mode.toLowerCase() === 'credit');
+
+  // Customer states for Credit mode (ONLY visible when hasCreditMode)
+  const [countryCode, setCountryCode] = useState('+91');
+  const [showCountryOptions, setShowCountryOptions] = useState(false);
+  const [customerMobile, setCustomerMobile] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerId, setCustomerId] = useState<number | null>(null);
+
+  // Reset customer data when Credit deselected or modal closed
+  useEffect(() => {
+    if (!show || !hasCreditMode) {
+      setCountryCode('+91');
+      setShowCountryOptions(false);
+      setCustomerMobile('');
+      setCustomerName('');
+      setCustomerId(null);
+    }
+  }, [show, hasCreditMode]);
+
+  // Auto-fetch customer when mobile changes (min 10 digits)
+  useEffect(() => {
+    if (customerMobile.length >= 10) {
+      fetchCustomerByMobile(customerMobile, setCustomerName, setCustomerId, () => {});
+    } else {
+      setCustomerName('');
+      setCustomerId(null);
+    }
+  }, [customerMobile]);
+
+  // Reset customer on modal close
+  useEffect(() => {
+    if (!show) {
+      setCountryCode('+91');
+      setShowCountryOptions(false);
+      setCustomerMobile('');
+      setCustomerName('');
+      setCustomerId(null);
+    }
+  }, [show]);
 
   // Single mode → keep only first payment method
   useEffect(() => {
@@ -210,25 +263,46 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   const handleSettle = async () => {
     if (loading) return;
 
+    // NEW: Validate Credit requires customer
+    const hasCredit = selectedPaymentModes.some(mode => mode.toLowerCase() === 'credit');
+    if (hasCredit && !customerId) {
+      toast.error('Customer details required for Credit payment');
+      return;
+    }
+
     // Validate: Received amount must be >= Bill amount (including tip)
-      if (cashReceived > 0 && cashReceived < grandTotal) {
-    toast.error(`Received amount ₹${cashReceived} is less than bill ₹${grandTotal}`);
-    return;
-  }
+    if (cashReceived > 0 && cashReceived < grandTotal) {
+      toast.error(`Received amount ₹${cashReceived} is less than bill ₹${grandTotal}`);
+      return;
+    }
 
     if (balanceDue > 0) {
       toast.error(`Balance due: ₹${balanceDue.toFixed(2)}`);
       return;
     }
 
-    const settlements = selectedPaymentModes.map(name => ({
-      table_name: table_name || '',
-      PaymentType: name,
-      Amount: Number(paymentAmounts[name] || 0),
-      received_amount: receivedAmount, // Total amount given by customer
-      refund_amount: refundAmount, // Refund amount (only if received > bill, otherwise 0)
-      TipAmount: tip || 0,
-    }));
+    const settlements = selectedPaymentModes.map(name => {
+      const baseSettlement = {
+        table_name: table_name || '',
+        PaymentType: name,
+        Amount: Number(paymentAmounts[name] || 0),
+        received_amount: receivedAmount,
+        refund_amount: refundAmount,
+        TipAmount: tip || 0,
+      };
+
+      // Add customer data to Credit payments only
+      if (name.toLowerCase() === 'credit' && customerId) {
+        return {
+          ...baseSettlement,
+          customerid: customerId,
+          mobile: countryCode + customerMobile,
+          customerName: customerName,
+        };
+      }
+
+      return baseSettlement;
+    });
 
     try {
       await onSettle(settlements, tip);
@@ -278,6 +352,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
 
               <div style={{ overflowY: 'auto' }}>
                 {outletPaymentModes.map((mode, index) => {
+
                   const isSelected = selectedPaymentModes.includes(mode.mode_name);
                   const isActive = index === activePaymentIndex;
 
@@ -376,6 +451,73 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
               </div>
             )}
 
+            {/* NEW: Customer Fields - ONLY when Credit selected (RIGHT SECTION) */}
+            {hasCreditMode && (
+              <div className="mb-3 p-3 bg-info-subtle rounded border border-info">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <h6 className="fw-bold mb-0 text-info">
+                    <i className="fas fa-user me-1"></i>Customer Details
+                  </h6>
+                  <span className="badge bg-danger">Credit Required</span>
+                </div>
+                
+                <Row className="g-2">
+                  {/* Mobile with Country Code */}
+                  <Col xs={4}>
+                    <div className="input-group input-group-sm">
+                      <span className="input-group-text bg-white border-info">+91</span>
+                      <input
+                        type="tel"
+                        className={`form-control form-control-sm ${!customerId ? 'border-danger' : 'border-success'}`}
+                        placeholder="Mobile (10 digits)"
+                        value={customerMobile}
+                        onChange={(e) => setCustomerMobile(e.target.value.replace(/\\D/g, ''))}
+                        maxLength={10}
+                      />
+                    </div>
+                  </Col>
+                  
+                  {/* Customer Name (Auto-fetch) */}
+                  <Col xs={5}>
+                    <input
+                      type="text"
+                      className={`form-control form-control-sm ${!customerId ? 'border-danger bg-light' : 'border-success bg-success-subtle'}`}
+                      placeholder={!customerId ? "Enter mobile to fetch..." : "Customer found ✓"}
+                      value={customerName || ''}
+                      readOnly
+                    />
+                  </Col>
+                  
+                  {/* Add New Customer */}
+                  <Col xs={3}>
+                    <Button 
+                      variant="outline-primary" 
+                      size="sm" 
+                      className="w-100 h-100"
+                      onClick={handleCustomerModalToggle}
+                    >
+                      <i className="fas fa-plus me-1"></i>Add New
+                    </Button>
+                  </Col>
+                </Row>
+                
+                {/* Validation Message */}
+                {!customerId && customerMobile.length >= 10 && (
+                  <div className="mt-1 p-1 bg-danger-subtle rounded small text-danger">
+                    <i className="fas fa-exclamation-triangle me-1"></i>
+                    Customer not found. Please verify mobile number.
+                  </div>
+                )}
+                
+                {customerId && (
+                  <div className="mt-1 p-1 bg-success-subtle rounded small text-success">
+                    <i className="fas fa-check-circle me-1"></i>
+                    Customer verified ✓
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Footer-like Summary Card – now inside right column */}
             <div className="mt-auto">  {/* Pushes it to the bottom of the right column */}
               <Card
@@ -464,6 +606,22 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       </Modal.Body>
 
       {/* Simplified Footer – now only buttons, since summary is in right column */}
+      {/* Customer Management Modal */}
+      <Modal 
+        show={showCustomerModal} 
+        onHide={handleCustomerModalToggle} 
+        size="xl" 
+        centered
+        style={{ maxHeight: '90vh' }}
+      >
+        <Modal.Header closeButton className="bg-light">
+          <Modal.Title className="fw-bold">Customer Management</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ padding: 0, height: '70vh', overflowY: 'auto' }}>
+          <Customers />
+        </Modal.Body>
+      </Modal>
+
       <Modal.Footer className="border-0 pt-3 pb-4 px-4 d-flex gap-3 justify-content-end">
         <Button
           variant="outline-secondary"

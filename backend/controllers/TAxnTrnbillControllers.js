@@ -680,8 +680,8 @@ exports.settleBill = async (req, res) => {
 
     const tx = db.transaction(() => {
       const ins = db.prepare(`
-INSERT INTO TrnSettlement (PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, TxnID, TxnNo, UserId, CustomerName, MobileNo, Receive, Refund, TipAmount, table_name, isSettled, InsertDate)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+INSERT INTO TrnSettlement (PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, TxnID, TxnNo, UserId, customerid, CustomerName, MobileNo, Receive, Refund, TipAmount, table_name, isSettled, InsertDate)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
       `)
       for (const s of settlements) {
         // console.log('Processing settlement:', JSON.stringify(s, null, 2))
@@ -703,6 +703,7 @@ ins.run(
           Number(id),
           bill.TxnNo,
           bill.UserId,
+          bill.customerid,
           bill.CustomerName,
           bill.MobileNo,
           Number(s.received_amount) || 0, // Receive

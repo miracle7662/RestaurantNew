@@ -65,7 +65,8 @@ s.TxnNo AS TaxNo,
         s.CustomerName,
         s.MobileNo,
         s.InsertDate,
-        s.isSettled
+        s.isSettled,
+        s.customerid
       FROM TrnSettlement s
       LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.OrderNo OR s.TxnNo = b.TxnNo
       ${whereSql}
@@ -204,6 +205,7 @@ exports.createSettlement = async (req, res) => {
         PaymentTypeID,
         PaymentType,
         Amount,
+        customerid,
         HotelID,
         isSettled,
         InsertDate
@@ -289,6 +291,7 @@ if (newSettlements.length > 0) {
 let txnNo = originalSettlement?.TxnNo || null;
 let userId = originalSettlement?.UserId || null;
 let name = originalSettlement?.Name || null;
+let customerid = originalSettlement?.customerid || null;
 let customerName = originalSettlement?.CustomerName || null;
 let mobileNo = originalSettlement?.MobileNo || null;
 
@@ -334,6 +337,7 @@ if (!userId) {
     TxnNo,
     UserId,
     Name,
+    customerid,
     CustomerName,
     MobileNo,
     Receive,
@@ -341,7 +345,7 @@ if (!userId) {
     isSettled,
     InsertDate
   )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+  VALUES (?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
 `);
     
 
@@ -379,6 +383,7 @@ if (!userId) {
         txnNo,
         userId,
         name,
+        customerid,
         customerName,
         mobileNo,
         receive,
