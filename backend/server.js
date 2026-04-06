@@ -119,9 +119,23 @@ app.get('/api/health', (req, res) => {
 function startServer(port = 3001) {
   const startTime = new Date().toISOString();
 
-  app.listen(port, () => {
+  app.listen(port, '0.0.0.0', () => {
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+    
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          addresses.push(iface.address);
+        }
+      }
+    }
+    
     console.log(`✅ Backend ready at ${startTime}`);
-    console.log(`Server running at http://localhost:${port}`);
+    console.log(`Server running at http://0.0.0.0:${port}`);
+    console.log(`🌐 Network IPs: ${addresses.join(', ')}`);
+    console.log(`📱 Access from network: http://${addresses[0] || 'YOUR-IP'}:${port}`);
   });
 }
 
