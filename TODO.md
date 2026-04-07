@@ -1,22 +1,24 @@
-# ✅ Backend Auto-Start Fixed!
+# Menu Import NULL Fields Fix - TODO
 
-## Completed:
-- [x] main.cjs: Conditional backend start (`START_BACKEND=false` skips)
-- [x] package.json: New scripts added
-  - `npm run dev-electron:frontend-only` → No backend
-  - `npm run dev:full` → Full stack  
+**Status:** Approved - Proceed with plan
 
-## Test:
-```
-npm run dev-electron:frontend-only
-```
-**Expected**: "⏭️ Backend start skipped"
+## Breakdown Steps:
 
-**Original** `npm run dev-electron` still auto-starts backend.
+### 1. ✅ Create diagnostic results (IN PROGRESS - DB blocked)
+### 2. Seed/populate master tables
+   - [ ] Insert sample data to mst_Item_Group
+   - [ ] Insert sample data to mstkitchenmaingroup  
+   - [ ] Insert sample data to mstkitchensubcategory
+### 3. Improve importMenuItems()
+   - [ ] Expand getValue() aliases
+   - [ ] Add fuzzy matching
+   - [ ] Enhanced logging/errors
+### 4. Update downloadSampleTemplate()
+   - [ ] Include real master names
+### 5. Test import
+   - [ ] Create test Excel
+   - [ ] Run import → verify non-NULL
+### 6. Complete
 
-## Usage:
-- Frontend-only Electron: `npm run dev-electron:frontend-only`
-- Full stack: `npm run dev:full` 
-- Backend manual: `npm run backend` (+ dev-electron:frontend-only)
+**Progress:** 0/6 completed
 
-**Task complete!** 🎉
