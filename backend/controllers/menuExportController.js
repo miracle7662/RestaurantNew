@@ -8,61 +8,115 @@ const XLSX = require('xlsx');
 // 🔽 1. EXPORT MENU ITEMS
 // =========================
 
-exports.exportMenuItems = (req, res) => {
+// menuController.js
+
+
+
+// =========================
+// 🔽 1. EXPORT MENU ITEMS (FIXED)
+// =========================
+
+
+
+// =========================
+// 1. EXPORT MENU ITEMS (REWRITTEN)
+// =========================
+
+exports.exportMenuItems = async (req, res) => {
   try {
     const { hotelid, outletid } = req.query;
-    const XLSX = require('xlsx');
     
-let query = `
-      SELECT DISTINCT m.restitemid, m.item_no, m.item_name, m.print_name, m.short_name,
-             m.price, m.item_description, m.item_hsncode, m.status,
-             m.kitchen_category_id, m.kitchen_sub_category_id, m.kitchen_main_group_id,
-             m.item_group_id, m.item_main_group_id, m.stock_unit, m.taxgroupid,
-             m.is_runtime_rates, m.is_common_to_all_departments,
-             -- 🔥 NEW STOCK FIELDS 🔥
-             m.is_ingredients_required, m.consume_on_bill, m.reverse_stock_cancel_kot,
-             m.allow_negative_stock, m.opening_stock_quantity, m.opening_stock_unit_id,
-             m.consume_raw_materials_on_bill, m.consume_raw_materials_on_kot, m.store_name,
-             o.outlet_name, h.hotel_name,
-             ig.itemgroupname AS groupname,
-             kmg.Kitchen_main_Group AS kitchen_main_group_name,
-             kc.Kitchen_Category AS kitchen_category_name,
-             ksc.Kitchen_sub_category AS kitchen_sub_category_name,
-             tg.taxgroup_name
+    console.log('📤 Export started:', { hotelid, outletid });
+
+    // Build the query
+    let query = `
+      SELECT DISTINCT 
+        m.restitemid,
+        m.item_no,
+        m.item_name,
+        m.print_name,
+        m.short_name,
+        m.price,
+        m.item_description,
+        m.item_hsncode,
+        m.status,
+        m.kitchen_category_id,
+        m.kitchen_sub_category_id,
+        m.kitchen_main_group_id,
+        m.item_group_id,
+        m.item_main_group_id,
+        m.stock_unit,
+        m.taxgroupid,
+        m.is_runtime_rates,
+        m.is_common_to_all_departments,
+        m.is_ingredients_required,
+        m.consume_on_bill,
+        m.reverse_stock_cancel_kot,
+        m.allow_negative_stock,
+        m.opening_stock_quantity,
+        m.opening_stock_unit_id,
+        m.consume_raw_materials_on_bill,
+        m.consume_raw_materials_on_kot,
+        m.store_name,
+        o.outlet_name,
+        h.hotel_name,
+        ig.itemgroupname AS groupname,
+        kmg.Kitchen_main_Group AS kitchen_main_group_name,
+        kc.Kitchen_Category AS kitchen_category_name,
+        ksc.Kitchen_sub_category AS kitchen_sub_category_name,
+        tg.taxgroup_name
       FROM mstrestmenu m
       LEFT JOIN mst_outlets o ON m.outletid = o.outletid
       LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
-      LEFT JOIN mst_item_group ig ON m.item_group_id = ig.item_groupid
-      LEFT JOIN mst_kitchen_main_group kmg ON m.kitchen_main_group_id = kmg.kitchenmaingroupid
-      LEFT JOIN mst_kitchen_category kc ON m.kitchen_category_id = kc.kitchencategoryid
-      LEFT JOIN mst_kitchen_sub_category ksc ON m.kitchen_sub_category_id = ksc.kitchensubcategoryid
+      LEFT JOIN mst_Item_Group ig ON m.item_group_id = ig.item_groupid
+      LEFT JOIN mstkitchenmaingroup kmg ON m.kitchen_main_group_id = kmg.kitchenmaingroupid
+      LEFT JOIN mstkitchencategory kc ON m.kitchen_category_id = kc.kitchencategoryid
+      LEFT JOIN mstkitchensubcategory ksc ON m.kitchen_sub_category_id = ksc.kitchensubcategoryid
       LEFT JOIN msttaxgroup tg ON m.taxgroupid = tg.taxgroupid
-      WHERE m.status IN (0,1)
+      WHERE m.status IN (0, 1)
     `;
     
     const params = [];
-    
+
+    // Add hotel filter
     if (hotelid) {
       query += ' AND m.hotelid = ?';
       params.push(parseInt(hotelid));
     }
-    
+
+    // Add outlet filter with smart logic
     if (outletid) {
-      const parsedOutletId = parseInt(outletid);
-      const outlet = db.prepare('SELECT hotelid FROM mst_outlets WHERE outletid = ?').get(parsedOutletId);
+      const outletIdNum = parseInt(outletid);
+      const outlet = db.prepare(`
+        SELECT hotelid FROM mst_outlets WHERE outletid = ?
+      `).get(outletIdNum);
+
       if (outlet) {
         query += ' AND (m.outletid = ? OR (m.hotelid = ? AND m.outletid IS NULL))';
-        params.push(parsedOutletId, outlet.hotelid);
+        params.push(outletIdNum, outlet.hotelid);
       } else {
         query += ' AND m.outletid = ?';
-        params.push(parsedOutletId);
+        params.push(outletIdNum);
       }
     }
-    
+
     query += ' ORDER BY m.item_name ASC';
-    
+
+    // Execute query
+    console.log('🔍 Executing query with params:', params);
     const menuItems = db.prepare(query).all(...params);
-    
+    console.log(`✅ Found ${menuItems.length} menu items`);
+
+    // Check if data exists
+    if (!menuItems || menuItems.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No menu items found for the selected criteria',
+        data: null
+      });
+    }
+
+    // Transform data for export
     const exportData = menuItems.map((item, index) => ({
       'Sr.No': index + 1,
       'Item No': item.item_no || '',
@@ -91,28 +145,65 @@ let query = `
       'Consume Raw on KOT': item.consume_raw_materials_on_kot === 1 ? 'Yes' : 'No',
       'Store Name': item.store_name || '',
     }));
-    
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    
-    ws['!cols'] = [
-      { wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
-      { wch: 10 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 15 },
-      { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 20 },
-      { wch: 15 }, { wch: 15 }, { wch: 25 },
+
+    // Create Excel file
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+    // Set column widths
+    worksheet['!cols'] = [
+      { wch: 6 },   // Sr.No
+      { wch: 12 },  // Item No
+      { wch: 30 },  // Item Name
+      { wch: 25 },  // Print Name
+      { wch: 15 },  // Short Name
+      { wch: 12 },  // Price
+      { wch: 40 },  // Description
+      { wch: 15 },  // HSN Code
+      { wch: 10 },  // Status
+      { wch: 20 },  // Hotel
+      { wch: 20 },  // Outlet
+      { wch: 20 },  // Item Group
+      { wch: 22 },  // Kitchen Main Group
+      { wch: 20 },  // Kitchen Category
+      { wch: 22 },  // Kitchen Sub Category
+      { wch: 18 },  // Tax Group
+      { wch: 14 },  // Runtime Rates
+      { wch: 25 },  // Common to All Departments
+      { wch: 22 },  // Is Ingredients Required
+      { wch: 16 },  // Consume on Bill
+      { wch: 24 },  // Reverse Stock Cancel KOT
+      { wch: 20 },  // Allow Negative Stock
+      { wch: 18 },  // Opening Stock Qty
+      { wch: 20 },  // Consume Raw on Bill
+      { wch: 20 },  // Consume Raw on KOT
+      { wch: 15 }   // Store Name
     ];
-    
-    XLSX.utils.book_append_sheet(wb, ws, 'Menu Items');
-    
-    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-    
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Menu Items');
+
+    // Generate buffer
+    const buffer = XLSX.write(workbook, { 
+      bookType: 'xlsx', 
+      type: 'buffer' 
+    });
+
+    // Send response
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=menu_items_export.xlsx');
-    res.send(buffer);
+    res.setHeader('Content-Length', buffer.length);
     
+    console.log(`📁 Export completed: ${exportData.length} rows exported`);
+    return res.send(buffer);
+
   } catch (error) {
-    // console.error('Error exporting menu items:', error);
-    res.status(500).json({ success: false, message: 'Failed to export menu items', error: error.message, data: null });
+    console.error('❌ Export error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to export menu items',
+      error: error.message,
+      data: null
+    });
   }
 };
 

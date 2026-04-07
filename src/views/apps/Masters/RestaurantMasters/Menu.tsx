@@ -362,30 +362,62 @@ const Menu: React.FC = () => {
             >
               Add Item
             </Button>
-            <Button
-              variant="outline-success"
-              size="sm"
-              onClick={async () => {
-                try {
-                  const response: any = await MenuService.exportMenu(user?.hotelid, user?.outletid);
-                  const url = window.URL.createObjectURL(new Blob([response.data]));
-                  const link = document.createElement('a');
-                  link.href = url;
-                  link.setAttribute('download', 'menu_items_export.xlsx');
-                  document.body.appendChild(link);
-                  link.click();
-                  link.remove();
-                  toast.success('Menu exported successfully');
-                } catch (err: any) {
-                  // console.error('Export error:', err);
-                  toast.error('Failed to export menu');
-                }
-              }}
-              style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500' }}
-              title="Export Menu"
-            >
-              Export
-            </Button>
+            
+<Button
+  variant="outline-success"
+  size="sm"
+  onClick={async () => {
+    try {
+      const response = await MenuService.exportMenu(user?.hotelid, user?.outletid);
+      
+      // Handle both cases: response is the blob directly OR response contains the blob
+      let blob: Blob;
+      
+      if (response instanceof Blob) {
+        // Response is directly the blob
+        blob = response;
+      } else if (response?.data instanceof Blob) {
+        // Response has a data property that is blob
+        blob = response.data;
+      } else if (response?.config?.responseType === 'blob' && response?.data) {
+        // Axios full response with blob data
+        blob = response.data;
+      } else {
+        // Fallback: try to create blob from response
+        blob = new Blob([response], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+      }
+      
+      // Validate blob
+      if (!blob || blob.size === 0) {
+        // Try to read as text to see error message
+        const text = await blob?.text();
+        console.error('Empty blob, text content:', text);
+        throw new Error('Generated file is empty');
+      }
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `menu_items_export_${Date.now()}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success(`Exported ${blob.size} bytes successfully`);
+    } catch (err: any) {
+      console.error('Export error:', err);
+      toast.error(err?.message || 'Failed to export menu');
+    }
+  }}
+  style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500' }}
+  title="Export Menu"
+>
+  Export
+</Button>
 
           </div>
         </div>

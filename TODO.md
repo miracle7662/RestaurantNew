@@ -1,7 +1,11 @@
-# Task: Add initial customer props to SettlementModal in Settelment.tsx (COMPLETE)
+# Customer Data Fix for Settlement
+Status: 🚀 In Progress (0/2)
 
 ## Steps:
-- [x] 1. Edit src/views/apps/Transaction/Settelment.tsx to add props to `<SettlementModal />`
-- [x] 2. Verify no TypeScript errors (build check attempted, no errors in edit process)
-- [x] 3. Test settlement editing flow (user to test in app)
-- [x] 4. Mark complete
+- [ ] **Step 1**: Update `handlePrintBill()` in Orders.tsx ✅
+- [ ] **Step 2**: Update `handlePrintAndSettle()` in Orders.tsx  
+- [ ] **Step 3**: Test settlement with edited customer data
+- [ ] **Step 4**: attempt_completion
+
+**Current File**: `src/views/apps/Transaction/Orders.tsx`
+
