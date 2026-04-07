@@ -307,7 +307,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
         return {
           ...baseSettlement,
           customerid: customerId,
-          mobile: countryCode + customerMobile,
+          mobile: customerMobile,
           customerName: customerName,
         };
       }

@@ -659,11 +659,6 @@ exports.deleteBill = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.settleBill = async (req, res) => {
   try {
-    // --- Logging for Debugging ---
-    // console.log(`[${new Date().toISOString()}] --- settleBill Request Received ---`)
-    // console.log('Request Params (ID):', req.params.id)
-    // console.log('Request Body (settlements):', JSON.stringify(req.body, null, 2))
-
     const { id } = req.params
     const { settlements = [], curr_date, TipAmount } = req.body
 
@@ -676,23 +671,40 @@ exports.settleBill = async (req, res) => {
     const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     if (!bill)
       return res.status(404).json({ success: false, message: 'Bill not found', data: null })
-      // console.log('Found bill:', JSON.stringify(bill, null, 2))
 
     const tx = db.transaction(() => {
       const ins = db.prepare(`
-INSERT INTO TrnSettlement (PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, TxnID, TxnNo, UserId, customerid, CustomerName, MobileNo, Receive, Refund, TipAmount, table_name, isSettled, InsertDate)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        INSERT INTO TrnSettlement (
+          PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, 
+          TxnID, TxnNo, UserId, customerid, CustomerName, MobileNo, 
+          Receive, Refund, TipAmount, table_name, isSettled, InsertDate
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
       `)
+      
       for (const s of settlements) {
-        // console.log('Processing settlement:', JSON.stringify(s, null, 2))
-        
         // Use InsertDate from request body if provided, otherwise use current datetime
         const insertDate = s.InsertDate ? s.InsertDate : new Date().toISOString().replace('T', ' ').substring(0, 19);
         
         // Get TipAmount - default to 0 if not provided
         const tipAmount = TipAmount != null ? Number(TipAmount) : 0;
         
-ins.run(
+        // 🔥 FIX: For Credit payments, use customer data from settlement object
+        // For non-credit payments, fallback to bill's customer data
+        const isCredit = s.PaymentType && s.PaymentType.toLowerCase() === 'credit';
+        
+        let customerId = bill.customerid;
+        let customerName = bill.CustomerName;
+        let mobileNo = bill.MobileNo;
+        
+        if (isCredit && s.customerid) {
+          // Use credit-specific customer data from settlement
+          customerId = s.customerid;
+          customerName = s.customerName || customerName;
+          mobileNo = s.mobile || mobileNo;
+        }
+        
+        ins.run(
           s.PaymentTypeID ?? 1,
           s.PaymentType || null,
           Number(s.Amount) || 0,
@@ -703,51 +715,33 @@ ins.run(
           Number(id),
           bill.TxnNo,
           bill.UserId,
-          bill.customerid,
-          bill.CustomerName,
-          bill.MobileNo,
-          Number(s.received_amount) || 0, // Receive
-          Number(s.refund_amount) || 0, // Refund
-          tipAmount, // TipAmount
-          bill.table_name || null, // table_name
-          insertDate // InsertDate
+          customerId,           // 🔥 Use customer ID from settlement for credit
+          customerName,         // 🔥 Use customer name from settlement for credit
+          mobileNo,             // 🔥 Use mobile from settlement for credit
+          Number(s.received_amount) || 0,
+          Number(s.refund_amount) || 0,
+          tipAmount,
+          bill.table_name || null,
+          insertDate
         )
       }
 
-      db.prepare(
-        `
+      db.prepare(`
         UPDATE TAxnTrnbill 
         SET isSetteled = 1, isBilled = 1, BilledDate = CURRENT_TIMESTAMP, orderNo = COALESCE(orderNo, TxnNo)
         WHERE TxnID = ?
-      `,
-      ).run(Number(id))
+      `).run(Number(id))
 
       db.prepare(`UPDATE TAxnTrnbilldetails SET isSetteled = 1 WHERE TxnID = ?`).run(Number(id))
 
       // Set table status to vacant (0) after settlement
       if (bill.TableID) {
-        // console.log(`Updating table ${bill.TableID} status to vacant.`)
-        
-        // Get the table info to check if it's a sub-table
         const tableInfo = db.prepare(`SELECT * FROM msttablemanagement WHERE tableid = ?`).get(bill.TableID);
-        
-        // Determine the parent table ID - if this table is a sub-table, use its parentTableId, otherwise use its own tableid
-        const parentTableIdToUse = tableInfo && tableInfo.parentTableId ? tableInfo.parentTableId : bill.TableID;
-        
-        // console.log(`Table info:`, tableInfo);
-        // console.log(`Using parentTableId: ${parentTableIdToUse} for deleting sub-tables`);
-        
-        // Update the main table status to vacant
         db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(bill.TableID)
         db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
-
-        // // Delete all sub-tables (temporary tables) associated with this parent table
-        // console.log(`Deleting sub-tables for parent table ${parentTableIdToUse}`)
-        // db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(parentTableIdToUse)
       }
     })
 
-    // console.log('Executing database transaction...')
     tx()
 
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
@@ -755,20 +749,17 @@ ins.run(
       .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
       .all(Number(id))
     const stl = db
-      .prepare(
-        `
-      SELECT * FROM TrnSettlement 
-      WHERE OrderNo = ? AND HotelID = ?
-      ORDER BY SettlementID
-    `,
-      )
+      .prepare(`
+        SELECT * FROM TrnSettlement 
+        WHERE OrderNo = ? AND HotelID = ?
+        ORDER BY SettlementID
+      `)
       .all(header.orderNo || null, header.HotelID || null)
 
-    // console.log('--- settleBill Success ---')
     res.json(ok('Bill settled', { ...header, customerid: header.customerid, details: items, settlement: stl }))
   } catch (error) {
-    // console.error('--- ERROR in settleBill ---')
-    // console.error(error)
+    console.error('--- ERROR in settleBill ---')
+    console.error(error)
     res
       .status(500)
       .json({ success: false, message: 'Failed to settle bill', data: null, error: error.message })

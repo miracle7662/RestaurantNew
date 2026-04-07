@@ -2714,7 +2714,7 @@ const handlePrintKotAndBill = async () => {
         const receivedAmount = s.received_amount || 0;
         const refundAmount = s.refund_amount || 0;
 
-        return {
+        const payload: any = {
           PaymentTypeID: paymentModeDetails?.paymenttypeid,
           PaymentType: s.PaymentType,
           Amount: s.Amount,
@@ -2726,6 +2726,15 @@ const handlePrintKotAndBill = async () => {
           Name: user?.name, // Cashier/User name
           InsertDate: `${user?.currDate} ${new Date().toTimeString().split(' ')[0]}`, // Use curr_date from useAuthContext
         };
+
+        // Add customer data to credit payment settlements
+        if (s.PaymentType?.toLowerCase() === 'credit') {
+          payload.customerid = s.customerid;
+          payload.customerName = s.customerName;
+          payload.mobile = s.mobile;
+        }
+
+        return payload;
       });
 
       // Calculate total received and refund from settlements data
