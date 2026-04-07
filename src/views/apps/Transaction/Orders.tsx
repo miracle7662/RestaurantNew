@@ -81,6 +81,23 @@ interface PaymentMode {
   mode_name?: string;
   payment_mode_name?: string;
 }
+
+interface SettlementPayload {
+  PaymentTypeID?: number;
+  PaymentType: string;
+  Amount: number;
+  received_amount: number;
+  refund_amount: number;
+  TipAmount: number;
+  OrderNo?: string;
+  HotelID?: number;
+  Name?: string;
+  InsertDate: string;
+  // 👇 Add these optional fields
+  customerid?: number;
+  customerName?: string;
+  mobile?: string;
+}
 interface FormData {
   show_new_order_tag?: boolean;
   new_order_tag_label?: string;
@@ -2714,7 +2731,7 @@ const handlePrintKotAndBill = async () => {
         const receivedAmount = s.received_amount || 0;
         const refundAmount = s.refund_amount || 0;
 
-        const payload: any = {
+        const payload: SettlementPayload  = {
           PaymentTypeID: paymentModeDetails?.paymenttypeid,
           PaymentType: s.PaymentType,
           Amount: s.Amount,
@@ -5045,7 +5062,7 @@ const handlePrintKotAndBill = async () => {
           />
           <BillPreviewPrint
             show={showBillPrintModal}
-            // autoPrint={true}  // 👈 Direct print (no modal)
+             autoPrint={true}  // 👈 Direct print (no modal)
             onHide={async () => {
               setShowBillPrintModal(false);
               setBillPrintItems([]); // Clear stored items

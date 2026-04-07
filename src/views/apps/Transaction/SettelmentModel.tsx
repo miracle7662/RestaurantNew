@@ -82,8 +82,8 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   const hasCreditMode = selectedPaymentModes.some(mode => mode.toLowerCase() === 'credit');
 
   // Customer states for Credit mode (ONLY visible when hasCreditMode)
-  const [countryCode, setCountryCode] = useState('+91');
-  const [showCountryOptions, setShowCountryOptions] = useState(false);
+  
+
   const [customerMobile, setCustomerMobile] = useState(initialMobile || '');
   const [customerName, setCustomerName] = useState(initialCustomerName || '');
   const [customerId, setCustomerId] = useState<number | null>(initialCustomerId || null);
@@ -92,8 +92,6 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   useEffect(() => {
     if (!show) return;
     if (hasCreditMode) {
-      setCountryCode('+91');
-      setShowCountryOptions(false);
       setCustomerMobile(initialMobile || '');
       setCustomerName(initialCustomerName || '');
       setCustomerId(initialCustomerId || null);
@@ -113,8 +111,6 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   // Reset customer on modal close
   useEffect(() => {
     if (!show) {
-      setCountryCode('+91');
-      setShowCountryOptions(false);
       setCustomerMobile('');
       setCustomerName('');
       setCustomerId(null);

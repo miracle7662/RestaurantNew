@@ -1,26 +1,44 @@
-+# Credit Payment Customer Data Fix - ✅ COMPLETE
+# Print&Settle (F12) → Settlement Modal Fix
+Status: ✅ Approved by user | 🔄 In Progress
 
-## Plan Summary
-**✅ FIXED:** Orders.tsx `handleSettleAndPrint` now adds `customerid`, `customerName`, `mobile` to credit payment settlements.
+## Breakdown of Approved Plan
 
-**Backend settleBill** already uses:
-```javascript
-if (isCredit && s.customerid) {
-  customerId = s.customerid;
-  customerName = s.customerName || customerName;
-  mobileNo = s.mobile || mobileNo;
-}
+### 1. Create/Update BillPreviewPrint props interface [Billview.tsx]
+```
+✅ Create onPrintComplete callback
+✅ Pass printThenSettleFlow, setShowSettlementModal, setShowBillPrintModal
+✅ Add settlementTrigger state
 ```
 
-**SettlementModal** already sends credit customer data ✅
+### 2. Fix BillPreviewPrint onPrint logic [Billview.tsx]
+```
+✅ Check printThenSettleFlow before navigate  
+✅ setTimeout(500ms) for modal render
+✅ Show loading spinner during transition
+```
 
-## Test Steps (Manual)
-1. **Credit Payment:** Add customer in modal → Verify TrnSettlement.customerName/mobile/customerid match **modal input** (not bill defaults)
-2. **Cash/Card:** Uses bill customer data (unchanged)
-3. **Run settlement** → Check `TrnSettlement` table in DB
+### 3. Update BillPreviewPrint onHide [Billview.tsx]
+```
+✅ Delay navigation after settlement opens
+✅ Prevent premature Tableview redirect
+```
 
-## Result
-Credit payments now save **settlement-specific customer data** in TrnSettlement table as requested.
+### 4. Test & Verify Flow
+```
+✅ F12 → Print modal → Print → Settlement modal ✓
+✅ F11 direct settlement ✓
+✅ Mobile viewport test
+```
 
-**No further changes needed.**
+## Progress Tracker
+- [x] TODO.md created  
+- [ ] Step 1: Interface updates
+- [ ] Step 2: onPrint callback fix
+- [ ] Step 3: onHide navigation fix  
+- [ ] Step 4: Full flow test
+- [ ] attempt_completion
+
+**Next:** Edit Billview.tsx interfaces + BillPreviewPrint props
+
+**ETA:** 15 mins → Fully working Print&Settle flow ✓
 
