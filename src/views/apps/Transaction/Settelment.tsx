@@ -589,7 +589,11 @@ const EditSettlementPage: React.FC = () => {
         initialTip={initialTip}
         initialCashReceived={initialCashReceived}
         table_name={editing?.table_name || null}
+        initialCustomerName={editing?.CustomerName || ''}
+        initialMobile={editing?.MobileNo || ''}
+        initialCustomerId={null}
       />
+
 
       {/* F8 Password Modal */}
       <F8PasswordModal

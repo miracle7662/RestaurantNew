@@ -26,6 +26,10 @@ interface Settlement {
 
 interface SettlementModalProps {
   show: boolean;
+  initialCustomerName?: string;
+  initialMobile?: string;
+  initialCustomerId?: number | null;
+
   onHide: () => void;
   onSettle: (settlements: Settlement[], tip?: number) => Promise<void>;
   grandTotal: number;
@@ -55,6 +59,10 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   initialTip = 0,
   initialCashReceived = 0,  // FIXED: Destructure the prop
   table_name,
+  initialMobile,
+  initialCustomerName,  
+  initialCustomerId,
+  selectedOutletId,
 }) => {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
 
@@ -76,20 +84,21 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   // Customer states for Credit mode (ONLY visible when hasCreditMode)
   const [countryCode, setCountryCode] = useState('+91');
   const [showCountryOptions, setShowCountryOptions] = useState(false);
-  const [customerMobile, setCustomerMobile] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [customerId, setCustomerId] = useState<number | null>(null);
+  const [customerMobile, setCustomerMobile] = useState(initialMobile || '');
+  const [customerName, setCustomerName] = useState(initialCustomerName || '');
+  const [customerId, setCustomerId] = useState<number | null>(initialCustomerId || null);
 
   // Reset customer data when Credit deselected or modal closed
   useEffect(() => {
-    if (!show || !hasCreditMode) {
+    if (!show) return;
+    if (hasCreditMode) {
       setCountryCode('+91');
       setShowCountryOptions(false);
-      setCustomerMobile('');
-      setCustomerName('');
-      setCustomerId(null);
+      setCustomerMobile(initialMobile || '');
+      setCustomerName(initialCustomerName || '');
+      setCustomerId(initialCustomerId || null);
     }
-  }, [show, hasCreditMode]);
+  }, [show, hasCreditMode, initialMobile, initialCustomerName, initialCustomerId]);
 
   // Auto-fetch customer when mobile changes (min 10 digits)
   useEffect(() => {
@@ -269,6 +278,8 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       toast.error('Customer details required for Credit payment');
       return;
     }
+
+  
 
     // Validate: Received amount must be >= Bill amount (including tip)
     if (cashReceived > 0 && cashReceived < grandTotal) {

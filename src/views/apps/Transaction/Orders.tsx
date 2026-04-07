@@ -4894,6 +4894,9 @@ const handlePrintKotAndBill = async () => {
             initialIsMixed={isMixedPayment}
             initialTip={tip}
             table_name={selectedTable}
+              initialCustomerName={customerName}
+  initialMobile={mobileNumber}
+  initialCustomerId={customerid}
           />
           {/* F8PasswordModal */}
 
