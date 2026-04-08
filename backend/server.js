@@ -50,6 +50,8 @@ const AccountNatureRoutes = require('./routes/AccountNatureRoutes');
 const AccountTypeRoutes = require('./routes/AccountTypeRoutes');  // New import
 
 const KitchenAllocationRoutes = require('./routes/KitchenAllocationRoutes');
+const outletMenuRoutes = require('./routes/outletMenuRoutes');
+
 
 
 
@@ -104,6 +106,9 @@ app.use("/api/settings", settingsRoutes);
 app.use('/api/account-ledger', authenticateToken, AccountLedgerRoutes);
 app.use('/api/accountnature', authenticateToken, AccountNatureRoutes);
 app.use('/api/accounttype', authenticateToken, AccountTypeRoutes);  // New route registration
+
+app.use('/api/outletmenu', outletMenuRoutes);
+
 
 
 

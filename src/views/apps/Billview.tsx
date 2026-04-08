@@ -3740,7 +3740,7 @@ const handleF8Action = useCallback(() => {
       </Modal>
 
       {/* Settlement Modal */}
-      <SettlementModal
+        <SettlementModal
         show={showSettlementModal}
         onHide={() => setShowSettlementModal(false)}
         onSettle={handleSettleAndPrint}
@@ -3754,7 +3754,9 @@ const handleF8Action = useCallback(() => {
         initialIsMixed={isMixedPayment}
         initialTip={tip}
         table_name={tableName || tableNo || null}
-
+        initialCustomerName={customerName}
+        initialMobile={customerNo}
+        initialCustomerId={customerId}
       />
       {/* KOT Transfer Modal */}
       <Modal show={showKotTransferModal} onHide={() => setShowKotTransferModal(false)} size="xl" centered>
