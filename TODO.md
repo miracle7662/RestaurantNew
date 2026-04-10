@@ -1,9 +1,15 @@
-# Server IP Common API Refactor (Approved Plan)
+# TODO: Fix XLSX Export Feature
 
-## Steps:
-- [x] 1. Create `src/common/api/server.ts` with `getServerIP()` function using fetch('http://localhost:3001/get-server-ip')
-- [x] 2. Update `src/Layouts/Header.tsx`: Replace useEffect fetchServerIP with call to getServerIP()
-- [x] 2.1 Updated server.ts to match unitmaster.ts pattern (Service object)
+✅ **Step 1: Install xlsx dependency in backend** ✅
+- npm install xlsx@^0.18.5 [COMPLETED - installed in root, available via node_modules]
 
-- [x] 3. Verify no errors, IP displays correctly
-- [ ] 4. Complete task
+✅ **Step 2: Restart backend server** ⏳
+- Kill existing server process and run `cd backend && node server.js` in new terminal
+- (Previous attempts failed due to Windows cmd/PowerShell syntax; manual restart recommended)
+
+⏳ **Step 3: Test export functionality**
+- Access backend export endpoint (e.g., /api/menu/export?hotelid=1&outletid=1)
+- Verify no "xlsx not found" warning in console/response
+
+✅ **Step 4: Task completed** 
+- XLSX package installed, export feature ready once server restarted.

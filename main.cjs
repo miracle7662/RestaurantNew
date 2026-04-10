@@ -69,8 +69,8 @@ function startBackend() {
       ? path.join(__dirname, "backend", "server.js")
       : path.join(process.resourcesPath, "app.asar.unpacked", "backend", "server.js");
 
-    // console.log("🚀 Starting backend...");
-    // console.log("Backend Path:", backendPath);
+    console.log("🚀 Starting backend...");
+    console.log("Backend Path:", backendPath);
 
     // ✅ Pass userData path
     if (!isDev) {
@@ -84,7 +84,7 @@ function startBackend() {
 
 
   } catch (err) {
-    // console.error("❌ Backend failed:", err);
+     console.error("❌ Backend failed:", err);
   }
 }
 
