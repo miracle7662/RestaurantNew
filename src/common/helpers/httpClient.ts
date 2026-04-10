@@ -1,13 +1,21 @@
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
+const getBaseURL = () => {
+  // 1. Env variable (highest priority)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
 
+  // 2. Electron EXE case
+  if (window.location.protocol === "file:") {
+    return "http://localhost:3001/api";
+  }
+
+  // 3. Browser / network case
+  return `${window.location.protocol}//${window.location.hostname}:3001/api`;
+}
 
 /* ───────── Dynamic Base URL (FIXED) ───────── */
-const getBaseURL = () => {
-  const { protocol, hostname } = window.location;
 
-  // 🚀 Always use current machine (localhost ya IP auto detect)
-  return `${protocol}//${hostname}:3001/api`;
-};
 const _httpClient = axios.create({
   baseURL: getBaseURL(),
   timeout: 15000,

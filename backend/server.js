@@ -140,8 +140,8 @@ app.get('/api/health', (req, res) => {
 
 function startServer(port = 3001) {
   const startTime = new Date().toISOString();
-
-  app.listen(port, '0.0.0.0', () => {
+  
+ app.listen(port, '0.0.0.0', () => {
     const os = require('os');
     const interfaces = os.networkInterfaces();
     const addresses = [];
@@ -153,12 +153,12 @@ function startServer(port = 3001) {
         }
       }
     }
-    
     console.log(`✅ Backend ready at ${startTime}`);
     console.log(`Server running at http://0.0.0.0:${port}`);
     console.log(`🌐 Network IPs: ${addresses.join(', ')}`);
     console.log(`📱 Access from network: http://${addresses[0] || 'YOUR-IP'}:${port}`);
   });
+
 }
 
 module.exports = { startServer };
