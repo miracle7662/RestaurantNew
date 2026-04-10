@@ -1,31 +1,32 @@
-# Plan: Implement Dropdown for Item Name in Billview.tsx
+# Restaurant/HotelAdmin Login Process Analysis & Plan
 
 ## Information Gathered
-- **Billview.tsx**: Current implementation uses a simple `<datalist>` for item names, which provides basic autocomplete but not a proper dropdown experience
-- **OrderDetails.tsx**: Has a custom dropdown implementation with:
-  - State variables: `showNameDropdown`, `selectedNameIndex`, `nameSearchResults`
-  - Handler: `handleNameChange` - builds search results dynamically
-  - Handler: `handleNameKeyDown` - handles keyboard navigation (ArrowUp, ArrowDown, Enter, Escape)
-  - Custom dropdown UI with filtered results
+- **Backend**: 
+  - Login via POST /auth/login with either {email, password} for SuperAdmin or {username, password} for HotelAdmin.
+  - Queries mst_users joined with mst_outlets and msthotelmasters (hotel_name, brand_name, trn_gstno).
+  - Supports role_level: 'hotel_admin', 'superadmin'.
+  - JWT token with hotelid, outletid, role_level, etc.
+  - Routes in authRoutes.js mounted likely at /api/auth.
+- **Frontend**:
+  - Login.tsx: Toggle between SuperAdmin (email: superadmin@miracle.com, pass: superadmin123) and HotelAdmin (username).
+  - Calls api/auth.ts loginUserWithEmail/loginUserWithUsername.
+  - useLogin hook (pending content) handles auth state.
+- **Current Flow**: Already supports hoteladmin login similarly to restaurant (hotel-based tables). SuperAdmin email-only, HotelAdmin username-only.
+- **Demo Credentials**: SuperAdmin ready, but no sample HotelAdmin user mentioned.
 
 ## Plan
-1. Add state variables for dropdown management in Billview.tsx:
-   - `showNameDropdown` (boolean)
-   - `selectedNameIndex` (number)
-   - `nameSearchResults` (array)
+No major code changes needed – process already works for hoteladmin. Steps:
+1. Create sample HotelAdmin user via backend script/DB insert.
+2. Test login flow.
+3. Update docs/README with credentials.
+4. Optional: Enhance UI labels if needed (e.g., 'Restaurant Hotel Admin').
 
-2. Add `handleNameChange` function to filter menu items based on input
+## Dependent Files to be Edited
+- None (add new script if needed).
+- Update TODO.md after.
 
-3. Add `handleNameKeyDown` function for keyboard navigation
-
-4. Update the item name input to use custom dropdown instead of datalist
-
-5. Add CSS for the dropdown styling
-
-## Dependent Files to be edited
-- `src/views/apps/Billview.tsx`
-
-## Followup steps
-- Test the dropdown functionality
-- Verify keyboard navigation works (Arrow keys, Enter to select, Escape to close)
-
+## Followup Steps
+1. Execute DB insert for sample hoteladmin user.
+2. Test login via frontend/backend.
+3. Run `npm run dev` or similar to demo.
+4. Confirm with user.

@@ -17,11 +17,12 @@ const OutletMenuController = {
 
       let query = `
         SELECT 
-          id, menuName, shortName, outletName, 
-          isPosDefaultMenu, defaultDigitalMenu, isDigitalMenu, publishedAt,
-          hotelid, status
-        FROM mst_outlet_menu 
-        WHERE status = 0
+          m.id, m.menuName, m.shortName, COALESCE(o.outlet_name, m.outletName) as outletName, 
+          m.outletid, m.isPosDefaultMenu, m.defaultDigitalMenu, m.isDigitalMenu, m.publishedAt,
+          m.hotelid, m.status
+        FROM mst_outlet_menu m
+        LEFT JOIN mst_outlets o ON m.outletid = o.outletid
+        WHERE m.status = 0
       `;
       const params = [];
 
@@ -81,12 +82,22 @@ const OutletMenuController = {
           error: "Menu name is required"
         });
       }
-      if (!outletName) {
+      if (!outletId) {
         return res.status(400).json({
           success: false,
-          message: "Outlet name is required",
+          message: "Outlet ID is required",
           data: null,
-          error: "Outlet name is required"
+          error: "Outlet ID is required"
+        });
+      }
+      // Validate outlet exists
+      const outlet = db.prepare('SELECT outletid FROM mst_outlets WHERE outletid = ?').get(outletId);
+      if (!outlet) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid outlet ID",
+          data: null,
+          error: "Outlet not found"
         });
       }
       if (!hotelid) {
@@ -100,7 +111,7 @@ const OutletMenuController = {
 
       const stmt = db.prepare(`
         INSERT INTO mst_outlet_menu 
-        (menuName, shortName, outletName, isPosDefaultMenu, 
+        (menuName, shortName, outletid, isPosDefaultMenu, 
          defaultDigitalMenu, isDigitalMenu, publishedAt, 
          hotelid, status, created_by_id, created_date)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
@@ -110,7 +121,7 @@ const OutletMenuController = {
       const created_date = new Date().toISOString();
 
       const result = stmt.run(
-        menuName, shortName || '', outletName,
+        menuName, shortName || '', outletId,
         isPosDefaultMenu ? 1 : 0,
         defaultDigitalMenu ? 1 : 0,
         isDigitalMenu ? 1 : 0,
@@ -158,11 +169,24 @@ const OutletMenuController = {
   updateOutletMenu: (req, res) => {
     try {
       const { id } = req.params;
-      const {
-        menuName, shortName, outletName,
+        const {
+        menuName, shortName, outletId,
         isPosDefaultMenu, defaultDigitalMenu, isDigitalMenu,
         updated_by_id
       } = req.body;
+
+      // Validate outlet exists for update
+      if (outletId) {
+        const outlet = db.prepare('SELECT outletid FROM mst_outlets WHERE outletid = ?').get(outletId);
+        if (!outlet) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid outlet ID",
+            data: null,
+            error: "Outlet not found"
+          });
+        }
+      }
 
       if (!menuName) {
         return res.status(400).json({
@@ -174,7 +198,7 @@ const OutletMenuController = {
 
       const stmt = db.prepare(`
         UPDATE mst_outlet_menu 
-        SET menuName = ?, shortName = ?, outletName = ?,
+        SET menuName = ?, shortName = ?, outletid = ?,
             isPosDefaultMenu = ?, defaultDigitalMenu = ?, isDigitalMenu = ?,
             publishedAt = ?, updated_by_id = ?, updated_date = ?
         WHERE id = ? AND status = 0
@@ -184,7 +208,7 @@ const OutletMenuController = {
       const updated_date = new Date().toISOString();
 
       const result = stmt.run(
-        menuName, shortName || '', outletName,
+        menuName, shortName || '', outletId || null,
         isPosDefaultMenu ? 1 : 0,
         defaultDigitalMenu ? 1 : 0,
         isDigitalMenu ? 1 : 0,

@@ -9,8 +9,10 @@ import {
  
   // useThemeCustomizer,
 } from '@/components'
+
+import ServerService from '@/common/api/server'
 //import Logo from '@/components/Common/Logo'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 //import { Link } from 'react-router-dom'
 import { useAuthContext } from '@/common/context/useAuthContext'
 
@@ -24,7 +26,24 @@ const Header = ({ toggleMenu, navOpen }: HeaderProps) => {
   // const { sidenavType } = useThemeCustomizer()
   // const { updateSidebar } = useThemeContext()
   const [megaMenuOpen, setMegaMenuOpen] = useState(false)
+  const [ipAddress, setIpAddress] = useState('localhost')
+  const [isLoadingIP, setIsLoadingIP] = useState(true)
   const { user } = useAuthContext()
+
+  useEffect(() => {
+    const fetchServerIP = async () => {
+      try {
+        const ip = await ServerService.getServerIP()
+        setIpAddress(ip)
+      } catch (error) {
+        console.error('Failed to fetch server IP:', error)
+      } finally {
+        setIsLoadingIP(false)
+      }
+    }
+
+    fetchServerIP()
+  }, [])
 
   function handleMegaMenuClick() {
     setMegaMenuOpen(!megaMenuOpen)
@@ -105,9 +124,12 @@ const Header = ({ toggleMenu, navOpen }: HeaderProps) => {
           {/* header-right */}
           <div className="header-right d-flex align-items-center justify-content-center">
 
-             {user?.currDate && (
-                  <span className="text-white fw-bold -start ps-2">Date: {user.currDate}</span>
+{user?.currDate && (
+                  <span className="text-white fw-bold -start ps-2 me-3">Date: {user.currDate}</span>
                 )}
+                <span className="text-white fw-bold -start ps-2">
+                  IP: {isLoadingIP ? 'Loading...' : ipAddress}
+                </span>
             
             <DarkLight />
             <Languages />

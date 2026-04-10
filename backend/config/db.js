@@ -1234,6 +1234,25 @@ CREATE TABLE IF NOT EXISTS  mst_setting (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS mst_outlet_menu (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  menuName TEXT NOT NULL,
+  shortName TEXT,
+  outletName TEXT NOT NULL,
+  isPosDefaultMenu INTEGER DEFAULT 0 CHECK (isPosDefaultMenu IN (0,1)),
+  defaultDigitalMenu INTEGER DEFAULT 0 CHECK (defaultDigitalMenu IN (0,1)),
+  isDigitalMenu INTEGER DEFAULT 0 CHECK (isDigitalMenu IN (0,1)),
+  publishedAt DATETIME,
+  hotelid INTEGER,
+  status INTEGER DEFAULT 0,
+  created_by_id INTEGER,
+  created_date DATETIME,
+  updated_by_id INTEGER,
+  updated_date DATETIME
+  
+);
+
+
 
 
 

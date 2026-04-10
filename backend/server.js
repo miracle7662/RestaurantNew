@@ -28,6 +28,7 @@ const timeRoutes = require('./routes/timeRoutes');
 const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
 const authController = require('./controllers/authController');
+const os = require('os');
 const TableManagementRoutes = require('./routes/TableManagementRoutes');
 const CustomerRoutes = require('./routes/CustomerRoutes');
 const taxGroupRoutes = require('./routes/msttaxgroupRoutes');
@@ -108,6 +109,22 @@ app.use('/api/accountnature', authenticateToken, AccountNatureRoutes);
 app.use('/api/accounttype', authenticateToken, AccountTypeRoutes);  // New route registration
 
 app.use('/api/outletmenu', outletMenuRoutes);
+
+app.get("/get-server-ip", (req, res) => {
+  const interfaces = os.networkInterfaces();
+  let ipAddress = "127.0.0.1";
+
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === "IPv4" && !iface.internal) {
+        ipAddress = iface.address;
+        break; // Use first valid IP
+      }
+    }
+  }
+
+  res.json({ ip: ipAddress });
+});
 
 
 
