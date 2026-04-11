@@ -1,1319 +1,1247 @@
-const path = require('path')
-const Database = require('better-sqlite3')
-
-// ✅ Connect to SQLite DB (creates file if not exist)
-// const db = new Database(path.join(__dirname, 'miresto.db'));
-//const db = new Database(path.join('F:','newmidb', 'newmidb.db'));
-
-// const db = new Database(path.join('D:','Restrauntdb', 'miresto.db')); //sudarshan
-
-const db = new Database(path.join('D:', 'Restaurant_Database', 'miresto.db')) //Sharmin
-
-//const db = new Database(path.join('E:', 'ReactHotelData', 'miresto.db'));
-
-// ✅ Create tables (once)
-db.exec(`
-  CREATE TABLE IF NOT EXISTS mstcountrymaster (
-    countryid INTEGER PRIMARY KEY AUTOINCREMENT,
-    country_name TEXT NOT NULL,
-    country_code TEXT NOT NULL,
-    country_capital TEXT NOT NULL,
-    status INTEGER DEFAULT 1,
-    created_by_id INTEGER,
-    created_date TEXT,
-    updated_by_id INTEGER,
-    updated_date TEXT
-  );
-  CREATE TABLE IF NOT EXISTS mststatemaster (
-    stateid INTEGER PRIMARY KEY AUTOINCREMENT,
-    state_name TEXT NOT NULL,
-    state_code TEXT NOT NULL,
-    state_capital TEXT NOT NULL,
-    countryid INTEGER,
-    status INTEGER DEFAULT 1,
-    created_by_id INTEGER,
-    created_date TEXT,
-    updated_by_id INTEGER,
-    updated_date TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS mstcitymaster (
-    cityid INTEGER PRIMARY KEY AUTOINCREMENT,
-    city_name TEXT NOT NULL,
-    city_Code TEXT NOT NULL,
-    stateId INTEGER,    
-    iscoastal BOOLEAN DEFAULT 0,
-    status INTEGER DEFAULT 1,
-    created_by_id INTEGER,
-    created_date TEXT,
-    updated_by_id INTEGER,
-    updated_date TEXT
-  );
- 
- CREATE TABLE IF NOT EXISTS mstunitmaster (
-    unitid INTEGER PRIMARY KEY AUTOINCREMENT,
-    unit_name TEXT NOT NULL,        
-    status INTEGER DEFAULT 1,
-    created_by_id INTEGER,
-    created_date TEXT,
-    updated_by_id INTEGER,
-    updated_date TEXT,
-    hotelid INTEGER,
-    client_code TEXT
-);
-CREATE TABLE IF NOT EXISTS mstkitchencategory(
-kitchencategoryid INTEGER PRIMARY KEY AUTOINCREMENT,
-Kitchen_Category TEXT(200),
-kitchenmaingroupid INTEGER,
-alternative_category_name TEXT(200),
-Description text(400),
-alternative_category_Description TEXT(400),
-digital_order_image TEXT(200),
-categorycolor  TEXT(200),
-status INTEGER ,
-created_by_id INTEGER,
-created_date DATETIME,
-updated_by_id INTEGER,
-updated_date DATETIME,
-hotelid INTEGER,
-marketid INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS mstkitchensubcategory (
-    kitchensubcategoryid INTEGER PRIMARY KEY AUTOINCREMENT,
-  Kitchen_sub_category text(200),
-kitchencategoryid INTEGER,
-kitchenmaingroupid INTEGER,
-status INTEGER ,
-created_by_id INTEGER,
-created_date DATETIME,
-updated_by_id INTEGER,
-updated_date DATETIME,
-hotelid INTEGER,
-marketid INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS mstkitchenmaingroup (
-kitchenmaingroupid INTEGER PRIMARY KEY AUTOINCREMENT,
-Kitchen_main_Group text(200),
-status INTEGER ,
-created_by_id INTEGER,
-created_date DATETIME,
-updated_by_id INTEGER,
-updated_date DATETIME,
-hotelid INTEGER,
-marketid INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS msthoteltype (
-hoteltypeid INTEGER PRIMARY KEY AUTOINCREMENT,
-hotel_type text(200),
-status INTEGER ,
-created_by_id INTEGER,
-created_date DATETIME,
-updated_by_id INTEGER,
-updated_date DATETIME,
-hotelid INTEGER,
-marketid INTEGER
-);
-CREATE TABLE IF NOT EXISTS mstuserType (
-usertypeid INTEGER PRIMARY KEY AUTOINCREMENT,
-User_type text(200),
-status INTEGER ,
-created_by_id INTEGER,
-created_date DATETIME,
-updated_by_id INTEGER,
-updated_date DATETIME,
-hotelid INTEGER,
-marketid INTEGER
-);
-
-
-CREATE TABLE IF NOT EXISTS mstdesignation (
-designationid INTEGER PRIMARY KEY AUTOINCREMENT,
-Designation text(200),
-status INTEGER ,
-created_by_id INTEGER,
-created_date DATETIME,
-updated_by_id INTEGER,
-updated_date DATETIME
-
-);
-
-CREATE TABLE IF NOT EXISTS msthotelmasters (
-hotelid INTEGER PRIMARY KEY AUTOINCREMENT,
-hotel_name text(200),
-marketid	INTEGER,
-short_name	text(200),
-phone	text(40),
-email  text(200),
-fssai_no	text(200),
-trn_gstno	text(200),
-panno	text(200),
-website	text(200),
-address	text(400),
-stateid	INTEGER,
-cityid	INTEGER,
-hoteltypeid	INTEGER,
-status INTEGER ,
-created_by_id INTEGER,
-created_date DATETIME,
-updated_by_id INTEGER,
-updated_date DATETIME,
-Masteruserid INTEGER
-);
-
-
-CREATE TABLE IF NOT EXISTS mst_Item_Main_Group (
-item_maingroupid INTEGER PRIMARY KEY AUTOINCREMENT,
-item_group_name text(200),
-status INTEGER ,
-created_by_id INTEGER,
-created_date DATETIME,
-updated_by_id INTEGER,
-updated_date DATETIME,
-hotelid INTEGER,
-marketid INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS mst_Item_Group (
-item_groupid INTEGER PRIMARY KEY AUTOINCREMENT,
-itemgroupname text(200),
-code INTEGER,
-kitchencategoryid INTEGER ,
-status INTEGER ,
-created_by_id INTEGER,
-created_date DATETIME,
-updated_by_id INTEGER,
-updated_date DATETIME,
-hotelid INTEGER,
-marketid INTEGER
-
-
-);
-CREATE TABLE IF NOT EXISTS mstmarkets (
-    marketid INTEGER PRIMARY KEY AUTOINCREMENT,
-    market_name TEXT NOT NULL,        
-    status INTEGER DEFAULT 1,
-    created_by_id INTEGER,
-    created_date TEXT,
-    updated_by_id INTEGER,
-    updated_date TEXT
-   
-);
-
--- New tables for hierarchical user management
-CREATE TABLE IF NOT EXISTS mst_users (
-    userid INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    full_name TEXT NOT NULL,
-    phone TEXT,
-    role_level TEXT NOT NULL, -- 'superadmin', 'brand_admin', 'hotel_admin', 'outlet_user'
-    parent_user_id INTEGER, -- References the user who created this user
-    brand_id INTEGER, -- References HotelMasters.Hotelid
-    hotelid INTEGER, -- References HotelMasters.Hotelid (for hotel_admin and outlet_user)
-    
-    Designation TEXT, -- Designation for outlet user
-    designationid INTEGER, -- Designation ID for outlet user
-    user_type TEXT, -- User type for outlet user
-    usertypeid INTEGER, -- User type ID for outlet user
-    shift_time TEXT, -- Shift time for outlet user
-    mac_address TEXT, -- MAC address for outlet user
-    assign_warehouse TEXT, -- Assigned warehouse for outlet user
-    language_preference TEXT DEFAULT 'English', -- Language preference for outlet user
-    address TEXT, -- Address for outlet user
-    city TEXT, -- City for outlet user
-    sub_locality TEXT, -- Sub locality for outlet user
-    web_access INTEGER DEFAULT 0, -- Web access permission
-    self_order INTEGER DEFAULT 1, -- Self order permission
-    captain_app INTEGER DEFAULT 1, -- Captain app permission
-    kds_app INTEGER DEFAULT 1, -- KDS app permission
-    captain_old_kot_access TEXT DEFAULT 'Enabled', -- Captain old KOT access
-    verify_mac_ip INTEGER DEFAULT 0, -- Verify MAC/IP setting
-    status INTEGER,
-    last_login DATETIME,
-    created_by_id INTEGER,
-    created_date DATETIME,
-    updated_by_id INTEGER,
-    updated_date DATETIME,
-    FOREIGN KEY (parent_user_id) REFERENCES mst_users(userid),
-    FOREIGN KEY (brand_id) REFERENCES HotelMasters(Hotelid),
-    FOREIGN KEY (hotelid) REFERENCES HotelMasters(Hotelid)
-   
-);
-
-CREATE TABLE IF NOT EXISTS user_outlet_mapping (
-    mapping_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userid INTEGER NOT NULL,
-    hotelid INTEGER NOT NULL,
-    outletid INTEGER NOT NULL,
-    FOREIGN KEY (userid) REFERENCES mst_users(userid),
-    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid),
-    UNIQUE (userid, outletid)
-);
-
-CREATE TABLE IF NOT EXISTS mst_user_permissions (
-    permissionid INTEGER PRIMARY KEY AUTOINCREMENT,
-    userid INTEGER NOT NULL,
-    module_name TEXT NOT NULL, -- 'orders', 'customers', 'menu', 'reports', etc.
-    can_view INTEGER DEFAULT 0,
-    can_create INTEGER DEFAULT 0,
-    can_edit INTEGER DEFAULT 0,
-    can_delete INTEGER DEFAULT 0,
-    created_by_id INTEGER,
-    created_date DATETIME,
-    FOREIGN KEY (userid) REFERENCES mst_users(userid)
-);
-
-CREATE TABLE IF NOT EXISTS mst_brand_structure (
-    structureid INTEGER PRIMARY KEY AUTOINCREMENT,
-    brand_id INTEGER NOT NULL,
-    structure_type TEXT NOT NULL, -- 'single_outlet', 'multiple_outlets'
-    has_separate_hotel_admin INTEGER DEFAULT 0, -- 0: brand_admin acts as hotel_admin, 1: separate hotel_admin
-    created_by_id INTEGER,
-    created_date DATETIME,
-    FOREIGN KEY (brand_id) REFERENCES HotelMasters(Hotelid)
-);
-
-CREATE TABLE IF NOT EXISTS mst_outlets (
-    outletid INTEGER PRIMARY KEY AUTOINCREMENT,
-    outlet_name TEXT NOT NULL,
-    hotelid INTEGER,
-    market_id TEXT,
-    outlet_code TEXT,
-    phone TEXT,
-    email TEXT,
-    website TEXT,
-    address TEXT,
-    city TEXT,
-    zip_code TEXT,
-    country TEXT,
-    timezone TEXT,
-    start_day_time TEXT,
-    close_day_time TEXT,
-    next_reset_bill_date TEXT,
-    next_reset_bill_days TEXT,
-    next_reset_kot_date TEXT,
-    next_reset_kot_days TEXT,
-    contact_phone TEXT,
-    notification_email TEXT,
-    description TEXT,
-    logo TEXT,
-    gst_no TEXT,
-    fssai_no TEXT,
-    status INTEGER DEFAULT 1,
-    digital_order INTEGER DEFAULT 0,
-    logout_pos INTEGER DEFAULT 0,              -- Switch (logout POS)
-    password_protection INTEGER DEFAULT 0,     -- Switch
-    send_payment_link INTEGER DEFAULT 0,       -- Switch
-    send_ebill_whatsapp INTEGER DEFAULT 0,     -- Switch
-    add_custom_qr INTEGER DEFAULT 0,           -- Button action
-    start_time INTEGER DEFAULT 0,              -- Counter (Start Time)
-    end_time INTEGER DEFAULT 0,                -- Counter (End Time)
-    warehouseid INTEGER,                      -- Back Office Inventory Details dropdown
-    reduce_inventory INTEGER DEFAULT 0,        -- Switch
-    registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    created_by_id INTEGER,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_by_id INTEGER,
-    updated_date DATETIME,
-    FOREIGN KEY (brand_id) REFERENCES HotelMasters(Hotelid)
-);
-
-CREATE TABLE IF NOT EXISTS msttablemanagement (
-    tableid INTEGER PRIMARY KEY AUTOINCREMENT,
-    table_name TEXT NOT NULL,
-    hotelid INTEGER,
-    outletid INTEGER NOT NULL,
-    departmentid INTEGER,
-    department_name TEXT,
-    status INTEGER DEFAULT 0,
-    created_by_id INTEGER,
-    created_date DATETIME,
-    updated_by_id INTEGER,
-    updated_date DATETIME,
-    marketid INTEGER
-  );
-
-    CREATE TABLE IF NOT EXISTS msttable_department (
-    departmentid INTEGER PRIMARY KEY AUTOINCREMENT,
-    department_name TEXT NOT NULL,
-    outletid INTEGER NOT NULL,
-    taxgroupid INTEGER NOT NULL,
-    status INTEGER DEFAULT 1,
-    created_by_id INTEGER NOT NULL,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_by_id INTEGER,
-    updated_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) 
-    
-);
-
- CREATE TABLE IF NOT EXISTS mstcustomer (
-    customerid INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    countryCode TEXT NOT NULL,
-    mobile TEXT NOT NULL,
-    mail TEXT NOT NULL, 
-    cityid TEXT NOT NULL,
-    address1 TEXT ,
-    address2 TEXT,
-    stateid TEXT,
-    pincode TEXT,
-    gstNo TEXT,
-    fssai TEXT,
-    panNo TEXT,
-    aadharNo TEXT,
-    birthday TEXT,
-    anniversary TEXT,
-    customerType TEXT,
-    status INTEGER DEFAULT 1,
-    createWallet INTEGER DEFAULT 0,
-    created_by_id INTEGER,
-    created_date DATETIME,
-    updated_by_id INTEGER,
-    updated_date DATETIME
-);
-
--- Insert default SuperAdmin user (password will be properly hashed by the checkSuperAdmin script)
--- This is just a placeholder, the actual SuperAdmin will be created by the script
-
-CREATE TABLE IF NOT EXISTS msttaxgroup (
-    taxgroupid     INTEGER PRIMARY KEY AUTOINCREMENT,
-    taxgroup_name  TEXT NOT NULL,
-    hotelid        INTEGER NOT NULL,
-    status         INTEGER NOT NULL DEFAULT 1, -- 1 = active, 0 = inactive
-    created_by_id  INTEGER,
-    created_date   TEXT DEFAULT (datetime('now')),
-    updated_by_id  INTEGER,
-    updated_date   TEXT
-
-   
-);
-
-
-
-  CREATE TABLE IF NOT EXISTS mst_resttaxmaster (
-  resttaxid INTEGER PRIMARY KEY AUTOINCREMENT,
-  hotelid INTEGER,
-  outletid INTEGER,
-  isapplicablealloutlet INTEGER,
-  resttax_name TEXT,
-  resttax_value TEXT,
-  restcgst TEXT,
-  restsgst TEXT,
-  restigst TEXT,
-  restcess TEXT,
-  taxgroupid INTEGER,
-  status INTEGER DEFAULT 1,
-  created_by_id INTEGER,
-  created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_by_id INTEGER,
-  updated_date DATETIME,
-  FOREIGN KEY (hotelid) REFERENCES msthotelmasters(hotelid),
-  FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid),
-  FOREIGN KEY (taxgroupid) REFERENCES msttaxgroup(taxgroupid)
-);
-
-CREATE TABLE IF NOT EXISTS mstrestmenu (
-    restitemid                   INTEGER PRIMARY KEY AUTOINCREMENT,
-    hotelid                      INTEGER REFERENCES msthotelmasters (hotelid),
-    outletid                     INTEGER REFERENCES mst_outlets (outletid),
-    item_no                      INTEGER,
-    item_name                    TEXT (200) NOT NULL,
-    print_name                   TEXT (200),
-    short_name                   TEXT (200),
-    kitchen_category_id            INTEGER,
-    kitchen_sub_category_id      INTEGER,
-    kitchen_main_group_id        INTEGER,
-    item_group_id                INTEGER,
-    itemgroupname                TEXT (200),
-    item_main_group_id           INTEGER,
-    stock_unit                   INTEGER (11),
-    price                        NUMERIC (19, 2) NOT NULL,
-    taxgroupid                   INTEGER REFERENCES msttaxgroup (taxgroupid),
-    is_runtime_rates             INTEGER NOT NULL DEFAULT 0 CHECK (is_runtime_rates IN (0,1)),
-    is_common_to_all_departments INTEGER NOT NULL DEFAULT 0 CHECK (is_common_to_all_departments IN (0,1)),
-    item_description             TEXT (400),
-    item_hsncode                 TEXT (100),
-    status                       INTEGER DEFAULT 1 CHECK (status IN (0,1)),
-    created_by_id                INTEGER REFERENCES mst_users (userid),
-    created_date                 DATETIME,
-    updated_by_id                INTEGER REFERENCES mst_users (userid),
-    updated_date                 DATETIME
-);
-
-CREATE TABLE IF NOT EXISTS mstrestmenudetails (
-    itemdetailsid INTEGER PRIMARY KEY AUTOINCREMENT,
-    restitemid    INTEGER NOT NULL, 
-    departmentid  INTEGER, 
-    item_rate     NUMERIC (19, 2) NOT NULL,
-    unitid        INTEGER,
-    servingunitid INTEGER,
-    IsConversion  INTEGER DEFAULT 0,  -- 0 = No, 1 = Yes
-    hotelid       INTEGER,
-    variant_value_id INTEGER,
-    value_name    TEXT,
-    taxgroupid    INTEGER REFERENCES msttaxgroup (taxgroupid),
-    FOREIGN KEY (variant_value_id) REFERENCES mst_variant_values(variant_value_id)
-);
-
--- Bill Preview Settings, KOT Print Settings, Bill Print Settings, General Settings, Online Orders Settings
-
-CREATE TABLE IF NOT EXISTS mstbill_preview_settings (
-    billpreviewsetting_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    outletid INT NOT NULL,
-    outlet_name VARCHAR(255),
-    email VARCHAR(255),
-    website VARCHAR(255),
-    upi_id VARCHAR(50),
-    bill_prefix VARCHAR(50),
-    secondary_bill_prefix VARCHAR(50),
-    bar_bill_prefix VARCHAR(50),
-    show_upi_qr BOOLEAN,
-    enabled_bar_section BOOLEAN ,
-    show_phone_on_bill VARCHAR(20),
-    note TEXT,
-    footer_note TEXT,
-    field1 VARCHAR(100),
-    field2 VARCHAR(100),
-    field3 VARCHAR(100),
-    field4 VARCHAR(100),
-    fssai_no VARCHAR(50),
-    trn_gstno TEXT,
-    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS mstkot_print_settings (
-    kot_printsetting_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    outletid INT NOT NULL,
-    customer_on_kot_dine_in BOOLEAN,
-    customer_on_kot_pickup BOOLEAN,
-    customer_on_kot_delivery BOOLEAN,
-    customer_on_kot_quick_bill BOOLEAN,
-    customer_kot_display_option VARCHAR(50),
-    group_kot_items_by_category BOOLEAN,
-    hide_table_name_quick_bill BOOLEAN,
-    show_new_order_tag BOOLEAN,
-    new_order_tag_label VARCHAR(50),
-    show_running_order_tag BOOLEAN,
-    running_order_tag_label VARCHAR(50),
-    dine_in_kot_no VARCHAR(50),
-    pickup_kot_no VARCHAR(50),
-    delivery_kot_no VARCHAR(50),
-    quick_bill_kot_no VARCHAR(50),
-    modifier_default_option BOOLEAN,
-    print_kot_both_languages BOOLEAN,
-    show_alternative_item BOOLEAN,
-    show_captain_username BOOLEAN,
-    show_covers_as_guest BOOLEAN,
-    show_item_price BOOLEAN,
-    show_kot_no_quick_bill BOOLEAN,
-    show_kot_note BOOLEAN,
-    show_online_order_otp BOOLEAN,
-    show_order_id_quick_bill BOOLEAN,
-    show_order_id_online_order BOOLEAN,
-    show_order_no_quick_bill_section BOOLEAN,
-    show_order_type_symbol BOOLEAN,
-    show_store_name BOOLEAN,
-    show_terminal_username BOOLEAN,
-    show_username BOOLEAN,
-    show_waiter BOOLEAN,
-    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS mstbills_print_settings (
-    bill_printsetting_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    outletid INTEGER NOT NULL,
-    bill_title_dine_in INTEGER DEFAULT 1,
-    bill_title_pickup INTEGER DEFAULT 1,
-    bill_title_delivery INTEGER DEFAULT 1,
-    bill_title_quick_bill INTEGER DEFAULT 1,
-    mask_order_id INTEGER DEFAULT 0,
-    modifier_default_option_bill INTEGER DEFAULT 0,
-    print_bill_both_languages INTEGER DEFAULT 0,
-    show_alt_item_title_bill INTEGER DEFAULT 0,
-    show_alt_name_bill INTEGER DEFAULT 0,
-    show_bill_amount_words INTEGER DEFAULT 0,
-    show_bill_no_bill INTEGER DEFAULT 1,
-    show_bill_number_prefix_bill INTEGER DEFAULT 1,
-    show_bill_print_count INTEGER DEFAULT 0,
-    show_brand_name_bill INTEGER DEFAULT 1,
-    show_captain_bill INTEGER DEFAULT 0,
-    show_covers_bill INTEGER DEFAULT 1,
-    show_custom_qr_codes_bill INTEGER DEFAULT 0,
-    show_customer_gst_bill INTEGER DEFAULT 0,
-    show_customer_bill INTEGER DEFAULT 1,
-    show_customer_paid_amount INTEGER DEFAULT 1,
-    show_date_bill INTEGER DEFAULT 1,
-    show_default_payment INTEGER DEFAULT 1,
-    show_discount_reason_bill INTEGER DEFAULT 0,
-    show_due_amount_bill INTEGER DEFAULT 1,
-    show_ebill_invoice_qrcode INTEGER DEFAULT 0,
-    show_item_hsn_code_bill INTEGER DEFAULT 0,
-    show_item_level_charges_separately INTEGER DEFAULT 0,
-    show_item_note_bill INTEGER DEFAULT 1,
-    show_items_sequence_bill INTEGER DEFAULT 1,
-    show_kot_number_bill INTEGER DEFAULT 0,
-    show_logo_bill INTEGER DEFAULT 1,
-    show_order_id_bill INTEGER DEFAULT 0,
-    show_order_no_bill INTEGER DEFAULT 1,
-    show_order_note_bill INTEGER DEFAULT 1,
-    order_type_dine_in INTEGER DEFAULT 1,
-    order_type_pickup INTEGER DEFAULT 1,
-    order_type_delivery INTEGER DEFAULT 1,
-    order_type_quick_bill INTEGER DEFAULT 1,
-    show_outlet_name_bill INTEGER DEFAULT 1,
-    payment_mode_dine_in INTEGER DEFAULT 1,
-    payment_mode_pickup INTEGER DEFAULT 1,
-    payment_mode_delivery INTEGER DEFAULT 1,
-    payment_mode_quick_bill INTEGER DEFAULT 1,
-    table_name_dine_in INTEGER DEFAULT 1,
-    table_name_pickup INTEGER DEFAULT 0,
-    table_name_delivery INTEGER DEFAULT 0,
-    table_name_quick_bill INTEGER DEFAULT 0,
-    show_tax_charge_bill INTEGER DEFAULT 1,
-    show_username_bill INTEGER DEFAULT 0,
-    show_waiter_bill INTEGER DEFAULT 1,
-    show_zatca_invoice_qr INTEGER DEFAULT 0,
-    show_customer_address_pickup_bill INTEGER DEFAULT 0,
-    show_order_placed_time INTEGER DEFAULT 1,
-    hide_item_quantity_column INTEGER DEFAULT 0,
-    hide_item_rate_column INTEGER DEFAULT 0,
-    hide_item_total_column INTEGER DEFAULT 0,
-    hide_total_without_tax INTEGER DEFAULT 0,
-    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE,
-    UNIQUE (outletid)
-);
-
-CREATE TABLE IF NOT EXISTS mstgeneral_settings (
-    outletid INTEGER PRIMARY KEY AUTOINCREMENT,
-    customize_url_links TEXT DEFAULT '[]',
-    allow_charges_after_bill_print BOOLEAN DEFAULT 0,
-    allow_discount_after_bill_print BOOLEAN DEFAULT 0,
-    allow_discount_before_save BOOLEAN DEFAULT 0,
-    allow_pre_order_tahd BOOLEAN DEFAULT 0,
-    ask_covers TEXT DEFAULT '{"dineIn": false, "pickup": false, "delivery": false, "quickBill": false}',
-    ask_covers_captain BOOLEAN DEFAULT 0,
-    ask_custom_order_id_quick_bill BOOLEAN DEFAULT 0,
-    ask_custom_order_type_quick_bill BOOLEAN DEFAULT 0,
-    ask_payment_mode_on_save_bill BOOLEAN DEFAULT 0,
-    ask_waiter TEXT DEFAULT '{"dineIn": false, "pickup": false, "delivery": false, "quickBill": false}',
-    ask_otp_change_order_status_order_window BOOLEAN DEFAULT 0,
-    ask_otp_change_order_status_receipt_section BOOLEAN DEFAULT 0,
-    auto_accept_remote_kot BOOLEAN DEFAULT 0,
-    auto_out_of_stock BOOLEAN DEFAULT 0,
-    auto_sync BOOLEAN DEFAULT 0,
-    category_time_for_pos TEXT DEFAULT '',
-    count_sales_after_midnight BOOLEAN DEFAULT 0,
-    customer_display TEXT DEFAULT '{"media": []}',
-    customer_mandatory TEXT DEFAULT '{"dineIn": false, "pickup": false, "delivery": false, "quickBill": false}',
-    default_ebill_check BOOLEAN DEFAULT 0,
-    default_send_delivery_boy_check BOOLEAN DEFAULT 0,
-    edit_customize_order_number TEXT DEFAULT '',
-    enable_backup_notification_service BOOLEAN DEFAULT 0,
-    enable_customer_display_access BOOLEAN DEFAULT 0,
-    filter_items_by_order_type BOOLEAN DEFAULT 0,
-    generate_reports_start_close_dates BOOLEAN DEFAULT 0,
-    hide_clear_data_check_logout BOOLEAN DEFAULT 0,
-    hide_item_price_options BOOLEAN DEFAULT 0,
-    hide_load_menu_button BOOLEAN DEFAULT 0,
-    make_cancel_delete_reason_compulsory BOOLEAN DEFAULT 0,
-    make_discount_reason_mandatory BOOLEAN DEFAULT 0,
-    make_free_cancel_bill_reason_mandatory BOOLEAN DEFAULT 0,
-    make_payment_ref_number_mandatory BOOLEAN DEFAULT 0,
-    mandatory_delivery_boy_selection BOOLEAN DEFAULT 0,
-    mark_order_as_transfer_order BOOLEAN DEFAULT 0,
-    online_payment_auto_settle BOOLEAN DEFAULT 0,
-    order_sync_settings TEXT DEFAULT '{"autoSyncInterval": "5", "syncBatchPacketSize": "10"}',
-    separate_billing_by_section BOOLEAN DEFAULT 0,
-    set_entered_amount_as_opening BOOLEAN DEFAULT 0,
-    show_alternative_item_report_print BOOLEAN DEFAULT 0,
-    show_clear_sales_report_logout BOOLEAN DEFAULT 0,
-    show_order_no_label_pos BOOLEAN DEFAULT 0,
-    show_payment_history_button BOOLEAN DEFAULT 0,
-    show_remote_kot_option BOOLEAN DEFAULT 0,
-    show_send_payment_link BOOLEAN DEFAULT 0,
-    stock_availability_display BOOLEAN DEFAULT 0,
-    todays_report TEXT DEFAULT '{"salesSummary": false, "orderTypeSummary": false, "paymentTypeSummary": false, "discountSummary": false, "expenseSummary": false, "billSummary": false, "deliveryBoySummary": false, "waiterSummary": false, "kitchenDepartmentSummary": false, "categorySummary": false, "soldItemsSummary": false, "cancelItemsSummary": false, "walletSummary": false, "duePaymentReceivedSummary": false, "duePaymentReceivableSummary": false, "paymentVarianceSummary": false, "currencyDenominationsSummary": false}',
-    upi_payment_sound_notification BOOLEAN DEFAULT 0,
-    use_separate_bill_numbers_online BOOLEAN DEFAULT 0,
-    when_send_todays_report TEXT DEFAULT '',
-    enable_currency_conversion BOOLEAN DEFAULT 0,
-    enable_user_login_validation BOOLEAN DEFAULT 0,
-    allow_closing_shift_despite_bills BOOLEAN DEFAULT 0,
-    show_real_time_kot_bill_notifications BOOLEAN DEFAULT 0,
-    ReverseQtyMode BOOLEAN DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
-);
-
-CREATE TABLE IF NOT EXISTS mstonline_orders_settings (
-    online_ordersetting_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    outletid INT NOT NULL,
-    show_in_preparation_kds BOOLEAN,
-    auto_accept_online_order BOOLEAN,
-    customize_order_preparation_time BOOLEAN,
-    online_orders_time_delay INT,
-    pull_order_on_accept BOOLEAN,
-    show_addons_separately BOOLEAN,
-    show_complete_online_order_id BOOLEAN,
-    show_online_order_preparation_time BOOLEAN,
-    update_food_ready_status_kds BOOLEAN,
-    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS mstoutlet_settings (
-    outletid INTEGER PRIMARY KEY AUTOINCREMENT,
-    send_order_notification VARCHAR(50) DEFAULT 'ALL',
-    bill_number_length INT DEFAULT 2,
-    next_reset_order_number_date DATETIME,
-    next_reset_order_number_days VARCHAR(50) DEFAULT 'Reset Order Number Daily',
-    decimal_points INT DEFAULT 2,
-    bill_round_off BOOLEAN,
-    bill_round_off_to REAL DEFAULT 1,
-    enable_loyalty BOOLEAN,
-    multiple_price_setting BOOLEAN,
-    include_tax_in_invoice BOOLEAN,
-    service_charges REAL DEFAULT 0,
-    invoice_message TEXT,
-    verify_pos_system_login BOOLEAN,
-    table_reservation BOOLEAN,
-    auto_update_pos BOOLEAN,
-    send_report_email BOOLEAN,
-    send_report_whatsapp BOOLEAN,
-    allow_multiple_tax BOOLEAN,
-    enable_call_center BOOLEAN,
-    bharatpe_integration BOOLEAN,
-    phonepe_integration BOOLEAN,
-    reelo_integration BOOLEAN,
-    tally_integration BOOLEAN,
-    sunmi_integration BOOLEAN,
-    zomato_pay_integration BOOLEAN,
-    zomato_enabled BOOLEAN,
-    swiggy_enabled BOOLEAN,
-    rafeeq_enabled BOOLEAN,
-    noon_food_enabled BOOLEAN,
-    magicpin_enabled BOOLEAN,
-    dotpe_enabled BOOLEAN,
-    cultfit_enabled BOOLEAN,
-    ubereats_enabled BOOLEAN,
-    scooty_enabled BOOLEAN,
-    dunzo_enabled BOOLEAN,
-    foodpanda_enabled BOOLEAN,
-    amazon_enabled BOOLEAN,
-    talabat_enabled BOOLEAN,
-    deliveroo_enabled BOOLEAN,
-    careem_enabled BOOLEAN,
-    jahez_enabled BOOLEAN,
-    eazydiner_enabled BOOLEAN,
-    radyes_enabled BOOLEAN,
-    goshop_enabled BOOLEAN,
-    chatfood_enabled BOOLEAN,
-    cutfit_enabled BOOLEAN,
-    jubeat_enabled BOOLEAN,
-    thrive_enabled BOOLEAN,
-    fidoo_enabled BOOLEAN,
-    mrsool_enabled BOOLEAN,
-    swiggystore_enabled BOOLEAN,
-    zomatormarket_enabled BOOLEAN,
-    hungerstation_enabled BOOLEAN,
-    instashop_enabled BOOLEAN,
-    eteasy_enabled BOOLEAN,
-    smiles_enabled BOOLEAN,
-    toyou_enabled BOOLEAN,
-    dca_enabled BOOLEAN,
-    ordable_enabled BOOLEAN,
-    beanz_enabled BOOLEAN,
-    cari_enabled BOOLEAN,
-    the_chefz_enabled BOOLEAN,
-    keeta_enabled BOOLEAN,
-    notification_channel VARCHAR(50) DEFAULT 'SMS',
-    ReverseQtyMode INTEGER DEFAULT 0, -- 0: No Password Required, 1: Password Required
-    default_waiter_id INTEGER ,
-    pax INTEGER ,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ,
-   FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
-);
-
-  -- Payment Types Master
-CREATE TABLE IF NOT EXISTS payment_types (
-    paymenttypeid INTEGER PRIMARY KEY AUTOINCREMENT,
-    mode_name TEXT NOT NULL DEFAULT 'Cash',
-    status INTEGER,
-    created_by_id INTEGER,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS payment_modes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    hotelid INTEGER,
-    outletid INTEGER,
-    paymenttypeid INTEGER NOT NULL,
-    sequence INTEGER DEFAULT 0, -- 🔹 Added field to define order/priority of payment modes
-    is_active BOOLEAN NOT NULL DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-
-PRAGMA foreign_keys = ON;
-
-CREATE TABLE IF NOT EXISTS TAxnTrnbill (
-    TxnID INTEGER PRIMARY KEY AUTOINCREMENT,
-    outletid INTEGER,
-    TxnNo TEXT,
-    TableID INTEGER,               -- FK → msttablemanagement
-    table_name TEXT,
-    Steward TEXT,
-    PAX INTEGER,
-    AutoKOT BOOLEAN DEFAULT 0,
-    ManualKOT BOOLEAN DEFAULT 0,
-    TxnDatetime TEXT NOT NULL,
-    GrossAmt DECIMAL DEFAULT 0,
-    RevKOT DEFAULT 0,
-    Discount REAL DEFAULT 0,
-    CGST REAL DEFAULT 0,
-    SGST REAL DEFAULT 0,
-    IGST REAL DEFAULT 0,
-    CESS REAL DEFAULT 0,
-    RoundOFF REAL DEFAULT 0,
-    Amount REAL DEFAULT 0,
-    isHomeDelivery BOOLEAN DEFAULT 0,
-    DriverID INTEGER,              -- FK → mst_drivers
-    CustomerName TEXT,
-    MobileNo TEXT,
-    Address TEXT,
-    Landmark TEXT,
-    orderNo TEXT,
-    isSetteled BOOLEAN DEFAULT 0,
-    isBilled BOOLEAN DEFAULT 0,
-    BillCount INTEGER DEFAULT 0,
-    Order_Type TEXT,
-    isNCKOT BOOLEAN DEFAULT 0,
-    isCancelled BOOLEAN DEFAULT 0,
-    isPickup BOOLEAN DEFAULT 0,
-    isDayEnd BOOLEAN DEFAULT 0,
-    isreversebill BOOLEAN DEFAULT 0,
-    NCName TEXT,
-    NCPurpose TEXT,
-    BilledDate DATETIME,
-    HandOverEmpID INTEGER,         -- FK → mst_employees
-    DayEndEmpID INTEGER,           -- FK → mst_employees
-    HotelID INTEGER,               -- FK → msthotelmasters
-    customerid INTEGER,               -- FK → mst_guest
-    DiscRefID INTEGER,             -- FK → mst_discount_ref
-    DiscPer REAL DEFAULT 0,
-    DiscountType INTEGER,
-    UserId INTEGER,                -- FK → mst_users
-    BatchNo TEXT,
-    PrevTableID INTEGER,           -- FK → msttablemanagement
-    PrevDeptId INTEGER,            -- FK → mst_department
-    isTrnsfered BOOLEAN DEFAULT 0,
-    isChangeTrfAmt BOOLEAN DEFAULT 0,
-    ServiceCharge REAL DEFAULT 0,
-    ServiceCharge_Amount REAL DEFAULT 0,
-    status INTEGER DEFAULT 1,
-    Extra1 TEXT,
-    Extra2 TEXT,
-    Extra3 TEXT,
-    TaxableValue REAL DEFAULT 0,
-
-    FOREIGN KEY (HotelID) REFERENCES msthotelmasters(HotelID) ON DELETE SET NULL ON UPDATE CASCADE,
-    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE SET NULL ON UPDATE CASCADE,
-    FOREIGN KEY (UserId) REFERENCES mst_users(UserID) ON DELETE SET NULL ON UPDATE CASCADE
-);
-
-
-CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
-    TXnDetailID INTEGER PRIMARY KEY AUTOINCREMENT,
-    TxnID INTEGER NOT NULL,
-    outletid INTEGER,
-    ItemID INTEGER NOT NULL,
-    TableID INTEGER, -- The ID of the table from msttablemanagement
-    table_name TEXT, -- The name of the table from msttablemanagement
-    CGST REAL DEFAULT 0,
-    CGST_AMOUNT REAL DEFAULT 0,
-    SGST REAL DEFAULT 0,
-    SGST_AMOUNT REAL DEFAULT 0,
-    IGST REAL DEFAULT 0,
-    IGST_AMOUNT REAL DEFAULT 0,
-    CESS REAL DEFAULT 0,
-    CESS_AMOUNT REAL DEFAULT 0,
-    Discount_Amount INTEGER,
-    Qty REAL DEFAULT 0,    
-    KOTNo INTEGER,
-    AutoKOT BOOLEAN DEFAULT 0,
-    ManualKOT BOOLEAN DEFAULT 0,
-    SpecialInst TEXT,
-    isKOTGenerate BOOLEAN DEFAULT 0,
-    isSetteled BOOLEAN DEFAULT 0,
-    isNCKOT BOOLEAN DEFAULT 0,
-    isCancelled BOOLEAN DEFAULT 0,
-    DeptID INTEGER,
-    HotelID INTEGER,
-    RuntimeRate REAL DEFAULT 0,
-    RevQty REAL DEFAULT 0,
-    KOTUsedDate DATETIME,
-    isBilled BOOLEAN DEFAULT 0,
-    RevKOTNo INTEGER,
-    VariantID INTEGER,
-    VariantName TEXT
-   
-
-);
-
-CREATE TABLE IF NOT EXISTS TrnSettlement (
-    SettlementID INTEGER PRIMARY KEY AUTOINCREMENT,
-    TxnID INTEGER,
-    TxnNo TEXT,
-    OrderNo TEXT,
-    userid INTEGER,
-    PaymentTypeID INTEGER NOT NULL,
-    PaymentType TEXT NOT NULL,
-    Amount REAL DEFAULT 0,
-    TipAmount REAL DEFAULT 0,
-    Batch TEXT,
-    Name TEXT,
-    HotelID INTEGER,
-    InsertDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-    isSettled INTEGER DEFAULT 1,
-    RefferedBy TEXT,
-    customerid INTEGER,
-    CustomerName TEXT,
-    MobileNo TEXT,
-    Address TEXT,
-    Name2 TEXT,
-    Name3 TEXT,
-    TipAmount REAL DEFAULT 0,
-    table_name TEXT
-    
-    
-);
-
-CREATE TABLE IF NOT EXISTS TAxnTrnReversalLog (
-    ReversalID        INTEGER PRIMARY KEY AUTOINCREMENT,
-    TxnDetailID       INTEGER,
-    TxnID             INTEGER,
-    KOTNo             INTEGER,
-    RevKOTNo          INTEGER,
-    ItemID            INTEGER,
-    ItemName          TEXT,
-    ActualQty         REAL,
-    ReversedQty       REAL,
-    RemainingQty      REAL,
-    IsBeforeBill      BOOLEAN DEFAULT 0,
-    IsAfterBill       BOOLEAN DEFAULT 0,
-    ReversedByUserID  INTEGER,
-    ApprovedByAdmin   INTEGER,
-    HotelID           INTEGER,
-    ReversalReason    TEXT,
-    ReversalDate      DATETIME 
-);
-
-CREATE TABLE IF NOT EXISTS trn_cashdenomination (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  handover_id INTEGER,                -- Link to handover/dayend record
-  note_2000 INTEGER DEFAULT 0,        -- Count of ₹2000 notes
-  note_1000 INTEGER DEFAULT 0,        -- Count of ₹1000 notes (optional if discontinued)
-  note_500 INTEGER DEFAULT 0,
-  note_200 INTEGER DEFAULT 0,
-  note_100 INTEGER DEFAULT 0,
-  note_50 INTEGER DEFAULT 0,
-  note_20 INTEGER DEFAULT 0,
-  note_10 INTEGER DEFAULT 0,
-  note_5 INTEGER DEFAULT 0,
-  note_2 INTEGER DEFAULT 0,
-  note_1 INTEGER DEFAULT 0,
-  total_2000 DECIMAL(10,2) DEFAULT 0,
-  total_1000 DECIMAL(10,2) DEFAULT 0,
-  total_500 DECIMAL(10,2) DEFAULT 0,
-  total_200 DECIMAL(10,2) DEFAULT 0,
-  total_100 DECIMAL(10,2) DEFAULT 0,
-  total_50 DECIMAL(10,2) DEFAULT 0,
-  total_20 DECIMAL(10,2) DEFAULT 0,
-  total_10 DECIMAL(10,2) DEFAULT 0,
-  total_5 DECIMAL(10,2) DEFAULT 0,
-  total_2 DECIMAL(10,2) DEFAULT 0,
-  total_1 DECIMAL(10,2) DEFAULT 0,
-  grand_total DECIMAL(12,2) DEFAULT 0,  -- Sum of all totals
-  user_id INTEGER NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  handover_reason TEXT
-);
-
-
-
-CREATE TABLE IF NOT EXISTS trn_dayend_cashdenomination (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  dayend_id INTEGER,                    -- Link to Day-End record
-  note_2000 INTEGER DEFAULT 0,          -- Count of ₹2000 notes
-  note_1000 INTEGER DEFAULT 0,          -- Count of ₹1000 notes (optional)
-  note_500 INTEGER DEFAULT 0,
-  note_200 INTEGER DEFAULT 0,
-  note_100 INTEGER DEFAULT 0,
-  note_50 INTEGER DEFAULT 0,
-  note_20 INTEGER DEFAULT 0,
-  note_10 INTEGER DEFAULT 0,
-  note_5 INTEGER DEFAULT 0,
-  note_2 INTEGER DEFAULT 0,
-  note_1 INTEGER DEFAULT 0,
-
-  total_2000 DECIMAL(10,2) DEFAULT 0,
-  total_1000 DECIMAL(10,2) DEFAULT 0,
-  total_500 DECIMAL(10,2) DEFAULT 0,
-  total_200 DECIMAL(10,2) DEFAULT 0,
-  total_100 DECIMAL(10,2) DEFAULT 0,
-  total_50 DECIMAL(10,2) DEFAULT 0,
-  total_20 DECIMAL(10,2) DEFAULT 0,
-  total_10 DECIMAL(10,2) DEFAULT 0,
-  total_5 DECIMAL(10,2) DEFAULT 0,
-  total_2 DECIMAL(10,2) DEFAULT 0,
-  total_1 DECIMAL(10,2) DEFAULT 0,
-
-  grand_total DECIMAL(12,2) DEFAULT 0,   -- Sum of all totals
-  user_id INTEGER NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-
-CREATE TABLE IF NOT EXISTS trn_dayend (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  dayend_date TEXT NOT NULL,
-  curr_date TEXT NOT NULL,
-  system_datetime DATETIME DEFAULT CURRENT_TIMESTAMP,
-  lock_datetime DATETIME NOT NULL,
-  outlet_id INTEGER NOT NULL,
-  hotel_id INTEGER NOT NULL,
-  dayend_total_amt DECIMAL(15,2) DEFAULT 0.00,
-  closing_balance DECIMAL(15,2) DEFAULT 0.00,
-  opening_balance DECIMAL(15,2) DEFAULT 0.00,
-  created_by_id INTEGER
-);
-
-
-CREATE TABLE IF NOT EXISTS mstwarehouse (
-  warehouseid INTEGER PRIMARY KEY AUTOINCREMENT,
-  warehouse_name TEXT NOT NULL,
-  location TEXT NOT NULL,
-  total_items INTEGER DEFAULT 0,
-  status INTEGER DEFAULT 0,
-  created_by_id TEXT,
-  created_date TEXT,
-  updated_by_id TEXT,
-  updated_date TEXT,
-  hotelid TEXT,
-  client_code TEXT,
-  marketid TEXT
-);
-
-CREATE TABLE IF NOT EXISTS mstshifts  (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  shift_type TEXT CHECK (shift_type IN ('Morning', 'Evening', 'Night'))
-  
-
-);
-
-CREATE TABLE IF NOT EXISTS mst_printers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+const mysql = require('mysql2');
+
+// ✅ Create MySQL connection pool (Production Ready)
+const db = mysql.createPool({
+  host: 'localhost',
+  user: 'root',
+  password: '', // XAMPP default (change if you set password)
+  database: 'restaurant_db',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+// Optional: Test connection
+db.getConnection((err, connection) => {
+  if (err) {
+    console.error('❌ MySQL Connection Failed:', err);
+  } else {
+    console.log('✅ MySQL Connected Successfully');
+    connection.release();
+  }
+});
+
+// ✅ Promisify pool for async/await usage
+const dbPromise = db.promise();
+
+// ✅ Helper to run multiple CREATE TABLE statements sequentially
+async function initDB() {
+  const queries = [
+
+    `CREATE TABLE IF NOT EXISTS mstcountrymaster (
+      countryid INT PRIMARY KEY AUTO_INCREMENT,
+      country_name TEXT NOT NULL,
+      country_code TEXT NOT NULL,
+      country_capital TEXT NOT NULL,
+      status INT DEFAULT 1,
+      created_by_id INT,
+      created_date TEXT,
+      updated_by_id INT,
+      updated_date TEXT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mststatemaster (
+      stateid INT PRIMARY KEY AUTO_INCREMENT,
+      state_name TEXT NOT NULL,
+      state_code TEXT NOT NULL,
+      state_capital TEXT NOT NULL,
+      countryid INT,
+      status INT DEFAULT 1,
+      created_by_id INT,
+      created_date TEXT,
+      updated_by_id INT,
+      updated_date TEXT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstcitymaster (
+      cityid INT PRIMARY KEY AUTO_INCREMENT,
+      city_name TEXT NOT NULL,
+      city_Code TEXT NOT NULL,
+      stateId INT,
+      iscoastal TINYINT(1) DEFAULT 0,
+      status INT DEFAULT 1,
+      created_by_id INT,
+      created_date TEXT,
+      updated_by_id INT,
+      updated_date TEXT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstunitmaster (
+      unitid INT PRIMARY KEY AUTO_INCREMENT,
+      unit_name TEXT NOT NULL,
+      status INT DEFAULT 1,
+      created_by_id INT,
+      created_date TEXT,
+      updated_by_id INT,
+      updated_date TEXT,
+      hotelid INT,
+      client_code TEXT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstkitchencategory (
+      kitchencategoryid INT PRIMARY KEY AUTO_INCREMENT,
+      Kitchen_Category VARCHAR(200),
+      kitchenmaingroupid INT,
+      alternative_category_name VARCHAR(200),
+      Description TEXT,
+      alternative_category_Description VARCHAR(400),
+      digital_order_image VARCHAR(200),
+      categorycolor VARCHAR(200),
+      status INT,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      hotelid INT,
+      marketid INT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstkitchensubcategory (
+      kitchensubcategoryid INT PRIMARY KEY AUTO_INCREMENT,
+      Kitchen_sub_category VARCHAR(200),
+      kitchencategoryid INT,
+      kitchenmaingroupid INT,
+      status INT,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      hotelid INT,
+      marketid INT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstkitchenmaingroup (
+      kitchenmaingroupid INT PRIMARY KEY AUTO_INCREMENT,
+      Kitchen_main_Group VARCHAR(200),
+      status INT,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      hotelid INT,
+      marketid INT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS msthoteltype (
+      hoteltypeid INT PRIMARY KEY AUTO_INCREMENT,
+      hotel_type VARCHAR(200),
+      status INT,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      hotelid INT,
+      marketid INT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstuserType (
+      usertypeid INT PRIMARY KEY AUTO_INCREMENT,
+      User_type VARCHAR(200),
+      status INT,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      hotelid INT,
+      marketid INT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstdesignation (
+      designationid INT PRIMARY KEY AUTO_INCREMENT,
+      Designation VARCHAR(200),
+      status INT,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS msthotelmasters (
+      hotelid INT PRIMARY KEY AUTO_INCREMENT,
+      hotel_name VARCHAR(200),
+      marketid INT,
+      short_name VARCHAR(200),
+      phone VARCHAR(40),
+      email VARCHAR(200),
+      fssai_no VARCHAR(200),
+      trn_gstno VARCHAR(200),
+      panno VARCHAR(200),
+      website VARCHAR(200),
+      address VARCHAR(400),
+      stateid INT,
+      cityid INT,
+      hoteltypeid INT,
+      status INT,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      Masteruserid INT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mst_Item_Main_Group (
+      item_maingroupid INT PRIMARY KEY AUTO_INCREMENT,
+      item_group_name VARCHAR(200),
+      status INT,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      hotelid INT,
+      marketid INT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mst_Item_Group (
+      item_groupid INT PRIMARY KEY AUTO_INCREMENT,
+      itemgroupname VARCHAR(200),
+      code INT,
+      kitchencategoryid INT,
+      status INT,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      hotelid INT,
+      marketid INT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstmarkets (
+      marketid INT PRIMARY KEY AUTO_INCREMENT,
+      market_name TEXT NOT NULL,
+      status INT DEFAULT 1,
+      created_by_id INT,
+      created_date TEXT,
+      updated_by_id INT,
+      updated_date TEXT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mst_users (
+      userid INT PRIMARY KEY AUTO_INCREMENT,
+      username VARCHAR(255) UNIQUE NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      full_name TEXT NOT NULL,
+      phone TEXT,
+      role_level TEXT NOT NULL,
+      parent_user_id INT,
+      brand_id INT,
+      hotelid INT,
+      outletid INT NULL,
+      Designation TEXT,
+      designationid INT,
+      user_type TEXT,
+      usertypeid INT,
+      shift_time TEXT,
+      mac_address TEXT,
+      assign_warehouse TEXT,
+      language_preference TEXT DEFAULT 'English',
+      address TEXT,
+      city TEXT,
+      sub_locality TEXT,
+      web_access INT DEFAULT 0,
+      self_order INT DEFAULT 1,
+      captain_app INT DEFAULT 1,
+      kds_app INT DEFAULT 1,
+      captain_old_kot_access TEXT DEFAULT 'Enabled',
+      verify_mac_ip INT DEFAULT 0,
+      status INT,
+      last_login DATETIME,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      FOREIGN KEY (parent_user_id) REFERENCES mst_users(userid)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mst_outlets (
+      outletid INT PRIMARY KEY AUTO_INCREMENT,
+      outlet_name TEXT NOT NULL,
+      hotelid INT,
+      market_id TEXT,
+      outlet_code TEXT,
+      phone TEXT,
+      email TEXT,
+      website TEXT,
+      address TEXT,
+      city TEXT,
+      zip_code TEXT,
+      country TEXT,
+      timezone TEXT,
+      start_day_time TEXT,
+      close_day_time TEXT,
+      next_reset_bill_date TEXT,
+      next_reset_bill_days TEXT,
+      next_reset_kot_date TEXT,
+      next_reset_kot_days TEXT,
+      contact_phone TEXT,
+      notification_email TEXT,
+      description TEXT,
+      logo TEXT,
+      gst_no TEXT,
+      fssai_no TEXT,
+      status INT DEFAULT 1,
+      digital_order INT DEFAULT 0,
+      logout_pos INT DEFAULT 0,
+      password_protection INT DEFAULT 0,
+      send_payment_link INT DEFAULT 0,
+      send_ebill_whatsapp INT DEFAULT 0,
+      add_custom_qr INT DEFAULT 0,
+      start_time INT DEFAULT 0,
+      end_time INT DEFAULT 0,
+      warehouseid INT,
+      reduce_inventory INT DEFAULT 0,
+      registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_by_id INT,
+      created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_by_id INT,
+      updated_date DATETIME
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS user_outlet_mapping (
+      mapping_id INT PRIMARY KEY AUTO_INCREMENT,
+      userid INT NOT NULL,
+      hotelid INT NOT NULL,
+      outletid INT NOT NULL,
+      FOREIGN KEY (userid) REFERENCES mst_users(userid),
+      FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid),
+      UNIQUE KEY unique_user_outlet (userid, outletid)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mst_user_permissions (
+      permissionid INT PRIMARY KEY AUTO_INCREMENT,
+      userid INT NOT NULL,
+      module_name TEXT NOT NULL,
+      can_view INT DEFAULT 0,
+      can_create INT DEFAULT 0,
+      can_edit INT DEFAULT 0,
+      can_delete INT DEFAULT 0,
+      created_by_id INT,
+      created_date DATETIME,
+      FOREIGN KEY (userid) REFERENCES mst_users(userid)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mst_brand_structure (
+      structureid INT PRIMARY KEY AUTO_INCREMENT,
+      brand_id INT NOT NULL,
+      structure_type TEXT NOT NULL,
+      has_separate_hotel_admin INT DEFAULT 0,
+      created_by_id INT,
+      created_date DATETIME
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS msttablemanagement (
+      tableid INT PRIMARY KEY AUTO_INCREMENT,
+      table_name TEXT NOT NULL,
+      hotelid INT,
+      outletid INT NOT NULL,
+      departmentid INT,
+      department_name TEXT,
+      status INT DEFAULT 0,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      marketid INT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS msttable_department (
+      departmentid INT PRIMARY KEY AUTO_INCREMENT,
+      department_name TEXT NOT NULL,
+      outletid INT NOT NULL,
+      taxgroupid INT NOT NULL,
+      status INT DEFAULT 1,
+      created_by_id INT NOT NULL,
+      created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_by_id INT,
+      updated_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstcustomer (
+      customerid INT PRIMARY KEY AUTO_INCREMENT,
+      name TEXT NOT NULL,
+      countryCode TEXT NOT NULL,
+      mobile TEXT NOT NULL,
+      mail TEXT NOT NULL,
+      cityid TEXT NOT NULL,
+      address1 TEXT,
+      address2 TEXT,
+      stateid TEXT,
+      pincode TEXT,
+      gstNo TEXT,
+      fssai TEXT,
+      panNo TEXT,
+      aadharNo TEXT,
+      birthday TEXT,
+      anniversary TEXT,
+      customerType TEXT,
+      status INT DEFAULT 1,
+      createWallet INT DEFAULT 0,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS msttaxgroup (
+      taxgroupid INT PRIMARY KEY AUTO_INCREMENT,
+      taxgroup_name TEXT NOT NULL,
+      hotelid INT NOT NULL,
+      status INT NOT NULL DEFAULT 1,
+      created_by_id INT,
+      created_date TEXT DEFAULT (NOW()),
+      updated_by_id INT,
+      updated_date TEXT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mst_resttaxmaster (
+      resttaxid INT PRIMARY KEY AUTO_INCREMENT,
+      hotelid INT,
+      outletid INT,
+      isapplicablealloutlet INT,
+      resttax_name TEXT,
+      resttax_value TEXT,
+      restcgst TEXT,
+      restsgst TEXT,
+      restigst TEXT,
+      restcess TEXT,
+      taxgroupid INT,
+      status INT DEFAULT 1,
+      created_by_id INT,
+      created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_by_id INT,
+      updated_date DATETIME,
+      FOREIGN KEY (hotelid) REFERENCES msthotelmasters(hotelid),
+      FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid),
+      FOREIGN KEY (taxgroupid) REFERENCES msttaxgroup(taxgroupid)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstrestmenu (
+      restitemid INT PRIMARY KEY AUTO_INCREMENT,
+      hotelid INT,
+      outletid INT,
+      item_no INT,
+      item_name VARCHAR(200) NOT NULL,
+      print_name VARCHAR(200),
+      short_name VARCHAR(200),
+      kitchen_category_id INT,
+      kitchen_sub_category_id INT,
+      kitchen_main_group_id INT,
+      item_group_id INT,
+      itemgroupname VARCHAR(200),
+      item_main_group_id INT,
+      stock_unit INT,
+      price DECIMAL(19,2) NOT NULL,
+      taxgroupid INT,
+      is_runtime_rates INT NOT NULL DEFAULT 0,
+      is_common_to_all_departments INT NOT NULL DEFAULT 0,
+      item_description VARCHAR(400),
+      item_hsncode VARCHAR(100),
+      status INT DEFAULT 1,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      FOREIGN KEY (hotelid) REFERENCES msthotelmasters(hotelid),
+      FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid),
+      FOREIGN KEY (taxgroupid) REFERENCES msttaxgroup(taxgroupid)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mst_variant_types (
+      variant_type_id INT PRIMARY KEY AUTO_INCREMENT,
+      variant_type_name TEXT NOT NULL,
+      hotelid INT NOT NULL,
+      outletid INT NOT NULL,
+      sort_order INT DEFAULT 0,
+      active INT DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mst_variant_values (
+      variant_value_id INT PRIMARY KEY AUTO_INCREMENT,
+      variant_type_id INT NOT NULL,
+      value_name TEXT NOT NULL,
+      sort_order INT DEFAULT 0,
+      active INT DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME,
+      FOREIGN KEY (variant_type_id) REFERENCES mst_variant_types(variant_type_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstrestmenudetails (
+      itemdetailsid INT PRIMARY KEY AUTO_INCREMENT,
+      restitemid INT NOT NULL,
+      departmentid INT,
+      item_rate DECIMAL(19,2) NOT NULL,
+      unitid INT,
+      servingunitid INT,
+      IsConversion INT DEFAULT 0,
+      hotelid INT,
+      variant_value_id INT,
+      value_name TEXT,
+      taxgroupid INT,
+      FOREIGN KEY (variant_value_id) REFERENCES mst_variant_values(variant_value_id),
+      FOREIGN KEY (taxgroupid) REFERENCES msttaxgroup(taxgroupid)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstbill_preview_settings (
+      billpreviewsetting_id INT PRIMARY KEY AUTO_INCREMENT,
+      outletid INT NOT NULL,
+      outlet_name VARCHAR(255),
+      email VARCHAR(255),
+      website VARCHAR(255),
+      upi_id VARCHAR(50),
+      bill_prefix VARCHAR(50),
+      secondary_bill_prefix VARCHAR(50),
+      bar_bill_prefix VARCHAR(50),
+      show_upi_qr TINYINT(1),
+      enabled_bar_section TINYINT(1),
+      show_phone_on_bill VARCHAR(20),
+      note TEXT,
+      footer_note TEXT,
+      field1 VARCHAR(100),
+      field2 VARCHAR(100),
+      field3 VARCHAR(100),
+      field4 VARCHAR(100),
+      fssai_no VARCHAR(50),
+      trn_gstno TEXT,
+      FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstkot_print_settings (
+      kot_printsetting_id INT PRIMARY KEY AUTO_INCREMENT,
+      outletid INT NOT NULL,
+      customer_on_kot_dine_in TINYINT(1),
+      customer_on_kot_pickup TINYINT(1),
+      customer_on_kot_delivery TINYINT(1),
+      customer_on_kot_quick_bill TINYINT(1),
+      customer_kot_display_option VARCHAR(50),
+      group_kot_items_by_category TINYINT(1),
+      hide_table_name_quick_bill TINYINT(1),
+      show_new_order_tag TINYINT(1),
+      new_order_tag_label VARCHAR(50),
+      show_running_order_tag TINYINT(1),
+      running_order_tag_label VARCHAR(50),
+      dine_in_kot_no VARCHAR(50),
+      pickup_kot_no VARCHAR(50),
+      delivery_kot_no VARCHAR(50),
+      quick_bill_kot_no VARCHAR(50),
+      modifier_default_option TINYINT(1),
+      print_kot_both_languages TINYINT(1),
+      show_alternative_item TINYINT(1),
+      show_captain_username TINYINT(1),
+      show_covers_as_guest TINYINT(1),
+      show_item_price TINYINT(1),
+      show_kot_no_quick_bill TINYINT(1),
+      show_kot_note TINYINT(1),
+      show_online_order_otp TINYINT(1),
+      show_order_id_quick_bill TINYINT(1),
+      show_order_id_online_order TINYINT(1),
+      show_order_no_quick_bill_section TINYINT(1),
+      show_order_type_symbol TINYINT(1),
+      show_store_name TINYINT(1),
+      show_terminal_username TINYINT(1),
+      show_username TINYINT(1),
+      show_waiter TINYINT(1),
+      FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstbills_print_settings (
+      bill_printsetting_id INT PRIMARY KEY AUTO_INCREMENT,
+      outletid INT NOT NULL,
+      bill_title_dine_in INT DEFAULT 1,
+      bill_title_pickup INT DEFAULT 1,
+      bill_title_delivery INT DEFAULT 1,
+      bill_title_quick_bill INT DEFAULT 1,
+      mask_order_id INT DEFAULT 0,
+      modifier_default_option_bill INT DEFAULT 0,
+      print_bill_both_languages INT DEFAULT 0,
+      show_alt_item_title_bill INT DEFAULT 0,
+      show_alt_name_bill INT DEFAULT 0,
+      show_bill_amount_words INT DEFAULT 0,
+      show_bill_no_bill INT DEFAULT 1,
+      show_bill_number_prefix_bill INT DEFAULT 1,
+      show_bill_print_count INT DEFAULT 0,
+      show_brand_name_bill INT DEFAULT 1,
+      show_captain_bill INT DEFAULT 0,
+      show_covers_bill INT DEFAULT 1,
+      show_custom_qr_codes_bill INT DEFAULT 0,
+      show_customer_gst_bill INT DEFAULT 0,
+      show_customer_bill INT DEFAULT 1,
+      show_customer_paid_amount INT DEFAULT 1,
+      show_date_bill INT DEFAULT 1,
+      show_default_payment INT DEFAULT 1,
+      show_discount_reason_bill INT DEFAULT 0,
+      show_due_amount_bill INT DEFAULT 1,
+      show_ebill_invoice_qrcode INT DEFAULT 0,
+      show_item_hsn_code_bill INT DEFAULT 0,
+      show_item_level_charges_separately INT DEFAULT 0,
+      show_item_note_bill INT DEFAULT 1,
+      show_items_sequence_bill INT DEFAULT 1,
+      show_kot_number_bill INT DEFAULT 0,
+      show_logo_bill INT DEFAULT 1,
+      show_order_id_bill INT DEFAULT 0,
+      show_order_no_bill INT DEFAULT 1,
+      show_order_note_bill INT DEFAULT 1,
+      order_type_dine_in INT DEFAULT 1,
+      order_type_pickup INT DEFAULT 1,
+      order_type_delivery INT DEFAULT 1,
+      order_type_quick_bill INT DEFAULT 1,
+      show_outlet_name_bill INT DEFAULT 1,
+      payment_mode_dine_in INT DEFAULT 1,
+      payment_mode_pickup INT DEFAULT 1,
+      payment_mode_delivery INT DEFAULT 1,
+      payment_mode_quick_bill INT DEFAULT 1,
+      table_name_dine_in INT DEFAULT 1,
+      table_name_pickup INT DEFAULT 0,
+      table_name_delivery INT DEFAULT 0,
+      table_name_quick_bill INT DEFAULT 0,
+      show_tax_charge_bill INT DEFAULT 1,
+      show_username_bill INT DEFAULT 0,
+      show_waiter_bill INT DEFAULT 1,
+      show_zatca_invoice_qr INT DEFAULT 0,
+      show_customer_address_pickup_bill INT DEFAULT 0,
+      show_order_placed_time INT DEFAULT 1,
+      hide_item_quantity_column INT DEFAULT 0,
+      hide_item_rate_column INT DEFAULT 0,
+      hide_item_total_column INT DEFAULT 0,
+      hide_total_without_tax INT DEFAULT 0,
+      trn_gstno TEXT,
+      FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE,
+      UNIQUE KEY unique_outlet (outletid)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstgeneral_settings (
+      outletid INT PRIMARY KEY AUTO_INCREMENT,
+      customize_url_links TEXT DEFAULT '[]',
+      allow_charges_after_bill_print TINYINT(1) DEFAULT 0,
+      allow_discount_after_bill_print TINYINT(1) DEFAULT 0,
+      allow_discount_before_save TINYINT(1) DEFAULT 0,
+      allow_pre_order_tahd TINYINT(1) DEFAULT 0,
+      ask_covers TEXT DEFAULT '{"dineIn": false, "pickup": false, "delivery": false, "quickBill": false}',
+      ask_covers_captain TINYINT(1) DEFAULT 0,
+      ask_custom_order_id_quick_bill TINYINT(1) DEFAULT 0,
+      ask_custom_order_type_quick_bill TINYINT(1) DEFAULT 0,
+      ask_payment_mode_on_save_bill TINYINT(1) DEFAULT 0,
+      ask_waiter TEXT DEFAULT '{"dineIn": false, "pickup": false, "delivery": false, "quickBill": false}',
+      ask_otp_change_order_status_order_window TINYINT(1) DEFAULT 0,
+      ask_otp_change_order_status_receipt_section TINYINT(1) DEFAULT 0,
+      auto_accept_remote_kot TINYINT(1) DEFAULT 0,
+      auto_out_of_stock TINYINT(1) DEFAULT 0,
+      auto_sync TINYINT(1) DEFAULT 0,
+      category_time_for_pos TEXT DEFAULT '',
+      count_sales_after_midnight TINYINT(1) DEFAULT 0,
+      customer_display TEXT DEFAULT '{"media": []}',
+      customer_mandatory TEXT DEFAULT '{"dineIn": false, "pickup": false, "delivery": false, "quickBill": false}',
+      default_ebill_check TINYINT(1) DEFAULT 0,
+      default_send_delivery_boy_check TINYINT(1) DEFAULT 0,
+      edit_customize_order_number TEXT DEFAULT '',
+      enable_backup_notification_service TINYINT(1) DEFAULT 0,
+      enable_customer_display_access TINYINT(1) DEFAULT 0,
+      filter_items_by_order_type TINYINT(1) DEFAULT 0,
+      generate_reports_start_close_dates TINYINT(1) DEFAULT 0,
+      hide_clear_data_check_logout TINYINT(1) DEFAULT 0,
+      hide_item_price_options TINYINT(1) DEFAULT 0,
+      hide_load_menu_button TINYINT(1) DEFAULT 0,
+      make_cancel_delete_reason_compulsory TINYINT(1) DEFAULT 0,
+      make_discount_reason_mandatory TINYINT(1) DEFAULT 0,
+      make_free_cancel_bill_reason_mandatory TINYINT(1) DEFAULT 0,
+      make_payment_ref_number_mandatory TINYINT(1) DEFAULT 0,
+      mandatory_delivery_boy_selection TINYINT(1) DEFAULT 0,
+      mark_order_as_transfer_order TINYINT(1) DEFAULT 0,
+      online_payment_auto_settle TINYINT(1) DEFAULT 0,
+      order_sync_settings TEXT DEFAULT '{"autoSyncInterval": "5", "syncBatchPacketSize": "10"}',
+      separate_billing_by_section TINYINT(1) DEFAULT 0,
+      set_entered_amount_as_opening TINYINT(1) DEFAULT 0,
+      show_alternative_item_report_print TINYINT(1) DEFAULT 0,
+      show_clear_sales_report_logout TINYINT(1) DEFAULT 0,
+      show_order_no_label_pos TINYINT(1) DEFAULT 0,
+      show_payment_history_button TINYINT(1) DEFAULT 0,
+      show_remote_kot_option TINYINT(1) DEFAULT 0,
+      show_send_payment_link TINYINT(1) DEFAULT 0,
+      stock_availability_display TINYINT(1) DEFAULT 0,
+      todays_report TEXT DEFAULT '{"salesSummary": false, "orderTypeSummary": false, "paymentTypeSummary": false, "discountSummary": false, "expenseSummary": false, "billSummary": false, "deliveryBoySummary": false, "waiterSummary": false, "kitchenDepartmentSummary": false, "categorySummary": false, "soldItemsSummary": false, "cancelItemsSummary": false, "walletSummary": false, "duePaymentReceivedSummary": false, "duePaymentReceivableSummary": false, "paymentVarianceSummary": false, "currencyDenominationsSummary": false}',
+      upi_payment_sound_notification TINYINT(1) DEFAULT 0,
+      use_separate_bill_numbers_online TINYINT(1) DEFAULT 0,
+      when_send_todays_report TEXT DEFAULT '',
+      enable_currency_conversion TINYINT(1) DEFAULT 0,
+      enable_user_login_validation TINYINT(1) DEFAULT 0,
+      allow_closing_shift_despite_bills TINYINT(1) DEFAULT 0,
+      show_real_time_kot_bill_notifications TINYINT(1) DEFAULT 0,
+      ReverseQtyMode TINYINT(1) DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstonline_orders_settings (
+      online_ordersetting_id INT PRIMARY KEY AUTO_INCREMENT,
+      outletid INT NOT NULL,
+      show_in_preparation_kds TINYINT(1),
+      auto_accept_online_order TINYINT(1),
+      customize_order_preparation_time TINYINT(1),
+      online_orders_time_delay INT,
+      pull_order_on_accept TINYINT(1),
+      show_addons_separately TINYINT(1),
+      show_complete_online_order_id TINYINT(1),
+      show_online_order_preparation_time TINYINT(1),
+      update_food_ready_status_kds TINYINT(1),
+      FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstoutlet_settings (
+      outletid INT PRIMARY KEY AUTO_INCREMENT,
+      send_order_notification VARCHAR(50) DEFAULT 'ALL',
+      bill_number_length INT DEFAULT 2,
+      next_reset_order_number_date DATETIME,
+      next_reset_order_number_days VARCHAR(50) DEFAULT 'Reset Order Number Daily',
+      decimal_points INT DEFAULT 2,
+      bill_round_off TINYINT(1),
+      bill_round_off_to FLOAT DEFAULT 1,
+      enable_loyalty TINYINT(1),
+      multiple_price_setting TINYINT(1),
+      include_tax_in_invoice TINYINT(1),
+      service_charges FLOAT DEFAULT 0,
+      invoice_message TEXT,
+      verify_pos_system_login TINYINT(1),
+      table_reservation TINYINT(1),
+      auto_update_pos TINYINT(1),
+      send_report_email TINYINT(1),
+      send_report_whatsapp TINYINT(1),
+      allow_multiple_tax TINYINT(1),
+      enable_call_center TINYINT(1),
+      bharatpe_integration TINYINT(1),
+      phonepe_integration TINYINT(1),
+      reelo_integration TINYINT(1),
+      tally_integration TINYINT(1),
+      sunmi_integration TINYINT(1),
+      zomato_pay_integration TINYINT(1),
+      zomato_enabled TINYINT(1),
+      swiggy_enabled TINYINT(1),
+      rafeeq_enabled TINYINT(1),
+      noon_food_enabled TINYINT(1),
+      magicpin_enabled TINYINT(1),
+      dotpe_enabled TINYINT(1),
+      cultfit_enabled TINYINT(1),
+      ubereats_enabled TINYINT(1),
+      scooty_enabled TINYINT(1),
+      dunzo_enabled TINYINT(1),
+      foodpanda_enabled TINYINT(1),
+      amazon_enabled TINYINT(1),
+      talabat_enabled TINYINT(1),
+      deliveroo_enabled TINYINT(1),
+      careem_enabled TINYINT(1),
+      jahez_enabled TINYINT(1),
+      eazydiner_enabled TINYINT(1),
+      radyes_enabled TINYINT(1),
+      goshop_enabled TINYINT(1),
+      chatfood_enabled TINYINT(1),
+      cutfit_enabled TINYINT(1),
+      jubeat_enabled TINYINT(1),
+      thrive_enabled TINYINT(1),
+      fidoo_enabled TINYINT(1),
+      mrsool_enabled TINYINT(1),
+      swiggystore_enabled TINYINT(1),
+      zomatormarket_enabled TINYINT(1),
+      hungerstation_enabled TINYINT(1),
+      instashop_enabled TINYINT(1),
+      eteasy_enabled TINYINT(1),
+      smiles_enabled TINYINT(1),
+      toyou_enabled TINYINT(1),
+      dca_enabled TINYINT(1),
+      ordable_enabled TINYINT(1),
+      beanz_enabled TINYINT(1),
+      cari_enabled TINYINT(1),
+      the_chefz_enabled TINYINT(1),
+      keeta_enabled TINYINT(1),
+      notification_channel VARCHAR(50) DEFAULT 'SMS',
+      ReverseQtyMode INT DEFAULT 0,
+      default_waiter_id INT,
+      pax INT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS payment_types (
+      paymenttypeid INT PRIMARY KEY AUTO_INCREMENT,
+      mode_name TEXT NOT NULL DEFAULT 'Cash',
+      status INT,
+      created_by_id INT,
+      created_date DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS payment_modes (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      hotelid INT,
+      outletid INT,
+      paymenttypeid INT NOT NULL,
+      sequence INT DEFAULT 0,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS TAxnTrnbill (
+      TxnID INT PRIMARY KEY AUTO_INCREMENT,
+      outletid INT,
+      TxnNo TEXT,
+      TableID INT,
+      table_name TEXT,
+      Steward TEXT,
+      PAX INT,
+      AutoKOT TINYINT(1) DEFAULT 0,
+      ManualKOT TINYINT(1) DEFAULT 0,
+      TxnDatetime TEXT NOT NULL,
+      GrossAmt DECIMAL(10,2) DEFAULT 0,
+      RevKOT DECIMAL(10,2) DEFAULT 0,
+      Discount FLOAT DEFAULT 0,
+      CGST FLOAT DEFAULT 0,
+      SGST FLOAT DEFAULT 0,
+      IGST FLOAT DEFAULT 0,
+      CESS FLOAT DEFAULT 0,
+      RoundOFF FLOAT DEFAULT 0,
+      Amount FLOAT DEFAULT 0,
+      isHomeDelivery TINYINT(1) DEFAULT 0,
+      DriverID INT,
+      CustomerName TEXT,
+      MobileNo TEXT,
+      Address TEXT,
+      Landmark TEXT,
+      orderNo TEXT,
+      isSetteled TINYINT(1) DEFAULT 0,
+      isBilled TINYINT(1) DEFAULT 0,
+      BillCount INT DEFAULT 0,
+      Order_Type TEXT,
+      isNCKOT TINYINT(1) DEFAULT 0,
+      isCancelled TINYINT(1) DEFAULT 0,
+      isPickup TINYINT(1) DEFAULT 0,
+      isDayEnd TINYINT(1) DEFAULT 0,
+      isreversebill TINYINT(1) DEFAULT 0,
+      NCName TEXT,
+      NCPurpose TEXT,
+      BilledDate DATETIME,
+      HandOverEmpID INT,
+      DayEndEmpID INT,
+      HotelID INT,
+      customerid INT,
+      DiscRefID INT,
+      DiscPer FLOAT DEFAULT 0,
+      DiscountType INT,
+      UserId INT,
+      BatchNo TEXT,
+      PrevTableID INT,
+      PrevDeptId INT,
+      isTrnsfered TINYINT(1) DEFAULT 0,
+      isChangeTrfAmt TINYINT(1) DEFAULT 0,
+      ServiceCharge FLOAT DEFAULT 0,
+      ServiceCharge_Amount FLOAT DEFAULT 0,
+      status INT DEFAULT 1,
+      Extra1 TEXT,
+      Extra2 TEXT,
+      Extra3 TEXT,
+      TaxableValue FLOAT DEFAULT 0,
+      FOREIGN KEY (HotelID) REFERENCES msthotelmasters(hotelid) ON DELETE SET NULL,
+      FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE SET NULL,
+      FOREIGN KEY (UserId) REFERENCES mst_users(userid) ON DELETE SET NULL
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
+      TXnDetailID INT PRIMARY KEY AUTO_INCREMENT,
+      TxnID INT NOT NULL,
+      outletid INT,
+      ItemID INT NOT NULL,
+      TableID INT,
+      table_name TEXT,
+      CGST FLOAT DEFAULT 0,
+      CGST_AMOUNT FLOAT DEFAULT 0,
+      SGST FLOAT DEFAULT 0,
+      SGST_AMOUNT FLOAT DEFAULT 0,
+      IGST FLOAT DEFAULT 0,
+      IGST_AMOUNT FLOAT DEFAULT 0,
+      CESS FLOAT DEFAULT 0,
+      CESS_AMOUNT FLOAT DEFAULT 0,
+      Discount_Amount INT,
+      Qty FLOAT DEFAULT 0,
+      KOTNo INT,
+      AutoKOT TINYINT(1) DEFAULT 0,
+      ManualKOT TINYINT(1) DEFAULT 0,
+      SpecialInst TEXT,
+      isKOTGenerate TINYINT(1) DEFAULT 0,
+      isSetteled TINYINT(1) DEFAULT 0,
+      isNCKOT TINYINT(1) DEFAULT 0,
+      isCancelled TINYINT(1) DEFAULT 0,
+      DeptID INT,
+      HotelID INT,
+      RuntimeRate FLOAT DEFAULT 0,
+      RevQty FLOAT DEFAULT 0,
+      KOTUsedDate DATETIME,
+      isBilled TINYINT(1) DEFAULT 0,
+      RevKOTNo INT,
+      VariantID INT,
+      VariantName TEXT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS TrnSettlement (
+      SettlementID INT PRIMARY KEY AUTO_INCREMENT,
+      TxnID INT,
+      TxnNo TEXT,
+      OrderNo TEXT,
+      userid INT,
+      PaymentTypeID INT NOT NULL,
+      PaymentType TEXT NOT NULL,
+      Amount FLOAT DEFAULT 0,
+      TipAmount FLOAT DEFAULT 0,
+      Batch TEXT,
+      Name TEXT,
+      HotelID INT,
+      InsertDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+      isSettled INT DEFAULT 1,
+      RefferedBy TEXT,
+      customerid INT,
+      CustomerName TEXT,
+      MobileNo TEXT,
+      Address TEXT,
+      Name2 TEXT,
+      Name3 TEXT,
+      table_name TEXT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS TAxnTrnReversalLog (
+      ReversalID INT PRIMARY KEY AUTO_INCREMENT,
+      TxnDetailID INT,
+      TxnID INT,
+      KOTNo INT,
+      RevKOTNo INT,
+      ItemID INT,
+      ItemName TEXT,
+      ActualQty FLOAT,
+      ReversedQty FLOAT,
+      RemainingQty FLOAT,
+      IsBeforeBill TINYINT(1) DEFAULT 0,
+      IsAfterBill TINYINT(1) DEFAULT 0,
+      ReversedByUserID INT,
+      ApprovedByAdmin INT,
+      HotelID INT,
+      ReversalReason TEXT,
+      ReversalDate DATETIME
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS trn_cashdenomination (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      handover_id INT,
+      note_2000 INT DEFAULT 0,
+      note_1000 INT DEFAULT 0,
+      note_500 INT DEFAULT 0,
+      note_200 INT DEFAULT 0,
+      note_100 INT DEFAULT 0,
+      note_50 INT DEFAULT 0,
+      note_20 INT DEFAULT 0,
+      note_10 INT DEFAULT 0,
+      note_5 INT DEFAULT 0,
+      note_2 INT DEFAULT 0,
+      note_1 INT DEFAULT 0,
+      total_2000 DECIMAL(10,2) DEFAULT 0,
+      total_1000 DECIMAL(10,2) DEFAULT 0,
+      total_500 DECIMAL(10,2) DEFAULT 0,
+      total_200 DECIMAL(10,2) DEFAULT 0,
+      total_100 DECIMAL(10,2) DEFAULT 0,
+      total_50 DECIMAL(10,2) DEFAULT 0,
+      total_20 DECIMAL(10,2) DEFAULT 0,
+      total_10 DECIMAL(10,2) DEFAULT 0,
+      total_5 DECIMAL(10,2) DEFAULT 0,
+      total_2 DECIMAL(10,2) DEFAULT 0,
+      total_1 DECIMAL(10,2) DEFAULT 0,
+      grand_total DECIMAL(12,2) DEFAULT 0,
+      user_id INT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      handover_reason TEXT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS trn_dayend_cashdenomination (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      dayend_id INT,
+      note_2000 INT DEFAULT 0,
+      note_1000 INT DEFAULT 0,
+      note_500 INT DEFAULT 0,
+      note_200 INT DEFAULT 0,
+      note_100 INT DEFAULT 0,
+      note_50 INT DEFAULT 0,
+      note_20 INT DEFAULT 0,
+      note_10 INT DEFAULT 0,
+      note_5 INT DEFAULT 0,
+      note_2 INT DEFAULT 0,
+      note_1 INT DEFAULT 0,
+      total_2000 DECIMAL(10,2) DEFAULT 0,
+      total_1000 DECIMAL(10,2) DEFAULT 0,
+      total_500 DECIMAL(10,2) DEFAULT 0,
+      total_200 DECIMAL(10,2) DEFAULT 0,
+      total_100 DECIMAL(10,2) DEFAULT 0,
+      total_50 DECIMAL(10,2) DEFAULT 0,
+      total_20 DECIMAL(10,2) DEFAULT 0,
+      total_10 DECIMAL(10,2) DEFAULT 0,
+      total_5 DECIMAL(10,2) DEFAULT 0,
+      total_2 DECIMAL(10,2) DEFAULT 0,
+      total_1 DECIMAL(10,2) DEFAULT 0,
+      grand_total DECIMAL(12,2) DEFAULT 0,
+      user_id INT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS trn_dayend (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      dayend_date TEXT NOT NULL,
+      curr_date TEXT NOT NULL,
+      system_datetime DATETIME DEFAULT CURRENT_TIMESTAMP,
+      lock_datetime DATETIME NOT NULL,
+      outlet_id INT NOT NULL,
+      hotel_id INT NOT NULL,
+      dayend_total_amt DECIMAL(15,2) DEFAULT 0.00,
+      closing_balance DECIMAL(15,2) DEFAULT 0.00,
+      opening_balance DECIMAL(15,2) DEFAULT 0.00,
+      created_by_id INT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstwarehouse (
+      warehouseid INT PRIMARY KEY AUTO_INCREMENT,
+      warehouse_name TEXT NOT NULL,
+      location TEXT NOT NULL,
+      total_items INT DEFAULT 0,
+      status INT DEFAULT 0,
+      created_by_id TEXT,
+      created_date TEXT,
+      updated_by_id TEXT,
+      updated_date TEXT,
+      hotelid TEXT,
+      client_code TEXT,
+      marketid TEXT
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mstshifts (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      shift_type ENUM('Morning', 'Evening', 'Night')
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS mst_printers (
+      id INT PRIMARY KEY AUTO_INCREMENT,
       printer_name TEXT,
       size TEXT,
       source TEXT
-    );
-  
+    )`,
 
-    CREATE TABLE IF NOT EXISTS kot_printer_settings (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  printer_name TEXT,
-  hotelid INTEGER,
-  order_type TEXT,
-  size TEXT,
-  copies INTEGER,
-  outletid INTEGER,
-  enableKotPrint INTEGER DEFAULT 1
-);
+    `CREATE TABLE IF NOT EXISTS kot_printer_settings (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      printer_name TEXT,
+      hotelid INT,
+      order_type TEXT,
+      size TEXT,
+      copies INT,
+      outletid INT,
+      enableKotPrint INT DEFAULT 1
+    )`,
 
+    `CREATE TABLE IF NOT EXISTS bill_printer_settings (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      printer_name TEXT,
+      hotelid INT,
+      order_type TEXT,
+      size TEXT,
+      copies INT,
+      outletid INT,
+      enableBillPrint INT DEFAULT 1
+    )`,
 
-
-   CREATE TABLE IF NOT EXISTS bill_printer_settings (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  printer_name TEXT,
-  hotelid INTEGER,
-  order_type TEXT,
-  size TEXT,
-  copies INTEGER,
-  outletid INTEGER,
-  enableBillPrint INTEGER DEFAULT 1
-);
-
-    
-
-    CREATE TABLE IF NOT EXISTS table_wise_kot_printer (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+    `CREATE TABLE IF NOT EXISTS table_wise_kot_printer (
+      id INT PRIMARY KEY AUTO_INCREMENT,
       table_no TEXT,
       printer_name TEXT,
       size TEXT,
       source TEXT,
-      copies INTEGER,
-       outletid INTEGER
-    );
+      copies INT,
+      outletid INT
+    )`,
 
-
-    CREATE TABLE IF NOT EXISTS table_wise_bill_printer (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+    `CREATE TABLE IF NOT EXISTS table_wise_bill_printer (
+      id INT PRIMARY KEY AUTO_INCREMENT,
       table_no TEXT,
       printer_name TEXT,
       size TEXT,
       source TEXT,
-      copies INTEGER,
-       outletid INTEGER
+      copies INT,
+      outletid INT
+    )`,
 
-    ) ;
-
-
-    CREATE TABLE IF NOT EXISTS category_wise_printer (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+    `CREATE TABLE IF NOT EXISTS category_wise_printer (
+      id INT PRIMARY KEY AUTO_INCREMENT,
       category TEXT,
       printer_name TEXT,
       order_type TEXT,
       size TEXT,
       source TEXT,
-      copies INTEGER,
-       outletid INTEGER
+      copies INT,
+      outletid INT
+    )`,
 
-    ) ;
-
-
-    CREATE TABLE IF NOT EXISTS department_wise_printer (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+    `CREATE TABLE IF NOT EXISTS department_wise_printer (
+      id INT PRIMARY KEY AUTO_INCREMENT,
       department TEXT,
       printer_name TEXT,
       order_type TEXT,
       size TEXT,
-      hotelid INTEGER,
-      copies INTEGER,
-       outletid INTEGER
-    );
+      hotelid INT,
+      copies INT,
+      outletid INT
+    )`,
 
-
- 
-    CREATE TABLE IF NOT EXISTS label_printer_settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+    `CREATE TABLE IF NOT EXISTS label_printer_settings (
+      id INT PRIMARY KEY AUTO_INCREMENT,
       printer_name TEXT,
-      paper_width INTEGER,
-      is_enabled INTEGER,
-      hotelid INTEGER,
-      outletid INTEGER
-    );
+      paper_width INT,
+      is_enabled INT,
+      hotelid INT,
+      outletid INT
+    )`,
 
-
-    CREATE TABLE IF NOT EXISTS report_printer_settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+    `CREATE TABLE IF NOT EXISTS report_printer_settings (
+      id INT PRIMARY KEY AUTO_INCREMENT,
       printer_name TEXT,
       paper_size TEXT,
-      auto_print INTEGER,
-      hotelid INTEGER,
-       outletid INTEGER
-    );
+      auto_print INT,
+      hotelid INT,
+      outletid INT
+    )`,
 
-
-  
-    CREATE TABLE IF NOT EXISTS kds_department_user (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+    `CREATE TABLE IF NOT EXISTS kds_department_user (
+      id INT PRIMARY KEY AUTO_INCREMENT,
       department TEXT,
       user TEXT,
-      is_active INTEGER,
+      is_active INT,
       updated_at TEXT,
-      outletid INTEGER
-    );
+      outletid INT
+    )`,
 
+    `CREATE TABLE IF NOT EXISTS accountnaturemaster (
+      nature_id INT PRIMARY KEY AUTO_INCREMENT,
+      accountnature VARCHAR(50) NOT NULL,
+      status INT,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      hotelid INT
+    )`,
 
-    CREATE TABLE IF NOT EXISTS accountnaturemaster (
-    nature_id      INTEGER      PRIMARY KEY AUTOINCREMENT,
-    accountnature TEXT (50)    NOT NULL,
-    status           INTEGER,
-    created_by_id    INTEGER,
-    created_date     DATETIME,
-    updated_by_id    INTEGER,
-    updated_date     DATETIME,
-    hotelid          INTEGER
-   
-  
-);
+    `CREATE TABLE IF NOT EXISTS accounttypedetails (
+      AccID INT PRIMARY KEY AUTO_INCREMENT,
+      AccName VARCHAR(200) NOT NULL,
+      UnderID INT,
+      NatureOfC INT,
+      status INT,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME,
+      hotelid INT,
+      FOREIGN KEY (NatureOfC) REFERENCES accountnaturemaster(nature_id)
+    )`,
 
- CREATE TABLE IF NOT EXISTS accounttypedetails (
-    AccID        INTEGER       PRIMARY KEY AUTOINCREMENT,
-    AccName      VARCHAR (200) NOT NULL,
-    UnderID      INTEGER,
-    NatureOfC    INTEGER,
-    status           INTEGER,
-    created_by_id    INTEGER,
-    created_date     DATETIME,
-    updated_by_id    INTEGER,
-    updated_date     DATETIME,
-    hotelid           INTEGER,
-    FOREIGN KEY (
-        NatureOfC
-    )
-    REFERENCES accountnaturemaster (nature_id)
-);
+    `CREATE TABLE IF NOT EXISTS AccountLedger (
+      LedgerId INT PRIMARY KEY AUTO_INCREMENT,
+      LedgerNo INT,
+      Name TEXT NOT NULL,
+      MarathiName TEXT,
+      address TEXT,
+      stateid INT,
+      cityid INT,
+      MobileNo TEXT,
+      PhoneNo TEXT,
+      GstNo TEXT,
+      PanNo TEXT,
+      OpeningBalance DECIMAL(12,2) DEFAULT 0.0,
+      OpeningBalanceDate DATE,
+      AccountTypeId INT,
+      AccountType TEXT,
+      Status INT DEFAULT 1,
+      createdbyid INT DEFAULT 1,
+      createdbydate DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedbyid INT,
+      updatedbydate DATETIME,
+      hotelid INT,
+      FOREIGN KEY (AccountTypeId) REFERENCES accounttypedetails(AccID)
+    )`,
 
- CREATE TABLE IF NOT EXISTS AccountLedger (
-    LedgerId           INTEGER         PRIMARY KEY AUTOINCREMENT,
-    LedgerNo           INTEGER,
-    Name               TEXT            NOT NULL,
-    MarathiName        TEXT,
-    address            TEXT,
-   stateid               INTEGER,
-    cityid                INTEGER,
-    MobileNo           TEXT,
-    PhoneNo            TEXT,
-    GstNo              TEXT,
-    PanNo              TEXT,
-    OpeningBalance     DECIMAL (12, 2) DEFAULT 0.0,
-    OpeningBalanceDate DATE,
-    AccountTypeId      INTEGER,
-    AccountType        TEXT,
-    Status             INTEGER         DEFAULT 1,
-    createdbyid        INTEGER         DEFAULT 1,
-    createdbydate      DATETIME        DEFAULT CURRENT_TIMESTAMP,
-    updatedbyid        INTEGER,
-    updatedbydate      DATETIME,
-    hotelid            INTEGER,
-    FOREIGN KEY (
-        AccountTypeId
-    )
-    REFERENCES accounttypedetails (AccID)
-);
-CREATE TABLE IF NOT EXISTS TrnSettlementLog (
-    ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    SettlementID INTEGER NOT NULL,
-    OldPaymentType TEXT,
-    OldAmount REAL,
-    NewPaymentType TEXT,
-    NewAmount REAL,
-    EditedBy TEXT,
-    InsertDate DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+    `CREATE TABLE IF NOT EXISTS TrnSettlementLog (
+      ID INT PRIMARY KEY AUTO_INCREMENT,
+      SettlementID INT NOT NULL,
+      OldPaymentType TEXT,
+      OldAmount FLOAT,
+      NewPaymentType TEXT,
+      NewAmount FLOAT,
+      EditedBy TEXT,
+      InsertDate DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
 
-CREATE TABLE IF NOT EXISTS mst_variant_types (
-  variant_type_id INTEGER PRIMARY KEY AUTOINCREMENT,
-  variant_type_name TEXT NOT NULL,
-  hotelid INTEGER NOT NULL,
-  outletid INTEGER NOT NULL,
-  sort_order INTEGER DEFAULT 0,
-  active INTEGER DEFAULT 1,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME
-);
+    `CREATE TABLE IF NOT EXISTS mst_setting (
+      settingid INT PRIMARY KEY AUTO_INCREMENT,
+      hotelid INT NOT NULL,
+      outletid INT NOT NULL,
+      departmentid INT NOT NULL,
+      ui_mode TEXT NOT NULL,
+      created_by_id INT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )`,
 
+    `CREATE TABLE IF NOT EXISTS mst_outlet_menu (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      menuName TEXT NOT NULL,
+      shortName TEXT,
+      outletName TEXT NOT NULL,
+      isPosDefaultMenu INT DEFAULT 0,
+      defaultDigitalMenu INT DEFAULT 0,
+      isDigitalMenu INT DEFAULT 0,
+      publishedAt DATETIME,
+      hotelid INT,
+      status INT DEFAULT 0,
+      created_by_id INT,
+      created_date DATETIME,
+      updated_by_id INT,
+      updated_date DATETIME
+    )`
 
-CREATE TABLE IF NOT EXISTS mst_variant_values (
-  variant_value_id INTEGER PRIMARY KEY AUTOINCREMENT,
-  variant_type_id INTEGER NOT NULL,
-  value_name TEXT NOT NULL,
-  sort_order INTEGER DEFAULT 0,
-  active INTEGER DEFAULT 1,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME,
-  FOREIGN KEY (variant_type_id) REFERENCES mst_variant_types(variant_type_id)
-);
+  ];
 
-CREATE TABLE IF NOT EXISTS  mst_setting (
-    settingid INTEGER PRIMARY KEY AUTOINCREMENT,
-    hotelid INTEGER NOT NULL,
-    outletid INTEGER NOT NULL,
-    departmentid INTEGER NOT NULL,
-    ui_mode TEXT NOT NULL,
-    created_by_id INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+  for (const query of queries) {
+    try {
+      await dbPromise.query(query);
+    } catch (err) {
+      console.error('❌ Error creating table:', err.message);
+    }
+  }
 
-CREATE TABLE IF NOT EXISTS mst_outlet_menu (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  menuName TEXT NOT NULL,
-  shortName TEXT,
-  outletName TEXT NOT NULL,
-  isPosDefaultMenu INTEGER DEFAULT 0 CHECK (isPosDefaultMenu IN (0,1)),
-  defaultDigitalMenu INTEGER DEFAULT 0 CHECK (defaultDigitalMenu IN (0,1)),
-  isDigitalMenu INTEGER DEFAULT 0 CHECK (isDigitalMenu IN (0,1)),
-  publishedAt DATETIME,
-  hotelid INTEGER,
-  status INTEGER DEFAULT 0,
-  created_by_id INTEGER,
-  created_date DATETIME,
-  updated_by_id INTEGER,
-  updated_date DATETIME
-  
-);
+  // ✅ Migrations: Add columns if they don't exist
+  const migrations = [
+    `ALTER TABLE TAxnTrnbilldetails ADD COLUMN IF NOT EXISTS VariantID INT`,
+    `ALTER TABLE TAxnTrnbilldetails ADD COLUMN IF NOT EXISTS VariantName TEXT`,
+    `ALTER TABLE TrnSettlement ADD COLUMN IF NOT EXISTS TipAmount FLOAT DEFAULT 0`,
+    `ALTER TABLE TrnSettlement ADD COLUMN IF NOT EXISTS table_name TEXT DEFAULT NULL`,
+    `ALTER TABLE mstbills_print_settings ADD COLUMN IF NOT EXISTS trn_gstno TEXT`,
+    `ALTER TABLE TrnSettlement ADD COLUMN IF NOT EXISTS customerid INT`
+  ];
 
+  for (const migration of migrations) {
+    try {
+      await dbPromise.query(migration);
+    } catch (err) {
+      // Column might already exist, ignore
+    }
+  }
 
-
-
-
-
-
-
-
-
-
-
-
-`)
-
-
-
-
-
-
-
-
-
-
-
-// Migration: Add VariantID and VariantName columns to TAxnTrnbilldetails if they don't exist
-try {
-  db.exec("ALTER TABLE TAxnTrnbilldetails ADD COLUMN VariantID INTEGER");
-} catch (e) {
-  // Column might already exist, ignore error
-}
-try {
-  db.exec("ALTER TABLE TAxnTrnbilldetails ADD COLUMN VariantName TEXT");
-} catch (e) {
-  // Column might already exist, ignore error
+  console.log('✅ All tables initialized successfully');
 }
 
-// Migration: Add TipAmount column to TrnSettlement if it doesn't exist
-try {
-  db.exec("ALTER TABLE TrnSettlement ADD COLUMN TipAmount REAL DEFAULT 0");
-} catch (e) {
-  // Column might already exist, ignore error
-}
+// Run DB init
+initDB().catch(console.error);
 
-// Migration: Add table_name column to TrnSettlement if it doesn't exist
-try {
-  db.exec("ALTER TABLE TrnSettlement ADD COLUMN table_name TEXT DEFAULT NULL");
-} catch (e) {
-  // Column might already exist, ignore error
-}
-
-// Migration: Add trn_gstno to mstbills_print_settings
-try {
-  db.exec("ALTER TABLE mstbills_print_settings ADD COLUMN trn_gstno TEXT");
-} catch (e) {
-  // Column might already exist, ignore error
-}
-
-// Migration: Add guestid column to TrnSettlement
-try {
-  db.exec("ALTER TABLE TrnSettlement ADD COLUMN customerid INTEGER");
-} catch (e) {
-  // Column might already exist, ignore error
-}
-
-module.exports = db
+module.exports = dbPromise;

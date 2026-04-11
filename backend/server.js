@@ -109,6 +109,7 @@ app.use('/api/accountnature', authenticateToken, AccountNatureRoutes);
 app.use('/api/accounttype', authenticateToken, AccountTypeRoutes);  // New route registration
 
 app.use('/api/outletmenu', outletMenuRoutes);
+app.use('/api/setup', require('./routes/create-superadmin-mysql'));
 
 app.get("/get-server-ip", (req, res) => {
   const interfaces = os.networkInterfaces();
