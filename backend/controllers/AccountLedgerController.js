@@ -1,30 +1,5 @@
 const db = require('../config/db')
 
-// Helper → return all rows
-const getAll = (query, params = []) => {
-  return new Promise((resolve, reject) => {
-    try {
-      const stmt = db.prepare(query)
-      const rows = stmt.all(params)
-      resolve(rows)
-    } catch (err) {
-      reject(err)
-    }
-  })
-}
-
-const runQuery = (query, params = []) => {
-  return new Promise((resolve, reject) => {
-    try {
-      const stmt = db.prepare(query)
-      const info = stmt.run(params)
-      resolve({ id: info.lastInsertRowid || info.lastInsertRowid || 0, changes: info.changes })
-    } catch (err) {
-      reject(err)
-    }
-  })
-}
-
 module.exports = {
   // ------------------------------------
   // 1️⃣ GET CUSTOMER LIST (Debtors) - Only those with Souda entries on specified date
@@ -35,7 +10,7 @@ module.exports = {
       const hotelid = req.hotelid;
       const date = req.query.date || 'now';
 
-      const stmt = db.prepare(`
+      const query = `
         SELECT DISTINCT
           m.LedgerId,
           m.LedgerNo,         
@@ -69,10 +44,10 @@ module.exports = {
           AND m.hotelid = ? 
           AND DATE(sh.SoudaDate) = DATE(?)
         ORDER BY m.Name DESC
-      `);
+      `;
 
       // console.log('Executing query with params:', hotelid, date);
-      const rows = stmt.all(hotelid, date);
+      const [rows] = await db.query(query, [hotelid, date]);
       // console.log('Query returned', rows.length, 'rows');
       res.json(rows)
     } catch (error) {
@@ -84,13 +59,11 @@ module.exports = {
   // ------------------------------------
   // 2️⃣ GET FARMER LIST (Creditors)
   // ------------------------------------
-  // 2️⃣ GET FARMER LIST (Creditors)
-  // ------------------------------------
   getFarmers: async (req, res) => {
     try {
       const hotelid = req.hotelid;
 
-      const stmt = db.prepare(`
+      const query = `
         SELECT
           m.LedgerId,
           m.LedgerNo,
@@ -118,68 +91,68 @@ module.exports = {
           ON c.cityid = CAST(m.cityid AS INTEGER) AND c.stateId = s.stateid
         WHERE m.AccountType ='SUNDRY CREDITORS(Supplier)' AND m.hotelid = ?
         ORDER BY m.Name DESC
-      `);
+      `;
 
-      const rows = stmt.all(hotelid);
+      const [rows] = await db.query(query, [hotelid]);
       res.json(rows)
     } catch (error) {
       res.status(500).json({ error: error.message })
     }
   },
+
   // ------------------------------------
   // 3️⃣ GET LEDGER LIST (ALL)
   // ------------------------------------
- getLedger: async (req, res) => {
-  try {
-    if (!req.hotelid) {
-      return res.status(400).json({
-        error: 'hotelid missing (auth middleware not applied)'
-      });
+  getLedger: async (req, res) => {
+    try {
+      if (!req.hotelid) {
+        return res.status(400).json({
+          error: 'hotelid missing (auth middleware not applied)'
+        });
+      }
+
+      const hotelid = req.hotelid;
+
+      // console.log('getLedger called with hotelid:', hotelid);
+
+      const query = `
+        SELECT
+          m.LedgerId,
+          m.LedgerNo,
+          m.Name,
+          m.MarathiName,
+          m.address,
+          s.state_name AS state,
+          c.city_name AS city,
+          m.stateid,
+          m.cityid,
+          m.MobileNo,
+          m.PhoneNo,
+          m.GstNo,
+          m.PanNo,
+          m.OpeningBalance,
+          m.OpeningBalanceDate,
+          m.AccountTypeId,
+          m.AccountType,
+          m.Status,
+          m.hotelid
+        FROM AccountLedger m
+        LEFT JOIN mststatemaster s
+          ON s.stateid = CAST(m.stateid AS INTEGER)
+        LEFT JOIN mstcitymaster c
+          ON c.cityid = CAST(m.cityid AS INTEGER) AND c.stateId = s.stateid
+        WHERE m.hotelid = ?
+        ORDER BY m.Name DESC
+      `;
+
+      const [rows] = await db.query(query, [hotelid]);
+      res.json(rows);
+
+    } catch (error) {
+      // console.error('Error in getLedger:', error);
+      res.status(500).json({ error: error.message });
     }
-
-    const hotelid = req.hotelid;
-
-    // console.log('getLedger called with hotelid:', hotelid);
-
-    const stmt = db.prepare(`
-      SELECT
-        m.LedgerId,
-        m.LedgerNo,
-        m.Name,
-        m.MarathiName,
-        m.address,
-        s.state_name AS state,
-        c.city_name AS city,
-        m.stateid,
-        m.cityid,
-        m.MobileNo,
-        m.PhoneNo,
-        m.GstNo,
-        m.PanNo,
-        m.OpeningBalance,
-        m.OpeningBalanceDate,
-        m.AccountTypeId,
-        m.AccountType,
-        m.Status,
-        m.hotelid
-      FROM AccountLedger m
-      LEFT JOIN mststatemaster s
-        ON s.stateid = CAST(m.stateid AS INTEGER)
-      LEFT JOIN mstcitymaster c
-        ON c.cityid = CAST(m.cityid AS INTEGER) AND c.stateId = s.stateid
-      WHERE m.hotelid = ?
-      ORDER BY m.Name DESC
-    `);
-
-    const rows = stmt.all(hotelid);
-    res.json(rows);
-
-  } catch (error) {
-    // console.error('Error in getLedger:', error);
-    res.status(500).json({ error: error.message });
-  }
-},
-
+  },
 
   // ------------------------------------
   // ADD, UPDATE, DELETE — common for all
@@ -198,11 +171,9 @@ module.exports = {
       let accountTypeName = data.AccountType
       if ((!accountTypeName || accountTypeName.trim() === '') && data.AccountTypeId) {
         try {
-          const row = await db
-            .prepare('SELECT AccName FROM accounttypedetails WHERE AccID = ? AND hotelid = ?')
-            .get(data.AccountTypeId, req.hotelid)
-          if (row && row.AccName) {
-            accountTypeName = row.AccName
+          const [row] = await db.query('SELECT AccName FROM accounttypedetails WHERE AccID = ? AND hotelid = ?', [data.AccountTypeId, req.hotelid])
+          if (row && row[0] && row[0].AccName) {
+            accountTypeName = row[0].AccName
           }
         } catch (err) {
           // console.error('Failed to fetch account type name in createLedger:', err)
@@ -239,8 +210,8 @@ module.exports = {
         req.hotelid
       ]
 
-      const result = await runQuery(query, params)
-      res.json({ success: true, id: result.id })
+      const result = await db.query(query, params)
+      res.json({ success: true, id: result[0].insertId })
     } catch (err) {
       // console.error('Error in createLedger:', err, 'Received data:', req.body)
       res.status(500).json({ error: err.message })
@@ -261,24 +232,22 @@ module.exports = {
       let accountTypeName = data.AccountType
       if ((!accountTypeName || accountTypeName.trim() === '') && data.AccountTypeId) {
         try {
-          const row = await db
-            .prepare('SELECT AccName FROM accounttypedetails WHERE AccID = ? AND hotelid = ?')
-            .get(data.AccountTypeId, req.hotelid)
-          if (row && row.AccName) {
-            accountTypeName = row.AccName
+          const [row] = await db.query('SELECT AccName FROM accounttypedetails WHERE AccID = ? AND hotelid = ?', [data.AccountTypeId, req.hotelid])
+          if (row && row[0] && row[0].AccName) {
+            accountTypeName = row[0].AccName
           }
         } catch (err) {
           // console.error('Failed to fetch account type name in updateLedger:', err)
         }
       }
 
-      const exists = await db.prepare(`
+      const [exists] = await db.query(`
         SELECT LedgerId
         FROM AccountLedger
         WHERE LedgerId = ? AND hotelid = ?
-      `).get(id, req.hotelid);
+      `, [id, req.hotelid]);
 
-      if (!exists) {
+      if (!exists || exists.length === 0) {
         return res.status(404).json({ error: 'Ledger not found or access denied' });
       }
 
@@ -312,8 +281,8 @@ module.exports = {
         req.hotelid,
       ]
 
-      const result = await runQuery(query, params)
-      res.json({ success: true, changes: result.changes })
+      const result = await db.query(query, params)
+      res.json({ success: true, changes: result[0].affectedRows })
     } catch (err) {
       // console.error('Error in updateLedger:', err, 'Received data:', req.body)
       res.status(500).json({ error: err.message })
@@ -325,17 +294,17 @@ module.exports = {
       const id = req.params.id
       const hotelid = req.hotelid;
 
-      const exists = await db.prepare(`
+      const [existsResult] = await db.query(`
         SELECT LedgerId 
         FROM AccountLedger 
         WHERE LedgerId = ? AND hotelid = ?
-      `).get(id, hotelid);
+      `, [id, hotelid]);
 
-      if (!exists) {
+      if (!existsResult || existsResult.length === 0) {
         return res.status(404).json({ error: 'Ledger not found or access denied' });
       }
 
-      await runQuery('DELETE FROM AccountLedger WHERE LedgerId = ? AND hotelid = ?', [id, hotelid])
+      await db.query('DELETE FROM AccountLedger WHERE LedgerId = ? AND hotelid = ?', [id, hotelid])
       res.json({ success: true })
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -347,7 +316,7 @@ module.exports = {
   // ------------------------------------
   testDbConnection: async (req, res) => {
     try {
-      await getAll('SELECT 1')
+      await db.query('SELECT 1')
       res.json({ success: true, message: 'Database connection is OK!' })
     } catch (error) {
       res.status(500).json({ success: false, error: error.message })
@@ -358,14 +327,14 @@ module.exports = {
     try {
       const hotelid = req.hotelid;
 
-      const stmt = db.prepare(`
+      const query = `
         SELECT LedgerId, Name 
         FROM AccountLedger 
         WHERE AccountTypeId IN ('17', '18') AND hotelid = ?
         ORDER BY Name DESC
-      `)
+      `
 
-      const rows = stmt.all(hotelid);
+      const [rows] = await db.query(query, [hotelid]);
       res.json(rows)
     } catch (error) {
       // console.error('Error in getCashBankLedgers:', error)
@@ -381,14 +350,14 @@ module.exports = {
     try {
       const hotelid = req.hotelid;
 
-      const stmt = db.prepare(`
+      const query = `
         SELECT LedgerId, LedgerNo, Name, AccountType
         FROM AccountLedger
         WHERE hotelid = ?
         ORDER BY Name ASC
-      `)
+      `
 
-      const rows = stmt.all(hotelid);
+      const [rows] = await db.query(query, [hotelid]);
       res.json(rows)
     } catch (error) {
       // console.error('Error in getOppBankList:', error)
@@ -405,7 +374,7 @@ module.exports = {
       const customerNo = req.params.customerNo
       const hotelid = req.hotelid;
 
-      const stmt = db.prepare(`
+      const query = `
         SELECT
           m.LedgerId,
           m.LedgerNo,        
@@ -435,9 +404,9 @@ module.exports = {
           ON c.cityid = CAST(m.cityid AS INTEGER)
         WHERE m.AccountType = 'SUNDRY DEBTORS(Customer)' 
           AND h.hotelid = ?
-      `);
+      `;
 
-      const rows = stmt.all(hotelid);
+      const [rows] = await db.query(query, [hotelid]);
       if (rows.length > 0) {
         res.json(rows[0])
       } else {
@@ -458,7 +427,7 @@ module.exports = {
       const ledgerId = req.params.farmerNo
       const hotelid = req.hotelid;
 
-      const stmt = db.prepare(`
+      const query = `
         SELECT
           m.LedgerId,
           m.LedgerNo,
@@ -487,9 +456,9 @@ module.exports = {
         WHERE m.LedgerId = ? 
           AND m.AccountType = 'SUNDRY CREDITORS(Supplier)' 
           AND m.hotelid = ?
-      `);
+      `;
 
-      const rows = stmt.all(ledgerId, hotelid);
+      const [rows] = await db.query(query, [ledgerId, hotelid]);
       if (rows.length > 0) {
         res.json(rows[0])
       } else {
@@ -505,7 +474,7 @@ module.exports = {
     try {
       const hotelid = req.hotelid;
 
-      const stmt = db.prepare(`
+      const query = `
         SELECT
           m.LedgerId,
           m.LedgerNo,
@@ -536,9 +505,9 @@ module.exports = {
         WHERE m.AccountType = 'SUNDRY DEBTORS(Customer)'
           AND m.hotelid = ?
         ORDER BY m.Name DESC
-      `);
+      `;
 
-      const rows = stmt.all(hotelid);
+      const [rows] = await db.query(query, [hotelid]);
       res.json(rows);
     } catch (error) {
       // console.error('Error in getsodacustomer:', error);
@@ -554,7 +523,7 @@ module.exports = {
       const hotelid = req.hotelid;
       const cutoffDate = req.query.cutoffDate || '2025-12-12';
 
-      const stmt = db.prepare(`
+      const query = `
 SELECT
     m.LedgerId,
     m.Name,
@@ -566,7 +535,7 @@ SELECT
                 + COALESCE(
                     (SELECT SUM(cb.FinalBillAmount)
                      FROM customerbillheader cb
-                     WHERE cb.CustomerID = m.CustomerNo
+                     WHERE cb.CustomerID = m.LedgerId
                        AND cb.hotelid = ?
                        AND DATE(cb.custBillDate) <= DATE(?)
                     ), 0
@@ -630,13 +599,13 @@ SELECT
         ),
         (SELECT MAX(cb.custBillDate)
          FROM customerbillheader cb
-         WHERE cb.CustomerID = m.CustomerNo
+         WHERE cb.CustomerID = m.LedgerId
            AND cb.hotelid = ?
         )
     ) AS LastBillDate,
 
     COALESCE(
-        JULIANDAY(?) - JULIANDAY(
+        DATEDIFF(?, 
             COALESCE(
                 (SELECT MAX(fb.farBillDate)
                  FROM FarmerBill fb
@@ -645,7 +614,7 @@ SELECT
                 ),
                 (SELECT MAX(cb.custBillDate)
                  FROM customerbillheader cb
-                 WHERE cb.CustomerID = m.CustomerNo
+                 WHERE cb.CustomerID = m.LedgerId
                    AND cb.hotelid = ?
                 )
             )
@@ -718,34 +687,11 @@ WHERE m.hotelid = ?
         END
   ) != 0
 ORDER BY m.Name DESC
-      `);
+      `;
 
-      const params = [
-        // Balance column subqueries
-        hotelid, cutoffDate, // CustomerBill debtors
-        hotelid, cutoffDate, // CashBook Payment debtors
-        hotelid, cutoffDate, // CashBook Receipt debtors
-        hotelid, cutoffDate, // FarmerBill creditors
-        hotelid, cutoffDate, // CashBook Receipt creditors
-        hotelid, cutoffDate, // CashBook Payment creditors
-        // LastBillDate subqueries
-        hotelid, // FarmerBill
-        hotelid, // customerbillheader
-        // LastBillDaysCount
-        cutoffDate,
-        hotelid, // FarmerBill
-        hotelid, // customerbillheader
-        // WHERE clause
-        hotelid, // m.hotelid
-        hotelid, cutoffDate, // Balance subquery 1 debtors customerbill
-        hotelid, cutoffDate, // Balance subquery 2 debtors cashbook payment
-        hotelid, cutoffDate, // Balance subquery 3 debtors cashbook receipt
-        hotelid, cutoffDate, // Balance subquery 4 creditors farmerbill
-        hotelid, cutoffDate, // Balance subquery 5 creditors cashbook receipt
-        hotelid, cutoffDate, // Balance subquery 6 creditors cashbook payment
-      ];
+      const params = Array(46).fill(hotelid).flatMap((h, i) => i % 2 === 0 ? [h, cutoffDate] : []);
 
-      const rows = stmt.all(...params);
+      const [rows] = await db.query(query, params);
       res.json(rows);
     } catch (error) {
       // console.error('Error in getOutstandingCustomersAndFarmers:', error);
@@ -760,14 +706,14 @@ ORDER BY m.Name DESC
     try {
       const hotelid = req.hotelid;
 
-      const stmt = db.prepare(`
+      const query = `
         SELECT MAX(LedgerNo) as maxLedgerNo
         FROM AccountLedger
         WHERE hotelid = ?
-      `);
+      `;
 
-      const row = stmt.get(hotelid);
-      const nextLedgerNo = (row.maxLedgerNo || 0) + 1;
+      const [row] = await db.query(query, [hotelid]);
+      const nextLedgerNo = (row[0].maxLedgerNo || 0) + 1;
 
       res.json({ nextLedgerNo });
     } catch (error) {
@@ -776,3 +722,4 @@ ORDER BY m.Name DESC
     }
   },
 }
+

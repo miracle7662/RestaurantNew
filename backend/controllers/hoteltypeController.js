@@ -1,7 +1,7 @@
 const db = require('../config/db');
 
 // Get all hotel types with optional filtering
-exports.gethoteltype = (req, res) => {
+exports.gethoteltype = async (req, res) => {
   try {
     const { status, search } = req.query;
     let query = 'SELECT * FROM msthoteltype WHERE 1=1';
@@ -17,7 +17,7 @@ exports.gethoteltype = (req, res) => {
     }
     query += ' ORDER BY hotel_type ASC';
 
-    const hoteltypes = db.prepare(query).all(...params);
+    const [hoteltypes] = await db.query(query, params);
 
     res.json({
       success: true,
@@ -25,97 +25,114 @@ exports.gethoteltype = (req, res) => {
       data: hoteltypes
     });
   } catch (error) {
-    // console.error('Error fetching hotel types:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch hotel types', data: [] });
   }
 };
 
-// Add new hotel type
-exports.addhoteltype = (req, res) => {
-    try {
-        const { hotel_type, status, hotelid, created_by_id, created_date } = req.body;
-        
-        if (!hotel_type || status === undefined) {
-            return res.status(400).json({ error: 'Hotel type and status are required' });
-        }
 
-        const stmt = db.prepare('INSERT INTO msthoteltype (hotel_type, status, created_by_id, created_date, hotelid) VALUES (?, ?, ?, ?, ?)');
-        const result = stmt.run(hotel_type, status,  created_by_id || 1, created_date || new Date().toISOString(),hotelid );
-        
-        const newHoteltype = {
-            hoteltypeid: result.lastInsertRowid,
-            hotel_type,
-            status,
-            created_by_id: created_by_id || 1,
-            created_date: created_date || new Date().toISOString(),
-            updated_by_id: null,
-            updated_date: null,
-            hotelid: null // Default hotelid, adjust as necessary
-        };
-        
-          res.status(201).json({ success: true, data: newHoteltype });
+// Add new hotel type
+exports.addhoteltype = async (req, res) => {
+  try {
+    const { hotel_type, status, hotelid, created_by_id, created_date } = req.body;
+
+    if (!hotel_type || status === undefined) {
+      return res.status(400).json({ error: 'Hotel type and status are required' });
+    }
+
+    const [result] = await db.query(
+      'INSERT INTO msthoteltype (hotel_type, status, created_by_id, created_date, hotelid) VALUES (?, ?, ?, ?, ?)',
+      [hotel_type, status, created_by_id || 1, created_date || new Date().toISOString(), hotelid]
+    );
+
+    const newHoteltype = {
+      hoteltypeid: result.insertId,
+      hotel_type,
+      status,
+      created_by_id: created_by_id || 1,
+      created_date: created_date || new Date().toISOString(),
+      updated_by_id: null,
+      updated_date: null,
+      hotelid: null
+    };
+
+    res.status(201).json({ success: true, data: newHoteltype });
   } catch (error) {
-    // console.error('Error adding hotel type:', error);
     res.status(500).json({ success: false, message: 'Failed to add hotel type', data: null });
   }
 };
 
+
 // Update hotel type
-exports.updatehoteltype = (req, res) => {
-    try {
-        const { id } = req.params;
-        const { hotel_type, status, updated_by_id, updated_date, hotelid } = req.body;
+exports.updatehoteltype = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { hotel_type, status, updated_by_id, updated_date, hotelid } = req.body;
 
-        if (!hotel_type || status === undefined) {
-            return res.status(400).json({ error: 'Hotel type and status are required' });
-        }
+    if (!hotel_type || status === undefined) {
+      return res.status(400).json({ error: 'Hotel type and status are required' });
+    }
 
-        const stmt = db.prepare('UPDATE msthoteltype SET hotel_type = ?, status = ?, updated_by_id = ?, updated_date = ?, hotelid = ? WHERE hoteltypeid = ?');
-        const result = stmt.run(hotel_type, status,  updated_by_id || 2, updated_date || new Date().toISOString(),  hotelid , id);
+    const [result] = await db.query(
+      'UPDATE msthoteltype SET hotel_type = ?, status = ?, updated_by_id = ?, updated_date = ?, hotelid = ? WHERE hoteltypeid = ?',
+      [hotel_type, status, updated_by_id || 2, updated_date || new Date().toISOString(), hotelid, id]
+    );
 
-        if (result.changes === 0) {
-            return res.status(404).json({ error: 'Hotel type not found' });
-        }
-        
-        const updatedHoteltype = {
-            hoteltypeid: id,
-            hotel_type,
-            status,
-            updated_by_id: updated_by_id || 2,
-            updated_date: updated_date || new Date().toISOString(),
-            hotelid: null // Default hotelid, adjust as necessary
-        };
-        
-        res.json({ success: true, data: updatedHoteltype });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Hotel type not found' });
+    }
+
+    const updatedHoteltype = {
+      hoteltypeid: id,
+      hotel_type,
+      status,
+      updated_by_id: updated_by_id || 2,
+      updated_date: updated_date || new Date().toISOString(),
+      hotelid: null
+    };
+
+    res.json({ success: true, data: updatedHoteltype });
   } catch (error) {
-    // console.error('Error updating hotel type:', error);
     res.status(500).json({ success: false, message: 'Failed to update hotel type', data: null });
   }
 };
 
+
 // Delete hotel type
-exports.deletehoteltype = (req, res) => {
-    try {
-        const { id } = req.params;
-        const stmt = db.prepare('DELETE FROM msthoteltype WHERE hoteltypeid = ?');
-        const result = stmt.run(id);
-        
-        if (result.changes === 0) {
-            return res.status(404).json({ error: 'Hotel type not found' });
-        }
-        
-        res.json({ success: true, data: { hoteltypeid: Number(id) }, message: 'Hotel type deleted successfully' });
+exports.deletehoteltype = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [result] = await db.query(
+      'DELETE FROM msthoteltype WHERE hoteltypeid = ?',
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Hotel type not found' });
+    }
+
+    res.json({
+      success: true,
+      data: { hoteltypeid: Number(id) },
+      message: 'Hotel type deleted successfully'
+    });
   } catch (error) {
-    // console.error('Error deleting hotel type:', error);
     res.status(500).json({ success: false, message: 'Failed to delete hotel type', data: null });
   }
 };
 
+
 // Get hotel type by ID
-exports.gethoteltypeById = (req, res) => {
+exports.gethoteltypeById = async (req, res) => {
   try {
     const { id } = req.params;
-    const hoteltype = db.prepare('SELECT * FROM msthoteltype WHERE hoteltypeid = ?').get(id);
+
+    const [rows] = await db.query(
+      'SELECT * FROM msthoteltype WHERE hoteltypeid = ?',
+      [id]
+    );
+
+    const hoteltype = rows[0];
 
     if (!hoteltype) {
       return res.status(404).json({ success: false, message: 'Hotel type not found', data: null });
@@ -123,18 +140,17 @@ exports.gethoteltypeById = (req, res) => {
 
     res.json({ success: true, data: hoteltype });
   } catch (error) {
-    // console.error('Error fetching hotel type:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch hotel type', data: null });
   }
 };
 
+
 // Get hotel types count
-exports.gethoteltypeCount = (req, res) => {
-    try {
-        const count = db.prepare('SELECT COUNT(*) as count FROM msthoteltype').get();
-        res.json(count);
-    } catch (error) {
-        // console.error('Error fetching hotel type count:', error);
-        res.status(500).json({ error: 'Failed to fetch count' });
-    }
+exports.gethoteltypeCount = async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT COUNT(*) as count FROM msthoteltype');
+    res.json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch count' });
+  }
 };

@@ -1,17 +1,17 @@
 const db = require('../config/db');
 
 // ================= LIST =================
-exports.listAccountTypes = (req, res) => {
+exports.listAccountTypes = async (req, res) => {
   try {
     const hotelid = req.hotelid;
 
-    const stmt = db.prepare(`
+    const query = `
       SELECT *
       FROM accounttypedetails
       WHERE hotelid = ?
-    `);
+    `;
 
-    const accountTypes = stmt.all(hotelid);
+    const [accountTypes] = await db.query(query, [hotelid]);
     res.json(accountTypes);
 
   } catch (error) {
@@ -21,21 +21,21 @@ exports.listAccountTypes = (req, res) => {
 };
 
 // ================= GET BY ID =================
-exports.getAccountTypeById = (req, res) => {
+exports.getAccountTypeById = async (req, res) => {
   try {
     const { id } = req.params;
     const hotelid = req.hotelid;
 
-    const stmt = db.prepare(`
+    const query = `
       SELECT *
       FROM accounttypedetails
       WHERE AccID = ? AND hotelid = ?
-    `);
+    `;
 
-    const accountType = stmt.get(id, hotelid);
+    const [result] = await db.query(query, [id, hotelid]);
 
-    if (accountType) {
-      res.json(accountType);
+    if (result.length > 0) {
+      res.json(result[0]);
     } else {
       res.status(404).json({ error: 'Account Type not found' });
     }
@@ -47,7 +47,7 @@ exports.getAccountTypeById = (req, res) => {
 };
 
 // ================= CREATE =================
-exports.createAccountType = (req, res) => {
+exports.createAccountType = async (req, res) => {
   try {
     const {
       AccName,
@@ -62,13 +62,13 @@ exports.createAccountType = (req, res) => {
 
     const hotelid = req.hotelid;
 
-    const stmt = db.prepare(`
+    const query = `
       INSERT INTO accounttypedetails
       (AccName, UnderID, NatureOfC, status, created_by_id, created_date, updated_by_id, updated_date, hotelid)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    `;
 
-    const result = stmt.run(
+    const [result] = await db.query(query, [
       AccName,
       UnderID,
       NatureOfC,
@@ -78,11 +78,11 @@ exports.createAccountType = (req, res) => {
       updated_by_id,
       updated_date,
       hotelid
-    );
+    ]);
 
     res.status(201).json({
       message: 'Account Type created successfully',
-      insertedId: result.lastInsertRowid
+      insertedId: result.insertId
     });
 
   } catch (error) {
@@ -92,7 +92,7 @@ exports.createAccountType = (req, res) => {
 };
 
 // ================= UPDATE =================
-exports.updateAccountType = (req, res) => {
+exports.updateAccountType = async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -107,23 +107,23 @@ exports.updateAccountType = (req, res) => {
     const hotelid = req.hotelid;
 
     // Check ownership
-    const exists = db.prepare(`
+    const [existsResult] = await db.query(`
       SELECT AccID
       FROM accounttypedetails
       WHERE AccID = ? AND hotelid = ?
-    `).get(id, hotelid);
+    `, [id, hotelid]);
 
-    if (!exists) {
+    if (!existsResult || existsResult.length === 0) {
       return res.status(404).json({ error: 'Account Type not found or access denied' });
     }
 
-    const stmt = db.prepare(`
+    const query = `
       UPDATE accounttypedetails
       SET AccName = ?, UnderID = ?, NatureOfC = ?, status = ?, updated_by_id = ?, updated_date = ?
       WHERE AccID = ? AND hotelid = ?
-    `);
+    `;
 
-    stmt.run(
+    await db.query(query, [
       AccName,
       UnderID,
       NatureOfC,
@@ -132,7 +132,7 @@ exports.updateAccountType = (req, res) => {
       updated_date,
       id,
       hotelid
-    );
+    ]);
 
     res.json({ message: 'Account Type updated successfully' });
 
@@ -143,26 +143,26 @@ exports.updateAccountType = (req, res) => {
 };
 
 // ================= DELETE =================
-exports.deleteAccountType = (req, res) => {
+exports.deleteAccountType = async (req, res) => {
   try {
     const { id } = req.params;
     const hotelid = req.hotelid;
 
     // Validate record
-    const exists = db.prepare(`
+    const [existsResult] = await db.query(`
       SELECT AccID
       FROM accounttypedetails
       WHERE AccID = ? AND hotelid = ?
-    `).get(id, hotelid);
+    `, [id, hotelid]);
 
-    if (!exists) {
+    if (!existsResult || existsResult.length === 0) {
       return res.status(404).json({ error: 'Account Type not found or access denied' });
     }
 
-    db.prepare(`
+    await db.query(`
       DELETE FROM accounttypedetails
       WHERE AccID = ? AND hotelid = ?
-    `).run(id, hotelid);
+    `, [id, hotelid]);
 
     res.json({ message: 'Account Type deleted successfully' });
 
@@ -171,3 +171,4 @@ exports.deleteAccountType = (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+

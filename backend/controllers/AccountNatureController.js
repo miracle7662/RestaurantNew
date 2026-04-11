@@ -1,17 +1,17 @@
 const db = require('../config/db');
 
 // ================= LIST =================
-exports.listAccountNatures = (req, res) => {
+exports.listAccountNatures = async (req, res) => {
   try {
     const hotelid = req.hotelid;
 
-    const stmt = db.prepare(`
+    const query = `
       SELECT *
       FROM accountnaturemaster
       WHERE hotelid = ?
-    `);
+    `;
 
-    const accountnatures = stmt.all(hotelid);
+    const [accountnatures] = await db.query(query, [hotelid]);
     res.json(accountnatures);
 
   } catch (error) {
@@ -21,21 +21,21 @@ exports.listAccountNatures = (req, res) => {
 };
 
 // ================= GET BY ID =================
-exports.getAccountNatureById = (req, res) => {
+exports.getAccountNatureById = async (req, res) => {
   try {
     const { id } = req.params;
     const hotelid = req.hotelid;
 
-    const stmt = db.prepare(`
+    const query = `
       SELECT *
       FROM accountnaturemaster
       WHERE nature_id = ? AND hotelid = ?
-    `);
+    `;
 
-    const accountnature = stmt.get(id, hotelid);
+    const [result] = await db.query(query, [id, hotelid]);
 
-    if (accountnature) {
-      res.json(accountnature);
+    if (result.length > 0) {
+      res.json(result[0]);
     } else {
       res.status(404).json({ error: 'Account Nature not found' });
     }
@@ -47,27 +47,27 @@ exports.getAccountNatureById = (req, res) => {
 };
 
 // ================= CREATE =================
-exports.createAccountNature = (req, res) => {
+exports.createAccountNature = async (req, res) => {
   try {
     const { accountnature, status, created_by_id, created_date, hotelid } = req.body;
 
-    const stmt = db.prepare(`
+    const query = `
       INSERT INTO accountnaturemaster
       (accountnature, status, created_by_id, created_date, hotelid)
       VALUES (?, ?, ?, ?, ?)
-    `);
+    `;
 
-    const result = stmt.run(
+    const [result] = await db.query(query, [
       accountnature,
       status,
       created_by_id,
       created_date,
       hotelid
-    );
+    ]);
 
     res.status(201).json({
       message: 'Account Nature created successfully',
-      insertedId: result.lastInsertRowid
+      insertedId: result.insertId
     });
 
   } catch (error) {
@@ -77,29 +77,29 @@ exports.createAccountNature = (req, res) => {
 };
 
 // ================= UPDATE =================
-exports.updateAccountNature = (req, res) => {
+exports.updateAccountNature = async (req, res) => {
   try {
     const { id } = req.params;
     const { accountnature, status, updated_by_id, updated_date, hotelid } = req.body;
 
     // Check ownership
-    const exists = db.prepare(`
+    const [existsResult] = await db.query(`
       SELECT nature_id
       FROM accountnaturemaster
       WHERE nature_id = ? AND hotelid = ?
-    `).get(id, hotelid);
+    `, [id, hotelid]);
 
-    if (!exists) {
+    if (!existsResult || existsResult.length === 0) {
       return res.status(404).json({ error: 'Account Nature not found or access denied' });
     }
 
-    const stmt = db.prepare(`
+    const query = `
       UPDATE accountnaturemaster
       SET accountnature = ?, status = ?, updated_by_id = ?, updated_date = ?, hotelid = ?
       WHERE nature_id = ? AND hotelid = ?
-    `);
+    `;
 
-    stmt.run(
+    await db.query(query, [
       accountnature,
       status,
       updated_by_id,
@@ -107,7 +107,7 @@ exports.updateAccountNature = (req, res) => {
       hotelid,
       id,
       hotelid
-    );
+    ]);
 
     res.json({ message: 'Account Nature updated successfully' });
 
@@ -118,26 +118,26 @@ exports.updateAccountNature = (req, res) => {
 };
 
 // ================= DELETE =================
-exports.deleteAccountNature = (req, res) => {
+exports.deleteAccountNature = async (req, res) => {
   try {
     const { id } = req.params;
     const hotelid = req.hotelid;
 
     // Validate record
-    const exists = db.prepare(`
+    const [existsResult] = await db.query(`
       SELECT nature_id
       FROM accountnaturemaster
       WHERE nature_id = ? AND hotelid = ?
-    `).get(id, hotelid);
+    `, [id, hotelid]);
 
-    if (!exists) {
+    if (!existsResult || existsResult.length === 0) {
       return res.status(404).json({ error: 'Account Nature not found or access denied' });
     }
 
-    db.prepare(`
+    await db.query(`
       DELETE FROM accountnaturemaster
       WHERE nature_id = ? AND hotelid = ?
-    `).run(id, hotelid);
+    `, [id, hotelid]);
 
     res.json({ message: 'Account Nature deleted successfully' });
 
@@ -146,3 +146,4 @@ exports.deleteAccountNature = (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
