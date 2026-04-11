@@ -3,14 +3,11 @@ const db = require('../config/db');
 /* ═══════════════════════════════════════
    GET ALL
 ═══════════════════════════════════════ */
-exports.getItemMainGroup = (req, res) => {
+exports.getItemMainGroup = async (req, res) => {
   try {
     const { hotelid } = req.query;
-    // console.log('ItemMainGroup - Received hotelid:', hotelid);
-    
-    // If no hotelid provided, return empty array - must have hotelid to view items
+
     if (!hotelid || hotelid === 'undefined' || hotelid === '' || hotelid === 'null') {
-      // console.log('ItemMainGroup - No valid hotelid provided, returning empty array');
       return res.status(200).json({
         success: true,
         message: "Item Main Groups fetched successfully",
@@ -18,27 +15,14 @@ exports.getItemMainGroup = (req, res) => {
         error: null
       });
     }
-    
-    let query = `SELECT * FROM mst_Item_Main_Group`;
-    const params = [];
-    
-    // Strict filtering: only show items for the specified hotel
-    // Handle both string and numeric hotelid values
-    query += ' WHERE (hotelid = ? OR hotelid = ?)';
-    params.push(String(hotelid));  // As string
-    params.push(Number(hotelid));  // As number
-    
-    query += ' ORDER BY item_group_name';
-    
-    // console.log('ItemMainGroup - SQL Query:', query);
-    // console.log('ItemMainGroup - SQL Params:', params);
-    
-    const rows = db.prepare(query).all(...params);
-    // console.log('ItemMainGroup - Fetched count:', rows.length);
-    if (rows.length > 0) {
-      // console.log('ItemMainGroup - First item hotelid:', rows[0].hotelid);
-      // console.log('ItemMainGroup - Last item hotelid:', rows[rows.length - 1].hotelid);
-    }
+
+    let query = `
+      SELECT * FROM mst_Item_Main_Group
+      WHERE (hotelid = ? OR hotelid = ?)
+      ORDER BY item_group_name
+    `;
+
+    const [rows] = await db.query(query, [String(hotelid), Number(hotelid)]);
 
     res.status(200).json({
       success: true,
@@ -48,7 +32,6 @@ exports.getItemMainGroup = (req, res) => {
     });
 
   } catch (error) {
-    // console.error('Error fetching Item Main Groups:', error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch Item Main Groups",
@@ -62,7 +45,7 @@ exports.getItemMainGroup = (req, res) => {
 /* ═══════════════════════════════════════
    CREATE
 ═══════════════════════════════════════ */
-exports.addItemMainGroup = (req, res) => {
+exports.addItemMainGroup = async (req, res) => {
   try {
     const {
       item_group_name,
@@ -73,26 +56,24 @@ exports.addItemMainGroup = (req, res) => {
       marketid
     } = req.body;
 
-    const stmt = db.prepare(`
+    const [result] = await db.query(`
       INSERT INTO mst_Item_Main_Group
       (item_group_name, status, created_by_id, created_date, hotelid, marketid)
       VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    const result = stmt.run(
+    `, [
       item_group_name,
       status,
       created_by_id,
       created_date,
       hotelid,
       marketid
-    );
+    ]);
 
     res.status(201).json({
       success: true,
       message: "Item Main Group created successfully",
       data: {
-        item_maingroupid: result.lastInsertRowid,
+        item_maingroupid: result.insertId,
         item_group_name,
         status,
         created_by_id,
@@ -117,9 +98,10 @@ exports.addItemMainGroup = (req, res) => {
 /* ═══════════════════════════════════════
    UPDATE
 ═══════════════════════════════════════ */
-exports.updateItemMainGroup = (req, res) => {
+exports.updateItemMainGroup = async (req, res) => {
   try {
     const { id } = req.params;
+
     const {
       item_group_name,
       status,
@@ -127,22 +109,20 @@ exports.updateItemMainGroup = (req, res) => {
       updated_date
     } = req.body;
 
-    const stmt = db.prepare(`
+    const [result] = await db.query(`
       UPDATE mst_Item_Main_Group
       SET item_group_name = ?,
           status = ?,
           updated_by_id = ?,
           updated_date = ?
       WHERE item_maingroupid = ?
-    `);
-
-    stmt.run(
+    `, [
       item_group_name,
       status,
       updated_by_id,
       updated_date,
       id
-    );
+    ]);
 
     res.status(200).json({
       success: true,
@@ -171,14 +151,14 @@ exports.updateItemMainGroup = (req, res) => {
 /* ═══════════════════════════════════════
    DELETE
 ═══════════════════════════════════════ */
-exports.deleteItemMainGroup = (req, res) => {
+exports.deleteItemMainGroup = async (req, res) => {
   try {
     const { id } = req.params;
 
-    db.prepare(`
-      DELETE FROM mst_Item_Main_Group
-      WHERE item_maingroupid = ?
-    `).run(id);
+    await db.query(
+      `DELETE FROM mst_Item_Main_Group WHERE item_maingroupid = ?`,
+      [id]
+    );
 
     res.status(200).json({
       success: true,

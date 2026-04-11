@@ -1,7 +1,7 @@
 const db = require("../config/db");
 
 // Get all departments
-exports.getAllDepartments = (req, res) => {
+exports.getAllDepartments = async (req, res) => {
   try {
     const { hotelid, outletid } = req.query;
 
@@ -36,7 +36,7 @@ exports.getAllDepartments = (req, res) => {
     // console.log("Final Query:", query);
     // console.log("Params:", params);
 
-    const rows = db.prepare(query).all(...params);
+    const [rows] = await db.query(query, params);
 
     res.status(200).json({
       success: true,
@@ -56,14 +56,16 @@ exports.getAllDepartments = (req, res) => {
 
 
 // Get a single department by ID
-exports.getDepartmentById = (req, res) => {
+exports.getDepartmentById = async (req, res) => {
   try {
     const { id } = req.params;
-    const row = db.prepare(`
+    const [rows] = await db.query(`
       SELECT *
       FROM msttable_department
       WHERE departmentid = ? AND status IS NOT NULL
-    `).get(id);
+    `, [id]);
+
+    const row = rows[0];
 
     if (!row) {
       return res.status(404).json({ success: false, message: "Department not found" });
@@ -76,8 +78,7 @@ exports.getDepartmentById = (req, res) => {
 };
 
 // Create a new department
-// Create a new department
-exports.createDepartment = (req, res) => {
+exports.createDepartment = async (req, res) => {
   try {
     const { department_name, outletid, taxgroupid, status, created_by_id } = req.body;
 
@@ -85,19 +86,18 @@ exports.createDepartment = (req, res) => {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    const stmt = db.prepare(`
+    const [result] = await db.query(`
       INSERT INTO msttable_department (department_name, outletid, taxgroupid, status, created_by_id)
       VALUES (?, ?, ?, ?, ?)
-    `);
-    const result = stmt.run(department_name, outletid, taxgroupid ?? null, status ?? 1, created_by_id);
+    `, [department_name, outletid, taxgroupid ?? null, status ?? 1, created_by_id]);
 
-    const newDepartment = db.prepare(`
+    const [rows] = await db.query(`
       SELECT departmentid, department_name, outletid, taxgroupid, status, created_by_id, created_date, updated_by_id, updated_date
       FROM msttable_department
       WHERE departmentid = ?
-    `).get(result.lastInsertRowid);
+    `, [result.insertId]);
 
-    res.status(201).json({ success: true, message: "Department added successfully", data: newDepartment });
+    res.status(201).json({ success: true, message: "Department added successfully", data: rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to create department", error: error.message });
   }
@@ -105,7 +105,7 @@ exports.createDepartment = (req, res) => {
 
 
 // Update a department
-exports.updateDepartment = (req, res) => {
+exports.updateDepartment = async (req, res) => {
   try {
     const { id } = req.params;
     const { department_name, outletid, taxgroupid, status, updated_by_id } = req.body;
@@ -114,38 +114,36 @@ exports.updateDepartment = (req, res) => {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    const stmt = db.prepare(`
+    const [result] = await db.query(`
       UPDATE msttable_department
       SET department_name = ?, outletid = ?, taxgroupid = ?, status = ?, updated_by_id = ?, updated_date = CURRENT_TIMESTAMP
       WHERE departmentid = ?
-    `);
-    const result = stmt.run(department_name, outletid, taxgroupid ?? null, status, updated_by_id, id);
+    `, [department_name, outletid, taxgroupid ?? null, status, updated_by_id, id]);
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Department not found" });
     }
 
-    const updatedDepartment = db.prepare(`
+    const [rows] = await db.query(`
       SELECT departmentid, department_name, outletid, taxgroupid, status, created_by_id, created_date, updated_by_id, updated_date
       FROM msttable_department
       WHERE departmentid = ?
-    `).get(id);
+    `, [id]);
 
-    res.status(200).json({ success: true, message: "Department updated successfully", data: updatedDepartment });
+    res.status(200).json({ success: true, message: "Department updated successfully", data: rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to update department", error: error.message });
   }
 };
 
 // Delete a department
-exports.deleteDepartment = (req, res) => {
+exports.deleteDepartment = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const stmt = db.prepare(`DELETE FROM msttable_department WHERE departmentid = ?`);
-    const result = stmt.run(id);
+    const [result] = await db.query(`DELETE FROM msttable_department WHERE departmentid = ?`, [id]);
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Department not found" });
     }
 

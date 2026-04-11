@@ -2,7 +2,7 @@ const db = require('../config/db')
 const bcrypt = require('bcrypt')
 
 // Get outlet users based on current user's role and hierarchy
-exports.getOutletUsers = (req, res) => {
+exports.getOutletUsers = async (req, res) => {
   try {
     const { currentUserId, roleLevel, hotelid, outletid } = req.query;
 
@@ -37,7 +37,7 @@ exports.getOutletUsers = (req, res) => {
 
     query += " ORDER BY CASE WHEN u.role_level = 'hotel_admin' THEN 0 ELSE 1 END, u.created_date DESC";
 
-    const users = db.prepare(query).all(...params);
+    const [users] = await db.query(query, params);
     res.json({ success: true, data: users });
   } catch (error) {
     // console.error('Error fetching outlet users:', error);
@@ -45,8 +45,9 @@ exports.getOutletUsers = (req, res) => {
   }
 };
 
+
 // Get outlets for dropdown (filtered by user role)
-exports.getOutletsForDropdown = (req, res) => {
+exports.getOutletsForDropdown = async (req, res) => {
   try {
     const { roleLevel, brandId, hotelid } = req.query
 
@@ -77,13 +78,14 @@ exports.getOutletsForDropdown = (req, res) => {
 
     query += ' ORDER BY o.outlet_name'
 
-    const outlets = db.prepare(query).all(...params)
+    const [outlets] = await db.query(query, params)
     res.json({ success: true, data: outlets })
   } catch (error) {
     // console.error('Error fetching outlets for dropdown:', error)
     res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
+
 
 // Create new outlet user
 exports.createOutletUser = async (req, res) => {
@@ -94,7 +96,7 @@ exports.createOutletUser = async (req, res) => {
       password,
       full_name,
       phone,
-      outletid, // Changed from outletid to outletid (single outlet)
+      outletid,
       Designation,
       designationid,
       user_type,
@@ -123,25 +125,16 @@ exports.createOutletUser = async (req, res) => {
     } = req.body
 
     // Validate required fields
-    if (
-      !username ||
-      !password ||
-      !full_name ||
-      !outletid
-    ) {
-      return res
-        .status(400)
-        .json({
-          message: 'Required fields missing',
-          missing: { username, email, password, full_name, outletid },
-        })
+    if (!username || !password || !full_name || !outletid) {
+      return res.status(400).json({
+        message: 'Required fields missing',
+        missing: { username, email, password, full_name, outletid },
+      })
     }
 
-    // Check if username or email already exists
-    const existingUser = db
-      .prepare('SELECT userid FROM mst_users WHERE username = ?')
-      .get(username)
-    if (existingUser) {
+    // Check if username already exists
+    const [existingUsers] = await db.query('SELECT userid FROM mst_users WHERE username = ?', [username])
+    if (existingUsers.length > 0) {
       return res.status(400).json({ message: 'Username already exists' })
     }
 
@@ -149,9 +142,8 @@ exports.createOutletUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Validate parent user
-    const parentUser = db
-      .prepare('SELECT role_level, hotelid FROM mst_users WHERE userid = ?')
-      .get(parent_user_id)
+    const [parentUsers] = await db.query('SELECT role_level, hotelid FROM mst_users WHERE userid = ?', [parent_user_id])
+    const parentUser = parentUsers[0]
     if (!parentUser) {
       return res.status(400).json({ message: 'Invalid parent user', parent_user_id })
     }
@@ -163,103 +155,48 @@ exports.createOutletUser = async (req, res) => {
     }
 
     // Validate outlet exists and is active
-    const outlet = db
-      .prepare(
-        'SELECT outletid, hotelid FROM mst_outlets WHERE outletid = ? AND status = 0',
-      )
-      .get(outletId)
+    const [outlets] = await db.query(
+      'SELECT outletid, hotelid FROM mst_outlets WHERE outletid = ? AND status = 0',
+      [outletId]
+    )
+    const outlet = outlets[0]
     if (!outlet) {
-      return res
-        .status(400)
-        .json({ message: 'Outlet ID is invalid or inactive', outletid })
+      return res.status(400).json({ message: 'Outlet ID is invalid or inactive', outletid })
     }
 
     const finalHotelId = hotelid || parentUser.hotelid
 
     // Verify outlet belongs to the provided or parent hotel
     if (outlet.hotelid !== finalHotelId) {
-      return res
-        .status(400)
-        .json({
-          message: 'Selected outlet does not belong to the specified hotel',
-          finalHotelId,
-          outletHotelId: outlet.hotelid,
-        })
+      return res.status(400).json({
+        message: 'Selected outlet does not belong to the specified hotel',
+        finalHotelId,
+        outletHotelId: outlet.hotelid,
+      })
     }
 
     // Insert user into mst_users
-    const stmt = db.prepare(`
-    INSERT INTO mst_users (
-    username,
-    email,
-    password,
-    full_name,
-    phone,
-    role_level,
-    parent_user_id,
-    brand_id,
-    hotelid,
-    outletid,
-    Designation,
-    designationid,
-    user_type,
-    usertypeid,
-    shift_time,
-    mac_address,
-    assign_warehouse,
-    language_preference,
-    address,
-    city,
-    sub_locality,
-    web_access,
-    self_order,
-    captain_app,
-    kds_app,
-    captain_old_kot_access,
-    verify_mac_ip,
-    status,
-    last_login,
-    created_by_id,
-    created_date
-) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-`)
+    const insertQuery = `
+      INSERT INTO mst_users (
+        username, email, password, full_name, phone, role_level, parent_user_id,
+        brand_id, hotelid, outletid, Designation, designationid, user_type,
+        usertypeid, shift_time, mac_address, assign_warehouse, language_preference,
+        address, city, sub_locality, web_access, self_order, captain_app, kds_app,
+        captain_old_kot_access, verify_mac_ip, status, last_login, created_by_id, created_date
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `
 
-    const result = stmt.run(
-      username, 
-      email, 
-      hashedPassword, 
-      full_name,
-      phone,
-      role_level,
-      parent_user_id,
-      brand_id,
-      finalHotelId,
-      outletId,
-      Designation,
-      designationid,
-      user_type,
-      usertypeid,
-      shift_time,
-      mac_address,
-      assign_warehouse,
-      language_preference || 'English',
-      address,
-      city,
-      sub_locality,
-      web_access ? 1 : 0,
-      self_order ? 1 : 0,
-      captain_app ? 1 : 0,
-      kds_app ? 1 : 0,
-      captain_old_kot_access || 'Enabled',
-      verify_mac_ip ? 1 : 0,
-      status || 0,
-      last_login || null,
-      created_by_id,
-      created_date || new Date().toISOString(),
-    )
+    const insertParams = [
+      username, email, hashedPassword, full_name, phone, role_level, parent_user_id,
+      brand_id, finalHotelId, outletId, Designation, designationid, user_type,
+      usertypeid, shift_time, mac_address, assign_warehouse, language_preference || 'English',
+      address, city, sub_locality, web_access ? 1 : 0, self_order ? 1 : 0, captain_app ? 1 : 0,
+      kds_app ? 1 : 0, captain_old_kot_access || 'Enabled', verify_mac_ip ? 1 : 0,
+      status || 0, last_login || null, created_by_id, created_date || new Date().toISOString()
+    ]
 
-    const userid = result.lastInsertRowid
+    const [insertResult] = await db.query(insertQuery, insertParams)
+    const userid = insertResult.insertId
 
     res.json({
       success: true,
@@ -278,6 +215,7 @@ exports.createOutletUser = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message })
   }
 }
+
 
 // Update outlet user
 exports.updateOutletUser = async (req, res) => {
@@ -316,15 +254,12 @@ exports.updateOutletUser = async (req, res) => {
       updated_by_id
     } = req.body;
 
-    //  console.log('Update outlet user request:', { userid, body: req.body });
-
     // Check if user exists and is an outlet user
-    const existingUser = db.prepare('SELECT role_level, hotelid FROM mst_users WHERE userid = ?').get(userid);
+    const [existingUsers] = await db.query('SELECT role_level, hotelid FROM mst_users WHERE userid = ?', [userid]);
+    const existingUser = existingUsers[0];
     if (!existingUser || existingUser.role_level !== 'outlet_user') {
       return res.status(404).json({ message: 'Outlet user not found' });
     }
-
-    
 
     // Prepare fields and parameters for the update query
     const updateFields = [];
@@ -356,7 +291,10 @@ exports.updateOutletUser = async (req, res) => {
     // Add fields to update query with type validation
     addField('username', username, 'TEXT');
     addField('email', email, 'TEXT');
-    addField('password', password, 'TEXT');
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      addField('password', hashedPassword, 'TEXT');
+    }
     addField('full_name', full_name, 'TEXT');
     addField('phone', phone, 'TEXT');
     addField('role_level', role_level, 'TEXT');
@@ -384,24 +322,18 @@ exports.updateOutletUser = async (req, res) => {
     addField('status', status, 'INTEGER');
     addField('last_login', last_login, 'DATETIME');
 
-    // Handle updated_by_id (ensure it's an integer or null)
+    // Handle updated_by_id
     const finalUpdatedById = updated_by_id !== undefined ? parseInt(updated_by_id) : null;
     if (updated_by_id !== undefined && isNaN(finalUpdatedById)) {
-      throw new Error(`Invalid integer value for updated_by_id: ${updated_by_id} (type: ${typeof updated_by_id})`);
+      throw new Error(`Invalid integer value for updated_by_id: ${updated_by_id}`);
     }
     updateFields.push('updated_by_id = ?');
-    updateFields.push("updated_date = datetime('now')");
-    params.push(finalUpdatedById, userid);
+    updateFields.push('updated_date = NOW()');
+    params.push(finalUpdatedById);
 
-    // Execute update query if there are fields to update
-    if (updateFields.length > 2) {
-      // console.log('Update query:', `UPDATE mst_users SET ${updateFields.join(', ')} WHERE userid = ?`);
-      // console.log('Update params:', params);
-      params.forEach((param, index) => {
-        // console.log(`Param ${index}: ${param} (type: ${typeof param})`);
-      });
-      const stmt = db.prepare(`UPDATE mst_users SET ${updateFields.join(', ')} WHERE userid = ?`);
-      stmt.run(...params);
+    if (updateFields.length > 0) {
+      const updateQuery = `UPDATE mst_users SET ${updateFields.join(', ')} WHERE userid = ?`;
+      await db.query(updateQuery, [...params, userid]);
     }
 
     // Validate outlet ID if provided
@@ -411,46 +343,43 @@ exports.updateOutletUser = async (req, res) => {
         return res.status(400).json({ message: 'Invalid outlet ID provided' });
       }
 
-      const outlet = db
-        .prepare(
-          'SELECT outletid, hotelid FROM mst_outlets WHERE outletid = ? AND status = 0',
-        )
-        .get(outletId);
+      const [outletResult] = await db.query(
+        'SELECT outletid, hotelid FROM mst_outlets WHERE outletid = ? AND status = 0',
+        [outletId]
+      );
+      const outlet = outletResult[0];
       if (!outlet) {
-        return res
-          .status(400)
-          .json({ message: 'Outlet ID is invalid or inactive', outletid });
+        return res.status(400).json({ message: 'Outlet ID is invalid or inactive', outletid });
       }
 
       const finalHotelId = existingUser.hotelid;
       if (outlet.hotelid !== finalHotelId) {
-        return res
-          .status(400)
-          .json({
-            message: "Selected outlet does not belong to the user's hotel",
-            finalHotelId,
-            outletHotelId: outlet.hotelid,
-          });
+        return res.status(400).json({
+          message: "Selected outlet does not belong to the user's hotel",
+          finalHotelId,
+          outletHotelId: outlet.hotelid,
+        });
       }
     }
 
     res.json({ success: true, message: 'Outlet user updated successfully' });
   } catch (error) {
-     console.error('Error updating outlet user:', error);
+    console.error('Error updating outlet user:', error);
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }
 };
 
+
 // Delete outlet user (soft delete)
-exports.deleteOutletUser = (req, res) => {
+exports.deleteOutletUser = async (req, res) => {
   try {
     const { userid } = req.params
     const { updated_by_id } = req.body
 
-    const stmt = db.prepare(
-      "UPDATE mst_users SET status = 0, updated_by_id = ?, updated_date = datetime('now') WHERE userid = ?",
+    await db.query(
+      "UPDATE mst_users SET status = 0, updated_by_id = ?, updated_date = NOW() WHERE userid = ?",
+      [updated_by_id, userid]
     )
-    stmt.run(updated_by_id, userid)
 
     res.json({ success: true, message: 'Outlet user deleted successfully' })
   } catch (error) {
@@ -459,26 +388,27 @@ exports.deleteOutletUser = (req, res) => {
   }
 }
 
+
 // Get outlet user by ID
-exports.getOutletUserById = (req, res) => {
+exports.getOutletUserById = async (req, res) => {
   try {
     const { id } = req.params
-    const user = db
-      .prepare(
-        `
-            SELECT u.*, 
-                   b.hotel_name as brand_name,
-                   h.hotel_name as hotel_name,
-                   o.outlet_name as outlet_name,
-                   u.outletid as outletid
-            FROM mst_users u
-            LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
-            LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-            LEFT JOIN mst_outlets o ON u.outletid = o.outletid
-            WHERE u.userid = ? AND u.role_level = 'outlet_user'
-        `,
-      )
-      .get(id)
+    const [users] = await db.query(
+      `
+        SELECT u.*, 
+               b.hotel_name as brand_name,
+               h.hotel_name as hotel_name,
+               o.outlet_name as outlet_name,
+               u.outletid as outletid
+        FROM mst_users u
+        LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
+        LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
+        LEFT JOIN mst_outlets o ON u.outletid = o.outletid
+        WHERE u.userid = ? AND u.role_level = 'outlet_user'
+      `,
+      [id]
+    )
+    const user = users[0]
 
     if (!user) {
       return res.status(404).json({ success: false, error: 'Outlet user not found' })
@@ -493,14 +423,13 @@ exports.getOutletUserById = (req, res) => {
   }
 }
 
+
 // Get designations for dropdown
-exports.getDesignations = (req, res) => {
+exports.getDesignations = async (req, res) => {
   try {
-    const designations = db
-      .prepare(
-        'SELECT designationid, Designation FROM mstdesignation WHERE status = 0 ORDER BY Designation',
-      )
-      .all()
+    const [designations] = await db.query(
+      'SELECT designationid, Designation FROM mstdesignation WHERE status = 0 ORDER BY Designation'
+    )
     res.json({ success: true, data: designations })
   } catch (error) {
     // console.error('Error fetching designations:', error)
@@ -508,12 +437,11 @@ exports.getDesignations = (req, res) => {
   }
 }
 
+
 // Get user types for dropdown
-exports.getUserTypes = (req, res) => {
+exports.getUserTypes = async (req, res) => {
   try {
-    const userTypes = db
-      .prepare('SELECT usertypeid, User_type FROM mstuserType WHERE status = 0 ORDER BY User_type')
-      .all()
+    const [userTypes] = await db.query('SELECT usertypeid, User_type FROM mstuserType WHERE status = 0 ORDER BY User_type')
     res.status(200).json({success: true, message: 'User types fetched successfully', data: userTypes})
   } catch (error) {
     // console.error('Error fetching user types:', error)
@@ -521,8 +449,9 @@ exports.getUserTypes = (req, res) => {
   }
 }
 
+
 // Get hotel admins specifically
-exports.getHotelAdmins = (req, res) => {
+exports.getHotelAdmins = async (req, res) => {
   try {
     const { currentUserId, roleLevel, brandId, hotelId } = req.query
 
@@ -555,13 +484,14 @@ exports.getHotelAdmins = (req, res) => {
 
     query += ' ORDER BY u.created_date DESC'
 
-    const hotelAdmins = db.prepare(query).all(...params)
+    const [hotelAdmins] = await db.query(query, params)
     res.status(200).json({ success: true, message: 'Hotel admin fetched successfully', data: hotelAdmins })
   } catch (error) {
     // console.error('Error fetching hotel admins:', error)
     res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
+
 
 // Get waiter users (Waiter or Caption designation) for a specific outlet
 exports.getWaiterUsers = (req, res) => {

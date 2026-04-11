@@ -1,29 +1,18 @@
-# MySQL Conversion TODO - better-sqlite3 → mysql2/promise (AccountLedger, AccountNature, AccountType Controllers)
+# RestaurantNew Task Tracker
+## Current Task: Fix MySQL Transaction Error in outletController.js (backend/TODO.md Plan)
 
-## Status: 🔄 In Progress (0/5 Complete)
+**Status: IMPLEMENTING Step 2**
 
-### 1. ✅ Create TODO.md [COMPLETED]
+### Detailed Implementation Steps:
+- [x] Step 1: Create/Update TODO.md [COMPLETED]
+- [ ] Step 2.1: Fix syntax errors (missing catch/finally blocks ~lines 804,1443)
+- [ ] Step 2.2: Convert ALL db.prepare().run()/get() → db.execute(query, params) in addOutlet, updateOutletSettings, etc.
+- [ ] Step 2.3: Complete addOutlet transaction: INSERT outlet + 6 settings tables atomically
+- [ ] Step 2.4: Fix updateOutletSettings transaction (update/insert logic)
+- [ ] Step 2.5: Fix getBrands: Add WHERE status = 1
+- [ ] Step 2.6: Standardize remaining functions (updateOutlet, getOutletSettings, etc.)
+- [ ] Step 3: Test endpoints & restart server
+- [ ] Step 4: Update backend/TODO.md ✅, attempt_completion
 
-### 2. ⏳ Convert AccountLedgerController.js (largest/complex first)
-   - [ ] Replace import: require('../config/db') → mysql2/promise
-   - [ ] Remove getAll(), runQuery() helpers  
-   - [ ] Convert ~20 stmt.all/get/run → await db.query()
-   - [ ] Fix result.id → insertId, changes → affectedRows
-   - [ ] Fix getOutstandingCustomersAndFarmers (46 params array)
-   - [ ] Verify all responses identical
-
-### 3. ⏳ Convert AccountNatureController.js 
-   - [ ] Convert 9 CRUD calls
-   - [ ] lastInsertRowid → insertId
-
-### 4. ⏳ Convert AccountTypeController.js
-   - [ ] Convert 9 CRUD calls  
-   - [ ] lastInsertRowid → insertId
-
-### 5. ⏳ Test & Complete
-   - [ ] Test routes: AccountLedgerRoutes, AccountNatureRoutes, AccountTypeRoutes
-   - [ ] Verify insertId, affectedRows, row counts match
-   - [ ] attempt_completion with results
-
-**Instructions:** Update ✅ when step complete. Follow order strictly.
+**Next Action**: Edit backend/controllers/outletController.js with precise fixes
 

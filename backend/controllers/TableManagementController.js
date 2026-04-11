@@ -1,31 +1,33 @@
-const db = require("../config/db"); // SQLite connection
+const db = require("../config/db"); // MySQL connection pool
 
 // Migration: Add parentTableId and isTemporary columns if they don't exist
-const runMigrations = () => {
+const runMigrations = async () => {
   try {
     // Check if parentTableId column exists
-    const tableInfo = db.prepare("PRAGMA table_info(msttablemanagement)").all();
-    const columns = tableInfo.map(col => col.name);
+    const [rows] = await db.query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_NAME = 'msttablemanagement' 
+      AND TABLE_SCHEMA = DATABASE()
+    `);
+    const columns = rows.map(col => col.COLUMN_NAME || col.column_name);
     
     if (!columns.includes('parentTableId')) {
-      db.prepare("ALTER TABLE msttablemanagement ADD COLUMN parentTableId INTEGER").run();
+      await db.query("ALTER TABLE msttablemanagement ADD COLUMN parentTableId INTEGER");
       // console.log("Added parentTableId column to msttablemanagement");
     }
     
     if (!columns.includes('isTemporary')) {
-      db.prepare("ALTER TABLE msttablemanagement ADD COLUMN isTemporary INTEGER DEFAULT 0").run();
+      await db.query("ALTER TABLE msttablemanagement ADD COLUMN isTemporary INTEGER DEFAULT 0");
       // console.log("Added isTemporary column to msttablemanagement");
     }
   } catch (error) {
-    // console.error("Migration error:", error.message);
+    console.error("Migration error in TableManagementController:", error.message);
   }
 };
 
-// Run migrations on module load
-runMigrations();
-
 // Get all table records with search and pagination
-exports.getAllTables = (req, res) => {
+exports.getAllTables = async (req, res) => {
   try {
     const { search, hotelid, outletid } = req.query;
     let sql = `
@@ -61,7 +63,7 @@ exports.getAllTables = (req, res) => {
       sql += ` WHERE ${conditions.join(' AND ')}`;
     }
 
-    const rows = db.prepare(sql).all(...params);
+    const [rows] = await db.query(sql, params);
 
     res.json({
       success: true,
@@ -76,17 +78,16 @@ exports.getAllTables = (req, res) => {
 
 // Create a new table record (✅ departmentid added)
 // Create a new table record
-exports.createTable = (req, res) => {
+exports.createTable = async (req, res) => {
   try {
     const { table_name, hotelid, outletid, marketid, departmentid, department_name, status, created_by_id } = req.body;
 
     const insertSql = 
       "INSERT INTO msttablemanagement (" +
       "table_name, hotelid, outletid, marketid, departmentid, department_name, status, created_by_id, created_date" +
-      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))";
+      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
-    const stmt = db.prepare(insertSql);
-    const result = stmt.run(
+    const [result] = await db.query(insertSql, [
       table_name,
       hotelid || null,
       outletid || null,
@@ -95,9 +96,9 @@ exports.createTable = (req, res) => {
       department_name || null,
       status ?? 0,
       created_by_id || null
-    );
+    ]);
 
-    res.json({ success: true, message: "Table created successfully", id: result.lastInsertRowid });
+    res.json({ success: true, message: "Table created successfully", id: result.insertId });
   } catch (error) {
     // console.error("Error creating table:", error);
     res.status(500).json({ success: false, message: "Failed to create table", error: error.message });
@@ -106,7 +107,7 @@ exports.createTable = (req, res) => {
 
 // Update table record (✅ departmentid added)
 // Update table record
-exports.updateTable = (req, res) => {
+exports.updateTable = async (req, res) => {
   try {
     const { tableid } = req.params;
     const { table_name, hotelid, outletid, marketid, departmentid, department_name, status, updated_by_id } = req.body;
@@ -115,11 +116,10 @@ exports.updateTable = (req, res) => {
       "UPDATE msttablemanagement " +
       "SET table_name = ?, hotelid = ?, outletid = ?, marketid = ?, " +
       "departmentid = ?, department_name = ?, status = ?, " +
-      "updated_by_id = ?, updated_date = datetime('now') " +
+      "updated_by_id = ?, updated_date = NOW() " +
       "WHERE tableid = ?";
 
-    const stmt = db.prepare(updateSql);
-    const result = stmt.run(
+    const [result] = await db.query(updateSql, [
       table_name,
       hotelid || null,
       outletid || null,
@@ -129,9 +129,9 @@ exports.updateTable = (req, res) => {
       status ?? 0,
       updated_by_id || null,
       tableid
-    );
+    ]);
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Table not found" });
     }
 
@@ -143,15 +143,14 @@ exports.updateTable = (req, res) => {
 };
 
 // Delete table record
-exports.deleteTable = (req, res) => {
+exports.deleteTable = async (req, res) => {
   try {
     const { tableid } = req.params;
 
     const deleteSql = "DELETE FROM msttablemanagement WHERE tableid = ?";
-    const stmt = db.prepare(deleteSql);
-    const result = stmt.run(tableid);
+    const [result] = await db.query(deleteSql, [tableid]);
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Table not found" });
     }
 
@@ -163,16 +162,15 @@ exports.deleteTable = (req, res) => {
 };
 
 // Update table status
-exports.updateTableStatus = (req, res) => {
+exports.updateTableStatus = async (req, res) => {
   try {
     const { tableid } = req.params;
     const { status } = req.body;
 
     const updateSql = "UPDATE msttablemanagement SET status = ? WHERE tableid = ?";
-    const stmt = db.prepare(updateSql);
-    const result = stmt.run(status, tableid);
+    const [result] = await db.query(updateSql, [status, tableid]);
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Table not found" });
     }
 
@@ -184,7 +182,7 @@ exports.updateTableStatus = (req, res) => {
 };
 
 // Get all tables with their associated outlet names and department, filtered by hotelid
-exports.getAllTablesWithOutlets = (req, res) => {
+exports.getAllTablesWithOutlets = async (req, res) => {
   try {
     const { hotelid } = req.query;
     if (!hotelid) {
@@ -210,7 +208,7 @@ exports.getAllTablesWithOutlets = (req, res) => {
       LEFT JOIN mst_outlets o ON t.outletid = o.outletid
       WHERE t.hotelid = ?
     `;
-    const tables = db.prepare(query).all(hotelid);
+    const [tables] = await db.query(query, [hotelid]);
     res.json(tables);
   } catch (error) {
     // console.error('Error fetching tables with outlets:', error);
@@ -218,7 +216,7 @@ exports.getAllTablesWithOutlets = (req, res) => {
   }
 };
 
-exports.createSubTable = (req, res) => {
+exports.createSubTable = async (req, res) => {
   try {
     const { parentTableId, userId } = req.body;
 
@@ -227,20 +225,21 @@ exports.createSubTable = (req, res) => {
     }
 
     // 1. Get Parent Table Details
-    const parentTable = db.prepare("SELECT * FROM msttablemanagement WHERE tableid = ?").get(parentTableId);
+    const [parentRows] = await db.query("SELECT * FROM msttablemanagement WHERE tableid = ?", [parentTableId]);
+    const parentTable = parentRows[0];
     
     if (!parentTable) {
       return res.status(404).json({ success: false, message: "Parent table not found" });
     }
 
     // 2. Find existing sub-tables for this parent to determine next suffix
-    const subTables = db.prepare(`
+    const [subTables] = await db.query(`
       SELECT table_name 
       FROM msttablemanagement 
       WHERE parentTableId = ? 
       AND isTemporary = 1
       AND status != 0 
-    `).all(parentTableId);
+    `, [parentTableId]);
 
     const suffixes = subTables.map(t => {
       const name = t.table_name;
@@ -270,10 +269,10 @@ exports.createSubTable = (req, res) => {
       INSERT INTO msttablemanagement (
         table_name, hotelid, outletid, marketid, departmentid, department_name, 
         status, created_by_id, created_date, parentTableId, isTemporary
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, 1)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, 1)
     `;
 
-    const result = db.prepare(insertSql).run(
+    const [result] = await db.query(insertSql, [
       newTableName,
       parentTable.hotelid,
       parentTable.outletid,
@@ -283,13 +282,13 @@ exports.createSubTable = (req, res) => {
       1, // Status 1 = Occupied/Running
       userId || null,
       parentTableId
-    );
+    ]);
 
     res.json({ 
       success: true, 
       message: "Sub-table created successfully", 
       data: {
-        tableid: result.lastInsertRowid,
+        tableid: result.insertId,
         table_name: newTableName,
         parentTableId: parentTableId
       }
@@ -301,4 +300,5 @@ exports.createSubTable = (req, res) => {
   }
 };
 
-
+// Run migrations on module load
+runMigrations();

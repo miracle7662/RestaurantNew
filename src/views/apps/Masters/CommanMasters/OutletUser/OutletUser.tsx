@@ -776,8 +776,9 @@ const OutletUserList: React.FC = () => {
                         onChange={(e) => setShiftTime(e.target.value)}
                       >
                         <option value="">Select Shift</option>
-                        {shiftTypes.map((shift) => (
+{(shiftTypes || []).map((shift) => (
                           <option
+
                             key={shift.id}
                             value={shift.shift_type}
                           >

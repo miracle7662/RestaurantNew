@@ -1,45 +1,130 @@
 const db = require('../config/db');
 
-exports.getDesignation = (req, res) => {
-    const Designation = db.prepare('SELECT * FROM mstdesignation').all();
-    res.json({ 
-        success: true, 
-        message: 'Designation fetched successfully', 
-        data: Designation 
+// GET ALL
+exports.getDesignation = async (req, res) => {
+  try {
+    const [Designation] = await db.query('SELECT * FROM mstdesignation');
+
+    res.json({
+      success: true,
+      message: 'Designation fetched successfully',
+      data: Designation
     });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch designation',
+      data: null,
+      error: error.message
+    });
+  }
 };
 
-exports.addDesignation = (req, res) => {
-    // console.log('Adding designation with data:', req.body);
+
+// ADD
+exports.addDesignation = async (req, res) => {
+  try {
     const { Designation, status, created_by_id, created_date } = req.body;
-    const stmt = db.prepare('INSERT INTO mstdesignation (Designation, status, created_by_id, created_date) VALUES (?, ?, ?, ?)');
-    const result = stmt.run(Designation, status, created_by_id, created_date);
-    res.json({ 
-        success: true, 
-        message: 'Designation added successfully', 
-        data: { id: result.lastInsertRowid, Designation, status, created_by_id, created_date }
+
+    const [result] = await db.query(
+      `INSERT INTO mstdesignation 
+       (Designation, status, created_by_id, created_date) 
+       VALUES (?, ?, ?, ?)`,
+      [Designation, status, created_by_id, created_date]
+    );
+
+    res.json({
+      success: true,
+      message: 'Designation added successfully',
+      data: {
+        id: result.insertId,
+        Designation,
+        status,
+        created_by_id,
+        created_date
+      }
     });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add designation',
+      data: null,
+      error: error.message
+    });
+  }
 };
 
-exports.updateDesignation = (req, res) => {
+
+// UPDATE
+exports.updateDesignation = async (req, res) => {
+  try {
     const { id } = req.params;
     const { Designation, status, updated_by_id, updated_date } = req.body;
-    const stmt = db.prepare('UPDATE mstdesignation SET Designation = ?, status = ?, updated_by_id = ?, updated_date = ? WHERE designationid = ?');
-    stmt.run(Designation, status, updated_by_id, updated_date, id);
-    res.json({ 
-        success: true, 
-        message: 'Designation updated successfully', 
-        data: { id, Designation, status, updated_by_id, updated_date }
+
+    const [result] = await db.query(
+      `UPDATE mstdesignation 
+       SET Designation = ?, status = ?, updated_by_id = ?, updated_date = ? 
+       WHERE designationid = ?`,
+      [Designation, status, updated_by_id, updated_date, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.json({
+        success: false,
+        message: 'Designation not found',
+        data: null
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Designation updated successfully',
+      data: { id, Designation, status, updated_by_id, updated_date }
     });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update designation',
+      data: null,
+      error: error.message
+    });
+  }
 };
 
-exports.deleteDesignation = (req, res) => {
+
+// DELETE
+exports.deleteDesignation = async (req, res) => {
+  try {
     const { id } = req.params;
-    const stmt = db.prepare('DELETE FROM mstdesignation WHERE designationid = ?');
-    stmt.run(id);
-    res.json({ 
-        success: true, 
-        message: 'Designation deleted successfully', 
-        data: null 
+
+    const [result] = await db.query(
+      'DELETE FROM mstdesignation WHERE designationid = ?',
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.json({
+        success: false,
+        message: 'Designation not found',
+        data: null
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Designation deleted successfully',
+      data: null
     });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete designation',
+      data: null,
+      error: error.message
+    });
+  }
 };

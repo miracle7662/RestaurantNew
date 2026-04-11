@@ -1,27 +1,29 @@
 const db = require('../config/db');
 
-exports.getUserType = (req, res) => {
+exports.getUserType = async (req, res) => {
     try {
-        const userTypes = db.prepare('SELECT * FROM mstuserType').all();
+        const [userTypes] = await db.query('SELECT * FROM mstuserType');
         res.json({
             success: true,
             count: userTypes.length,
             data: userTypes
         });
     } catch (error) {
-        // console.error('Error fetching user types:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch user types', data: [] });
     }
 };
 
-exports.addUserType = (req, res) => {
+exports.addUserType = async (req, res) => {
     try {
         const { User_type, status, created_by_id, created_date, hotelid } = req.body;
-        const stmt = db.prepare('INSERT INTO mstuserType (User_type, status, created_by_id, created_date, hotelid) VALUES (?, ?, ?, ?, ?)');
-       const result = stmt.run(User_type, status, created_by_id, created_date, hotelid);
+
+        const [result] = await db.query(
+            'INSERT INTO mstuserType (User_type, status, created_by_id, created_date, hotelid) VALUES (?, ?, ?, ?, ?)',
+            [User_type, status, created_by_id, created_date, hotelid]
+        );
 
         const newUserType = {
-            usertypeid: result.lastInsertRowid,
+            usertypeid: result.insertId,
             User_type,
             status,
             created_by_id: created_by_id || 1,
@@ -33,33 +35,42 @@ exports.addUserType = (req, res) => {
 
         res.status(201).json({ success: true, data: newUserType });
     } catch (error) {
-        // console.error('Error adding user type:', error);
         res.status(500).json({ success: false, message: 'Failed to add user type' });
     }
 };
 
 
-exports.updateUserType = (req, res) => {
+exports.updateUserType = async (req, res) => {
     const { id } = req.params;
-    const {User_type, status,updated_by_id,updated_date, hotelid } = req.body;
-    const stmt = db.prepare('UPDATE mstuserType SET User_type = ?, status = ?,updated_by_id =?,updated_date =?, hotelid =? WHERE usertypeid = ?');
-    stmt.run(User_type, status,updated_by_id,updated_date, hotelid, id);
-    res.json({ id,User_type, status,updated_by_id,updated_date, hotelid });
+    const { User_type, status, updated_by_id, updated_date, hotelid } = req.body;
+
+    await db.query(
+        'UPDATE mstuserType SET User_type = ?, status = ?, updated_by_id = ?, updated_date = ?, hotelid = ? WHERE usertypeid = ?',
+        [User_type, status, updated_by_id, updated_date, hotelid, id]
+    );
+
+    res.json({ id, User_type, status, updated_by_id, updated_date, hotelid });
+
     const updatedUserType = {
-            usertypeid: id,
-            User_type,
-            status,
-            updated_by_id: updated_by_id || 2,
-            updated_date: updated_date || new Date().toISOString(),
-            hotelid: hotelid || null
-        };
-        res.json({ success: true, data: updatedUserType });
-            
+        usertypeid: id,
+        User_type,
+        status,
+        updated_by_id: updated_by_id || 2,
+        updated_date: updated_date || new Date().toISOString(),
+        hotelid: hotelid || null
+    };
+
+    res.json({ success: true, data: updatedUserType });
 };
 
-exports.deleteUserType = (req, res) => {
+
+exports.deleteUserType = async (req, res) => {
     const { id } = req.params;
-    const stmt = db.prepare('DELETE FROM mstuserType WHERE usertypeid = ?');
-    stmt.run(id);
-     res.json({ success: true, data: { usertypeid: id } });
+
+    await db.query(
+        'DELETE FROM mstuserType WHERE usertypeid = ?',
+        [id]
+    );
+
+    res.json({ success: true, data: { usertypeid: id } });
 };

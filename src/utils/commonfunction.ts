@@ -289,9 +289,8 @@ export const fetchMarkets = async (
 ) => {
   try {
     const response = await MarketsService.list()
-    // HttpClient returns the unwrapped response due to interceptor
-    // response is already the array directly, not wrapped in an object
-    const data: MarketItem[] = Array.isArray(response) ? response : []
+    // HttpClient returns the unwrapped response due to interceptor (response.data)
+    const data: MarketItem[] = response?.data || []
     setMarkets(data)
     if (data.length > 0 && !currentMarketId) {
       setMarketId(data[0].marketid)
@@ -743,20 +742,43 @@ export const fetchShiftTypes = async (
   currentShiftId?: number,
 ) => {
   try {
-    // Note: ShiftTypes might need a dedicated service
-    // Using direct fetch as fallback
     const res = await fetch('/api/orders/shift-types')
-    const data: ShiftTypeItem[] = await res.json()
-    setShiftTypes(data)
-    if (data.length > 0 && !currentShiftId) {
-      setSelectedShift(data[0].shift_type)
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+    }
+    const response = await res.json()
+    const data = Array.isArray(response) ? response : []
+    
+    // Fallback static shifts if empty/missing
+    const fallbackShifts: ShiftTypeItem[] = [
+      { id: 1, shift_type: 'Morning' },
+      { id: 2, shift_type: 'Evening' },
+      { id: 3, shift_type: 'Night' }
+    ]
+    
+    const shiftsToUse = data.length > 0 ? data : fallbackShifts
+    setShiftTypes(shiftsToUse)
+    
+    if (shiftsToUse.length > 0 && !currentShiftId) {
+      setSelectedShift(shiftsToUse[0].shift_type)
     }
   } catch (err: any) {
-    toast.error(err?.message || 'Failed to fetch shift types')
-    // console.error('Fetch shift types error:', err)
-    setShiftTypes([])
+    toast.error('Failed to fetch shift types, using defaults')
+    console.error('Fetch shift types error:', err)
+    
+    // Use fallback
+    const fallbackShifts: ShiftTypeItem[] = [
+      { id: 1, shift_type: 'Morning' },
+      { id: 2, shift_type: 'Evening' },
+      { id: 3, shift_type: 'Night' }
+    ]
+    setShiftTypes(fallbackShifts)
+    if (!currentShiftId) {
+      setSelectedShift('Morning')
+    }
   }
 }
+
 
 export const fetchWarehouses = async (
   setWarehouses: (data: WarehouseItem[]) => void,

@@ -26,7 +26,7 @@ function sendSuccessResponse(res, data, message = null, statusCode = 200) {
 
 // Duplicate check functionality removed as requested
 
-exports.getAllTaxGroups = (req, res) => {
+exports.getAllTaxGroups = async (req, res) => {
   try {
     const { hotelid } = req.query;
 
@@ -66,7 +66,7 @@ exports.getTaxGroupById = (req, res) => {
   }
 };
 
-exports.createTaxGroup = (req, res) => {
+exports.createTaxGroup = async (req, res) => {
   try {
     const { taxgroup_name, hotelid, status, created_by_id } = req.body;
 
@@ -76,19 +76,19 @@ exports.createTaxGroup = (req, res) => {
 
     const sql = `
       INSERT INTO msttaxgroup (taxgroup_name, hotelid, status, created_by_id, created_date)
-      VALUES (?, ?, ?, ?, datetime('now'))
+      VALUES (?, ?, ?, ?, NOW())
     `;
     const params = [taxgroup_name, hotelid, status, created_by_id];
 
-    const result = db.prepare(sql).run(params);
+    const [result] = await db.query(sql, params);
 
-    sendSuccessResponse(res, { taxgroupid: result.lastInsertRowid }, 'Tax group created successfully', 201);
+    sendSuccessResponse(res, { taxgroupid: result.insertId }, 'Tax group created successfully', 201);
   } catch (error) {
     sendErrorResponse(res, 'Error creating tax group:', error);
   }
 };
 
-exports.updateTaxGroup = (req, res) => {
+exports.updateTaxGroup = async (req, res) => {
   try {
     const { id } = req.params;
     const { taxgroup_name, hotelid, status, updated_by_id } = req.body;
@@ -104,14 +104,14 @@ exports.updateTaxGroup = (req, res) => {
 
     const sql = `
       UPDATE msttaxgroup
-      SET taxgroup_name = ?, hotelid = ?, status = ?, updated_by_id = ?, updated_date = datetime('now')
+      SET taxgroup_name = ?, hotelid = ?, status = ?, updated_by_id = ?, updated_date = NOW()
       WHERE taxgroupid = ?
     `;
     const params = [taxgroup_name, hotelid, parseInt(status), updated_by_id, parseInt(id)];
 
-    const result = db.prepare(sql).run(params);
+    const [result] = await db.query(sql, params);
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return sendErrorResponse(res, 'Tax group not found', null, 404);
     }
 
@@ -121,14 +121,14 @@ exports.updateTaxGroup = (req, res) => {
   }
 };
 
-exports.deleteTaxGroup = (req, res) => {
+exports.deleteTaxGroup = async (req, res) => {
   try {
     const { id } = req.params;
 
     const sql = `DELETE FROM msttaxgroup WHERE taxgroupid = ?`;
-    const result = db.prepare(sql).run(id);
+    const [result] = await db.query(sql, [id]);
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return sendErrorResponse(res, 'Tax group not found', null, 404);
     }
 

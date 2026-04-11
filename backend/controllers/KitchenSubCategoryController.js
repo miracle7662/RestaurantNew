@@ -3,11 +3,11 @@ const db = require('../config/db');
 /* ═══════════════════════════════════════════════════════
    GET ALL KITCHEN SUB CATEGORY
 ═══════════════════════════════════════════════════════ */
-exports.getKitchenSubCategory = (req, res) => {
+exports.getKitchenSubCategory = async (req, res) => {
     try {
-        const KitchenSubCategory = db
-            .prepare('SELECT * FROM mstkitchensubcategory')
-            .all();
+        const [KitchenSubCategory] = await db.query(
+            'SELECT * FROM mstkitchensubcategory'
+        );
 
         res.status(200).json({
             success: true,
@@ -30,7 +30,7 @@ exports.getKitchenSubCategory = (req, res) => {
 /* ═══════════════════════════════════════════════════════
    ADD KITCHEN SUB CATEGORY
 ═══════════════════════════════════════════════════════ */
-exports.addKitchenSubCategory = (req, res) => {
+exports.addKitchenSubCategory = async (req, res) => {
     try {
         const {
             Kitchen_sub_category,
@@ -43,13 +43,11 @@ exports.addKitchenSubCategory = (req, res) => {
             marketid
         } = req.body;
 
-        const stmt = db.prepare(`
+        const [result] = await db.query(`
             INSERT INTO mstkitchensubcategory 
             (Kitchen_sub_category, kitchencategoryid, kitchenmaingroupid, status, created_by_id, created_date, hotelid, marketid) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-
-        const result = stmt.run(
+        `, [
             Kitchen_sub_category,
             kitchencategoryid,
             kitchenmaingroupid,
@@ -58,13 +56,13 @@ exports.addKitchenSubCategory = (req, res) => {
             created_date,
             hotelid,
             marketid
-        );
+        ]);
 
         res.status(201).json({
             success: true,
             message: "Kitchen Sub Category created successfully",
             data: {
-                kitchensubcategoryid: result.lastInsertRowid,
+                kitchensubcategoryid: result.insertId,
                 Kitchen_sub_category,
                 kitchencategoryid,
                 kitchenmaingroupid,
@@ -91,7 +89,7 @@ exports.addKitchenSubCategory = (req, res) => {
 /* ═══════════════════════════════════════════════════════
    UPDATE KITCHEN SUB CATEGORY
 ═══════════════════════════════════════════════════════ */
-exports.updateKitchenSubCategory = (req, res) => {
+exports.updateKitchenSubCategory = async (req, res) => {
     try {
         const { id } = req.params;
         const {
@@ -103,7 +101,7 @@ exports.updateKitchenSubCategory = (req, res) => {
             status
         } = req.body;
 
-        const stmt = db.prepare(`
+        const [result] = await db.query(`
             UPDATE mstkitchensubcategory 
             SET Kitchen_sub_category = ?, 
                 kitchencategoryid = ?, 
@@ -112,9 +110,7 @@ exports.updateKitchenSubCategory = (req, res) => {
                 updated_date = ?, 
                 status = ?
             WHERE kitchensubcategoryid = ?
-        `);
-
-        stmt.run(
+        `, [
             Kitchen_sub_category,
             kitchencategoryid,
             kitchenmaingroupid,
@@ -122,7 +118,15 @@ exports.updateKitchenSubCategory = (req, res) => {
             updated_date,
             status,
             id
-        );
+        ]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Kitchen Sub Category not found",
+                data: null
+            });
+        }
 
         res.status(200).json({
             success: true,
@@ -153,14 +157,22 @@ exports.updateKitchenSubCategory = (req, res) => {
 /* ═══════════════════════════════════════════════════════
    DELETE KITCHEN SUB CATEGORY
 ═══════════════════════════════════════════════════════ */
-exports.deleteKitchenSubCategory = (req, res) => {
+exports.deleteKitchenSubCategory = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const stmt = db.prepare(
-            'DELETE FROM mstkitchensubcategory WHERE kitchensubcategoryid = ?'
+        const [result] = await db.query(
+            'DELETE FROM mstkitchensubcategory WHERE kitchensubcategoryid = ?',
+            [id]
         );
-        stmt.run(id);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Kitchen Sub Category not found",
+                data: null
+            });
+        }
 
         res.status(200).json({
             success: true,

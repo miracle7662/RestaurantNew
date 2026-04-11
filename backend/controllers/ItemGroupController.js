@@ -1,33 +1,13 @@
 const db = require('../config/db');
 
-// Get item groups that have at least one menu item
-// exports.getItemGroupsWithMenuItems = (req, res) => {
-//   try {
-//     const query = `
-//       SELECT DISTINCT ig.item_groupid, ig.itemgroupname, ig.status
-//       FROM ItemGroup ig
-//       INNER JOIN mstrestmenu m ON ig.item_groupid = m.item_group_id
-//       WHERE m.status = 1 AND ig.status = 0
-//       ORDER BY ig.itemgroupname
-//     `;
-//     const itemGroups = db.prepare(query).all();
-//     res.json(itemGroups);
-//   } catch (error) {
-//     console.error('Error fetching item groups with menu items:', error);
-//     res.status(500).json({ message: 'Internal server error' });
-//   }
-// };
-
-
-
-exports.getItemGroup = (req, res) => {
+/* ═══════════════════════════════════════
+   GET ALL
+═══════════════════════════════════════ */
+exports.getItemGroup = async (req, res) => {
   try {
     const { hotelid } = req.query;
-    // console.log('ItemGroup - Received hotelid:', hotelid);
-    
-    // If no hotelid provided, return empty array - must have hotelid to view items
+
     if (!hotelid || hotelid === 'undefined' || hotelid === '' || hotelid === 'null') {
-      // console.log('ItemGroup - No valid hotelid provided, returning empty array');
       return res.status(200).json({
         success: true,
         message: "Item Groups fetched successfully",
@@ -35,40 +15,26 @@ exports.getItemGroup = (req, res) => {
         error: null
       });
     }
-    
+
     let query = `
       SELECT ig.*, img.item_group_name AS item_maingroup_name
       FROM mst_Item_Group ig
-      LEFT JOIN mst_Item_Main_Group img ON ig.kitchencategoryid = img.item_maingroupid
+      LEFT JOIN mst_Item_Main_Group img 
+      ON ig.kitchencategoryid = img.item_maingroupid
+      WHERE (ig.hotelid = ? OR ig.hotelid = ?)
+      ORDER BY ig.itemgroupname
     `;
-    const params = [];
-    
-    // Strict filtering: only show items for the specified hotel
-    // Handle both string and numeric hotelid values
-    query += ' WHERE (ig.hotelid = ? OR ig.hotelid = ?)';
-    params.push(String(hotelid));  // As string
-    params.push(Number(hotelid));  // As number
-    
-    query += ' ORDER BY ig.itemgroupname';
-    
-    // console.log('ItemGroup - SQL Query:', query);
-    // console.log('ItemGroup - SQL Params:', params);
-    
-    const ItemGroup = db.prepare(query).all(...params);
-    //console.log('ItemGroup - Fetched count:', ItemGroup.length);
-    if (ItemGroup.length > 0) {
-      // console.log('ItemGroup - First item hotelid:', ItemGroup[0].hotelid);
-      // console.log('ItemGroup - Last item hotelid:', ItemGroup[ItemGroup.length - 1].hotelid);
-    }
-    
+
+    const [rows] = await db.query(query, [String(hotelid), Number(hotelid)]);
+
     res.status(200).json({
       success: true,
       message: "Item Groups fetched successfully",
-      data: ItemGroup,
+      data: rows,
       error: null
     });
+
   } catch (error) {
-    // console.error('Error fetching Item Groups:', error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch Item Groups",
@@ -78,7 +44,11 @@ exports.getItemGroup = (req, res) => {
   }
 };
 
-exports.addItemGroup = (req, res) => {
+
+/* ═══════════════════════════════════════
+   CREATE
+═══════════════════════════════════════ */
+exports.addItemGroup = async (req, res) => {
   try {
     const {
       itemgroupname,
@@ -91,13 +61,11 @@ exports.addItemGroup = (req, res) => {
       marketid
     } = req.body;
 
-    const stmt = db.prepare(`
+    const [result] = await db.query(`
       INSERT INTO mst_Item_Group
       (itemgroupname, code, kitchencategoryid, status, created_by_id, created_date, hotelid, marketid)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const result = stmt.run(
+    `, [
       itemgroupname,
       code,
       kitchencategoryid,
@@ -106,13 +74,13 @@ exports.addItemGroup = (req, res) => {
       created_date,
       hotelid,
       marketid
-    );
+    ]);
 
     res.status(201).json({
       success: true,
       message: "Item Group created successfully",
       data: {
-        item_groupid: result.lastInsertRowid,
+        item_groupid: result.insertId,
         itemgroupname,
         code,
         kitchencategoryid,
@@ -136,9 +104,13 @@ exports.addItemGroup = (req, res) => {
 };
 
 
-exports.updateItemGroup = (req, res) => {
+/* ═══════════════════════════════════════
+   UPDATE
+═══════════════════════════════════════ */
+exports.updateItemGroup = async (req, res) => {
   try {
     const { id } = req.params;
+
     const {
       itemgroupname,
       code,
@@ -148,7 +120,7 @@ exports.updateItemGroup = (req, res) => {
       updated_date
     } = req.body;
 
-    const stmt = db.prepare(`
+    const [result] = await db.query(`
       UPDATE mst_Item_Group
       SET itemgroupname = ?,
           code = ?,
@@ -157,9 +129,7 @@ exports.updateItemGroup = (req, res) => {
           updated_by_id = ?,
           updated_date = ?
       WHERE item_groupid = ?
-    `);
-
-    const result = stmt.run(
+    `, [
       itemgroupname,
       code,
       kitchencategoryid,
@@ -167,9 +137,9 @@ exports.updateItemGroup = (req, res) => {
       updated_by_id,
       updated_date,
       id
-    );
+    ]);
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
         message: "Item Group not found",
@@ -204,14 +174,35 @@ exports.updateItemGroup = (req, res) => {
 };
 
 
-
-exports.deleteItemGroup = (req, res) => {
+/* ═══════════════════════════════════════
+   DELETE
+═══════════════════════════════════════ */
+exports.deleteItemGroup = async (req, res) => {
+  try {
     const { id } = req.params;
-    const stmt = db.prepare('DELETE FROM mst_Item_Group WHERE item_groupid = ?');
-    stmt.run(id);
-    res.json({ message: 'Deleted' });
+
+    const [result] = await db.query(
+      'DELETE FROM mst_Item_Group WHERE item_groupid = ?',
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Item Group not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Item Group deleted successfully"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete Item Group",
+      error: error.message
+    });
+  }
 };
-
-
-
-

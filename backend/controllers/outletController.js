@@ -7,7 +7,7 @@ exports.welcome = (req, res) => {
 }
 
 // Get brands/hotels based on user role
-exports.getBrands = (req, res) => {
+exports.getBrands = async (req, res) => {
   try {
     const { role_level, hotelid } = req.query
 
@@ -21,15 +21,15 @@ exports.getBrands = (req, res) => {
     }
     // If user is superadmin, show all hotels (no additional WHERE clause)
 
-    const brands = db.prepare(query).all(...params)
-    res.json({ success: true, message: 'Brands fetched successfully', data: brands })
+    const [brands] = await db.query(query, params)
+       res.json({ success: true, message: 'Brands fetched successfully', data: brands })
   } catch (error) {
     // console.error('Error fetching brands:', error)
     res.status(500).json({ success: false, message: 'Failed to fetch brands', data: null })
   }
 }
 
-exports.getOutlets = (req, res) => {
+exports.getOutlets = async (req, res) => {
   try {
     const { role_level, brandId, hotelid, userid } = req.query;
     const user = req.user || {};
@@ -70,8 +70,7 @@ exports.getOutlets = (req, res) => {
 
     query += ' ORDER BY o.outlet_name';
     // console.log('Constructed query:', query, 'with params:', params);
-    const outlets = db.prepare(query).all(...params);
-    // console.log('Found outlets:', outlets);
+    const [outlets] = await db.query(query, params); // console.log('Found outlets:', outlets);
 
     res.status(200).json ({success: true, message: 'Outlets fetched successfully',data: outlets})
   } catch (error) {
@@ -80,7 +79,7 @@ exports.getOutlets = (req, res) => {
   }
 };
 
-exports.getOutletsByHotel = (req, res) => {
+exports.getOutletsByHotel =   async (req, res) => {
   try {
     const { hotelid } = req.query;
 
@@ -97,8 +96,7 @@ exports.getOutletsByHotel = (req, res) => {
       ORDER BY o.outlet_name
     `;
 
-    const outlets = db.prepare(query).all(hotelid);
-    // console.log('Found outlets for hotel:', hotelid, outlets);
+    const [outlets] = await db.query(query, [hotelid]);    // console.log('Found outlets for hotel:', hotelid, outlets);
 
     res.json({ success: true, message: 'Outlets fetched successfully', data: outlets });
   } catch (error) {
@@ -106,7 +104,7 @@ exports.getOutletsByHotel = (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error', data: null });
   }
 };
-exports.addOutlet = (req, res) => {
+exports.addOutlet =  async (req, res) => {
   try {
     const {
       outlet_name,
@@ -152,62 +150,40 @@ exports.addOutlet = (req, res) => {
       return res.status(400).json({ error: 'Outlet name is required' })
     }
 
-    // Start a transaction to ensure atomicity
-    db.exec('BEGIN TRANSACTION');
+    // Start MySQL transaction
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
 
-    // Insert into mst_outlets
-    const outletStmt = db.prepare(`
-            INSERT INTO mst_outlets (
-                outlet_name, hotelid, market_id, outlet_code, phone, email, website,
-                address, city, zip_code, country, timezone, start_day_time, close_day_time,
-                next_reset_bill_date, next_reset_bill_days, next_reset_kot_date, next_reset_kot_days,
-                contact_phone, notification_email, description, logo, gst_no, fssai_no,
-                status, digital_order, created_by_id, created_date,
-                logout_pos, password_protection, send_payment_link, send_ebill_whatsapp, add_custom_qr, start_time, end_time, warehouseid, reduce_inventory
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  ?,?, ?)
-        `)
+      // Insert into mst_outlets
+      const outletQuery = `
+        INSERT INTO mst_outlets (
+          outlet_name, hotelid, market_id, outlet_code, phone, email, website,
+          address, city, zip_code, country, timezone, start_day_time, close_day_time,
+          next_reset_bill_date, next_reset_bill_days, next_reset_kot_date, next_reset_kot_days,
+          contact_phone, notification_email, description, logo, gst_no, fssai_no,
+          status, digital_order, created_by_id, created_date,
+          logout_pos, password_protection, send_payment_link, send_ebill_whatsapp, add_custom_qr, 
+          start_time, end_time, warehouseid, reduce_inventory
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
 
-    const outletResult = outletStmt.run(
-      outlet_name,
-      hotelid,
-      market_id,
-      outlet_code,
-      phone,
-      email,
-      website,
-      address,
-      city,
-      zip_code,
-      country,
-      timezone,
-      start_day_time,
-      close_day_time,
-      next_reset_bill_date,
-      next_reset_bill_days,
-      next_reset_kot_date,
-      next_reset_kot_days,
-      contact_phone,
-      notification_email,
-      description,
-      logo,
-      gst_no,
-      fssai_no,
-      status,
-      digital_order || 0,
-      created_by_id,
-      new Date().toISOString(),
-      logout_pos == true || logout_pos == 1 ? 1 : 0,
-      password_protection == true || password_protection == 1 ? 1 : 0,
-      send_payment_link == true || send_payment_link == 1 ? 1 : 0,
-      send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
-      add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
-      start_time,
-      end_time,
-      warehouseid,
-      reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
-    )
+      const outletValues = [
+        outlet_name, hotelid, market_id || null, outlet_code, phone, email, website,
+        address, city, zip_code, country, timezone, start_day_time, close_day_time,
+        next_reset_bill_date, next_reset_bill_days, next_reset_kot_date, next_reset_kot_days,
+        contact_phone, notification_email, description, logo, gst_no, fssai_no,
+        status || 1, digital_order || 0, created_by_id, new Date().toISOString().slice(0, 19).replace('T', ' '),
+        logout_pos == true || logout_pos == 1 ? 1 : 0,
+        password_protection == true || password_protection == 1 ? 1 : 0,
+        send_payment_link == true || send_payment_link == 1 ? 1 : 0,
+        send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
+        add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
+        start_time, end_time, warehouseid, reduce_inventory == true || reduce_inventory == 1 ? 1 : 0
+      ];
 
-    const outletId = outletResult.lastInsertRowid;
+      const [outletResult] = await connection.execute(outletQuery, outletValues);
+      const outletId = outletResult.insertId;
 
     // Insert default settings into outlet_settings
     const settingsStmt = db.prepare(`
@@ -769,60 +745,64 @@ generalSettingsStmt.run(
       1 // update_food_ready_status_kds
     );
 
-    // Commit the transaction
-    db.exec('COMMIT');
-
-    res.json({ 
-      success: true,
-      message: 'Outlet added successfully',
-      data: {
-        id: outletId,
-        outlet_name,
-        hotelid,
-        market_id,
-        outlet_code,
-        phone,
-        email,
-        website,
-        address,
-        city,
-        zip_code,
-        country,
-        timezone,
-        start_day_time,
-        close_day_time,
-        next_reset_bill_date,
-        next_reset_bill_days,
-        next_reset_kot_date,
-        next_reset_kot_days,
-        contact_phone,
-        notification_email,
-        description,
-        logo,
-        gst_no,
-        fssai_no,
-        status,
-        digital_order: digital_order || 0,
-        created_by_id,
-        created_date: new Date().toISOString(),
-        logout_pos: logout_pos == true || logout_pos == 1 ? 1 : 0,
-        password_protection: password_protection == true || password_protection == 1 ? 1 : 0,
-        send_payment_link: send_payment_link == true || send_payment_link == 1 ? 1 : 0,
-        send_ebill_whatsapp: send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
-        add_custom_qr: add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
-        start_time,
-        end_time,
-        warehouseid: warehouseid,
-        reduce_inventory: reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
-      }
-    })
-  } catch (error) {
-    // Rollback the transaction on error
-    db.exec('ROLLBACK');
-    //  console.error('Error adding outlet:', error)
-    res.status(500).json({ success: false, message: 'Failed to add outlet', data: null })
-  }
+      // Commit the transaction
+      await connection.commit();
+      
+      res.json({ 
+        success: true,
+        message: 'Outlet added successfully',
+        data: {
+          id: outletId,
+          outlet_name,
+          hotelid,
+          market_id,
+          outlet_code,
+          phone,
+          email,
+          website,
+          address,
+          city,
+          zip_code,
+          country,
+          timezone,
+          start_day_time,
+          close_day_time,
+          next_reset_bill_date,
+          next_reset_bill_days,
+          next_reset_kot_date,
+          next_reset_kot_days,
+          contact_phone,
+          notification_email,
+          description,
+          logo,
+          gst_no,
+          fssai_no,
+          status,
+          digital_order: digital_order || 0,
+          created_by_id,
+          created_date: new Date().toISOString(),
+          logout_pos: logout_pos == true || logout_pos == 1 ? 1 : 0,
+          password_protection: password_protection == true || password_protection == 1 ? 1 : 0,
+          send_payment_link: send_payment_link == true || send_payment_link == 1 ? 1 : 0,
+          send_ebill_whatsapp: send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
+          add_custom_qr: add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
+          start_time,
+          end_time,
+          warehouseid: warehouseid,
+          reduce_inventory: reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
+        }
+      });
+    } catch (error) {
+      // Rollback the transaction on error
+      await connection.rollback();
+      console.error('Error adding outlet:', error);
+      res.status(500).json({ success: false, message: 'Failed to add outlet', data: null });
+    } finally {
+      connection.release();
+    }
 }
+}
+
 exports.updateOutlet = (req, res) => {
   try {
     const { id } = req.params
@@ -1134,8 +1114,10 @@ exports.updateOutletSettings = (req, res) => {
       return res.status(404).json({ error: 'Outlet not found' })
     }
 
-    // Start transaction
-    db.exec('BEGIN TRANSACTION')
+    // Start MySQL transaction for settings update
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
 
     // Check if settings already exist for this outlet
     const existingSettings = db
@@ -1435,8 +1417,8 @@ const insertStmt = db.prepare(`
       )
     }
 
-    // Commit transaction
-    db.exec('COMMIT')
+      // Commit transaction
+    await connection.commit();
 
     // Return updated settings
     const updatedSettings = db
@@ -1450,10 +1432,13 @@ const insertStmt = db.prepare(`
 })
 
   } catch (error) {
-    // Rollback transaction on error
-    db.exec('ROLLBACK')
-    // console.error('Error updating outlet settings:', error)
-    res.status(500).json({ error: 'Failed to update outlet settings' })
+      // Rollback transaction on error
+    await connection.rollback();
+    console.error('Error updating outlet settings:', error);
+    res.status(500).json({ error: 'Failed to update outlet settings' });
+    } finally {
+      connection.release();
+    }
   }
 }
 

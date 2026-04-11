@@ -16,13 +16,13 @@ import {
 } from '@tanstack/react-table';
 
 interface MarketItem {
-  marketid: string;
+  marketid: number;
   market_name: string;
   status: string | number;
-  created_by_id: string;
-  created_date: string;
-  updated_by_id: string;
-  updated_date: string;
+  created_by_id?: number;
+  created_date?: number;
+  updated_by_id: number;
+  updated_date: number;
 }
 
 interface MarketModalProps {
@@ -60,20 +60,26 @@ const Market: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState<MarketItem | null>(null);
 
-  const fetchMarkets = async () => {
-    try {
-      setLoading(true);
-      const data = await MarketService.list() as unknown as MarketItem[];
-      
-      // console.log('Fetched markets:', data);
-      setMarketItems(Array.isArray(data) ? data : []);
-    } catch (err) {
-      toast.error('Failed to fetch Markets');
-      setMarketItems([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+ const fetchMarkets = async () => {
+  try {
+    setLoading(true);
+
+    const response = await MarketService.list();
+
+    console.log("API Response:", response);
+
+    const data = response?.data || [];
+
+    setMarketItems(Array.isArray(data) ? data : []);
+
+  } catch (err) {
+    console.error("Fetch Markets Error:", err);
+    toast.error('Failed to fetch Markets');
+    setMarketItems([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchMarkets();
@@ -242,7 +248,7 @@ const Market: React.FC = () => {
       setLoading(true);
       try {
         const statusValue = status === 'Active' ? 0 : 1;
-        const currentDate = new Date().toISOString();
+const currentDate = Date.now();
         const userId = user?.id || '1';
         const payload = {
           market_name,

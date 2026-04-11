@@ -7,7 +7,7 @@ const db = require('../config/db');
 
 
 // Get all menu items with joins
-exports.getAllMenuItems = (req, res) => {
+exports.getAllMenuItems = async (req, res) => {
     try {
         const { hotelid, outletid } = req.query;
         
@@ -33,7 +33,8 @@ let query = `
         
         if (outletid) {
             const parsedOutletId = parseInt(outletid);
-            const outlet = db.prepare('SELECT hotelid FROM mst_outlets WHERE outletid = ?').get(parsedOutletId);
+            const [outletRows] = await db.execute('SELECT hotelid FROM mst_outlets WHERE outletid = ?', [parsedOutletId]);
+            const outlet = outletRows[0];
             if (outlet) {
                 query += ' AND (m.outletid = ? OR (m.hotelid = ? AND m.outletid IS NULL))';
                 params.push(parsedOutletId, outlet.hotelid);
@@ -45,38 +46,37 @@ let query = `
         
         query += ' ORDER BY m.created_date DESC';
         
-        const menuItems = db.prepare(query).all(...params);
+        const [menuRows] = await db.execute(query, params);
+        const menuItems = menuRows;
         
-        const menuItemsWithDetails = menuItems.map(item => {
-            const allDetails = db.prepare(`
+        const menuItemsWithDetails = await Promise.all(menuItems.map(async (item) => {
+            const [detailsRows] = await db.execute(`
                 SELECT md.*, d.department_name, vv.value_name as variant_value_name
                 FROM mstrestmenudetails md
                 LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
                 LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
                 WHERE md.restitemid = ?
-            `).all(item.restitemid);
-            
-            return { ...item, department_details: allDetails };
-        });
+            `, [item.restitemid]);
+            return { ...item, department_details: detailsRows };
+        }));
         
         res.json({ success: true, data: menuItemsWithDetails, count: menuItemsWithDetails.length });
     } catch (error) {
-        // console.error('Error fetching menu items:', error);
+        console.error('Error fetching menu items:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
 
-exports.getMenuItemById = (req, res) => {
+exports.getMenuItemById = async (req, res) => {
     try {
         const { id } = req.params;
+        const parsedId = parseInt(id);
         
-        const menuItem = db.prepare(`
-      SELECT m.*, 
+        const [menuRows] = await db.execute(`
+            SELECT m.*, 
                    md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion,
-                   -- 🔥 NEW STOCK FIELDS + RAW MATERIALS 🔥
-             m.is_ingredients_required, m.consume_on_bill, m.reverse_stock_cancel_kot,
-             m.allow_negative_stock, m.opening_stock_quantity, m.opening_stock_unit_id,
-             m.consume_raw_materials_on_bill, m.consume_raw_materials_on_kot, m.store_name,
+                   m.is_ingredients_required, m.consume_on_bill, m.reverse_stock_cancel_kot,
+                   m.allow_negative_stock, m.opening_stock_quantity, m.opening_stock_unit_id,
                    m.consume_raw_materials_on_bill, m.consume_raw_materials_on_kot, m.store_name,
                    o.outlet_name,
                    h.hotel_name,
@@ -89,23 +89,25 @@ exports.getMenuItemById = (req, res) => {
             LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
             LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
             WHERE m.restitemid = ? AND m.status = 1
-        `).get(parseInt(id));
+        `, [parsedId]);
         
+        const menuItem = menuRows[0];
         if (!menuItem) {
             return res.status(404).json({ success: false, message: 'Menu item not found', data: null });
         }
         
-        const allDetails = db.prepare(`
+        const [detailsRows] = await db.execute(`
             SELECT md.*, d.department_name, vv.value_name as variant_value_name
             FROM mstrestmenudetails md
             LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
             LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
             WHERE md.restitemid = ?
-        `).all(parseInt(id));
+        `, [parsedId]);
+        const allDetails = detailsRows;
         
         res.json({ success: true, data: { ...menuItem, department_details: allDetails }, message: 'Menu item fetched successfully' });
     } catch (error) {
-        // console.error('Error fetching menu item:', error);
+        console.error('Error fetching menu item:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch menu item', details: error.message, data: null });
     }
 };
@@ -132,13 +134,18 @@ exports.createMenuItemWithDetails = async (req, res) => {
         }
 
         const parsedHotelId = parseInt(hotelid);
-        if (isNaN(parsedHotelId) || !db.prepare('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?').get(parsedHotelId)) {
+        if (isNaN(parsedHotelId)) {
+            return res.status(400).json({ message: `Invalid hotelid: ${hotelid}` });
+        }
+        const [hotelRows] = await db.execute('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?', [parsedHotelId]);
+        if (hotelRows.length === 0) {
             return res.status(400).json({ message: `Invalid hotelid: ${hotelid}` });
         }
 
         if (outletid) {
             const parsedOutletId = parseInt(outletid);
-            const outlet = db.prepare('SELECT outletid, hotelid FROM mst_outlets WHERE outletid = ? AND status = 0').get(parsedOutletId);
+            const [outletRows] = await db.execute('SELECT outletid, hotelid FROM mst_outlets WHERE outletid = ? AND status = 0', [parsedOutletId]);
+            const outlet = outletRows[0];
             if (!outlet) {
                 return res.status(400).json({ message: `Invalid or inactive outletid: ${outletid}` });
             }
@@ -300,7 +307,8 @@ exports.updateMenuItemWithDetails = async (req, res) => {
             allow_negative_stock, opening_stock_quantity, opening_stock_unit_id, consume_raw_materials_on_bill, consume_raw_materials_on_kot
         } = req.body;
 
-        const existingItem = db.prepare('SELECT restitemid, hotelid FROM mstrestmenu WHERE restitemid = ?').get(parseInt(id));
+        const [existingRows] = await db.execute('SELECT restitemid, hotelid FROM mstrestmenu WHERE restitemid = ?', [parseInt(id)]);
+        const existingItem = existingRows[0];
         if (!existingItem) {
             return res.status(404).json({ message: 'Menu item not found' });
         }

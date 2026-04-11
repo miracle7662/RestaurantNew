@@ -5,12 +5,20 @@ exports.getKitchenCategory = async (req, res) => {
         const { hotelid } = req.query;
         let query = 'SELECT * FROM mstkitchencategory';
         const params = [];
+
         if (hotelid) {
           query += ' WHERE hotelid = ?';
           params.push(hotelid);
         }
+
         const [KitchenCategory] = await db.query(query, params);
-        res.json({success: true, message: "Kitchen Category fetched successfully", data: KitchenCategory});
+
+        res.json({
+            success: true,
+            message: "Kitchen Category fetched successfully",
+            data: KitchenCategory
+        });
+
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -20,6 +28,7 @@ exports.getKitchenCategory = async (req, res) => {
         });
     }
 };
+
 
 exports.addKitchenCategory = async (req, res) => {
   try {
@@ -77,19 +86,18 @@ exports.addKitchenCategory = async (req, res) => {
         hotelid,
         marketid,
         kitchenmaingroupid
-      },
-      error: null
+      }
     });
 
   } catch (error) {
     res.status(500).json({
       success: false,
       message: "Failed to add Kitchen Category",
-      data: null,
       error: error.message
     });
   }
 };
+
 
 exports.updateKitchenCategory = async (req, res) => {
   try {
@@ -134,6 +142,14 @@ exports.updateKitchenCategory = async (req, res) => {
       id
     ]);
 
+    // ✅ important check
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Kitchen Category not found"
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: "Kitchen Category updated successfully",
@@ -149,35 +165,46 @@ exports.updateKitchenCategory = async (req, res) => {
         updated_by_id,
         updated_date,
         kitchenmaingroupid
-      },
-      error: null
+      }
     });
 
   } catch (error) {
     res.status(500).json({
       success: false,
       message: "Failed to update Kitchen Category",
-      data: null,
       error: error.message
     });
   }
 };
 
+
 exports.deleteKitchenCategory = async (req, res) => {
     try {
-        const {id} = req.params;
-        const [result] = await db.query('DELETE FROM mstkitchencategory WHERE kitchencategoryid = ?', [id]);
+        const { id } = req.params;
+
+        const [result] = await db.query(
+          'DELETE FROM mstkitchencategory WHERE kitchencategoryid = ?',
+          [id]
+        );
+
+        // ✅ important check
+        if (result.affectedRows === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Kitchen Category not found"
+          });
+        }
+
         res.status(200).json({
-      success: true,
-      message: "Kitchen Category deleted successfully",
-      data: { id },
-      error: null
-    });
+          success: true,
+          message: "Kitchen Category deleted successfully",
+          data: { id }
+        });
+
     } catch (error) {
         res.status(500).json({
             success: false,
             message: "Failed to delete Kitchen Category",
-            data: null,
             error: error.message
         });
     }
