@@ -1,20 +1,27 @@
 const db = require('../config/db');
 
-exports.getKitchenCategory = (req, res) => {
-    const { hotelid } = req.query;
-    let query = 'SELECT * FROM mstkitchencategory';
-    const params = [];
-    if (hotelid) {
-      query += ' WHERE hotelid = ?';
-      params.push(hotelid);
+exports.getKitchenCategory = async (req, res) => {
+    try {
+        const { hotelid } = req.query;
+        let query = 'SELECT * FROM mstkitchencategory';
+        const params = [];
+        if (hotelid) {
+          query += ' WHERE hotelid = ?';
+          params.push(hotelid);
+        }
+        const [KitchenCategory] = await db.query(query, params);
+        res.json({success: true, message: "Kitchen Category fetched successfully", data: KitchenCategory});
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch Kitchen Category",
+            data: null,
+            error: error.message
+        });
     }
-    const KitchenCategory = db.prepare(query).all(...params);
-    res.json({success: true, message: "Kitchen Category fetched successfully", data: KitchenCategory
-});
 };
 
-
-exports.addKitchenCategory = (req, res) => {
+exports.addKitchenCategory = async (req, res) => {
   try {
     const {
       Kitchen_Category,
@@ -31,16 +38,14 @@ exports.addKitchenCategory = (req, res) => {
       kitchenmaingroupid
     } = req.body;
 
-    const stmt = db.prepare(`
+    const [result] = await db.query(`
       INSERT INTO mstkitchencategory 
       (Kitchen_Category, alternative_category_name, Description, 
        alternative_category_Description, digital_order_image, 
        categorycolor, status, created_by_id, created_date, 
        hotelid, marketid, kitchenmaingroupid) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const result = stmt.run(
+    `, [
       Kitchen_Category,
       alternative_category_name,
       Description,
@@ -53,13 +58,13 @@ exports.addKitchenCategory = (req, res) => {
       hotelid,
       marketid,
       kitchenmaingroupid
-    );
+    ]);
 
     res.status(201).json({
       success: true,
       message: "Kitchen Category added successfully",
       data: {
-        id: result.lastInsertRowid,
+        id: result.insertId,
         Kitchen_Category,
         alternative_category_name,
         Description,
@@ -86,8 +91,7 @@ exports.addKitchenCategory = (req, res) => {
   }
 };
 
-
-exports.updateKitchenCategory = (req, res) => {
+exports.updateKitchenCategory = async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -103,7 +107,7 @@ exports.updateKitchenCategory = (req, res) => {
       kitchenmaingroupid
     } = req.body;
 
-    const stmt = db.prepare(`
+    const [result] = await db.query(`
       UPDATE mstkitchencategory 
       SET Kitchen_Category = ?, 
           alternative_category_name = ?, 
@@ -116,9 +120,7 @@ exports.updateKitchenCategory = (req, res) => {
           updated_date = ?, 
           kitchenmaingroupid = ?
       WHERE kitchencategoryid = ?
-    `);
-
-    stmt.run(
+    `, [
       Kitchen_Category,
       alternative_category_name,
       Description,
@@ -130,7 +132,7 @@ exports.updateKitchenCategory = (req, res) => {
       updated_date,
       kitchenmaingroupid,
       id
-    );
+    ]);
 
     res.status(200).json({
       success: true,
@@ -161,16 +163,22 @@ exports.updateKitchenCategory = (req, res) => {
   }
 };
 
-
-
-exports.deleteKitchenCategory  = (req, res) => {
-    const {id} = req.params;
-    const stmt = db.prepare('DELETE FROM mstkitchencategory WHERE kitchencategoryid = ?');
-    stmt.run(id);
-    res.status(200).json({
-  success: true,
-  message: "Kitchen Category deleted successfully",
-  data: { id },  // send the deleted item's id
-  error: null
-});
+exports.deleteKitchenCategory = async (req, res) => {
+    try {
+        const {id} = req.params;
+        const [result] = await db.query('DELETE FROM mstkitchencategory WHERE kitchencategoryid = ?', [id]);
+        res.status(200).json({
+      success: true,
+      message: "Kitchen Category deleted successfully",
+      data: { id },
+      error: null
+    });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete Kitchen Category",
+            data: null,
+            error: error.message
+        });
+    }
 };

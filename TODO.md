@@ -1,32 +1,29 @@
-# Dayendcontroller.js MySQL Migration Plan - `db.prepare()` → `await db.execute()`
-Status: **🚀 IN PROGRESS** (Phase 1: Fix 7 Critical Files)
+# MySQL Conversion TODO - better-sqlite3 → mysql2/promise (AccountLedger, AccountNature, AccountType Controllers)
 
-## **✅ Phase 1: Critical Files (COMPLETE THIS FIRST)**
-- [x] **1. Create TODO.md** ← **DONE**
-- [ ] **2. Dayendcontroller.js** (40+ fixes, line 1125 crash)
-- [ ] **3. HotelMastersController.js** (line 31 crash)
-- [ ] **4. KitchenCategoryController.js** (line 11 crash)
-- [ ] **5. unitmasterController.js** (line 8 crash)
-- [ ] **6. KitchenMainGroupController.js** (line 5 crash)
-- [ ] **7. marketsController.js** (line 4 crash)
-- [ ] **8. countryController.js** (line 3 crash)
-- [ ] **9. Backend restart & test APIs**
-  ```
-  cd backend && npm start
-  GET /api/hotels, /api/kitchen-categories, etc.
-  ```
+## Status: 🔄 In Progress (0/5 Complete)
 
-## **🔄 Phase 2: Bulk Migration (~15 files)**
-- [ ] search_files → Find ALL remaining `db.prepare`
-- [ ] Bulk convert controllers
-- [ ] Full test
+### 1. ✅ Create TODO.md [COMPLETED]
 
-## **✅ Success Criteria**
-```
-- No "db.prepare" console errors
-- All CRUD APIs working
-- search_files "db.prepare" → 0 results
-```
+### 2. ⏳ Convert AccountLedgerController.js (largest/complex first)
+   - [ ] Replace import: require('../config/db') → mysql2/promise
+   - [ ] Remove getAll(), runQuery() helpers  
+   - [ ] Convert ~20 stmt.all/get/run → await db.query()
+   - [ ] Fix result.id → insertId, changes → affectedRows
+   - [ ] Fix getOutstandingCustomersAndFarmers (46 params array)
+   - [ ] Verify all responses identical
 
-**Next Step**: Fix **Dayendcontroller.js** → Mark [✅] → Test → Next file
+### 3. ⏳ Convert AccountNatureController.js 
+   - [ ] Convert 9 CRUD calls
+   - [ ] lastInsertRowid → insertId
+
+### 4. ⏳ Convert AccountTypeController.js
+   - [ ] Convert 9 CRUD calls  
+   - [ ] lastInsertRowid → insertId
+
+### 5. ⏳ Test & Complete
+   - [ ] Test routes: AccountLedgerRoutes, AccountNatureRoutes, AccountTypeRoutes
+   - [ ] Verify insertId, affectedRows, row counts match
+   - [ ] attempt_completion with results
+
+**Instructions:** Update ✅ when step complete. Follow order strictly.
 

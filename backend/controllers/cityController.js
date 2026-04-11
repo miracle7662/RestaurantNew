@@ -1,7 +1,8 @@
 const db = require('../config/db');
 
-exports.getCities = (req, res) => {
-    const cities = db.prepare('SELECT * FROM mstcitymaster').all();
+// ✅ getCities
+exports.getCities = async (req, res) => {
+    const [cities] = await db.query('SELECT * FROM mstcitymaster');
     res.json({
         success: true,
         message: "Cities fetched successfully",
@@ -10,17 +11,21 @@ exports.getCities = (req, res) => {
     });
 };
 
-exports.addCity = (req, res) => {
-    const { city_name, city_Code, stateId, iscoastal, status, created_by_id, created_date } = req.body;
-    // Convert boolean to integer for SQLite
 
-    const stmt = db.prepare('INSERT INTO mstcitymaster (city_name, city_Code, stateId, iscoastal, status,created_by_id,created_date) VALUES (?, ?, ?, ?, ?,?,?)');
-    const result = stmt.run(city_name, city_Code, stateId, iscoastal, status, created_by_id, created_date);
+// ✅ addCity
+exports.addCity = async (req, res) => {
+    const { city_name, city_Code, stateId, iscoastal, status, created_by_id, created_date } = req.body;
+
+    const [result] = await db.query(
+        'INSERT INTO mstcitymaster (city_name, city_Code, stateId, iscoastal, status,created_by_id,created_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [city_name, city_Code, stateId, iscoastal, status, created_by_id, created_date]
+    );
+
     res.status(200).json({
         success: true,
         message: "City created successfully",
         data: {
-            id: result.lastInsertRowid,
+            id: result.insertId,
             city_name,
             city_Code,
             stateId,
@@ -32,13 +37,17 @@ exports.addCity = (req, res) => {
     });
 };
 
-exports.updateCity = (req, res) => {
+
+// ✅ updateCity
+exports.updateCity = async (req, res) => {
     const { id } = req.params;
     const { city_name, city_Code, stateId, iscoastal, status, updated_by_id, updated_date } = req.body;
-    // Convert boolean to integer for SQLite
 
-    const stmt = db.prepare('UPDATE mstcitymaster SET city_name = ?, city_Code = ?, stateId = ?, iscoastal = ?, status = ?, updated_by_id = ?, updated_date = ? WHERE cityid = ?');
-    stmt.run(city_name, city_Code, stateId, iscoastal, status, updated_by_id, updated_date, id);
+    const [result] = await db.query(
+        'UPDATE mstcitymaster SET city_name = ?, city_Code = ?, stateId = ?, iscoastal = ?, status = ?, updated_by_id = ?, updated_date = ? WHERE cityid = ?',
+        [city_name, city_Code, stateId, iscoastal, status, updated_by_id, updated_date, id]
+    );
+
     res.status(200).json({
         success: true,
         message: "City updated successfully",
@@ -55,12 +64,17 @@ exports.updateCity = (req, res) => {
     });
 };
 
-exports.deleteCity = (req, res) => {
+
+// ✅ deleteCity
+exports.deleteCity = async (req, res) => {
     const { id } = req.params;
     try {
-        const stmt = db.prepare('DELETE FROM mstcitymaster WHERE cityid = ?');
-        const result = stmt.run(id);
-        if (result.changes > 0) {
+        const [result] = await db.query(
+            'DELETE FROM mstcitymaster WHERE cityid = ?',
+            [id]
+        );
+
+        if (result.affectedRows > 0) {
             res.json({
                 success: true,
                 message: 'City deleted successfully',
@@ -85,9 +99,15 @@ exports.deleteCity = (req, res) => {
     }
 };
 
-// controllers/cityController.js
-exports.getCitiesByState = (req, res) => {
+
+// ✅ getCitiesByState
+exports.getCitiesByState = async (req, res) => {
     const { stateId } = req.params;
-    const cities = db.prepare('SELECT * FROM mstcitymaster WHERE stateId = ?').all(stateId);
+
+    const [cities] = await db.query(
+        'SELECT * FROM mstcitymaster WHERE stateId = ?',
+        [stateId]
+    );
+
     res.json(cities);
 };

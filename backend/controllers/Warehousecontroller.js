@@ -3,9 +3,9 @@ const db = require('../config/db');
 /* ==============================
    Get All Warehouses
 ============================== */
-exports.getwarehouse = (req, res) => {
+exports.getwarehouse = async (req, res) => {
     try {
-        const warehouse = db.prepare('SELECT * FROM mstwarehouse').all();
+        const [warehouse] = await db.query('SELECT * FROM mstwarehouse');
 
         res.status(200).json({
             success: true,
@@ -24,11 +24,10 @@ exports.getwarehouse = (req, res) => {
     }
 };
 
-
 /* ==============================
    Add Warehouse
 ============================== */
-exports.addwarehouse = (req, res) => {
+exports.addwarehouse = async (req, res) => {
     try {
         const {
             warehouse_name,
@@ -41,13 +40,11 @@ exports.addwarehouse = (req, res) => {
             marketid
         } = req.body;
 
-        const stmt = db.prepare(`
+        const [result] = await db.query(`
             INSERT INTO mstwarehouse 
             (warehouse_name, location, total_items, status, created_by_id, created_date, hotelid, client_code, marketid) 
             VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?)
-        `);
-
-        const result = stmt.run(
+        `, [
             warehouse_name,
             location,
             status,
@@ -56,13 +53,13 @@ exports.addwarehouse = (req, res) => {
             hotelid,
             client_code,
             marketid
-        );
+        ]);
 
         res.status(201).json({
             success: true,
             message: "Warehouse created successfully",
             data: {
-                warehouseid: result.lastInsertRowid,
+                warehouseid: result.insertId,
                 warehouse_name,
                 location,
                 status,
@@ -85,11 +82,10 @@ exports.addwarehouse = (req, res) => {
     }
 };
 
-
 /* ==============================
    Update Warehouse
 ============================== */
-exports.updatewarehouse = (req, res) => {
+exports.updatewarehouse = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -104,7 +100,7 @@ exports.updatewarehouse = (req, res) => {
             marketid
         } = req.body;
 
-        const stmt = db.prepare(`
+        const [result] = await db.query(`
             UPDATE mstwarehouse 
             SET warehouse_name = ?, 
                 location = ?, 
@@ -115,9 +111,7 @@ exports.updatewarehouse = (req, res) => {
                 client_code = ?, 
                 marketid = ?
             WHERE warehouseid = ?
-        `);
-
-        stmt.run(
+        `, [
             warehouse_name,
             location,
             status,
@@ -127,7 +121,7 @@ exports.updatewarehouse = (req, res) => {
             client_code,
             marketid,
             id
-        );
+        ]);
 
         res.status(200).json({
             success: true,
@@ -156,17 +150,17 @@ exports.updatewarehouse = (req, res) => {
     }
 };
 
-
 /* ==============================
    Delete Warehouse
 ============================== */
-exports.deletewarehouse = (req, res) => {
+exports.deletewarehouse = async (req, res) => {
     try {
         const { id } = req.params;
 
-        db.prepare(
-            'DELETE FROM mstwarehouse WHERE warehouseid = ?'
-        ).run(id);
+        const [result] = await db.query(
+            'DELETE FROM mstwarehouse WHERE warehouseid = ?',
+            [id]
+        );
 
         res.status(200).json({
             success: true,

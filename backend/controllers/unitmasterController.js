@@ -1,14 +1,14 @@
 const db = require('../config/db');
 
 // Get All
-exports.getunitmaster = (req, res) => {
+exports.getunitmaster = async (req, res) => {
     try {
         const hotelid = req.query.hotelid || req.hotelid || 0;
 
-        const unitmaster = db.prepare(`
+        const [unitmaster] = await db.query(`
             SELECT * FROM mstunitmaster 
             WHERE hotelid = 0 OR hotelid = ?
-        `).all(hotelid);
+        `, [hotelid]);
 
         console.log("DATA:", unitmaster);
 
@@ -30,31 +30,30 @@ exports.getunitmaster = (req, res) => {
     }
 };
 
+
 // Add
-exports.addunitmaster = (req, res) => {
+exports.addunitmaster = async (req, res) => {
     try {
         const { unit_name, status, created_by_id, created_date, hotelid, client_code } = req.body;
 
-        const stmt = db.prepare(`
+        const [result] = await db.query(`
             INSERT INTO mstunitmaster 
             (unit_name, status, created_by_id, created_date, hotelid, client_code) 
             VALUES (?, ?, ?, ?, ?, ?)
-        `);
-
-        const result = stmt.run(
-            unit_name, 
-            status, 
-            created_by_id, 
-            created_date, 
-            hotelid, 
+        `, [
+            unit_name,
+            status,
+            created_by_id,
+            created_date,
+            hotelid,
             client_code
-        );
+        ]);
 
         res.status(201).json({
             success: true,
             message: "Unit master created successfully",
             data: {
-                unitid: result.lastInsertRowid,
+                unitid: result.insertId,
                 unit_name,
                 status,
                 created_by_id,
@@ -77,12 +76,12 @@ exports.addunitmaster = (req, res) => {
 
 
 // Update
-exports.updateunitmaster = (req, res) => {
+exports.updateunitmaster = async (req, res) => {
     try {
         const { id } = req.params;
         const { unit_name, status, updated_by_id, updated_date, hotelid, client_code } = req.body;
 
-        const stmt = db.prepare(`
+        await db.query(`
             UPDATE mstunitmaster 
             SET unit_name = ?, 
                 status = ?, 
@@ -91,17 +90,15 @@ exports.updateunitmaster = (req, res) => {
                 hotelid = ?, 
                 client_code = ?
             WHERE unitid = ?
-        `);
-
-        stmt.run(
-            unit_name, 
-            status, 
-            updated_by_id, 
-            updated_date, 
-            hotelid, 
-            client_code, 
+        `, [
+            unit_name,
+            status,
+            updated_by_id,
+            updated_date,
+            hotelid,
+            client_code,
             id
-        );
+        ]);
 
         res.status(200).json({
             success: true,
@@ -130,13 +127,15 @@ exports.updateunitmaster = (req, res) => {
 
 
 // Delete
-exports.deleteunitmaster = (req, res) => {
+exports.deleteunitmaster = async (req, res) => {
     try {
         const { id } = req.params;
         const hotelid = req.query.hotelid || req.hotelid;
 
-        const stmt = db.prepare('DELETE FROM mstunitmaster WHERE unitid = ? AND hotelid = ?');
-        stmt.run(id, hotelid);
+        await db.query(
+            'DELETE FROM mstunitmaster WHERE unitid = ? AND hotelid = ?',
+            [id, hotelid]
+        );
 
         res.status(200).json({
             success: true,
