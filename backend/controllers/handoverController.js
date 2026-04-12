@@ -1,13 +1,11 @@
 const db = require('../config/db');
 
-
-
 const getHandoverData = (req, res) => {
   const curr_date = req.query.curr_date;
 
   try {
     // Get all billed or settled bills with their details
-    const query = `
+    let query = `
       SELECT
           t.TxnID,
           t.TxnNo,
@@ -21,8 +19,6 @@ const getHandoverData = (req, res) => {
           t.RevKOT as RevAmt,
           t.TxnDatetime,
           t.Steward as Captain,
-          
-         
           t.UserId,
           u.username as UserName,
           (SELECT SUM(CASE WHEN i.item_name LIKE '%water%' THEN d.RuntimeRate * d.Qty ELSE 0 END) FROM TAxnTrnbilldetails d JOIN mstrestmenu i ON d.ItemID = i.restitemid WHERE d.TxnID = t.TxnID) as Water,
@@ -31,8 +27,8 @@ const getHandoverData = (req, res) => {
           GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
           t.NCPurpose,
           t.NCName,
-(
-            SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount)
+          (
+            SELECT GROUP_CONCAT(CONCAT(s.PaymentType, ':', s.Amount))
             FROM TrnSettlement s
             WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1 
           ) as Settlements,
@@ -44,13 +40,17 @@ const getHandoverData = (req, res) => {
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
-WHERE ((t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1)${curr_date ? ` AND DATE(t.TxnDatetime) = '${curr_date}'` : ''}
-     
-      GROUP BY t.TxnID, t.TxnNo
-      ORDER BY t.TxnDatetime DESC;
+      WHERE ((t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1)
     `;
 
-    const rows = db.prepare(query).all();
+    if (curr_date) {
+      query += ` AND DATE(t.TxnDatetime) = ?`;
+    }
+
+    query += ` GROUP BY t.TxnID, t.TxnNo ORDER BY t.TxnDatetime DESC`;
+
+    const params = curr_date ? [curr_date] : [];
+    const rows = db.query(query, params);
 
     // Group by transaction
     const transactions = {};
@@ -72,6 +72,7 @@ WHERE ((t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isrever
       let paymentModes = [];
 
       settlements.forEach(s => {
+        if (!s) return;
         const [type, amountStr] = s.split(':');
         const amount = parseFloat(amountStr) || 0;
         if (type) paymentModes.push(type);
@@ -88,7 +89,7 @@ WHERE ((t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isrever
           orderNo: row.TxnNo,
           table: row.TableID,
           waiter: row.Steward || 'Unknown',
-          amount: parseFloat(row.TotalAmount || 0), // This is Net Amount.
+          amount: parseFloat(row.TotalAmount || 0),
           type: row.isreversebill 
             ? 'Reversed' 
             : (paymentModes.length > 1 ? 'Split' : (paymentModes[0] || (row.isSetteled ? 'Cash' : 'Unpaid'))),
@@ -133,7 +134,7 @@ WHERE ((t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isrever
     const gpay = orders.reduce((sum, order) => sum + (order.gpay || 0), 0);
     const phonepe = orders.reduce((sum, order) => sum + (order.phonepe || 0), 0);
     const qrcode = orders.reduce((sum, order) => sum + (order.qrcode || 0), 0);
-    const upi = gpay + phonepe + qrcode; // Total UPI for backward compatibility if needed elsewhere
+    const upi = gpay + phonepe + qrcode;
 
     const pending = orders.filter(order => order.status === "Pending").length;
     const completed = orders.filter(order => order.status === "Settled").length;
@@ -191,35 +192,31 @@ const saveCashDenomination = (req, res) => {
   }
 
   try {
-    const stmt = db.prepare(`
+    const stmt = `
       INSERT INTO trn_cashdenomination (
         note_2000, note_500, note_200, note_100, note_50, note_20, note_10, note_5, note_2, note_1,
         total_2000, total_500, total_200, total_100, total_50, total_20, total_10, total_5, total_2, total_1,
         grand_total, user_id, handover_reason
-      ) VALUES (
-        @note_2000, @note_500, @note_200, @note_100, @note_50, @note_20, @note_10, @note_5, @note_2, @note_1,
-        @total_2000, @total_500, @total_200, @total_100, @total_50, @total_20, @total_10, @total_5, @total_2, @total_1,
-        @grand_total, @user_id, @reason
-      )
-    `);
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
 
-    const info = stmt.run({
-      note_2000: denominations['2000'] || 0, note_500: denominations['500'] || 0,
-      note_200: denominations['200'] || 0, note_100: denominations['100'] || 0,
-      note_50: denominations['50'] || 0, note_20: denominations['20'] || 0,
-      note_10: denominations['10'] || 0, note_5: denominations['5'] || 0,
-      note_2: denominations['2'] || 0, note_1: denominations['1'] || 0,
-      total_2000: (denominations['2000'] || 0) * 2000, total_500: (denominations['500'] || 0) * 500,
-      total_200: (denominations['200'] || 0) * 200, total_100: (denominations['100'] || 0) * 100,
-      total_50: (denominations['50'] || 0) * 50, total_20: (denominations['20'] || 0) * 20,
-      total_10: (denominations['10'] || 0) * 10, total_5: (denominations['5'] || 0) * 5,
-      total_2: (denominations['2'] || 0) * 2, total_1: (denominations['1'] || 0) * 1,
-      grand_total: total,
-      user_id: userId,
-      reason: reason || null
-    });
+    const result = db.query(stmt, [
+      denominations['2000'] || 0, denominations['500'] || 0,
+      denominations['200'] || 0, denominations['100'] || 0,
+      denominations['50'] || 0, denominations['20'] || 0,
+      denominations['10'] || 0, denominations['5'] || 0,
+      denominations['2'] || 0, denominations['1'] || 0,
+      (denominations['2000'] || 0) * 2000, (denominations['500'] || 0) * 500,
+      (denominations['200'] || 0) * 200, (denominations['100'] || 0) * 100,
+      (denominations['50'] || 0) * 50, (denominations['20'] || 0) * 20,
+      (denominations['10'] || 0) * 10, (denominations['5'] || 0) * 5,
+      (denominations['2'] || 0) * 2, (denominations['1'] || 0) * 1,
+      total,
+      userId,
+      reason || null
+    ]);
 
-    res.json({ success: true, message: 'Cash denomination saved successfully.', id: info.lastInsertRowid });
+    res.json({ success: true, message: 'Cash denomination saved successfully.', id: result.insertId });
   } catch (error) {
     // console.error('Error saving cash denomination:', error);
     res.status(500).json({ success: false, message: 'Failed to save cash denomination data.' });
@@ -228,7 +225,6 @@ const saveCashDenomination = (req, res) => {
 
 const saveHandover = (req, res) => {
   const { handoverToUserId, handoverByUserId } = req.body;
-  // const handoverByUserId = req.user.userid; // Assuming user is available from auth middleware
 
   if (!handoverToUserId || !handoverByUserId) {
     return res.status(400).json({ success: false, message: 'Missing user IDs for handover.' });
@@ -236,21 +232,20 @@ const saveHandover = (req, res) => {
 
   try {
     // Update HandOverEmpID for all unsettled but billed/settled transactions
-    const stmt = db.prepare(`
+    const stmt = `
       UPDATE TAxnTrnbill
       SET HandOverEmpID = ?
       WHERE isSetteled = 1 AND HandOverEmpID IS NULL
-    `);
+    `;
 
-    const info = stmt.run(handoverToUserId);
+    const result = db.query(stmt, [handoverToUserId]);
 
-    res.json({ success: true, message: `Handover successful. ${info.changes} bills updated.` });
+    res.json({ success: true, message: `Handover successful. ${result.affectedRows} bills updated.` });
   } catch (error) {
     // console.error('Error saving handover:', error);
     res.status(500).json({ success: false, message: 'Failed to save handover data.' });
   }
 };
-
 
 module.exports = {
   getHandoverData,

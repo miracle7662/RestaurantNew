@@ -43,7 +43,7 @@ const themeColor = colors[selectedColor] || selectedColor
           to: user?.currDate
         } as any;
         const response = await SettlementService.list(filters)
-        const data = response.data || []
+        const data = Array.isArray(response.data) ? response.data : []
         setSettlements(data)
       } catch (error: any) {
         console.error('Error fetching settlement data:', error)
@@ -59,7 +59,8 @@ const themeColor = colors[selectedColor] || selectedColor
   const getPaymentTypeSummary = () => {
     const summary: Record<string, number> = {}
 
-    settlements.forEach((s) => {
+    if (!Array.isArray(settlements)) return { categories: [], data: [] };
+        settlements.forEach((s) => {
       const type = s.PaymentType || 'Unknown'
       const amount = Number(s.Amount) || 0
       summary[type] = (summary[type] || 0) + amount

@@ -69,14 +69,14 @@ exports.getOutlets = async (req, res) => {
     }
 
     query += ' ORDER BY o.outlet_name';
-    // console.log('Constructed query:', query, 'with params:', params);
+    console.log('Constructed query:', query, 'with params:', params);
 
     const outlets = await db.query(query, params);
-    // console.log('Found outlets:', outlets);
+    console.log('Found outlets:', outlets);
 
     res.status(200).json ({success: true, message: 'Outlets fetched successfully',data: outlets})
   } catch (error) {
-    // console.error('Error fetching outlets:', error);
+     console.error('Error fetching outlets:', error);
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };

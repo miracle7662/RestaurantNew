@@ -1,10 +1,8 @@
 const db = require('../config/db');
 
-
-
 exports.getCustomer = (req, res) => {
   try {
-    const customers = db.prepare(`
+    const customers = db.query(`
       SELECT
         C.customerid,
         C.name,
@@ -34,7 +32,7 @@ exports.getCustomer = (req, res) => {
       FROM mstcustomer C
       LEFT JOIN mstcitymaster M ON C.cityid = M.cityid
       LEFT JOIN mststatemaster S ON C.stateid = S.stateid
-    `).all();
+    `);
 
     res.json({
       success: true,
@@ -56,7 +54,7 @@ exports.addCustomer = (req, res) => {
   try {
     const { ...body } = req.body;
 
-    const stmt = db.prepare(`
+    const stmt = `
       INSERT INTO mstcustomer (
         name, countryCode, mobile, mail, cityid,
         address1, address2, stateid, pincode,
@@ -64,9 +62,9 @@ exports.addCustomer = (req, res) => {
         birthday, anniversary, customerType,
         status, createWallet, created_by_id, created_date
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    `;
 
-    const result = stmt.run(
+    const result = db.query(stmt, [
       body.name,
       body.countryCode,
       body.mobile,
@@ -87,10 +85,10 @@ exports.addCustomer = (req, res) => {
       body.createWallet ? 1 : 0,
       body.created_by_id,
       body.created_date
-    );
+    ]);
 
     const newCustomer = {
-      customerid: result.lastInsertRowid,
+      customerid: result.insertId,
       ...body
     };
 
@@ -115,7 +113,7 @@ exports.updateCustomer = (req, res) => {
     const { id } = req.params;
     const { ...body } = req.body;
 
-    const stmt = db.prepare(`
+    const stmt = `
       UPDATE mstcustomer SET
         name=?, countryCode=?, mobile=?, mail=?, cityid=?,
         address1=?, address2=?, stateid=?, pincode=?,
@@ -123,9 +121,9 @@ exports.updateCustomer = (req, res) => {
         birthday=?, anniversary=?, customerType=?,
         status=?, createWallet=?, updated_by_id=?, updated_date=?
       WHERE customerid=?
-    `);
+    `;
 
-    stmt.run(
+    db.query(stmt, [
       body.name,
       body.countryCode,
       body.mobile,
@@ -147,7 +145,7 @@ exports.updateCustomer = (req, res) => {
       body.updated_by_id,
       body.updated_date,
       id
-    );
+    ]);
 
     res.json({
       success: true,
@@ -169,7 +167,7 @@ exports.deleteCustomer = (req, res) => {
   try {
     const { id } = req.params;
 
-    db.prepare('DELETE FROM mstcustomer WHERE customerid = ?').run(id);
+    db.query('DELETE FROM mstcustomer WHERE customerid = ?', [id]);
 
     res.json({
       success: true,
@@ -200,13 +198,13 @@ exports.getCustomerByMobile = (req, res) => {
       });
     }
 
-    const stmt = db.prepare(`
+    const stmt = `
       SELECT customerid, name, mobile, address1, address2
       FROM mstcustomer
       WHERE TRIM(mobile) = TRIM(?)
       LIMIT 1
-    `);
-    const customer = stmt.get(mobile);
+    `;
+    const customer = db.query(stmt, [mobile])[0];
 
     if (customer) {
       res.json({ 
@@ -231,4 +229,3 @@ exports.getCustomerByMobile = (req, res) => {
     });
   }
 };
-

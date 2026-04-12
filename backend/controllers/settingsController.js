@@ -1,27 +1,24 @@
-// controllers/printerControllers.js
+// controllers/settingsController.js (Printer Settings) - MySQL Converted
+const db = require('../config/db');
 
-const db = require('../config/db.js');
 
 // Helper Functions ------------------------
-const runQuery = (query, params = []) => {
-  const stmt = db.prepare(query);
-  const result = stmt.run(params);
-  return { id: result.lastInsertRowid, changes: result.changes };
+const runQuery = async (query, params = []) => {
+  const [result] = await db.execute(query, params);
+  return { insertId: result.insertId, affectedRows: result.affectedRows };
 };
 
-const getAll = (query, params = []) => {
-  const stmt = db.prepare(query);
-  return stmt.all(params);
+const getAll = async (query, params = []) => {
+  const [rows] = await db.execute(query, params);
+  return rows;
 };
-
-
 
 // ------------------------------------------
 // 2️⃣ KOT Printer Settings
 // ------------------------------------------
 exports.getKotPrinterSettings = async (req, res) => {
   try {
-    const { id } = req.params; // <-- get route param
+    const { id } = req.params;
     const rows = await getAll(
       "SELECT * FROM kot_printer_settings WHERE outletid = ? LIMIT 1",
       [id]
@@ -42,16 +39,12 @@ exports.getKotPrinterSettings = async (req, res) => {
  */
 exports.getAllKotPrinterSettings = async (req, res) => {
   try {
-    const rows = await getAll("SELECT * FROM kot_printer_settings ");
+    const rows = await getAll("SELECT * FROM kot_printer_settings");
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 };
-
-
-
-
 
 exports.createKotPrinterSetting = async (req, res) => {
   try {
@@ -59,13 +52,13 @@ exports.createKotPrinterSetting = async (req, res) => {
       printer_name,
       hotelid,
       order_type,
-      size,
+      size, 
       copies = 1,
       outletid,
       enableKotPrint = 1
     } = req.body;
 
-    if (!printer_name  || !order_type || !size || !outletid) {
+    if (!printer_name || !order_type || !size || !outletid) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -86,7 +79,7 @@ exports.createKotPrinterSetting = async (req, res) => {
 
     res.json({ success: true, msg: 'KOT Setting Added' });
   } catch (e) {
-    // console.error('KOT INSERT ERROR:', e.message);
+    console.error('KOT INSERT ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -104,13 +97,13 @@ exports.deleteKotPrinterSetting = async (req, res) => {
       [id]
     );
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'KOT printer setting not found' });
     }
 
     res.json({ success: true, msg: 'KOT printer setting deleted successfully' });
   } catch (e) {
-    // console.error('KOT DELETE ERROR:', e.message);
+    console.error('KOT DELETE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -134,12 +127,11 @@ exports.getBillPrinterSettings = async (req, res) => {
       return res.json({ printer_name: null });
     }
 
-    res.json(rows[0]); // ✅ SINGLE OBJECT
+    res.json(rows[0]);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 };
-
 
 /**
  * Get all bill printer settings without id parameter
@@ -152,7 +144,6 @@ exports.getAllBillPrinterSettings = async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 };
-
 
 exports.createBillPrinterSetting = async (req, res) => {
   try {
@@ -187,7 +178,7 @@ exports.createBillPrinterSetting = async (req, res) => {
 
     res.json({ success: true, msg: 'Bill Printer Setting Added' });
   } catch (e) {
-    // console.error('BILL INSERT ERROR:', e.message);
+    console.error('BILL INSERT ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -205,17 +196,16 @@ exports.deleteBillPrinterSetting = async (req, res) => {
       [id]
     );
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Bill printer setting not found' });
     }
 
     res.json({ success: true, msg: 'Bill printer setting deleted successfully' });
   } catch (e) {
-    // console.error('BILL DELETE ERROR:', e.message);
+    console.error('BILL DELETE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
-
 
 // ------------------------------------------
 // 4️⃣ Table-wise KOT Printer
@@ -223,7 +213,7 @@ exports.deleteBillPrinterSetting = async (req, res) => {
 
 exports.getTableWiseKOT = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM table_wise_kot_printer WHERE outletid = ?', [req.outletid]);
+    const rows = await getAll('SELECT * FROM table_wise_kot_printer WHERE outletid = ?', [req.outletid]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -257,7 +247,7 @@ exports.createTableWiseKOT = async (req, res) => {
 
 exports.getTableWiseBill = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM table_wise_bill_printer WHERE outletid = ?', [req.outletid]);
+    const rows = await getAll('SELECT * FROM table_wise_bill_printer WHERE outletid = ?', [req.outletid]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -287,7 +277,7 @@ exports.createTableWiseBill = async (req, res) => {
 
 exports.getCategoryWisePrinters = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM category_wise_printer WHERE outletid = ?', [req.outletid]);
+    const rows = await getAll('SELECT * FROM category_wise_printer WHERE outletid = ?', [req.outletid]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -296,8 +286,7 @@ exports.getCategoryWisePrinters = async (req, res) => {
 
 exports.createCategoryWisePrinter = async (req, res) => {
   try {
-    const { category, printer_name, order_type, size, source, copies, outletid } =
-      req.body;
+    const { category, printer_name, order_type, size, source, copies, outletid } = req.body;
 
     if (!outletid) {
       return res.status(400).json({ error: 'outletid is required' });
@@ -322,7 +311,7 @@ exports.createCategoryWisePrinter = async (req, res) => {
 
 exports.getDepartmentWisePrinters = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM department_wise_printer');
+    const rows = await getAll('SELECT * FROM department_wise_printer');
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -331,26 +320,22 @@ exports.getDepartmentWisePrinters = async (req, res) => {
 
 exports.createDepartmentWisePrinter = async (req, res) => {
   try {
-   
     const { department, printer_name, order_type, size, hotelid, copies, outletid } = req.body;
 
-
     if (!outletid) {
-      // console.log('outletid is missing');
       return res.status(400).json({ error: 'outletid is required' });
     }
 
-    const query = `INSERT INTO department_wise_printer
+    await runQuery(
+      `INSERT INTO department_wise_printer
       (department, printer_name, order_type, size, hotelid, copies, outletid)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`;
-    const params = [department, printer_name, order_type, size, hotelid, copies, outletid];
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [department, printer_name, order_type, size, hotelid, copies, outletid]
+    );
 
-   
-    const result = await runQuery(query, params);
-    
     res.json({ msg: 'Department-wise Setting Added' });
   } catch (e) {
-    // console.error('Error in createDepartmentWisePrinter:', e);
+    console.error('Error in createDepartmentWisePrinter:', e);
     res.status(500).json({ error: e.message });
   }
 };
@@ -361,12 +346,10 @@ exports.createDepartmentWisePrinter = async (req, res) => {
 
 exports.getLabelPrinterSettings = async (req, res) => {
   try {
-    // console.log('Fetching label printer settings...');
-    const rows = getAll('SELECT * FROM label_printer_settings');
-    // console.log('Label printer settings data:', rows);
+    const rows = await getAll('SELECT * FROM label_printer_settings');
     res.json(rows);
   } catch (e) {
-    // console.error('Error fetching label printer settings:', e.message);
+    console.error('Error fetching label printer settings:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -408,7 +391,7 @@ exports.updateLabelPrinter = async (req, res) => {
       [printer_name, paper_width, is_enabled ? 1 : 0, id]
     );
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Label printer setting not found' });
     }
 
@@ -423,13 +406,11 @@ exports.updateLabelPrinter = async (req, res) => {
 // 9️⃣ Report Printer Settings
 // ------------------------------------------
 
-
-
 exports.getReportPrinterSettings = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const rows = getAll(
+    const rows = await getAll(
       "SELECT * FROM report_printer_settings WHERE outletid = ? OR hotelid = ?",
       [id, id]
     );
@@ -439,7 +420,6 @@ exports.getReportPrinterSettings = async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 };
-
 
 exports.createReportPrinter = async (req, res) => {
   try {
@@ -467,9 +447,6 @@ exports.updateReportPrinter = async (req, res) => {
     const { id } = req.params;
     const { printer_name, paper_size, auto_print } = req.body;
 
-    // console.log('Updating report printer with ID:', id);
-    // console.log('Request body:', { printer_name, paper_size, auto_print });
-
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
     }
@@ -481,10 +458,9 @@ exports.updateReportPrinter = async (req, res) => {
       [printer_name, paper_size, auto_print ? 1 : 0, id]
     );
 
-    // console.log('Update result:', result);
     res.json({ msg: 'Report Printer Updated' });
   } catch (e) {
-    // console.error('Error updating report printer:', e.message);
+    console.error('Error updating report printer:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -514,17 +490,16 @@ exports.deleteReportPrinter = async (req, res) => {
       [id]
     );
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Report printer setting not found' });
     }
 
     res.json({ success: true, msg: 'Report printer setting deleted successfully' });
   } catch (e) {
-    // console.error('REPORT PRINTER DELETE ERROR:', e.message);
+    console.error('REPORT PRINTER DELETE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
-
 
 // ------------------------------------------
 // 🔟 KDS Department User
@@ -532,7 +507,7 @@ exports.deleteReportPrinter = async (req, res) => {
 
 exports.getKDSUsers = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM kds_department_user');
+    const rows = await getAll('SELECT * FROM kds_department_user');
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -547,7 +522,6 @@ exports.createKDSUser = async (req, res) => {
       `INSERT INTO kds_department_user 
       (department, user, is_active, updated_at) 
       VALUES (?, ?, ?, ?)`,
-
       [department, user, is_active, updated_at]
     );
 
@@ -568,26 +542,23 @@ exports.getMstSettingByOutlet = async (req, res) => {
   try {
     const { outletid } = req.params;
 
-    const row = await getAll(
+    const rows = await getAll(
       "SELECT departmentid FROM mst_setting WHERE outletid = ? LIMIT 1",
       [outletid]
     );
 
-    if (!row || row.length === 0) {
-      // Auto-create default takeaway setting (dept=1)
-      // console.log(`Auto-creating mst_setting for outlet ${outletid}`);
+    if (!rows || rows.length === 0) {
       await runQuery(
         `INSERT INTO mst_setting (hotelid, outletid, departmentid, created_by_id)
          VALUES (?, ?, 1, 1)`,
         [req.user?.hotelid || 1, outletid]
       );
-      // Return default dept=1
       return res.json({ success: true, data: { departmentid: 1 } });
     }
 
-    res.json({ success: true, data: { departmentid: row[0].departmentid } });
+    res.json({ success: true, data: { departmentid: rows[0].departmentid } });
   } catch (e) {
-    // console.error('mst_setting GET ERROR:', e.message);
+    console.error('mst_setting GET ERROR:', e.message);
     res.status(500).json({ success: false, error: e.message });
   }
 };
@@ -606,13 +577,11 @@ exports.getTakeawaySetting = async (req, res) => {
     );
 
     if (!rows || rows.length === 0) {
-      // console.log(`Auto-creating takeaway setting for outlet ${id}`);
       await runQuery(
         `INSERT INTO mst_setting (hotelid, outletid, departmentid, created_by_id)
          VALUES (?, ?, 1, 1)`,
         [req.user?.hotelid || 1, id]
       );
-      // Fetch the newly created record
       rows = await getAll(
         "SELECT * FROM mst_setting WHERE outletid = ? LIMIT 1",
         [id]
@@ -621,7 +590,7 @@ exports.getTakeawaySetting = async (req, res) => {
 
     res.json(rows[0]);
   } catch (e) {
-    // console.error('Takeaway GET ERROR:', e.message);
+    console.error('Takeaway GET ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -629,7 +598,7 @@ exports.getTakeawaySetting = async (req, res) => {
 exports.updateTakeawaySetting = async (req, res) => {
   try {
     const {
-      settingid,       // ID of the setting to update
+      settingid,
       hotelid,
       outletid,
       departmentid,
@@ -651,13 +620,13 @@ exports.updateTakeawaySetting = async (req, res) => {
       [hotelid, outletid, departmentid, created_by_id, settingid]
     );
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Takeaway setting not found' });
     }
 
     res.json({ success: true, msg: 'Takeaway setting updated successfully' });
   } catch (e) {
-    // console.error('Takeaway UPDATE ERROR:', e.message);
+    console.error('Takeaway UPDATE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -679,12 +648,12 @@ exports.getUIMode = async (req, res) => {
     );
 
     if (!rows || rows.length === 0) {
-      return res.json({ ui_mode: 'Orders' }); // Default
+      return res.json({ ui_mode: 'Orders' });
     }
 
     res.json(rows[0]);
   } catch (e) {
-    // console.error('UI Mode GET ERROR:', e.message);
+    console.error('UI Mode GET ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -706,7 +675,7 @@ exports.saveUIMode = async (req, res) => {
     }
 
     // First try UPDATE
-    let result = await runQuery(
+    const result = await runQuery(
       `UPDATE mst_setting 
        SET ui_mode = ?,
            updated_at = CURRENT_TIMESTAMP
@@ -714,18 +683,18 @@ exports.saveUIMode = async (req, res) => {
       [ui_mode, outletid]
     );
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       // INSERT if no existing record
       await runQuery(
         `INSERT INTO mst_setting (hotelid, outletid, ui_mode, departmentid, created_by_id)
-         VALUES (?, ?, ?, 1, ?)`, // default departmentid=1
+         VALUES (?, ?, ?, 1, ?)`,
         [hotelid || 1, outletid, ui_mode, created_by_id]
       );
     }
 
     res.json({ success: true, msg: 'UI Mode setting saved successfully', ui_mode });
   } catch (e) {
-    // console.error('UI Mode SAVE ERROR:', e.message);
+    console.error('UI Mode SAVE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };

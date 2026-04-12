@@ -904,6 +904,8 @@ async function initDB() {
       CustomerName TEXT,
       MobileNo TEXT,
       Address TEXT,
+      Refund DECIMAL(10,2) DEFAULT 0,
+      Receive DECIMAL(10,2) DEFAULT 0,
       Name2 TEXT,
       Name3 TEXT,
       table_name TEXT

@@ -164,7 +164,8 @@ function Customers() {
     const response = await CustomerService.list();
 
     // ✅ Extract actual customer array - with guard for undefined
-    setCustomers(response.data || []);
+    const data = Array.isArray(response.data) ? response.data : [];
+       setCustomers(data);
 
   } catch (err) {
     toast.error('Error fetching customer data');

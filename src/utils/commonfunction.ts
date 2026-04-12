@@ -636,7 +636,7 @@ export const fetchOutlets = async (
 ) => {
   try {
     setLoading(true)
-    // console.log('Fetching outlets...')
+     console.log('Fetching outlets...')
 
     const params: any = {
       role_level: user?.role_level,
@@ -654,17 +654,17 @@ export const fetchOutlets = async (
       params.created_by_id = user.userid
     }
 
-    // console.log('Fetching outlets with params:', params)
-    // console.log('Current user details:', {
-    //   userid: user?.userid,
-    //   role_level: user?.role_level,
-    //   brand_id: user?.brand_id,
-    //   hotelid: user?.hotelid,
-    //   outletid: params.outletid,
-    // })
+    console.log('Fetching outlets with params:', params)
+    console.log('Current user details:', {
+      userid: user?.userid,
+      role_level: user?.role_level,
+      brand_id: user?.brand_id,
+      hotelid: user?.hotelid,
+      outletid: params.outletid,
+    })
 
     const response = await OutletService.getOutlets(params)
-    // console.log('Outlet response:', response)
+     console.log('Outlet response:', response)
 
     if (response && response.data) {
       const sortedOutlets = response.data.sort((a: any, b: any) => {

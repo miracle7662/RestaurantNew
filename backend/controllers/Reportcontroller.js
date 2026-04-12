@@ -52,7 +52,7 @@ const getReportData = (req, res) => {
           t.NCPurpose,
           t.NCName,
           (
-            SELECT GROUP_CONCAT(DISTINCT s.PaymentType || ':' || s.Amount)
+            SELECT GROUP_CONCAT(CONCAT(s.PaymentType, ':', s.Amount))
             FROM TrnSettlement s
             WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1
           ) as Settlements,
@@ -92,7 +92,6 @@ const getReportData = (req, res) => {
         groupByClause = ' GROUP BY t.Steward';
         orderByClause = ' ORDER BY SUM(t.Amount) DESC';
         break;
-      // Add more cases...
       default:
         // billSummary - only billed bills
         whereConditions.push('t.isBilled = 1');
@@ -103,18 +102,16 @@ const getReportData = (req, res) => {
     }
     baseQuery += ' AND DATE(t.TxnDatetime) BETWEEN ? AND ?' + groupByClause + orderByClause;
 
-    const rows = db.prepare(baseQuery).all(...params);
+    const rows = db.query(baseQuery, params);
     const transactions = {};
 
     rows.forEach(row => {
-      // Include all rows - remove the restrictive filter
-      // if (!row.Settlements && !row.isSetteled && !row.isreversebill) return;
-
       const settlements = (row.Settlements || '').split(',');
       const paymentBreakdown = { cash: 0, card: 0, gpay: 0, phonepe: 0, qrcode: 0, credit: 0 };
       let paymentModes = [];
 
       settlements.forEach(s => {
+        if (!s) return;
         const [type, amountStr] = s.split(':');
         const amount = parseFloat(amountStr) || 0;
         if (type) paymentModes.push(type);
@@ -163,7 +160,7 @@ const getReportData = (req, res) => {
           cgst: parseFloat(row.CGST || 0),
           sgst: parseFloat(row.SGST || 0),
           outlet_name: row.outlet_name,
-          outletid: row.outletid, // Add outletid to the response object
+          outletid: row.outletid,
           table_name: row.table_name,
           department_name: row.department_name,
           grossAmount: parseFloat(row.GrossAmount || 0),
@@ -220,8 +217,6 @@ const getDuplicateBill = (req, res) => {
       return res.status(400).json({ success: false, message: 'billNo and outletId required' });
     }
 
-    // console.log('🔍 Searching duplicate bill - billNo:', billNo, 'outletId:', outletId, 'billDate:', billDate || 'any');
-
     // Build WHERE clause - search both TxnNo and orderNo for takeaway bills
     let whereClause = 't.outletid = ? AND t.isCancelled = 0 AND t.isBilled = 1 AND (t.TxnNo = ? OR t.orderNo = ?)';
     const params = [outletId, billNo, billNo];
@@ -266,20 +261,9 @@ const getDuplicateBill = (req, res) => {
       LIMIT 1
     `;
 
-    const bill = db.prepare(billQuery).get(...params);
-
-    // console.log('🔍 DEBUG DuplicateBill - Raw bill data:', {
-    //   TxnID: bill.TxnID,
-    //   TxnNo: bill.TxnNo,
-    //   orderNo: bill.orderNo,
-    //   Amount: bill.Amount, 
-    //   GrossAmt: bill.GrossAmt,
-    //   Discount: bill.Discount,
-    //   CGST: bill.CGST
-    // });
+    const bill = db.query(billQuery, params)[0];
 
     if (!bill) {
-      // console.log('❌ No bill found with billNo/outletId:', billNo, outletId);
       return res.status(404).json({ success: false, message: 'Bill not found' });
     }
 
@@ -296,7 +280,7 @@ const getDuplicateBill = (req, res) => {
         t.NCPurpose,
         d.SpecialInst AS note,
         d.VariantName AS modifier,
-        NULL AS hsn  -- hsn_code not present in your table
+        NULL AS hsn
       FROM TAxnTrnbilldetails d
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       LEFT JOIN TAxnTrnbill t ON d.TxnID = t.TxnID
@@ -304,21 +288,21 @@ const getDuplicateBill = (req, res) => {
       ORDER BY d.TXnDetailID
     `;
 
-    const items = db.prepare(itemsQuery).all(bill.TxnID);
+    const items = db.query(itemsQuery, [bill.TxnID]);
 
     // Tax calculations
     const subtotal = parseFloat(bill.GrossAmt || 0) - parseFloat(bill.Discount || 0);
-    const taxableValue = subtotal;  // Add taxableValue for frontend
+    const taxableValue = subtotal;
     const cgstAmt = parseFloat(bill.CGST || 0);
     const sgstAmt = parseFloat(bill.SGST || 0);
     const igstAmt = parseFloat(bill.IGST || 0);
-    const grandTotal = parseFloat(bill.Amount || 0);  // FIXED: use Amount field
-   const roundOffValue = parseFloat(bill.roundOffValue || 0);
+    const grandTotal = parseFloat(bill.Amount || 0);
+    const roundOffValue = parseFloat(bill.roundOffValue || 0);
     const roundOffEnabled = Math.abs(roundOffValue) > 0.01;
 
-    const cgstRate = cgstAmt > 0 ? (cgstAmt / subtotal) * 100 : 0;
-    const sgstRate = sgstAmt > 0 ? (sgstAmt / subtotal) * 100 : 0;
-    const igstRate = igstAmt > 0 ? (igstAmt / subtotal) * 100 : 0;
+    const cgstRate = cgstAmt > 0 && subtotal > 0 ? (cgstAmt / subtotal) * 100 : 0;
+    const sgstRate = sgstAmt > 0 && subtotal > 0 ? (sgstAmt / subtotal) * 100 : 0;
+    const igstRate = igstAmt > 0 && subtotal > 0 ? (igstAmt / subtotal) * 100 : 0;
 
     // Payment modes - use TxnNo or orderNo
     const orderNoForPayments = bill.TxnNo || bill.orderNo;
@@ -327,7 +311,7 @@ const getDuplicateBill = (req, res) => {
       FROM TrnSettlement
       WHERE (OrderNo = ? OR TxnNo = ?) AND isSettled = 1
     `;
-    const payments = db.prepare(paymentsQuery).all(orderNoForPayments, orderNoForPayments);
+    const payments = db.query(paymentsQuery, [orderNoForPayments, orderNoForPayments]);
 
     res.json({
       success: true,
@@ -340,7 +324,7 @@ const getDuplicateBill = (req, res) => {
         mobileNumber: bill.mobileNumber,
         currentTxnId: bill.TxnID.toString(),
         taxCalc: {
-          taxableValue: parseFloat(taxableValue.toFixed(2)),  // NEW: explicit taxable value
+          taxableValue: parseFloat(taxableValue.toFixed(2)),
           subtotal: parseFloat(subtotal.toFixed(2)),
           cgstAmt: parseFloat(cgstAmt.toFixed(2)),
           sgstAmt: parseFloat(sgstAmt.toFixed(2)),
@@ -369,4 +353,3 @@ const getDuplicateBill = (req, res) => {
 };
 
 module.exports = { getReportData, getDuplicateBill };
-

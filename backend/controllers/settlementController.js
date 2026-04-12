@@ -59,7 +59,7 @@ exports.getSettlements = async (req, res) => {
         s.Refund,
         s.HotelID,
         s.TxnID,
-s.TxnNo AS TaxNo,
+        s.TxnNo AS TaxNo,
         s.UserId,
         s.Name,
         s.CustomerName,
@@ -73,7 +73,7 @@ s.TxnNo AS TaxNo,
       ORDER BY s.InsertDate DESC
     `;
 
-    const settlements = db.prepare(sql).all(...params);
+    const settlements = db.query(sql, params);
 
     res.json({
       success: true,
@@ -88,17 +88,16 @@ s.TxnNo AS TaxNo,
   }
 };
 
-
-
 // Update settlement
 exports.updateSettlement = async (req, res) => {
   try {
     const { id } = req.params;
     const { PaymentType, Amount, EditedBy } = req.body;
 
-    const settlement = db
-      .prepare('SELECT * FROM TrnSettlement WHERE SettlementID = ? AND isSettled = 1')
-      .get(Number(id));
+    const settlement = db.query(
+      'SELECT * FROM TrnSettlement WHERE SettlementID = ? AND isSettled = 1',
+      [Number(id)]
+    )[0];
 
     if (!settlement) {
       return res.status(404).json({
@@ -107,7 +106,7 @@ exports.updateSettlement = async (req, res) => {
       });
     }
 
-    db.prepare(`
+    db.query(`
       INSERT INTO TrnSettlementLog (
         SettlementID,
         OldPaymentType,
@@ -117,24 +116,24 @@ exports.updateSettlement = async (req, res) => {
         EditedBy
       )
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       settlement.SettlementID,
       settlement.PaymentType,
       settlement.Amount,
       PaymentType,
       Amount,
       EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown'
-    );
+    ]);
 
-    db.prepare(`
+    db.query(`
       UPDATE TrnSettlement
       SET PaymentType = ?, Amount = ?
       WHERE SettlementID = ?
-    `).run(
+    `, [
       PaymentType,
       Number(Amount),
       Number(id)
-    );
+    ]);
 
     res.json({
       success: true,
@@ -150,12 +149,9 @@ exports.updateSettlement = async (req, res) => {
   }
 };
 
-
-
 // Create settlement
 exports.createSettlement = async (req, res) => {
   try {
-
     const {
       OrderNo,
       PaymentType,
@@ -166,9 +162,10 @@ exports.createSettlement = async (req, res) => {
     } = req.body;
 
     // Fetch TxnID from bill
-    const bill = db.prepare(`
+    const bill = db.query(`
       SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
-    `).get(OrderNo, OrderNo);
+    `, [OrderNo, OrderNo])[0];
+    
     const txnID = bill ? bill.TxnID : null;
 
     if (!OrderNo || !PaymentType || !Amount || !HotelID) {
@@ -178,11 +175,11 @@ exports.createSettlement = async (req, res) => {
       });
     }
 
-    const paymentMode = db.prepare(`
+    const paymentMode = db.query(`
       SELECT paymenttypeid
       FROM payment_types
       WHERE mode_name = ?
-    `).get(PaymentType);
+    `, [PaymentType])[0];
 
     if (!paymentMode) {
       return res.status(400).json({
@@ -193,11 +190,9 @@ exports.createSettlement = async (req, res) => {
 
     const paymentTypeID = paymentMode.paymenttypeid;
 
-    const insertDate =
-      InsertDate ||
-      new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const insertDate = InsertDate || new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-    db.prepare(`
+    db.query(`
       INSERT INTO TrnSettlement (
         OrderNo,
         TxnID,
@@ -209,10 +204,9 @@ exports.createSettlement = async (req, res) => {
         HotelID,
         isSettled,
         InsertDate
-
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
-    `).run(
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+    `, [
       OrderNo,
       txnID || null,
       req.body.table_name || null,
@@ -221,7 +215,7 @@ exports.createSettlement = async (req, res) => {
       Number(Amount),
       HotelID,
       insertDate
-    );
+    ]);
 
     res.json({
       success: true,
@@ -237,19 +231,16 @@ exports.createSettlement = async (req, res) => {
   }
 };
 
-
-
-// Replace settlements
 // Replace settlements
 exports.replaceSettlement = async (req, res) => {
   try {
-
     const { OrderNo, newSettlements, HotelID, EditedBy, InsertDate, TipAmount } = req.body;
 
     // Fetch TxnID from bill for replaceSettlement
-    const bill = db.prepare(`
+    const bill = db.query(`
       SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
-    `).get(OrderNo, OrderNo);
+    `, [OrderNo, OrderNo])[0];
+    
     const txnID = bill ? bill.TxnID : null;
 
     if (!OrderNo || !Array.isArray(newSettlements) || !HotelID) {
@@ -261,106 +252,89 @@ exports.replaceSettlement = async (req, res) => {
 
     const editedBySafe = EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown';
 
-    const insertDate =
-      InsertDate ||
-      new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-    // tipAmount set from payload above
+    const insertDate = InsertDate || new Date().toISOString().slice(0, 19).replace('T', ' ');
 
     // 1️⃣ Fetch existing settlements
-    const existingSettlements = db.prepare(`
+    const existingSettlements = db.query(`
       SELECT *
       FROM TrnSettlement
       WHERE OrderNo = ? OR TxnNo = ?
-    `).all(OrderNo, OrderNo);
+    `, [OrderNo, OrderNo]);
 
     // Preserve original values
-let originalSettlement = existingSettlements.length > 0 ? existingSettlements[0] : {};
+    let originalSettlement = existingSettlements.length > 0 ? existingSettlements[0] : {};
 
-// Extract updated values from first new settlement (has received_amount etc.)
-let receive = 0;
-let refund = 0;
-let tipAmountFromPayload = Number(TipAmount) || 0;
+    // Extract updated values from first new settlement (has received_amount etc.)
+    let receive = 0;
+    let refund = 0;
+    let tipAmountFromPayload = Number(TipAmount) || 0;
 
-if (newSettlements.length > 0) {
-  receive = Number(newSettlements[0].received_amount) || originalSettlement.Receive || 0;
-  refund = Number(newSettlements[0].refund_amount) || originalSettlement.Refund || 0;
-}
+    if (newSettlements.length > 0) {
+      receive = Number(newSettlements[0].received_amount) || originalSettlement.Receive || 0;
+      refund = Number(newSettlements[0].refund_amount) || originalSettlement.Refund || 0;
+    }
 
-// Preserve others from original
-let txnNo = originalSettlement?.TxnNo || null;
-let userId = originalSettlement?.UserId || null;
-let name = originalSettlement?.Name || null;
-let customerid = originalSettlement?.customerid || null;
-let customerName = originalSettlement?.CustomerName || null;
-let mobileNo = originalSettlement?.MobileNo || null;
+    // Preserve others from original
+    let txnNo = originalSettlement?.TxnNo || null;
+    let userId = originalSettlement?.UserId || null;
+    let name = originalSettlement?.Name || null;
+    let customerid = originalSettlement?.customerid || null;
+    let customerName = originalSettlement?.CustomerName || null;
+    let mobileNo = originalSettlement?.MobileNo || null;
 
-// ✅ Fallback: get UserId from bill table if missing
-if (!userId) {
-  const bill = db.prepare(`
-    SELECT UserId
-    FROM TAxnTrnbill
-    WHERE OrderNo = ? OR TxnNo = ?
-  `).get(OrderNo, OrderNo);
+    // ✅ Fallback: get UserId from bill table if missing
+    if (!userId) {
+      const billData = db.query(`
+        SELECT UserId
+        FROM TAxnTrnbill
+        WHERE OrderNo = ? OR TxnNo = ?
+      `, [OrderNo, OrderNo])[0];
 
-  if (bill) {
-    userId = bill.UserId;
-  }
-}
+      if (billData) {
+        userId = billData.UserId;
+      }
+    }
+
     // 3️⃣ Log statement
-    const logStmt = db.prepare(`
-      INSERT INTO TrnSettlementLog (
-        SettlementID,
-        OldPaymentType,
-        OldAmount,
-        NewPaymentType,
-        NewAmount,
-        EditedBy
-      )
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
     // 4️⃣ Delete old settlements
-    db.prepare(`DELETE FROM TrnSettlement WHERE OrderNo = ?`).run(OrderNo);
+    db.query(`DELETE FROM TrnSettlement WHERE OrderNo = ?`, [OrderNo]);
 
     // 5️⃣ Insert new settlements
-     const settlementInsertStmt = db.prepare(`
-  INSERT INTO TrnSettlement (
-    OrderNo,
-    TxnID,
-    table_name,
-    PaymentTypeID,
-    PaymentType,
-    Amount,
-    TipAmount,
-    HotelID,
-    TxnNo,
-    UserId,
-    Name,
-    customerid,
-    CustomerName,
-    MobileNo,
-    Receive,
-    Refund,
-    isSettled,
-    InsertDate
-  )
-  VALUES (?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-`);
-    
+    const settlementInsertStmt = `
+      INSERT INTO TrnSettlement (
+        OrderNo,
+        TxnID,
+        table_name,
+        PaymentTypeID,
+        PaymentType,
+        Amount,
+        TipAmount,
+        HotelID,
+        TxnNo,
+        UserId,
+        Name,
+        customerid,
+        CustomerName,
+        MobileNo,
+        Receive,
+        Refund,
+        isSettled,
+        InsertDate
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+    `;
 
     for (let i = 0; i < newSettlements.length; i++) {
-
       const s = newSettlements[i];
       const old = existingSettlements[i] || {};
 
       if (!s.PaymentType || s.Amount == null) continue;
 
-      const paymentMode = db.prepare(`
+      const paymentMode = db.query(`
         SELECT paymenttypeid
         FROM payment_types
         WHERE mode_name = ?
-      `).get(s.PaymentType);
+      `, [s.PaymentType])[0];
 
       if (!paymentMode) {
         return res.status(400).json({
@@ -371,7 +345,7 @@ if (!userId) {
 
       const paymentTypeID = paymentMode.paymenttypeid;
 
-      settlementInsertStmt.run(
+      const result = db.query(settlementInsertStmt, [
         OrderNo,
         txnID,
         req.body.table_name || originalSettlement.table_name || null,
@@ -389,21 +363,29 @@ if (!userId) {
         receive,
         refund,
         insertDate
-      );
+      ]);
 
-      const newSettlementID = db
-        .prepare('SELECT last_insert_rowid() as id')
-        .get().id;
+      const newSettlementID = result.insertId;
 
       // 6️⃣ Log edit
-      logStmt.run(
+      db.query(`
+        INSERT INTO TrnSettlementLog (
+          SettlementID,
+          OldPaymentType,
+          OldAmount,
+          NewPaymentType,
+          NewAmount,
+          EditedBy
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [
         newSettlementID,
         old.PaymentType || null,
         old.Amount || null,
         s.PaymentType,
         s.Amount,
         editedBySafe
-      );
+      ]);
     }
 
     res.json({
@@ -420,20 +402,18 @@ if (!userId) {
   }
 };
 
-
-
 // Delete settlement
 exports.deleteSettlement = async (req, res) => {
   try {
-
     const { id } = req.params;
     const { EditedBy } = req.body;
 
     const editedBySafe = EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown';
 
-    const settlement = db.prepare(
-      `SELECT * FROM TrnSettlement WHERE SettlementID = ?`
-    ).get(Number(id));
+    const settlement = db.query(
+      `SELECT * FROM TrnSettlement WHERE SettlementID = ?`,
+      [Number(id)]
+    )[0];
 
     if (!settlement) {
       return res.status(404).json({
@@ -442,7 +422,7 @@ exports.deleteSettlement = async (req, res) => {
       });
     }
 
-    db.prepare(`
+    db.query(`
       INSERT INTO TrnSettlementLog (
         SettlementID,
         OldPaymentType,
@@ -452,20 +432,20 @@ exports.deleteSettlement = async (req, res) => {
         EditedBy
       )
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       settlement.SettlementID,
       settlement.PaymentType || null,
       settlement.Amount || null,
       null,
       null,
       editedBySafe
-    );
+    ]);
 
-    db.prepare(`
+    db.query(`
       UPDATE TrnSettlement
       SET isSettled = 0
       WHERE SettlementID = ?
-    `).run(Number(id));
+    `, [Number(id)]);
 
     res.json({
       success: true,
