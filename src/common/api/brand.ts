@@ -86,9 +86,10 @@ const BrandService = {
   /**
    * Get all brands with optional filters
    */
-  getBrands: (params?: { role_level?: string; hotelid?: string }): 
-  Promise<Brand[]> =>
-  HttpClient.get<Brand[]>('/HotelMasters', { params }),
+ getBrands: (
+  params?: { role_level?: string; hotelid?: string }
+): Promise<ApiResponse<Brand[]>> =>
+  HttpClient.get<ApiResponse<Brand[]>>('/HotelMasters', { params }),
 
   /**
    * Get brand by ID

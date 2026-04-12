@@ -7,7 +7,7 @@ exports.welcome = (req, res) => {
 }
 
 // Get brands/hotels based on user role
-exports.getBrands = async (req, res) => {
+exports.getBrands = (req, res) => {
   try {
     const { role_level, hotelid } = req.query
 
@@ -21,7 +21,7 @@ exports.getBrands = async (req, res) => {
     }
     // If user is superadmin, show all hotels (no additional WHERE clause)
 
-    const [brands] = await db.query(query, params)
+    const brands = db.prepare(query).all(...params)
     res.json({ success: true, message: 'Brands fetched successfully', data: brands })
   } catch (error) {
     // console.error('Error fetching brands:', error)
@@ -29,7 +29,7 @@ exports.getBrands = async (req, res) => {
   }
 }
 
-exports.getOutlets = async (req, res) => {
+exports.getOutlets = (req, res) => {
   try {
     const { role_level, brandId, hotelid, userid } = req.query;
     const user = req.user || {};
@@ -70,8 +70,7 @@ exports.getOutlets = async (req, res) => {
 
     query += ' ORDER BY o.outlet_name';
     // console.log('Constructed query:', query, 'with params:', params);
-
-    const outlets = await db.query(query, params);
+    const outlets = db.prepare(query).all(...params);
     // console.log('Found outlets:', outlets);
 
     res.status(200).json ({success: true, message: 'Outlets fetched successfully',data: outlets})
@@ -81,7 +80,7 @@ exports.getOutlets = async (req, res) => {
   }
 };
 
-exports.getOutletsByHotel = async (req, res) => {
+exports.getOutletsByHotel = (req, res) => {
   try {
     const { hotelid } = req.query;
 
@@ -98,7 +97,7 @@ exports.getOutletsByHotel = async (req, res) => {
       ORDER BY o.outlet_name
     `;
 
-    const [outlets] = await db.query(query, [hotelid]);
+    const outlets = db.prepare(query).all(hotelid);
     // console.log('Found outlets for hotel:', hotelid, outlets);
 
     res.json({ success: true, message: 'Outlets fetched successfully', data: outlets });
@@ -107,7 +106,7 @@ exports.getOutletsByHotel = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error', data: null });
   }
 };
-exports.addOutlet = async (req, res) => {
+exports.addOutlet = (req, res) => {
   try {
     const {
       outlet_name,
@@ -154,9 +153,10 @@ exports.addOutlet = async (req, res) => {
     }
 
     // Start a transaction to ensure atomicity
-    await db.query('START TRANSACTION');
+    db.exec('BEGIN TRANSACTION');
 
-    const outletQuery = `
+    // Insert into mst_outlets
+    const outletStmt = db.prepare(`
             INSERT INTO mst_outlets (
                 outlet_name, hotelid, market_id, outlet_code, phone, email, website,
                 address, city, zip_code, country, timezone, start_day_time, close_day_time,
@@ -164,10 +164,10 @@ exports.addOutlet = async (req, res) => {
                 contact_phone, notification_email, description, logo, gst_no, fssai_no,
                 status, digital_order, created_by_id, created_date,
                 logout_pos, password_protection, send_payment_link, send_ebill_whatsapp, add_custom_qr, start_time, end_time, warehouseid, reduce_inventory
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  ?,?, ?)
+        `)
 
-    const [outletResult] = await db.query(outletQuery, [
+    const outletResult = outletStmt.run(
       outlet_name,
       hotelid,
       market_id,
@@ -205,12 +205,12 @@ exports.addOutlet = async (req, res) => {
       end_time,
       warehouseid,
       reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
-    ]);
+    )
 
-    const outletId = outletResult.insertId;
+    const outletId = outletResult.lastInsertRowid;
 
     // Insert default settings into outlet_settings
-    const settingsQuery = `
+    const settingsStmt = db.prepare(`
       INSERT INTO mstoutlet_settings (
         outletid,
         send_order_notification,
@@ -276,10 +276,10 @@ exports.addOutlet = async (req, res) => {
         ReverseQtyMode,
         default_waiter_id,
         pax
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?)
+    `);
 
-    await db.query(settingsQuery, [
+    settingsStmt.run(
       outletId,
       'ALL', // send_order_notification
       2, // bill_number_length
@@ -344,10 +344,10 @@ exports.addOutlet = async (req, res) => {
       0, // ReverseQtyMode
       null, // default_waiter_id
       0 // pax
-    ]);
+    );
 
     // Insert default settings into mstbill_preview_settings
-    await db.query(`
+    const billPreviewStmt = db.prepare(`
       INSERT INTO mstbill_preview_settings (
         outletid,
         outlet_name,
@@ -368,29 +368,31 @@ exports.addOutlet = async (req, res) => {
         field4,
         fssai_no
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
+    `);
+
+    billPreviewStmt.run(
       outletId,
-      outlet_name || '',
-      email || '',
-      website || '',
-      '',
-      'BILL-',
-      'SEC-',
-      'BAR-',
-      0,
-      0,
-      contact_phone || '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fssai_no || ''
-    ]);
+      outlet_name || '', // outlet_name
+      email || '', // email
+      website || '', // website
+      '', // upi_id
+      'BILL-', // bill_prefix
+      'SEC-', // secondary_bill_prefix
+      'BAR-', // bar_bill_prefix
+      0, // show_upi_qr
+      0, // enabled_bar_section
+      contact_phone || '', // show_phone_on_bill
+      '', // note
+      '', // footer_note
+      '', // field1
+      '', // field2
+      '', // field3
+      '', // field4
+      fssai_no || '' // fssai_no
+    );
 
     // Insert default settings into mstkot_print_settings
-    await db.query(`
+    const kotPrintStmt = db.prepare(`
       INSERT INTO mstkot_print_settings (
         outletid,
         customer_on_kot_dine_in,
@@ -427,9 +429,11 @@ exports.addOutlet = async (req, res) => {
         show_waiter,
         hide_item_Amt_column
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
+    `);
+
+    kotPrintStmt.run(
       outletId,
-        0, // customer_on_kot_dine_in
+      0, // customer_on_kot_dine_in
       0, // customer_on_kot_pickup
       0, // customer_on_kot_delivery
       0, // customer_on_kot_quick_bill
@@ -462,10 +466,10 @@ exports.addOutlet = async (req, res) => {
       0, // show_username
       1, // show_waiter
       0 // hide_item_Amt_column
-    ]);
+    );
 
     // Insert default settings into mstbill_print_settings
-    await db.query(`
+    const billPrintStmt = db.prepare(`
       INSERT INTO mstbills_print_settings (
         outletid,
         bill_title_dine_in,
@@ -527,8 +531,12 @@ exports.addOutlet = async (req, res) => {
         hide_total_without_tax,
         trn_gstno
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      outletId,   1, // bill_title_dine_in
+    `);
+
+    billPrintStmt.run(
+      outletId,
+     
+      1, // bill_title_dine_in
       1, // bill_title_pickup
       1, // bill_title_delivery
       1, // bill_title_quick_bill
@@ -585,12 +593,13 @@ exports.addOutlet = async (req, res) => {
       0, // hide_item_rate_column
       0, // hide_item_total_column
       0 // hide_total_without_tax
-      , '' // trn_gstno ''
-    ]);
+      , '' // trn_gstno
+      
+    );
 
     // Insert default settings into mstgeneral_settings
-    await db.query(`
-    INSERT INTO mstgeneral_settings (
+    const generalSettingsStmt = db.prepare(`
+  INSERT INTO mstgeneral_settings (
     outletid,
     customize_url_links,
     allow_charges_after_bill_print,
@@ -650,17 +659,89 @@ exports.addOutlet = async (req, res) => {
     created_at,
     updated_at
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?)
+`);
 
-    `, [
-      outletId,
-      JSON.stringify([]),
-      0, 0, 1, 0, JSON.stringify({ dineIn: true, pickup: false, delivery: false, quickBill: false }), 0, 0, 0,0 , 0, 1, JSON.stringify({ dineIn: true, pickup: false, delivery: false, quickBill: false }), 0, 0, 0, 0, 1, '', 0, JSON.stringify({ media: [] }), JSON.stringify({ dineIn: true, pickup: true, delivery: true, quickBill: false }), 1, 0, '', 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, JSON.stringify({ autoSyncInterval: '300', syncBatchPacketSize: '100' }), 0, 0, 0, 0, 1, 1, 0, 0, 1, JSON.stringify({
-        salesSummary: true, orderTypeSummary: true, paymentTypeSummary: true, discountSummary: true, expenseSummary: true, billSummary: true, deliveryBoySummary: true, waiterSummary: true, kitchenDepartmentSummary: true, categorySummary: true, soldItemsSummary: true, cancelItemsSummary: true, walletSummary: true, duePaymentReceivedSummary: true, duePaymentReceivableSummary: true, paymentVarianceSummary: true, currencyDenominationsSummary: true
-      }), 0, 0, 'END_OF_DAY', 0, 1, 0, 1, new Date().toISOString(), new Date().toISOString()
-    ]);
+generalSettingsStmt.run(
+  outletId,
+  JSON.stringify([]), // customize_url_links
+  0, // allow_charges_after_bill_print
+  0, // allow_discount_after_bill_print
+  1, // allow_discount_before_save
+  0, // allow_pre_order_tahd
+  JSON.stringify({ dineIn: true, pickup: false, delivery: false, quickBill: false }), // ask_covers
+  0, // ask_covers_captain
+  0, // ask_custom_order_id_quick_bill
+  0, // ask_custom_order_type_quick_bill
+  1, // ask_payment_mode_on_save_bill
+  JSON.stringify({ dineIn: true, pickup: false, delivery: false, quickBill: false }), // ask_waiter
+  0, // ask_otp_change_order_status_order_window
+  0, // ask_otp_change_order_status_receipt_section
+  0, // auto_accept_remote_kot
+  0, // auto_out_of_stock
+  1, // auto_sync
+  '', // category_time_for_pos
+  0, // count_sales_after_midnight
+  JSON.stringify({ media: [] }), // customer_display
+  JSON.stringify({ dineIn: true, pickup: true, delivery: true, quickBill: false }), // customer_mandatory
+  1, // default_ebill_check
+  0, // default_send_delivery_boy_check
+  '', // edit_customize_order_number
+  0, // enable_backup_notification_service
+  0, // enable_customer_display_access
+  0, // filter_items_by_order_type
+  0, // generate_reports_start_close_dates
+  0, // hide_clear_data_check_logout
+  0, // hide_item_price_options
+  0, // hide_load_menu_button
+  1, // make_cancel_delete_reason_compulsory
+  1, // make_discount_reason_mandatory
+  1, // make_free_cancel_bill_reason_mandatory
+  0, // make_payment_ref_number_mandatory
+  0, // mandatory_delivery_boy_selection
+  0, // mark_order_as_transfer_order
+  0, // online_payment_auto_settle
+  JSON.stringify({ autoSyncInterval: '300', syncBatchPacketSize: '100' }), // order_sync_settings
+  0, // separate_billing_by_section
+  0, // set_entered_amount_as_opening
+  0, // show_alternative_item_report_print
+  0, // show_clear_sales_report_logout
+  1, // show_order_no_label_pos
+  1, // show_payment_history_button
+  0, // show_remote_kot_option
+  0, // show_send_payment_link
+  1, // stock_availability_display
+  JSON.stringify({
+    salesSummary: true,
+    orderTypeSummary: true,
+    paymentTypeSummary: true,
+    discountSummary: true,
+    expenseSummary: true,
+    billSummary: true,
+    deliveryBoySummary: true,
+    waiterSummary: true,
+    kitchenDepartmentSummary: true,
+    categorySummary: true,
+    soldItemsSummary: true,
+    cancelItemsSummary: true,
+    walletSummary: true,
+    duePaymentReceivedSummary: true,
+    duePaymentReceivableSummary: true,
+    paymentVarianceSummary: true,
+    currencyDenominationsSummary: true
+  }), // todays_report
+  0, // upi_payment_sound_notification
+  0, // use_separate_bill_numbers_online
+  'END_OF_DAY', // when_send_todays_report
+  0, // enable_currency_conversion
+  1, // enable_user_login_validation
+  0, // allow_closing_shift_despite_bills
+  1, // show_real_time_kot_bill_notifications
+  new Date().toISOString(), // created_at
+  new Date().toISOString() // updated_at
+);
 
     // Insert default settings into mstonline_orders_settings
-    await db.query(`
+    const onlineOrdersStmt = db.prepare(`
       INSERT INTO mstonline_orders_settings (
         outletid,
         show_in_preparation_kds,
@@ -673,10 +754,23 @@ exports.addOutlet = async (req, res) => {
         show_online_order_preparation_time,
         update_food_ready_status_kds
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [outletId, 1, 0, 0, 0, 0, 0, 1, 1, 1]);
+    `);
+
+    onlineOrdersStmt.run(
+      outletId,
+      1, // show_in_preparation_kds
+      0, // auto_accept_online_order
+      0, // customize_order_preparation_time
+      0, // online_orders_time_delay
+      0, // pull_order_on_accept
+      0, // show_addons_separately
+      1, // show_complete_online_order_id
+      1, // show_online_order_preparation_time
+      1 // update_food_ready_status_kds
+    );
 
     // Commit the transaction
-await db.query('COMMIT');
+    db.exec('COMMIT');
 
     res.json({ 
       success: true,
@@ -724,12 +818,12 @@ await db.query('COMMIT');
     })
   } catch (error) {
     // Rollback the transaction on error
-await db.query('ROLLBACK');
-    console.error('Error adding outlet:', error)
+    db.exec('ROLLBACK');
+    //  console.error('Error adding outlet:', error)
     res.status(500).json({ success: false, message: 'Failed to add outlet', data: null })
   }
 }
-exports.updateOutlet = async (req, res) => {
+exports.updateOutlet = (req, res) => {
   try {
     const { id } = req.params
     const {
@@ -776,7 +870,7 @@ exports.updateOutlet = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Outlet name is required', data: null })
     }
 
-    await db.query(`
+    const stmt = db.prepare(`
             UPDATE mst_outlets SET
                 outlet_name = ?, hotelid = ?, market_id = ?, outlet_code = ?, phone = ?,
                 email = ?, website = ?, address = ?, city = ?, zip_code = ?, country = ?,
@@ -788,7 +882,9 @@ exports.updateOutlet = async (req, res) => {
                 start_time = ?, end_time = ?, warehouseid = ?, reduce_inventory = ?, updated_by_id = ?,
                 updated_date = ?
             WHERE outletid = ?
-        `, [
+        `)
+
+    stmt.run(
       outlet_name,
       hotelid,
       market_id,
@@ -827,7 +923,7 @@ exports.updateOutlet = async (req, res) => {
       updated_by_id,
       new Date().toISOString(),
       id,
-    ])
+    )
 
     res.json({
       success: true,

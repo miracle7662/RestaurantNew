@@ -326,11 +326,16 @@ const BrandList: React.FC = () => {
         params.hotelid = user.hotelid.toString();
       }
 
-      const brands = await BrandService.getBrands(params);
-
-
-      // console.log('Fetched HotelMasters:', brands); // Debug log to inspect backend data
-      // console.log('Sample hotel data:', brands); // Log first item to see structure
+      const response  = await BrandService.getBrands(params);
+      const brands = response.data;
+      
+      console.log('✅ Brand.tsx fetchHotelMasters - raw brands:', brands);
+      console.log('📊 Brands length:', brands.length);
+      if (brands.length > 0) {
+        console.log('🏢 Sample hotel_name:', brands[0].hotel_name);
+        console.log('🔍 Full first hotel:', brands[0]);
+      }
+      
       setHotelMastersItem(brands);
       setFilteredHotelMasters(brands);
     } catch (err) {

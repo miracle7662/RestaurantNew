@@ -1,18 +1,32 @@
-# RestaurantNew Task Tracker
-## Current Task: Fix MySQL Transaction Error in outletController.js (backend/TODO.md Plan)
+# MySQL Migration: Convert SQLite Prepared Statements to MySQL Queries
 
-**Status: IMPLEMENTING Step 2**
+## Overview
+Convert 5 SQLite prepared statements in `backend/controllers/outletController.js` → `addOutlet()` to MySQL `db.query()`.
 
-### Detailed Implementation Steps:
-- [x] Step 1: Create/Update TODO.md [COMPLETED]
-- [ ] Step 2.1: Fix syntax errors (missing catch/finally blocks ~lines 804,1443)
-- [ ] Step 2.2: Convert ALL db.prepare().run()/get() → db.execute(query, params) in addOutlet, updateOutletSettings, etc.
-- [ ] Step 2.3: Complete addOutlet transaction: INSERT outlet + 6 settings tables atomically
-- [ ] Step 2.4: Fix updateOutletSettings transaction (update/insert logic)
-- [ ] Step 2.5: Fix getBrands: Add WHERE status = 1
-- [ ] Step 2.6: Standardize remaining functions (updateOutlet, getOutletSettings, etc.)
-- [ ] Step 3: Test endpoints & restart server
-- [ ] Step 4: Update backend/TODO.md ✅, attempt_completion
+**Status: [ ] Not Started | [ ] In Progress | [x] Planned**
 
-**Next Action**: Edit backend/controllers/outletController.js with precise fixes
+## Steps (0/7 Complete)
 
+### 1. [x] Create TODO.md ✅ **(Done)**
+### 2. [x] Replace billPreviewStmt (mstbill_preview_settings INSERT) ✅
+### 3. [x] Replace kotPrintStmt (mstkot_print_settings INSERT) ✅
+### 4. [x] Replace billPrintStmt (mstbills_print_settings INSERT) ✅
+### 5. [x] Replace generalSettingsStmt (mstgeneral_settings INSERT) ✅
+### 6. [x] Replace onlineOrdersStmt (mstonline_orders_settings INSERT) ✅
+### 7. [x] Convert updateOutlet SQLite prepare() → MySQL query() ✅
+### 8. [ ] Test: Create outlet → verify 5 settings tables populated
+
+## Testing
+```
+# Backend running: npm run dev
+curl -X POST http://localhost:3000/api/outlets \\
+  -H "Content-Type: application/json" \\
+  -d '{"outlet_name":"TestOutlet","hotelid":1,"market_id":1,...}'
+```
+Verify: SELECT * FROM mstbill_preview_settings WHERE outletid = LAST_INSERT_ID();
+
+## Next Steps After Completion
+- Update TODO.md: Mark steps complete
+- attempt_completion
+
+**Current Progress: Planning Phase Complete → Ready for Implementation**

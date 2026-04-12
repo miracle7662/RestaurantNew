@@ -544,6 +544,7 @@ async function initDB() {
       show_terminal_username TINYINT(1),
       show_username TINYINT(1),
       show_waiter TINYINT(1),
+      hide_item_Amt_column TINYINT(1),
       FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
     )`,
 

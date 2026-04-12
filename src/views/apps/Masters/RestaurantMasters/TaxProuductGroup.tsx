@@ -50,14 +50,18 @@ const fetchData = async () => {
     setFilteredTaxGroups(taxGroupsData);
 
     // Fetch brands/hotels
+    console.log('🔍 [TaxProductGroup] User before fetchBrands:', user);
     if (user) {
+      console.log('🔍 [TaxProductGroup] Calling fetchBrands...');
       await fetchBrands(user, setBrands);
+      console.log('✅ [TaxProductGroup] fetchBrands call completed');
     }
 
   } catch (err: any) {
-    // console.error('Error fetching data:', err);
+     console.error('Error fetching data:', err);
     setError('Failed to fetch data');
   } finally {
+    console.log('📊 [TaxProductGroup] Final brands state:', brands.length, brands.slice(0, 3)); // Log first 3 brands
     setLoading(false);
   }
 };

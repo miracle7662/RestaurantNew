@@ -494,15 +494,13 @@ exports.getHotelAdmins = async (req, res) => {
 
 
 // Get waiter users (Waiter or Caption designation) for a specific outlet
-exports.getWaiterUsers = (req, res) => {
+exports.getWaiterUsers = async (req, res) => {
   try {
     const { outletId } = req.params;
 
     if (!outletId) {
       return res.status(400).json({ message: 'Outlet ID is required' });
     }
-
-    // console.log('Fetching waiter users for outletId:', outletId);
 
     const query = `
       SELECT u.userid as userId,
@@ -517,14 +515,14 @@ exports.getWaiterUsers = (req, res) => {
       ORDER BY u.full_name
     `;
 
-    const waiters = db.prepare(query).all(outletId);
+    const [waiters] = await db.query(query, [outletId]);
     
     res.json({
       success: true,
       data: waiters
     });
   } catch (error) {
-    // console.error('Error fetching waiter users:', error);
+    console.error('Error fetching waiter users:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -533,24 +531,24 @@ exports.getWaiterUsers = (req, res) => {
 };
 
 // Get hotel admin by ID
-exports.getHotelAdminById = (req, res) => {
+exports.getHotelAdminById = async (req, res) => {
   try {
     const { id } = req.params
-    const hotelAdmin = db
-      .prepare(
-        `
-            SELECT u.*,
-                   b.hotel_name as brand_name,
-                   h.hotel_name as hotel_name
-            FROM mst_users u
-            LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
-            LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-            WHERE u.userid = ? AND u.role_level = 'hotel_admin' AND u.status = 0
-        `,
-      )
-      .get(id)
+    const [admins] = await db.query(
+      `
+        SELECT u.*,
+               b.hotel_name as brand_name,
+               h.hotel_name as hotel_name
+        FROM mst_users u
+        LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
+        LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
+        WHERE u.userid = ? AND u.role_level = 'hotel_admin' AND u.status = 0
+      `,
+      [id]
+    )
+    const hotelAdmin = admins[0]
 
-   if (!hotelAdmin) {
+    if (!hotelAdmin) {
       return res.status(404).json({
         success: false,
         message: 'Hotel admin not found',
@@ -564,7 +562,7 @@ exports.getHotelAdminById = (req, res) => {
       data: hotelAdmin
     })
   } catch (error) {
-    // console.error('Error fetching hotel admin:', error)
+    console.error('Error fetching hotel admin:', error)
     res.status(500).json({success: false, error: 'Failed to fetch hotel admin' })
   }
 }
@@ -575,7 +573,8 @@ exports.updateHotelAdmin = async (req, res) => {
     const { id } = req.params
     const { full_name, phone, status, updated_by_id } = req.body
 
-    const existingUser = db.prepare('SELECT role_level FROM mst_users WHERE userid = ?').get(id)
+    const [existingUsers] = await db.query('SELECT role_level FROM mst_users WHERE userid = ?', [id])
+    const existingUser = existingUsers[0]
     if (!existingUser || existingUser.role_level !== 'hotel_admin') {
       return res.status(404).json({ message: 'Hotel admin not found' })
     }
@@ -597,15 +596,17 @@ exports.updateHotelAdmin = async (req, res) => {
     }
 
     updateFields.push('updated_by_id = ?')
-    updateFields.push("updated_date = datetime('now')")
-    params.push(updated_by_id, id)
+    updateFields.push('updated_date = NOW()')
+    params.push(updated_by_id)
 
-    const stmt = db.prepare(`UPDATE mst_users SET ${updateFields.join(', ')} WHERE userid = ?`)
-    stmt.run(...params)
+    if (updateFields.length > 0) {
+      const updateQuery = `UPDATE mst_users SET ${updateFields.join(', ')} WHERE userid = ?`
+      await db.query(updateQuery, [...params, id])
+    }
 
-     res.status(200).json({success: true, message: 'Hotel admin updated successfully',data: null })
+    res.status(200).json({success: true, message: 'Hotel admin updated successfully',data: null })
   } catch (error) {
-    // console.error('Error updating hotel admin:', error)
-     res.status(500).json({ success: false, message: 'Internal server error', data: null})
+    console.error('Error updating hotel admin:', error)
+    res.status(500).json({ success: false, message: 'Internal server error', data: null})
   }
 }

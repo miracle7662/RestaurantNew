@@ -49,6 +49,8 @@ exports.getUsers = (req, res) => {
 
 // Create new user
 exports.createUser = async (req, res) => {
+    const connection = await db.getConnection(); // 👈 important for transaction
+
     try {
         const {
             username,
@@ -63,122 +65,135 @@ exports.createUser = async (req, res) => {
             created_by_id
         } = req.body;
 
-        // Debug: Log the received data
-        // console.log('Received user creation request:');
-        // console.log('Request body:', req.body);
-        // console.log('brand_id:', brand_id, 'type:', typeof brand_id);
-        // console.log('hotelid:', hotelid, 'type:', typeof hotelid);
-        // console.log('parent_user_id:', parent_user_id, 'type:', typeof parent_user_id);
-
-        // Validate required fields
         if (!username || !email || !password || !full_name || !role_level) {
             return res.status(400).json({ message: 'Required fields missing' });
         }
 
-        // Check if username or email already exists
-        const existingUser = db.prepare('SELECT userid FROM mst_users WHERE username = ? OR email = ?').get(username, email);
-        if (existingUser) {
+        await connection.beginTransaction();
+
+        // ✅ Check existing user
+        const [existingUser] = await connection.query(
+            'SELECT userid FROM mst_users WHERE username = ? OR email = ?',
+            [username, email]
+        );
+
+        if (existingUser.length > 0) {
+            await connection.rollback();
             return res.status(400).json({ message: 'Username or email already exists' });
         }
 
-        // Validate that the hotel exists (for hotel_admin role)
+        // ✅ Validate hotel (hotel_admin)
         if (role_level === 'hotel_admin' && hotelid) {
-            const hotelExists = db.prepare('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?').get(hotelid);
-            if (!hotelExists) {
-                console.error('Hotel not found with ID:', hotelid);
+            const [hotelExists] = await connection.query(
+                'SELECT hotelid FROM msthotelmasters WHERE hotelid = ?',
+                [hotelid]
+            );
+
+            if (hotelExists.length === 0) {
+                await connection.rollback();
                 return res.status(400).json({ message: 'Hotel not found with the provided ID' });
             }
-            console.log('Hotel found:', hotelExists);
         }
 
-        // Hash password
+        // ✅ Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Validate role hierarchy
-        console.log('Parent user ID:', parent_user_id);
-        const parentUser = db.prepare('SELECT role_level, brand_id, hotelid FROM mst_users WHERE userid = ?').get(parent_user_id);
-        console.log('Parent user found:', parentUser);
-        
+        // ✅ Parent user
+        const [parentRows] = await connection.query(
+            'SELECT role_level, brand_id, hotelid FROM mst_users WHERE userid = ?',
+            [parent_user_id]
+        );
+
+        const parentUser = parentRows[0];
+
         if (!parentUser) {
+            await connection.rollback();
             return res.status(400).json({ message: 'Invalid parent user' });
         }
 
-        // For SuperAdmin, created_by_id can be null or the same as parent_user_id
-        // Let's use parent_user_id for created_by_id to avoid foreign key issues
         const finalCreatedById = parent_user_id;
 
-        // Role hierarchy validation
+        // ✅ Role hierarchy
         const canCreateRole = validateRoleHierarchy(parentUser.role_level, role_level);
         if (!canCreateRole) {
+            await connection.rollback();
             return res.status(403).json({ message: 'Cannot create user with this role level' });
         }
 
-        // Set brand_id and hotel_id based on role and parent
         let finalBrandId = brand_id;
         let finalHotelId = hotelid;
 
+        // ✅ brand_admin
         if (role_level === 'brand_admin') {
-            // For brand_admin, brand_id must reference a valid hotel in HotelMasters
             if (!brand_id) {
+                await connection.rollback();
                 return res.status(400).json({ message: 'Brand ID is required for brand_admin role' });
             }
-            
-            // Validate that the brand/hotel exists
-            const brandExists = db.prepare('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?').get(brand_id);
-            if (!brandExists) {
-                console.error('Brand/Hotel not found with ID:', brand_id);
+
+            const [brandExists] = await connection.query(
+                'SELECT hotelid FROM msthotelmasters WHERE hotelid = ?',
+                [brand_id]
+            );
+
+            if (brandExists.length === 0) {
+                await connection.rollback();
                 return res.status(400).json({ message: 'Brand/Hotel not found with the provided ID' });
             }
-            
+
             finalBrandId = brand_id;
             finalHotelId = null;
-        } else if (role_level === 'hotel_admin' || role_level === 'hotel_user') {
-            // For hotel_admin and hotel_user, brand_id should be the same as hotel_id
-            // since they are managing a specific hotel
+        }
+
+        // ✅ hotel roles
+        else if (role_level === 'hotel_admin' || role_level === 'hotel_user') {
             finalBrandId = hotelid || parentUser.hotelid;
             finalHotelId = hotelid || parentUser.hotelid;
-            
-            // Validate that the hotel exists
+
             if (finalHotelId) {
-                const hotelExists = db.prepare('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?').get(finalHotelId);
-                if (!hotelExists) {
-                    console.error('Hotel not found with ID:', finalHotelId);
+                const [hotelExists] = await connection.query(
+                    'SELECT hotelid FROM msthotelmasters WHERE hotelid = ?',
+                    [finalHotelId]
+                );
+
+                if (hotelExists.length === 0) {
+                    await connection.rollback();
                     return res.status(400).json({ message: 'Hotel not found with the provided ID' });
                 }
             }
         }
 
-        const stmt = db.prepare(`
+        // ✅ INSERT
+        const [result] = await connection.query(`
             INSERT INTO mst_users (
                 username, email, password, full_name, phone, role_level,
-                parent_user_id,hotelid, brand_id, created_by_id, created_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-        `);
+                parent_user_id, hotelid, brand_id, created_by_id, created_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `, [
+            username,
+            email,
+            hashedPassword,
+            full_name,
+            phone,
+            role_level,
+            parent_user_id,
+            finalHotelId,
+            finalBrandId,
+            finalCreatedById
+        ]);
 
-        console.log('About to insert user with values:', {
-            username, email, full_name, phone, role_level,
-            parent_user_id, finalHotelId, created_by_id
-        });
-        console.log('Final values - finalBrandId:', finalBrandId, 'finalHotelId:', finalHotelId);
+        const userId = result.insertId;
 
-        const result = stmt.run(
-            username, email, hashedPassword, full_name, phone, role_level,
-            parent_user_id, finalHotelId, finalBrandId, finalCreatedById
-        );
-
-        console.log('User created successfully with ID:', result.lastInsertRowid);
-
-        // Create default permissions based on role
+        // ✅ Permissions
         try {
-            createDefaultPermissions(result.lastInsertRowid, role_level, finalCreatedById);
-            console.log('Default permissions created successfully');
+            await createDefaultPermissions(userId, role_level, finalCreatedById);
         } catch (permError) {
-            console.error('Error creating default permissions:', permError);
-            // Don't fail the user creation if permissions fail
+            console.error('Permission error:', permError);
         }
 
+        await connection.commit();
+
         res.json({
-            userid: result.lastInsertRowid,
+            userid: userId,
             username,
             email,
             full_name,
@@ -188,8 +203,11 @@ exports.createUser = async (req, res) => {
         });
 
     } catch (error) {
+        await connection.rollback();
         console.error('Error creating user:', error);
         res.status(500).json({ message: 'Internal server error' });
+    } finally {
+        connection.release();
     }
 };
 

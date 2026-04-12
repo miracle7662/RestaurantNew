@@ -34,33 +34,38 @@ exports.getAllTaxGroups = async (req, res) => {
     const params = [];
 
     if (hotelid) {
-      sql += ' WHERE tg.hotelid = 0 OR tg.hotelid = ?';  // ✅ FIX
+      sql += ' WHERE tg.hotelid = 0 OR tg.hotelid = ?';
       params.push(hotelid);
     }
 
     sql += ' ORDER BY tg.taxgroupid DESC';
 
-    const taxGroups = db.prepare(sql).all(params);
+    const [taxGroups] = await db.query(sql, params); // ✅ FIX
 
     sendSuccessResponse(res, { taxGroups, count: taxGroups.length });
+
   } catch (error) {
+    console.error('Error fetching tax groups:', error);
     sendErrorResponse(res, 'Error fetching tax groups:', error);
   }
 };
 
-exports.getTaxGroupById = (req, res) => {
+exports.getTaxGroupById = async (req, res) => {
   try {
     const { id } = req.params;
 
     const sql = baseSelectSql + ' WHERE tg.taxgroupid = ?';
 
-    const taxGroup = db.prepare(sql).get(id);
+    const [rows] = await db.query(sql, [id]); // ✅ FIX
+
+    const taxGroup = rows[0];
 
     if (!taxGroup) {
       return sendErrorResponse(res, 'Tax group not found', null, 404);
     }
 
     sendSuccessResponse(res, taxGroup);
+
   } catch (error) {
     sendErrorResponse(res, 'Error fetching tax group:', error);
   }

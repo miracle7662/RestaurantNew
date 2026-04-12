@@ -29,6 +29,7 @@ exports.getHotelMasters = async (req, res) => {
         });
 
     } catch (error) {
+        console.error('Error fetching hotels:', error);
         res.status(500).json({
             success: false,
             message: "Failed to fetch hotels",
