@@ -1,6 +1,8 @@
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
 
+const logPrefix = (action) => `[USER_CREATE ${new Date().toISOString()}] ${action}`;
+
 // Get all users based on current user's role and hierarchy
 exports.getUsers = (req, res) => {
     try {
@@ -39,8 +41,15 @@ exports.getUsers = (req, res) => {
         
         query += ' ORDER BY u.created_date DESC';
         
-        const users = db.prepare(query).all(...params);
-        res.json(users);
+        // MySQL: Changed from db.prepare().all() to db.query() for MySQL
+        // MySQL: Using callback or promise-based approach
+        db.query(query, params, (err, users) => {
+            if (err) {
+                console.error('Error fetching users:', err);
+                return res.status(500).json({ message: 'Internal server error' });
+            }
+            res.json(users);
+        });
     } catch (error) {
         // console.error('Error fetching users:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -49,7 +58,11 @@ exports.getUsers = (req, res) => {
 
 // Create new user
 exports.createUser = async (req, res) => {
-    const connection = await db.getConnection(); // 👈 important for transaction
+    // console.log(logPrefix('START'), 'req.body:', JSON.stringify(req.body, null, 2));
+    // console.log(logPrefix('START'), 'req.headers:', req.headers);
+    // console.log(logPrefix('START'), 'req.userid:', req.userid);
+
+    const connection = await db.getConnection();
 
     try {
         const {
@@ -66,31 +79,40 @@ exports.createUser = async (req, res) => {
         } = req.body;
 
         if (!username || !email || !password || !full_name || !role_level) {
+            // console.log(logPrefix('VALIDATION_FAIL'), 'Missing required fields');
             return res.status(400).json({ message: 'Required fields missing' });
         }
 
+        // console.log(logPrefix('VALIDATION_PASS'), 'Basic fields OK');
+
         await connection.beginTransaction();
 
-        // ✅ Check existing user
+        // console.log(logPrefix('DB_CHECK'), 'Checking existing user for username:', username, 'email:', email);
         const [existingUser] = await connection.query(
             'SELECT userid FROM mst_users WHERE username = ? OR email = ?',
             [username, email]
         );
+        // console.log(logPrefix('DB_CHECK'), 'Existing users found:', existingUser.length > 0 ? existingUser.map(u => u.userid) : 'none');
 
         if (existingUser.length > 0) {
             await connection.rollback();
+            // console.log(logPrefix('VALIDATION_FAIL'), 'Duplicate username/email');
             return res.status(400).json({ message: 'Username or email already exists' });
         }
 
-        // ✅ Validate hotel (hotel_admin)
+// ✅ Validate hotel (hotel_admin)
+        // console.log(logPrefix('ROLE_CHECK'), 'role_level:', role_level, 'hotelid:', hotelid);
         if (role_level === 'hotel_admin' && hotelid) {
+            // console.log(logPrefix('DB_CHECK'), 'Validating hotelid:', hotelid);
             const [hotelExists] = await connection.query(
                 'SELECT hotelid FROM msthotelmasters WHERE hotelid = ?',
                 [hotelid]
             );
+            // console.log(logPrefix('DB_CHECK'), 'Hotel exists:', hotelExists.length > 0);
 
             if (hotelExists.length === 0) {
                 await connection.rollback();
+                console.log(logPrefix('VALIDATION_FAIL'), 'Hotel not found');
                 return res.status(400).json({ message: 'Hotel not found with the provided ID' });
             }
         }
@@ -163,6 +185,7 @@ exports.createUser = async (req, res) => {
         }
 
         // ✅ INSERT
+        // MySQL: Changed datetime('now') to NOW() for MySQL
         const [result] = await connection.query(`
             INSERT INTO mst_users (
                 username, email, password, full_name, phone, role_level,
@@ -244,11 +267,13 @@ exports.updateUser = async (req, res) => {
         }
 
         updateFields.push('updated_by_id = ?');
-                    updateFields.push('updated_date = datetime(\'now\')');
+        // MySQL: Changed datetime('now') to NOW() for MySQL
+        updateFields.push('updated_date = NOW()');
         params.push(updated_by_id, userid);
 
-        const stmt = db.prepare(`UPDATE mst_users SET ${updateFields.join(', ')} WHERE userid = ?`);
-        stmt.run(...params);
+        // MySQL: Changed from db.prepare().run() to db.query() for MySQL
+        const query = `UPDATE mst_users SET ${updateFields.join(', ')} WHERE userid = ?`;
+        await db.query(query, params);
 
         res.json({ message: 'User updated successfully' });
 
@@ -259,13 +284,15 @@ exports.updateUser = async (req, res) => {
 };
 
 // Delete user (soft delete)
-exports.deleteUser = (req, res) => {
+exports.deleteUser = async (req, res) => {
     try {
         const { userid } = req.params;
         const { updated_by_id } = req.body;
 
-        const stmt = db.prepare('UPDATE mst_users SET is_active = 0, updated_by_id = ?, updated_date = datetime(\'now\') WHERE userid = ?');
-        stmt.run(updated_by_id, userid);
+        // MySQL: Changed from db.prepare().run() to db.query() for MySQL
+        // MySQL: Changed datetime('now') to NOW() for MySQL
+        const query = 'UPDATE mst_users SET is_active = 0, updated_by_id = ?, updated_date = NOW() WHERE userid = ?';
+        await db.query(query, [updated_by_id, userid]);
 
         res.json({ message: 'User deleted successfully' });
 
@@ -280,13 +307,20 @@ exports.getUserPermissions = (req, res) => {
     try {
         const { userid } = req.params;
         
-        const permissions = db.prepare(`
+        // MySQL: Changed from db.prepare().all() to db.query() for MySQL
+        const query = `
             SELECT module_name, can_view, can_create, can_edit, can_delete
             FROM mst_user_permissions
             WHERE userid = ?
-        `).all(userid);
-
-        res.json(permissions);
+        `;
+        
+        db.query(query, [userid], (err, permissions) => {
+            if (err) {
+                console.error('Error fetching user permissions:', err);
+                return res.status(500).json({ message: 'Internal server error' });
+            }
+            res.json(permissions);
+        });
 
     } catch (error) {
         console.error('Error fetching user permissions:', error);
@@ -295,23 +329,25 @@ exports.getUserPermissions = (req, res) => {
 };
 
 // Update user permissions
-exports.updateUserPermissions = (req, res) => {
+exports.updateUserPermissions = async (req, res) => {
     try {
         const { userid } = req.params;
         const { permissions, updated_by_id } = req.body;
 
+        // MySQL: Changed from db.prepare().run() to db.query() for MySQL
         // Delete existing permissions
-        db.prepare('DELETE FROM mst_user_permissions WHERE userid = ?').run(userid);
+        await db.query('DELETE FROM mst_user_permissions WHERE userid = ?', [userid]);
 
+        // MySQL: Changed datetime('now') to NOW() for MySQL
         // Insert new permissions
-        const stmt = db.prepare(`
+        const insertQuery = `
             INSERT INTO mst_user_permissions (
                 userid, module_name, can_view, can_create, can_edit, can_delete, created_by_id, created_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-        `);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+        `;
 
-        permissions.forEach(permission => {
-            stmt.run(
+        for (const permission of permissions) {
+            await db.query(insertQuery, [
                 userid,
                 permission.module_name,
                 permission.can_view ? 1 : 0,
@@ -319,8 +355,8 @@ exports.updateUserPermissions = (req, res) => {
                 permission.can_edit ? 1 : 0,
                 permission.can_delete ? 1 : 0,
                 updated_by_id
-            );
-        });
+            ]);
+        }
 
         res.json({ message: 'Permissions updated successfully' });
 
@@ -380,14 +416,16 @@ function createDefaultPermissions(userid, roleLevel, createdBy) {
     };
 
     const permissions = defaultPermissions[roleLevel] || {};
-    const stmt = db.prepare(`
+    // MySQL: Changed from db.prepare() to direct query
+    // MySQL: Changed datetime('now') to NOW() for MySQL
+    const insertQuery = `
         INSERT INTO mst_user_permissions (
             userid, module_name, can_view, can_create, can_edit, can_delete, created_by_id, created_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    `);
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+    `;
 
     Object.entries(permissions).forEach(([module, perms]) => {
-        stmt.run(
+        db.query(insertQuery, [
             userid,
             module,
             perms.view ? 1 : 0,
@@ -395,6 +433,6 @@ function createDefaultPermissions(userid, roleLevel, createdBy) {
             perms.edit ? 1 : 0,
             perms.delete ? 1 : 0,
             createdBy
-        );
+        ]).catch(err => console.error('Error inserting permission:', err));
     });
 }
