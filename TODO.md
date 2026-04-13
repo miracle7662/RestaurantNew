@@ -1,25 +1,14 @@
-# Payment Mode Controller Fix: "rows.slice is not a function"
-Status: ✅ Completed
+# RestaurantNew Task Tracker
+## Current Task: Fix hoteladmin menu item cards not showing
 
-## Steps Status:
-### ✅ 1. Create TODO.md file
-### ✅ 2. Edit backend/controllers/paymentModeController.js 
-   - All functions converted to async
-   - All db.query() calls fixed to `await db.query()` + `[result]` destructuring
-   - Fixed getAllPaymentModes, getPaymentTypes, getPaymentModesByOutlet
-   - Fixed updatePaymentModeSequence transactions
-   - Fixed create/update/delete functions
+### Approved Plan Steps:
+- [x] 1. Create TODO.md with plan breakdown ✅
+- [ ] 2. Edit src/common/menu/index.ts - Add 'hoteladmin' role support
+- [ ] 3. Test navigation - Verify hoteladmin sees Menu link
+- [ ] 4. Test item cards rendering on /apps/menu
+- [ ] 5. Add console.log verification if needed
+- [ ] 6. Backend check if API empty
+- [ ] 7. Complete task
 
-### ✅ 3. Test the fixes
-   - Backend controller now uses proper async/await DB queries
-   - "rows.slice is not a function" error fixed
-
-### ✅ 4. Frontend verification
-   - Payment dropdowns should now load correctly
-
-### ✅ 5. Update TODO.md with completion status
-
-**Backend controller fixed! All async/await DB queries implemented. The "rows.slice is not a function" error should be resolved.**
-
-**Next:** Restart server and test APIs.
+**Next Step**: Edit navigation file
 

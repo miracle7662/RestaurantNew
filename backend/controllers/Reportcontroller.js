@@ -1,8 +1,11 @@
 // reportController.js
 const db = require('../config/db');
 
-const getReportData = (req, res) => {
+const getReportData = async (req, res) => {
   try {
+    console.log('=== REPORT DATA FETCH START ===');
+    console.log('Query params:', { startDate: req.query.start, endDate: req.query.end, caseType: req.query.caseType });
+    
     const today = new Date().toISOString().split('T')[0];
     const startDate = req.query.start || today;
     const endDate = req.query.end || today;
@@ -101,8 +104,19 @@ const getReportData = (req, res) => {
       baseQuery += ' AND ' + whereConditions.join(' AND ');
     }
     baseQuery += ' AND DATE(t.TxnDatetime) BETWEEN ? AND ?' + groupByClause + orderByClause;
+    
+    console.log('Executing SQL query:');
+    console.log('Query length:', baseQuery.length);
+    console.log('Params:', params);
+    console.log('Full query (first 500 chars):', baseQuery.substring(0, 500) + '...');
 
-    const rows = db.query(baseQuery, params);
+    const result = await db.execute(baseQuery, params);
+    const rows = result[0] || [];
+    
+    console.log('Query executed. Rows returned:', rows.length);
+    if (rows.length > 0) {
+      console.log('First row sample:', rows[0]);
+    }
     const transactions = {};
 
     rows.forEach(row => {
@@ -182,6 +196,8 @@ const getReportData = (req, res) => {
       }
     });
 
+    console.log('Processing complete. Transactions found:', Object.keys(transactions).length);
+    
     const orders = Object.values(transactions);
 
     // Case-specific summary
@@ -204,13 +220,18 @@ const getReportData = (req, res) => {
       data: { orders, summary, caseSummary, caseType },
     });
   } catch (error) {
-    // console.error('Error fetching handover data:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch handover data' });
+    console.error('=== REPORT DATA ERROR ===');
+    console.error('Full error:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ success: false, message: 'Failed to fetch handover data', error: error.message });
   }
 };
 
-const getDuplicateBill = (req, res) => {
+const getDuplicateBill = async (req, res) => {
   try {
+    console.log('=== DUPLICATE BILL FETCH START ===');
+    console.log('Query params:', { billNo: req.query.billNo, billDate: req.query.billDate, outletId: req.query.outletId });
+    
     const { billNo, billDate, outletId } = req.query;
 
     if (!billNo || !outletId) {
@@ -261,7 +282,14 @@ const getDuplicateBill = (req, res) => {
       LIMIT 1
     `;
 
-    const bill = db.query(billQuery, params)[0];
+    console.log('Executing bill query:', billQuery.substring(0, 200) + '...');
+    console.log('Bill query params:', params);
+    
+    const billResult = await db.execute(billQuery, params);
+    const billRows = billResult[0] || [];
+    const bill = billRows[0] || null;
+    
+    console.log('Bill found:', !!bill);
 
     if (!bill) {
       return res.status(404).json({ success: false, message: 'Bill not found' });
@@ -288,7 +316,8 @@ const getDuplicateBill = (req, res) => {
       ORDER BY d.TXnDetailID
     `;
 
-    const items = db.query(itemsQuery, [bill.TxnID]);
+    const itemsResult = await db.execute(itemsQuery, [bill.TxnID]);
+    const items = itemsResult[0] || [];
 
     // Tax calculations
     const subtotal = parseFloat(bill.GrossAmt || 0) - parseFloat(bill.Discount || 0);
@@ -311,7 +340,8 @@ const getDuplicateBill = (req, res) => {
       FROM TrnSettlement
       WHERE (OrderNo = ? OR TxnNo = ?) AND isSettled = 1
     `;
-    const payments = db.query(paymentsQuery, [orderNoForPayments, orderNoForPayments]);
+    const paymentsResult = await db.execute(paymentsQuery, [orderNoForPayments, orderNoForPayments]);
+    const payments = paymentsResult[0] || [];
 
     res.json({
       success: true,
@@ -347,8 +377,10 @@ const getDuplicateBill = (req, res) => {
       }
     });
   } catch (error) {
-    // console.error('Error fetching duplicate bill:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch bill data' });
+    console.error('=== DUPLICATE BILL ERROR ===');
+    console.error('Full error:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ success: false, message: 'Failed to fetch bill data', error: error.message });
   }
 };
 

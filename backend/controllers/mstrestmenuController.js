@@ -26,13 +26,17 @@ const runInTransaction = async (fn) => {
 exports.getAllMenuItems = async (req, res) => {
     try {
         const { hotelid, outletid } = req.query;
-        console.log('🚀 getAllMenuItems called:', { hotelid, outletid, url: req.originalUrl });
-        
-let query = `
-           SELECT DISTINCT m.*, m.consume_raw_materials_on_bill, m.consume_raw_materials_on_kot, m.store_name,
-                            o.outlet_name,
-                            h.hotel_name,
-                            ig.itemgroupname AS groupname
+
+        console.log('🚀 getAllMenuItems called:', { hotelid, outletid });
+
+        let query = `
+            SELECT DISTINCT m.*, 
+                   m.consume_raw_materials_on_bill, 
+                   m.consume_raw_materials_on_kot, 
+                   m.store_name,
+                   o.outlet_name,
+                   h.hotel_name,
+                   ig.itemgroupname AS groupname
             FROM mstrestmenu m
             LEFT JOIN mstrestmenudetails md ON m.restitemid = md.restitemid
             LEFT JOIN mst_outlets o ON m.outletid = o.outletid
@@ -40,57 +44,67 @@ let query = `
             LEFT JOIN mst_item_group ig ON m.item_group_id = ig.item_groupid
             WHERE m.status IN (0,1)
         `;
-        
+
         const params = [];
-        
-        if (hotelid) {
+
+        const parsedHotelId = parseInt(hotelid);
+        const parsedOutletId = parseInt(outletid);
+
+        // ✅ HOTEL FILTER (mandatory)
+        if (parsedHotelId) {
             query += ' AND m.hotelid = ?';
-            params.push(parseInt(hotelid));
+            params.push(parsedHotelId);
         }
-        
-        if (outletid) {
-            const parsedOutletId = parseInt(outletid);
-            const [outletRows] = await db.execute('SELECT hotelid FROM mst_outlets WHERE outletid = ?', [parsedOutletId]);
-            const outlet = outletRows[0];
-            if (outlet) {
-                query += ' AND (m.outletid = ? OR (m.hotelid = ? AND m.outletid IS NULL))';
-                params.push(parsedOutletId, outlet.hotelid);
-            } else {
-                query += ' AND m.outletid = ?';
-                params.push(parsedOutletId);
-            }
+
+        // ✅ OUTLET LOGIC
+        if (parsedOutletId && parsedOutletId > 0) {
+            // outlet user → specific outlet + common items
+            query += `
+                AND (
+                    m.outletid = ? 
+                    OR (m.hotelid = ? AND m.outletid IS NULL)
+                )
+            `;
+            params.push(parsedOutletId, parsedHotelId);
         }
-        
+        // ❌ agar outletid = 0 ya null → sirf hotel filter chalega (hotel admin case)
+
         query += ' ORDER BY m.created_date DESC';
-        
+
         console.log('📊 Executing SQL:', query, 'params:', params);
+
         const [menuRows] = await db.execute(query, params);
-        console.log('✅ Raw query result:', menuRows.length, 'rows');
-        const menuItems = menuRows;
-        
-        const menuItemsWithDetails = await Promise.all(menuItems.map(async (item) => {
-            const [detailsRows] = await db.execute(`
-                SELECT md.*, d.department_name, vv.value_name as variant_value_name
-                FROM mstrestmenudetails md
-                LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
-                LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
-                WHERE md.restitemid = ?
-            `, [item.restitemid]);
-            return { ...item, department_details: detailsRows };
-        }));
-        
-        console.log('📦 Final response:', { success: true, count: menuItemsWithDetails.length });
-        res.json({ success: true, data: menuItemsWithDetails, count: menuItemsWithDetails.length });
-    } catch (error) {
-        console.error('💥 MENU FETCH ERROR:', {
-            message: error.message,
-            stack: error.stack?.split('\n').slice(0,3).join('\n'),
-            queryParams: req.query,
-            url: req.originalUrl
+
+        console.log('✅ Raw query result:', menuRows.length);
+
+        const menuItemsWithDetails = await Promise.all(
+            menuRows.map(async (item) => {
+                const [detailsRows] = await db.execute(`
+                    SELECT md.*, d.department_name, vv.value_name AS variant_value_name
+                    FROM mstrestmenudetails md
+                    LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+                    LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
+                    WHERE md.restitemid = ?
+                `, [item.restitemid]);
+
+                return { ...item, department_details: detailsRows };
+            })
+        );
+
+        res.json({
+            success: true,
+            data: menuItemsWithDetails,
+            count: menuItemsWithDetails.length
         });
-        res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
-        console.error('Error fetching menu items:', error);
-        res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
+
+    } catch (error) {
+        console.error('💥 MENU FETCH ERROR:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            details: error.message,
+            data: null
+        });
     }
 };
 
