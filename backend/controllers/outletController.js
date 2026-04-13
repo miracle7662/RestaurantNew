@@ -943,7 +943,7 @@ exports.getOutletSettings = async (req, res) => {
 
 
 // Update outlet settings by outletid
-exports.updateOutletSettings = (req, res) => {
+exports.updateOutletSettings = async (req, res) => {
   try {
     const { outletid } = req.params
     const {
@@ -1022,25 +1022,23 @@ exports.updateOutletSettings = (req, res) => {
     }
 
     // Check if outlet exists
-    const outletExists = db
-      .prepare('SELECT outletid FROM mst_outlets WHERE outletid = ?')
-      .get(outletid)
+const [outletExistsRows] = await db.query('SELECT outletid FROM mst_outlets WHERE outletid = ?', [outletid]);
+      const outletExists = outletExistsRows[0];
 
     if (!outletExists) {
       return res.status(404).json({ error: 'Outlet not found' })
     }
 
     // Start transaction
-    db.exec('BEGIN TRANSACTION')
+await db.query('START TRANSACTION');
 
     // Check if settings already exist for this outlet
-    const existingSettings = db
-      .prepare('SELECT outletid FROM mstoutlet_settings WHERE outletid = ?')
-      .get(outletid)
+const [existingSettingsRows] = await db.query('SELECT outletid FROM mstoutlet_settings WHERE outletid = ?', [outletid]);
+      const existingSettings = existingSettingsRows[0];
 
     if (existingSettings) {
       // Update existing settings
-      const updateStmt = db.prepare(`
+    const [updateResult] = await db.query(`
         UPDATE mstoutlet_settings SET
           send_order_notification = ?,
           bill_number_length = ?,
@@ -1109,11 +1107,9 @@ exports.updateOutletSettings = (req, res) => {
           ReverseQtyMode = ?,
           default_waiter_id = ?,
           pax = ?,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = NOW()
         WHERE outletid = ?
-      `)
-
-      updateStmt.run(
+      `, [
         send_order_notification,
         bill_number_length,
         next_reset_order_number_date,
@@ -1182,10 +1178,10 @@ exports.updateOutletSettings = (req, res) => {
         default_waiter_id,
         pax,
         outletid
-      )
+      ]);
     } else {
       // Insert new settings
-const insertStmt = db.prepare(`
+const [insertResult] = await db.query(`
         INSERT INTO mstoutlet_settings (
           outletid,
           send_order_notification,
@@ -1255,11 +1251,8 @@ const insertStmt = db.prepare(`
         ReverseQtyMode,
         default_waiter_id,
         pax
-      )
-      `);
-
-
-      insertStmt.run(
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
         outletid,
         send_order_notification,
         bill_number_length,
@@ -1328,16 +1321,15 @@ const insertStmt = db.prepare(`
         ReverseQtyMode,
         default_waiter_id,
         pax
-      )
+      ]);
     }
 
     // Commit transaction
-    db.exec('COMMIT')
+await db.query('COMMIT');
 
     // Return updated settings
-    const updatedSettings = db
-      .prepare('SELECT * FROM mstoutlet_settings WHERE outletid = ?')
-      .get(outletid)
+const [updatedSettingsRows] = await db.query('SELECT * FROM mstoutlet_settings WHERE outletid = ?', [outletid]);
+      const updatedSettings = updatedSettingsRows[0];
 
     res.json({
     success: true,
@@ -1347,7 +1339,7 @@ const insertStmt = db.prepare(`
 
   } catch (error) {
     // Rollback transaction on error
-    db.exec('ROLLBACK')
+await db.query('ROLLBACK');
     // console.error('Error updating outlet settings:', error)
     res.status(500).json({ error: 'Failed to update outlet settings' })
   }

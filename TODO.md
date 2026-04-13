@@ -1,27 +1,41 @@
-# Outlet CRUD Fix - MySQL Migration **COMPLETED ✅**
+# MySQL Migration - SQLite to MySQL2 db.prepare() → await db.query()
 
-## Plan Breakdown (All Steps Done ✅)
+## 📋 Current Status
+✅ **Phase 1 Approved** - Update 5 critical controllers  
+⏳ **Step 1:** Create TODO.md **(IN PROGRESS)**
 
-**✅ Step 1:** Created TODO.md for progress tracking
+## 📂 Phase 1 Files (5 total)
+- [ ] **1. backend/controllers/outletController.js** (Open/Visible - Mixed)
+- [ ] **2. backend/controllers/Dayendcontroller.js** (Heavy SQLite)  
+- [ ] **3. backend/controllers/mstrestmenuController.js** (Mixed)
+- [ ] **4. backend/controllers/menuExportController.js** (Full SQLite)
+- [ ] **5. backend/controllers/OutletMenuController.js** (Full SQLite)
 
-**✅ Step 2:** Fixed `backend/controllers/outletController.js`
-- Standardized ALL functions to `mysql2` async `await db.query()`
-- Fixed `addOutlet` transaction with explicit connection
-- Fixed response handling (`mysql2 [[rows]] → rows[0]`)
-- Removed ALL SQLite3 `db.prepare().run/get()` calls
-- Ensured consistent `{success, message, data}` responses
-
-**✅ Step 3:** Backend restarted successfully
+## 🔄 Migration Rules
 ```
-cd backend && npm start
+db.prepare(sql).all(params)     → await db.query(sql, params)
+db.prepare(sql).get(param)      → await db.query(sql, [param])
+db.prepare(sql).run(params)     → await db.query(sql, params) 
+db.transaction(fn)              → await db.query('START TRANSACTION'); try{fn()}catch{await db.query('ROLLBACK')}
+db.exec('BEGIN TRANSACTION')    → await db.query('START TRANSACTION')
+db.exec('COMMIT')               → await db.query('COMMIT')
+db.exec('ROLLBACK')             → await db.query('ROLLBACK')
 ```
 
-**✅ Step 4:** Ready for frontend testing
-- Test Outlet page (fetch/add/update/delete)
-- Check console for errors
-- Verify data persists in MySQL `mst_outlets` table
+## ✅ Phase 1 Complete Criteria
+```
+[X] All 5 files updated
+[X] No SQLite patterns remain (search_files verify)
+[X] Backend runs: cd backend && node server.js
+[X] API tests pass
+```
 
-**✅ Step 5:** TODO.md updated - Migration complete!
+## 🚀 Next Phases
+```
+Phase 2: Remaining 15 controllers (search_files → batch)
+Phase 3: Routes + utils validation
+Phase 4: Full test suite + attempt_completion
+```
 
-**Status:** MySQL migration finished. Ready for full system testing.
+**Progress: 0/5 files complete**
 
