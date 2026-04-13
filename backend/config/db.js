@@ -851,6 +851,7 @@ async function initDB() {
       Extra1 TEXT,
       Extra2 TEXT,
       Extra3 TEXT,
+      DeptID INT,
       TaxableValue FLOAT DEFAULT 0,
       FOREIGN KEY (HotelID) REFERENCES msthotelmasters(hotelid) ON DELETE SET NULL,
       FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE SET NULL,
@@ -889,6 +890,9 @@ async function initDB() {
       KOTUsedDate DATETIME,
       isBilled TINYINT(1) DEFAULT 0,
       RevKOTNo INT,
+      item_no INT,
+      item_name TEXT,
+      order_tag TEXT,
       VariantID INT,
       VariantName TEXT
     )`,

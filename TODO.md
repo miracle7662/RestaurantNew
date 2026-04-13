@@ -1,50 +1,31 @@
-# Fix AddOutlet.tsx Outlet Settings Error - TODO Steps
+# Outlet Billing Settings Debug Task
 
-## Approved Plan Status: ✅ APPROVED (User confirmed "yes")
+## Status: ✅ Debug logs added to backend
 
-**Objective**: Fix "Error fetching outlet settings: Resource not found" in AddOutlet.tsx:530
+### Steps:
+- [x] **1. Understand codebase** - Analyzed outletController.js + AddOutlet.tsx
+- [x] **2. Create debug plan** - Console logs for request → query → DB → response
+- [x] **3. User approval** - ✅ Approved
+- [x] **4. Add console.logs to getOutletBillingSettings**
+  - ✅ Entry + params validation
+  - ✅ Outlet existence check
+  - ✅ Query execution with proper destructuring
+  - ✅ Raw DB results logging
+  - ✅ Nested structure building
+  - ✅ Error handling
+- [ ] **5. Test changes**
+  - Backend restart: `cd backend && npm start`
+  - Frontend: Navigate to outlet settings (outletid=12)
+  - Check VSCode terminal logs
+  - Check browser console for frontend response
+- [ ] **6. Analyze results**
+  - Query returns rows?
+  - Structure matches frontend expectations?
+  - Any SQL errors?
+- [ ] **7. Fix issues** (TBD based on logs)
+- [ ] **8. Cleanup debug logs**
+- [ ] **9. Verify** form populates correctly
+- [ ] **10. Complete task** ✅
 
-**Root Cause**: Backend getOutletBillingSettings() query fails when settings tables missing data for new outlets.
-
-## Step-by-Step Implementation Plan
-
-### ✅ STEP 1: Create TODO.md [COMPLETED]
-
-### ✅ STEP 2: Fix Backend - outletController.js [COMPLETE]
-- ✅ Made getOutletBillingSettings() robust 
-- ✅ Added try-catch + mst_outlets existence check
-- ✅ Proper 404 if outlet missing  
-- ✅ Error logging + safe response structure
-- ✅ Core validation prevents "Resource not found"
-
-**Files**: `backend/controllers/outletController.js` ✅
-
-**Status**: Backend API now returns proper data/error instead of crashing
-
-### ⏳ STEP 3: Safety - outlet.ts API Service  
-- [ ] Add null-checks in OutletService.getOutletBillingSettings()
-- [ ] Safe nested object access
-
-**Files**: `src/common/api/outlet.ts`
-
-### ⏳ STEP 4: Defensive Frontend - AddOutlet.tsx
-- [ ] Handle empty response gracefully  
-- [ ] Use form defaults when API fails
-- [ ] Better error UX
-
-**Files**: `src/views/apps/Masters/CommanMasters/Outlet/AddOutlet.tsx`
-
-### ⏳ STEP 5: Test & Verify
-- [ ] Create new outlet
-- [ ] Verify AddOutlet loads without error
-- [ ] Test API: `GET /api/outlets/settings/{new_outlet_id}`
-- [ ] attempt_completion
-
-### ⏳ STEP 6: Cleanup
-- [ ] Mark completed steps ✅
-- [ ] attempt_completion
-
-**Next Action**: Edit `backend/controllers/outletController.js` (Primary fix)
-
-**Progress**: 2/6 COMPLETE (33%)
+**Next Action:** Test the changes and share terminal logs
 

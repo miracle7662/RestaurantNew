@@ -22,13 +22,6 @@ LEFT JOIN mst_Item_Group i
 WHERE DATE(t.TxnDatetime) BETWEEN ? AND ?
   AND t.HotelID = ?
   AND d.isCancelled = 0
-GROUP BY
-    i.itemgroupname,
-    d.item_no,
-    d.item_name
-ORDER BY
-    i.itemgroupname,
-    d.item_name
         `;
 
         const params = [fromDate, toDate, hotelId];
@@ -50,18 +43,23 @@ ORDER BY
                     params.push(filterId);
                     break;
                 default:
-                    // No additional filter
                     break;
             }
         }
 
-        // // Debug logging
-        // console.log('Filter Type:', filterType);
-        // console.log('Filter ID:', filterId);
-        // console.log('SQL Query:', query);
-        // console.log('Parameters:', params);
+        // GROUP BY + ORDER BY at END (IMPORTANT in MySQL)
+        query += `
+GROUP BY
+    i.itemgroupname,
+    d.item_no,
+    d.item_name
+ORDER BY
+    i.itemgroupname,
+    d.item_name
+        `;
 
-        const results = db.prepare(query).all(...params);
+        // ✅ MySQL execution
+        const [results] = await db.query(query, params);
 
         res.status(200).json({
             success: true,
@@ -104,7 +102,7 @@ const getItemDetails = async (req, res) => {
       JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
       WHERE d.item_no = ?
         AND t.TxnDatetime >= ?
-        AND t.TxnDatetime < datetime(?, '+1 day')
+        AND t.TxnDatetime < DATE_ADD(?, INTERVAL 1 DAY)
         AND t.HotelID = ?
         AND (d.isCancelled = 0 OR d.isCancelled IS NULL)
     `;
@@ -116,13 +114,10 @@ const getItemDetails = async (req, res) => {
       params.push(outletId);
     }
 
-    // ✅ ORDER BY ONLY ONCE — AT THE END
     query += ` ORDER BY t.TxnDatetime DESC`;
 
-    // console.log('FINAL SQL:', query);
-    // console.log('PARAMS:', params);
-
-    const results = db.prepare(query).all(...params);
+    // ✅ MySQL execution
+    const [results] = await db.query(query, params);
 
     res.status(200).json({
       success: true,
@@ -131,7 +126,6 @@ const getItemDetails = async (req, res) => {
     });
 
   } catch (error) {
-    // console.error('Error fetching item details:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve item details',
@@ -139,7 +133,6 @@ const getItemDetails = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
     getKitchenAllocation,
