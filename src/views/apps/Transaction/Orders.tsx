@@ -2666,9 +2666,7 @@ const handlePrintKotAndBill = async () => {
     // Check if already selected
     if (selectedPaymentModes.length > 0) return;
 
-    const cashMode = outletPaymentModes.find(
-      m => m.payment_mode_name?.toLowerCase() === 'cash'
-    );
+    const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(     m => m.mode_name?.toLowerCase() === 'cash'    ) : null;
 
     if (!cashMode) return;
 
@@ -2726,7 +2724,7 @@ const handlePrintKotAndBill = async () => {
 
       // 1. Construct the settlements payload and extract totals from settlementsData
       const settlementsPayload = currentSettlements.map((s: any) => {
-        const paymentModeDetails = outletPaymentModes.find(pm => pm.mode_name === s.PaymentType);
+        const paymentModeDetails = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(pm => pm.mode_name === s.PaymentType) : null;
         // Get received_amount and refund_amount from settlements data
         const receivedAmount = s.received_amount || 0;
         const refundAmount = s.refund_amount || 0;

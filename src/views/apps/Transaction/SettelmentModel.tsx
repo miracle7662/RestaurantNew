@@ -256,7 +256,7 @@ if (!show || !Array.isArray(outletPaymentModes) || outletPaymentModes.length ===
 
       // Auto-select Cash if no initial payment modes and not mixed
       if (!initialIsMixed && initialSelectedModes.length === 0) {
-        const cashMode = outletPaymentModes.find(m => m.mode_name.toLowerCase() === 'cash');
+const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash') : null;
         if (cashMode) {
           setSelectedPaymentModes([cashMode.mode_name]);
           setPaymentAmounts({ [cashMode.mode_name]: grandTotal.toFixed(2) });

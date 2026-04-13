@@ -850,7 +850,7 @@ exports.updateBillItemsIsBilled = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createKOT = async (req, res) => {
   try {
-    // console.log('Received createKOT body:', JSON.stringify(req.body, null, 2))
+     console.log('Received createKOT body:', JSON.stringify(req.body, null, 2))
     // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
     const {
     outletid,
@@ -886,7 +886,7 @@ exports.createKOT = async (req, res) => {
     items: details = [],
   } = req.body
 
-    // console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
+     console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
     // console.log('Received Calculated Values from Frontend:', { GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount })
     let order_tag = req.body.order_tag
 
@@ -1071,7 +1071,7 @@ exports.createKOT = async (req, res) => {
         ])
         txnId = result.insertId
         await db.query('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?', [Number(TableID)])
-        // console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`)
+        console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`)
       }
 
       // 2. Generate a new KOT number by finding the max KOT for the current day for that outlet.
@@ -1087,9 +1087,7 @@ exports.createKOT = async (req, res) => {
       )
       const maxKOTResult = maxKOTResultRows[0]
       const kotNo = (maxKOTResult?.maxKOT || 0) + 1
-      // console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`)
-
-      const [getItemStmtRows] = await db.query('SELECT item_no FROM mstrestmenu WHERE restitemid = ?')
+       console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`)
 
       for (const item of details) {
         const qty = Number(item.Qty) || 0
@@ -1118,11 +1116,6 @@ exports.createKOT = async (req, res) => {
         let itemDiscountAmount = Number(item.Discount_Amount) || 0
 
         let itemNo = item.item_no
-        if (!itemNo && item.ItemID) {
-          const [menuDataRows] = await db.query('SELECT item_no FROM mstrestmenu WHERE restitemid = ?', [item.ItemID])
-          const menuData = menuDataRows[0]
-          if (menuData) itemNo = menuData.item_no
-        }
 
         // console.log('Inserting item with order_tag:', order_tag)
 // console.log('🚀 Saving KOT Item with Variant:', {
@@ -1196,7 +1189,7 @@ exports.createKOT = async (req, res) => {
       throw error
     }
   } catch (error) {
-    // console.error('Error in createKOT:', error)
+     console.error('Error in createKOT:', error)
     res
       .status(500)
       .json({
