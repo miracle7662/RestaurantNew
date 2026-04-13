@@ -1,40 +1,43 @@
 const db = require('../config/db')
 
 // Welcome endpoint with logging
-exports.welcome = (req, res) => {
-  // console.log(`Request received: ${req.method} ${req.path}`)
-  res.json({ message: 'Welcome to the API!' })
+exports.welcome = async (req, res) => {
+  try {
+    res.json({ success: true, message: 'Welcome to the API!' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 }
+
 
 // Get brands/hotels based on user role
 exports.getBrands = async (req, res) => {
   try {
     const { role_level, hotelid } = req.query
 
-    let query = 'SELECT hotelid, hotel_name FROM msthotelmasters' // status = 0 means status
+    let query = 'SELECT hotelid, hotel_name FROM msthotelmasters WHERE status = 0';
     let params = []
 
     // If user is hotel_admin, only show their hotel
     if (role_level === 'hotel_admin' && hotelid) {
-      query += ' WHERE hotelid = ?'
-      params.push(hotelid)
+      query += ' AND hotelid = ?';
+      params.push(hotelid);
     }
-    // If user is superadmin, show all hotels (no additional WHERE clause)
 
-    const [brands] = await db.query(query, params)
-    res.json({ success: true, message: 'Brands fetched successfully', data: brands })
+    const [rows] = await db.query(query, params);
+    const brands = rows;
+    res.json({ success: true, message: 'Brands fetched successfully', data: brands });
   } catch (error) {
-    // console.error('Error fetching brands:', error)
-    res.status(500).json({ success: false, message: 'Failed to fetch brands', data: null })
+    console.error('Error fetching brands:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch brands', data: null });
   }
 }
+
 
 exports.getOutlets = async (req, res) => {
   try {
     const { role_level, brandId, hotelid, userid } = req.query;
     const user = req.user || {};
-
-    // console.log('Received req.query:', req.query);
 
     let query = `
       SELECT DISTINCT o.*,
@@ -47,7 +50,6 @@ exports.getOutlets = async (req, res) => {
 
     switch (role_level) {
       case 'superadmin':
-        // No additional filter, fetches all outlets
         break;
       case 'brand_admin':
         query += ' WHERE o.hotelid = ?';
@@ -59,25 +61,24 @@ exports.getOutlets = async (req, res) => {
         break;
       case 'outlet_user':
         if (!hotelid) {
-          return res.status(400).json({ message: 'Hotel ID is required for outlet_user' });
+          return res.status(400).json({ success: false, message: 'Hotel ID is required for outlet_user', data: null });
         }
         query += ' WHERE o.hotelid = ?';
         params.push(hotelid);
         break;
       default:
-        return res.status(403).json({ message: 'Insufficient permissions' });
+        return res.status(403).json({ success: false, message: 'Insufficient permissions', data: null });
     }
 
     query += ' ORDER BY o.outlet_name';
-    console.log('Constructed query:', query, 'with params:', params);
 
-    const outlets = await db.query(query, params);
-    console.log('Found outlets:', outlets);
+    const [rows] = await db.query(query, params);
+    const outlets = rows;
 
-    res.status(200).json ({success: true, message: 'Outlets fetched successfully',data: outlets})
+    res.json({ success: true, message: 'Outlets fetched successfully', data: outlets });
   } catch (error) {
-     console.error('Error fetching outlets:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    console.error('Error fetching outlets:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', data: null });
   }
 };
 
@@ -424,9 +425,8 @@ exports.addOutlet = async (req, res) => {
         show_store_name,
         show_terminal_username,
         show_username,
-        show_waiter,
-        hide_item_Amt_column
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        show_waiter
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       outletId,
         0, // customer_on_kot_dine_in
@@ -460,8 +460,7 @@ exports.addOutlet = async (req, res) => {
       1, // show_store_name
       0, // show_terminal_username
       0, // show_username
-      1, // show_waiter
-      0 // hide_item_Amt_column
+      1 // show_waiter
     ]);
 
     // Insert default settings into mstbill_print_settings
@@ -879,68 +878,61 @@ exports.updateOutlet = async (req, res) => {
   }
 }
 
-exports.deleteOutlet = (req, res) => {
+exports.deleteOutlet = async (req, res) => {
   try {
     const { id } = req.params
-    const stmt = db.prepare('DELETE FROM mst_outlets WHERE outletid = ?')
-    stmt.run(id)
+    await db.query('DELETE FROM mst_outlets WHERE outletid = ?', [id])
     res.json({ success: true, message: 'Outlet deleted successfully', data: null })
   } catch (error) {
-    //  console.error('Error deleting outlet:', error)
+    console.error('Error deleting outlet:', error)
     res.status(500).json({ success: false, message: 'Failed to delete outlet', data: null })
   }
 }
 
-exports.getOutletById = (req, res) => {
+exports.getOutletById = async (req, res) => {
   try {
     const { id } = req.params
-    const outlet = db
-      .prepare(
-        `
-            SELECT o.*, h.hotel_name as brand_name 
-            FROM mst_outlets o 
-            LEFT JOIN msthotelmasters h ON o.hotelid = h.hotelid 
-            WHERE o.outletid = ?
-        `,
-      )
-      .get(id)
+    const [rows] = await db.query(
+      `
+        SELECT o.*, h.hotel_name as brand_name 
+        FROM mst_outlets o 
+        LEFT JOIN msthotelmasters h ON o.hotelid = h.hotelid 
+        WHERE o.outletid = ?`, [id]
+    )
+    const outlet = rows[0]
 
     if (!outlet) {
-      return res.status(404).json({ error: 'Outlet not found' })
+      return res.status(404).json({ success: false, message: 'Outlet not found', data: null })
     }
 
-    res.json(outlet)
+    res.json({ success: true, message: 'Outlet fetched successfully', data: outlet })
   } catch (error) {
-    // console.error('Error fetching outlet:', error)
-    res.status(500).json({ error: 'Failed to fetch outlet' })
+    res.status(500).json({ success: false, message: 'Failed to fetch outlet', data: null })
   }
 }
 
 // Get outlet settings by outletid
-exports.getOutletSettings = (req, res) => {
+exports.getOutletSettings = async (req, res) => {
   try {
     const { outletid } = req.params
 
     if (!outletid || isNaN(outletid)) {
-      return res.status(400).json({ error: 'Valid outlet ID is required' })
+      return res.status(400).json({ success: false, message: 'Valid outlet ID is required', data: null })
     }
 
-    const settings = db
-      .prepare(`SELECT * FROM mstoutlet_settings WHERE outletid = ?`)
-      .get(outletid)
+    const [rows] = await db.query(`SELECT * FROM mstoutlet_settings WHERE outletid = ?`, [outletid])
+    const settings = rows[0]
 
     if (!settings) {
-      return res.status(404).json({ error: 'Outlet settings not found' })
+      return res.status(404).json({ success: false, message: 'Outlet settings not found', data: null })
     }
 
-    // Wrap the actual data
     res.json({
       success: true,
       message: 'Outlet settings fetched successfully',
       data: settings
     })
   } catch (error) {
-    // console.error('Error fetching outlet settings:', error)
     res.status(500).json({
       success: false,
       message: 'Failed to fetch outlet settings',
