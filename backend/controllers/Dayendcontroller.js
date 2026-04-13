@@ -1,8 +1,7 @@
-
 const db = require('../config/db');
 // Convert to India Standard Time (UTC+5:30)
 
-const getDayendData = (req, res) => {
+const getDayendData = async (req, res) => {
   try {
     // Get all billed or settled bills with their details
     // console.log('🔍 Executing DayEndReport query...');
@@ -32,8 +31,8 @@ const getDayendData = (req, res) => {
           GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
           t.NCPurpose,
           t.NCName,
-(SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1) as Settlements,
-(SELECT GROUP_CONCAT(s.PaymentType) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1) as PaymentType,
+          (SELECT GROUP_CONCAT(CONCAT(s.PaymentType, ':', s.Amount)) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1) as Settlements,
+          (SELECT GROUP_CONCAT(s.PaymentType) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1) as PaymentType,
           t.isSetteled,
           t.isBilled,
           t.isreversebill,
@@ -44,16 +43,17 @@ const getDayendData = (req, res) => {
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
-WHERE t.isDayEnd = 0 
-AND (
-    (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1))
-    OR t.isreversebill = 1
-)
+      WHERE t.isDayEnd = 0 
+      AND (
+          (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1))
+          OR t.isreversebill = 1
+      )
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
     `;
 
-    const rows = db.prepare(query).all();
+    // MySQL conversion: Changed from db.prepare(query).all() to db.query(query)
+    const [rows] = await db.query(query);
    
     // Group by transaction
     const transactions = {};
@@ -188,7 +188,7 @@ AND (
 
 
 
-const saveDayEndCashDenomination = (req, res) => {
+const saveDayEndCashDenomination = async (req, res) => {
   const { denominations, total, userId, reason } = req.body;
 
   if (!denominations || !userId) {
@@ -196,34 +196,42 @@ const saveDayEndCashDenomination = (req, res) => {
   }
 
   try {
-    const stmt = db.prepare(`
+    // MySQL conversion: Changed from SQLite named parameters (@variable) to MySQL positional parameters (?)
+    const query = `
       INSERT INTO trn_dayend_cashdenomination (
         note_2000, note_500, note_200, note_100, note_50, note_20, note_10, note_5, note_2, note_1,
         total_2000, total_500, total_200, total_100, total_50, total_20, total_10, total_5, total_2, total_1,
         grand_total, user_id
       ) VALUES (
-        @note_2000, @note_500, @note_200, @note_100, @note_50, @note_20, @note_10, @note_5, @note_2, @note_1,
-        @total_2000, @total_500, @total_200, @total_100, @total_50, @total_20, @total_10, @total_5, @total_2, @total_1,
-        @grand_total, @user_id
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?
       )
-    `);
+    `;
 
-    const info = stmt.run({
-      note_2000: denominations['2000'] || 0, note_500: denominations['500'] || 0,
-      note_200: denominations['200'] || 0, note_100: denominations['100'] || 0,
-      note_50: denominations['50'] || 0, note_20: denominations['20'] || 0,
-      note_10: denominations['10'] || 0, note_5: denominations['5'] || 0,
-      note_2: denominations['2'] || 0, note_1: denominations['1'] || 0,
-      total_2000: (denominations['2000'] || 0) * 2000, total_500: (denominations['500'] || 0) * 500,
-      total_200: (denominations['200'] || 0) * 200, total_100: (denominations['100'] || 0) * 100,
-      total_50: (denominations['50'] || 0) * 50, total_20: (denominations['20'] || 0) * 20,
-      total_10: (denominations['10'] || 0) * 10, total_5: (denominations['5'] || 0) * 5,
-      total_2: (denominations['2'] || 0) * 2, total_1: (denominations['1'] || 0) * 1,
-      grand_total: total,
-      user_id: userId,
+    const values = [
+      denominations['2000'] || 0, denominations['500'] || 0,
+      denominations['200'] || 0, denominations['100'] || 0,
+      denominations['50'] || 0, denominations['20'] || 0,
+      denominations['10'] || 0, denominations['5'] || 0,
+      denominations['2'] || 0, denominations['1'] || 0,
+      (denominations['2000'] || 0) * 2000, (denominations['500'] || 0) * 500,
+      (denominations['200'] || 0) * 200, (denominations['100'] || 0) * 100,
+      (denominations['50'] || 0) * 50, (denominations['20'] || 0) * 20,
+      (denominations['10'] || 0) * 10, (denominations['5'] || 0) * 5,
+      (denominations['2'] || 0) * 2, (denominations['1'] || 0) * 1,
+      total,
+      userId,
+    ];
+
+    // MySQL conversion: Changed from stmt.run() to db.query()
+    const [result] = await db.query(query, values);
+
+    res.json({ 
+      success: true, 
+      message: 'Day-End cash denomination saved successfully.', 
+      id: result.insertId  // MySQL uses insertId instead of lastInsertRowid
     });
-
-    res.json({ success: true, message: 'Day-End cash denomination saved successfully.', id: info.lastInsertRowid });
   } catch (error) {
     // console.error('Error saving day-end cash denomination:', error);
     res.status(500).json({ success: false, message: 'Failed to save day-end cash denomination data.' });
@@ -243,7 +251,8 @@ const saveDayEnd = async (req, res) => {
     // ===========================================
     // ✅ CALCULATE CLOSING BALANCE (Cash received during the day)
     // ===========================================
-    const cashFromSettlements = db.prepare(`
+    // MySQL conversion: Changed from db.prepare().all() to await db.query()
+    const [cashFromSettlements] = await db.query(`
       SELECT s.Amount, s.PaymentType
       FROM TrnSettlement s
       JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
@@ -251,7 +260,7 @@ const saveDayEnd = async (req, res) => {
         AND t.isCancelled = 0 
         AND (t.isBilled = 1 OR t.isSetteled = 1)
         AND s.isSettled = 1
-    `).all();
+    `);
 
     let closing_balance = 0;
     cashFromSettlements.forEach(settlement => {
@@ -265,42 +274,43 @@ const saveDayEnd = async (req, res) => {
     // ===========================================
     // ✅ STEP 1: CHECK PENDING TABLES & BILLS BEFORE DAYEND
     // ===========================================
-    const pendingTables = db.prepare(`
+    // MySQL conversion: Changed positional parameters from ? to ?
+    const [pendingTables] = await db.query(`
       SELECT tableid AS TableID, table_name
       FROM msttablemanagement
       WHERE outletid = ?
         AND hotelid = ?
         AND status = 1
-    `).all(outlet_id, hotel_id);
+    `, [outlet_id, hotel_id]);
 
     // ✅ NEW: Check pending non-table bills (pickup/delivery/quickbill/takeaway)
-    const pendingBills = db.prepare(`
-  SELECT 
-    TxnID, 
-    COALESCE(TxnNo, '') as TxnNo,
-    COALESCE(table_name, 'Unnamed') as table_name
-  FROM TAxnTrnbill 
-  WHERE outletid = ? 
-    AND hotelid = ?
-    AND isDayEnd = 0 
-    AND isSetteled = 0   -- ✅ ONLY UNSETTLED
-    AND table_name IN ('Pickup','Delivery','Quick Bill','Takeaway')
-`).all(outlet_id, hotel_id);
+    const [pendingBills] = await db.query(`
+      SELECT 
+        TxnID, 
+        COALESCE(TxnNo, '') as TxnNo,
+        COALESCE(table_name, 'Unnamed') as table_name
+      FROM TAxnTrnbill 
+      WHERE outletid = ? 
+        AND hotelid = ?
+        AND isDayEnd = 0 
+        AND isSetteled = 0
+        AND table_name IN ('Pickup','Delivery','Quick Bill','Takeaway')
+    `, [outlet_id, hotel_id]);
 
-const allPending = [
-  ...pendingTables.map(t => ({
-    type: 'Table',
-    id: t.TableID,
-    name: t.table_name
-  })),
-  ...pendingBills.map(b => ({
-    type: 'Bill',
-    id: b.TxnID,
-    name: b.TxnNo 
-      ? `${b.table_name} (${b.TxnNo})`
-      : `${b.table_name} (ID: ${b.TxnID})`
-  }))
-];
+    const allPending = [
+      ...pendingTables.map(t => ({
+        type: 'Table',
+        id: t.TableID,
+        name: t.table_name
+      })),
+      ...pendingBills.map(b => ({
+        type: 'Bill',
+        id: b.TxnID,
+        name: b.TxnNo 
+          ? `${b.table_name} (${b.TxnNo})`
+          : `${b.table_name} (ID: ${b.TxnID})`
+      }))
+    ];
 
     if (allPending.length > 0) {
       // console.log("⛔ Pending Items Found:", allPending.map(p => `${p.type}:${p.id} (${p.name})`));
@@ -318,11 +328,14 @@ const allPending = [
     // ===========================================
 
     // Get last record
-    const last = db.prepare(`
+    // MySQL conversion: Changed from .get() to [rows][0]
+    const [lastRows] = await db.query(`
       SELECT dayend_date, curr_date FROM trn_dayend
       WHERE outlet_id = ? AND hotel_id = ?
       ORDER BY id DESC LIMIT 1
-    `).get(outlet_id, hotel_id);
+    `, [outlet_id, hotel_id]);
+    
+    const last = lastRows[0] || null;
 
     // console.log("Last record:", last);
 
@@ -341,7 +354,7 @@ const allPending = [
       const currentHour = indiaTime.getHours();
 
       let businessDate = new Date(indiaTime);
-       // If current time is after midnight (12:00 AM) and before 6:00 AM, use previous day as business date
+      // If current time is after midnight (12:00 AM) and before 6:00 AM, use previous day as business date
       if (currentHour < 6) {
         businessDate.setDate(businessDate.getDate() - 1);
       }
@@ -362,79 +375,77 @@ const allPending = [
     // ==============================
     // ✅ NEW LOGIC for lock_datetime
     // ==============================
-// Check current conditions
-  
-const today = new Date(indiaTime.toISOString().split('T')[0]); // yyyy-mm-dd
-let lock_datetime;
+    // Check current conditions
+    const today = new Date(indiaTime.toISOString().split('T')[0]); // yyyy-mm-dd
+    let lock_datetime;
 
-if (last) {
-    const lastDayEnd = new Date(last.curr_date);
-    const isDayEndPending = lastDayEnd < today;
-    const isAfterMidnight = indiaTime.getHours() < 6; // 00:00–05:59
+    if (last) {
+      const lastDayEnd = new Date(last.curr_date);
+      const isDayEndPending = lastDayEnd < today;
+      const isAfterMidnight = indiaTime.getHours() < 6; // 00:00–05:59
 
-    if (isDayEndPending) {
+      if (isDayEndPending) {
         // Pending DayEnd → lock at 23:59 of next business day
         const nextDay = new Date(lastDayEnd);
         nextDay.setDate(nextDay.getDate() + 1);
         lock_datetime = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2,'0')}-${String(nextDay.getDate()).padStart(2,'0')} 23:59:00`;
-    } else if (isAfterMidnight) {
+      } else if (isAfterMidnight) {
         // After midnight → lock at 23:59 of previous day
         const prevDay = new Date(today);
         prevDay.setDate(prevDay.getDate() - 1);
         lock_datetime = `${prevDay.getFullYear()}-${String(prevDay.getMonth() + 1).padStart(2,'0')}-${String(prevDay.getDate()).padStart(2,'0')} 23:59:00`;
-    } else {
+      } else {
         // Normal → current system time
         lock_datetime = indiaTime.toISOString().replace('T', ' ').slice(0, 19);
+      }
+    } else {
+      // First ever DayEnd → current system time
+      lock_datetime = indiaTime.toISOString().replace('T', ' ').slice(0, 19);
     }
-} else {
-    // First ever DayEnd → current system time
-    lock_datetime = indiaTime.toISOString().replace('T', ' ').slice(0, 19);
-}
 
-// console.log("Lock DateTime selected:", lock_datetime);
-
-// console.log("Lock DateTime selected:", lock_datetime);
-
-//     console.log("Lock DateTime selected:", lock_datetime);
-
-//     console.log("Inserting new dayend record...");
+    // console.log("Lock DateTime selected:", lock_datetime);
+    // console.log("Inserting new dayend record...");
 
     // Insert the dayend record with closing_balance
-    const result = db.prepare(`
+    // MySQL conversion: Changed from named parameters (@variable) to positional parameters (?)
+    const [result] = await db.query(`
       INSERT INTO trn_dayend (
         dayend_date, curr_date, system_datetime, lock_datetime,
         outlet_id, hotel_id, dayend_total_amt, closing_balance, created_by_id
       ) VALUES (
-        @dayend_date, @curr_date, @system_datetime, @lock_datetime,
-        @outlet_id, @hotel_id, @dayend_total_amt, @closing_balance, @created_by_id
+        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?
       )
-    `).run({
+    `, [
       dayend_date,
       curr_date,
-      system_datetime: formattedIndiaTime,
+      formattedIndiaTime,
       lock_datetime,
       outlet_id,
       hotel_id,
-      dayend_total_amt: dayend_total_amt || 0,
-      closing_balance: closing_balance || 0,
+      dayend_total_amt || 0,
+      closing_balance || 0,
       created_by_id
-    });
+    ]);
 
-    const lastInsertId = result.lastInsertRowid;
+    const lastInsertId = result.insertId; // MySQL uses insertId instead of lastInsertRowid
 
     // Update TAxnTrnbill table to mark transactions as dayended
-    const updateTxn = db.prepare(`
+    // MySQL conversion: Changed named parameter to positional parameter
+    const [updateResult] = await db.query(`
       UPDATE TAxnTrnbill
-      SET isDayEnd = 1, DayEndEmpID = @created_by_id
+      SET isDayEnd = 1, DayEndEmpID = ?
       WHERE isDayEnd = 0 AND ((isCancelled = 0 AND (isBilled = 1 OR isSetteled = 1)) OR isreversebill = 1)
-    `).run({ created_by_id });
+    `, [created_by_id]);
 
-    // console.log(`Updated ${updateTxn.changes} transactions in TAxnTrnbill`);
+    // console.log(`Updated ${updateResult.affectedRows} transactions in TAxnTrnbill`); // MySQL uses affectedRows
 
     // Verify the inserted data
-    const storedData = db.prepare(`
+    const [storedRows] = await db.query(`
       SELECT id, dayend_date, curr_date, system_datetime, lock_datetime, closing_balance FROM trn_dayend WHERE id = ?
-    `).get(lastInsertId);
+    `, [lastInsertId]);
+    
+    const storedData = storedRows[0];
 
     // console.log("✅ Dayend completed successfully:", storedData);
 
@@ -459,7 +470,7 @@ if (last) {
 
 const { getBusinessDate } = require('../utils/businessDate');
 
-const getLatestCurrDate = (req, res) => {
+const getLatestCurrDate = async (req, res) => {
   try {
     const { brandId: outlet_id, hotelid } = req.query;
 
@@ -475,11 +486,14 @@ const getLatestCurrDate = (req, res) => {
     } else {
       // For hotel admins without specific outlet, get the latest dayend for the hotel
       const db = require('../config/db');
-      const row = db.prepare(`
+      // MySQL conversion: Changed from db.prepare().get() to await db.query()
+      const [rows] = await db.query(`
         SELECT curr_date FROM trn_dayend
         WHERE hotel_id = ?
         ORDER BY id DESC LIMIT 1
-      `).get(hotelid);
+      `, [hotelid]);
+      
+      const row = rows[0] || null;
       currDate = row ? row.curr_date : null;
     }
 
@@ -507,10 +521,9 @@ const getLatestCurrDate = (req, res) => {
 
 
 
-
 // ==================== MAIN CONTROLLER ====================
 
-const generateDayEndReportHTML = (req, res) => {
+const generateDayEndReportHTML = async (req, res) => {
   try {
     const { DayEndEmpID, businessDate, selectedReports = [] } = req.body;
 
@@ -535,37 +548,37 @@ const generateDayEndReportHTML = (req, res) => {
     // ✅ CASE-WISE: Fetch ONLY required report data
     const reportData = {};
 
-    // Execute queries PARALLELY for selected reports only
-    selectedReports.forEach(reportKey => {
+    // Execute queries SEQUENTIALLY for selected reports only
+    for (const reportKey of selectedReports) {
       try {
         switch(reportKey) {
           case 'billDetails':
             console.log(`🔍 Fetching billDetails for Emp:${DayEndEmpID}, Date:${businessDate}`);
-            reportData.billDetails = getBillDetailsData(businessDate, DayEndEmpID);
+            reportData.billDetails = await getBillDetailsData(businessDate, DayEndEmpID);
             break;
           case 'paymentSummary':
             console.log(`🔍 Fetching paymentSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
-            reportData.paymentSummary = getPaymentSummaryData(businessDate, DayEndEmpID);
+            reportData.paymentSummary = await getPaymentSummaryData(businessDate, DayEndEmpID);
             break;
           case 'creditSummary':
             console.log(`🔍 Fetching creditSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
-            reportData.creditSummary = getCreditSummaryData(businessDate, DayEndEmpID);
+            reportData.creditSummary = await getCreditSummaryData(businessDate, DayEndEmpID);
             break;
           case 'discountSummary':
             console.log(`🔍 Fetching discountSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
-            reportData.discountSummary = getDiscountSummaryData(businessDate, DayEndEmpID);
+            reportData.discountSummary = await getDiscountSummaryData(businessDate, DayEndEmpID);
             break;
           case 'reverseKOTSummary':
             console.log(`🔍 Fetching reverseKOTSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
-            reportData.reverseKOTs = getReverseKOTsData(businessDate, DayEndEmpID);
+            reportData.reverseKOTs = await getReverseKOTsData(businessDate, DayEndEmpID);
             break;
           case 'reverseBillSummary':
             console.log(`🔍 Fetching reverseBillSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
-            reportData.reverseBills = getReverseBillsData(businessDate, DayEndEmpID);
+            reportData.reverseBills = await getReverseBillsData(businessDate, DayEndEmpID);
             break;
           case 'ncKOTSummary':
             console.log(`🔍 Fetching ncKOTSummary for Emp:${DayEndEmpID}, Date:${businessDate}`);
-            reportData.ncKOTSummary = getNCKOTsData(businessDate, DayEndEmpID);
+            reportData.ncKOTSummary = await getNCKOTsData(businessDate, DayEndEmpID);
             break;
           default:
             console.warn(`⚠️ Unknown report type: ${reportKey}`);
@@ -574,12 +587,12 @@ const generateDayEndReportHTML = (req, res) => {
         console.error(`❌ Error fetching ${reportKey}:`, queryError);
         reportData[reportKey] = [];
       }
-    });
+    }
 
     // ✅ Generate thermal HTML sections
     let reportContent = '';
 
-    selectedReports.forEach(reportKey => {
+    for (const reportKey of selectedReports) {
       try {
         let sectionHTML = '';
         switch(reportKey) {
@@ -595,7 +608,7 @@ const generateDayEndReportHTML = (req, res) => {
       } catch (htmlError) {
         console.error(`❌ HTML generation failed for ${reportKey}:`, htmlError);
       }
-    });
+    }
 
     if (!reportContent.trim()) {
       reportContent = '\n' + centerText('NO DATA AVAILABLE', 48) + '\n\n';
@@ -627,7 +640,7 @@ const generateDayEndReportHTML = (req, res) => {
 // ==================== DAY END DATA FETCHERS ====================
 // Each report gets its OWN optimized SQL query (NO massive JOINs)
 
-const getBillDetailsData = (businessDate, dayEndEmpID) => {
+const getBillDetailsData = async (businessDate, dayEndEmpID) => {
   console.log(`🔍 getBillDetailsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
   const query = `
     SELECT 
@@ -641,17 +654,17 @@ const getBillDetailsData = (businessDate, dayEndEmpID) => {
       AND t.DayEndEmpID = ?
       AND t.isNCKOT = 0
       AND t.isreversebill = 0
-      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
       AND t.isCancelled = 0
     GROUP BY t.TxnID, t.TxnNo
     ORDER BY t.TxnDatetime DESC
   `;
-  const rows = db.prepare(query).all(dayEndEmpID, businessDate);
+  const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
   console.log(`✅ getBillDetailsData found ${rows.length} records`);
   return rows;
 };
 
-const getPaymentSummaryData = (businessDate, dayEndEmpID) => {
+const getPaymentSummaryData = async (businessDate, dayEndEmpID) => {
   const query = `
     SELECT 
       s.PaymentType,
@@ -661,15 +674,16 @@ const getPaymentSummaryData = (businessDate, dayEndEmpID) => {
     JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
       AND s.isSettled = 1
     GROUP BY s.PaymentType
     ORDER BY totalAmount DESC
   `;
-  return db.prepare(query).all(dayEndEmpID, businessDate);
+  const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
+  return rows;
 };
 
-const getCreditSummaryData = (businessDate, dayEndEmpID) => {
+const getCreditSummaryData = async (businessDate, dayEndEmpID) => {
   const query = `
     SELECT 
       COALESCE(t.NCName, 'Walk-in Credit') as customerName,
@@ -681,16 +695,17 @@ const getCreditSummaryData = (businessDate, dayEndEmpID) => {
       AND s.isSettled = 1
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
       AND t.isCancelled = 0
     GROUP BY t.NCName
     HAVING creditAmount > 0
     ORDER BY creditAmount DESC
   `;
-  return db.prepare(query).all(dayEndEmpID, businessDate);
+  const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
+  return rows;
 };
 
-const getDiscountSummaryData = (businessDate, dayEndEmpID) => {
+const getDiscountSummaryData = async (businessDate, dayEndEmpID) => {
   const query = `
     SELECT 
       t.TxnNo, t.table_name, t.Discount, t.DiscPer,
@@ -702,15 +717,16 @@ const getDiscountSummaryData = (businessDate, dayEndEmpID) => {
     FROM TAxnTrnbill t
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
       AND t.Discount > 0
       AND t.isCancelled = 0
     ORDER BY t.Discount DESC
   `;
-  return db.prepare(query).all(dayEndEmpID, businessDate);
+  const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
+  return rows;
 };
 
-const getReverseKOTsData = (businessDate, dayEndEmpID) => {
+const getReverseKOTsData = async (businessDate, dayEndEmpID) => {
   console.log(`🔍 getReverseKOTsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
   const query = `
     SELECT DISTINCT
@@ -724,17 +740,17 @@ const getReverseKOTsData = (businessDate, dayEndEmpID) => {
     LEFT JOIN mstrestmenu m ON td.ItemID = m.restitemid
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
       AND td.RevKOTNo IS NOT NULL 
       AND td.RevKOTNo != ''
     ORDER BY td.RevKOTNo DESC, t.TxnDatetime
   `;
-  const rows = db.prepare(query).all(dayEndEmpID, businessDate);
+  const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
   console.log(`✅ getReverseKOTsData found ${rows.length} records`);
   return rows;
 };
 
-const getReverseBillsData = (businessDate, dayEndEmpID) => {
+const getReverseBillsData = async (businessDate, dayEndEmpID) => {
   console.log(`🔍 getReverseBillsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
   const query = `
     SELECT 
@@ -745,34 +761,34 @@ const getReverseBillsData = (businessDate, dayEndEmpID) => {
     FROM TAxnTrnbill t
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
       AND t.isreversebill = 1
       AND t.isCancelled = 1
     ORDER BY t.TxnDatetime DESC
   `;
-  const rows = db.prepare(query).all(dayEndEmpID, businessDate);
+  const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
   console.log(`✅ getReverseBillsData found ${rows.length} records`);
   return rows;
 };
 
-const getNCKOTsData = (businessDate, dayEndEmpID) => {
+const getNCKOTsData = async (businessDate, dayEndEmpID) => {
   console.log(`🔍 getNCKOTsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
   const query = `
     SELECT DISTINCT
-      t.NCName AS ncName,         -- Customer / NC Name
-      t.NCPurpose AS purpose,      -- Reason / Purpose of NC KOT
-      td.Qty AS quantity,         -- Quantity
-      t.Amount AS amount,        -- Amount
-      t.TxnDatetime               -- Time of transaction
+      t.NCName AS ncName,
+      t.NCPurpose AS purpose,
+      td.Qty AS quantity,
+      t.Amount AS amount,
+      t.TxnDatetime
     FROM TAxnTrnbilldetails td
     JOIN TAxnTrnbill t ON td.TxnID = t.TxnID
     WHERE t.isDayEnd = 1
       AND t.DayEndEmpID = ?
-      AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ?
+      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
       AND td.isNCKOT = 1
     ORDER BY t.TxnDatetime DESC, td.KOTNo DESC
   `;
-  const rows = db.prepare(query).all(dayEndEmpID, businessDate);
+  const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
   console.log(`✅ getNCKOTsData found ${rows.length} records`);
   return rows;
 };
@@ -916,7 +932,7 @@ const generateCreditSummaryHTML = (data) => {
     totalCredit += Number(cred.creditAmount || 0);
   });
 
-  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
+  html += '-'.repeat(47) + '\n';
   html += `TOTAL                      ${totalCredit.toLocaleString().padStart(9)}\n`;
   html += '═' + '═'.repeat(47) + '═\n\n';
   return html;
@@ -941,8 +957,9 @@ const generateDiscountSummaryHTML = (data) => {
     totalDisc += Number(disc.Discount || 0);
   });
 
-  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
+  html += '-'.repeat(47) + '\n';
   html += 'TOTAL'.padEnd(23) + totalDisc.toLocaleString().padStart(7) + '\n';
+  html += '═' + '═'.repeat(47) + '═\n\n';
   
   return html;
 };
@@ -965,13 +982,9 @@ const generateReverseKOTsHTML = (data) => {
       ? new Date(kot.TxnDatetime).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})
       : '--:--';
     
-    
     html += `${kotNo} ${table} ${item} ${qty} ${time}\n`;
   });
 
-  
-  
-  
   return html;
 };
 
@@ -997,7 +1010,7 @@ const generateReverseBillsHTML = (data) => {
     totalRev += Number(bill.reversedAmount || 0);
   });
 
-  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
+  html += '-'.repeat(47) + '\n';
   html += 'TOTAL'.padEnd(16) + centerText(totalRev.toLocaleString(), 9) + '\n';
   html += '═' + '═'.repeat(47) + '═\n\n';
   return html;
@@ -1027,7 +1040,7 @@ const generateNCKOTsHTML = (data) => {
     totalAmt += Number(n.amount || 0);
   });
 
-  html += '-'.repeat(47) + '\n'; // adjust 40 to your print width
+  html += '-'.repeat(47) + '\n';
   html += 'TOTAL'.padEnd(20) + centerText(totalQty, 4) + totalAmt.toFixed(2).padStart(9) + '\n';
   html += '═' + '═'.repeat(47) + '═\n\n';
 
@@ -1037,7 +1050,7 @@ const generateNCKOTsHTML = (data) => {
 
 
 
-const getClosingBalance = (req, res) => {
+const getClosingBalance = async (req, res) => {
   try {
     const { outlet_id, hotel_id } = req.query;
 
@@ -1051,25 +1064,30 @@ const getClosingBalance = (req, res) => {
     
     if (outlet_id) {
       // If outlet_id is provided, match both hotel_id and outlet_id
-      lastDayend = db.prepare(`
+      // MySQL conversion: Changed from db.prepare().get() to await db.query()
+      const [rows] = await db.query(`
         SELECT closing_balance, opening_balance, dayend_date, curr_date
         FROM trn_dayend
         WHERE outlet_id = ? AND hotel_id = ?
           AND curr_date IS NOT NULL
         ORDER BY dayend_date DESC, id DESC
         LIMIT 1
-      `).get(outlet_id, hotel_id);
+      `, [outlet_id, hotel_id]);
+      
+      lastDayend = rows[0] || null;
     } else {
       // If outlet_id is not provided, just match by hotel_id
       // This will get the most recent dayend record for this hotel (regardless of outlet)
-      lastDayend = db.prepare(`
+      const [rows] = await db.query(`
         SELECT closing_balance, opening_balance, dayend_date, curr_date
         FROM trn_dayend
         WHERE hotel_id = ?
           AND curr_date IS NOT NULL
         ORDER BY dayend_date DESC, id DESC
         LIMIT 1
-      `).get(hotel_id);
+      `, [hotel_id]);
+      
+      lastDayend = rows[0] || null;
     }
 
     if (lastDayend) {
@@ -1101,7 +1119,7 @@ const getClosingBalance = (req, res) => {
 };
 
 // New endpoint to check if opening balance is required
-const checkOpeningBalanceRequired = (req, res) => {
+const checkOpeningBalanceRequired = async (req, res) => {
   try {
     const { outlet_id, hotel_id } = req.query;
 
@@ -1113,23 +1131,28 @@ const checkOpeningBalanceRequired = (req, res) => {
     let lastDayend;
     
     if (outlet_id) {
-      lastDayend = db.prepare(`
+      // MySQL conversion: Changed from db.prepare().get() to await db.query()
+      const [rows] = await db.query(`
         SELECT opening_balance, closing_balance, dayend_date, curr_date
         FROM trn_dayend
         WHERE outlet_id = ? AND hotel_id = ?
           AND curr_date IS NOT NULL
         ORDER BY dayend_date DESC, id DESC
         LIMIT 1
-      `).get(outlet_id, hotel_id);
+      `, [outlet_id, hotel_id]);
+      
+      lastDayend = rows[0] || null;
     } else {
-      lastDayend = db.prepare(`
+      const [rows] = await db.query(`
         SELECT opening_balance, closing_balance, dayend_date, curr_date
         FROM trn_dayend
         WHERE hotel_id = ?
           AND curr_date IS NOT NULL
         ORDER BY dayend_date DESC, id DESC
         LIMIT 1
-      `).get(hotel_id);
+      `, [hotel_id]);
+      
+      lastDayend = rows[0] || null;
     }
 
     // If no record found, opening balance is NOT required (first time login)
@@ -1162,8 +1185,7 @@ const checkOpeningBalanceRequired = (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to check opening balance requirement' });
   }
 };
-
-const saveOpeningBalance = (req, res) => {
+const saveOpeningBalance = async (req, res) => {
   try {
     const { opening_balance, outlet_id, hotel_id, user_id } = req.body;
 
@@ -1185,11 +1207,17 @@ const saveOpeningBalance = (req, res) => {
     console.log("=== SAVE OPENING BALANCE ONLY ===");
 
     // 🔎 Get latest record for this outlet/hotel
-    const existingRecord = db.prepare(`
+    // MySQL conversion: Changed dynamic query building for MySQL
+    let query = `
       SELECT id FROM trn_dayend
       WHERE ${validOutletId ? 'outlet_id = ? AND' : ''} hotel_id = ?
       ORDER BY id DESC LIMIT 1
-    `).get(...(validOutletId ? [validOutletId, validHotelId] : [validHotelId]));
+    `;
+    
+    const params = validOutletId ? [validOutletId, validHotelId] : [validHotelId];
+    
+    const [existingRows] = await db.query(query, params);
+    const existingRecord = existingRows[0] || null;
 
     if (!existingRecord) {
       return res.status(404).json({
@@ -1199,14 +1227,12 @@ const saveOpeningBalance = (req, res) => {
     }
 
     // ✅ ONLY update opening_balance
-    db.prepare(`
+    // MySQL conversion: Changed from db.prepare().run() to await db.query()
+    const [updateResult] = await db.query(`
       UPDATE trn_dayend
       SET opening_balance = ?
       WHERE id = ?
-    `).run(
-      opening_balance || 0,
-      existingRecord.id
-    );
+    `, [opening_balance || 0, existingRecord.id]);
 
     console.log("✅ Opening balance updated for ID:", existingRecord.id);
 
@@ -1227,7 +1253,6 @@ const saveOpeningBalance = (req, res) => {
     });
   }
 };
-
 
 
 module.exports = {
