@@ -1,15 +1,24 @@
-# Fixing Outlet Settings 404 Error
+# Fix Outlet Settings 404 Error - TODO
 
-## Current Status
-- [x] Analyzed backend routes ✓ exist
-- [x] Analyzed controllers ✓ query syntax bug found
-- [x] Analyzed frontend ✓ calls correct endpoint
+## Completed: ✅
+- [x] Analyzed error & identified root cause (missing DB records for outlet 7)
+- [x] Created comprehensive fix plan 
+- [x] User confirmed to proceed 
+- [x] Created TODO.md for tracking
 
-## Plan Steps
-1. [ ] **Fix backend query syntax** in outletController.js (getOutletBillingSettings + similar)
-2. [ ] Restart backend server & test endpoint
-3. [ ] Create src/common/api/outlet.ts OutletService with 404 handling
-4. [ ] Update AddOutlet.tsx error handling
-5. [ ] Test full flow
+## Pending: ⏳
+🔥 **CRITICAL**: Run SQL fix first!
+```
+cd backend && mysql -u root -p restaurant_db < fix_outlet_7_settings.sql
+```
+(Enter **twice** for empty password)
 
-**Next Step:** Fix backend controller queries
+1. **✅ Verify**: `curl http://localhost:3001/api/outlets/settings/7`
+2. **Restart**: Backend + Frontend  
+3. **Test**: Modify Outlet Configuration button
+
+*Status: AWAITING SQL EXECUTION*
+
+*Updated: $(date)*
+
+
