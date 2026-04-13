@@ -1970,7 +1970,7 @@ exports.updateOnlineOrdersSettings = (req, res) => {
 
 
 // controllers/outletController.js
-exports.getOutletBillingSettings = (req, res) => {
+exports.getOutletBillingSettings = async (req, res) => {
   try {
     const { outletid } = req.params;
 
@@ -1979,198 +1979,35 @@ exports.getOutletBillingSettings = (req, res) => {
       return res.status(400).json({ error: 'Valid outlet ID is required' });
     }
 
-    const settings = db.query(`
-      SELECT 
-        o.outletid,
-        o.outlet_name,
-        o.outlet_code,
-        o.hotelid,
-        bps.bill_printsetting_id,
-        bps.bill_title_dine_in,
-        bps.bill_title_pickup,
-        bps.bill_title_delivery,
-        bps.bill_title_quick_bill,
-        bps.mask_order_id,
-        bps.modifier_default_option_bill,
-        bps.print_bill_both_languages,
-        bps.show_alt_item_title_bill,
-        bps.show_alt_name_bill,
-        bps.show_bill_amount_words,
-        bps.show_bill_no_bill,
-        bps.show_bill_number_prefix_bill,
-        bps.show_bill_print_count,
-        bps.show_brand_name_bill,
-        bps.show_captain_bill,
-        bps.show_covers_bill,
-        bps.show_custom_qr_codes_bill,
-        bps.show_customer_gst_bill,
-        bps.show_customer_bill,
-        bps.show_customer_paid_amount,
-        bps.show_date_bill,
-        bps.show_default_payment,
-        bps.show_discount_reason_bill,
-        bps.show_due_amount_bill,
-        bps.show_ebill_invoice_qrcode,
-        bps.show_item_hsn_code_bill,
-        bps.show_item_level_charges_separately,
-        bps.show_item_note_bill,
-        bps.show_items_sequence_bill,
-        bps.show_kot_number_bill,
-        bps.show_logo_bill,
-        bps.show_order_id_bill,
-        bps.show_order_no_bill,
-        bps.show_order_note_bill,
-        bps.order_type_dine_in,
-        bps.order_type_pickup,
-        bps.order_type_delivery,
-        bps.order_type_quick_bill,
-        bps.show_outlet_name_bill,
-        bps.payment_mode_dine_in,
-        bps.payment_mode_pickup,
-        bps.payment_mode_delivery,
-        bps.payment_mode_quick_bill,
-        bps.table_name_dine_in,
-        bps.table_name_pickup,
-        bps.table_name_delivery,
-        bps.table_name_quick_bill,
-        bps.show_tax_charge_bill,
-        bps.show_username_bill,
-        bps.show_waiter_bill,
-        bps.show_zatca_invoice_qr,
-        bps.show_customer_address_pickup_bill,
-        bps.show_order_placed_time,
-        bps.hide_item_quantity_column,
-        bps.hide_item_rate_column,
-        bps.hide_item_total_column,
-        bps.hide_total_without_tax,
-        bps.trn_gstno,
-        gs.customize_url_links,
-        gs.allow_charges_after_bill_print,
-        gs.allow_discount_after_bill_print,
-        gs.allow_discount_before_save,
-        gs.allow_pre_order_tahd,
-        gs.ask_covers,
-        gs.ask_covers_captain,
-        gs.ask_custom_order_id_quick_bill,
-        gs.ask_custom_order_type_quick_bill,
-        gs.ask_payment_mode_on_save_bill,
-        gs.ask_waiter,
-        gs.ask_otp_change_order_status_order_window,
-        gs.ask_otp_change_order_status_receipt_section,
-        gs.auto_accept_remote_kot,
-        gs.auto_out_of_stock,
-        gs.auto_sync,
-        gs.category_time_for_pos,
-        gs.count_sales_after_midnight,
-        gs.customer_display,
-        gs.customer_mandatory,
-        gs.default_ebill_check,
-        gs.default_send_delivery_boy_check,
-        gs.edit_customize_order_number,
-        gs.enable_backup_notification_service,
-        gs.enable_customer_display_access,
-        gs.filter_items_by_order_type,
-        gs.generate_reports_start_close_dates,
-        gs.hide_clear_data_check_logout,
-        gs.hide_item_price_options,
-        gs.hide_load_menu_button,
-        gs.make_cancel_delete_reason_compulsory,
-        gs.make_discount_reason_mandatory,
-        gs.make_free_cancel_bill_reason_mandatory,
-        gs.make_payment_ref_number_mandatory,
-        gs.mandatory_delivery_boy_selection,
-        gs.mark_order_as_transfer_order,
-        gs.online_payment_auto_settle,
-        gs.order_sync_settings,
-        gs.separate_billing_by_section,
-        gs.set_entered_amount_as_opening,
-        gs.show_alternative_item_report_print,
-        gs.show_clear_sales_report_logout,
-        gs.show_order_no_label_pos,
-        gs.show_payment_history_button,
-        gs.show_remote_kot_option,
-        gs.show_send_payment_link,
-        gs.stock_availability_display,
-        gs.todays_report,
-        gs.upi_payment_sound_notification,
-        gs.use_separate_bill_numbers_online,
-        gs.when_send_todays_report,
-        gs.enable_currency_conversion,
-        gs.enable_user_login_validation,
-        gs.allow_closing_shift_despite_bills,
-        gs.show_real_time_kot_bill_notifications,
-        gs.created_at AS gs_created_at,
-        gs.updated_at AS gs_updated_at,
-        oos.online_ordersetting_id,
-        oos.show_in_preparation_kds,
-        oos.auto_accept_online_order,
-        oos.customize_order_preparation_time,
-        oos.online_orders_time_delay,
-        oos.pull_order_on_accept,
-        oos.show_addons_separately,
-        oos.show_complete_online_order_id,
-        oos.show_online_order_preparation_time,
-        oos.update_food_ready_status_kds,
-        bpsv.billpreviewsetting_id,
-        bpsv.outlet_name AS bpsv_outlet_name,
-        bpsv.email,
-        bpsv.website,
-        bpsv.upi_id,
-        bpsv.bill_prefix,
-        bpsv.secondary_bill_prefix,
-        bpsv.bar_bill_prefix,
-        bpsv.show_upi_qr,
-        bpsv.enabled_bar_section,
-        bpsv.show_phone_on_bill,
-        bpsv.note,
-        bpsv.footer_note,
-        bpsv.field1,
-        bpsv.field2,
-        bpsv.field3,
-        bpsv.field4,
-        bpsv.fssai_no,
-        kps.kot_printsetting_id,
-        kps.customer_on_kot_dine_in,
-        kps.customer_on_kot_pickup,
-        kps.customer_on_kot_delivery,
-        kps.customer_on_kot_quick_bill,
-        kps.customer_kot_display_option,
-        kps.group_kot_items_by_category,
-        kps.hide_table_name_quick_bill,
-        kps.show_new_order_tag,
-        kps.new_order_tag_label,
-        kps.show_running_order_tag,
-        kps.running_order_tag_label,
-        kps.dine_in_kot_no,
-        kps.pickup_kot_no,
-        kps.delivery_kot_no,
-        kps.quick_bill_kot_no,
-        kps.modifier_default_option,
-        kps.print_kot_both_languages,
-        kps.show_alternative_item,
-        kps.show_captain_username,
-        kps.show_covers_as_guest,
-        kps.show_item_price,
-        kps.show_kot_no_quick_bill,
-        kps.show_kot_note,
-        kps.show_online_order_otp,
-        kps.show_order_id_quick_bill,
-        kps.show_order_id_online_order,
-        kps.show_order_no_quick_bill_section,
-        kps.show_order_type_symbol,
-        kps.show_store_name,
-        kps.show_terminal_username,
-        kps.show_username,
-        kps.show_waiter,
-        kps.hide_item_Amt_column
-      FROM mst_outlets o
-      LEFT JOIN mstbills_print_settings bps ON o.outletid = bps.outletid
-      LEFT JOIN mstgeneral_settings gs ON o.outletid = gs.outletid
-      LEFT JOIN mstonline_orders_settings oos ON o.outletid = oos.outletid
-      LEFT JOIN mstbill_preview_settings bpsv ON o.outletid = bpsv.outletid
-      LEFT JOIN mstkot_print_settings kps ON o.outletid = kps.outletid
-      WHERE o.outletid = ?
-    `, [outletid])[0];
+    const [rows] = await db.query(`
+     SELECT 
+    o.*,
+    bps.*,
+    gs.*,
+    oos.*,
+    bpsv.*,
+    kps.*
+
+FROM mst_outlets o
+
+LEFT JOIN mstbills_print_settings bps 
+    ON o.outletid = bps.outletid
+
+LEFT JOIN mstgeneral_settings gs 
+    ON o.outletid = gs.outletid
+
+LEFT JOIN mstonline_orders_settings oos 
+    ON o.outletid = oos.outletid
+
+LEFT JOIN mstbill_preview_settings bpsv 
+    ON o.outletid = bpsv.outletid
+
+LEFT JOIN mstkot_print_settings kps 
+    ON o.outletid = kps.outletid
+
+WHERE o.outletid = ?
+    `, [outletid]);
+
 
     if (!settings) {
       return res.status(404).json({
