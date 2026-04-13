@@ -1377,7 +1377,7 @@ exports.updateBillPreviewSettings = (req, res) => {
       return res.status(400).json({ error: "Outlet name is required" });
     }
 
-    const stmt = db.prepare(`
+    const stmt = `
       UPDATE mstbill_preview_settings SET
         outlet_name = ?,
         email = ?,
@@ -1396,11 +1396,10 @@ exports.updateBillPreviewSettings = (req, res) => {
         field3 = ?,
         field4 = ?,
         fssai_no = ?
-       
       WHERE outletid = ?
-    `);
+    `;
 
-    stmt.run(
+    db.query(stmt, [
       outlet_name,
       email,
       website,
@@ -1418,9 +1417,8 @@ exports.updateBillPreviewSettings = (req, res) => {
       field3,
       field4,
       fssai_no,
-     
       outletid
-    );
+    ]);
 
     return res.json({
       success: true,
@@ -1501,7 +1499,7 @@ exports.updateKotPrintSettings = (req, res) => {
       return res.status(400).json({ error: "Outlet ID is required" });
     }
 
-    const stmt = db.prepare(`
+    const stmt = `
       UPDATE mstkot_print_settings SET
         customer_on_kot_dine_in = ?,
         customer_on_kot_pickup = ?,
@@ -1537,9 +1535,9 @@ exports.updateKotPrintSettings = (req, res) => {
         show_waiter = ?,
         hide_item_Amt_column = ?
       WHERE outletid = ?
-    `);
+    `;
 
-    stmt.run(
+    db.query(stmt, [
       customer_on_kot_dine_in ? 1 : 0,
       customer_on_kot_pickup ? 1 : 0,
       customer_on_kot_delivery ? 1 : 0,
@@ -1574,7 +1572,7 @@ exports.updateKotPrintSettings = (req, res) => {
       show_waiter ? 1 : 0,
       hide_item_Amt_column ? 1 : 0,
       outletid
-    );
+    ]);
 
     res.json({
       outletid,
@@ -1623,9 +1621,8 @@ exports.updateBillPrintSettings = (req, res) => {
     const { outletid } = req.params;
     const data = req.body;
 
-    const stmt = db.prepare(`
+    const stmt = `
       UPDATE mstbills_print_settings SET
-       
         bill_title_dine_in = ?,
         bill_title_pickup = ?,
         bill_title_delivery = ?,
@@ -1685,10 +1682,9 @@ exports.updateBillPrintSettings = (req, res) => {
         hide_total_without_tax = ?,
         trn_gstno = ?
       WHERE outletid = ?
-    `);
+    `;
 
-    stmt.run([
-     
+    db.query(stmt, [
       data.bill_title_dine_in,
       data.bill_title_pickup,
       data.bill_title_delivery,
@@ -1766,7 +1762,7 @@ exports.updateGeneralSettings = (req, res) => {
     const { outletid } = req.params;
     const data = req.body;
 
-    const stmt = db.prepare(`
+    const stmt = `
       UPDATE mstgeneral_settings SET
         customize_url_links = ?,
         allow_charges_after_bill_print = ?,
@@ -1825,9 +1821,9 @@ exports.updateGeneralSettings = (req, res) => {
         show_real_time_kot_bill_notifications = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE outletid = ?
-    `);
+    `;
 
-    stmt.run(
+    db.query(stmt, [
       data.customize_url_links,
       data.allow_charges_after_bill_print,
       data.allow_discount_after_bill_print,
@@ -1884,7 +1880,7 @@ exports.updateGeneralSettings = (req, res) => {
       data.allow_closing_shift_despite_bills,
       data.show_real_time_kot_bill_notifications,
       outletid
-    );
+    ]);
 
     res.json({ success: true, message: "General settings updated successfully" });
   } catch (err) {
@@ -1925,7 +1921,7 @@ exports.updateOnlineOrdersSettings = (req, res) => {
       });
     }
 
-    const stmt = db.prepare(`
+    const stmt = `
       UPDATE mstonline_orders_settings SET
         show_in_preparation_kds = ?,
         auto_accept_online_order = ?,
@@ -1936,11 +1932,10 @@ exports.updateOnlineOrdersSettings = (req, res) => {
         show_complete_online_order_id = ?,
         show_online_order_preparation_time = ?,
         update_food_ready_status_kds = ?
-       
       WHERE outletid = ?
-    `);
+    `;
 
-    stmt.run(
+    db.query(stmt, [
       show_in_preparation_kds ? 1 : 0,
       auto_accept_online_order ? 1 : 0,
       customize_order_preparation_time ? 1 : 0,
@@ -1950,9 +1945,8 @@ exports.updateOnlineOrdersSettings = (req, res) => {
       show_complete_online_order_id ? 1 : 0,
       show_online_order_preparation_time ? 1 : 0,
       update_food_ready_status_kds ? 1 : 0,
-   
       outletid
-    );
+    ]);
 
     res.json({
       outletid,
@@ -1965,7 +1959,6 @@ exports.updateOnlineOrdersSettings = (req, res) => {
       show_complete_online_order_id: !!show_complete_online_order_id,
       show_online_order_preparation_time: !!show_online_order_preparation_time,
       update_food_ready_status_kds: !!update_food_ready_status_kds
-     
     });
   } catch (error) {
     // console.error("Error updating online orders settings:", error);
@@ -1986,7 +1979,7 @@ exports.getOutletBillingSettings = (req, res) => {
       return res.status(400).json({ error: 'Valid outlet ID is required' });
     }
 
-    const settings = db.prepare(`
+    const settings = db.query(`
       SELECT 
         o.outletid,
         o.outlet_name,
@@ -2177,7 +2170,7 @@ exports.getOutletBillingSettings = (req, res) => {
       LEFT JOIN mstbill_preview_settings bpsv ON o.outletid = bpsv.outletid
       LEFT JOIN mstkot_print_settings kps ON o.outletid = kps.outletid
       WHERE o.outletid = ?
-    `).get(outletid);
+    `, [outletid])[0];
 
     if (!settings) {
       return res.status(404).json({
@@ -2637,7 +2630,7 @@ exports.getAllTablesWithOutlets = (req, res) => {
       FROM msttablemanagement t
       LEFT JOIN mst_outlets o ON t.outletid = o.outletid
     `;
-    const tables = db.prepare(query).all();
+    const tables = db.query(query);
     res.json(tables);
   } catch (error) {
     // console.error('Error fetching tables with outlets:', error);

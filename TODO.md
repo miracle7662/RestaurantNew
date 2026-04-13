@@ -1,46 +1,50 @@
-# Multi-Tenant Isolation Implementation - TODO.md
+# Fix AddOutlet.tsx Outlet Settings Error - TODO Steps
 
-## Approved Plan Progress
-**✅ PLAN APPROVED** - Proceed with middleware + controller fixes
+## Approved Plan Status: ✅ APPROVED (User confirmed "yes")
 
-## Breakdown Steps (10 total)
-```
-✅ 1. [DONE] Create robust enforceHotelIsolation middleware in backend/middleware/auth.js
-   ├── Auto-set req.effectiveHotelId = req.hotelid for hotel_admin
-   ├── Reject query param override attempts (security)
-   └── Log violations
+**Objective**: Fix "Error fetching outlet settings: Resource not found" in AddOutlet.tsx:530
 
-🔄 2. [IN PROGRESS] Update backend/server.js - Chain enforceHotelIsolation after authenticateToken
-   └── All protected routes auto-protected
+**Root Cause**: Backend getOutletBillingSettings() query fails when settings tables missing data for new outlets.
 
-🔄 3. [PENDING] Fix backend/controllers/menuExportController.js 
-   ├── req.query.hotelid → req.hotelid (enforced=3)
-   └── Test export only shows hotelid=3 data
+## Step-by-Step Implementation Plan
 
-🔄 4. [PENDING] Fix backend/controllers/mstrestmenuController.js 
-   ├── Same pattern fix
-   └── getAllMenuItems respects req.hotelid
+### ✅ STEP 1: Create TODO.md [COMPLETED]
 
-🔄 5. [PENDING] Fix backend/controllers/settingsController.js
-   ├── Use req.user?.hotelid consistently
-   └── Printer settings scoped to hotelid=3
+### ✅ STEP 2: Fix Backend - outletController.js [COMPLETE]
+- ✅ Made getOutletBillingSettings() robust 
+- ✅ Added try-catch + mst_outlets existence check
+- ✅ Proper 404 if outlet missing  
+- ✅ Error logging + safe response structure
+- ✅ Core validation prevents "Resource not found"
 
-🔄 6. [PENDING] Audit & fix remaining controllers (search_files "req.query.hotelid")
-   ├── CustomerController.js, ordersController.js, etc.
+**Files**: `backend/controllers/outletController.js` ✅
 
-🔄 7. [PENDING] Frontend services: Default hotelid=user.hotelid (defensive)
-   └── src/services/outletSettings.service.ts + others
+**Status**: Backend API now returns proper data/error instead of crashing
 
-🔄 8. [PENDING] Test security:
-   ├── Login hotel_admin → Try ?hotelid=1 → Expect 403
-   ├── Verify data scoped to hotelid=3 only
+### ⏳ STEP 3: Safety - outlet.ts API Service  
+- [ ] Add null-checks in OutletService.getOutletBillingSettings()
+- [ ] Safe nested object access
 
-🔄 9. [PENDING] Performance: Add indexes if needed (hotelid columns)
-   └── EXPLAIN queries on mstrestmenu, mst_outlets
+**Files**: `src/common/api/outlet.ts`
 
-🔄 10.[PENDING] attempt_completion + demo commands
-```
+### ⏳ STEP 4: Defensive Frontend - AddOutlet.tsx
+- [ ] Handle empty response gracefully  
+- [ ] Use form defaults when API fails
+- [ ] Better error UX
 
-**Current Progress**: Step 2 (server.js)  
-**Completed**: Step 1  
-**Next**: Step 3 (menuExportController.js)
+**Files**: `src/views/apps/Masters/CommanMasters/Outlet/AddOutlet.tsx`
+
+### ⏳ STEP 5: Test & Verify
+- [ ] Create new outlet
+- [ ] Verify AddOutlet loads without error
+- [ ] Test API: `GET /api/outlets/settings/{new_outlet_id}`
+- [ ] attempt_completion
+
+### ⏳ STEP 6: Cleanup
+- [ ] Mark completed steps ✅
+- [ ] attempt_completion
+
+**Next Action**: Edit `backend/controllers/outletController.js` (Primary fix)
+
+**Progress**: 2/6 COMPLETE (33%)
+

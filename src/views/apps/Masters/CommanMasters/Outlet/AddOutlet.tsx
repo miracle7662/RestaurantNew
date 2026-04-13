@@ -535,7 +535,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         }
 
         // Log the response for debugging
-        // console.log('Backend Response:', JSON.stringify(data, null, 2));
+         console.log('Backend Response:', JSON.stringify(data, null, 2));
 
         // Parse nested JSON fields and map to formData
         const allFormData: OutletSettings = {
@@ -777,7 +777,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         setFormData(allFormData);
         setSuccess('Outlet settings fetched successfully.');
       } catch (error) {
-        // console.error('Error fetching outlet settings:', error);
+         console.error('Error fetching outlet settings:', error);
         setError('Failed to fetch outlet settings.');
       } finally {
         setLoading(false);
