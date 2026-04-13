@@ -73,12 +73,25 @@ exports.getHotelMastersById = async (req, res) => {
 
 exports.addHotelMasters = async (req, res) => {
     try {
+        const body = req.body;
+        console.log('addHotelMasters payload:', body); // Debug log
+
         const {
             hotel_name, marketid, short_name, phone, email,
             fssai_no, trn_gstno, panno, website, address,
             stateid, cityid, hoteltypeid, status,
             created_by_id, created_date, Masteruserid
-        } = req.body;
+        } = body;
+
+        // Status validation & default
+        const safeStatus = status != null ? parseInt(status) || 0 : 0;
+        if (safeStatus !== 0 && safeStatus !== 1) {
+            return res.status(400).json({ error: 'Status must be 0 (Active) or 1 (Inactive)' });
+        }
+
+        // created_by_id & created_date defaults
+        const safeCreatedBy = created_by_id || 1;
+        const safeCreatedDate = created_date || new Date().toISOString();
 
         const [result] = await db.query(`
             INSERT INTO msthotelmasters 
@@ -88,19 +101,22 @@ exports.addHotelMasters = async (req, res) => {
         `, [
             hotel_name, marketid, short_name, phone, email,
             fssai_no, trn_gstno, panno, website, address,
-            stateid, cityid, hoteltypeid, status,
-            created_by_id, created_date, Masteruserid
+            stateid, cityid, hoteltypeid, safeStatus,
+            safeCreatedBy, safeCreatedDate, Masteruserid
         ]);
+
+        console.log('Brand created with status:', safeStatus, 'ID:', result.insertId);
 
         res.json({
             id: result.insertId,
-            hotel_name, marketid, short_name, phone, email,
-            fssai_no, trn_gstno, panno, website, address,
-            stateid, cityid, hoteltypeid, status,
-            created_by_id, created_date, Masteruserid
+            ...body,
+            status: safeStatus,
+            created_by_id: safeCreatedBy,
+            created_date: safeCreatedDate
         });
 
     } catch (error) {
+        console.error('addHotelMasters error:', error);
         res.status(500).json({
             message: "Failed to add hotel",
             error: error.message
@@ -112,13 +128,25 @@ exports.addHotelMasters = async (req, res) => {
 exports.updateHotelMasters = async (req, res) => {
     try {
         const { id } = req.params;
+        const body = req.body;
+        console.log('updateHotelMasters payload:', body); // Debug log
 
         const {
             hotel_name, marketid, short_name, phone, email,
             fssai_no, trn_gstno, panno, website, address,
             stateid, cityid, hoteltypeid, Masteruserid,
             status, updated_by_id, updated_date
-        } = req.body;
+        } = body;
+
+        // Status validation & default
+        const safeStatus = status != null ? parseInt(status) || 0 : 0;
+        if (safeStatus !== 0 && safeStatus !== 1) {
+            return res.status(400).json({ error: 'Status must be 0 (Active) or 1 (Inactive)' });
+        }
+
+        // updated_by_id & updated_date defaults
+        const safeUpdatedBy = updated_by_id || 1;
+        const safeUpdatedDate = updated_date || new Date().toISOString();
 
         const [result] = await db.query(`
             UPDATE msthotelmasters 
@@ -131,22 +159,25 @@ exports.updateHotelMasters = async (req, res) => {
             hotel_name, marketid, short_name, phone, email,
             fssai_no, trn_gstno, panno, website, address,
             stateid, cityid, hoteltypeid, Masteruserid,
-            status, updated_by_id, updated_date, id
+            safeStatus, safeUpdatedBy, safeUpdatedDate, id
         ]);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: "Hotel not found" });
         }
 
+        console.log('Brand updated with status:', safeStatus, 'ID:', id);
+
         res.json({
             id,
-            hotel_name, marketid, short_name, phone, email,
-            fssai_no, trn_gstno, panno, website, address,
-            stateid, cityid, hoteltypeid, Masteruserid,
-            status, updated_by_id, updated_date
+            ...body,
+            status: safeStatus,
+            updated_by_id: safeUpdatedBy,
+            updated_date: safeUpdatedDate
         });
 
     } catch (error) {
+        console.error('updateHotelMasters error:', error);
         res.status(500).json({
             message: "Failed to update hotel",
             error: error.message

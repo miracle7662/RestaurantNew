@@ -1,14 +1,11 @@
-# RestaurantNew Task Tracker
-## Current Task: Fix hoteladmin menu item cards not showing
+# Brand.tsx Status Null Fix - TODO
 
-### Approved Plan Steps:
-- [x] 1. Create TODO.md with plan breakdown ✅
-- [ ] 2. Edit src/common/menu/index.ts - Add 'hoteladmin' role support
-- [ ] 3. Test navigation - Verify hoteladmin sees Menu link
-- [ ] 4. Test item cards rendering on /apps/menu
-- [ ] 5. Add console.log verification if needed
-- [ ] 6. Backend check if API empty
-- [ ] 7. Complete task
+## Approved Plan Steps:
+- [x] Step 1: Update backend HotelMastersController.js - Add status validation/default=0 in addHotelMasters & updateHotelMasters
+- [x] Step 2: Update frontend Brand.tsx - Add payload safeguard `status: statusValue ?? 0` in HotelMastersModal.handleSubmit
+- [x] Step 3: Update frontend Brand.tsx table cell - Robust null-handling: `statusVal ?? 0`
+- [ ] Step 4: Test creation → verify status shows "Active", no null
+- [ ] Step 5: attempt_completion
 
-**Next Step**: Edit navigation file
+**Current Progress:** Steps 1-3 complete. Ready for testing.
 

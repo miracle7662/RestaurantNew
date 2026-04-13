@@ -401,8 +401,8 @@ const BrandList: React.FC = () => {
         header: 'Status',
         size: 150,
         cell: (info) => {
-          const statusValue = info.getValue<string | number>();
-          // console.log('Status value:', statusValue, typeof statusValue); // Debug log
+          const statusValue = info.getValue<string | number>() ?? 0; // Null-safety
+          console.log('Table status value:', statusValue); // Debug
           return <div style={{ textAlign: 'center' }}>{statusValue == '0' || statusValue === 0 ? 'Active' : 'Inactive'}</div>;
         },
       },
@@ -817,6 +817,7 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
 
     try {
       const statusValue = status === 'Active' ? 0 : 1;
+      const safeStatusValue = statusValue ?? 0; // Safeguard null/undefined
       const currentDate = new Date().toISOString();
       const userId = user?.id || 1;
 
@@ -834,12 +835,14 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
         stateid,
         cityid,
         hoteltypeid,
-        status: statusValue,
+        status: safeStatusValue,
         created_date: currentDate, // only for create
         updated_date: currentDate, // only for update
         created_by_id: userId, // only for create
         updated_by_id: userId, // only for update
       };
+
+      console.log('Brand payload status:', safeStatusValue); // Debug
 
       if (isEditMode) {
         // === EDIT ===
