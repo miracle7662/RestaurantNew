@@ -1,7 +1,7 @@
 const db = require("../config/db");
 
 // Create a payment mode
-exports.createPaymentMode = (req, res) => {
+exports.createPaymentMode = async (req, res) => {
   try {
     const { outletid, hotelid, paymenttypeid, is_active } = req.body;
 
@@ -31,7 +31,7 @@ exports.createPaymentMode = (req, res) => {
       INSERT INTO payment_modes (outletid, hotelid, paymenttypeid, is_active) 
       VALUES (?, ?, ?, ?)
     `;
-    const result = db.query(stmt, [outletid, hotelid, paymenttypeid, is_active ?? 1]);
+    const [result] = await db.query(stmt, [outletid, hotelid, paymenttypeid, is_active ?? 1]);
 
     res.status(201).json({
       success: true,
@@ -62,9 +62,11 @@ exports.createPaymentMode = (req, res) => {
 };
 
 // Get all payment modes with join to payment_types
-exports.getAllPaymentModes = (req, res) => {
+exports.getAllPaymentModes = async (req, res) => {
   try {
+    console.log('🔍 getAllPaymentModes called');
     const { outletid, hotelid } = req.query;
+    console.log('🔍 Params - outletid:', outletid, 'hotelid:', hotelid);
 
     let sql = `
       SELECT pm.id, pm.hotelid, pm.outletid, pm.paymenttypeid, 
@@ -85,13 +87,20 @@ exports.getAllPaymentModes = (req, res) => {
       params.push(hotelid);
     }
 
-    const rows = db.query(sql, params);
+    console.log('🔍 SQL:', sql);
+    console.log('🔍 Params:', params);
+
+    const [rows] = await db.query(sql, params);
+    console.log('🔍 getAllPaymentModes rows.length:', rows.length);
+    console.log('🔍 Sample data:', rows.slice(0, 3));
+
     res.status(200).json({
       success: true,
       message: "Payment modes fetched successfully",
       data: rows
     });
   } catch (err) {
+    console.error('🔴 getAllPaymentModes ERROR:', err);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -101,7 +110,7 @@ exports.getAllPaymentModes = (req, res) => {
 };
 
 // Update payment mode sequence for an outlet
-exports.updatePaymentModeSequence = (req, res) => {
+exports.updatePaymentModeSequence = async (req, res) => {
   try {
     // console.log('Received req.body:', req.body);
     let { outletid, orderedPaymentTypeIds } = req.body;
@@ -116,31 +125,31 @@ exports.updatePaymentModeSequence = (req, res) => {
     }
 
     // Start transaction
-    db.query('START TRANSACTION');
+    await db.query('START TRANSACTION');
 
     try {
       // First, reset sequence for all payment modes for the given outlet to 0
       const resetStmt = 'UPDATE payment_modes SET sequence = 0 WHERE outletid = ?';
-      db.query(resetStmt, [outletid]);
+      await db.query(resetStmt, [outletid]);
 
       // Then, update the sequence for the provided payment modes in order
       const updateStmt = 'UPDATE payment_modes SET sequence = ? WHERE outletid = ? AND paymenttypeid = ?';
 
       for (let i = 0; i < orderedPaymentTypeIds.length; i++) {
-        db.query(updateStmt, [i + 1, outletid, orderedPaymentTypeIds[i]]);
+        await db.query(updateStmt, [i + 1, outletid, orderedPaymentTypeIds[i]]);
       }
 
       // Commit transaction
-      db.query('COMMIT');
+      await db.query('COMMIT');
 
     } catch (err) {
       // Rollback on error
-      db.query('ROLLBACK');
+      await db.query('ROLLBACK');
       throw err;
     }
 
     // Return the updated list, ordered by the new sequence
-    const updatedModes = db.query(`
+    const [updatedModes] = await db.query(`
       SELECT pm.id, pm.hotelid, pm.outletid, pm.paymenttypeid, pm.sequence, pt.mode_name
       FROM payment_modes pm
       JOIN payment_types pt ON pm.paymenttypeid = pt.paymenttypeid
@@ -162,9 +171,11 @@ exports.updatePaymentModeSequence = (req, res) => {
 };
 
 // Get payment modes by outlet ID
-exports.getPaymentModesByOutlet = (req, res) => {
+exports.getPaymentModesByOutlet = async (req, res) => {
   try {
-    const { outletid } = req.query; // Changed to query param for flexibility
+    console.log('🔍 getPaymentModesByOutlet called');
+    const { outletid } = req.query;
+    console.log('🔍 outletid param:', outletid);
 
     let sql = `
       SELECT pt.paymenttypeid as id, pt.mode_name, MIN(pm.sequence) as sequence
@@ -174,25 +185,27 @@ exports.getPaymentModesByOutlet = (req, res) => {
     `;
     const params = [];
 
-    // If a specific outlet is requested, filter by it.
-    // The 'outletid' will be a string from the query, so check for truthiness.
     if (outletid && outletid !== 'null' && outletid !== 'undefined') {
       sql += ' AND pm.outletid = ?';
       params.push(outletid);
     }
 
-    // Group by payment type to get unique modes.
-    // Order by sequence to maintain a consistent order.
-    // If no outlet is selected, it will show all unique active payment modes.
     sql += ' GROUP BY pt.paymenttypeid, pt.mode_name ORDER BY sequence, pt.mode_name';
 
-    const rows = db.query(sql, params);
+    console.log('🔍 SQL:', sql);
+    console.log('🔍 Params:', params);
+
+    const [rows] = await db.query(sql, params);
+    console.log('🔍 getPaymentModesByOutlet rows.length:', rows.length);
+    console.log('🔍 Data:', rows);
+
     res.status(200).json({
       success: true,
       message: "Payment modes fetched successfully",
       data: rows
     });
   } catch (err) {
+    console.error('🔴 getPaymentModesByOutlet ERROR:', err);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -202,7 +215,7 @@ exports.getPaymentModesByOutlet = (req, res) => {
 };
 
 // Update payment mode
-exports.updatePaymentMode = (req, res) => {
+exports.updatePaymentMode = async (req, res) => {
   try {
     const { id } = req.params;
     const { outletid, hotelid, paymenttypeid, is_active } = req.body;
@@ -233,7 +246,7 @@ exports.updatePaymentMode = (req, res) => {
       SET outletid = ?, hotelid = ?, paymenttypeid = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
-    const result = db.query(stmt, [outletid, hotelid, paymenttypeid, is_active ?? 1, id]);
+    const [result] = await db.query(stmt, [outletid, hotelid, paymenttypeid, is_active ?? 1, id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
@@ -266,11 +279,11 @@ exports.updatePaymentMode = (req, res) => {
 };
 
 // Delete payment mode
-exports.deletePaymentMode = (req, res) => {
+exports.deletePaymentMode = async (req, res) => {
   try {
     const { id } = req.params;
     const stmt = "DELETE FROM payment_modes WHERE id = ?";
-    const result = db.query(stmt, [id]);
+    const [result] = await db.query(stmt, [id]);
 
     res.status(200).json({
       success: true,
@@ -287,15 +300,20 @@ exports.deletePaymentMode = (req, res) => {
 };
 
 // Get all payment types (master list)
-exports.getPaymentTypes = (req, res) => {
+exports.getPaymentTypes = async (req, res) => {
   try {
-    const rows = db.query("SELECT * FROM payment_types");
+    console.log('🔍 getPaymentTypes called');
+    const [rows] = await db.query("SELECT * FROM payment_types");
+    console.log('🔍 getPaymentTypes rows.length:', rows.length);
+    console.log('🔍 Sample types:', rows.slice(0, 5));
+
     res.status(200).json({
       success: true,
       message: "Payment types fetched successfully",
       data: rows
     });
   } catch (err) {
+    console.error('🔴 getPaymentTypes ERROR:', err);
     res.status(500).json({
       success: false,
       message: "Internal server error",

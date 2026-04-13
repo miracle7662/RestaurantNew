@@ -6,14 +6,15 @@ const db = require('../config/db');
  * @param {number} hotelId - Hotel ID
  * @returns {string|null} - Latest curr_date or null if not found
  */
-const getBusinessDate = (outletId, hotelId) => {
+const getBusinessDate = async (outletId, hotelId) => {
   try {
     const query = `
       SELECT curr_date FROM trn_dayend
       WHERE outlet_id = ? AND hotel_id = ?
       ORDER BY id DESC LIMIT 1
     `;
-    const row = db.prepare(query).get(outletId, hotelId);
+    const [rows] = await db.query(query, [outletId, hotelId]);
+    const row = rows[0] || null;
     return row ? row.curr_date : null;
   } catch (error) {
     console.error('Error fetching business date:', error);

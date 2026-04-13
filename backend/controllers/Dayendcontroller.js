@@ -482,7 +482,7 @@ const getLatestCurrDate = async (req, res) => {
 
     // If outlet_id is provided, use it; otherwise, just use hotelid
     if (outlet_id) {
-      currDate = getBusinessDate(outlet_id, hotelid);
+      currDate = await getBusinessDate(outlet_id, hotelid);
     } else {
       // For hotel admins without specific outlet, get the latest dayend for the hotel
       const db = require('../config/db');
