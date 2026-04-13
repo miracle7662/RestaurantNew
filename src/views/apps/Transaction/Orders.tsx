@@ -2666,9 +2666,7 @@ const handlePrintKotAndBill = async () => {
     // Check if already selected
     if (selectedPaymentModes.length > 0) return;
 
-    const cashMode = outletPaymentModes.find(
-      m => m.payment_mode_name?.toLowerCase() === 'cash'
-    );
+    const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(     m => m.mode_name?.toLowerCase() === 'cash'    ) : null;
 
     if (!cashMode) return;
 
@@ -2726,7 +2724,7 @@ const handlePrintKotAndBill = async () => {
 
       // 1. Construct the settlements payload and extract totals from settlementsData
       const settlementsPayload = currentSettlements.map((s: any) => {
-        const paymentModeDetails = outletPaymentModes.find(pm => pm.mode_name === s.PaymentType);
+        const paymentModeDetails = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(pm => pm.mode_name === s.PaymentType) : null;
         // Get received_amount and refund_amount from settlements data
         const receivedAmount = s.received_amount || 0;
         const refundAmount = s.refund_amount || 0;
@@ -3832,7 +3830,7 @@ const handlePrintKotAndBill = async () => {
                                             color: "#4b5563"
                                           }}
                                         >
-                                          {(item.qty * item.price).toFixed(2)}
+{Number((item.qty || 0) * (item.price || 0)).toFixed(2)}
                                         </span>
 
                                         <small
@@ -3841,7 +3839,8 @@ const handlePrintKotAndBill = async () => {
                                             color: "#6b7280"
                                           }}
                                         >
-                                          ({item.price.toFixed(2)})
+
+                                          ({Number(item.price || 0).toFixed(2)})
                                         </small>
                                       </div>
 
@@ -4140,11 +4139,12 @@ const handlePrintKotAndBill = async () => {
                           </button>
                         </div>
                         <div className="text-center">
-                          <div>{(item.price * displayQty).toFixed(2)}</div>
+{Number((item.price || 0) * (displayQty || 0)).toFixed(2)}
                           <div
                             style={{ fontSize: '0.65rem', color: '#6c757d', width: '50px', height: '10px', margin: '0 auto' }}
                           >
-                            ({item.price.toFixed(2)})
+
+                            ({Number(item.price || 0).toFixed(2)})
                           </div>
                         </div>
                       </div>

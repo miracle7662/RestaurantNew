@@ -7,47 +7,40 @@ function ok(message, data) {
 function toBool(value) { 
   return value ? 1 : 0
 }
-function generateTxnNo(outletid) {
+async function generateTxnNo(outletid) {
   // 1. Fetch bill_prefix from settings
-  const settings = db
-    .prepare('SELECT bill_prefix FROM mstbill_preview_settings WHERE outletid = ?')
-    .get(outletid)
-  const billPrefix = settings ? settings.bill_prefix : 'BILL-'
+  const [settingsRows] = await db.query('SELECT bill_prefix FROM mstbill_preview_settings WHERE outletid = ?', [outletid]);
+  const settings = settingsRows[0] || {};
+  const billPrefix = settings.bill_prefix || 'BILL-';
 
   // 2. Construct a date-based prefix for searching to ensure daily unique sequence
-
-  const prefix = `${billPrefix}`
-  const prefixLen = prefix.length + 1
-  const likePattern = prefix + '%'
+  const prefix = `${billPrefix}`;
+  const prefixLen = prefix.length + 1;
+  const likePattern = prefix + '%';
 
   // 3. Find the maximum sequence number for the current day for the entire outlet
-  const maxStmt = db.prepare(`
-    SELECT MAX(CAST(SUBSTR(TxnNo, ?) AS INTEGER)) as maxSeq
+  const [resultRows] = await db.query(`
+    SELECT MAX(CAST(SUBSTRING(TxnNo, ?) AS UNSIGNED)) as maxSeq
     FROM TAxnTrnbill
     WHERE outletid = ? AND TxnNo LIKE ?
-  `)
-
-  const result = maxStmt.get(prefixLen, outletid, likePattern)
-  const newSeq = (result.maxSeq || 0) + 1
+  `, [prefixLen, outletid, likePattern]);
+  const result = resultRows[0] || {};
+  const newSeq = (result.maxSeq || 0) + 1;
 
   // 4. Construct the final TxnNo, e.g., "BILL-20240521-0001"
-  return `${prefix}${String(newSeq).padStart(4, '0')}`
+  return `${prefix}${String(newSeq).padStart(4, '0')}`;
 }
 
 // Generate a new OrderNo
-function generateOrderNo(outletid) {
+async function generateOrderNo(outletid) {
   // For simplicity, we'll generate a unique order number across all outlets for now.
   // You could add a prefix based on outlet if needed.
-  const result = db
-    .prepare(
-      `
-    SELECT MAX(CAST(orderNo AS INTEGER)) as maxOrderNo
-    FROM TAxnTrnbill
-  `,
-    )
-    .get()
-  const newOrderNo = (result.maxOrderNo || 0) + 1
-  return String(newOrderNo).padStart(4, '0')
+  const [resultRows] = await db.query(
+    `SELECT MAX(CAST(orderNo AS UNSIGNED)) as maxOrderNo FROM TAxnTrnbill`
+  );
+  const result = resultRows[0] || {};
+  const newOrderNo = (result.maxOrderNo || 0) + 1;
+  return String(newOrderNo).padStart(4, '0');
 }
 
 // Convert to India Standard Time (UTC+5:30)
@@ -62,7 +55,7 @@ function toIST(date) {
 /* -------------------------------------------------------------------------- */
 exports.getAllBills = async (req, res) => {
   try {
-    const { isBilled, tableId } = req.query // get filters from query
+    const { isBilled, tableId } = req.query
 
     let whereClauses = ['b.isCancelled = 0']
     const params = []
@@ -120,9 +113,12 @@ SELECT
       ORDER BY b.TxnDatetime DESC
     `
 
-    const rows = db.prepare(sql).all(...params)
+    const rows = await db.query(sql, params)
+    
+    // Convert rows to expected format (db.query returns [rows, fields])
+    const dataRows = Array.isArray(rows) && rows[0] ? rows[0] : rows
 
-    const data = rows.map((r) => ({
+    const data = (Array.isArray(dataRows) ? dataRows : []).map((r) => ({
       ...r,
       details: r._details ? JSON.parse(`[${r._details}]`) : [],
     }))
@@ -140,42 +136,36 @@ SELECT
 exports.getBillById = async (req, res) => {
   try {
     const { id } = req.params
-    const bill = db.prepare(`SELECT * FROM TAxnTrnbill WHERE TxnID = ?`).get(Number(id))
+    const [billRows] = await db.query(`SELECT * FROM TAxnTrnbill WHERE TxnID = ?`, [Number(id)])
+    const bill = billRows[0]
     if (!bill)
       return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
-    const details = db
-      .prepare(
-        `
+    const [detailsRows] = await db.query(
+      `
       SELECT d.*, m.item_name as ItemName
       FROM TAxnTrnbilldetails d
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE d.TxnID = ? AND d.isCancelled = 0
       ORDER BY d.TXnDetailID ASC
-    `,
-      )
-      .all(Number(id))
+    `, [Number(id)])
+    const details = detailsRows
 
-    const settlements = db
-      .prepare(
-        `
+    const [settlementsRows] = await db.query(
+      `
       SELECT * FROM TrnSettlement
       WHERE OrderNo = ? AND HotelID = ?
       ORDER BY SettlementID
-    `,
-      )
-      .all(bill.orderNo || null, bill.HotelID || null)
+    `, [bill.orderNo || null, bill.HotelID || null])
+    const settlements = settlementsRows
 
-    // Get the KOT number for the bill (max KOTNo from details)
-    const kotResult = db
-      .prepare(
-        `
+    const [kotResultRows] = await db.query(
+      `
       SELECT MAX(KOTNo) as maxKOT
       FROM TAxnTrnbilldetails
       WHERE TxnID = ?
-    `,
-      )
-      .get(Number(id))
+    `, [Number(id)])
+    const kotResult = kotResultRows[0]
 
     const kotNo = kotResult?.maxKOT || bill.orderNo || null
 
@@ -192,15 +182,6 @@ exports.getBillById = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createBill = async (req, res) => {
   try {
-    // // console.log('Received createBill body:', JSON.stringify(req.body, null, 2))
-    // console.log(
-    //   'Discount fields - DiscPer:',
-    //   req.body.DiscPer,
-    //   'Discount:',
-    //   req.body.Discount,
-    //   'DiscountType:',
-    //   req.body.DiscountType,
-    // )
     const {
       outletid,
       TxnNo,
@@ -254,15 +235,6 @@ exports.createBill = async (req, res) => {
 
     const isHeaderNCKOT = details.some((item) => toBool(item.isNCKOT))
 
-    // console.log('Details array length:', details.length)
-    if (details.length > 0) {
-      // console.log('First detail item:', JSON.stringify(details[0], null, 2))
-    }
-
-    // console.log('NCName:', NCName)
-      // console.log('NCPurpose:', NCPurpose)
-    
-    // Use frontend calculated values directly
     const finalGross = Number(GrossAmt) || 0
     const finalRevKOT = Number(RevKOT) || 0
     const finalCgst = Number(CGST) || 0
@@ -274,15 +246,16 @@ exports.createBill = async (req, res) => {
     const finalAmount = Number(Amount) || 0
     const finalTaxableValue = Number(TaxableValue) || 0
 
-    // console.log('Using frontend values - Gross:', finalGross, 'Amount:', finalAmount)
-
-    const trx = db.transaction(() => {
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       let txnNo = TxnNo
       if (!txnNo && outletid) {
         txnNo = generateTxnNo(outletid)
       }
 
-      const stmt = db.prepare(`
+      const [result] = await db.query(`
         INSERT INTO TAxnTrnbill (
           outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
           GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount, TaxableValue, table_name,
@@ -291,9 +264,7 @@ exports.createBill = async (req, res) => {
           BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
           ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3, NCName, NCPurpose, isNCKOT, DeptID
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-  `)
-
-      const result = stmt.run(
+      `, [
         outletid ?? null,
         txnNo || null,
         TableID ?? null,
@@ -341,25 +312,13 @@ exports.createBill = async (req, res) => {
         NCPurpose || null,
         toBool(isHeaderNCKOT),
         DeptID,
-      )
+      ])
 
-      const txnId = result.lastInsertRowid
+      const txnId = result.insertId
 
       const isArray = Array.isArray(details) && details.length > 0
       if (isArray) {
-        const dStmt = db.prepare(`
-          INSERT INTO TAxnTrnbilldetails (
-            TxnID, outletid, ItemID, TableID, table_name,
-            CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
-            CESS, CESS_AMOUNT, Discount_Amount, Qty, KOTNo, AutoKOT, ManualKOT, SpecialInst,
-            isKOTGenerate, isSetteled, isNCKOT, isCancelled,
-            DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
-            isBilled, item_no, item_name
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        `)
-
         for (const d of details) {
-          // Use frontend calculated values directly
           const cgstPer = Number(d.CGST) || 0
           const cgstAmt = Number(d.CGST_AMOUNT) || 0
           const sgstPer = Number(d.SGST) || 0
@@ -369,13 +328,20 @@ exports.createBill = async (req, res) => {
           const cessPer = Number(d.CESS) || 0
           const cessAmt = Number(d.CESS_AMOUNT) || 0
           
-          // Use frontend calculated discount amount
           const itemDiscountAmount = Number(d.Discount_Amount) || 0
-
           const isNCKOT = toBool(d.isNCKOT)
 
-          dStmt.run(
-            txnId, // TxnID
+          await db.query(`
+            INSERT INTO TAxnTrnbilldetails (
+              TxnID, outletid, ItemID, TableID, table_name,
+              CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
+              CESS, CESS_AMOUNT, Discount_Amount, Qty, KOTNo, AutoKOT, ManualKOT, SpecialInst,
+              isKOTGenerate, isSetteled, isNCKOT, isCancelled,
+              DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
+              isBilled, item_no, item_name
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          `, [
+            txnId,
             d.outletid ?? null,
             d.ItemID ?? null,
             d.TableID ?? null,
@@ -402,25 +368,25 @@ exports.createBill = async (req, res) => {
             d.HotelID ?? null,
             Number(d.RuntimeRate) || 0,
             Number(d.RevQty) || 0,
-            d.KOTUsedDate || null, // KOTUsedDate
-            0, // isBilled default to 0
+            d.KOTUsedDate || null,
+            0,
             d.item_no ?? null,
             d.item_name || null,
-          )
+          ])
         }
       }
 
-      return txnId
-    })
-
-    const txnId = trx()
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId)
-    const items = db
-      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
-      .all(txnId)
-    res.json(ok('Bill created', { ...header, customerid: header.customerid, details: items }))
+      await db.query('COMMIT')
+      
+      const [header] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [txnId])
+      const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [txnId])
+      
+      res.json(ok('Bill created', { ...header[0], customerid: header[0].customerid, details: items }))
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
   } catch (error) {
-    // console.error('Error in createBill:', error)
     res
       .status(500)
       .json({ success: false, message: 'Failed to create bill', data: null, error: error.message })
@@ -494,8 +460,11 @@ exports.updateBill = async (req, res) => {
 // 
     // console.log('Using frontend values for updateBill - Gross:', finalGross, 'Amount:', finalAmount)
 
-    const txn = db.transaction(() => {
-      const u = db.prepare(`
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
+      const [updateResult] = await db.query(`
         UPDATE TAxnTrnbill SET
           outletid=?, TxnNo=?, TableID=?, table_name=?, Steward=?, PAX=?, AutoKOT=?, ManualKOT=?, TxnDatetime=?,
           GrossAmt=?, RevKOT=?, Discount=?, CGST=?, SGST=?, IGST=?, CESS=?, RoundOFF=?, Amount=?, TaxableValue=?,
@@ -504,9 +473,7 @@ exports.updateBill = async (req, res) => {
           BatchNo=?, PrevTableID=?, PrevDeptId=?, isTrnsfered=?, isChangeTrfAmt=?,
           ServiceCharge=?, ServiceCharge_Amount=?, Extra1=?, Extra2=?, Extra3=?
         WHERE TxnID=?
-      `)
-
-      u.run(
+      `, [
         outletid ?? null,
         TxnNo || null,
         TableID ?? null,
@@ -551,23 +518,12 @@ exports.updateBill = async (req, res) => {
         Extra2 || null,
         Extra3 || null,
         Number(id),
-      )
+      ])
 
-      db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(Number(id))
+      await db.query('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?', [Number(id)])
 
       const isArray = Array.isArray(details) && details.length > 0
       if (isArray) {
-        const ins = db.prepare(`
-          INSERT INTO TAxnTrnbilldetails (
-            TxnID, outletid, ItemID, TableID, table_name,
-            CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT,
-            Discount_Amount, Qty, KOTNo, AutoKOT, ManualKOT, SpecialInst,
-            isKOTGenerate, isSetteled, isNCKOT, isCancelled,
-            DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
-            isBilled
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        `)
-
         for (const d of details) {
           // Use frontend calculated values directly
           const cgstPer = Number(d.CGST) || 0
@@ -583,7 +539,17 @@ exports.updateBill = async (req, res) => {
           const itemDiscountAmount = Number(d.Discount_Amount) || 0
 
           const isNCKOT = toBool(d.isNCKOT)
-          ins.run(
+          
+          await db.query(`
+            INSERT INTO TAxnTrnbilldetails (
+              TxnID, outletid, ItemID, TableID, table_name,
+              CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT,
+              Discount_Amount, Qty, KOTNo, AutoKOT, ManualKOT, SpecialInst,
+              isKOTGenerate, isSetteled, isNCKOT, isCancelled,
+              DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
+              isBilled
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          `, [
             Number(id),
             d.outletid ?? null,
             d.ItemID ?? null,
@@ -613,40 +579,52 @@ exports.updateBill = async (req, res) => {
             Number(d.RevQty) || 0,
             d.KOTUsedDate || null, // KOTUsedDate
             0, // isBilled default to 0
-          )
+          ])
         }
       }
-    })
-
-    txn()
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db
-      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
-      .all(Number(id))
-    res.json(ok('Bill updated', { ...header, details: items }))
+      
+      await db.query('COMMIT')
+      
+      const [header] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+      const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
+      
+      res.json(ok('Bill updated', { ...header[0], details: items }))
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
   } catch (error) {
     res
       .status(500)
       .json({ success: false, message: 'Failed to update bill', data: null, error: error.message })
   }
 }
+
 /* -------------------------------------------------------------------------- */
 /* 5) deleteBill → delete bill + details                                      */
 /* -------------------------------------------------------------------------- */
 exports.deleteBill = async (req, res) => {
   try {
     const { id } = req.params
-    const tx = db.transaction(() => {
-      db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(Number(id))
-      const r = db.prepare('DELETE FROM TAxnTrnbill WHERE TxnID = ?').run(Number(id))
-      return r.changes > 0
-    })
-    const success = tx()
-    res.json(
-      success
-        ? ok('Bill deleted', { id: Number(id) })
-        : { success: false, message: 'Bill not found', data: null },
-    )
+    
+    await db.query('START TRANSACTION')
+    
+    try {
+      await db.query('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?', [Number(id)])
+      const [result] = await db.query('DELETE FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+      const success = result.affectedRows > 0
+      
+      await db.query('COMMIT')
+      
+      res.json(
+        success
+          ? ok('Bill deleted', { id: Number(id) })
+          : { success: false, message: 'Bill not found', data: null },
+      )
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
   } catch (error) {
     res
       .status(500)
@@ -668,20 +646,15 @@ exports.settleBill = async (req, res) => {
         .json({ success: false, message: 'settlements array is required', data: null })
     }
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    const [billRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const bill = billRows[0]
     if (!bill)
       return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
-    const tx = db.transaction(() => {
-      const ins = db.prepare(`
-        INSERT INTO TrnSettlement (
-          PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, 
-          TxnID, TxnNo, UserId, customerid, CustomerName, MobileNo, 
-          Receive, Refund, TipAmount, table_name, isSettled, InsertDate
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-      `)
-      
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       for (const s of settlements) {
         // Use InsertDate from request body if provided, otherwise use current datetime
         const insertDate = s.InsertDate ? s.InsertDate : new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -704,7 +677,14 @@ exports.settleBill = async (req, res) => {
           mobileNo = s.mobile || mobileNo;
         }
         
-        ins.run(
+        await db.query(`
+          INSERT INTO TrnSettlement (
+            PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, 
+            TxnID, TxnNo, UserId, customerid, CustomerName, MobileNo, 
+            Receive, Refund, TipAmount, table_name, isSettled, InsertDate
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        `, [
           s.PaymentTypeID ?? 1,
           s.PaymentType || null,
           Number(s.Amount) || 0,
@@ -723,38 +703,39 @@ exports.settleBill = async (req, res) => {
           tipAmount,
           bill.table_name || null,
           insertDate
-        )
+        ])
       }
 
-      db.prepare(`
+      await db.query(`
         UPDATE TAxnTrnbill 
         SET isSetteled = 1, isBilled = 1, BilledDate = CURRENT_TIMESTAMP, orderNo = COALESCE(orderNo, TxnNo)
         WHERE TxnID = ?
-      `).run(Number(id))
+      `, [Number(id)])
 
-      db.prepare(`UPDATE TAxnTrnbilldetails SET isSetteled = 1 WHERE TxnID = ?`).run(Number(id))
+      await db.query(`UPDATE TAxnTrnbilldetails SET isSetteled = 1 WHERE TxnID = ?`, [Number(id)])
 
       // Set table status to vacant (0) after settlement
       if (bill.TableID) {
-        const tableInfo = db.prepare(`SELECT * FROM msttablemanagement WHERE tableid = ?`).get(bill.TableID);
-        db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(bill.TableID)
-        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
+        const [tableInfoRows] = await db.query(`SELECT * FROM msttablemanagement WHERE tableid = ?`, [bill.TableID]);
+        const tableInfo = tableInfoRows[0];
+        await db.query(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`, [bill.TableID])
+        await db.query(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`, [bill.TableID])
       }
-    })
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
 
-    tx()
-
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db
-      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
-      .all(Number(id))
-    const stl = db
-      .prepare(`
-        SELECT * FROM TrnSettlement 
-        WHERE OrderNo = ? AND HotelID = ?
-        ORDER BY SettlementID
-      `)
-      .all(header.orderNo || null, header.HotelID || null)
+    const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const header = headerRows[0]
+    const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
+    const [stl] = await db.query(`
+      SELECT * FROM TrnSettlement 
+      WHERE OrderNo = ? AND HotelID = ?
+      ORDER BY SettlementID
+    `, [header.orderNo || null, header.HotelID || null])
 
     res.json(ok('Bill settled', { ...header, customerid: header.customerid, details: items, settlement: stl }))
   } catch (error) {
@@ -775,20 +756,23 @@ exports.addItemToBill = async (req, res) => {
       return res.status(400).json({ success: false, message: 'details array required', data: null })
     }
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    const [billRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const bill = billRows[0]
     if (!bill)
       return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
-    const tx = db.transaction(() => {
-      const din = db.prepare(`
-        INSERT INTO TAxnTrnbilldetails (
-          TxnID, ItemID, Qty, RuntimeRate, AutoKOT, ManualKOT, SpecialInst, DeptID, HotelID,
-          isBilled, isNCKOT, NCName, NCPurpose
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `)
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       for (const it of details) {
         const isNCKOT = toBool(it.isNCKOT)
-        din.run(
+        await db.query(`
+          INSERT INTO TAxnTrnbilldetails (
+            TxnID, ItemID, Qty, RuntimeRate, AutoKOT, ManualKOT, SpecialInst, DeptID, HotelID,
+            isBilled, isNCKOT, NCName, NCPurpose
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        `, [
           Number(id),
           it.ItemID ?? null,
           Number(it.Qty) || 0,
@@ -802,15 +786,18 @@ exports.addItemToBill = async (req, res) => {
           isNCKOT, // isNCKOT as provided or 0
           isNCKOT ? it.NCName || null : null,
           isNCKOT ? it.NCPurpose || null : null,
-        )
+        ])
       }
-    })
-
-    tx()
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db
-      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
-      .all(Number(id))
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
+    
+    const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const header = headerRows[0]
+    const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
 
     res.json({ success: true, message: 'Items added', data: { ...header, details: items } })
   } catch (error) {
@@ -827,26 +814,23 @@ exports.updateBillItemsIsBilled = async (req, res) => {
   try {
     const { id } = req.params
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    const [billRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const bill = billRows[0]
     if (!bill)
       return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
-    const updateStmt = db.prepare('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?')
-    updateStmt.run(Number(id))
+    await db.query('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?', [Number(id)])
 
     // Also update the bill header to mark it as billed
-    db.prepare(
-      `
+    await db.query(`
       UPDATE TAxnTrnbill
       SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP
       WHERE TxnID = ?
-    `,
-    ).run(Number(id))
+    `, [Number(id)])
 
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db
-      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
-      .all(Number(id))
+    const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const header = headerRows[0]
+    const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
 
     res.json(ok('Bill items marked as billed', { ...header, details: items }))
   } catch (error) {
@@ -866,7 +850,7 @@ exports.updateBillItemsIsBilled = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createKOT = async (req, res) => {
   try {
-    // console.log('Received createKOT body:', JSON.stringify(req.body, null, 2))
+     console.log('Received createKOT body:', JSON.stringify(req.body, null, 2))
     // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
     const {
     outletid,
@@ -902,7 +886,7 @@ exports.createKOT = async (req, res) => {
     items: details = [],
   } = req.body
 
-    // console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
+     console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
     // console.log('Received Calculated Values from Frontend:', { GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount })
     let order_tag = req.body.order_tag
 
@@ -911,7 +895,10 @@ exports.createKOT = async (req, res) => {
       return res.status(400).json({ success: false, message: 'details array is required' })
     }
 
-    const trx = db.transaction(() => {
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       let txnId
       // 1. Find or create the bill header for the table
 
@@ -929,21 +916,21 @@ exports.createKOT = async (req, res) => {
       if (payloadTxnId) {
         // This check is now first
         // For Pickup/Delivery or subsequent KOTs for Dine-in, find the bill by its TxnID
-        existingBill = db
-          .prepare(
-            'SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled, GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount FROM TAxnTrnbill WHERE TxnID = ?',
-          )
-          .get(payloadTxnId)
+        const [existingBillRows] = await db.query(
+          'SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled, GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount FROM TAxnTrnbill WHERE TxnID = ?',
+          [payloadTxnId]
+        )
+        existingBill = existingBillRows[0]
         // console.log('Existing bill found by TxnID:', existingBill)
       } else if (TableID && TableID > 0) {
-        existingBill = db
-          .prepare(
-            `
+        const [existingBillRows] = await db.query(
+          `
           SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled, GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount FROM TAxnTrnbill
           WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0 ORDER BY TxnID DESC LIMIT 1
         `,
-          )
-          .get(Number(TableID))
+          [Number(TableID)]
+        )
+        existingBill = existingBillRows[0]
         // console.log('Existing bill found by TableID:', existingBill)
       }
 
@@ -963,13 +950,13 @@ exports.createKOT = async (req, res) => {
 
         // ✅ If the existing bill was already billed, reset its status to allow for re-billing.
         if (existingBill.isBilled === 1) {
-          db.prepare('UPDATE TAxnTrnbill SET isBilled = 0 WHERE TxnID = ?').run(txnId)
+          await db.query('UPDATE TAxnTrnbill SET isBilled = 0 WHERE TxnID = ?', [txnId])
         }
         // Always update the bill header with the latest information, including table_name.
         // Use new discount/NC info if provided, otherwise fall back to existing values.
         // Also update with frontend calculated values
-const isHomeDeliveryUpdateFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'Delivery' ? 1 : 0));
-        db.prepare(
+        const isHomeDeliveryUpdateFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'Delivery' ? 1 : 0));
+        await db.query(
           `
             UPDATE TAxnTrnbill
             SET
@@ -997,31 +984,32 @@ const isHomeDeliveryUpdateFlag = toBool(req.body.isHomeDelivery ?? (Order_Type =
               isHomeDelivery = ?
             WHERE TxnID = ?
         `,
-        ).run(
-          table_name,
-          Steward || null,
-          PAX ?? null,
-          finalDiscPer,
-          finalDiscount,
-          finalDiscountType,
-          Order_Type,
-          NCName || null,
-          NCPurpose || null,
-          toBool(isHeaderNCKOT || existingBill.isNCKOT),
-          CustomerName,
-          MobileNo,
-          customerid,
-          customerid,
-          finalGrossAmt,
-          finalTaxableValue,
-          finalCgst,
-          finalSgst,
-          finalIgst,
-          finalCess,
-          finalRoundOff,
-          finalAmount,
-          isHomeDeliveryUpdateFlag,
-          txnId,
+          [
+            table_name,
+            Steward || null,
+            PAX ?? null,
+            finalDiscPer,
+            finalDiscount,
+            finalDiscountType,
+            Order_Type,
+            NCName || null,
+            NCPurpose || null,
+            toBool(isHeaderNCKOT || existingBill.isNCKOT),
+            CustomerName,
+            MobileNo,
+            customerid,
+            customerid,
+            finalGrossAmt,
+            finalTaxableValue,
+            finalCgst,
+            finalSgst,
+            finalIgst,
+            finalCess,
+            finalRoundOff,
+            finalAmount,
+            isHomeDeliveryUpdateFlag,
+            txnId,
+          ]
         )
       } else {
         // console.log(`No existing bill for table ${TableID}. Creating a new one.`)
@@ -1040,16 +1028,16 @@ const isHomeDeliveryUpdateFlag = toBool(req.body.isHomeDelivery ?? (Order_Type =
 
         const DeptID = details.length > 0 ? details[0].DeptID : null
 
-const isHomeDeliveryFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'Delivery' ? 1 : 0));
-        const insertHeaderStmt = db.prepare(`
+        const isHomeDeliveryFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'Delivery' ? 1 : 0));
+        
+        const [result] = await db.query(`
           INSERT INTO TAxnTrnbill (
             outletid, TxnNo, TableID, table_name, Steward, PAX, UserId, HotelID, TxnDatetime,
             isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, customerid, Order_Type, orderNo,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID,
             GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount, isHomeDelivery
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `)
-        const result = insertHeaderStmt.run(
+        `, [
           headerOutletId,
           null,
           Number(TableID),
@@ -1080,45 +1068,26 @@ const isHomeDeliveryFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'De
           finalRoundOff,
           finalAmount,
           isHomeDeliveryFlag
-        )
-        txnId = result.lastInsertRowid
-        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(
-          Number(TableID),
-        )
-        // console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`)
+        ])
+        txnId = result.insertId
+        await db.query('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?', [Number(TableID)])
+        console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`)
       }
 
       // 2. Generate a new KOT number by finding the max KOT for the current day for that outlet.
        // Use curr_date from request body if provided, otherwise use system date
       const kotDate = curr_date || new Date().toISOString().split('T')[0];
-      const maxKOTResult = db
-        .prepare(
-          `
+      const [maxKOTResultRows] = await db.query(
+        `
         SELECT MAX(KOTNo) as maxKOT 
         FROM TAxnTrnbilldetails
         WHERE outletid = ? AND date(KOTUsedDate) = date(?)
       `,
-        )
-        .get(outletid, kotDate)
-
+        [outletid, kotDate]
+      )
+      const maxKOTResult = maxKOTResultRows[0]
       const kotNo = (maxKOTResult?.maxKOT || 0) + 1
-      // console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`)
-
-      const insertDetailStmt = db.prepare(`
-        INSERT INTO TAxnTrnbilldetails (
-          TxnID, outletid, ItemID, TableID, table_name, Qty, RuntimeRate, DeptID, HotelID,
-          isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
-          CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo,
-          item_no, item_name, order_tag, VariantID, VariantName
-        ) VALUES (
-          @TxnID, @outletid, @ItemID, @TableID, @table_name, @Qty, @RuntimeRate, @DeptID, @HotelID,
-          1, 1, @KOTUsedDate, 0, 0, 0, @isNCKOT,
-          @CGST, @CGST_AMOUNT, @SGST, @SGST_AMOUNT, @IGST, @IGST_AMOUNT, @CESS, @CESS_AMOUNT, @Discount_Amount, @KOTNo,
-          @item_no, @item_name, @order_tag, @VariantID, @VariantName
-        )
-      `)
-
-      const getItemStmt = db.prepare('SELECT item_no FROM mstrestmenu WHERE restitemid = ?')
+       console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`)
 
       for (const item of details) {
         const qty = Number(item.Qty) || 0
@@ -1147,10 +1116,6 @@ const isHomeDeliveryFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'De
         let itemDiscountAmount = Number(item.Discount_Amount) || 0
 
         let itemNo = item.item_no
-        if (!itemNo && item.ItemID) {
-          const menuData = getItemStmt.get(item.ItemID)
-          if (menuData) itemNo = menuData.item_no
-        }
 
         // console.log('Inserting item with order_tag:', order_tag)
 // console.log('🚀 Saving KOT Item with Variant:', {
@@ -1160,62 +1125,71 @@ const isHomeDeliveryFlag = toBool(req.body.isHomeDelivery ?? (Order_Type === 'De
 //             VariantName: item.VariantName || item.variantName
 //           });
           
-          insertDetailStmt.run({
-          TxnID: txnId,
-          outletid: outletid,
-          ItemID: item.ItemID,
-          TableID: TableID,
-          table_name: table_name,
-          Qty: qty,
-          RuntimeRate: rate,
-          DeptID: item.DeptID,
-          HotelID: HotelID,
-          isNCKOT: isNCKOT,
-          CGST: cgstPer,
-          CGST_AMOUNT: cgstAmt,
-          SGST: sgstPer,
-          SGST_AMOUNT: sgstAmt,
-          IGST: igstPer,
-          IGST_AMOUNT: igstAmt,
-          CESS: cessPer,
-          CESS_AMOUNT: cessAmt,
-          Discount_Amount: itemDiscountAmount,
-          KOTNo: kotNo,
-          item_no: itemNo,
-          item_name: item.item_name,
-          order_tag: order_tag,
-          KOTUsedDate: KOTUsedDate || null,
-VariantID: item.VariantID || item.variantId || null,
-          VariantName: item.VariantName || item.variantName || null,
-          // FIXED: Support both camelCase and PascalCase from frontend
-        })
+        await db.query(`
+          INSERT INTO TAxnTrnbilldetails (
+            TxnID, outletid, ItemID, TableID, table_name, Qty, RuntimeRate, DeptID, HotelID,
+            isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
+            CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo,
+            item_no, item_name, order_tag, VariantID, VariantName
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          txnId,
+          outletid,
+          item.ItemID,
+          TableID,
+          table_name,
+          qty,
+          rate,
+          item.DeptID,
+          HotelID,
+          KOTUsedDate || null,
+          isNCKOT,
+          cgstPer,
+          cgstAmt,
+          sgstPer,
+          sgstAmt,
+          igstPer,
+          igstAmt,
+          cessPer,
+          cessAmt,
+          itemDiscountAmount,
+          kotNo,
+          itemNo,
+          item.item_name,
+          order_tag,
+          item.VariantID || item.variantId || null,
+          item.VariantName || item.variantName || null,
+        ])
       }
 
       // No backend recalculation - use frontend values directly
-      return { txnId, kotNo }
-    })() // Immediately invoke the transaction
-
-    const { txnId, kotNo } = trx
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId) // Fetch header
-    const items = db
-      .prepare(
+      
+      await db.query('COMMIT')
+      
+      const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [txnId])
+      const header = headerRows[0]
+      const [items] = await db.query(
         `
-      SELECT d.*, m.item_name as ItemName, m.item_no as MenuItemNo
-      FROM TAxnTrnbilldetails d 
-      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE d.TxnID = ? AND d.isCancelled = 0 ORDER BY d.TXnDetailID
-    `,
+        SELECT d.*, m.item_name as ItemName, m.item_no as MenuItemNo
+        FROM TAxnTrnbilldetails d 
+        LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+        WHERE d.TxnID = ? AND d.isCancelled = 0 ORDER BY d.TXnDetailID
+      `,
+        [txnId]
       )
-      .all(txnId) // Fetch details with item_name
 
-    const mappedItems = items.map((i) => ({
-      ...i,
-      item_no: i.item_no || i.MenuItemNo,
-    }))
+      const mappedItems = items.map((i) => ({
+        ...i,
+        item_no: i.item_no || i.MenuItemNo,
+      }))
 
-    res.json(ok('KOT processed successfully', { ...header, customerid: header.customerid, details: mappedItems, KOTNo: kotNo }))
+      res.json(ok('KOT processed successfully', { ...header, customerid: header.customerid, details: mappedItems, KOTNo: kotNo }))
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
   } catch (error) {
-    // console.error('Error in createKOT:', error)
+     console.error('Error in createKOT:', error)
     res
       .status(500)
       .json({
@@ -1226,7 +1200,6 @@ VariantID: item.VariantID || item.variantId || null,
       })
   }
 }
-
 /* -------------------------------------------------------------------------- */
 /* 22) createReverseKOT → Log reversed items and generate a reverse KOT       */
 /* -------------------------------------------------------------------------- */
@@ -1241,7 +1214,8 @@ exports.createReverseKOT = async (req, res) => {
     }
 
     // Get outletid from the transaction to generate a daily sequential RevKOTNo
-    const bill = db.prepare('SELECT outletid FROM TAxnTrnbill WHERE TxnID = ?').get(txnId)
+    const [billRows] = await db.query('SELECT outletid FROM TAxnTrnbill WHERE TxnID = ?', [txnId])
+    const bill = billRows[0]
     if (!bill || !bill.outletid) {
       return res.status(404).json({ success: false, message: 'Transaction or outlet not found.' })
     }
@@ -1251,48 +1225,48 @@ exports.createReverseKOT = async (req, res) => {
     const kotDate = curr_date || new Date().toISOString().split('T')[0];
 
     // Find the maximum existing RevKOTNo for the current day for the outlet to generate a new one
-    const maxRevKOTResult = db
-      .prepare(
-        `
+    const [maxRevKOTResultRows] = await db.query(
+      `
       SELECT MAX(RevKOTNo) as maxRevKOT 
       FROM TAxnTrnbilldetails
       WHERE outletid = ? AND date(KOTUsedDate) = date(?)
     `,
-      )
-      .get(outletid, kotDate)
+      [outletid, kotDate]
+    )
+    const maxRevKOTResult = maxRevKOTResultRows[0]
 
     const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1
     // console.log(`Generated RevKOT number: ${newRevKOTNo} for outlet ${outletid}`)
 
-    const trx = db.transaction(() => {
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       let isFullReverse = false
-      const updateDetailStmt = db.prepare(`
-        UPDATE TAxnTrnbilldetails 
-        SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?, KOTUsedDate = ?
-        WHERE TXnDetailID = ?
-      `)
-
-      const logReversalStmt = db.prepare(`
-        INSERT INTO TAxnTrnReversalLog (
-          TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ItemName, ActualQty, ReversedQty, RemainingQty,
-          IsBeforeBill, IsAfterBill, ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason, ReversalDate
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
-
       let totalReverseAmount = 0
 
       for (const item of reversedItems) {
         if (!item.txnDetailId || !item.qty) continue
 
-        const detail = db
-          .prepare('SELECT d.*, m.item_name as itemName FROM TAxnTrnbilldetails d LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid WHERE d.TXnDetailID = ?')
-          .get(item.txnDetailId)
+        const [detailRows] = await db.query(
+          'SELECT d.*, m.item_name as itemName FROM TAxnTrnbilldetails d LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid WHERE d.TXnDetailID = ?',
+          [item.txnDetailId]
+        )
+        const detail = detailRows[0]
         if (detail) {
           const newRevQty = (detail.RevQty || 0) + item.qty
-          updateDetailStmt.run(item.qty, newRevKOTNo, kotDate, item.txnDetailId)
+          await db.query(
+            'UPDATE TAxnTrnbilldetails SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?, KOTUsedDate = ? WHERE TXnDetailID = ?',
+            [item.qty, newRevKOTNo, kotDate, item.txnDetailId]
+          )
 
           const remainingQty = detail.Qty - newRevQty
-          logReversalStmt.run(
+          await db.query(`
+            INSERT INTO TAxnTrnReversalLog (
+              TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ItemName, ActualQty, ReversedQty, RemainingQty,
+              IsBeforeBill, IsAfterBill, ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason, ReversalDate
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `, [
             item.txnDetailId,
             detail.TxnID,
             detail.KOTNo,
@@ -1309,7 +1283,7 @@ exports.createReverseKOT = async (req, res) => {
             detail.HotelID, // HotelID
             reversalReason || 'Item Reversed', // ReversalReason
             ReversalDate || null, // ReversalDate
-          )
+          ])
 
           totalReverseAmount += (Number(detail.RuntimeRate) || 0) * item.qty
         }
@@ -1317,20 +1291,22 @@ exports.createReverseKOT = async (req, res) => {
 
       // Update the RevKOT amount on the main bill header
       if (totalReverseAmount > 0) {
-        db.prepare(
+        await db.query(
           `
           UPDATE TAxnTrnbill
           SET RevKOT = COALESCE(RevKOT, 0) + ?
           WHERE TxnID = ?
         `,
-        ).run(totalReverseAmount, txnId)
+          [totalReverseAmount, txnId]
+        )
       }
 
       // --- Recalculate Bill Totals After Reversal ---
       // Fetch all details for this transaction
-      const allDetails = db
-        .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0')
-        .all(txnId)
+      const [allDetails] = await db.query(
+        'SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0',
+        [txnId]
+      )
       
       // Get the original gross (before any reversal) for discount proportional calculation
       let originalGross = 0
@@ -1342,14 +1318,16 @@ exports.createReverseKOT = async (req, res) => {
         totalGross += netQty * (Number(d.RuntimeRate) || 0)
       }
 
-      const billHeader = db
-        .prepare('SELECT Discount, DiscPer, DiscountType, outletid FROM TAxnTrnbill WHERE TxnID = ?')
-        .get(txnId)
-      const outletSettings = db
-        .prepare(
-          'SELECT include_tax_in_invoice, bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
-        )
-        .get(billHeader.outletid)
+      const [billHeaderRows] = await db.query(
+        'SELECT Discount, DiscPer, DiscountType, outletid FROM TAxnTrnbill WHERE TxnID = ?',
+        [txnId]
+      )
+      const billHeader = billHeaderRows[0]
+      const [outletSettingsRows] = await db.query(
+        'SELECT include_tax_in_invoice, bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
+        [billHeader.outletid]
+      )
+      const outletSettings = outletSettingsRows[0]
       const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0
 
       let totalCgst = 0,
@@ -1418,81 +1396,85 @@ exports.createReverseKOT = async (req, res) => {
 
       // After a reversal, the bill is no longer considered fully billed or settled.
       // Reset these flags to allow for re-billing or further modifications.
-      db.prepare(
+      await db.query(
         `
         UPDATE TAxnTrnbill
         SET isBilled = 0, isSetteled = 0
         WHERE TxnID = ?
       `,
-      ).run(txnId)
+        [txnId]
+      )
 
       // Update the bill header with recalculated totals
-      db.prepare(
+      await db.query(
         `
         UPDATE TAxnTrnbill
         SET GrossAmt = ?, Discount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?, TaxableValue = ?
         WHERE TxnID = ?
       `,
-      ).run(
-        totalGross,
-        discountAmount,
-        totalCgst,
-        totalSgst,
-        totalIgst,
-        totalCess,
-        finalAmount,
-        finalRoundOff,
-        finalTaxableValue,
-        txnId,
+        [
+          totalGross,
+          discountAmount,
+          totalCgst,
+          totalSgst,
+          totalIgst,
+          totalCess,
+          finalAmount,
+          finalRoundOff,
+          finalTaxableValue,
+          txnId,
+        ]
       )
 
       // Check if all items are now fully reversed and cancel the bill if so
-      const remainingItemsCheck = db
-        .prepare(
-          `
+      const [remainingItemsCheckRows] = await db.query(
+        `
         SELECT SUM(Qty - COALESCE(RevQty, 0)) as netQty
         FROM TAxnTrnbilldetails
         WHERE TxnID = ? AND isCancelled = 0
       `,
-        )
-        .get(txnId)
+        [txnId]
+      )
+      const remainingItemsCheck = remainingItemsCheckRows[0]
 
       if (remainingItemsCheck && remainingItemsCheck.netQty <= 0) {
-        db.prepare(
+        await db.query(
           `
           UPDATE TAxnTrnbill
           SET isreversebill = 0, isCancelled = 1, status = 0, isSetteled = 1
           WHERE TxnID = ?
         `,
-        ).run(txnId)
+          [txnId]
+        )
         
         // Only update table status and delete temporary table if a tableId was provided (for Dine-in)
         if (tableId) {
           // Check if there are any other pending items for the same table from other transactions
-          const otherPendingItemsCheck = db
-            .prepare(
-              `
+          const [otherPendingItemsCheckRows] = await db.query(
+            `
             SELECT SUM(d.Qty - COALESCE(d.RevQty, 0)) as netQty
             FROM TAxnTrnbilldetails d
             JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
             WHERE b.TableID = ? AND b.isCancelled = 0 AND b.TxnID != ?
           `,
-            )
-            .get(tableId, txnId)
+            [tableId, txnId]
+          )
+          const otherPendingItemsCheck = otherPendingItemsCheckRows[0]
 
           // Only delete temporary table if there are NO other pending items from other transactions
           if (!otherPendingItemsCheck || !otherPendingItemsCheck.netQty || otherPendingItemsCheck.netQty <= 0) {
-            db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(tableId)
+            await db.query(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`, [tableId])
           }
           
           // Update table status to vacant
-          db.prepare(
+          await db.query(
             `
             UPDATE msttablemanagement
             SET status = 0
             WHERE tableid = ?
           `,
-          ).run(tableId)
+            [tableId]
+          )
         }
         
         isFullReverse = true
@@ -1501,27 +1483,32 @@ exports.createReverseKOT = async (req, res) => {
       // After a partial reversal, the bill is no longer considered fully billed or settled.
       // Reset these flags to allow for re-billing or further modifications.
       if (!isFullReverse) {
-        db.prepare(
+        await db.query(
           `
         UPDATE TAxnTrnbill
         SET isBilled = 0, isSetteled = 0
         WHERE TxnID = ?
       `,
-        ).run(txnId)
+          [txnId]
+        )
       }
-      return { fullReverse: isFullReverse }
-    })
-    const { fullReverse } = trx()
-    res.json({
-      success: true,
-      message: fullReverse
-        ? 'Full bill reversed and table cleared successfully.'
-        : 'Reversed items processed successfully.',
-      fullReverse,
-      data: {
-        revKotNo: newRevKOTNo
-      }
-    })
+      
+      await db.query('COMMIT')
+      
+      res.json({
+        success: true,
+        message: isFullReverse
+          ? 'Full bill reversed and table cleared successfully.'
+          : 'Reversed items processed successfully.',
+        fullReverse: isFullReverse,
+        data: {
+          revKotNo: newRevKOTNo
+        }
+      })
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
   } catch (error) {
     // console.error('Error in createReverseKOT:', error)
     res
@@ -1564,7 +1551,7 @@ exports.getSavedKOTs = async (req, res) => {
       ORDER BY b.TxnDatetime DESC
     `
 
-    const rows = db.prepare(sql).all(...params)
+    const [rows] = await db.query(sql, params)
 
     res.json(ok('Fetched saved KOTs', rows))
   } catch (error) {
@@ -1585,22 +1572,18 @@ exports.getLatestKOTForTable = async (req, res) => {
     if (!tableId)
       return res.status(400).json({ success: false, message: 'tableId required', data: null })
 
-    const bill = db
-      .prepare(
-        `SELECT * FROM TAxnTrnbill WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 ORDER BY TxnID DESC LIMIT 1`,
-      )
-      .get(tableId)
+    const [billRows] = await db.query(
+      `SELECT * FROM TAxnTrnbill WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 ORDER BY TxnID DESC LIMIT 1`,
+      [tableId])
+    const bill = billRows[0]
     if (!bill) return res.status(404).json({ success: false, message: 'No KOT found', data: null })
 
-    const details = db
-      .prepare(
-        `
+    const [details] = await db.query(
+      `
       SELECT * FROM TAxnTrnbilldetails 
       WHERE TxnID = ? AND isCancelled = 0 
       ORDER BY TXnDetailID ASC
-    `,
-      )
-      .all(bill.TxnID)
+    `, [bill.TxnID])
 
     res.json(ok('Latest KOT fetched', { ...bill, details }))
   } catch (error) {
@@ -1618,36 +1601,35 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     const { tableId } = req.params
 
     // Find the single unbilled or billed but unsettled bill for the table
-    const bill = db
-      .prepare(
-        `
-      SELECT TxnID
+    const [billRows] = await db.query(
+      `
+      SELECT TxnID, outletid
       FROM TAxnTrnbill
       WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 AND isSetteled = 0
       ORDER BY TxnID DESC LIMIT 1
     `,
-      )
-      .get(Number(tableId))
+      [Number(tableId)]
+    )
+    const bill = billRows[0]
 
     let kotNo = null
     if (bill) {
       // Get the latest KOTNo for that bill from the details table
-      const latestKOTDetail = db
-        .prepare(
-          `
-            SELECT MAX(KOTNo) as maxKotNo
-            FROM TAxnTrnbilldetails
-            WHERE TxnID = ?
+      const [latestKOTDetailRows] = await db.query(
+        `
+          SELECT MAX(KOTNo) as maxKotNo
+          FROM TAxnTrnbilldetails
+          WHERE TxnID = ?
         `,
-        )
-        .get(bill.TxnID)
+        [bill.TxnID]
+      )
+      const latestKOTDetail = latestKOTDetailRows[0]
       kotNo = latestKOTDetail ? latestKOTDetail.maxKotNo : null
     }
 
     // Fetch all unbilled items for the table (not aggregated)
-    const rows = db
-      .prepare(
-        `
+    const [rows] = await db.query(
+      `
       SELECT
         b.TxnID,
         d.TXnDetailID,
@@ -1670,63 +1652,64 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled = 0   AND b.issetteled = 0 AND b.isNCKOT = 0 AND  d.isCancelled = 0
+      WHERE b.TableID = ? AND b.isBilled = 0 AND b.issetteled = 0 AND b.isNCKOT = 0 AND d.isCancelled = 0
       `,
-      )
-      .all(Number(tableId))
+      [Number(tableId)]
+    )
 
     // Get the max RevKOTNo for the outlet to set as revKotNo for unbilled
     let maxRevKOT = 0
     if (bill && bill.outletid) {
-      const maxRevKOTResult = db
-        .prepare(
-          `
+      const [maxRevKOTResultRows] = await db.query(
+        `
         SELECT MAX(RevKOTNo) as maxRevKOT
         FROM TAxnTrnbilldetails
-        WHERE outletid = ? AND date(KOTUsedDate) = ?
+        WHERE outletid = ? AND date(KOTUsedDate) = CURDATE()
       `,
-        )
-        .get(bill.outletid)
+        [bill.outletid]
+      )
+      const maxRevKOTResult = maxRevKOTResultRows[0]
       maxRevKOT = maxRevKOTResult?.maxRevKOT || 0
     }
 
     // Fetch reversed items from the log for this transaction
-    const reversedItemsRows = bill
-      ? db
-          .prepare(
-            `
-      SELECT
-        l.ReversalID as reversalLogId,
-        l.ItemID,
-        d.item_no,
-        COALESCE(m.item_name, 'Unknown Item') AS ItemName,
-        l.ReversedQty as reversedQty,
-        d.RuntimeRate as price,
-        'Reversed' as status,
-        l.RevKOTNo as kotNo,
-        d.TXnDetailID as txnDetailId,
-        l.ReversalDate as reversalTime
-      FROM TAxnTrnReversalLog l
-      JOIN TAxnTrnbilldetails d ON l.TxnDetailID = d.TXnDetailID
-      LEFT JOIN mstrestmenu m ON l.ItemID = m.restitemid
-      WHERE l.TxnID = ?
-    `,
-          )
-          .all(bill.TxnID)
-      : []
+    let reversedItemsRows = []
+    if (bill) {
+      const [reversedRows] = await db.query(
+        `
+        SELECT
+          l.ReversalID as reversalLogId,
+          l.ItemID,
+          d.item_no,
+          COALESCE(m.item_name, 'Unknown Item') AS ItemName,
+          l.ReversedQty as reversedQty,
+          d.RuntimeRate as price,
+          'Reversed' as status,
+          l.RevKOTNo as kotNo,
+          d.TXnDetailID as txnDetailId,
+          l.ReversalDate as reversalTime
+        FROM TAxnTrnReversalLog l
+        JOIN TAxnTrnbilldetails d ON l.TxnDetailID = d.TXnDetailID
+        LEFT JOIN mstrestmenu m ON l.ItemID = m.restitemid
+        WHERE l.TxnID = ?
+      `,
+        [bill.TxnID]
+      )
+      reversedItemsRows = reversedRows
+    }
+
     // Fetch discount from the latest unbilled bill for the table
-    const latestBillHeader =
-      db
-        .prepare(
-          `
+    const [latestBillHeaderRows] = await db.query(
+      `
       SELECT TxnID, GrossAmt, RevKOT, Discount, DiscPer, DiscountType, CGST, SGST, IGST, CESS, RoundOFF, Amount, PAX, CustomerName, MobileNo, Steward
       FROM TAxnTrnbill
       WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 AND isNCKOT = 0
       ORDER BY TxnID DESC
       LIMIT 1
     `,
-        )
-        .get(Number(tableId)) || {}
+      [Number(tableId)]
+    )
+    const latestBillHeader = latestBillHeaderRows[0] || {}
 
     // Map to add isNew flag
     const items = rows.map((r) => ({
@@ -1787,17 +1770,17 @@ exports.handleF8KeyPress = async (req, res) => {
     // Backend assumes the request is valid when called
 
     // Get the latest KOT for the table (billed or unbilled)
-    const latestKOT = db
-      .prepare(
-        `
+    const [latestKOTRows] = await db.query(
+      `
       SELECT TxnID, KOTNo
       FROM TAxnTrnbill
       WHERE TableID = ? AND isCancelled = 0
       ORDER BY TxnID DESC
       LIMIT 1
     `,
-      )
-      .get(Number(tableId))
+      [Number(tableId)]
+    )
+    const latestKOT = latestKOTRows[0]
 
     if (!latestKOT) {
       return res.status(404).json({
@@ -1809,9 +1792,8 @@ exports.handleF8KeyPress = async (req, res) => {
 
     // If txnDetailId is provided, handle individual item
     if (txnDetailId) {
-      const item = db
-        .prepare(
-          `
+      const [itemRows] = await db.query(
+        `
         SELECT
           d.TXnDetailID,
           d.ItemID,
@@ -1820,14 +1802,16 @@ exports.handleF8KeyPress = async (req, res) => {
           d.TxnID,
           d.KOTNo,
           d.RuntimeRate,
+          d.HotelID,
           COALESCE(m.item_name, 'Unknown Item') AS ItemName
         FROM TAxnTrnbilldetails d
         JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
         LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
         WHERE b.TableID = ? AND d.TXnDetailID = ? AND d.isCancelled = 0
       `,
-        )
-        .get(Number(tableId), Number(txnDetailId))
+        [Number(tableId), Number(txnDetailId)]
+      )
+      const item = itemRows[0]
 
       if (!item) {
         return res.status(404).json({
@@ -1850,14 +1834,13 @@ exports.handleF8KeyPress = async (req, res) => {
       }
 
       // Generate new KOT number for reversal
-      const maxRevKOTResult = db
-        .prepare(
-          `
+      const [maxRevKOTResultRows] = await db.query(
+        `
         SELECT MAX(d.RevKOTNo) as maxRevKOT
         FROM TAxnTrnbilldetails d
-      `,
-        )
-        .get()
+      `
+      )
+      const maxRevKOTResult = maxRevKOTResultRows[0]
       const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1
 
       // Update RevQty and KOTNo in database
@@ -1865,30 +1848,36 @@ exports.handleF8KeyPress = async (req, res) => {
       const reverseAmount = Number(item.RuntimeRate) || 0
 
       // Determine reversal type based on bill status
-      const bill = db.prepare('SELECT isBilled FROM TAxnTrnbill WHERE TxnID = ?').get(item.TxnID)
+      const [billRows] = await db.query('SELECT isBilled FROM TAxnTrnbill WHERE TxnID = ?', [item.TxnID])
+      const bill = billRows[0]
       const reverseType = bill && bill.isBilled ? 'AfterBill' : 'BeforeBill'
       const isBeforeBill = reverseType === 'BeforeBill' ? 1 : 0
       const isAfterBill = reverseType === 'AfterBill' ? 1 : 0
 
-      db.transaction(() => {
-        db.prepare(
+      // Start transaction
+      await db.query('START TRANSACTION')
+      
+      try {
+        await db.query(
           `
           UPDATE TAxnTrnbilldetails
           SET RevQty = ?, RevKOTNo = ?
           WHERE TXnDetailID = ?
         `,
-        ).run(newRevQty, newRevKOTNo, item.TXnDetailID)
+          [newRevQty, newRevKOTNo, item.TXnDetailID]
+        )
 
-        db.prepare(
+        await db.query(
           `
           UPDATE TAxnTrnbill
           SET RevKOT = COALESCE(RevKOT, 0) + ?
           WHERE TxnID = ?
         `,
-        ).run(reverseAmount, item.TxnID)
+          [reverseAmount, item.TxnID]
+        )
 
         // Log the reversal
-        db.prepare(
+        await db.query(
           `
           INSERT INTO TAxnTrnReversalLog (
             TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ItemName,
@@ -1896,31 +1885,38 @@ exports.handleF8KeyPress = async (req, res) => {
             ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        ).run(
-          item.TXnDetailID,
-          item.TxnID,
-          item.KOTNo,
-          newRevKOTNo,
-          item.ItemID,
-          item.ItemName,
-          currentQty,
-          1,
-          availableQty - 1,
-          isBeforeBill,
-          isAfterBill,
-          userId,
-          approvedByAdminId || null,
-          item.HotelID,
-          reversalReason || null,
+          [
+            item.TXnDetailID,
+            item.TxnID,
+            item.KOTNo,
+            newRevKOTNo,
+            item.ItemID,
+            item.ItemName,
+            currentQty,
+            1,
+            availableQty - 1,
+            isBeforeBill,
+            isAfterBill,
+            userId,
+            approvedByAdminId || null,
+            item.HotelID,
+            reversalReason || null,
+          ]
         )
 
         // Update table status to occupied if it's not already
-        db.prepare(
+        await db.query(
           `
           UPDATE msttablemanagement SET status = 1 WHERE tableid = ? AND status = 0
         `,
-        ).run(tableId)
-      })()
+          [tableId]
+        )
+        
+        await db.query('COMMIT')
+      } catch (error) {
+        await db.query('ROLLBACK')
+        throw error
+      }
 
       return res.json({
         success: true,
@@ -1937,9 +1933,8 @@ exports.handleF8KeyPress = async (req, res) => {
     }
 
     // Get all unbilled items for the table (original F8 functionality)
-    const unbilledItems = db
-      .prepare(
-        `
+    const [unbilledItems] = await db.query(
+      `
       SELECT
         d.TXnDetailID,
         d.TxnID,
@@ -1948,14 +1943,15 @@ exports.handleF8KeyPress = async (req, res) => {
         d.RevQty,
         d.KOTNo,
         d.RuntimeRate,
+        d.HotelID,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
     `,
-      )
-      .all(Number(tableId))
+      [Number(tableId)]
+    )
 
     if (!unbilledItems || unbilledItems.length === 0) {
       return res.status(404).json({
@@ -1967,10 +1963,13 @@ exports.handleF8KeyPress = async (req, res) => {
 
     // Process reverse quantity for items that have quantity > RevQty
     const updatedItems = []
-    const transaction = db.transaction(() => {
-      let totalReverseAmount = 0
-      let billTxnId = null
+    let totalReverseAmount = 0
+    let billTxnId = null
 
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       for (const item of unbilledItems) {
         const currentQty = Number(item.Qty) || 0
         const currentRevQty = Number(item.RevQty) || 0
@@ -1978,13 +1977,14 @@ exports.handleF8KeyPress = async (req, res) => {
 
         if (availableQty > 0) {
           const newRevQty = currentRevQty + 1
-          db.prepare(
+          await db.query(
             `
             UPDATE TAxnTrnbilldetails
             SET RevQty = ?
             WHERE TXnDetailID = ?
           `,
-          ).run(newRevQty, item.TXnDetailID)
+            [newRevQty, item.TXnDetailID]
+          )
 
           totalReverseAmount += Number(item.RuntimeRate) || 0
           if (!billTxnId) {
@@ -1992,7 +1992,7 @@ exports.handleF8KeyPress = async (req, res) => {
           }
 
           // Log the reversal
-          db.prepare(
+          await db.query(
             `
             INSERT INTO TAxnTrnReversalLog ( 
               TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ItemName,
@@ -2000,29 +2000,31 @@ exports.handleF8KeyPress = async (req, res) => {
               ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason 
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
-          ).run(
-            item.TXnDetailID,
-            item.TxnID,
-            item.KOTNo,
-            null,
-            item.ItemID,
-            item.ItemName,
-            currentQty,
-            1,
-            availableQty - 1,
-            1,
-            0,
-            userId,
-            approvedByAdminId || null,
-            item.HotelID,
-            reversalReason || null,
+            [
+              item.TXnDetailID,
+              item.TxnID,
+              item.KOTNo,
+              null,
+              item.ItemID,
+              item.ItemName,
+              currentQty,
+              1,
+              availableQty - 1,
+              1,
+              0,
+              userId,
+              approvedByAdminId || null,
+              item.HotelID,
+              reversalReason || null,
+            ]
           )
 
-          db.prepare(
+          await db.query(
             `
             UPDATE msttablemanagement SET status = 1 WHERE tableid = ? AND status = 0
           `,
-          ).run(tableId)
+            [tableId]
+          )
 
           updatedItems.push({
             txnDetailId: item.TXnDetailID,
@@ -2036,24 +2038,25 @@ exports.handleF8KeyPress = async (req, res) => {
       }
 
       if (billTxnId && totalReverseAmount > 0) {
-        db.prepare(
+        await db.query(
           `
           UPDATE TAxnTrnbill
           SET RevKOT = COALESCE(RevKOT, 0) + ?
           WHERE TxnID = ?
         `,
-        ).run(totalReverseAmount, billTxnId)
+          [totalReverseAmount, billTxnId]
+        )
       }
-
-    
-    })
-
-    transaction()
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
 
     // Get updated items after transaction
-    const finalItems = db
-      .prepare(
-        `
+    const [finalItems] = await db.query(
+      `
       SELECT
         d.TXnDetailID,
         d.ItemID,
@@ -2067,8 +2070,8 @@ exports.handleF8KeyPress = async (req, res) => {
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
     `,
-      )
-      .all(Number(tableId))
+      [Number(tableId)]
+    )
 
     res.json({
       success: true,
@@ -2115,15 +2118,17 @@ exports.reverseQuantity = async (req, res) => {
     
 
     // Get current item details
-    const item = db
-      .prepare(
-        `
-      SELECT TXnDetailID, Qty, RevQty, ItemID, TxnID, RuntimeRate, TableID, KOTNo, HotelID
-      FROM TAxnTrnbilldetails
-      WHERE TXnDetailID = ?
+    const [itemRows] = await db.query(
+      `
+      SELECT TXnDetailID, Qty, RevQty, ItemID, TxnID, RuntimeRate, TableID, KOTNo, HotelID, 
+             COALESCE(m.item_name, 'Unknown Item') AS ItemName
+      FROM TAxnTrnbilldetails d
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE d.TXnDetailID = ?
     `,
-      )
-      .get(Number(txnDetailId))
+      [Number(txnDetailId)]
+    )
+    const item = itemRows[0]
 
     if (!item) {
       return res.status(404).json({
@@ -2146,69 +2151,80 @@ exports.reverseQuantity = async (req, res) => {
     }
 
     // Generate new KOT number for reversal
-    const maxRevKOTResult = db
-      .prepare(
-        `
+    const [maxRevKOTResultRows] = await db.query(
+      `
       SELECT MAX(d.RevKOTNo) as maxRevKOT
       FROM TAxnTrnbilldetails d
-    `,
-      )
-      .get()
+    `
+    )
+    const maxRevKOTResult = maxRevKOTResultRows[0]
     const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1
 
     // Update RevQty and KOTNo
     const newRevQty = currentRevQty + 1
     const reverseAmount = Number(item.RuntimeRate) || 0
 
-    db.transaction(() => {
-      db.prepare(
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
+      await db.query(
         `
         UPDATE TAxnTrnbilldetails
         SET RevQty = ?, RevKOTNo = ?
         WHERE TXnDetailID = ?
       `,
-      ).run(newRevQty, newRevKOTNo, item.TXnDetailID)
+        [newRevQty, newRevKOTNo, item.TXnDetailID]
+      )
 
-      db.prepare(
+      await db.query(
         `
         UPDATE TAxnTrnbill
         SET RevKOT = COALESCE(RevKOT, 0) + ?
         WHERE TxnID = ?
       `,
-      ).run(reverseAmount, item.TxnID)
+        [reverseAmount, item.TxnID]
+      )
 
       // Log the reversal
-      const bill = db.prepare('SELECT isBilled FROM TAxnTrnbill WHERE TxnID = ?').get(item.TxnID)
+      const [billRows] = await db.query('SELECT isBilled FROM TAxnTrnbill WHERE TxnID = ?', [item.TxnID])
+      const bill = billRows[0]
       const reverseType = bill && bill.isBilled ? 'AfterBill' : 'BeforeBill'
 
       const isBeforeBill = reverseType === 'BeforeBill' ? 1 : 0
       const isAfterBill = reverseType === 'AfterBill' ? 1 : 0
 
-      db.prepare(
+      await db.query(
         `
         INSERT INTO TAxnTrnReversalLog ( 
-          TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID,  ItemName, ActualQty, ReversedQty, RemainingQty, 
+          TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ItemName, ActualQty, ReversedQty, RemainingQty, 
           IsBeforeBill, IsAfterBill, ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason 
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      ).run(
-        item.TXnDetailID,
-        item.TxnID,
-        item.KOTNo,
-        newRevKOTNo,
-        item.ItemID,
-        item.ItemName,
-        currentQty,
-        1,
-        availableQty - 1,
-        isBeforeBill,
-        isAfterBill,
-        userId,
-        approvedByAdminId || null,
-        item.HotelID,
-        reversalReason || null,
+        [
+          item.TXnDetailID,
+          item.TxnID,
+          item.KOTNo,
+          newRevKOTNo,
+          item.ItemID,
+          item.ItemName,
+          currentQty,
+          1,
+          availableQty - 1,
+          isBeforeBill,
+          isAfterBill,
+          userId,
+          approvedByAdminId || null,
+          item.HotelID,
+          reversalReason || null,
+        ]
       )
-    })()
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
 
     res.json({
       success: true,
@@ -2230,7 +2246,6 @@ exports.reverseQuantity = async (req, res) => {
     })
   }
 }
-
 exports.getLatestBilledBillForTable = async (req, res) => {
   try {
     const { tableId } = req.params
@@ -2239,17 +2254,17 @@ exports.getLatestBilledBillForTable = async (req, res) => {
     }
 
     // Step 1: Fetch the latest billed and unsettled transaction for the table
-    const bill = db
-      .prepare(
-        `
+    const [billRows] = await db.query(
+      `
       SELECT * 
       FROM TAxnTrnbill 
       WHERE TableID = ? AND isBilled = 1 AND isSetteled = 0 AND isreversebill = 0
       ORDER BY TxnID DESC 
       LIMIT 1
     `,
-      )
-      .get(Number(tableId))
+      [Number(tableId)]
+    )
+    const bill = billRows[0]
 
     if (!bill) {
       return res.json({
@@ -2260,23 +2275,21 @@ exports.getLatestBilledBillForTable = async (req, res) => {
     }
 
     // Step 2: Load all items (billed and unbilled) associated with that transaction
-    const allDetailsForBill = db
-      .prepare(
-        `
+    const [allDetailsForBill] = await db.query(
+      `
       SELECT d.*, m.item_name as ItemName, m.item_no, m.item_group_id
       FROM TAxnTrnbilldetails d
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE d.TxnID = ? AND d.isCancelled = 0
       ORDER BY d.TXnDetailID ASC
     `,
-      )
-      .all(bill.TxnID)
+      [bill.TxnID]
+    )
 
     // Step 3: Check for any *other* unbilled transactions for the same table that might have been created after the bill was printed.
     // This is a fallback and might not be the primary logic path if new items are added to the *same* bill.
-    const otherUnbilledItems = db
-      .prepare(
-        `
+    const [otherUnbilledItems] = await db.query(
+      `
       SELECT d.*, m.item_name as ItemName
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
@@ -2287,13 +2300,12 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       AND d.isCancelled = 0
       AND IFNULL(d.isNCKOT, 0) = 0   -- ✅ IMPORTANT
     `,
-      )
-      .all(Number(tableId))
+      [Number(tableId)]
+    )
 
     // Step 4: Fetch reversed items from the log for this specific billed transaction
-    const reversedItemsRows = db
-      .prepare(
-        `
+    const [reversedItemsRows] = await db.query(
+      `
       SELECT
         l.ReversalID,
         l.ItemID,
@@ -2307,8 +2319,8 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       LEFT JOIN mstrestmenu m ON l.ItemID = m.restitemid
       WHERE l.TxnID = ?
     `,
-      )
-      .all(bill.TxnID)
+      [bill.TxnID]
+    )
 
     // Combine the details. The primary details are from the billed transaction.
     // The frontend will handle displaying them correctly.
@@ -2341,32 +2353,42 @@ exports.printBill = async (req, res) => {
   try {
     const { id } = req.params
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    const [billRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const bill = billRows[0]
     if (!bill)
       return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
-    // Update isBilled = 1 for all items in the bill
-    const updateStmt = db.prepare('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?')
-    updateStmt.run(Number(id))
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
+      // Update isBilled = 1 for all items in the bill
+      await db.query('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?', [Number(id)])
 
-    // Also update the bill header to mark it as billed
-    db.prepare(
-      `
-      UPDATE TAxnTrnbill
-      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP
-      WHERE TxnID = ?
-    `,
-    ).run(Number(id))
+      // Also update the bill header to mark it as billed
+      await db.query(
+        `
+        UPDATE TAxnTrnbill
+        SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP
+        WHERE TxnID = ?
+      `,
+        [Number(id)]
+      )
 
-    // ✅ Update table status to 'billed' (2)
-    if (bill.TableID) {
-      db.prepare('UPDATE msttablemanagement SET status = 2 WHERE tableid = ?').run(bill.TableID)
+      // ✅ Update table status to 'billed' (2)
+      if (bill.TableID) {
+        await db.query('UPDATE msttablemanagement SET status = 2 WHERE tableid = ?', [bill.TableID])
+      }
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
     }
 
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db
-      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
-      .all(Number(id))
+    const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const header = headerRows[0]
+    const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
 
     res.json(ok('Bill marked as printed and billed', { ...header, details: items }))
   } catch (error) {
@@ -2389,33 +2411,44 @@ exports.markBillAsBilled = async (req, res) => {
     const { id } = req.params
     const { outletId, customerName, mobileNo, customerid } = req.body // ✅ Get outletId from body
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    const [billRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const bill = billRows[0]
     if (!bill) {
       return res.status(404).json({ success: false, message: 'Bill not found', data: null })
     }
 
-    // Update isBilled = 1 for all items in the bill
-    db.prepare('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?').run(Number(id))
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
+      // Update isBilled = 1 for all items in the bill
+      await db.query('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?', [Number(id)])
 
-    // Update the bill header to mark it as billed and set the date
-    // ✅ Also generate the TxnNo here if it doesn't exist
-    let txnNo = bill.TxnNo
-    if (!txnNo && outletId) {
-      txnNo = generateTxnNo(outletId)
+      // Update the bill header to mark it as billed and set the date
+      // ✅ Also generate the TxnNo here if it doesn't exist
+      let txnNo = bill.TxnNo
+      if (!txnNo && outletId) {
+        txnNo = generateTxnNo(outletId)
+      }
+
+      await db.query(
+        `
+        UPDATE TAxnTrnbill
+        SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP, TxnNo = ?, CustomerName = COALESCE(?, CustomerName), MobileNo = COALESCE(?, MobileNo), customerid = COALESCE(?, customerid)
+        WHERE TxnID = ?
+      `,
+        [txnNo, customerName || null, mobileNo || null, customerid || null, Number(id)]
+      )
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
     }
 
-    db.prepare(
-      `
-      UPDATE TAxnTrnbill
-      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP, TxnNo = ?, CustomerName = COALESCE(?, CustomerName), MobileNo = COALESCE(?, MobileNo), customerid = COALESCE(?, customerid)
-      WHERE TxnID = ?
-    `,
-    ).run(txnNo, customerName || null, mobileNo || null, customerid || null, Number(id))
-
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db
-      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
-      .all(Number(id))
+    const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const header = headerRows[0]
+    const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
 
     res.json(ok('Bill marked as billed', { ...header, customerid: header.customerid, details: items }))
   } catch (error) {
@@ -2443,24 +2476,27 @@ exports.generateTxnNo = async (req, res) => {
         .json({ success: false, message: 'outletid and tableId are required', data: null })
     }
 
-    const trx = db.transaction(() => {
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       const txnNo = generateTxnNo(outletid)
 
-      const insertStmt = db.prepare(`
+      const [insertResult] = await db.query(`
         INSERT INTO TAxnTrnbill (
           outletid, TxnNo, TableID, UserId, TxnDatetime, isBilled, isCancelled, isSetteled
-        ) VALUES (?, ?, ?, ?, datetime('now'), 0, 0, 0)
-      `)
+        ) VALUES (?, ?, ?, ?, NOW(), 0, 0, 0)
+      `, [outletid, txnNo, tableId, userId])
 
-      const insertResult = insertStmt.run(outletid, txnNo, tableId, userId)
-      const txnId = insertResult.lastInsertRowid
+      const txnId = insertResult.insertId
+      
+      await db.query('COMMIT')
 
-      return { txnNo, txnId }
-    })
-
-    const { txnNo, txnId } = trx()
-
-    res.json(ok('TxnNo generated and bill created', { txnNo, txnId }))
+      res.json(ok('TxnNo generated and bill created', { txnNo, txnId }))
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
   } catch (error) {
     // console.error('Error generating TxnNo:', error)
     res
@@ -2502,9 +2538,11 @@ exports.saveDayEnd = async (req, res) => {
     const dayend_dateStr = `${dayend_date.getFullYear()}-${pad(dayend_date.getMonth() + 1)}-${pad(dayend_date.getDate())}`
 
     // Prevent duplicate entries
-    const exists = db
-      .prepare(`SELECT id FROM trn_dayend WHERE dayend_date = ? AND outlet_id = ?`)
-      .get(dayend_dateStr, outlet_id)
+    const [existsRows] = await db.query(
+      `SELECT id FROM trn_dayend WHERE dayend_date = ? AND outlet_id = ?`,
+      [dayend_dateStr, outlet_id]
+    )
+    const exists = existsRows[0]
     if (exists) {
       return res
         .status(400)
@@ -2525,12 +2563,10 @@ exports.saveDayEnd = async (req, res) => {
     const systemDateTimeStr = `${istDateTime.getFullYear()}-${pad(istDateTime.getMonth() + 1)}-${pad(istDateTime.getDate())}T${pad(istDateTime.getHours())}:${pad(istDateTime.getMinutes())}:${pad(istDateTime.getSeconds())}`
 
     // Insert into trn_dayend with system_datetime and lock_datetime in IST format
-    const stmt = db.prepare(`
+    const [result] = await db.query(`
       INSERT INTO trn_dayend (dayend_date, lock_datetime, dayend_total_amt, outlet_id, hotel_id, created_by_id, system_datetime)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `)
-
-    const info = stmt.run(
+    `, [
       dayend_dateStr, // dayend_date as YYYY-MM-DD IST
       lockDateTimeStr, // lock_datetime as YYYY-MM-DDTHH:mm:ss IST
       total_amount,
@@ -2538,12 +2574,12 @@ exports.saveDayEnd = async (req, res) => {
       hotel_id,
       user_id,
       systemDateTimeStr, // system_datetime as YYYY-MM-DDTHH:mm:ss IST
-    )
+    ])
 
     res.json(
       ok('Day end saved successfully', {
         lock_datetime: lockDateTimeStr,
-        id: info.lastInsertRowid,
+        id: result.insertId,
       }),
     )
   } catch (error) {
@@ -2566,33 +2602,40 @@ exports.applyNCKOT = async (req, res) => {
       return res.status(400).json({ success: false, message: 'NCName and NCPurpose are required.' })
     }
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    const [billRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const bill = billRows[0]
     if (!bill) {
       return res.status(404).json({ success: false, message: 'Bill not found', data: null })
     }
 
-    const tx = db.transaction(() => {
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       // Update the bill header
-      db.prepare(
+      await db.query(
         `
         UPDATE TAxnTrnbill
         SET isNCKOT = 1, NCName = ?, NCPurpose = ?, isSetteled = 1
         WHERE TxnID = ?
       `,
-      ).run(NCName, NCPurpose, Number(id))
+        [NCName, NCPurpose, Number(id)]
+      )
 
       // Update all associated detail items
-      db.prepare('UPDATE TAxnTrnbilldetails SET isNCKOT = 1 WHERE TxnID = ?').run(Number(id))
+      await db.query('UPDATE TAxnTrnbilldetails SET isNCKOT = 1 WHERE TxnID = ?', [Number(id)])
 
       // Show the UPDATE statement for table status
       // console.log(`UPDATE msttablemanagement SET Status = 0 WHERE TableID = ${bill.TableID}`)
-      db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ? `).run(bill.TableID)  
-      db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
-         
-        
-    })
+      await db.query(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`, [bill.TableID])
+      await db.query(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`, [bill.TableID])
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
 
-    tx()
     res.json(ok('NCKOT applied to the entire bill successfully.'))
   } catch (error) {
     // console.error('Error in applyNCKOT:', error)
@@ -2624,7 +2667,8 @@ exports.applyDiscountToBill = async (req, res) => {
         .json({ success: false, message: 'Discount value, percentage, and type are required.' })
     }
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    const [billRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const bill = billRows[0]
     if (!bill) {
       return res.status(404).json({ success: false, message: 'KOT not found.' })
     }
@@ -2633,14 +2677,11 @@ exports.applyDiscountToBill = async (req, res) => {
     const finalDiscPer = Number(discPer) || 0
     const finalDiscountType = Number(discountType)
 
-    const trx = db.transaction(() => {
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       // 2. Recalculate and update Discount_Amount for each item in TAxnTrnbilldetails
-      const updateDetailStmt = db.prepare(/*sql*/ `
-        UPDATE TAxnTrnbilldetails
-        SET Discount_Amount = ?
-        WHERE TXnDetailID = ?
-      `)
-
       let totalDiscountOnItems = 0
 
       for (const item of items) {
@@ -2662,17 +2703,23 @@ exports.applyDiscountToBill = async (req, res) => {
           }
         }
 
-        updateDetailStmt.run(itemDiscountAmount, item.txnDetailId)
+        await db.query(
+          'UPDATE TAxnTrnbilldetails SET Discount_Amount = ? WHERE TXnDetailID = ?',
+          [itemDiscountAmount, item.txnDetailId]
+        )
         totalDiscountOnItems += itemDiscountAmount
       }
 
       // 3. Recalculate the total amount for the bill header based on the new discount
-      const allDetails = db
-        .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0')
-        .all(Number(id))
-      const outletSettings = db
-        .prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?')
-        .get(bill.outletid)
+      const [allDetails] = await db.query(
+        'SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0',
+        [Number(id)]
+      )
+      const [outletSettingsRows] = await db.query(
+        'SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?',
+        [bill.outletid]
+      )
+      const outletSettings = outletSettingsRows[0]
       const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0
 
       let totalGross = 0,
@@ -2717,12 +2764,12 @@ exports.applyDiscountToBill = async (req, res) => {
       }
 
       // Apply rounding on the backend to ensure consistency
-      const { bill_round_off, bill_round_off_to } =
-        db
-          .prepare(
-            'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
-          )
-          .get(bill.outletid) || {}
+      const [settingsRows] = await db.query(
+        'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
+        [bill.outletid]
+      )
+      const settings = settingsRows[0] || {}
+      const { bill_round_off, bill_round_off_to } = settings
       let finalAmount = totalBeforeRoundOff
       let finalRoundOff = 0
 
@@ -2732,33 +2779,37 @@ exports.applyDiscountToBill = async (req, res) => {
       }
 
       // 4. Update the bill header with all correct values in one go
-      db.prepare(
-        /*sql*/ `
+      await db.query(
+        `
         UPDATE TAxnTrnbill
         SET Amount = ?, Discount = ?, DiscPer = ?, DiscountType = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, RoundOFF = ?, isBilled = 0, TaxableValue = ?
         WHERE TxnID = ?
       `,
-      ).run(
-        finalAmount,
-        finalDiscount,
-        finalDiscPer,
-        finalDiscountType,
-        totalCgst,
-        totalSgst,
-        totalIgst,
-        totalCess,
-        finalRoundOff,
-        finalTaxableValue,
-        Number(id),
+        [
+          finalAmount,
+          finalDiscount,
+          finalDiscPer,
+          finalDiscountType,
+          totalCgst,
+          totalSgst,
+          totalIgst,
+          totalCess,
+          finalRoundOff,
+          finalTaxableValue,
+          Number(id),
+        ]
       )
 
       // If the bill was previously billed (printed), set table status to occupied (1)
       if (bill.isBilled === 1 && bill.TableID) {
-        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(bill.TableID)
+        await db.query('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?', [bill.TableID])
       }
-    })
-
-    trx()
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
 
     res.json(ok('Discount applied successfully to the existing KOT.'))
   } catch (error) {
@@ -2824,9 +2875,9 @@ exports.getPendingOrders = async (req, res) => {
       ORDER BY b.TxnDatetime DESC
     `
 
-    const rows = db.prepare(sql).all(...params)
+    const [rows] = await db.query(sql, params)
 
-    const orders = rows.map((r) => ({
+    const orders = (Array.isArray(rows) ? rows : []).map((r) => ({
       id: r.TxnID,
       txnId: r.TxnID,
       kotNo: r.KOTNo,
@@ -2875,78 +2926,89 @@ exports.updatePendingOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Order ID is required', data: null })
     }
 
-    const bill = db
-      .prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ? AND isBilled = 0 AND isCancelled = 0')
-      .get(Number(id))
+    const [billRows] = await db.query(
+      'SELECT * FROM TAxnTrnbill WHERE TxnID = ? AND isBilled = 0 AND isCancelled = 0',
+      [Number(id)]
+    )
+    const bill = billRows[0]
     if (!bill) {
       return res
         .status(404)
         .json({ success: false, message: 'Pending order not found', data: null })
     }
 
-    // Update header with notes (using SpecialInst field or similar)
-    db.prepare(
-      `
-      UPDATE TAxnTrnbill 
-      SET SpecialInst = ?, 
-          CustomerName = COALESCE(?, CustomerName),
-          MobileNo = COALESCE(?, MobileNo)
-      WHERE TxnID = ?
-    `,
-    ).run(notes || null, req.body.CustomerName || null, req.body.MobileNo || null, Number(id))
-
-    // Handle linked items if provided (simple merge or update - assuming linking by updating items)
-    if (linkedItems && Array.isArray(linkedItems) && linkedItems.length > 0) {
-      // For simplicity, add linked items to the current order's details
-      // In a real scenario, this might involve moving from another order
-      const linkStmt = db.prepare(`
-        INSERT INTO TAxnTrnbilldetails (
-          TxnID, ItemID, Qty, RuntimeRate, SpecialInst, isBilled
-        ) VALUES (?, ?, ?, ?, ?, 0)
-      `)
-      for (const item of linkedItems) {
-        linkStmt.run(
-          Number(id),
-          item.ItemID,
-          item.Qty || 0,
-          item.RuntimeRate || 0,
-          item.SpecialInst || null,
-        )
-      }
-    }
-
-    // Delete existing details and insert new items
-    db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(Number(id))
-
-    if (Array.isArray(items) && items.length > 0) {
-      const ins = db.prepare(`
-        INSERT INTO TAxnTrnbilldetails (
-          TxnID, ItemID, Qty, RuntimeRate, SpecialInst, isBilled
-        ) VALUES (?, ?, ?, ?, ?, 0)
-      `)
-      let totalGross = 0
-      for (const item of items) {
-        const qty = Number(item.Qty) || 0
-        const rate = Number(item.RuntimeRate) || 0
-        const lineTotal = qty * rate
-        totalGross += lineTotal
-        ins.run(Number(id), item.ItemID, qty, rate, item.SpecialInst || null)
-      }
-      // Update header totals
-      db.prepare('UPDATE TAxnTrnbill SET GrossAmt = ?, Amount = ? WHERE TxnID = ?').run(
-        totalGross,
-        totalGross,
-        Number(id),
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
+      // Update header with notes (using SpecialInst field or similar)
+      await db.query(
+        `
+        UPDATE TAxnTrnbill 
+        SET SpecialInst = ?, 
+            CustomerName = COALESCE(?, CustomerName),
+            MobileNo = COALESCE(?, MobileNo)
+        WHERE TxnID = ?
+      `,
+        [notes || null, req.body.CustomerName || null, req.body.MobileNo || null, Number(id)]
       )
+
+      // Handle linked items if provided (simple merge or update - assuming linking by updating items)
+      if (linkedItems && Array.isArray(linkedItems) && linkedItems.length > 0) {
+        // For simplicity, add linked items to the current order's details
+        // In a real scenario, this might involve moving from another order
+        for (const item of linkedItems) {
+          await db.query(
+            `
+            INSERT INTO TAxnTrnbilldetails (
+              TxnID, ItemID, Qty, RuntimeRate, SpecialInst, isBilled
+            ) VALUES (?, ?, ?, ?, ?, 0)
+          `,
+            [Number(id), item.ItemID, item.Qty || 0, item.RuntimeRate || 0, item.SpecialInst || null]
+          )
+        }
+      }
+
+      // Delete existing details and insert new items
+      await db.query('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?', [Number(id)])
+
+      if (Array.isArray(items) && items.length > 0) {
+        let totalGross = 0
+        for (const item of items) {
+          const qty = Number(item.Qty) || 0
+          const rate = Number(item.RuntimeRate) || 0
+          const lineTotal = qty * rate
+          totalGross += lineTotal
+          await db.query(
+            `
+            INSERT INTO TAxnTrnbilldetails (
+              TxnID, ItemID, Qty, RuntimeRate, SpecialInst, isBilled
+            ) VALUES (?, ?, ?, ?, ?, 0)
+          `,
+            [Number(id), item.ItemID, qty, rate, item.SpecialInst || null]
+          )
+        }
+        // Update header totals
+        await db.query('UPDATE TAxnTrnbill SET GrossAmt = ?, Amount = ? WHERE TxnID = ?', [
+          totalGross,
+          totalGross,
+          Number(id),
+        ])
+      }
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
     }
 
     // Fetch updated order
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const details = db
-      .prepare(
-        'SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0 ORDER BY TXnDetailID',
-      )
-      .all(Number(id))
+    const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+    const header = headerRows[0]
+    const [details] = await db.query(
+      'SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0 ORDER BY TXnDetailID',
+      [Number(id)]
+    )
 
     res.json(ok('Pending order updated', { ...header, details }))
   } catch (error) {
@@ -2972,9 +3034,11 @@ exports.getLinkedPendingItems = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Order ID is required', data: null })
     }
 
-    const bill = db
-      .prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ? AND isBilled = 0 AND isCancelled = 0')
-      .get(Number(id))
+    const [billRows] = await db.query(
+      'SELECT * FROM TAxnTrnbill WHERE TxnID = ? AND isBilled = 0 AND isCancelled = 0',
+      [Number(id)]
+    )
+    const bill = billRows[0]
     if (!bill) {
       return res
         .status(404)
@@ -2983,17 +3047,16 @@ exports.getLinkedPendingItems = async (req, res) => {
 
     // Fetch details for this order (assuming linked means associated items)
     // If there's a separate linking table, query that; here assuming direct details
-    const details = db
-      .prepare(
-        `
+    const [details] = await db.query(
+      `
       SELECT d.*, COALESCE(m.item_name, 'Unknown Item') AS ItemName
       FROM TAxnTrnbilldetails d
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE d.TxnID = ? AND d.isCancelled = 0 AND d.isBilled = 0
       ORDER BY d.TXnDetailID
     `,
-      )
-      .all(Number(id))
+      [Number(id)]
+    )
 
     // If linked items are from other orders, this would need adjustment
     // For now, return the order's pending items as "linked"
@@ -3036,7 +3099,7 @@ WHERE b.Order_Type = ? AND b.isCancelled = 0 AND b.isSetteled = 0
       ORDER BY b.TxnDatetime DESC
     `
 
-    const rows = db.prepare(sql).all(type)
+    const [rows] = await db.query(sql, [type])
 
     const data = rows.map((r) => ({
       ...r,
@@ -3088,7 +3151,7 @@ exports.getAllBillsForBillingTab = async (req, res) => {
       ORDER BY b.TxnDatetime DESC
     `;
 
-    const rows = db.prepare(sql).all(curr_date);
+    const [rows] = await db.query(sql, [curr_date]);
 
     res.json(ok('Fetched bills for selected date', rows));
 
@@ -3114,20 +3177,25 @@ exports.reverseBill = async (req, res) => {
     }
 
     // ✅ Check if bill exists and get its TableID
-    const bill = db
-      .prepare('SELECT TxnID, TableID, Amount FROM TAxnTrnbill WHERE TxnID = ?')
-      .get(txnId)
+    const [billRows] = await db.query(
+      'SELECT TxnID, TableID, Amount FROM TAxnTrnbill WHERE TxnID = ?',
+      [txnId]
+    )
+    const bill = billRows[0]
     if (!bill) {
       return res.status(404).json({ success: false, message: 'Bill not found.' })
     }
 
-    const trx = db.transaction((txnIdToReverse) => {
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       // ✅ Reverse the bill:
       // 1. Mark it as reversed (isreversebill = 1) and cancelled (isCancelled = 1).
       // 2. Reset billing and settlement flags.
       // 3. Store the original total amount in RevKOT (revAmt).
       // 4. Zero out financial fields.
-      const reverseBillStmt = db.prepare(`
+      await db.query(`
         UPDATE TAxnTrnbill
         SET 
           isreversebill = 1, 
@@ -3140,13 +3208,13 @@ exports.reverseBill = async (req, res) => {
           GrossAmt = 0,
           CGST = 0, SGST = 0, IGST = 0, CESS = 0
         WHERE TxnID = ?
-      `)
-      reverseBillStmt.run(bill.Amount, txnIdToReverse)
+      `, [bill.Amount, txnId])
 
       // ✅ If the bill had a table, update its status to vacant (0)
       if (bill.TableID) {
         // Get the table info to check if it's a sub-table
-        const tableInfo = db.prepare(`SELECT * FROM msttablemanagement WHERE tableid = ?`).get(bill.TableID);
+        const [tableInfoRows] = await db.query(`SELECT * FROM msttablemanagement WHERE tableid = ?`, [bill.TableID]);
+        const tableInfo = tableInfoRows[0];
         
         // Determine the parent table ID - if this table is a sub-table, use its parentTableId, otherwise use its own tableid
         const parentTableIdToUse = tableInfo && tableInfo.parentTableId ? tableInfo.parentTableId : bill.TableID;
@@ -3154,20 +3222,23 @@ exports.reverseBill = async (req, res) => {
         // console.log(`ReverseBill - Using parentTableId: ${parentTableIdToUse} for deleting sub-tables`);
         
         // Update the main table status to vacant
-        const updateTableStmt = db.prepare(`
+        await db.query(`
           UPDATE msttablemanagement 
           SET status = 0 
-          WHERE tableid = ?`)
-        updateTableStmt.run(bill.TableID)
-        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
+          WHERE tableid = ?`, [bill.TableID])
+        await db.query(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`, [bill.TableID])
 
         // Delete all sub-tables (temporary tables) associated with this parent table
         // console.log(`ReverseBill - Deleting sub-tables for parent table ${parentTableIdToUse}`)
         
       }
-    })
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
 
-    trx(txnId) // Pass txnId to the transaction
     res.json({ success: true, message: 'Bill has been reversed successfully.' })
   } catch (error) {
     // console.error('Error reversing bill:', error)
@@ -3176,23 +3247,22 @@ exports.reverseBill = async (req, res) => {
       .json({ success: false, message: 'Internal server error while reversing the bill.' })
   }
 }
-
 /* -------------------------------------------------------------------------- */
 /* 20) getBillStatusByTable → fetch isBilled/isSetteled for a table          */
 /* -------------------------------------------------------------------------- */
 exports.getBillStatusByTable = async (req, res) => {
   try {
     const { tableId } = req.params
-    const bill = db
-      .prepare(
-        `
+    const [billRows] = await db.query(
+      `
       SELECT isBilled, isSetteled, TxnNo, Amount, BilledDate
       FROM TAxnTrnbill
       WHERE TableID = ?
       ORDER BY TxnID DESC LIMIT 1
     `,
-      )
-      .get(Number(tableId))
+      [Number(tableId)]
+    )
+    const bill = billRows[0]
 
     if (!bill) {
       return res.json({ success: true, data: { isBilled: 0, isSetteled: 0 } })
@@ -3204,6 +3274,7 @@ exports.getBillStatusByTable = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error fetching bill status' })
   }
 }
+
 /* -------------------------------------------------------------------------- */
 /* 21) saveFullReverse → Save a full table reversal                           */
 /* -------------------------------------------------------------------------- */
@@ -3217,38 +3288,48 @@ exports.saveFullReverse = async (req, res) => {
         .json({ success: false, message: 'Missing required data for reversal.' })
     }
 
-    const trx = db.transaction(() => {
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       // Mark the bill header as reversed and cancelled
-      db.prepare(
+      await db.query(
         `
         UPDATE TAxnTrnbill
         SET isreversebill = 1, isCancelled = 1, status = 0
         WHERE TxnID = ?
       `,
-      ).run(txnId)
+        [txnId]
+      )
 
       // Mark all detail items as cancelled
-      db.prepare(
+      await db.query(
         `
         UPDATE TAxnTrnbilldetails
         SET isCancelled = 1, RevQty = Qty
         WHERE TxnID = ?
       `,
-      ).run(txnId)
+        [txnId]
+      )
 
       // If a tableId is provided (for Dine-in), update its status to vacant
       if (tableId) {
-        db.prepare(
+        await db.query(
           `
           UPDATE msttablemanagement
           SET status = 0
           WHERE tableid = ?
         `,
-        ).run(tableId)
+          [tableId]
+        )
       }
-    })
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
 
-    trx()
     res.json({ success: true, message: 'Full bill reversed successfully.' })
   } catch (error) {
     // console.error('Error in saveFullReverse:', error)
@@ -3265,7 +3346,7 @@ exports.saveFullReverse = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 /* 23) transferKOT → Transfer KOT/items between tables (FINAL FIXED VERSION)   */
 /* -------------------------------------------------------------------------- */
-exports.transferKOT = (req, res) => {
+exports.transferKOT = async (req, res) => {
   const { sourceTableId, proposedTableId, targetTableName, selectedItems } = req.body
 
   if (!selectedItems || selectedItems.length === 0) {
@@ -3277,36 +3358,41 @@ exports.transferKOT = (req, res) => {
   }
 
   try {
-    const trx = db.transaction(() => {
-
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       /* ================= SOURCE BILL ================= */
-      const sourceBill = db.prepare(`
+      const [sourceBillRows] = await db.query(`
         SELECT TxnID, outletid, HotelID
         FROM TAxnTrnbill
         WHERE TableID = ? AND isSetteled = 0
-      `).get(sourceTableId)
+      `, [sourceTableId])
+      const sourceBill = sourceBillRows[0]
 
       if (!sourceBill) throw new Error('Source bill not found')
 
       const sourceTxnId = sourceBill.TxnID
 
       /* ================= TARGET STATUS ================= */
-      const targetRow = db.prepare(`
+      const [targetRowRows] = await db.query(`
         SELECT status FROM msttablemanagement
         WHERE tableid = ?
-      `).get(proposedTableId)
+      `, [proposedTableId])
+      const targetRow = targetRowRows[0]
 
       if (!targetRow) throw new Error('Target table not found')
 
       const targetStatus = targetRow.status
 
-      const targetBill =
-        targetStatus === 1
-          ? db.prepare(`
-              SELECT TxnID FROM TAxnTrnbill
-              WHERE TableID = ? AND isSetteled = 0
-            `).get(proposedTableId)
-          : null
+      let targetBill = null
+      if (targetStatus === 1) {
+        const [targetBillRows] = await db.query(`
+          SELECT TxnID FROM TAxnTrnbill
+          WHERE TableID = ? AND isSetteled = 0
+        `, [proposedTableId])
+        targetBill = targetBillRows[0]
+      }
 
       const ids = selectedItems.map(i => i.txnDetailId)
       if (!ids.length) throw new Error('No valid items')
@@ -3315,27 +3401,27 @@ exports.transferKOT = (req, res) => {
          CASE 1: TARGET OCCUPIED → MERGE
       ================================================= */
       if (targetStatus === 1) {
-
-        db.prepare(`
+        const placeholders = ids.map(() => '?').join(',')
+        await db.query(`
           UPDATE TAxnTrnbilldetails
           SET TxnID=?, TableID=?, table_name=?
-          WHERE TXnDetailID IN (${ids.map(() => '?').join(',')})
-        `).run(targetBill.TxnID, proposedTableId, targetTableName, ...ids)
+          WHERE TXnDetailID IN (${placeholders})
+        `, [targetBill.TxnID, proposedTableId, targetTableName, ...ids])
 
         /* ---- delete source bill if empty ---- */
-        const remaining =
-          db.prepare(`
-            SELECT COUNT(*) as count
-            FROM TAxnTrnbilldetails
-            WHERE TxnID = ? AND isCancelled = 0
-          `).get(sourceTxnId).count
+        const [remainingRows] = await db.query(`
+          SELECT COUNT(*) as count
+          FROM TAxnTrnbilldetails
+          WHERE TxnID = ? AND isCancelled = 0
+        `, [sourceTxnId])
+        const remaining = remainingRows[0].count
 
         if (remaining === 0) {
-          db.prepare(`DELETE FROM TAxnTrnbill WHERE TxnID = ?`)
-            .run(sourceTxnId)
+          await db.query(`DELETE FROM TAxnTrnbill WHERE TxnID = ?`, [sourceTxnId])
         }
 
-        return
+        await db.query('COMMIT')
+        return res.json({ success: true, message: 'KOT transfer completed successfully' })
       }
 
       /* =================================================
@@ -3343,7 +3429,7 @@ exports.transferKOT = (req, res) => {
       ================================================= */
 
       // Create new bill for target
-      const newBill = db.prepare(`
+      const [newBillResult] = await db.query(`
         INSERT INTO TAxnTrnbill (
           TableID, table_name, PrevTableID,
           outletid, HotelID,
@@ -3354,45 +3440,47 @@ exports.transferKOT = (req, res) => {
                0, 0, 1, CURRENT_TIMESTAMP
         FROM TAxnTrnbill
         WHERE TxnID=?
-      `).run(proposedTableId, targetTableName, sourceTableId, sourceTxnId)
+      `, [proposedTableId, targetTableName, sourceTableId, sourceTxnId])
 
-      const newTxnId = newBill.lastInsertRowid
+      const newTxnId = newBillResult.insertId
 
-      db.prepare(`
+      const placeholders = ids.map(() => '?').join(',')
+      await db.query(`
         UPDATE TAxnTrnbilldetails
         SET TxnID=?, TableID=?, table_name=?
-        WHERE TXnDetailID IN (${ids.map(() => '?').join(',')})
-      `).run(newTxnId, proposedTableId, targetTableName, ...ids)
+        WHERE TXnDetailID IN (${placeholders})
+      `, [newTxnId, proposedTableId, targetTableName, ...ids])
 
-      db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`)
-        .run(proposedTableId)
+      await db.query(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`, [proposedTableId])
 
       /* ---- delete source bill if empty ---- */
-      const remaining =
-        db.prepare(`
-          SELECT COUNT(*) as count
-          FROM TAxnTrnbilldetails
-          WHERE TxnID = ? AND isCancelled = 0
-        `).get(sourceTxnId).count
+      const [remainingRows] = await db.query(`
+        SELECT COUNT(*) as count
+        FROM TAxnTrnbilldetails
+        WHERE TxnID = ? AND isCancelled = 0
+      `, [sourceTxnId])
+      const remaining = remainingRows[0].count
 
       if (remaining === 0) {
-        db.prepare(`DELETE FROM TAxnTrnbill WHERE TxnID = ?`)
-          .run(sourceTxnId)
+        await db.query(`DELETE FROM TAxnTrnbill WHERE TxnID = ?`, [sourceTxnId])
       }
 
-    })
-
-    trx()
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
 
     /* =================================================
        FINAL CLEANUP FOR SOURCE TABLE
     ================================================= */
 
     // Get the source table info to check if it's a sub-table
-    const sourceTableInfo = db.prepare(`
+    const [sourceTableInfoRows] = await db.query(`
       SELECT * FROM msttablemanagement
       WHERE tableid = ?
-    `).get(sourceTableId)
+    `, [sourceTableId])
+    const sourceTableInfo = sourceTableInfoRows[0]
 
     // Check if source is a sub-table (has parentTableId)
     const isSubTable = sourceTableInfo && sourceTableInfo.parentTableId
@@ -3402,56 +3490,56 @@ exports.transferKOT = (req, res) => {
       const parentTableId = sourceTableInfo.parentTableId
       
       // Check if there are any remaining items/bills for the parent table
-      const remainingParentBills = db.prepare(`
+      const [remainingParentBillsRows] = await db.query(`
         SELECT COUNT(*) as count
         FROM TAxnTrnbill
         WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
-      `).get(parentTableId).count
+      `, [parentTableId])
+      const remainingParentBills = remainingParentBillsRows[0].count
 
       if (remainingParentBills === 0) {
         // Parent table also has no remaining bills, make parent table vacant
-        db.prepare(`
+        await db.query(`
           UPDATE msttablemanagement
           SET status = 0
           WHERE tableid = ?
-        `).run(parentTableId)
+        `, [parentTableId])
       }
 
       // Delete the temporary sub-table (10A)
-      db.prepare(`
+      await db.query(`
         DELETE FROM msttablemanagement
         WHERE tableid = ? AND isTemporary = 1
-      `).run(sourceTableId)
+      `, [sourceTableId])
       
       // Make the sub-table vacant as well
-      db.prepare(`
+      await db.query(`
         UPDATE msttablemanagement
         SET status = 0
         WHERE tableid = ?
-      `).run(sourceTableId)
+      `, [sourceTableId])
     } else {
       // For regular tables
-      const remainingBills =
-        db.prepare(`
-          SELECT COUNT(*) as count
-          FROM TAxnTrnbill
-          WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
-        `).get(sourceTableId).count
+      const [remainingBillsRows] = await db.query(`
+        SELECT COUNT(*) as count
+        FROM TAxnTrnbill
+        WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
+      `, [sourceTableId])
+      const remainingBills = remainingBillsRows[0].count
 
       if (remainingBills === 0) {
-
         // Make table vacant
-        db.prepare(`
+        await db.query(`
           UPDATE msttablemanagement
           SET status = 0
           WHERE tableid = ?
-        `).run(sourceTableId)
+        `, [sourceTableId])
 
         // Delete temporary sub tables (10A,10B,10C type) if any
-        db.prepare(`
+        await db.query(`
           DELETE FROM msttablemanagement
           WHERE parentTableId = ? AND isTemporary = 1
-        `).run(sourceTableId)
+        `, [sourceTableId])
       }
     }
 
@@ -3469,7 +3557,7 @@ exports.transferKOT = (req, res) => {
 /* -------------------------------------------------------------------------- */
 /* 24) transferTable → Transfer all items from source table to target table  */
 /* -------------------------------------------------------------------------- */
-exports.transferTable = (req, res) => {
+exports.transferTable = async (req, res) => {
   const { sourceTableId, targetTableId } = req.body
 
   if (!sourceTableId || !targetTableId) {
@@ -3482,37 +3570,35 @@ exports.transferTable = (req, res) => {
 
   try {
     /* ================= BILL RECALC ================= */
-    const recalculateBillTotals = (txnId) => {
-      const billHeader = db
-        .prepare(
-          `
+    const recalculateBillTotals = async (txnId) => {
+      const [billHeaderRows] = await db.query(
+        `
         SELECT Discount, outletid
         FROM TAxnTrnbill
         WHERE TxnID = ?
       `,
-        )
-        .get(txnId)
+        [txnId]
+      )
+      const billHeader = billHeaderRows[0]
       if (!billHeader) return
 
-      const details = db
-        .prepare(
-          `
+      const [details] = await db.query(
+        `
         SELECT * FROM TAxnTrnbilldetails
         WHERE TxnID = ? AND isCancelled = 0
       `,
-        )
-        .all(txnId)
+        [txnId]
+      )
       if (details.length === 0) return
 
-      const outlet =
-        db
-          .prepare(
-            `
+      const [outletRows] = await db.query(
+        `
         SELECT include_tax_in_invoice, bill_round_off, bill_round_off_to
         FROM mstoutlet_settings WHERE outletid = ?
       `,
-          )
-          .get(billHeader.outletid) || {}
+        [billHeader.outletid]
+      )
+      const outlet = outletRows[0] || {}
 
       let gross = 0,
         taxable = 0,
@@ -3560,63 +3646,66 @@ exports.transferTable = (req, res) => {
         amount = rounded
       }
 
-      db.prepare(
+      await db.query(
         `
         UPDATE TAxnTrnbill
         SET GrossAmt=?, CGST=?, SGST=?, IGST=?, CESS=?, Amount=?, RoundOFF=?
         WHERE TxnID=?
       `,
-      ).run(gross, cgst, sgst, igst, cess, amount, roundOff, txnId)
+        [gross, cgst, sgst, igst, cess, amount, roundOff, txnId]
+      )
     }
 
     /* ================= TRANSACTION ================= */
-    const trx = db.transaction(() => {
+    // Start transaction
+    await db.query('START TRANSACTION')
+    
+    try {
       /* ---------- SOURCE BILL ---------- */
-      const sourceBill = db
-        .prepare(
-          `
+      const [sourceBillRows] = await db.query(
+        `
         SELECT TxnID FROM TAxnTrnbill
         WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
       `,
-        )
-        .get(sourceTableId)
+        [sourceTableId]
+      )
+      const sourceBill = sourceBillRows[0]
 
       if (!sourceBill) throw new Error('No active bill found for source table')
       const sourceTxnId = sourceBill.TxnID
 
       /* ---------- TARGET STATUS ---------- */
-      const targetRow = db
-        .prepare(
-          `
+      const [targetRowRows] = await db.query(
+        `
         SELECT status FROM msttablemanagement WHERE tableid = ?
       `,
-        )
-        .get(targetTableId)
+        [targetTableId]
+      )
+      const targetRow = targetRowRows[0]
 
       if (!targetRow) throw new Error('Target table not found')
       const targetStatus = targetRow.status // 0 vacant, 1 occupied
 
-      const targetBill =
-        targetStatus === 1
-          ? db
-              .prepare(
-                `
-            SELECT TxnID FROM TAxnTrnbill
-            WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
-          `,
-              )
-              .get(targetTableId)
-          : null
+      let targetBill = null
+      if (targetStatus === 1) {
+        const [targetBillRows] = await db.query(
+          `
+          SELECT TxnID FROM TAxnTrnbill
+          WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
+        `,
+          [targetTableId]
+        )
+        targetBill = targetBillRows[0]
+      }
 
       /* ---------- GET ALL ITEMS FROM SOURCE ---------- */
-      const sourceItems = db
-        .prepare(
-          `
+      const [sourceItems] = await db.query(
+        `
         SELECT TXnDetailID FROM TAxnTrnbilldetails
         WHERE TxnID = ? AND isCancelled = 0
       `,
-        )
-        .all(sourceTxnId)
+        [sourceTxnId]
+      )
 
       if (sourceItems.length === 0) throw new Error('No items to transfer from source table')
 
@@ -3632,36 +3721,37 @@ exports.transferTable = (req, res) => {
         if (!targetBill) throw new Error('Target bill not found')
 
         // Move all items to target Txn
-        db.prepare(
+        const placeholders = ids.map(() => '?').join(',')
+        await db.query(
           `
           UPDATE TAxnTrnbilldetails
           SET TxnID=?, TableID=?
-          WHERE TXnDetailID IN (${ids.map(() => '?').join(',')})
+          WHERE TXnDetailID IN (${placeholders})
         `,
-        ).run(targetBill.TxnID, targetTableId, ...ids)
+          [targetBill.TxnID, targetTableId, ...ids]
+        )
 
         // Delete source bill completely
-        db.prepare(
+        await db.query(
           `
           DELETE FROM TAxnTrnbill WHERE TxnID=?
         `,
-        ).run(sourceTxnId)
+          [sourceTxnId]
+        )
 
         // Source table vacant
-        db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
+        await db.query(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`, [sourceTableId])
         
         // Delete temporary tables (sub-tables) associated with source table
-        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
+        await db.query(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`, [sourceTableId])
 
-        // Reconcalculate target bill only
-        recalculateBillTotals(targetBill.TxnID)
-        return
+        // Recalculate target bill only
+        await recalculateBillTotals(targetBill.TxnID)
+        
+        await db.query('COMMIT')
+        return res.json({ success: true, message: 'Table transfer completed successfully' })
       }
- 
 
-       
-
-      
       /* =================================================
          CASE B: TARGET VACANT
          → MOVE ENTIRE BILL TO TARGET TABLE
@@ -3669,48 +3759,55 @@ exports.transferTable = (req, res) => {
       ================================================= */
       if (targetStatus === 0) {
         // Get target table name
-        const targetTableInfo = db
-          .prepare(
-            `
+        const [targetTableInfoRows] = await db.query(
+          `
           SELECT table_name FROM msttablemanagement WHERE tableid = ?
         `,
-          )
-          .get(targetTableId)
+          [targetTableId]
+        )
+        const targetTableInfo = targetTableInfoRows[0]
 
         if (!targetTableInfo) throw new Error('Target table info not found')
 
         // Update bill header
-        db.prepare(
+        await db.query(
           `
           UPDATE TAxnTrnbill
           SET TableID=?, table_name=?, PrevTableID=?, isTrnsfered=1
           WHERE TxnID=?
         `,
-        ).run(targetTableId, targetTableInfo.table_name, sourceTableId, sourceTxnId)
+          [targetTableId, targetTableInfo.table_name, sourceTableId, sourceTxnId]
+        )
 
         // Update all details
-        db.prepare(
+        await db.query(
           `
           UPDATE TAxnTrnbilldetails
           SET TableID=?, table_name=?
           WHERE TxnID=?
         `,
-        ).run(targetTableId, targetTableInfo.table_name, sourceTxnId)
+          [targetTableId, targetTableInfo.table_name, sourceTxnId]
+        )
 
         // Update table statuses
         // Delete temporary tables (sub-tables) associated with source table
-        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
+        await db.query(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`, [sourceTableId])
         
-        db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
-        db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(targetTableId)
+        await db.query(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`, [sourceTableId])
+        await db.query(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`, [targetTableId])
         
         // Recalculate bill totals
-        recalculateBillTotals(sourceTxnId)
-        return
+        await recalculateBillTotals(sourceTxnId)
+        
+        await db.query('COMMIT')
+        return res.json({ success: true, message: 'Table transfer completed successfully' })
       }
-    })
-
-    trx()
+      
+      await db.query('COMMIT')
+    } catch (error) {
+      await db.query('ROLLBACK')
+      throw error
+    }
 
     res.json({ success: true, message: 'Table transfer completed successfully' })
   } catch (err) {
@@ -3737,15 +3834,15 @@ exports.getGlobalKOTNumber = async (req, res) => {
     // Use curr_date from request if provided, otherwise use system date
     const kotDate = curr_date || new Date().toISOString().split('T')[0];
     
-    const result = db
-      .prepare(
-        `
+    const [resultRows] = await db.query(
+      `
       SELECT MAX(KOTNo) as maxKOT
       FROM TAxnTrnbilldetails
       WHERE outletid = ? AND date(KOTUsedDate) = date(?)
     `,
-      )
-      .get(Number(outletid), kotDate)
+      [Number(outletid), kotDate]
+    )
+    const result = resultRows[0]
 
     const nextKOT = (result?.maxKOT || 0) + 1
 
@@ -3776,15 +3873,15 @@ exports.getGlobalReverseKOTNumber = async (req, res) => {
     // Use curr_date from request if provided, otherwise use system date
     const kotDate = curr_date || new Date().toISOString().split('T')[0];
 
-    const result = db
-      .prepare(
-        `
+    const [resultRows] = await db.query(
+      `
       SELECT MAX(RevKOTNo) as maxRevKOT
       FROM TAxnTrnbilldetails
       WHERE outletid = ? AND date(KOTUsedDate) = date(?)
     `,
-      )
-      .get(Number(outletid), kotDate)
+      [Number(outletid), kotDate]
+    )
+    const result = resultRows[0]
 
     const nextRevKOT = (result?.maxRevKOT || 0) + 1
 
@@ -3801,5 +3898,4 @@ exports.getGlobalReverseKOTNumber = async (req, res) => {
       })
   }
 }
-
 module.exports = exports

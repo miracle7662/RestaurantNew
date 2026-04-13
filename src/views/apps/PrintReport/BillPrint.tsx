@@ -378,8 +378,12 @@ html, body {
     }
   };
 
-  const generateBillContent = (isPreview = false) => {
+    const generateBillContent = (isPreview = false) => {
      // DEBUG LOGS - Remove after testing
+
+      // Safe price conversion to prevent toFixed errors
+      const safePrice = (p: any): number => Number(p) || 0;
+
    
     // console.log('user.trn_gstno:', user?.trn_gstno);
     // console.log('showAll:', 'localFormData.trn_gstno:', user.trn_gstno);
@@ -475,8 +479,8 @@ ${(showAll || localFormData.trn_gstno) ? `<div style="font-size: 8pt;">GST No: $
                
               </div>
               ${(showAll || !localFormData.hide_item_quantity_column) ? `<div style="text-align: right;">${item.qty}</div>` : ''}
-              ${(showAll || !localFormData.hide_item_rate_column) ? `<div style="text-align: right;">${item.price.toFixed(2)}</div>` : ''}
-              ${(showAll || !localFormData.hide_item_total_column) ? `<div style="text-align: right;">${(item.qty * item.price).toFixed(2)}</div>` : ''}
+              ${(showAll || !localFormData.hide_item_rate_column) ? `<div style="text-align: right;">${safePrice(item.price).toFixed(2)}</div>` : ''}
+              ${(showAll || !localFormData.hide_item_total_column) ? `<div style="text-align: right;">${(item.qty * safePrice(item.price)).toFixed(2)}</div>` : ''}
             </div>
           `).join('')}
         </div>

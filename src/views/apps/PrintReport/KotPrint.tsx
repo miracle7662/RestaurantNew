@@ -633,7 +633,7 @@ ${showWaiter ? `
 ${item.name} 
   <span style="font-size:11pt; color:#0066cc; font-weight:bold;">(${item.variantName || 'Standard'})</span>${modifierHtml}${alternativeHtml}
 </div> 
-</div>${showRateColumn ? `<div style="text-align: right">${item.price.toFixed(2)}</div>` : ''}
+${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0).toFixed(2)}</div>` : ''}
         ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty).toFixed(2)}</div>` : ''}
       </div>
       `;

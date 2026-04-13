@@ -373,7 +373,13 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         return deptPrice;
       }
     }
-    return basePrice;
+    return basePrice || 0;
+  };
+
+  // Safe price formatting helper
+  const formatPrice = (rawPrice: any): string => {
+    const price = Number(rawPrice);
+    return isNaN(price) || price == null ? '₹0.00' : `₹${price.toFixed(2)}`;
   };
 
   // Helper function to check if item has price for selected department
@@ -1194,7 +1200,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                             </span>
                           )}
                           <div style={{ fontSize: '0.65rem', color: '#6b7280' }}>
-                            ₹{result.type === 'base' ? getDisplayPrice(result.userId, result.price, selectedDeptId).toFixed(0) : result.price.toFixed(0)}
+                            {formatPrice(result.type === 'base' ? getDisplayPrice(result.userId, result.price, selectedDeptId) : result.price)}
                           </div>
                         </div>
                       ))}
@@ -1271,7 +1277,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                               </span>
                             )}
                             <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-                              {' | '}{result.shortName}{' | '}{result.itemCode}{' | '}₹{result.price.toFixed(2)}
+                              {' | '}{result.shortName}{' | '}{result.itemCode}{' | '}{formatPrice(result.price)}
                             </span>
                           </div>
                         ))}
@@ -1404,7 +1410,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                                 {item.itemCode} | {item.shortName}
                               </Card.Text>
                               <Card.Text style={{ fontSize: '12px', color: '#6b7280', fontWeight: 'bold' }}>
-                                ₹{getDisplayPrice(item.userId, item.price, selectedDeptId).toFixed(2)}
+                                {formatPrice(getDisplayPrice(item.userId, item.price, selectedDeptId))}
                               </Card.Text>
                               <Card.Text style={{ fontSize: '12px', color: '#6b7280' }}>
                                 {item.cardStatus}
