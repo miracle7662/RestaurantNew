@@ -1,6 +1,22 @@
 
 const db = require('../config/db');
 
+// ✅ MySQL Transaction Helper (replaces SQLite db.transaction())
+const runInTransaction = async (fn) => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await fn(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
 // Stub functions to fix ReferenceErrors for raw material consumption
 // Called during menu updates when flags are set
 
@@ -10,6 +26,7 @@ const db = require('../config/db');
 exports.getAllMenuItems = async (req, res) => {
     try {
         const { hotelid, outletid } = req.query;
+        console.log('🚀 getAllMenuItems called:', { hotelid, outletid, url: req.originalUrl });
         
 let query = `
            SELECT DISTINCT m.*, m.consume_raw_materials_on_bill, m.consume_raw_materials_on_kot, m.store_name,
@@ -46,7 +63,9 @@ let query = `
         
         query += ' ORDER BY m.created_date DESC';
         
+        console.log('📊 Executing SQL:', query, 'params:', params);
         const [menuRows] = await db.execute(query, params);
+        console.log('✅ Raw query result:', menuRows.length, 'rows');
         const menuItems = menuRows;
         
         const menuItemsWithDetails = await Promise.all(menuItems.map(async (item) => {
@@ -60,8 +79,16 @@ let query = `
             return { ...item, department_details: detailsRows };
         }));
         
+        console.log('📦 Final response:', { success: true, count: menuItemsWithDetails.length });
         res.json({ success: true, data: menuItemsWithDetails, count: menuItemsWithDetails.length });
     } catch (error) {
+        console.error('💥 MENU FETCH ERROR:', {
+            message: error.message,
+            stack: error.stack?.split('\n').slice(0,3).join('\n'),
+            queryParams: req.query,
+            url: req.originalUrl
+        });
+        res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
         console.error('Error fetching menu items:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
@@ -156,21 +183,19 @@ exports.createMenuItemWithDetails = async (req, res) => {
 
         const isVariantProduct = variant_type_id && variant_values && variant_values.length > 0;
 
-        db.transaction(() => {
-            const stmt = db.prepare(`
+        const restitemid = await runInTransaction(async (conn) => {
+            // Insert main menu item
+            const [result] = await conn.execute(`
                 INSERT INTO mstrestmenu (
                     hotelid, outletid, item_no, item_name, print_name, short_name, kitchen_category_id,
                     kitchen_sub_category_id, kitchen_main_group_id, item_group_id, item_main_group_id,
                     stock_unit, price, taxgroupid, is_runtime_rates, is_common_to_all_departments,
                     item_description, item_hsncode, status, created_by_id, created_date,
-                    -- 🔥 NEW STOCK FIELDS + RAW MATERIALS 🔥
                     is_ingredients_required, consume_on_bill, reverse_stock_cancel_kot, 
                     allow_negative_stock, opening_stock_quantity, opening_stock_unit_id,
                     consume_raw_materials_on_bill, consume_raw_materials_on_kot, store_name
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `);
-
-            const result = stmt.run(
+            `, [
                  parsedHotelId,
                 outletid ? parseInt(outletid) : null,
                 item_no,
@@ -191,27 +216,22 @@ exports.createMenuItemWithDetails = async (req, res) => {
                 item_hsncode || null,
                 1, // status
                 parseInt(created_by_id || 0),
-                new Date().toISOString().slice(0, 19).replace('T', ' '), // created_date DATETIME format
+                new Date().toISOString().slice(0, 19).replace('T', ' '),
                 is_ingredients_required || 0,
                 consume_on_bill || 1,
                 reverse_stock_cancel_kot || 0,
                 allow_negative_stock || 0,
                 parseFloat(opening_stock_quantity || 0),
                 opening_stock_unit_id ? parseInt(opening_stock_unit_id) : null,
-                0, // consume_raw_materials_on_bill default
-                0, // consume_raw_materials_on_kot default
-                null  // store_name default
-            );
+                0,
+                0,
+                null
+            ]);
 
-            const restitemid = result.lastInsertRowid;
+            const newRestItemId = result.insertId;
 
+            // Insert department details
             if (department_details && department_details.length > 0) {
-                const insertDetailStmt = db.prepare(`
-                    INSERT INTO mstrestmenudetails (
-                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, value_name, taxgroupid
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `);
-
                 for (const detail of department_details) {
                     const parsedDepartmentId = parseInt(detail.departmentid);
                     
@@ -221,11 +241,15 @@ exports.createMenuItemWithDetails = async (req, res) => {
                             
                             if (variantRate !== undefined && variantRate !== null && variantRate !== '' && !isNaN(parseFloat(variantRate)) && parseFloat(variantRate) > 0) {
                                 const parsedRate = parseFloat(variantRate);
-                                const variantValue = db.prepare('SELECT value_name FROM mst_variant_values WHERE variant_value_id = ?').get(variantValueId);
-                                const valueName = variantValue ? variantValue.value_name : null;
+                                const [variantValueRows] = await conn.execute('SELECT value_name FROM mst_variant_values WHERE variant_value_id = ?', [variantValueId]);
+                                const valueName = variantValueRows[0]?.value_name || null;
                                 
-                                insertDetailStmt.run(
-                                    restitemid,
+                                await conn.execute(`
+                                    INSERT INTO mstrestmenudetails (
+                                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, value_name, taxgroupid
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                `, [
+                                    newRestItemId,
                                     parsedDepartmentId,
                                     parsedRate,
                                     detail.unitid ? parseInt(detail.unitid) : null,
@@ -235,13 +259,17 @@ exports.createMenuItemWithDetails = async (req, res) => {
                                     variantValueId,
                                     valueName,
                                     detail.taxgroupid ? parseInt(detail.taxgroupid) : null
-                                );
+                                ]);
                             }
                         }
                     } else {
                         const itemRate = detail.item_rate || detail.rate || 0;
-                        insertDetailStmt.run(
-                            restitemid,
+                        await conn.execute(`
+                            INSERT INTO mstrestmenudetails (
+                                restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, value_name, taxgroupid
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `, [
+                            newRestItemId,
                             parsedDepartmentId,
                             itemRate,
                             detail.unitid ? parseInt(detail.unitid) : null,
@@ -251,37 +279,43 @@ exports.createMenuItemWithDetails = async (req, res) => {
                             null,
                             null,
                             detail.taxgroupid ? parseInt(detail.taxgroupid) : null
-                        );
+                        ]);
                     }
                 }
             }
 
-            const createdItem = db.prepare(`
-                SELECT m.*, 
-                       md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id, md.value_name,
-                       o.outlet_name,
-                       h.hotel_name,
-                       d.department_name,
-                       vv.value_name as variant_value_name
-                FROM mstrestmenu m
-                LEFT JOIN mstrestmenudetails md ON m.restitemid = md.restitemid
-                LEFT JOIN mst_outlets o ON m.outletid = o.outletid
-                LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
-                LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
-                LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
-                WHERE m.restitemid = ? AND m.status = 1
-            `).get(restitemid);
+            return newRestItemId;
+        });
 
-            const allDetails = db.prepare(`
-                SELECT md.*, d.department_name, vv.value_name as variant_value_name
-                FROM mstrestmenudetails md
-                LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
-                LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
-                WHERE md.restitemid = ?
-            `).all(restitemid);
+        // Fetch created item + details (outside transaction - read-only)
+        const [createdItemRows] = await db.execute(`
+            SELECT m.*, 
+                   md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id, md.value_name,
+                   o.outlet_name,
+                   h.hotel_name,
+                   d.department_name,
+                   vv.value_name as variant_value_name
+            FROM mstrestmenu m
+            LEFT JOIN mstrestmenudetails md ON m.restitemid = md.restitemid
+            LEFT JOIN mst_outlets o ON m.outletid = o.outletid
+            LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
+            LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+            LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
+            WHERE m.restitemid = ? AND m.status = 1
+        `, [restitemid]);
 
-            res.json({ success: true, data: { ...createdItem, department_details: allDetails }, message: 'Menu item created successfully' });
-        })();
+        const [allDetailsRows] = await db.execute(`
+            SELECT md.*, d.department_name, vv.value_name as variant_value_name
+            FROM mstrestmenudetails md
+            LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+            LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
+            WHERE md.restitemid = ?
+        `, [restitemid]);
+
+        const createdItem = createdItemRows[0] || {};
+        const allDetails = allDetailsRows;
+
+        res.json({ success: true, data: { ...createdItem, department_details: allDetails }, message: 'Menu item created successfully' });
     } catch (error) {
         console.error('Error creating menu item with details:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
@@ -315,7 +349,7 @@ exports.updateMenuItemWithDetails = async (req, res) => {
 
         const parsedHotelId = parseInt(existingItem.hotelid);
 
-        db.transaction(() => {
+        await runInTransaction(async (conn) => {
             const updateFields = [];
             const params = [];
 
@@ -349,24 +383,18 @@ exports.updateMenuItemWithDetails = async (req, res) => {
             if (typeof store_name !== 'undefined') { updateFields.push('store_name = ?'); params.push(store_name === '' ? null : String(store_name)); }
 
             updateFields.push('updated_by_id = ?');
-            updateFields.push('updated_date = datetime(\'now\')');
+            updateFields.push('updated_date = NOW()');
             params.push(updated_by_id, parseInt(id));
 
             if (updateFields.length > 2) {
-                const stmt = db.prepare(`UPDATE mstrestmenu SET ${updateFields.join(', ')} WHERE restitemid = ?`);
-                stmt.run(...params);
+                const updateQuery = `UPDATE mstrestmenu SET ${updateFields.join(', ')} WHERE restitemid = ?`;
+                await conn.execute(updateQuery, [...params, parseInt(id)]);
             }
 
             if (department_details && department_details.length > 0) {
                 const isVariantProduct = variant_type_id && variant_values && variant_values.length > 0;
                 
-                db.prepare('DELETE FROM mstrestmenudetails WHERE restitemid = ?').run(parseInt(id));
-
-                const insertDetailStmt = db.prepare(`
-                    INSERT INTO mstrestmenudetails (
-                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, value_name, taxgroupid
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `);
+                await conn.execute('DELETE FROM mstrestmenudetails WHERE restitemid = ?', [parseInt(id)]);
 
                 for (const detail of department_details) {
                     const parsedDepartmentId = parseInt(detail.departmentid);
@@ -377,10 +405,14 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                             
                             if (variantRate !== undefined && variantRate !== null && variantRate !== '' && !isNaN(parseFloat(variantRate)) && parseFloat(variantRate) > 0) {
                                 const parsedRate = parseFloat(variantRate);
-                                const variantValue = db.prepare('SELECT value_name FROM mst_variant_values WHERE variant_value_id = ?').get(variantValueId);
-                                const valueName = variantValue ? variantValue.value_name : null;
+                                const [variantValueRows] = await conn.execute('SELECT value_name FROM mst_variant_values WHERE variant_value_id = ?', [variantValueId]);
+                                const valueName = variantValueRows[0]?.value_name || null;
                                 
-                                insertDetailStmt.run(
+                                await conn.execute(`
+                                    INSERT INTO mstrestmenudetails (
+                                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, value_name, taxgroupid
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                `, [
                                     parseInt(id),
                                     parsedDepartmentId,
                                     parsedRate,
@@ -391,12 +423,16 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                                     variantValueId,
                                     valueName,
                                     detail.taxgroupid ? parseInt(detail.taxgroupid) : null
-                                );
+                                ]);
                             }
                         }
                     } else {
                         const itemRate = detail.item_rate || detail.rate || 0;
-                        insertDetailStmt.run(
+                        await conn.execute(`
+                            INSERT INTO mstrestmenudetails (
+                                restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, value_name, taxgroupid
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `, [
                             parseInt(id),
                             parsedDepartmentId,
                             itemRate,
@@ -407,68 +443,75 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                             null,
                             null,
                             detail.taxgroupid ? parseInt(detail.taxgroupid) : null
-                        );
+                        ]);
                     }
                 }
             }
+        });
 
-            const updatedItem = db.prepare(`
-                SELECT m.*, 
-                       md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id,
-                       o.outlet_name,
-                       h.hotel_name,
-                       d.department_name,
-                       vv.value_name as variant_value_name
-                FROM mstrestmenu m
-                LEFT JOIN mstrestmenudetails md ON m.restitemid = md.restitemid
-                LEFT JOIN mst_outlets o ON m.outletid = o.outletid
-                LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
-                LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
-                LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
-                WHERE m.restitemid = ? AND m.status = 1
-            `).get(parseInt(id));
+        // Fetch updated item + details (outside transaction)
+        const [updatedItemRows] = await db.execute(`
+            SELECT m.*, 
+                   md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id,
+                   o.outlet_name,
+                   h.hotel_name,
+                   d.department_name,
+                   vv.value_name as variant_value_name
+            FROM mstrestmenu m
+            LEFT JOIN mstrestmenudetails md ON m.restitemid = md.restitemid
+            LEFT JOIN mst_outlets o ON m.outletid = o.outletid
+            LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
+            LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+            LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
+            WHERE m.restitemid = ? AND m.status = 1
+        `, [parseInt(id)]);
 
-            const allDetails = db.prepare(`
-                SELECT md.*, d.department_name, vv.value_name as variant_value_name
-                FROM mstrestmenudetails md
-                LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
-                LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
-                WHERE md.restitemid = ?
-            `).all(parseInt(id));
+        const [allDetailsRows] = await db.execute(`
+            SELECT md.*, d.department_name, vv.value_name as variant_value_name
+            FROM mstrestmenudetails md
+            LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+            LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
+            WHERE md.restitemid = ?
+        `, [parseInt(id)]);
 
-            res.json({ success: true, data: { ...updatedItem, department_details: allDetails }, message: 'Menu item updated successfully' });
-        })();
+        const updatedItem = updatedItemRows[0] || {};
+        const allDetails = allDetailsRows;
+
+        res.json({ success: true, data: { ...updatedItem, department_details: allDetails }, message: 'Menu item updated successfully' });
     } catch (error) {
         // console.error('Error updating menu item with details:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
 
-exports.deleteMenuItem = (req, res) => {
+exports.deleteMenuItem = async (req, res) => {
     try {
         const { id } = req.params;
         const { updated_by_id } = req.body;
 
-        const existingItem = db.prepare('SELECT restitemid FROM mstrestmenu WHERE restitemid = ? AND status = 1').get(parseInt(id));
+        // Check if exists (outside transaction)
+        const [existingRows] = await db.execute('SELECT restitemid FROM mstrestmenu WHERE restitemid = ? AND status = 1', [parseInt(id)]);
+        const existingItem = existingRows[0];
         if (!existingItem) {
             return res.status(404).json({ success: false, message: 'Menu item not found or already deleted', data: null });
         }
 
-        db.transaction(() => {
-            db.prepare('UPDATE mstrestmenu SET status = 0, updated_by_id = ?, updated_date = datetime(\'now\') WHERE restitemid = ?').run(updated_by_id, parseInt(id));
-            db.prepare('DELETE FROM mstrestmenudetails WHERE restitemid = ?').run(parseInt(id));
-        })();
+        // Transaction for delete
+        await runInTransaction(async (conn) => {
+            await conn.execute('UPDATE mstrestmenu SET status = 0, updated_by_id = ?, updated_date = NOW() WHERE restitemid = ?', [updated_by_id, parseInt(id)]);
+            await conn.execute('DELETE FROM mstrestmenudetails WHERE restitemid = ?', [parseInt(id)]);
+        });
 
         res.json({ success: true, message: 'Menu item deleted successfully', data: { restitemid: parseInt(id) } });
     } catch (error) {
-        // console.error('Error deleting menu item:', error);
+        console.error('Error deleting menu item:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
 
-exports.getAllVariantTypesWithValues = (req, res) => {
+exports.getAllVariantTypesWithValues = async (req, res) => {
     try {
-        const query = `
+        const [results] = await db.execute(`
             SELECT 
                 vt.variant_type_id,
                 vt.variant_type_name,
@@ -484,9 +527,8 @@ exports.getAllVariantTypesWithValues = (req, res) => {
             LEFT JOIN mst_variant_values vv ON vt.variant_type_id = vv.variant_type_id AND vv.active = 1
             WHERE vt.active = 1
             ORDER BY vt.sort_order ASC, vt.variant_type_name ASC, vv.sort_order ASC, vv.value_name ASC
-        `;
+        `);
 
-        const results = db.prepare(query).all();
         const variantTypesMap = new Map();
         
         for (const row of results) {
@@ -515,430 +557,30 @@ exports.getAllVariantTypesWithValues = (req, res) => {
         const variantTypesWithValues = Array.from(variantTypesMap.values());
         res.json({ success: true, data: variantTypesWithValues, count: variantTypesWithValues.length });
     } catch (error) {
-        // console.error('Error fetching variant types with values:', error);
+        console.error('Error fetching variant types with values:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
 
-exports.getMaxItemNo = (req, res) => {
+exports.getMaxItemNo = async (req, res) => {
   try {
     const { hotelid } = req.query;
     let query = `SELECT IFNULL(MAX(item_no),0) + 1 AS nextItemNo FROM mstrestmenu`;
     let row;
     if (hotelid) {
       query += ` WHERE hotelid = ?`;
-      row = db.prepare(query).get(hotelid);
+      [row] = await db.execute(query, [hotelid]);
     } else {
-      row = db.prepare(query).get();
+      [row] = await db.execute(query);
     }
-    res.json({ success: true, data: { nextItemNo: row.nextItemNo } });
+    res.json({ success: true, data: { nextItemNo: row[0].nextItemNo } });
   } catch (error) {
-    // console.error("Error fetching max item number:", error);
+    console.error("Error fetching max item number:", error);
     res.status(500).json({ success: false, message: 'Failed to fetch max item number', error: error.message, data: null });
   }
 };
 
-exports.exportMenuItems = (req, res) => {
-  try {
-    const { hotelid, outletid } = req.query;
-    const XLSX = require('xlsx');
-    
-let query = `
-      SELECT DISTINCT m.restitemid, m.item_no, m.item_name, m.print_name, m.short_name,
-             m.price, m.item_description, m.item_hsncode, m.status,
-             m.kitchen_category_id, m.kitchen_sub_category_id, m.kitchen_main_group_id,
-             m.item_group_id, m.item_main_group_id, m.stock_unit, m.taxgroupid,
-             m.is_runtime_rates, m.is_common_to_all_departments,
-             -- 🔥 NEW STOCK FIELDS 🔥
-             m.is_ingredients_required, m.consume_on_bill, m.reverse_stock_cancel_kot,
-             m.allow_negative_stock, m.opening_stock_quantity, m.opening_stock_unit_id,
-             m.consume_raw_materials_on_bill, m.consume_raw_materials_on_kot, m.store_name,
-             o.outlet_name, h.hotel_name,
-             ig.itemgroupname AS groupname,
-             kmg.Kitchen_main_Group AS kitchen_main_group_name,
-             kc.Kitchen_Category AS kitchen_category_name,
-             ksc.Kitchen_sub_category AS kitchen_sub_category_name,
-             tg.taxgroup_name
-      FROM mstrestmenu m
-      LEFT JOIN mst_outlets o ON m.outletid = o.outletid
-      LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
-      LEFT JOIN mst_item_group ig ON m.item_group_id = ig.item_groupid
-      LEFT JOIN mst_kitchen_main_group kmg ON m.kitchen_main_group_id = kmg.kitchenmaingroupid
-      LEFT JOIN mst_kitchen_category kc ON m.kitchen_category_id = kc.kitchencategoryid
-      LEFT JOIN mst_kitchen_sub_category ksc ON m.kitchen_sub_category_id = ksc.kitchensubcategoryid
-      LEFT JOIN msttaxgroup tg ON m.taxgroupid = tg.taxgroupid
-      WHERE m.status IN (0,1)
-    `;
-    
-    const params = [];
-    
-    if (hotelid) {
-      query += ' AND m.hotelid = ?';
-      params.push(parseInt(hotelid));
-    }
-    
-    if (outletid) {
-      const parsedOutletId = parseInt(outletid);
-      const outlet = db.prepare('SELECT hotelid FROM mst_outlets WHERE outletid = ?').get(parsedOutletId);
-      if (outlet) {
-        query += ' AND (m.outletid = ? OR (m.hotelid = ? AND m.outletid IS NULL))';
-        params.push(parsedOutletId, outlet.hotelid);
-      } else {
-        query += ' AND m.outletid = ?';
-        params.push(parsedOutletId);
-      }
-    }
-    
-    query += ' ORDER BY m.item_name ASC';
-    
-    const menuItems = db.prepare(query).all(...params);
-    
-    const exportData = menuItems.map((item, index) => ({
-      'Sr.No': index + 1,
-      'Item No': item.item_no || '',
-      'Item Name': item.item_name || '',
-      'Print Name': item.print_name || '',
-      'Short Name': item.short_name || '',
-      'Price': item.price || 0,
-      'Description': item.item_description || '',
-      'HSN Code': item.item_hsncode || '',
-      'Status': item.status === 1 ? 'Active' : 'Inactive',
-      'Hotel': item.hotel_name || '',
-      'Outlet': item.outlet_name || '',
-      'Item Group': item.groupname || '',
-      'Kitchen Main Group': item.kitchen_main_group_name || '',
-      'Kitchen Category': item.kitchen_category_name || '',
-      'Kitchen Sub Category': item.kitchen_sub_category_name || '',
-      'Tax Group': item.taxgroup_name || '',
-      'Runtime Rates': item.is_runtime_rates === 1 ? 'Yes' : 'No',
-      'Common to All Departments': item.is_common_to_all_departments === 1 ? 'Yes' : 'No',
-      'Is Ingredients Required': item.is_ingredients_required === 1 ? 'Yes' : 'No',
-      'Consume on Bill': item.consume_on_bill === 1 ? 'Yes' : 'No',
-      'Reverse Stock Cancel KOT': item.reverse_stock_cancel_kot === 1 ? 'Yes' : 'No',
-      'Allow Negative Stock': item.allow_negative_stock === 1 ? 'Yes' : 'No',
-      'Opening Stock Qty': item.opening_stock_quantity || 0,
-      'Consume Raw on Bill': item.consume_raw_materials_on_bill === 1 ? 'Yes' : 'No',
-      'Consume Raw on KOT': item.consume_raw_materials_on_kot === 1 ? 'Yes' : 'No',
-      'Store Name': item.store_name || '',
-    }));
-    
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    
-    ws['!cols'] = [
-      { wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
-      { wch: 10 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 15 },
-      { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 20 },
-      { wch: 15 }, { wch: 15 }, { wch: 25 },
-    ];
-    
-    XLSX.utils.book_append_sheet(wb, ws, 'Menu Items');
-    
-    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-    
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=menu_items_export.xlsx');
-    res.send(buffer);
-    
-  } catch (error) {
-    // console.error('Error exporting menu items:', error);
-    res.status(500).json({ success: false, message: 'Failed to export menu items', error: error.message, data: null });
-  }
-};
 
-// Import menu items from Excel
-exports.importMenuItems = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file uploaded' });
-    }
-    
-    const XLSX = require('xlsx');
-    const buffer = req.file.buffer;
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet);
-    
-    if (!data || data.length === 0) {
-      return res.status(400).json({ success: false, message: 'No data found in Excel file' });
-    }
-    
-    const { hotelid, outletid, created_by_id } = req.body;
-    
-    if (!hotelid) {
-      return res.status(400).json({ success: false, message: 'hotelid is required' });
-    }
-    
-    const parsedHotelId = parseInt(hotelid);
-    const parsedOutletId = outletid ? parseInt(outletid) : null;
-    const parsedCreatedById = created_by_id ? parseInt(created_by_id) : 2;
-    
-    const hotel = db.prepare('SELECT hotelid, hotel_name FROM msthotelmasters WHERE hotelid = ?').get(parsedHotelId);
-    if (!hotel) {
-      return res.status(400).json({ success: false, message: `Invalid hotelid: ${hotelid}` });
-    }
-    
-    const itemGroups = db.prepare('SELECT item_groupid, itemgroupname FROM mst_item_group WHERE status = 0').all();
-    const itemGroupsMap = {};
-    itemGroups.forEach(ig => { itemGroupsMap[ig.itemgroupname.toLowerCase()] = ig.item_groupid; });
-    
-    const kitchenCategories = db.prepare('SELECT kitchencategoryid, Kitchen_Category FROM mst_kitchen_category WHERE status = 0').all();
-    const kitchenCategoriesMap = {};
-    kitchenCategories.forEach(kc => { kitchenCategoriesMap[kc.Kitchen_Category.toLowerCase()] = kc.kitchencategoryid; });
-    
-    const taxGroups = db.prepare('SELECT taxgroupid, taxgroup_name FROM msttaxgroup WHERE status = 0').all();
-    const taxGroupsMap = {};
-    taxGroups.forEach(tg => { taxGroupsMap[tg.taxgroup_name.toLowerCase()] = tg.taxgroupid; });
-    
-    let deptQuery = 'SELECT departmentid, department_name FROM msttable_department WHERE status = 0';
-    let deptParams = [];
-    if (parsedOutletId) {
-      const outlet = db.prepare('SELECT hotelid FROM mst_outlets WHERE outletid = ?').get(parsedOutletId);
-      if (outlet && outlet.hotelid === parsedHotelId) {
-        deptQuery += ' AND (outletid = ? OR outletid IS NULL)';
-        deptParams.push(parsedOutletId);
-      }
-    } else {
-      deptQuery += ' AND hotelid = ?';
-      deptParams.push(parsedHotelId);
-    }
-    const departments = db.prepare(deptQuery).all(...deptParams);
-    const departmentsMap = {};
-    departments.forEach(d => { departmentsMap[d.department_name.toLowerCase()] = d.departmentid; });
-    
-    const importedItems = [];
-    const errors = [];
-    
-    db.transaction(() => {
-      data.forEach((row, index) => {
-        try {
-          if (!row['Item Name']) {
-            errors.push({ row: index + 2, message: 'Item Name is required' });
-            return;
-          }
-          
-          const itemName = row['Item Name'].toString().trim();
-          const itemNo = row['Item No'] ? row['Item No'].toString().trim() : null;
-          const price = row['Price'] ? parseFloat(row['Price']) : 0;
-          
-          let itemGroupId = null;
-          if (row['Item Group']) {
-            const igName = row['Item Group'].toString().toLowerCase().trim();
-            itemGroupId = itemGroupsMap[igName] || null;
-          }
-          
-          let kitchenCategoryId = null;
-          if (row['Kitchen Category']) {
-            const kcName = row['Kitchen Category'].toString().toLowerCase().trim();
-            kitchenCategoryId = kitchenCategoriesMap[kcName] || null;
-          }
-          
-          let taxGroupId = null;
-          if (row['Tax Group']) {
-            const tgName = row['Tax Group'].toString().toLowerCase().trim();
-            taxGroupId = taxGroupsMap[tgName] || null;
-          }
-          
-          const status = row['Status'] && row['Status'].toString().toLowerCase() === 'active' ? 1 : 0;
-          const isRuntimeRates = row['Runtime Rates'] && row['Runtime Rates'].toString().toLowerCase() === 'yes' ? 1 : 0;
-          const isCommonToAll = row['Common to All Departments'] && row['Common to All Departments'].toString().toLowerCase() === 'yes' ? 1 : 0;
-          
-          const stmt = db.prepare(`
-            INSERT INTO mstrestmenu (
-              hotelid, outletid, item_no, item_name, print_name, short_name,
-              kitchen_category_id, item_group_id, stock_unit, price, taxgroupid,
-              is_runtime_rates, is_common_to_all_departments, item_description, item_hsncode,
-              status, created_by_id, created_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, datetime('now'))
-          `);
-          
-          const result = stmt.run(
-            parsedHotelId,
-            parsedOutletId,
-            itemNo,
-            itemName,
-            row['Print Name'] || null,
-            row['Short Name'] || null,
-            kitchenCategoryId,
-            itemGroupId,
-            null,
-            price,
-            taxGroupId,
-            isRuntimeRates,
-            isCommonToAll,
-            row['Description'] || null,
-            row['HSN Code'] || null,
-            status,
-            parsedCreatedById
-          );
-          
-          const restitemid = result.lastInsertRowid;
-          
-          if (departments.length > 0 && price > 0) {
-            const detailStmt = db.prepare(`
-              INSERT INTO mstrestmenudetails (restitemid, departmentid, item_rate, hotelid)
-              VALUES (?, ?, ?, ?)
-            `);
-            
-            departments.forEach(dept => {
-              detailStmt.run(restitemid, dept.departmentid, price, parsedHotelId);
-            });
-          }
-          
-          importedItems.push({ restitemid, item_name: itemName, item_no: itemNo });
-          
-        } catch (rowError) {
-          errors.push({ row: index + 2, message: rowError.message });
-        }
-      });
-    })();
-    
-    res.json({
-      success: true,
-      data: { imported: importedItems.length, errors: errors },
-      message: `Successfully imported ${importedItems.length} items${errors.length > 0 ? ` with ${errors.length} errors` : ''}`
-    });
-    
-  } catch (error) {
-    // console.error('Error importing menu items:', error);
-    res.status(500).json({ success: false, message: 'Failed to import menu items', error: error.message, data: null });
-  }
-};
 
 // Download sample template for menu import
-exports.downloadSampleTemplate = (req, res) => {
-  try {
-    const XLSX = require('xlsx');
-    
-    // 🔥 COMPLETE TEMPLATE - ALL DB FIELDS with examples 🔥
-    // Use exact column names that importMenuItems() will read
-    // Yes/No → 1/0, exact names for FK mapping
-    const sampleData = [
-      {
-        'Item No': 'AUTO',
-        'Item Name': 'Chicken Biryani',
-        'Print Name': 'CHICKEN BIRYANI',
-        'Short Name': 'C.BIRYANI',
-        'Price': 250.00,
-        'Description': 'Chicken biryani with basmati rice and aromatic spices',
-        'HSN Code': '21069099',
-        'Status': 'Active',
-        'Item Main Group': 'Food',
-        'Item Group': 'Main Course',
-        'Kitchen Main Group': 'Indian',
-        'Kitchen Category': 'Non-Veg',
-        'Kitchen Sub Category': 'Biryani',
-        'Tax Group': 'GST 18%',
-        'Runtime Rates': 'No',
-        'Common to All Departments': 'Yes',
-        // 🔥 NEW STOCK FIELDS 🔥
-        'Is Ingredients Required': 'No',
-        'Consume on Bill': 'Yes',
-        'Reverse Stock Cancel KOT': 'No',
-        'Allow Negative Stock': 'No',
-        'Opening Stock Qty': 50,
-        'Opening Stock Unit ID': 1, // UnitMaster.unitid
-        // 🔥 NEW RAW MATERIALS FIELDS 🔥
-        'Consume Raw on Bill': 'No',
-        'Consume Raw on KOT': 'No',
-        'Store Name': 1 // Warehouse.warehouseid
-      },
-      {
-        'Item No': 'AUTO',
-        'Item Name': 'Veg Pulao',
-        'Print Name': 'VEG PULAO',
-        'Short Name': 'V.PULAO',
-        'Price': 150.00,
-        'Description': 'Mixed vegetable pulao with basmati rice',
-        'HSN Code': '21069099',
-        'Status': 'Active',
-        'Item Main Group': 'Food',
-        'Item Group': 'Main Course',
-        'Kitchen Main Group': 'Indian',
-        'Kitchen Category': 'Veg',
-        'Kitchen Sub Category': 'Rice',
-        'Tax Group': 'GST 5%',
-        'Runtime Rates': 'No',
-        'Common to All Departments': 'Yes',
-        // 🔥 NEW STOCK FIELDS 🔥
-        'Is Ingredients Required': 'Yes',
-        'Consume on Bill': 'Yes',
-        'Reverse Stock Cancel KOT': 'Yes',
-        'Allow Negative Stock': 'No',
-        'Opening Stock Qty': 100,
-        'Opening Stock Unit ID': 1,
-        // 🔥 NEW RAW MATERIALS FIELDS 🔥
-        'Consume Raw on Bill': 'Yes',
-        'Consume Raw on KOT': 'No',
-        'Store Name': 2
-      }
-    ];
-    
-    const wb = XLSX.utils.book_new();
-    
-    // Create template sheet
-    const wsTemplate = XLSX.utils.json_to_sheet(sampleData);
-    
-    // Optimized column widths for all fields
-    wsTemplate['!cols'] = [
-      { wch: 12 }, // Item No
-      { wch: 30 }, // Item Name  
-      { wch: 20 }, // Print Name
-      { wch: 15 }, // Short Name
-      { wch: 10 }, // Price
-      { wch: 35 }, // Description
-      { wch: 12 }, // HSN Code
-      { wch: 10 }, // Status
-      { wch: 18 }, // Item Main Group
-      { wch: 18 }, // Item Group
-      { wch: 18 }, // Kitchen Main Group
-      { wch: 18 }, // Kitchen Category
-      { wch: 20 }, // Kitchen Sub Category
-      { wch: 15 }, // Tax Group
-      { wch: 15 }, // Runtime Rates
-      { wch: 22 }, // Common to All Departments
-      { wch: 20 }, // Is Ingredients Required
-      { wch: 15 }, // Consume on Bill
-      { wch: 22 }, // Reverse Stock Cancel KOT
-      { wch: 18 }, // Allow Negative Stock
-      { wch: 15 }, // Opening Stock Qty
-      { wch: 18 }, // Opening Stock Unit ID
-      { wch: 18 }, // Consume Raw on Bill
-      { wch: 16 }, // Consume Raw on KOT
-      { wch: 15 }  // Store Name
-    ];
-    
-    XLSX.utils.book_append_sheet(wb, wsTemplate, 'Menu Import Template');
-    
-    // Instructions sheet
-    const instructions = [
-      ['IMPORTANT INSTRUCTIONS:'],
-      ['1. Use EXACT names from dropdowns for Item Group, Kitchen Category, etc.'],
-      ['2. Status: Active/Inactive'],
-      ['3. Boolean fields (Yes/No):'],
-      ['   - Yes → 1, No → 0 (automatic conversion)'],
-      ['   - Is Ingredients Required: Yes/No'],
-      ['   - Consume on Bill: Yes/No'],
-      ['   - etc.'],
-      ['4. Item No: Leave as AUTO or enter manually'],
-      ['5. Opening Stock Unit ID: unitid from unitmaster table'],
-      ['6. Store Name: warehouseid from warehouse table'],
-      [''],
-      ['SAMPLE ROWS BELOW ↓']
-    ];
-    const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
-    XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
-    
-    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-    
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=menu_import_template.xlsx');
-    res.setHeader('Content-Length', buffer.length);
-    res.send(buffer);
-    
-  } catch (error) {
-    console.error('Error downloading sample template:', error);
-    res.status(500).json({ success: false, message: 'Failed to download sample template', error: error.message });
-  }
-};
+
