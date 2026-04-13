@@ -827,6 +827,7 @@ function SettingsPage() {
     setImporting(true);
     setImportErrors([]);
     try {
+      console.log('Starting menu import with file:', file);
       const response = await MenuService.importMenu(
         file, 
         Number(user.hotelid), 
@@ -838,6 +839,7 @@ function SettingsPage() {
         toast.success(`Successfully imported ${response.data?.imported || 0} items`);
         
         // Handle errors properly
+         console.log('Import response:', response);
         if (response.data?.errors && response.data.errors.length > 0) {
           setImportErrors(response.data.errors);
           

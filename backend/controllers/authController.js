@@ -1,4 +1,4 @@
-const db = require('../config/db'); // should export a mysql2/promise pool
+const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -8,9 +8,6 @@ const JWT_SECRET = 'your-secret-key-change-this-in-production';
 exports.login = async (req, res) => {
     try {
         const { email, username, password } = req.body;
-        
-        console.log('🔐 === LOGIN REQUEST START ===');
-        console.log('🔐 LOGIN ENTRY: email=', email, 'username=', username, 'password-provided=', !!password);
 
         if (!password) {
             return res.status(400).json({ message: 'Password is required' });
@@ -23,57 +20,48 @@ exports.login = async (req, res) => {
         // Find user by email or username
         let user;
         if (email) {
-            console.log('🔍 Querying user by EMAIL:', email);
             // Login with email (for SuperAdmin)
-            const [rows] = await db.query(`
-                SELECT u.*, h.trn_gstno, h.address AS address,
-                       b.hotel_name as brand_name,
-                       h.hotel_name as hotel_name,
-                       u.outletid
-                FROM mst_users u
-                LEFT JOIN mst_outlets d ON u.outletid = d.outletid
-                LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-                LEFT JOIN msthotelmasters b ON b.hotelid = h.hotelid
-                WHERE u.email = ? AND u.status = 0
-            `, [email]);
-            user = rows[0];
+            user = db.prepare(`
+SELECT u.*, h.trn_gstno, h.address AS address,
+                   b.hotel_name as brand_name,
+                   h.hotel_name as hotel_name,
+                   u.outletid
+                  
+            FROM mst_users u
+            LEFT JOIN mst_outlets d ON u.outletid = d.outletid
+            LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
+            LEFT JOIN msthotelmasters b ON b.hotelid = h.hotelid   
+            WHERE u.email = ? AND u.status = 0
+             
+            `).get(email);
         } else {
-            console.log('🔍 Querying user by USERNAME:', username);
             // Login with username (for Hotel Admin)
-            const [rows] = await db.query(`
-                SELECT u.*, h.trn_gstno,
-                       b.hotel_name as brand_name,
-                       h.hotel_name as hotel_name,
-                       u.outletid
-                FROM mst_users u
-                LEFT JOIN mst_outlets d ON u.outletid = d.outletid
-                LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-                LEFT JOIN msthotelmasters b ON b.hotelid = h.hotelid
-                WHERE u.username = ? AND u.status = 0
-            `, [username]);
-            user = rows[0];
+            user = db.prepare(`
+            SELECT u.*, h.trn_gstno,
+                   b.hotel_name as brand_name,
+                   h.hotel_name as hotel_name,
+                   u.outletid                  
+            FROM mst_users u
+           LEFT JOIN mst_outlets d ON u.outletid = d.outletid
+            LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
+            LEFT JOIN msthotelmasters b ON b.hotelid = h.hotelid 
+            WHERE u.username = ? AND u.status = 0
+              
+            `).get(username);
         }
 
         if (!user) {
-            console.log('❌ NO USER FOUND');
             return res.status(401).json({ message: 'Invalid email or password' });
         }
-        console.log('✅ USER FOUND: ID=', user.userid, 'role=', user.role_level, 'hotel=', user.hotelid);
 
         // Check password
-        console.log('🔐 Checking password for user:', user.username);
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
-            console.log('❌ PASSWORD INVALID');
             return res.status(401).json({ message: 'Invalid email or password' });
         }
-        console.log('✅ PASSWORD VALIDATED');
 
         // Update last login
-        await db.query(
-            'UPDATE mst_users SET last_login = NOW() WHERE userid = ?',
-            [user.userid]
-        );
+        db.prepare('UPDATE mst_users SET last_login = datetime(\'now\') WHERE userid = ?').run(user.userid);
 
         // Create JWT token
         const token = jwt.sign(
@@ -81,12 +69,12 @@ exports.login = async (req, res) => {
                 userid: user.userid,
                 username: user.username,
                 email: user.email,
-                role_level: user.role_level,
-                trn_gstno: user.trn_gstno,
-                brand_id: user.brand_id,
+role_level: user.role_level,
+            trn_gstno: user.trn_gstno,
+            brand_id: user.brand_id,
                 hotelid: user.hotelid,
-                outletid: user.outletid,
-                created_by_id: user.created_by_id || null
+                outletid: user.outletid, // Ensure this is included
+                created_by_id: user.created_by_id || null // Ensure it’s included, even if null
             },
             JWT_SECRET,
             { expiresIn: '24h' }
@@ -104,43 +92,42 @@ exports.login = async (req, res) => {
             brand_id: user.brand_id,
             hotelid: user.hotelid,
             outletid: user.outletid,
-            outlet_name: user.outlet_name,
+            outlet_name: user.outlet_name, // Adjusted to use outlet_name alias
             brand_name: user.brand_name,
             hotel_name: user.hotel_name,
             address: user.address,
-            created_by_id: user.created_by_id || null,
+            created_by_id: user.created_by_id || null, // Ensure it’s included, even if null
             token: token
         };
 
         // Log login details based on user role
         if (user.role_level === 'hotel_admin') {
-            console.log('🏨 Hotel Admin Login Details:');
-            console.log('   Login User ID:', user.userid);
-            console.log('   Username:', user.username);
-            console.log('   Hotel ID:', user.hotelid);
-            console.log('   Brand ID:', user.brand_id);
-            console.log('   Hotel Name:', user.hotel_name);
-            console.log('   Brand Name:', user.brand_name);
-            console.log('   Full Name:', user.full_name);
-            console.log('   Email:', user.email);
-            console.log('   Phone:', user.phone);
-            console.log('   Login Time:', new Date().toISOString());
-            console.log('   ---');
+            // console.log('🏨 Hotel Admin Login Details:');
+            // console.log('   Login User ID:', user.userid);
+            // console.log('   Username:', user.username);
+            // console.log('   Hotel ID:', user.hotelid);
+            // console.log('   Brand ID:', user.brand_id);
+            // console.log('   Hotel Name:', user.hotel_name);
+            // console.log('   Brand Name:', user.brand_name);
+            // console.log('   Full Name:', user.full_name);
+            // console.log('   Email:', user.email);
+            // console.log('   Phone:', user.phone);
+            // console.log('   Login Time:', new Date().toISOString());
+            // console.log('   ---');
         } else if (user.role_level === 'superadmin') {
-            console.log('👑 SuperAdmin Login Details:');
-            console.log('   Login User ID:', user.userid);
-            console.log('   Username:', user.username);
-            console.log('   Email:', user.email);
-            console.log('   Full Name:', user.full_name);
-            console.log('   Login Time:', new Date().toISOString());
-            console.log('   ---');
+            // console.log('👑 SuperAdmin Login Details:');
+            // console.log('   Login User ID:', user.userid);
+            // console.log('   Username:', user.username);
+            // console.log('   Email:', user.email);
+            // console.log('   Full Name:', user.full_name);
+            // console.log('   Login Time:', new Date().toISOString());
+            // console.log('   ---');
         }
 
         res.json(userResponse);
 
     } catch (error) {
-        console.error('💥 LOGIN ERROR:', error.message || error);
-        console.error('💥 Full error:', error);
+        // console.error('Login error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -149,26 +136,26 @@ exports.login = async (req, res) => {
 exports.getCurrentUser = async (req, res) => {
     try {
         const token = req.headers.authorization?.replace('Bearer ', '');
-
+        
         if (!token) {
             return res.status(401).json({ message: 'No token provided' });
         }
 
         const decoded = jwt.verify(token, JWT_SECRET);
-
-        const [rows] = await db.query(`
+        
+        const user = db.prepare(`
             SELECT u.*, h.trn_gstno, h.address AS address,
+                  
                    b.hotel_name AS brand_name,
                    h.hotel_name AS hotel_name,
                    u.outletid
             FROM mst_users u
-            LEFT JOIN mst_outlets d ON u.outletid = d.outletid
+             LEFT JOIN mst_outlets d ON u.outletid = d.outletid
             LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-            LEFT JOIN msthotelmasters b ON b.hotelid = h.hotelid
+            LEFT JOIN msthotelmasters b ON b.hotelid = h.hotelid            
             WHERE u.userid = ? AND u.status = 0
-        `, [decoded.userid]);
-
-        const user = rows[0];
+           
+        `).get(decoded.userid);
 
         if (!user) {
             return res.status(401).json({ message: 'User not found' });
@@ -179,13 +166,13 @@ exports.getCurrentUser = async (req, res) => {
             username: user.username,
             email: user.email,
             name: user.full_name,
-            role: user.role_level,
+role: user.role_level,
             role_level: user.role_level,
             trn_gstno: user.trn_gstno,
             address: user.address,
             brand_id: user.brand_id,
             hotelid: user.hotelid,
-            outletid: user.outletid,
+            outletid: user.outletid ,
             brand_name: user.brand_name,
             hotel_name: user.hotel_name
         };
@@ -216,16 +203,14 @@ exports.verifyF8Password = async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
 
         // Get user details
-        const [rows] = await db.query(`
+        const user = db.prepare(`
             SELECT u.*, b.hotel_name as brand_name, h.hotel_name as hotel_name
             FROM mst_users u
             LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
             LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
             LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
             WHERE u.userid = ? AND u.status = 0
-        `, [decoded.userid]);
-
-        const user = rows[0];
+        `).get(decoded.userid);
 
         if (!user) {
             return res.status(401).json({ success: false, message: 'User not found' });
@@ -275,29 +260,25 @@ exports.verifyBillCreatorPassword = async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
 
         // Get current user details (for logging purposes)
-        const [currentUserRows] = await db.query(`
+        const currentUser = db.prepare(`
             SELECT u.*, b.hotel_name as brand_name, h.hotel_name as hotel_name
             FROM mst_users u
             LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
             LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
             LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
             WHERE u.userid = ? AND u.status = 0
-        `, [decoded.userid]);
-
-        const currentUser = currentUserRows[0];
+        `).get(decoded.userid);
 
         if (!currentUser) {
             return res.status(401).json({ success: false, message: 'Current user not found' });
         }
 
         // Find the transaction and get the UserId (which is the creator)
-        const [txnRows] = await db.query(`
+        const transaction = db.prepare(`
             SELECT TxnID, UserId
             FROM TAxnTrnbill
             WHERE TxnID = ?
-        `, [txnId]);
-
-        const transaction = txnRows[0];
+        `).get(txnId);
 
         if (!transaction) {
             return res.status(404).json({ success: false, message: 'Transaction not found' });
@@ -308,16 +289,14 @@ exports.verifyBillCreatorPassword = async (req, res) => {
         }
 
         // Get the bill creator's details
-        const [billCreatorRows] = await db.query(`
+        const billCreator = db.prepare(`
             SELECT u.*, b.hotel_name as brand_name, h.hotel_name as hotel_name
             FROM mst_users u
             LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
             LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
             LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
             WHERE u.userid = ? AND u.status = 0
-        `, [transaction.UserId]);
-
-        const billCreator = billCreatorRows[0];
+        `).get(transaction.UserId);
 
         if (!billCreator) {
             return res.status(404).json({ success: false, message: 'Bill creator not found' });
@@ -330,18 +309,14 @@ exports.verifyBillCreatorPassword = async (req, res) => {
                 return res.json({ success: true, message: 'Admin password verified successfully.' });
             }
         }
-
+        
         // If the current user is not an admin or their password was incorrect,
         // check the password of the user who created the bill.
         const isValidPassword = await bcrypt.compare(password, billCreator.password);
         if (!isValidPassword) {
             // If that fails, check the password of the admin who created the bill creator.
             if (billCreator.created_by_id) {
-                const [creatorAdminRows] = await db.query(
-                    'SELECT password FROM mst_users WHERE userid = ?',
-                    [billCreator.created_by_id]
-                );
-                const creatorAdmin = creatorAdminRows[0];
+                const creatorAdmin = db.prepare('SELECT password FROM mst_users WHERE userid = ?').get(billCreator.created_by_id);
                 if (creatorAdmin) {
                     const isCreatorAdminPasswordValid = await bcrypt.compare(password, creatorAdmin.password);
                     if (isCreatorAdminPasswordValid) {
@@ -352,6 +327,7 @@ exports.verifyBillCreatorPassword = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid Password' });
         }
 
+        // Log the verification attempt
         // console.log('🔐 Bill Creator Password Verification:');
         // console.log('   Current User ID:', currentUser.userid);
         // console.log('   Current Username:', currentUser.username);
@@ -399,16 +375,14 @@ exports.verifyPassword = async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
 
         // Get user details
-        const [rows] = await db.query(`
+        const user = db.prepare(`
             SELECT u.*, b.hotel_name as brand_name, h.hotel_name as hotel_name
             FROM mst_users u
             LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
             LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
             LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
             WHERE u.userid = ? AND u.status = 0
-        `, [decoded.userid]);
-
-        const user = rows[0];
+        `).get(decoded.userid);
 
         if (!user) {
             return res.status(401).json({ success: false, message: 'User not found' });
@@ -449,12 +423,7 @@ exports.verifyCreatorPassword = async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
 
         // Get current user's full details
-        const [currentUserRows] = await db.query(
-            'SELECT userid, password, role_level, created_by_id FROM mst_users WHERE userid = ?',
-            [decoded.userid]
-        );
-
-        const currentUserInfo = currentUserRows[0];
+        const currentUserInfo = db.prepare('SELECT userid, password, role_level, created_by_id FROM mst_users WHERE userid = ?').get(decoded.userid);
 
         if (!currentUserInfo) {
             return res.status(404).json({ success: false, message: 'Current user not found.' });
@@ -471,21 +440,18 @@ exports.verifyCreatorPassword = async (req, res) => {
         // because we already checked their password. If they aren't an admin, we proceed
         // to check their creator's password as a fallback.
         if (currentUserInfo.role_level === 'hotel_admin' || currentUserInfo.role_level === 'superadmin') {
-            return res.status(401).json({ success: false, message: 'Invalid Password' });
+             return res.status(401).json({ success: false, message: 'Invalid Password' });
         }
 
         // 3. As a fallback for non-admin users, check the creator's password.
+
+        // Find the current user to get their creator's ID
         if (!currentUserInfo.created_by_id) {
             return res.status(404).json({ success: false, message: 'Creator (Hotel Admin) not found for this user.' });
         }
 
         // Get the creator's (Hotel Admin's) details, specifically the password hash
-        const [creatorRows] = await db.query(
-            "SELECT password, role_level FROM mst_users WHERE userid = ? AND role_level IN ('hotel_admin', 'brand_admin', 'superadmin')",
-            [currentUserInfo.created_by_id]
-        );
-
-        const creator = creatorRows[0];
+        const creator = db.prepare("SELECT password, role_level FROM mst_users WHERE userid = ? AND role_level IN ('hotel_admin', 'brand_admin', 'superadmin')").get(currentUserInfo.created_by_id);
 
         if (!creator) {
             return res.status(404).json({ success: false, message: 'Creator user record not found or is not an authorized admin.' });
@@ -514,59 +480,58 @@ exports.verifyCreatorPassword = async (req, res) => {
 exports.createInitialSuperAdmin = async () => {
     try {
         // Check if SuperAdmin exists
-        const [existingRows] = await db.query(
-            'SELECT userid FROM mst_users WHERE role_level = ?',
-            ['superadmin']
-        );
-
-        if (existingRows.length === 0) {
+        const existingSuperAdmin = db.prepare('SELECT userid FROM mst_users WHERE role_level = ?').get('superadmin');
+        
+        if (!existingSuperAdmin) {
             const hashedPassword = await bcrypt.hash('superadmin123', 10);
-
-            const [result] = await db.query(`
+            
+            const stmt = db.prepare(`
                 INSERT INTO mst_users (
-                    username, email, password, full_name, role_level,
+                    username, email, password, full_name, role_level, 
                     status, created_date
-                ) VALUES (?, ?, ?, ?, ?, ?, NOW())
-            `, [
+                ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            `);
+            
+            const result = stmt.run(
                 'superadmin',
                 'superadmin@miracle.com',
                 hashedPassword,
                 'Super Administrator',
                 'superadmin',
                 1
-            ]);
-
-            const newUserId = result.insertId;
+            );
 
             // Create default permissions for SuperAdmin
             const defaultPermissions = {
-                'orders':    { view: 1, create: 1, edit: 1, delete: 1 },
+                'orders': { view: 1, create: 1, edit: 1, delete: 1 },
                 'customers': { view: 1, create: 1, edit: 1, delete: 1 },
-                'menu':      { view: 1, create: 1, edit: 1, delete: 1 },
-                'reports':   { view: 1, create: 1, edit: 1, delete: 1 },
-                'users':     { view: 1, create: 1, edit: 1, delete: 1 },
-                'settings':  { view: 1, create: 1, edit: 1, delete: 1 }
+                'menu': { view: 1, create: 1, edit: 1, delete: 1 },
+                'reports': { view: 1, create: 1, edit: 1, delete: 1 },
+                'users': { view: 1, create: 1, edit: 1, delete: 1 },
+                'settings': { view: 1, create: 1, edit: 1, delete: 1 }
             };
 
-            for (const [module, perms] of Object.entries(defaultPermissions)) {
-                await db.query(`
-                    INSERT INTO mst_user_permissions (
-                        userid, module_name, can_view, can_create, can_edit, can_delete, created_by_id, created_date
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-                `, [
-                    newUserId,
-                    module,
-                    perms.view    ? 1 : 0,
-                    perms.create  ? 1 : 0,
-                    perms.edit    ? 1 : 0,
-                    perms.delete  ? 1 : 0,
-                    newUserId
-                ]);
-            }
+            const permStmt = db.prepare(`
+                INSERT INTO mst_user_permissions (
+                    userid, module_name, can_view, can_create, can_edit, can_delete, created_by_id, created_date
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            `);
 
-            console.log('✅ Initial SuperAdmin created successfully');
-            console.log('📧 Email: superadmin@miracle.com');
-            console.log('🔑 Password: superadmin123');
+            Object.entries(defaultPermissions).forEach(([module, perms]) => {
+                permStmt.run(
+                    result.lastInsertRowid,
+                    module,
+                    perms.view ? 1 : 0,
+                    perms.create ? 1 : 0,
+                    perms.edit ? 1 : 0,
+                    perms.delete ? 1 : 0,
+                    result.lastInsertRowid
+                );
+            });
+
+            // console.log('✅ Initial SuperAdmin created successfully');
+            // console.log('📧 Email: superadmin@miracle.com');
+            // console.log('🔑 Password: superadmin123');
         } else {
             // console.log('ℹ️ SuperAdmin already exists');
         }

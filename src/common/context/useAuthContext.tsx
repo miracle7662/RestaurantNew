@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user.token) {
         localStorage.setItem("token", user.token)
       }
-      // console.log('User saved to context:', user);
+       console.log('User saved to context:', user);
       setUser(user)
     },
     [setUser],
