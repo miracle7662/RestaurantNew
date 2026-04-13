@@ -3832,7 +3832,7 @@ const handlePrintKotAndBill = async () => {
                                             color: "#4b5563"
                                           }}
                                         >
-                                          {(item.qty * item.price).toFixed(2)}
+{Number((item.qty || 0) * (item.price || 0)).toFixed(2)}
                                         </span>
 
                                         <small
@@ -3841,7 +3841,8 @@ const handlePrintKotAndBill = async () => {
                                             color: "#6b7280"
                                           }}
                                         >
-                                          ({item.price.toFixed(2)})
+
+                                          ({Number(item.price || 0).toFixed(2)})
                                         </small>
                                       </div>
 
@@ -4140,11 +4141,12 @@ const handlePrintKotAndBill = async () => {
                           </button>
                         </div>
                         <div className="text-center">
-                          <div>{(item.price * displayQty).toFixed(2)}</div>
+{Number((item.price || 0) * (displayQty || 0)).toFixed(2)}
                           <div
                             style={{ fontSize: '0.65rem', color: '#6c757d', width: '50px', height: '10px', margin: '0 auto' }}
                           >
-                            ({item.price.toFixed(2)})
+
+                            ({Number(item.price || 0).toFixed(2)})
                           </div>
                         </div>
                       </div>

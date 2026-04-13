@@ -1306,9 +1306,10 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
 
         if (Array.isArray(response)) {
           setOutletPaymentModes(response);
-        } else if (response?.data) {
+        } else if (Array.isArray(response?.data)) {
           setOutletPaymentModes(response.data);
         } else {
+          console.warn('Payment modes API returned non-array:', response);
           setOutletPaymentModes([]);
         }
 
@@ -3747,7 +3748,7 @@ const handleF8Action = useCallback(() => {
         grandTotal={taxCalc.grandTotal}
         subtotal={taxCalc.subtotal}
         loading={loading}
-        outletPaymentModes={outletPaymentModes}
+        outletPaymentModes={outletPaymentModes || []}
         selectedOutletId={selectedOutletId}
         initialSelectedModes={selectedPaymentModes}
         initialPaymentAmounts={paymentAmounts}

@@ -203,7 +203,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
 
   // Keyboard navigation
   useEffect(() => {
-    if (!show || !outletPaymentModes.length) return;
+if (!show || !Array.isArray(outletPaymentModes) || outletPaymentModes.length === 0) return;
 
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
@@ -358,31 +358,42 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
               </h6>
 
               <div style={{ overflowY: 'auto' }}>
-                {outletPaymentModes.map((mode, index) => {
+{Array.isArray(outletPaymentModes) && outletPaymentModes.length > 0 ? (
+                  outletPaymentModes.map((mode, index) => {
+                    const isSelected = selectedPaymentModes.includes(mode.mode_name);
+                    const isActive = index === activePaymentIndex;
 
-                  const isSelected = selectedPaymentModes.includes(mode.mode_name);
-                  const isActive = index === activePaymentIndex;
+                    return (
+                      <div
+                        key={mode.id}
+                        onClick={() => {
+                          setActivePaymentIndex(index);
+                          togglePaymentMode(mode);
+                        }}
+                        className={`
+                          p-3 mb-2 rounded border cursor-pointer transition-all
+                          ${isSelected
+                            ? 'bg-success text-white'
+                            : isActive
+                            ? 'bg-primary-subtle border-primary'
+                            : 'border hover-bg-light'}
+                        `}
+                      >
+                        {mode.mode_name}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="p-3 text-center text-muted">
+                    No payment modes available for this outlet
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="mt-2 p-2 bg-warning text-dark small">
+                        <strong>DEBUG:</strong> outletPaymentModes = {JSON.stringify(outletPaymentModes)}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                  return (
-                    <div
-                      key={mode.id}
-                      onClick={() => {
-                        setActivePaymentIndex(index);
-                        togglePaymentMode(mode);
-                      }}
-                  className={`
-                        p-3 mb-2 rounded border cursor-pointer transition-all
-                        ${isSelected
-                          ? 'bg-success text-white'
-                          : isActive
-                          ? 'bg-primary-subtle border-primary'
-                          : 'border hover-bg-light'}
-                      `}
-                    >
-                      {mode.mode_name}
-                    </div>
-                  );
-                })}
               </div>
             </div>
           </Col>
