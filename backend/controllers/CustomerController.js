@@ -1,8 +1,8 @@
 const db = require('../config/db');
 
-exports.getCustomer = (req, res) => {
+exports.getCustomer = async (req, res) => {
   try {
-    const customers = db.query(`
+    const [customers] = await db.query(`
       SELECT
         C.customerid,
         C.name,
@@ -50,7 +50,7 @@ exports.getCustomer = (req, res) => {
   }
 };
 
-exports.addCustomer = (req, res) => {
+exports.addCustomer = async (req, res) => {
   try {
     const { ...body } = req.body;
 
@@ -64,7 +64,7 @@ exports.addCustomer = (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const result = db.query(stmt, [
+    const [result] = await db.query(stmt, [
       body.name,
       body.countryCode,
       body.mobile,
@@ -108,7 +108,7 @@ exports.addCustomer = (req, res) => {
   }
 };
 
-exports.updateCustomer = (req, res) => {
+exports.updateCustomer = async (req, res) => {
   try {
     const { id } = req.params;
     const { ...body } = req.body;
@@ -123,7 +123,7 @@ exports.updateCustomer = (req, res) => {
       WHERE customerid=?
     `;
 
-    db.query(stmt, [
+    await db.query(stmt, [
       body.name,
       body.countryCode,
       body.mobile,
@@ -163,11 +163,11 @@ exports.updateCustomer = (req, res) => {
   }
 };
 
-exports.deleteCustomer = (req, res) => {
+exports.deleteCustomer = async (req, res) => {
   try {
     const { id } = req.params;
 
-    db.query('DELETE FROM mstcustomer WHERE customerid = ?', [id]);
+    await db.query('DELETE FROM mstcustomer WHERE customerid = ?', [id]);
 
     res.json({
       success: true,
@@ -199,14 +199,13 @@ exports.getCustomerByMobile = async (req, res) => {
       });
     }
 
-    const stmt = `
+    const [rows] = await db.query(`
       SELECT customerid, name, mobile, address1, address2
       FROM mstcustomer
       WHERE TRIM(mobile) = TRIM(?)
       LIMIT 1
-    `;
+    `, [mobile]);
     
-    const [rows] = await db.promise().query(stmt, [mobile]);
     const customer = rows[0];
 
     if (customer) {

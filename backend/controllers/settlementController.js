@@ -73,7 +73,7 @@ exports.getSettlements = async (req, res) => {
       ORDER BY s.InsertDate DESC
     `;
 
-    const settlements = db.query(sql, params);
+    const [settlements] = await db.query(sql, params);// FIXED: Await the query result
 
     res.json({
       success: true,
