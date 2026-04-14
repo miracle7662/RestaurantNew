@@ -1974,56 +1974,249 @@ exports.getOutletBillingSettings = async (req, res) => {
   try {
     const { outletid } = req.params;
 
+    console.log('🔍 [getOutletBillingSettings] Fetching for outletid:', outletid, 'type:', typeof outletid);
+
     // Validate outletid
     if (!outletid || isNaN(outletid)) {
+      console.log('❌ Invalid outletid:', outletid);
       return res.status(400).json({ error: 'Valid outlet ID is required' });
     }
 
-    const [rows] = await db.query(`
-     SELECT 
-    o.*,
-    bps.*,
-    gs.*,
-    oos.*,
-    bpsv.*,
-    kps.*
+    const outletIdNum = parseInt(outletid);
 
-FROM mst_outlets o
+    // First check if outlet exists
+    const [outletCheck] = await db.query('SELECT outletid FROM mst_outlets WHERE outletid = ?', [outletIdNum]);
+    if (outletCheck.length === 0) {
+      console.log('❌ Outlet not found:', outletIdNum);
+      return res.status(404).json({ success: false, message: 'Outlet not found', data: null });
+    }
+    
+    const query = `
+      SELECT 
+        o.*,
+        bps.bill_printsetting_id as bill_printsetting_id,
+        bps.bill_title_dine_in,
+        bps.bill_title_pickup,
+        bps.bill_title_delivery,
+        bps.bill_title_quick_bill,
+        bps.mask_order_id,
+        bps.modifier_default_option_bill,
+        bps.print_bill_both_languages,
+        bps.show_alt_item_title_bill,
+        bps.show_alt_name_bill,
+        bps.show_bill_amount_words,
+        bps.show_bill_no_bill,
+        bps.show_bill_number_prefix_bill,
+        bps.show_bill_print_count,
+        bps.show_brand_name_bill,
+        bps.show_captain_bill,
+        bps.show_covers_bill,
+        bps.show_custom_qr_codes_bill,
+        bps.show_customer_gst_bill,
+        bps.show_customer_bill,
+        bps.show_customer_paid_amount,
+        bps.show_date_bill,
+        bps.show_default_payment,
+        bps.show_discount_reason_bill,
+        bps.show_due_amount_bill,
+        bps.show_ebill_invoice_qrcode,
+        bps.show_item_hsn_code_bill,
+        bps.show_item_level_charges_separately,
+        bps.show_item_note_bill,
+        bps.show_items_sequence_bill,
+        bps.show_kot_number_bill,
+        bps.show_logo_bill,
+        bps.show_order_id_bill,
+        bps.show_order_no_bill,
+        bps.show_order_note_bill,
+        bps.order_type_dine_in,
+        bps.order_type_pickup,
+        bps.order_type_delivery,
+        bps.order_type_quick_bill,
+        bps.show_outlet_name_bill,
+        bps.payment_mode_dine_in,
+        bps.payment_mode_pickup,
+        bps.payment_mode_delivery,
+        bps.payment_mode_quick_bill,
+        bps.table_name_dine_in,
+        bps.table_name_pickup,
+        bps.table_name_delivery,
+        bps.table_name_quick_bill,
+        bps.show_tax_charge_bill,
+        bps.show_username_bill,
+        bps.show_waiter_bill,
+        bps.show_zatca_invoice_qr,
+        bps.show_customer_address_pickup_bill,
+        bps.show_order_placed_time,
+        bps.hide_item_quantity_column,
+        bps.hide_item_rate_column,
+        bps.hide_item_total_column,
+        bps.hide_total_without_tax,
+        bps.trn_gstno as bill_trn_gstno,
+        
+        gs.customize_url_links,
+        gs.allow_charges_after_bill_print,
+        gs.allow_discount_after_bill_print,
+        gs.allow_discount_before_save,
+        gs.allow_pre_order_tahd,
+        gs.ask_covers,
+        gs.ask_covers_captain,
+        gs.ask_custom_order_id_quick_bill,
+        gs.ask_custom_order_type_quick_bill,
+        gs.ask_payment_mode_on_save_bill,
+        gs.ask_waiter,
+        gs.ask_otp_change_order_status_order_window,
+        gs.ask_otp_change_order_status_receipt_section,
+        gs.auto_accept_remote_kot,
+        gs.auto_out_of_stock,
+        gs.auto_sync,
+        gs.category_time_for_pos,
+        gs.count_sales_after_midnight,
+        gs.customer_display,
+        gs.customer_mandatory,
+        gs.default_ebill_check,
+        gs.default_send_delivery_boy_check,
+        gs.edit_customize_order_number,
+        gs.enable_backup_notification_service,
+        gs.enable_customer_display_access,
+        gs.filter_items_by_order_type,
+        gs.generate_reports_start_close_dates,
+        gs.hide_clear_data_check_logout,
+        gs.hide_item_price_options,
+        gs.hide_load_menu_button,
+        gs.make_cancel_delete_reason_compulsory,
+        gs.make_discount_reason_mandatory,
+        gs.make_free_cancel_bill_reason_mandatory,
+        gs.make_payment_ref_number_mandatory,
+        gs.mandatory_delivery_boy_selection,
+        gs.mark_order_as_transfer_order,
+        gs.online_payment_auto_settle,
+        gs.order_sync_settings,
+        gs.separate_billing_by_section,
+        gs.set_entered_amount_as_opening,
+        gs.show_alternative_item_report_print,
+        gs.show_clear_sales_report_logout,
+        gs.show_order_no_label_pos,
+        gs.show_payment_history_button,
+        gs.show_remote_kot_option,
+        gs.show_send_payment_link,
+        gs.stock_availability_display,
+        gs.todays_report,
+        gs.upi_payment_sound_notification,
+        gs.use_separate_bill_numbers_online,
+        gs.when_send_todays_report,
+        gs.enable_currency_conversion,
+        gs.enable_user_login_validation,
+        gs.allow_closing_shift_despite_bills,
+        gs.show_real_time_kot_bill_notifications,
+        gs.created_at as gs_created_at,
+        gs.updated_at as gs_updated_at,
+        
+        oos.online_ordersetting_id,
+        oos.show_in_preparation_kds,
+        oos.auto_accept_online_order,
+        oos.customize_order_preparation_time,
+        oos.online_orders_time_delay,
+        oos.pull_order_on_accept,
+        oos.show_addons_separately,
+        oos.show_complete_online_order_id,
+        oos.show_online_order_preparation_time,
+        oos.update_food_ready_status_kds,
+        
+        bpsv.billpreviewsetting_id,
+        bpsv.outlet_name as bpsv_outlet_name,
+        bpsv.email as bpsv_email,
+        bpsv.website as bpsv_website,
+        bpsv.upi_id as bpsv_upi_id,
+        bpsv.bill_prefix as bpsv_bill_prefix,
+        bpsv.secondary_bill_prefix as bpsv_secondary_bill_prefix,
+        bpsv.bar_bill_prefix as bpsv_bar_bill_prefix,
+        bpsv.show_upi_qr as bpsv_show_upi_qr,
+        bpsv.enabled_bar_section as bpsv_enabled_bar_section,
+        bpsv.show_phone_on_bill as bpsv_show_phone_on_bill,
+        bpsv.note as bpsv_note,
+        bpsv.footer_note as bpsv_footer_note,
+        bpsv.field1 as bpsv_field1,
+        bpsv.field2 as bpsv_field2,
+        bpsv.field3 as bpsv_field3,
+        bpsv.field4 as bpsv_field4,
+        bpsv.fssai_no as bpsv_fssai_no,
+        
+        kps.kot_printsetting_id,
+        kps.customer_on_kot_dine_in,
+        kps.customer_on_kot_pickup,
+        kps.customer_on_kot_delivery,
+        kps.customer_on_kot_quick_bill,
+        kps.customer_kot_display_option,
+        kps.group_kot_items_by_category,
+        kps.hide_table_name_quick_bill,
+        kps.show_new_order_tag,
+        kps.new_order_tag_label,
+        kps.show_running_order_tag,
+        kps.running_order_tag_label,
+        kps.dine_in_kot_no,
+        kps.pickup_kot_no,
+        kps.delivery_kot_no,
+        kps.quick_bill_kot_no,
+        kps.modifier_default_option,
+        kps.print_kot_both_languages,
+        kps.show_alternative_item,
+        kps.show_captain_username,
+        kps.show_covers_as_guest,
+        kps.show_item_price,
+        kps.show_kot_no_quick_bill,
+        kps.show_kot_note,
+        kps.show_online_order_otp,
+        kps.show_order_id_quick_bill,
+        kps.show_order_id_online_order,
+        kps.show_order_no_quick_bill_section,
+        kps.show_order_type_symbol,
+        kps.show_store_name,
+        kps.show_terminal_username,
+        kps.show_username,
+        kps.show_waiter,
+        kps.hide_item_Amt_column
 
-LEFT JOIN mstbills_print_settings bps 
-    ON o.outletid = bps.outletid
+      FROM mst_outlets o
+      LEFT JOIN mstbills_print_settings bps ON o.outletid = bps.outletid
+      LEFT JOIN mstgeneral_settings gs ON o.outletid = gs.outletid
+      LEFT JOIN mstonline_orders_settings oos ON o.outletid = oos.outletid
+      LEFT JOIN mstbill_preview_settings bpsv ON o.outletid = bpsv.outletid
+      LEFT JOIN mstkot_print_settings kps ON o.outletid = kps.outletid
+      WHERE o.outletid = ?
+    `;
 
-LEFT JOIN mstgeneral_settings gs 
-    ON o.outletid = gs.outletid
+    console.log('📊 Executing query:', query.replace(/\s+/g, ' ').trim());
+    
+    const [rows] = await db.query(query, [outletIdNum]);
+    
+    console.log('📈 Query result: rows.length=', rows.length);
+    console.log('First row sample:', rows[0] ? Object.keys(rows[0]).slice(0, 5) : 'No rows');
 
-LEFT JOIN mstonline_orders_settings oos 
-    ON o.outletid = oos.outletid
-
-LEFT JOIN mstbill_preview_settings bpsv 
-    ON o.outletid = bpsv.outletid
-
-LEFT JOIN mstkot_print_settings kps 
-    ON o.outletid = kps.outletid
-
-WHERE o.outletid = ?
-    `, [outletid]);
-
-
-    if (!settings) {
+    if (rows.length === 0) {
+      console.log('❌ No data rows found for outletid:', outletIdNum);
       return res.status(404).json({
         success: false,
-        message: 'Outlet settings not found',
+        message: 'No billing settings found for this outlet. Please create the outlet first.',
         data: null
       });
     }
 
-    // Convert INTEGER (0/1) to boolean for frontend and structure response
+    const settings = rows[0];
+
+    // Debug specific settings availability
+    console.log('✅ bill_print_settings exists:', !!settings.bill_printsetting_id);
+    console.log('✅ general_settings exists:', !!settings.customize_url_links);
+    console.log('✅ bill_preview_settings exists:', !!settings.billpreviewsetting_id);
+    console.log('✅ online_orders_settings exists:', !!settings.online_ordersetting_id);
+    console.log('✅ kot_print_settings exists:', !!settings.kot_printsetting_id);
+
+    // Build structured response matching frontend expectations
     const response = {
       outletid: settings.outletid,
-      outlet_name: settings.outlet_name,
-      outlet_code: settings.outlet_code,
-      hotelid: settings.hotelid,
-     
+      outlet_name: settings.bpsv_outlet_name || settings.outlet_name || '',
+      hotelid: settings.hotelid || 0,
+      
       bill_print_settings: settings.bill_printsetting_id ? {
         bill_printsetting_id: settings.bill_printsetting_id,
         bill_title_dine_in: !!settings.bill_title_dine_in,
@@ -2083,32 +2276,33 @@ WHERE o.outletid = ?
         hide_item_rate_column: !!settings.hide_item_rate_column,
         hide_item_total_column: !!settings.hide_item_total_column,
         hide_total_without_tax: !!settings.hide_total_without_tax,
-        trn_gstno: !!settings.trn_gstno, 
+        trn_gstno: !!settings.bill_trn_gstno,
       } : null,
-      general_settings: settings.gs_created_at ? {
-        customize_url_links: settings.customize_url_links,
+
+      general_settings: settings.customize_url_links !== undefined ? {
+        customize_url_links: settings.customize_url_links || '[]',
         allow_charges_after_bill_print: !!settings.allow_charges_after_bill_print,
         allow_discount_after_bill_print: !!settings.allow_discount_after_bill_print,
         allow_discount_before_save: !!settings.allow_discount_before_save,
         allow_pre_order_tahd: !!settings.allow_pre_order_tahd,
-        ask_covers: settings.ask_covers,
+        ask_covers: settings.ask_covers || '{"dineIn":false,"pickup":false,"delivery":false,"quickBill":false}',
         ask_covers_captain: !!settings.ask_covers_captain,
         ask_custom_order_id_quick_bill: !!settings.ask_custom_order_id_quick_bill,
         ask_custom_order_type_quick_bill: !!settings.ask_custom_order_type_quick_bill,
         ask_payment_mode_on_save_bill: !!settings.ask_payment_mode_on_save_bill,
-        ask_waiter: settings.ask_waiter,
+        ask_waiter: settings.ask_waiter || '{"dineIn":false,"pickup":false,"delivery":false,"quickBill":false}',
         ask_otp_change_order_status_order_window: !!settings.ask_otp_change_order_status_order_window,
         ask_otp_change_order_status_receipt_section: !!settings.ask_otp_change_order_status_receipt_section,
         auto_accept_remote_kot: !!settings.auto_accept_remote_kot,
         auto_out_of_stock: !!settings.auto_out_of_stock,
         auto_sync: !!settings.auto_sync,
-        category_time_for_pos: settings.category_time_for_pos,
+        category_time_for_pos: settings.category_time_for_pos || '',
         count_sales_after_midnight: !!settings.count_sales_after_midnight,
-        customer_display: settings.customer_display,
-        customer_mandatory: settings.customer_mandatory,
+        customer_display: settings.customer_display || '{"media":[]}',
+        customer_mandatory: settings.customer_mandatory || '{"dineIn":false,"pickup":false,"delivery":false,"quickBill":false}',
         default_ebill_check: !!settings.default_ebill_check,
         default_send_delivery_boy_check: !!settings.default_send_delivery_boy_check,
-        edit_customize_order_number: settings.edit_customize_order_number,
+        edit_customize_order_number: settings.edit_customize_order_number || '',
         enable_backup_notification_service: !!settings.enable_backup_notification_service,
         enable_customer_display_access: !!settings.enable_customer_display_access,
         filter_items_by_order_type: !!settings.filter_items_by_order_type,
@@ -2123,7 +2317,7 @@ WHERE o.outletid = ?
         mandatory_delivery_boy_selection: !!settings.mandatory_delivery_boy_selection,
         mark_order_as_transfer_order: !!settings.mark_order_as_transfer_order,
         online_payment_auto_settle: !!settings.online_payment_auto_settle,
-        order_sync_settings: settings.order_sync_settings,
+        order_sync_settings: settings.order_sync_settings || '{"autoSyncInterval":"300","syncBatchPacketSize":"100"}',
         separate_billing_by_section: !!settings.separate_billing_by_section,
         set_entered_amount_as_opening: !!settings.set_entered_amount_as_opening,
         show_alternative_item_report_print: !!settings.show_alternative_item_report_print,
@@ -2133,10 +2327,10 @@ WHERE o.outletid = ?
         show_remote_kot_option: !!settings.show_remote_kot_option,
         show_send_payment_link: !!settings.show_send_payment_link,
         stock_availability_display: !!settings.stock_availability_display,
-        todays_report: settings.todays_report,
+        todays_report: settings.todays_report || '{}',
         upi_payment_sound_notification: !!settings.upi_payment_sound_notification,
         use_separate_bill_numbers_online: !!settings.use_separate_bill_numbers_online,
-        when_send_todays_report: settings.when_send_todays_report,
+        when_send_todays_report: settings.when_send_todays_report || 'END_OF_DAY',
         enable_currency_conversion: !!settings.enable_currency_conversion,
         enable_user_login_validation: !!settings.enable_user_login_validation,
         allow_closing_shift_despite_bills: !!settings.allow_closing_shift_despite_bills,
@@ -2144,56 +2338,58 @@ WHERE o.outletid = ?
         created_at: settings.gs_created_at,
         updated_at: settings.gs_updated_at,
       } : null,
+
       online_orders_settings: settings.online_ordersetting_id ? {
         online_ordersetting_id: settings.online_ordersetting_id,
         show_in_preparation_kds: !!settings.show_in_preparation_kds,
         auto_accept_online_order: !!settings.auto_accept_online_order,
         customize_order_preparation_time: !!settings.customize_order_preparation_time,
-        online_orders_time_delay: settings.online_orders_time_delay,
+        online_orders_time_delay: settings.online_orders_time_delay || 0,
         pull_order_on_accept: !!settings.pull_order_on_accept,
         show_addons_separately: !!settings.show_addons_separately,
         show_complete_online_order_id: !!settings.show_complete_online_order_id,
         show_online_order_preparation_time: !!settings.show_online_order_preparation_time,
         update_food_ready_status_kds: !!settings.update_food_ready_status_kds,
       } : null,
+
       bill_preview_settings: settings.billpreviewsetting_id ? {
         billpreviewsetting_id: settings.billpreviewsetting_id,
         outlet_name: settings.bpsv_outlet_name,
-        email: settings.email,
-        website: settings.website,
-        upi_id: settings.upi_id,
-        
-        bill_prefix: settings.bill_prefix,
-        secondary_bill_prefix: settings.secondary_bill_prefix,
-        bar_bill_prefix: settings.bar_bill_prefix,
-        show_upi_qr: !!settings.show_upi_qr,
-        enabled_bar_section: !!settings.enabled_bar_section,
-        show_phone_on_bill: settings.show_phone_on_bill,
-        note: settings.note,
-        footer_note: settings.footer_note,
-        field1: settings.field1,
-        field2: settings.field2,
-        field3: settings.field3,
-        field4: settings.field4,
-        fssai_no: settings.fssai_no,
+        email: settings.bpsv_email,
+        website: settings.bpsv_website,
+        upi_id: settings.bpsv_upi_id,
+        bill_prefix: settings.bpsv_bill_prefix,
+        secondary_bill_prefix: settings.bpsv_secondary_bill_prefix,
+        bar_bill_prefix: settings.bpsv_bar_bill_prefix,
+        show_upi_qr: !!settings.bpsv_show_upi_qr,
+        enabled_bar_section: !!settings.bpsv_enabled_bar_section,
+        show_phone_on_bill: settings.bpsv_show_phone_on_bill,
+        note: settings.bpsv_note,
+        footer_note: settings.bpsv_footer_note,
+        field1: settings.bpsv_field1,
+        field2: settings.bpsv_field2,
+        field3: settings.bpsv_field3,
+        field4: settings.bpsv_field4,
+        fssai_no: settings.bpsv_fssai_no,
       } : null,
+
       kot_print_settings: settings.kot_printsetting_id ? {
         kot_printsetting_id: settings.kot_printsetting_id,
         customer_on_kot_dine_in: !!settings.customer_on_kot_dine_in,
         customer_on_kot_pickup: !!settings.customer_on_kot_pickup,
         customer_on_kot_delivery: !!settings.customer_on_kot_delivery,
         customer_on_kot_quick_bill: !!settings.customer_on_kot_quick_bill,
-        customer_kot_display_option: settings.customer_kot_display_option,
+        customer_kot_display_option: settings.customer_kot_display_option || 'NAME_ONLY',
         group_kot_items_by_category: !!settings.group_kot_items_by_category,
         hide_table_name_quick_bill: !!settings.hide_table_name_quick_bill,
         show_new_order_tag: !!settings.show_new_order_tag,
-        new_order_tag_label: settings.new_order_tag_label,
+        new_order_tag_label: settings.new_order_tag_label || 'New',
         show_running_order_tag: !!settings.show_running_order_tag,
-        running_order_tag_label: settings.running_order_tag_label,
-        dine_in_kot_no: settings.dine_in_kot_no,
-        pickup_kot_no: settings.pickup_kot_no,
-        delivery_kot_no: settings.delivery_kot_no,
-        quick_bill_kot_no: settings.quick_bill_kot_no,
+        running_order_tag_label: settings.running_order_tag_label || 'Running',
+        dine_in_kot_no: settings.dine_in_kot_no || 'DIN-',
+        pickup_kot_no: settings.pickup_kot_no || 'PUP-',
+        delivery_kot_no: settings.delivery_kot_no || 'DEL-',
+        quick_bill_kot_no: settings.quick_bill_kot_no || 'QBL-',
         modifier_default_option: !!settings.modifier_default_option,
         print_kot_both_languages: !!settings.print_kot_both_languages,
         show_alternative_item: !!settings.show_alternative_item,
@@ -2212,8 +2408,16 @@ WHERE o.outletid = ?
         show_username: !!settings.show_username,
         show_waiter: !!settings.show_waiter,
         hide_item_Amt_column: !!settings.hide_item_Amt_column,
-      } : null,
+      } : null
     };
+
+    console.log('✅ [getOutletBillingSettings] Success response structure:', {
+      has_bill_print: !!response.bill_print_settings,
+      has_general: !!response.general_settings,
+      has_online_orders: !!response.online_orders_settings,
+      has_bill_preview: !!response.bill_preview_settings,
+      has_kot_print: !!response.kot_print_settings
+    });
 
     res.json({
       success: true,
@@ -2221,10 +2425,16 @@ WHERE o.outletid = ?
       data: response
     });
   } catch (error) {
-    // console.error('Error fetching outlet billing settings:', error);
+    console.error('💥 [getOutletBillingSettings] ERROR:', {
+      outletid: outletid,
+      error: error.message,
+      stack: error.stack,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage
+    });
     res.status(500).json({ 
       success: false, 
-      message: 'Failed to fetch outlet billing settings', 
+      message: 'Failed to fetch outlet billing settings: ' + error.message,
       data: null 
     });
   }
