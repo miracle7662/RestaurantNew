@@ -16,8 +16,8 @@ export interface Market {
   marketid: number
   market_name: string
   status: number
-  created_by_id?: number
-  created_date?: number
+  created_by_id: number
+  created_date: number
   updated_by_id: number
   updated_date: number
 }
@@ -27,9 +27,9 @@ export interface MarketPayload {
   marketid?: number
   market_name: string
   status: number
-  created_by_id?: number
-  created_date?: number
-  updated_by_id?: string
+  created_by_id: number
+  created_date: number
+  updated_by_id?: number
   updated_date?: number
 }
 

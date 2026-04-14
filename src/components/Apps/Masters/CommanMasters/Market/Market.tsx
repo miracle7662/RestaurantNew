@@ -12,16 +12,17 @@ import {
   flexRender,
 } from '@tanstack/react-table';
 import MarketService from '@/common/api/markets';
+import { useAuthContext } from '@/common/context/useAuthContext';
 
 // Define market data type matching API response
 interface MarketItem {
   marketid: number;
   market_name: string;
   status: number;
-  created_by_id?: string;
-  created_date?: string;
-  updated_by_id?: string;
-  updated_date?: string;
+  created_by_id: number;
+  created_date: number;
+  updated_by_id: number;
+  updated_date: number;
 }
 
 // AddMarketModal component
@@ -174,6 +175,8 @@ const MarketList: React.FC = () => {
   const [showEditMarketModal, setShowEditMarketModal] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState<MarketItem | null>(null);
 
+  const { user } = useAuthContext();
+
   // Fetch markets from API
   const fetchMarkets = useCallback(async () => {
     try {
@@ -260,11 +263,20 @@ const MarketList: React.FC = () => {
 
   const handleAddMarket = useCallback(async (marketName: string, status: number) => {
     try {
+      const userId = user.id;
+      const hotelId = user.hotelid || '1';
+      const marketId = user.marketid || '1';
+      const currentDate = Date.now();
+
       const payload = {
         market_name: marketName,
         status: status,
-        created_by_id: '1',
-        created_date: new Date().toISOString(),
+        created_by_id: userId,
+        created_date: currentDate,
+        updated_by_id: userId,
+        updated_date: currentDate,
+        hotelid: hotelId,
+        marketid: marketId,
       };
 
       const response = await MarketService.create(payload);
@@ -287,11 +299,16 @@ const MarketList: React.FC = () => {
 
   const handleEditMarket = useCallback(async (id: number, marketName: string, status: number) => {
     try {
+      const userId = user.id;
+      const currentDate = Date.now();
+
       const payload = {
         market_name: marketName,
         status: status,
-        updated_by_id: '1',
-        updated_date: new Date().toISOString(),
+        created_by_id: userId,
+        created_date: currentDate,
+        updated_by_id: userId,
+        updated_date: currentDate,
       };
 
       const response = await MarketService.update(id, payload);

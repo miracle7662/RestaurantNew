@@ -176,42 +176,29 @@ exports.updatemarkets = async (req, res) => {
 exports.deletemarkets = async (req, res) => {
     try {
         const { id } = req.params;
-        const { updated_by_id } = req.body;
-
-        if (!updated_by_id) {
-            return res.status(400).json({ 
-                success: false,
-                message: 'updated_by_id is required for audit trail' 
-            });
-        }
 
         const [result] = await db.query(
-            `UPDATE mstmarkets 
-             SET status = 0, updated_by_id = ?, updated_date = ?
-             WHERE marketid = ? AND status = 1`,
-            [
-                parseInt(updated_by_id),
-                new Date().toISOString().slice(0, 19).replace('T', ' '),
-                parseInt(id)
-            ]
+            'DELETE FROM mstmarkets WHERE marketid = ?',
+            [id]
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 success: false,
-                message: "Market not found or already deleted" 
+                message: 'Market not found'
             });
         }
 
-        res.json({ 
+        res.json({
             success: true,
-            message: 'Market deleted successfully' 
+            message: 'Deleted successfully'
         });
 
     } catch (error) {
+        console.error(error);
         res.status(500).json({
             success: false,
-            message: "Failed to delete market",
+            message: 'Delete failed',
             error: error.message
         });
     }

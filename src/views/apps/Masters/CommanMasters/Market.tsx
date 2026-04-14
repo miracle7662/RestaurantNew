@@ -248,20 +248,15 @@ const Market: React.FC = () => {
       setLoading(true);
       try {
         const statusValue = status === 'Active' ? 0 : 1;
-const currentDate = Date.now();
+        const currentDate = Date.now();
         const userId = user?.id || '1';
         const payload = {
           market_name,
           status: statusValue,
-          ...(isEditMode
-            ? {
-                updated_by_id: userId,
-                updated_date: currentDate,
-              }
-            : {
-                created_by_id: userId,
-                created_date: currentDate,
-              }),
+          created_by_id: userId,
+          created_date: currentDate,
+          
+          ...(isEditMode && { marketid: Number(market!.marketid) })
         };
         // console.log('Sending to backend:', payload);
 
