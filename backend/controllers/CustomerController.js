@@ -186,7 +186,8 @@ exports.deleteCustomer = (req, res) => {
 };
 
 // Get customer by mobile number
-exports.getCustomerByMobile = (req, res) => {
+// Promise-based version (with async/await)
+exports.getCustomerByMobile = async (req, res) => {
   try {
     const { mobile } = req.query;
 
@@ -204,7 +205,9 @@ exports.getCustomerByMobile = (req, res) => {
       WHERE TRIM(mobile) = TRIM(?)
       LIMIT 1
     `;
-    const customer = db.query(stmt, [mobile])[0];
+    
+    const [rows] = await db.promise().query(stmt, [mobile]);
+    const customer = rows[0];
 
     if (customer) {
       res.json({ 
@@ -220,7 +223,6 @@ exports.getCustomerByMobile = (req, res) => {
       });
     }
   } catch (err) {
-    // console.error("Error fetching customer:", err);
     res.status(500).json({ 
       success: false, 
       data: null, 
