@@ -2,7 +2,7 @@ const db = require('../config/db');
 
 // GET /api/orders/taxes?outletid=..&departmentid=..
 // Returns { success, data: { outletid, departmentid, taxgroupid, taxes: { cgst, sgst, igst, cess } } }
-exports.getTaxesByOutletAndDepartment = (req, res) => {
+exports.getTaxesByOutletAndDepartment = async (req, res) => {
   try {
     const outletId = req.query.outletid ? Number(req.query.outletid) : null;
     const departmentId = req.query.departmentid ? Number(req.query.departmentid) : null;
@@ -11,27 +11,38 @@ exports.getTaxesByOutletAndDepartment = (req, res) => {
       return res.status(400).json({ success: false, message: 'departmentid is required' });
     }
 
-    const deptRow = db.prepare(
-      `SELECT rm.restcgst AS cgst, td.outletid, rm.resttax_value, td.departmentid, rm.restsgst AS sgst, rm.restigst AS igst, rm.restcess AS cess, td.taxgroupid, tg.taxgroup_name
+    const [deptRows] = await db.query(
+      `SELECT rm.restcgst AS cgst, td.outletid, rm.resttax_value, td.departmentid, 
+              rm.restsgst AS sgst, rm.restigst AS igst, rm.restcess AS cess, 
+              td.taxgroupid, tg.taxgroup_name
        FROM mst_resttaxmaster rm
        LEFT JOIN msttable_department td ON rm.taxgroupid = td.taxgroupid
        LEFT JOIN msttaxgroup tg ON td.taxgroupid = tg.taxgroupid
-       WHERE td.departmentid = ? AND (td.outletid = ? OR ? IS NULL OR rm.isapplicablealloutlet = 1)
+       WHERE td.departmentid = ? 
+       AND (td.outletid = ? OR ? IS NULL OR rm.isapplicablealloutlet = 1)
        ORDER BY (td.outletid = ?) DESC, rm.isapplicablealloutlet DESC
-       LIMIT 1`
-    ).get(departmentId, outletId, outletId, outletId);
+       LIMIT 1`,
+      [departmentId, outletId, outletId, outletId]
+    );
+
+    const deptRow = deptRows[0];
 
     // If no row found with outlet, try without outlet filter
     if (!deptRow) {
-      const fallbackRow = db.prepare(
-        `SELECT rm.restcgst AS cgst, td.outletid, rm.resttax_value, td.departmentid, rm.restsgst AS sgst, rm.restigst AS igst, rm.restcess AS cess, td.taxgroupid, tg.taxgroup_name
+      const [fallbackRows] = await db.query(
+        `SELECT rm.restcgst AS cgst, td.outletid, rm.resttax_value, td.departmentid, 
+                rm.restsgst AS sgst, rm.restigst AS igst, rm.restcess AS cess, 
+                td.taxgroupid, tg.taxgroup_name
          FROM mst_resttaxmaster rm
          LEFT JOIN msttable_department td ON rm.taxgroupid = td.taxgroupid
          LEFT JOIN msttaxgroup tg ON td.taxgroupid = tg.taxgroupid
          WHERE td.departmentid = ?
-         LIMIT 1`
-      ).get(departmentId);
-      
+         LIMIT 1`,
+        [departmentId]
+      );
+
+      const fallbackRow = fallbackRows[0];
+
       if (fallbackRow) {
         // console.log('Using fallback row:', fallbackRow);
         // console.log('Fallback - Individual tax values from DB:');
@@ -39,17 +50,17 @@ exports.getTaxesByOutletAndDepartment = (req, res) => {
         // console.log('- sgst (restsgst):', fallbackRow.sgst, 'Type:', typeof fallbackRow.sgst);
         // console.log('- igst (restigst):', fallbackRow.igst, 'Type:', typeof fallbackRow.igst);
         // console.log('- cess (restcess):', fallbackRow.cess, 'Type:', typeof fallbackRow.cess);
-        
+
         const fallbackTaxes = {
           cgst: Number(fallbackRow.cgst) || 0,
           sgst: Number(fallbackRow.sgst) || 0,
           igst: Number(fallbackRow.igst) || 0,
           cess: Number(fallbackRow.cess) || 0
         };
-        
+
         // console.log('Fallback computed taxes:', fallbackTaxes);
         // console.log('Fallback IGST specifically:', fallbackTaxes.igst, 'Type:', typeof fallbackTaxes.igst);
-        
+
         return res.status(200).json({
           success: true,
           data: {
@@ -120,21 +131,18 @@ exports.getTaxesByOutletAndDepartment = (req, res) => {
   }
 };
 
-exports.getShiftTypes = (req, res) => {
+exports.getShiftTypes = async (req, res) => {
   try {
     const sql = `
       SELECT id, shift_type
       FROM mstshifts
-     
     `;
-    const rows = db.prepare(sql).all();
+    const [rows] = await db.query(sql);
     res.json(rows);
   } catch (err) {
     // console.error("❌ Error fetching shifts:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
-
 
 module.exports = exports;
