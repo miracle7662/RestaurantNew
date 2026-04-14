@@ -6,26 +6,24 @@ const getKitchenAllocation = async (req, res) => {
 
         // Base query
         let query = `
-          SELECT
-    i.itemgroupname              AS item_group,
-    d.item_no,
-    d.item_name,
-    SUM(d.Qty)                   AS TotalQty,
-    SUM(d.Qty * d.RuntimeRate)   AS Amount
-FROM TAxnTrnbilldetails d
-JOIN TAxnTrnbill t
-    ON t.TxnID = d.TxnID
-LEFT JOIN mstrestmenu m
-    ON m.restitemid = d.ItemID
-LEFT JOIN mst_Item_Group i
-    ON i.item_groupid = m.item_group_id
-WHERE DATE(t.TxnDatetime) BETWEEN ? AND ?
-  AND t.HotelID = ?
-  AND d.isCancelled = 0
+            SELECT
+                i.itemgroupname AS item_group,
+                d.item_no,
+                d.item_name,
+                SUM(d.Qty) AS TotalQty,
+                SUM(d.Qty * d.RuntimeRate) AS Amount
+            FROM TAxnTrnbilldetails d
+            INNER JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
+            LEFT JOIN mstrestmenu m ON m.restitemid = d.ItemID
+            LEFT JOIN mst_Item_Group i ON i.item_groupid = m.item_group_id
+            WHERE DATE(t.TxnDatetime) BETWEEN ? AND ?
+                AND t.HotelID = ?
+                AND d.isCancelled = 0
         `;
 
         const params = [fromDate, toDate, hotelId];
 
+        // Add outlet filter if provided
         if (outletId) {
             query += ' AND t.outletid = ?';
             params.push(outletId);
@@ -47,18 +45,13 @@ WHERE DATE(t.TxnDatetime) BETWEEN ? AND ?
             }
         }
 
-        // GROUP BY + ORDER BY at END (IMPORTANT in MySQL)
+        // GROUP BY and ORDER BY clauses
         query += `
-GROUP BY
-    i.itemgroupname,
-    d.item_no,
-    d.item_name
-ORDER BY
-    i.itemgroupname,
-    d.item_name
+            GROUP BY i.itemgroupname, d.item_no, d.item_name
+            ORDER BY i.itemgroupname, d.item_name
         `;
 
-        // ✅ MySQL execution
+        // Execute MySQL query
         const [results] = await db.query(query, params);
 
         res.status(200).json({
@@ -78,60 +71,71 @@ ORDER BY
 };
 
 const getItemDetails = async (req, res) => {
-  try {
-    const { item_no } = req.params;
-    const { fromDate, toDate, hotelId, outletId } = req.query;
+    try {
+        const { item_no } = req.params;
+        const { fromDate, toDate, hotelId, outletId } = req.query;
 
-    if (!item_no) {
-      return res.status(400).json({
-        success: false,
-        message: 'Item number is required'
-      });
+        if (!item_no) {
+            return res.status(400).json({
+                success: false,
+                message: 'Item number is required'
+            });
+        }
+
+        // Validate required parameters
+        if (!fromDate || !toDate || !hotelId) {
+            return res.status(400).json({
+                success: false,
+                message: 'fromDate, toDate, and hotelId are required'
+            });
+        }
+
+        let query = `
+            SELECT
+                d.item_name,
+                d.Qty,
+                (d.Qty * d.RuntimeRate) AS Amount,
+                d.KOTNo,
+                t.TxnDatetime,
+                t.table_name,
+                t.TableID
+            FROM TAxnTrnbilldetails d
+            INNER JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
+            WHERE d.item_no = ?
+                AND t.TxnDatetime >= ?
+                AND t.TxnDatetime < DATE_ADD(?, INTERVAL 1 DAY)
+                AND t.HotelID = ?
+                AND (d.isCancelled = 0 OR d.isCancelled IS NULL)
+        `;
+
+        const params = [item_no, fromDate, toDate, hotelId];
+
+        // Add outlet filter if provided
+        if (outletId) {
+            query += ` AND t.outletid = ?`;
+            params.push(outletId);
+        }
+
+        // Add order by clause
+        query += ` ORDER BY t.TxnDatetime DESC`;
+
+        // Execute MySQL query
+        const [results] = await db.query(query, params);
+
+        res.status(200).json({
+            success: true,
+            data: results,
+            message: 'Item details retrieved successfully'
+        });
+
+    } catch (error) {
+        console.error('Error fetching item details:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve item details',
+            error: error.message
+        });
     }
-
-    let query = `
-      SELECT
-        d.item_name,
-        d.Qty,
-        (d.Qty * d.RuntimeRate) AS Amount,
-        d.KOTNo,
-        t.TxnDatetime,
-        t.table_name,
-        t.TableID
-      FROM TAxnTrnbilldetails d
-      JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
-      WHERE d.item_no = ?
-        AND t.TxnDatetime >= ?
-        AND t.TxnDatetime < DATE_ADD(?, INTERVAL 1 DAY)
-        AND t.HotelID = ?
-        AND (d.isCancelled = 0 OR d.isCancelled IS NULL)
-    `;
-
-    const params = [item_no, fromDate, toDate, hotelId];
-
-    if (outletId) {
-      query += ` AND t.outletid = ?`;
-      params.push(outletId);
-    }
-
-    query += ` ORDER BY t.TxnDatetime DESC`;
-
-    // ✅ MySQL execution
-    const [results] = await db.query(query, params);
-
-    res.status(200).json({
-      success: true,
-      data: results,
-      message: 'Item details retrieved successfully'
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve item details',
-      error: error.message
-    });
-  }
 };
 
 module.exports = {
