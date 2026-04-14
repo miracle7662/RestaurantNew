@@ -1,6 +1,6 @@
 const db = require('../config/db');
 
-const getHandoverData = (req, res) => {
+const getHandoverData = async (req, res) => {
   const curr_date = req.query.curr_date;
 
   try {
@@ -50,7 +50,7 @@ const getHandoverData = (req, res) => {
     query += ` GROUP BY t.TxnID, t.TxnNo ORDER BY t.TxnDatetime DESC`;
 
     const params = curr_date ? [curr_date] : [];
-    const rows = db.query(query, params);
+    const [rows] = await db.query(query, params);
 
     // Group by transaction
     const transactions = {};
@@ -179,12 +179,12 @@ const getHandoverData = (req, res) => {
       }
     });
   } catch (error) {
-    // console.error('Error fetching handover data:', error);
+    console.error('Error fetching handover data:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch handover data' });
   }
 };
 
-const saveCashDenomination = (req, res) => {
+const saveCashDenomination = async (req, res) => {
   const { denominations, total, userId, reason } = req.body;
 
   if (!denominations || !userId) {
@@ -200,7 +200,7 @@ const saveCashDenomination = (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const result = db.query(stmt, [
+    const [result] = await db.query(stmt, [
       denominations['2000'] || 0, denominations['500'] || 0,
       denominations['200'] || 0, denominations['100'] || 0,
       denominations['50'] || 0, denominations['20'] || 0,
@@ -218,12 +218,12 @@ const saveCashDenomination = (req, res) => {
 
     res.json({ success: true, message: 'Cash denomination saved successfully.', id: result.insertId });
   } catch (error) {
-    // console.error('Error saving cash denomination:', error);
+    console.error('Error saving cash denomination:', error);
     res.status(500).json({ success: false, message: 'Failed to save cash denomination data.' });
   }
 };
 
-const saveHandover = (req, res) => {
+const saveHandover = async (req, res) => {
   const { handoverToUserId, handoverByUserId } = req.body;
 
   if (!handoverToUserId || !handoverByUserId) {
@@ -238,11 +238,11 @@ const saveHandover = (req, res) => {
       WHERE isSetteled = 1 AND HandOverEmpID IS NULL
     `;
 
-    const result = db.query(stmt, [handoverToUserId]);
+    const [result] = await db.query(stmt, [handoverToUserId]);
 
     res.json({ success: true, message: `Handover successful. ${result.affectedRows} bills updated.` });
   } catch (error) {
-    // console.error('Error saving handover:', error);
+    console.error('Error saving handover:', error);
     res.status(500).json({ success: false, message: 'Failed to save handover data.' });
   }
 };
