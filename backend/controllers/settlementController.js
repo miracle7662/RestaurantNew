@@ -330,11 +330,13 @@ exports.replaceSettlement = async (req, res) => {
 
       if (!s.PaymentType || s.Amount == null) continue;
 
-      const paymentMode = db.query(`
-        SELECT paymenttypeid
-        FROM payment_types
-        WHERE mode_name = ?
-      `, [s.PaymentType])[0];
+     const [rows] = await db.query(`
+  SELECT paymenttypeid
+  FROM payment_types
+  WHERE mode_name = ?
+`, [s.PaymentType]);
+
+const paymentMode = rows[0];
 
       if (!paymentMode) {
         return res.status(400).json({
