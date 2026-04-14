@@ -8,6 +8,7 @@ function toBool(value) {
   return value ? 1 : 0
 }
 async function generateTxnNo(outletid) {
+  console.log(`🔍 generateTxnNo called for outletid: ${outletid}`);
   // 1. Fetch bill_prefix from settings
   const [settingsRows] = await db.query('SELECT bill_prefix FROM mstbill_preview_settings WHERE outletid = ?', [outletid]);
   const settings = settingsRows[0] || {};
@@ -33,6 +34,7 @@ async function generateTxnNo(outletid) {
 
 // Generate a new OrderNo
 async function generateOrderNo(outletid) {
+  console.log(`🔍 generateOrderNo called for outletid: ${outletid}`);
   // For simplicity, we'll generate a unique order number across all outlets for now.
   // You could add a prefix based on outlet if needed.
   const [resultRows] = await db.query(
@@ -250,9 +252,9 @@ exports.createBill = async (req, res) => {
     await db.query('START TRANSACTION')
     
     try {
-      let txnNo = TxnNo
+let txnNo = TxnNo
       if (!txnNo && outletid) {
-        txnNo = generateTxnNo(outletid)
+        txnNo = await generateTxnNo(outletid)
       }
 
       const [result] = await db.query(`
@@ -1016,14 +1018,18 @@ exports.createKOT = async (req, res) => {
         // For Pickup/Delivery, outletid comes from the payload, not a table.
         const headerOutletId = outletid || (details.length > 0 ? details[0].outletid : null)
         let txnNo = null
-        if (headerOutletId) {
-          txnNo = generateTxnNo(headerOutletId)
+      if (headerOutletId) {
+          console.log(`⏳ Calling generateTxnNo for headerOutletId: ${headerOutletId}`);
+          txnNo = await generateTxnNo(headerOutletId);
+          console.log(`✅ Generated txnNo: ${txnNo}`);
         }
         // Generate OrderNo only for Pickup, Delivery, Quick Bill, or Take Away
         let newOrderNo = null
         const orderTypesToGenerateNo = ['Pickup', 'Delivery', 'Quick Bill', 'Take Away', 'TAKEAWAY']
         if (Order_Type && orderTypesToGenerateNo.includes(Order_Type)) {
-          newOrderNo = generateOrderNo(headerOutletId)
+          console.log(`⏳ Calling generateOrderNo for headerOutletId: ${headerOutletId}, Order_Type: ${Order_Type}`);
+          newOrderNo = await generateOrderNo(headerOutletId);
+          console.log(`✅ Generated newOrderNo: ${newOrderNo}`);
         }
 
         const DeptID = details.length > 0 ? details[0].DeptID : null
@@ -2428,7 +2434,9 @@ exports.markBillAsBilled = async (req, res) => {
       // ✅ Also generate the TxnNo here if it doesn't exist
       let txnNo = bill.TxnNo
       if (!txnNo && outletId) {
-        txnNo = generateTxnNo(outletId)
+        console.log(`⏳ Calling generateTxnNo for outletId: ${outletId}`);
+        txnNo = await generateTxnNo(outletId);
+        console.log(`✅ Generated txnNo: ${txnNo}`);
       }
 
       await db.query(
@@ -2480,7 +2488,9 @@ exports.generateTxnNo = async (req, res) => {
     await db.query('START TRANSACTION')
     
     try {
-      const txnNo = generateTxnNo(outletid)
+      console.log(`🔍 About to call generateTxnNo for outletid: ${outletid}`);
+      const txnNo = await generateTxnNo(outletid);
+      console.log(`✅ generateTxnNo returned: "${txnNo}" (type: ${typeof txnNo})`);
 
       const [insertResult] = await db.query(`
         INSERT INTO TAxnTrnbill (
