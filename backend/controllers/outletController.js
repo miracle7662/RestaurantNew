@@ -2441,20 +2441,23 @@ exports.getOutletBillingSettings = async (req, res) => {
 };
 
 // Get Bill Preview Settings by outletid
-exports.getBillPreviewSettings = (req, res) => {
+exports.getBillPreviewSettings = async (req, res) => {
   try {
     const { outletid } = req.params;
 
-    // Validate outletid
+    console.log('🔍 [getBillPreviewSettings] Fetching for outletid:', outletid);
+
     if (!outletid || isNaN(outletid)) {
+      console.log('❌ Invalid outletid:', outletid);
       return res.status(400).json({ success: false, message: 'Valid outlet ID is required', data: null });
     }
 
-    const settings = db
-      .prepare('SELECT * FROM mstbill_preview_settings WHERE outletid = ?')
-      .get(outletid);
+    const outletIdNum = parseInt(outletid);
+    const [rows] = await db.query('SELECT * FROM mstbill_preview_settings WHERE outletid = ?', [outletIdNum]);
+    const settings = rows[0];
 
     if (!settings) {
+      console.log('❌ Bill preview settings not found for outlet:', outletIdNum);
       return res.status(404).json({ success: false, message: 'Bill preview settings not found', data: null });
     }
 
@@ -2481,30 +2484,45 @@ exports.getBillPreviewSettings = (req, res) => {
       fssai_no: settings.fssai_no,
     };
 
+    console.log('✅ [getBillPreviewSettings] Success for outlet:', outletIdNum);
+
     res.json({
       success: true,
       message: "Bill preview settings fetched successfully",
       data: response
     });
   } catch (error) {
-    // console.error('Error fetching bill preview settings:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch bill preview settings', data: null });
+    console.error('💥 [getBillPreviewSettings] ERROR:', {
+      outletid: outletid,
+      error: error.message,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage
+    });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch bill preview settings: ' + error.message,
+      data: null 
+    });
   }
 };
 
-exports.getBillPrintSettings = (req, res) => {
+exports.getBillPrintSettings = async (req, res) => {
   try {
     const { outletid } = req.params;
 
+    console.log('🔍 [getBillPrintSettings] Fetching for outletid:', outletid);
+
     if (!outletid || isNaN(outletid)) {
+      console.log('❌ Invalid outletid:', outletid);
       return res.status(400).json({ success: false, message: 'Valid outlet ID is required', data: null });
     }
 
-    const settings = db
-     .prepare('SELECT * FROM mstbills_print_settings WHERE outletid = ?')
-      .get(outletid);
+    const outletIdNum = parseInt(outletid);
+    const [rows] = await db.query('SELECT * FROM mstbills_print_settings WHERE outletid = ?', [outletIdNum]);
+    const settings = rows[0];
 
     if (!settings) {
+      console.log('❌ Bill print settings not found for outlet:', outletIdNum);
       return res.status(404).json({ success: false, message: 'Bill print settings not found', data: null });
     }
 
@@ -2512,7 +2530,7 @@ exports.getBillPrintSettings = (req, res) => {
     const bool = (v) => !!Number(v);
 
     const response = {
-      billprintsetting_id: settings.billprintsetting_id,
+      billprintsetting_id: settings.bill_printsetting_id,
       outletid: settings.outletid,
 
       bill_title_dine_in: bool(settings.bill_title_dine_in),
@@ -2578,8 +2596,10 @@ exports.getBillPrintSettings = (req, res) => {
       hide_item_rate_column: bool(settings.hide_item_rate_column),
       hide_item_total_column: bool(settings.hide_item_total_column),
       hide_total_without_tax: bool(settings.hide_total_without_tax),
-      trn_gstno: bool(settings.trn_gstno),
+      trn_gstno: settings.trn_gstno || '',
     };
+
+    console.log('✅ [getBillPrintSettings] Success for outlet:', outletIdNum);
 
     res.json({
       success: true,
@@ -2587,27 +2607,40 @@ exports.getBillPrintSettings = (req, res) => {
       data: response
     });
   } catch (error) {
-    // console.error('Error fetching bill print settings:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch bill print settings', data: null });
+    console.error('💥 [getBillPrintSettings] ERROR:', {
+      outletid: outletid,
+      error: error.message,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage
+    });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch bill print settings: ' + error.message,
+      data: null 
+    });
   }
 };
 
 
 // Get KOT Print Settings by outletid
-exports.getKotPrintSettings = (req, res) => {
+exports.getKotPrintSettings = async (req, res) => {
   try {
     const { outletid } = req.params;
 
+    console.log('🔍 [getKotPrintSettings] Fetching for outletid:', outletid);
+
     // Validate outletid
     if (!outletid || isNaN(outletid)) {
+      console.log('❌ Invalid outletid:', outletid);
       return res.status(400).json({ success: false, message: 'Valid outlet ID is required', data: null });
     }
 
-    const settings = db
-      .prepare('SELECT * FROM mstkot_print_settings WHERE outletid = ?')
-      .get(outletid);
+    const outletIdNum = parseInt(outletid);
+    const [rows] = await db.query('SELECT * FROM mstkot_print_settings WHERE outletid = ?', [outletIdNum]);
+    const settings = rows[0];
 
     if (!settings) {
+      console.log('❌ KOT print settings not found for outlet:', outletIdNum);
       return res.status(404).json({ success: false, message: 'KOT print settings not found', data: null });
     }
 
@@ -2619,17 +2652,17 @@ exports.getKotPrintSettings = (req, res) => {
       customer_on_kot_pickup: !!settings.customer_on_kot_pickup,
       customer_on_kot_delivery: !!settings.customer_on_kot_delivery,
       customer_on_kot_quick_bill: !!settings.customer_on_kot_quick_bill,
-      customer_kot_display_option: settings.customer_kot_display_option,
+      customer_kot_display_option: settings.customer_kot_display_option || 'NAME_ONLY',
       group_kot_items_by_category: !!settings.group_kot_items_by_category,
       hide_table_name_quick_bill: !!settings.hide_table_name_quick_bill,
       show_new_order_tag: !!settings.show_new_order_tag,
-      new_order_tag_label: settings.new_order_tag_label,
+      new_order_tag_label: settings.new_order_tag_label || 'New',
       show_running_order_tag: !!settings.show_running_order_tag,
-      running_order_tag_label: settings.running_order_tag_label,
-      dine_in_kot_no: settings.dine_in_kot_no,
-      pickup_kot_no: settings.pickup_kot_no,
-      delivery_kot_no: settings.delivery_kot_no,
-      quick_bill_kot_no: settings.quick_bill_kot_no,
+      running_order_tag_label: settings.running_order_tag_label || 'Running',
+      dine_in_kot_no: settings.dine_in_kot_no || 'DIN-',
+      pickup_kot_no: settings.pickup_kot_no || 'PUP-',
+      delivery_kot_no: settings.delivery_kot_no || 'DEL-',
+      quick_bill_kot_no: settings.quick_bill_kot_no || 'QBL-',
       modifier_default_option: !!settings.modifier_default_option,
       print_kot_both_languages: !!settings.print_kot_both_languages,
       show_alternative_item: !!settings.show_alternative_item,
@@ -2650,14 +2683,25 @@ exports.getKotPrintSettings = (req, res) => {
       hide_item_Amt_column: !!settings.hide_item_Amt_column,
     };
 
+    console.log('✅ [getKotPrintSettings] Success for outlet:', outletIdNum);
+
     res.json({
       success: true,
       message: "KOT print settings fetched successfully",
       data: response
     });
   } catch (error) {
-    // console.error('Error fetching KOT print settings:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch KOT print settings', data: null });
+    console.error('💥 [getKotPrintSettings] ERROR:', {
+      outletid: outletid,
+      error: error.message,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage
+    });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch KOT print settings: ' + error.message,
+      data: null 
+    });
   }
 };
 
