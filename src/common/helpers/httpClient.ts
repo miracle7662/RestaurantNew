@@ -7,7 +7,7 @@ const getBaseURL = () => {
 
   // 2. Electron EXE case
   if (window.location.protocol === "file:") {
-    return "http://192.168.1.2:3001/api";
+    return "http://localhost:3001/api";
   }
 
   // 3. Browser / network case

@@ -2,7 +2,8 @@ const mysql = require('mysql2');
 
 // ✅ Create MySQL connection pool (Production Ready)
 const db = mysql.createPool({
-  host: '192.168.1.2',
+  host: 'localhost',
+  host: ['localhost', '127.0.0.1', 'DESKTOP-8SIK5H7'],
   user: 'root',
   password: '', // XAMPP default (change if you set password)
   database: 'restaurant_db',
@@ -11,12 +12,14 @@ const db = mysql.createPool({
   queueLimit: 0
 });
 
-// Optional: Test connection
+// 🔧 FIXED: Local MariaDB connection with multiple host aliases
+// Optional: Test connection with better error logging
 db.getConnection((err, connection) => {
   if (err) {
-    console.error('❌ MySQL Connection Failed:', err);
+    console.error('❌ MySQL Connection Failed:', err.code, err.message);
+    console.error('💡 Try: Install XAMPP + start MariaDB, or run GRANT ALL ON restaurant_db.* TO root@\'%\'');
   } else {
-    console.log('✅ MySQL Connected Successfully');
+    console.log('✅ MySQL Connected Successfully to localhost');
     connection.release();
   }
 });
