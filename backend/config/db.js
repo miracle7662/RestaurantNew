@@ -2,7 +2,7 @@ const mysql = require('mysql2');
 
 // ✅ Create MySQL connection pool (Production Ready)
 const db = mysql.createPool({
-  host: 'localhost',
+  host: '192.168.1.2',
   user: 'root',
   password: '', // XAMPP default (change if you set password)
   database: 'restaurant_db',

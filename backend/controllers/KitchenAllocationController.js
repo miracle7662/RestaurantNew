@@ -5,6 +5,38 @@ const getKitchenAllocation = async (req, res) => {
     try {
         const { fromDate, toDate, hotelId, outletId, filterType, filterId } = req.query;
 
+        // 🔍 DEBUG LOGGING & VALIDATION
+        console.log('🧑‍🍳 KitchenAllocation params:', { fromDate, toDate, hotelId, outletId, filterType, filterId });
+
+        // Validate & format dates
+        let startDate = fromDate;
+        let endDate = toDate;
+        if (fromDate) {
+            const parsed = new Date(fromDate);
+            if (isNaN(parsed.getTime())) {
+                console.warn('⚠️ Invalid fromDate format:', fromDate);
+                return res.status(400).json({ success: false, message: 'Invalid fromDate format (use YYYY-MM-DD)' });
+            }
+            startDate = parsed.toISOString().split('T')[0];
+        } else {
+            startDate = new Date().toISOString().split('T')[0]; // Today fallback
+            console.log('📅 Using today as fromDate fallback');
+        }
+        if (toDate) {
+            const parsed = new Date(toDate);
+            if (isNaN(parsed.getTime())) {
+                console.warn('⚠️ Invalid toDate format:', toDate);
+                return res.status(400).json({ success: false, message: 'Invalid toDate format (use YYYY-MM-DD)' });
+            }
+            endDate = parsed.toISOString().split('T')[0];
+        } else {
+            endDate = new Date().toISOString().split('T')[0];
+            console.log('📅 Using today as toDate fallback');
+        }
+        if (!hotelId) {
+            return res.status(400).json({ success: false, message: 'hotelId is required' });
+        }
+
         // Base query
         let query = `
           SELECT
@@ -32,7 +64,7 @@ ORDER BY
     d.item_name
         `;
 
-        const params = [fromDate, toDate, hotelId];
+        const params = [startDate, endDate, hotelId];
 
         if (outletId) {
             query += ' AND t.outletid = ?';
@@ -56,18 +88,26 @@ ORDER BY
             }
         }
 
-        // // Debug logging
-        // console.log('Filter Type:', filterType);
-        // console.log('Filter ID:', filterId);
-        // console.log('SQL Query:', query);
-        // console.log('Parameters:', params);
+        // 🔍 DEBUG LOGGING - UNCOMMENTED & ENHANCED
+        console.log('📊 SQL Query:', query);
+        console.log('🔧 SQL Params:', params);
 
         const [results] = await db.query(query, params);
 
+        console.log('📈 Results count:', results.length);
+        if (results.length === 0) {
+            console.log('❌ No items found - check date range, hotelId, outletId, or data in TAxnTrnbilldetails');
+        }
+
+        const message = results.length > 0 
+            ? 'Kitchen allocation data retrieved successfully' 
+            : 'No items found for the selected date range/hotel/outlet. Check logs for details.';
+        
         res.status(200).json({
             success: true,
             data: results,
-            message: 'Kitchen allocation data retrieved successfully'
+            message,
+            debug: { startDate: startDate, endDate: endDate, paramsCount: params.length }
         });
 
     } catch (error) {
@@ -84,6 +124,8 @@ const getItemDetails = async (req, res) => {
   try {
     const { item_no } = req.params;
     const { fromDate, toDate, hotelId, outletId } = req.query;
+
+    console.log('🔍 ItemDetails params:', { item_no, fromDate, toDate, hotelId, outletId });
 
     if (!item_no) {
       return res.status(400).json({

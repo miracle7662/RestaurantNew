@@ -1,10 +1,14 @@
-# KitchenAllocationController MySQL Conversion TODO
+# Fix Kitchen Allocation Items Not Fetching
 
-## Plan Steps:
-- [x] 1. Understand files and create plan (completed)
-- [x] 2. Edit KitchenAllocationController.js:\r\n  - Add db import ✅\r\n  - Convert both functions to await db.query() ✅\r\n  - Fix SQLite datetime to MySQL DATE_ADD ✅
-- [ ] 3. Test endpoint /api/kitchen-allocation
-- [ ] 4. Complete task
+## Status: [IN PROGRESS] ✅
 
-**Current Status:** Ready for code edits
+### Steps:
+- [x] 1. Create TODO.md for tracking
+- [x] 2. Add logging/validation to KitchenAllocationController.js
+- [ ] 3. Test endpoint and check server logs (user action needed: share console logs)
+- [ ] 4. Run manual SQL queries to verify data
+- [ ] 5. Fix any data/join issues found
+- [ ] 6. Test frontend integration
+- [ ] 7. Complete task
 
+**Next: Implementing controller improvements...**
