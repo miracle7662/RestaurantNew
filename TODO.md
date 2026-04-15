@@ -1,28 +1,10 @@
-10# Fix getOutletBillingSettings Fetch Issue
+# KitchenAllocationController MySQL Conversion TODO
 
-## Status: [ ] In Progress
+## Plan Steps:
+- [x] 1. Understand files and create plan (completed)
+- [x] 2. Edit KitchenAllocationController.js:\r\n  - Add db import ✅\r\n  - Convert both functions to await db.query() ✅\r\n  - Fix SQLite datetime to MySQL DATE_ADD ✅
+- [ ] 3. Test endpoint /api/kitchen-allocation
+- [ ] 4. Complete task
 
-### Steps:
-1. [ ] **Fix backend `getOutletBillingSettings` in `backend/controllers/outletController.js`**  
-   - Add console.log for outletid, query result (rows.length, sample row)  
-   - Fix `settings = rows[0]`  
-   - Restructure response with proper nested objects (bill_print_settings, etc.) using correct column aliases  
-   - Add console.log final response JSON  
-   - Enhance error logging  
-
-2. [ ] **Add frontend debug log in `src/views/apps/Masters/CommanMasters/Outlet/AddOutlet.tsx`**  
-   - Enhance existing console.log('Backend Response') to full error details  
-
-3. [ ] **Test backend endpoint**  
-   - Restart backend server  
-   - Test `/api/outlets/settings/{outletid}` via browser/Postman  
-   - Check server console & DB data existence  
-
-4. [ ] **Test frontend**  
-   - Reload page, check Network/Console tabs  
-   - Verify data populates form  
-
-5. [ ] **attempt_completion** once fixed & verified
-
-**Next Action:** Edit `backend/controllers/outletController.js`
+**Current Status:** Ready for code edits
 
