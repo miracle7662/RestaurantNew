@@ -103,6 +103,7 @@ app.use('/api/warehouse', WarehouseRoutes); // Register warehouse routes
 app.use('/api/reports', ReportRoutes); // Register report routes
 app.use('/api/kitchen-allocation', KitchenAllocationRoutes); // Register kitchen allocation routes
 app.use("/api/settings", settingsRoutes);
+app.use('/api/config', require('./routes/configRoutes'));  // Multi-machine server info
 
 app.use('/api/account-ledger', authenticateToken, AccountLedgerRoutes);
 app.use('/api/accountnature', authenticateToken, AccountNatureRoutes);
@@ -139,10 +140,13 @@ app.get('/api/health', (req, res) => {
 
 // ✅ Export app and startServer function
 
-function startServer(port = 3001) {
+function startServer(customPort) {
+  const port = parseInt(customPort || process.env.PORT || '3001');
   const startTime = new Date().toISOString();
   
- app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 Starting POS Server on PORT ${port}`);
+  
+  app.listen(port, '0.0.0.0', () => {
     const os = require('os');
     const interfaces = os.networkInterfaces();
     const addresses = [];

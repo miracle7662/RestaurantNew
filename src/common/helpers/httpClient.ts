@@ -1,16 +1,27 @@
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 const getBaseURL = () => {
-  // 1. Env variable (highest priority)
+  // 1. Custom server URL from localStorage (Multi-machine config)
+  const savedConfig = localStorage.getItem('posServerConfig');
+  if (savedConfig) {
+    try {
+      const config = JSON.parse(savedConfig);
+      return `${config.protocol || 'http'}://${config.host || 'localhost'}:${config.port || 3001}/api`;
+    } catch {
+      // Invalid JSON, fallback
+    }
+  }
+
+  // 2. VITE_API_URL build-time env (installer embeds server IP)
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
 
-  // 2. Electron EXE case
+  // 3. Electron single-machine (localhost backend)
   if (window.location.protocol === "file:") {
-    return "http://localhost:3000/api";
+    return "http://localhost:3001/api";
   }
 
-  // 3. Browser / network case
+  // 4. Browser development/network
   return `${window.location.protocol}//${window.location.hostname}:3001/api`;
 }
 
