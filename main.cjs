@@ -4,6 +4,7 @@ const path = require("path");
 
 const isDev = !app.isPackaged;
 const { spawn } = require("child_process");
+const fs = require('fs');
 
 let mainWindow;
 let backendProcess;
@@ -49,13 +50,90 @@ ipcMain.handle("direct-print", (event, { html, printerName }) => {
         }, (success, error) => {
           if (!success) reject(error);
           else resolve(true);
-          setTimeout(() => win.close(), 300);
+  setTimeout(() => win.close(), 300);
         });
       });
     } catch (err) {
       reject(err);
     }
   });
+});
+
+// Config IPC Handlers
+const axios = require('axios');
+
+ipcMain.handle('load-config', async () => {
+  try {
+    const configPath = path.join(app.getPath('userData'), 'config.json');
+    if (fs.existsSync(configPath)) {
+      const data = fs.readFileSync(configPath, 'utf8');
+      return JSON.parse(data);
+    }
+    // Default config
+    return {
+      serverIP: 'localhost',
+      port: 3001,
+      dbHost: 'localhost',
+      dbPort: 3306,
+      dbName: 'restaurant_db',
+      dbUser: 'root',
+      dbPass: ''
+    };
+  } catch (error) {
+    console.error('Load config error:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('save-config', async (event, config) => {
+  try {
+    if (!config.serverIP || !config.port) {
+      throw new Error('Server IP and port required');
+    }
+    const configPath = path.join(app.getPath('userData'), 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    return { success: true };
+  } catch (error) {
+    console.error('Save config error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('test-config', async (event, config) => {
+  
+  try {
+    console.log('=== TEST CONFIG START ===', JSON.stringify(config, null, 2));
+    
+    const apiUrl = `http://${config.serverIP}:${config.port}`;
+    console.log('Testing API:', apiUrl);
+    
+    // Test backend API
+    const apiResponse = await axios.get(`${apiUrl}/api/health`, { timeout: 5000 });
+    console.log('API test OK:', apiResponse.status);
+    if (apiResponse.status !== 200) {
+      throw new Error('Backend not responding');
+    }
+    
+    // Test frontend DB config with temp pool
+    const dbTestConfig = {
+      host: config.dbHost || 'localhost',
+      port: config.dbPort || 3306,
+      user: config.dbUser || 'root',
+      password: config.dbPass || '',
+      database: config.dbName || 'restaurant_db',
+      connectTimeout: 5000
+    };
+    console.log('DB Test Config:', JSON.stringify(dbTestConfig, null, 2));
+    
+   
+    
+    console.log('=== TEST CONFIG COMPLETE ===');
+    return { success: true, apiUrl };
+  } catch (error) {
+    console.error('Test config error:', error.message);
+    console.error('Full error:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 /* =========================
@@ -102,7 +180,7 @@ mainWindow = new BrowserWindow({
   });
 
   if (isDev) {
-    mainWindow.loadURL("http://192.168.92.51:5173");
+    mainWindow.loadURL("http://localhost:5173");
   } else {
     mainWindow.loadFile(path.join(__dirname, "dist", "index.html"));
   }
@@ -111,7 +189,7 @@ mainWindow = new BrowserWindow({
   mainWindow.webContents.session.webRequest.onBeforeSendHeaders(
     (details, callback) => {
       if (isDev) {
-        details.requestHeaders["Origin"] = "http://192.168.92.51:5173";
+        details.requestHeaders["Origin"] = "http://localhost:5173";
       }
       callback({ requestHeaders: details.requestHeaders });
     }

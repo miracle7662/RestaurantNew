@@ -995,6 +995,18 @@ const authRoutes: RoutesProps[] = [
 // Error
 
 
+import ConfigScreen from '@/components/Pages/ConfigScreen'
+
+// Config Route
+const configRoutes: RoutesProps[] = [
+  {
+    path: '/config',
+    name: 'Server Config',
+    element: <ConfigScreen />,
+    route: Route,
+  },
+];
+
 // Email Templates
 const emailRoutes: RoutesProps[] = [
   {
@@ -1067,7 +1079,7 @@ const flattenRoutes = (routes: RoutesProps[]) => {
 
 // All routes
 const authProtectedRoutes = [dashboardRoutes, appsRoutes, pagesRoutes]
-const publicRoutes = [...authRoutes, ... emailRoutes, ...docsRoutes]
+const publicRoutes = [...authRoutes, ...configRoutes, ...emailRoutes, ...docsRoutes]
 
 const authProtectedFlattenRoutes = flattenRoutes([...authProtectedRoutes])
 const publicProtectedFlattenRoutes = flattenRoutes([...publicRoutes])

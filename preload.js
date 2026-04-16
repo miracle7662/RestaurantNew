@@ -8,4 +8,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // directPrint(html, printerName) -> returns Promise<boolean>
   directPrint: (html, printerName) =>
     ipcRenderer.invoke('direct-print', { html, printerName }),
+
+  // Config APIs
+  loadConfig: () => ipcRenderer.invoke('load-config'),
+  saveConfig: (config) => ipcRenderer.invoke('save-config', config),
+  testConfig: (config) => ipcRenderer.invoke('test-config', config),
 });

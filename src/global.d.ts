@@ -41,5 +41,8 @@ interface Window {
   electronAPI: {
     getInstalledPrinters: () => Promise<Array<{ name: string; displayName: string; isDefault?: boolean }>>;
     directPrint: (html: string, printerName: string) => Promise<void>;
+     loadConfig: () => Promise<AppConfig | null>;
+    saveConfig: (config: AppConfig) => Promise<{ success: boolean; error?: string }>;
+    testConfig: (config: AppConfig) => Promise<ConfigTestResult>;
   };
 }
