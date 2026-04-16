@@ -102,7 +102,7 @@ mainWindow = new BrowserWindow({
   });
 
   if (isDev) {
-    mainWindow.loadURL("http://localhost:5173");
+    mainWindow.loadURL("http://192.168.92.51:5173");
   } else {
     mainWindow.loadFile(path.join(__dirname, "dist", "index.html"));
   }
@@ -111,7 +111,7 @@ mainWindow = new BrowserWindow({
   mainWindow.webContents.session.webRequest.onBeforeSendHeaders(
     (details, callback) => {
       if (isDev) {
-        details.requestHeaders["Origin"] = "http://localhost:5173";
+        details.requestHeaders["Origin"] = "http://192.168.92.51:5173";
       }
       callback({ requestHeaders: details.requestHeaders });
     }

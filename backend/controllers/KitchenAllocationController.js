@@ -125,14 +125,42 @@ const getItemDetails = async (req, res) => {
     const { item_no } = req.params;
     const { fromDate, toDate, hotelId, outletId } = req.query;
 
-    console.log('🔍 ItemDetails params:', { item_no, fromDate, toDate, hotelId, outletId });
+    // 🔍 DEBUG LOGGING & VALIDATION
+    console.log('🔍 getItemDetails params:', { item_no, fromDate, toDate, hotelId, outletId });
 
     if (!item_no) {
       return res.status(400).json({
         success: false,
-        message: 'Item number is required'
+        message: 'Item number (item_no) is required in URL path'
       });
     }
+
+    if (!hotelId) {
+      return res.status(400).json({
+        success: false,
+        message: 'hotelId is required in query params'
+      });
+    }
+
+    // Validate & format dates with fallbacks
+    let startDate = fromDate || new Date().toISOString().split('T')[0];
+    let endDate = toDate || new Date().toISOString().split('T')[0];
+
+    const parsedStart = new Date(startDate);
+    const parsedEnd = new Date(endDate);
+
+    if (isNaN(parsedStart.getTime()) || isNaN(parsedEnd.getTime())) {
+      console.warn('⚠️ Invalid date format:', { fromDate, toDate });
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format. Use YYYY-MM-DD (e.g., 2024-10-01)'
+      });
+    }
+
+    startDate = parsedStart.toISOString().split('T')[0];
+    endDate = parsedEnd.toISOString().split('T')[0];
+
+    console.log('📅 Normalized dates:', { startDate, endDate });
 
     let query = `
       SELECT
@@ -142,43 +170,54 @@ const getItemDetails = async (req, res) => {
         d.KOTNo,
         t.TxnDatetime,
         t.table_name,
-        t.TableID
+        t.TableID,
+        t.outletid
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
       WHERE d.item_no = ?
-        AND t.TxnDatetime >= ?
-        AND t.TxnDatetime < DATE_ADD(?, INTERVAL 1 DAY)
+        AND DATE(t.TxnDatetime) >= ?
+        AND DATE(t.TxnDatetime) <= ?
         AND t.HotelID = ?
         AND (d.isCancelled = 0 OR d.isCancelled IS NULL)
     `;
 
-    const params = [item_no, fromDate, toDate, hotelId];
+    const params = [item_no, startDate, endDate, hotelId];
 
     if (outletId) {
-      query += ` AND t.outletid = ?`;
+      query += ' AND t.outletid = ?';
       params.push(outletId);
     }
 
-    // ✅ ORDER BY ONLY ONCE — AT THE END
-    query += ` ORDER BY t.TxnDatetime DESC`;
+    query += ' ORDER BY t.TxnDatetime DESC';
 
-    // console.log('FINAL SQL:', query);
-    // console.log('PARAMS:', params);
+    console.log('📊 SQL Query:', query);
+    console.log('🔧 SQL Params:', params);
 
     const [results] = await db.query(query, params);
+
+    console.log('📈 Results count:', results.length);
+    if (results.length === 0) {
+      console.log('❌ No item details found - check item_no, date range, hotelId, or DB data');
+    }
+
+    const message = results.length > 0 
+      ? 'Item details retrieved successfully' 
+      : `No item details found for ${item_no} in date range ${startDate} to ${endDate} for hotel ${hotelId}`;
 
     res.status(200).json({
       success: true,
       data: results,
-      message: 'Item details retrieved successfully'
+      message,
+      debug: { startDate, endDate, item_no, hotelId, totalRecords: results.length }
     });
 
   } catch (error) {
-    // console.error('Error fetching item details:', error);
+    console.error('💥 Error fetching item details:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve item details',
-      error: error.message
+      error: error.message,
+      debug: 'Check server logs for details'
     });
   }
 };

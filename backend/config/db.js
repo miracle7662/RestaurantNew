@@ -2,7 +2,7 @@ const mysql = require('mysql2/promise');
 
 // 🌐 Multi-machine ready: Use environment variables
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || '192.168.92.51',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'restaurant_db',

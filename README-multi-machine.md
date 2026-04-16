@@ -3,7 +3,7 @@
 ## 🎯 Overview
 **1 Server** (DB + API) + **Multiple Clients** (Electron POS)
 
-## 🖥️ Phase 1: Server Setup
+## 🖥️Prhase 1: Seevre Sqeup
 
 ### 1. Install MySQL/MariaDB
 ```
