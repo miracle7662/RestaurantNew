@@ -1,4 +1,5 @@
 const db = require('../config/db')
+const { formatMySQLDate } = require('../utils/dateUtils')
 
 module.exports = {
   // ------------------------------------
@@ -46,12 +47,12 @@ module.exports = {
         ORDER BY m.Name DESC
       `;
 
-      // console.log('Executing query with params:', hotelid, date);
+       console.log('Executing query with params:', hotelid, date);
       const [rows] = await db.query(query, [hotelid, date]);
-      // console.log('Query returned', rows.length, 'rows');
+      console.log('Query returned', rows.length, 'rows');
       res.json(rows)
     } catch (error) {
-      // console.error('Error in getCustomers:', error)
+       console.error('Error in getCustomers:', error)
       res.status(500).json({ error: error.message, stack: error.stack })
     }
   },
@@ -138,9 +139,9 @@ module.exports = {
           m.hotelid
         FROM AccountLedger m
         LEFT JOIN mststatemaster s
-          ON s.stateid = CAST(m.stateid AS INTEGER)
+          ON s.stateid = CAST(m.stateid AS UNSIGNED)
         LEFT JOIN mstcitymaster c
-          ON c.cityid = CAST(m.cityid AS INTEGER) AND c.stateId = s.stateid
+          ON c.cityid = CAST(m.cityid AS UNSIGNED) AND c.stateId = s.stateid
         WHERE m.hotelid = ?
         ORDER BY m.Name DESC
       `;
@@ -149,7 +150,7 @@ module.exports = {
       res.json(rows);
 
     } catch (error) {
-      // console.error('Error in getLedger:', error);
+       console.error('Error in getLedger:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -176,12 +177,12 @@ module.exports = {
             accountTypeName = row[0].AccName
           }
         } catch (err) {
-          // console.error('Failed to fetch account type name in createLedger:', err)
+           console.error('Failed to fetch account type name in createLedger:', err)
         }
       }
 
       const sanitizedAccountTypeId = data.AccountTypeId === '' ? null : parseInt(data.AccountTypeId) || null
-      const sanitizedOpeningBalanceDate = data.OpeningBalanceDate === '' ? null : data.OpeningBalanceDate
+      const sanitizedOpeningBalanceDate = data.OpeningBalanceDate === '' ? null : formatMySQLDate(data.OpeningBalanceDate)
 
       const query = `
         INSERT INTO AccountLedger
@@ -227,7 +228,7 @@ module.exports = {
       const sanitizedOpeningBalance = isNaN(OpeningBalance) ? 0 : OpeningBalance
 
       const sanitizedAccountTypeId = data.AccountTypeId === '' ? null : parseInt(data.AccountTypeId) || null
-      const sanitizedOpeningBalanceDate = data.OpeningBalanceDate === '' ? null : data.OpeningBalanceDate
+      const sanitizedOpeningBalanceDate = data.OpeningBalanceDate === '' ? null : formatMySQLDate(data.OpeningBalanceDate)
 
       let accountTypeName = data.AccountType
       if ((!accountTypeName || accountTypeName.trim() === '') && data.AccountTypeId) {
@@ -237,7 +238,7 @@ module.exports = {
             accountTypeName = row[0].AccName
           }
         } catch (err) {
-          // console.error('Failed to fetch account type name in updateLedger:', err)
+          console.error('Failed to fetch account type name in updateLedger:', err)
         }
       }
 
@@ -255,10 +256,11 @@ module.exports = {
         UPDATE AccountLedger SET
         LedgerNo = ?, Name = ?, MarathiName = ?, address = ?, stateid = ?, cityid = ?,
         MobileNo = ?, PhoneNo = ?, GstNo = ?, PanNo = ?, OpeningBalance = ?, OpeningBalanceDate = ?,
-        AccountTypeId = ?, AccountType = ?, Status = ?, updatedbyid = ?, updatedbydate = CURRENT_TIMESTAMP, hotelid = ?
+        AccountTypeId = ?, AccountType = ?, Status = ?, updated_date = ?, updatedbyid = ?, hotelid = ?
         WHERE LedgerId = ? AND hotelid = ?
       `
 
+      const updated_date = formatMySQLDate(data.updated_date || new Date())
       const params = [
         data.LedgerNo,
         data.Name,
@@ -275,6 +277,7 @@ module.exports = {
         sanitizedAccountTypeId,
         accountTypeName,
         data.Status !== undefined ? data.Status : 1,
+        updated_date,
         data.updatedbyid || req.userid || 1,
         req.hotelid,
         id,

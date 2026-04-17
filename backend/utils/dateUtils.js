@@ -1,22 +1,30 @@
 const formatMySQLDate = (dateInput) => {
-  if (!dateInput) {
-    return new Date().toISOString().slice(0, 19).replace('T', ' ');
-  }
-  
   let date;
-  if (typeof dateInput === 'string') {
+
+  if (!dateInput) {
+    date = new Date();
+  } else if (typeof dateInput === 'string') {
     date = new Date(dateInput);
   } else if (dateInput instanceof Date) {
     date = dateInput;
   } else {
-    return new Date().toISOString().slice(0, 19).replace('T', ' ');
+    date = new Date();
   }
-  
+
   if (isNaN(date.getTime())) {
-    return new Date().toISOString().slice(0, 19).replace('T', ' ');
+    date = new Date();
   }
-  
-  return date.toISOString().slice(0, 19).replace('T', ' ');
+
+  const pad = (n) => n.toString().padStart(2, '0');
+
+  return (
+    date.getFullYear() + '-' +
+    pad(date.getMonth() + 1) + '-' +
+    pad(date.getDate()) + ' ' +
+    pad(date.getHours()) + ':' +
+    pad(date.getMinutes()) + ':' +
+    pad(date.getSeconds())
+  );
 };
 
 module.exports = { formatMySQLDate };

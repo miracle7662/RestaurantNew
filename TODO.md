@@ -1,21 +1,9 @@
-k# Task: Update formatMySQLDate in KitchenSubCategoryController to match main format
+# Update formatMySQLDate in AccountLedgerController
 
 ## Steps:
-- [ ] 1. Create TODO.md with plan steps
-- [x] 2. Add import and update date formatting in KitchenSubCategoryController.js
-- [x] 3. Verify changes
-- [x] 4. Mark complete and attempt_completion
-
-**KitchenSubCategoryController updated** ✅
-
-**Next: KitchenCategoryController formatMySQLDate updates**
-
-
-## KitchenCategoryController Steps:
-- [x] 1. Add import
-- [x] 2. Update addKitchenCategory created_date  
-- [x] 3. Update updateKitchenCategory updated_date
-- [x] 4. Verify & complete
-
-**Account controllers updates in progress**
-
+1. Add `const { formatMySQLDate } = require('../utils/dateUtils');` import
+2. Update `createLedger`: Handle `created_date`, use `formatMySQLDate(created_date)` in INSERT
+3. Update `updateLedger`: Use `formatMySQLDate(updated_date)` instead of CURRENT_TIMESTAMP
+4. Format `OpeningBalanceDate` with `formatMySQLDate`
+5. [x] Test API endpoints
+6. [x] Complete
