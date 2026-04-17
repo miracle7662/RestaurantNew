@@ -65,7 +65,7 @@ const mysql = require('mysql2/promise');
 
 ipcMain.handle('load-config', async () => {
   try {
-    const configPath = path.join(app.getPath('userData'), 'dbconfig.json');
+    const configPath = path.join(app.getPath('userData'), 'config.json');
     if (fs.existsSync(configPath)) {
       const data = fs.readFileSync(configPath, 'utf8');
       return JSON.parse(data);
@@ -91,7 +91,7 @@ ipcMain.handle('save-config', async (event, config) => {
     if (!config.serverIP || !config.port) {
       throw new Error('Server IP and port required');
     }
-    const configPath = path.join(app.getPath('userData'), 'dbconfig.json');
+    const configPath = path.join(app.getPath('userData'), 'config.json');
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
     
     // Restart backend with new config (for immediate DB env vars)
@@ -182,7 +182,7 @@ function startBackendWithConfig(config) {
    Backend start
    ========================= */
 function startBackend() {
-  const configPath = path.join(app.getPath('userData'), 'dbconfig.json');
+  const configPath = path.join(app.getPath('userData'), 'config.json');
   let config = null;
   
   if (fs.existsSync(configPath)) {

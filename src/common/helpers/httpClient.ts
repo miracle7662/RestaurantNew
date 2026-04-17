@@ -1,11 +1,13 @@
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
+console.log('🔍 httpClient: Checking baseURL sources...');
 const getBaseURL = () => {
   // 1. Custom server URL from localStorage (Multi-machine config)
-  const savedConfig = localStorage.getItem('posServerConfig');
+const savedConfig = localStorage.getItem('posServerConfig');
+console.log('🔍 localStorage posServerConfig:', savedConfig);
   if (savedConfig) {
     try {
       const config = JSON.parse(savedConfig);
-      return `${config.protocol || 'http'}://${config.host || 'localhost'}:${config.port || 3001}/api`;
+      return `http://${config.serverIP || 'localhost'}:${config.port || 3001}/api`;
     } catch {
       // Invalid JSON, fallback
     }

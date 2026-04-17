@@ -255,8 +255,10 @@ const Market: React.FC = () => {
           status: statusValue,
           created_by_id: userId,
           created_date: currentDate,
-          
-          ...(isEditMode && { marketid: Number(market!.marketid) })
+          ...(isEditMode && {
+            updated_by_id: userId,
+            updated_date: currentDate,
+          }),
         };
         // console.log('Sending to backend:', payload);
 
