@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import HttpClient from '../../common/helpers/httpClient';
 import { AppConfig, ConfigTestResult } from '../../types/config';
 import type { SubmitHandler } from 'react-hook-form';
 
@@ -13,7 +14,6 @@ const ConfigScreen: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<ConfigTestResult | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
-    const [initialConfig, setInitialConfig] = useState<AppConfig | null>(null);
 
 
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<AppConfig>({
@@ -28,21 +28,26 @@ const ConfigScreen: React.FC = () => {
     },
   });
 
-  // Load existing config on mount
+  // Auto-check config on mount
   React.useEffect(() => {
-    if ((window as any).electronAPI?.loadConfig) {
-      (window as any).electronAPI.loadConfig()
-        .then((config: AppConfig) => {
-          if (config) {
-            setInitialConfig(config);
-            // Set form values
-            Object.entries(config).forEach(([key, value]) => {
-              (setValue as any)(key as keyof AppConfig, value);
-            });
-          }
-        })
-        .catch(console.error);
-    }
+    const checkExistingConfig = async () => {
+      try {
+        const existingConfig = await (window as any).electronAPI.loadConfig();
+        if (existingConfig && existingConfig.serverIP && existingConfig.port) {
+          // Config exists → populate form + set configDone
+          Object.entries(existingConfig).forEach(([key, value]) => {
+            if (typeof value === 'string' || typeof value === 'number') {
+              setValue(key as keyof AppConfig, value);
+            }
+          });
+          localStorage.setItem('configDone', 'true');
+          toast.success('Config loaded! Click Test or Save to continue.');
+        }
+      } catch (error) {
+        console.error('No existing config:', error);
+      }
+    };
+    checkExistingConfig();
   }, [setValue]);
 
   const onTestConnection: SubmitHandler<AppConfig> = async (data) => {
@@ -75,14 +80,29 @@ const ConfigScreen: React.FC = () => {
     try {
       const saveResult = await (window as any).electronAPI.saveConfig(data);
       if (saveResult.success) {
+        // Save config to localStorage for httpClient
+        localStorage.setItem('posServerConfig', JSON.stringify(data));
         localStorage.setItem('configDone', 'true');
-        toast.success('Config saved! Redirecting to login...');
-        setTimeout(() => navigate('/auth/minimal/login'), 1500);
+        
+        // Auto-login as superadmin
+        toast.loading('Auto-logging in as superadmin...', { id: 'autologin' });
+        const loginResponse = await HttpClient.post('auth/login', {
+          email: 'superadmin@miracle.com',
+          password: 'superadmin123'
+        }) as any;
+        
+        localStorage.setItem('token', loginResponse.token);
+        localStorage.setItem('user', JSON.stringify(loginResponse));
+        
+        toast.success('Auto-login successful! Redirecting to dashboard...', { id: 'autologin' });
+        setTimeout(() => navigate('/'), 1500);
       } else {
         toast.error(saveResult.error || 'Save failed');
       }
-    } catch (error) {
-      toast.error('Save failed');
+    } catch (error: any) {
+      toast.error('Config saved but auto-login failed. Login manually.', { id: 'autologin' });
+      localStorage.setItem('configDone', 'true');
+      setTimeout(() => navigate('/auth/minimal/login'), 1500);
     } finally {
       setSaving(false);
     }
