@@ -1,9 +1,12 @@
-# Update formatMySQLDate in AccountLedgerController
+# Account Ledger Update Fix Plan
 
 ## Steps:
-1. Add `const { formatMySQLDate } = require('../utils/dateUtils');` import
-2. Update `createLedger`: Handle `created_date`, use `formatMySQLDate(created_date)` in INSERT
-3. Update `updateLedger`: Use `formatMySQLDate(updated_date)` instead of CURRENT_TIMESTAMP
-4. Format `OpeningBalanceDate` with `formatMySQLDate`
-5. [x] Test API endpoints
-6. [x] Complete
+- [x] 1. Create TODO.md with plan
+- [x] 2. Add detailed logging to updateLedger in AccountLedgerController.js
+- [ ] 3. Edit frontend service/modal if needed (after logs reveal payload issues)
+- [ ] 4. Test update endpoint
+- [ ] 5. Check DB table constraints if still failing
+- [ ] 6. Remove debug logs after fix confirmed
+
+**Current Status:** Ready to add logging to diagnose why update fails (0 affectedRows? auth? constraints?). Server restart required after edits.
+

@@ -220,6 +220,11 @@ module.exports = {
   },
 
   updateLedger: async (req, res) => {
+    console.log('=== UPDATE LEDGER START ===');
+    console.log('ID:', req.params.id);
+    console.log('hotelid:', req.hotelid);
+    console.log('BODY:', JSON.stringify(req.body, null, 2));
+    
     try {
       const id = req.params.id
       const data = req.body
@@ -247,10 +252,13 @@ module.exports = {
         FROM AccountLedger
         WHERE LedgerId = ? AND hotelid = ?
       `, [id, req.hotelid]);
+      console.log('Exists check result:', exists);
 
       if (!exists || exists.length === 0) {
+        console.log('❌ Ledger not found');
         return res.status(404).json({ error: 'Ledger not found or access denied' });
       }
+      console.log('✅ Ledger exists');
 
       const query = `
         UPDATE AccountLedger SET
@@ -285,9 +293,14 @@ module.exports = {
       ]
 
       const result = await db.query(query, params)
+      console.log('Query result:', result);
+      console.log('Affected rows:', result[0].affectedRows);
+      console.log('=== UPDATE LEDGER END ===');
       res.json({ success: true, changes: result[0].affectedRows })
     } catch (err) {
-      // console.error('Error in updateLedger:', err, 'Received data:', req.body)
+      console.error('❌ UPDATE LEDGER ERROR:', err);
+      console.error('Full error:', err.message);
+      console.error('Stack:', err.stack);
       res.status(500).json({ error: err.message })
     }
   },
