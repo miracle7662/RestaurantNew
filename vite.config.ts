@@ -12,14 +12,18 @@ export default defineConfig(({ command }) => ({
 			"@": path.resolve(__dirname, "src"),
 		},
 	},
+	build: {
+		target: 'es2022'
+	},
 	server: {
 		host: true,
 		proxy: {
 			'/api': {
-				target: 'http://localhost:3001',
+				target: 'http://192.168.1.3:3001',
 				changeOrigin: true,
 				secure: false,
 			},
 		},
 	},
 }));
+

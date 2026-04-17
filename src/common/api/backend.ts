@@ -1,87 +1,53 @@
-import axios from 'axios'
-import MockAdapter from 'axios-mock-adapter'
+import axios from 'axios';
+import { AppConfig } from '../../types/config';
+import { getAPIUrl } from '../../config';
 
-type User = {
-  id: number
-  username: string
-  email?: string
-  password: string
-  name: string
-  role: string
-  token: string
-}
+let currentConfig: AppConfig | null = null;
 
-const AUTH_TOKEN =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEyMzQ1Njc4OTAiLCJ1c2VybmFtZSI6IndpbmRvdyIsImVtYWlsIjoiYWRtaW5AZW1haWwuY29tIiwicGFzc3dvcmQiOiIxMjM0NTY3OCIsIm5hbWUiOiJXaW5kb3ciLCJyb2xlIjoiQWRtaW4iLCJpYXQiOjE1MTYyMzkwMjJ9.JvoIJ-1OvGQtAQ2mY4F0zoEfiY4cMfvGld87TJePGm4'
+// Global axios instance with dynamic baseURL
+const api = axios.create({
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
 
-const mock = new MockAdapter(axios, { onNoMatch: 'passthrough' })
+export const configureBackend = (config: AppConfig) => {
+  currentConfig = config;
+  
+  // Set dynamic baseURL from config
+  api.defaults.baseURL = getAPIUrl(config);
+  
+  console.log(`🔗 Axios configured: ${api.defaults.baseURL}/api`);
+  
+  // Auth interceptor
+  api.interceptors.request.use(
+    (request) => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        request.headers.Authorization = `Bearer ${token}`;
+      }
+      return request;
+    },
+    (error) => Promise.reject(error)
+  );
+  
+  // Response interceptor for token refresh/401
+  api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        // Could redirect to login or refresh token here
+        window.location.href = '/auth/minimal/login';
+      }
+      return Promise.reject(error);
+    }
+  );
+};
 
-const users: User[] = [
-  {
-    id: 1,
-    username: 'window',
-    email: 'admin@email.com',
-    password: '12345678',
-    name: 'Window',
-    role: 'Admin',
-    token: AUTH_TOKEN,
-  },
-]
+// Export configured instance
+export default api;
 
-export default function configureBackend() {
-  // Remove mock authentication - use real backend API
-  // The login will now go to http://localhost:3001/api/auth/login
-
-  mock.onPost('/register').reply(function (config) {
-    return new Promise(function (resolve, reject) {
-      setTimeout(function () {
-        // get parameters from post request
-        const params = JSON.parse(config.data)
-
-        // add new users
-        const newUser: User = {
-          id: users.length + 1,
-          email: params.email,
-          username: params.username,
-          password: params.password,
-          name: params.name,
-          role: 'Admin',
-          token: AUTH_TOKEN,
-        }
-        users.push(newUser)
-
-        resolve([200, newUser])
-      }, 1000)
-    })
-  })
-
-  mock.onPost('/forget-password').reply(function (config) {
-    return new Promise(function (resolve, reject) {
-      setTimeout(function () {
-        // get parameters from post request
-        const params = JSON.parse(config.data)
-
-        // find if any user matches login credentials
-        const filteredUsers = users.filter((user) => {
-          return user.email === params.email
-        })
-
-        if (filteredUsers.length) {
-          // if login details are valid return user details and fake jwt token
-          const responseJson = {
-            message: "We've sent you a link to reset password to your registered email.",
-          }
-          resolve([200, responseJson])
-        } else {
-          // else return error
-          resolve([
-            401,
-            {
-              message: 'Sorry, we could not find any registered user with entered email',
-            },
-          ])
-        }
-      }, 1000)
-    })
-  })
-}
+// Getter for current config
+export const getCurrentConfig = () => currentConfig;

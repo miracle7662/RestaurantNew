@@ -7,9 +7,10 @@ import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '@/common';
 import { fetchOutletsForDropdown, fetchBrands } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
-import axios from 'axios';
 import TableDepartmentService from '@/common/api/tabledepartment';
 import PaginationComponent from '@/components/Common/PaginationComponent';
+import taxGroupsService from '@/common/api/taxgroups';
+
 
 // Define TableItem interface
 interface DepartmentItem {
@@ -158,16 +159,19 @@ const TableDepartment: React.FC = () => {
 
     // Fetch tax groups 
     const fetchTaxGroups = async () => {
-      try {
-        setLoading(true);
-        const taxGroupsRes = await axios.get('/api/taxgroup');
-        setTaxGroups(Array.isArray(taxGroupsRes.data.data?.taxGroups) ? taxGroupsRes.data.data.taxGroups : []);
-      } catch (err: any) {
-        toast.error('Failed to fetch tax groups: ' + (err.response?.data?.message || err.message));
-      } finally {
-        setLoading(false);
-      }
-    };
+  try {
+    setLoading(true);
+    const taxGroupsRes = await taxGroupsService.list({ 
+      hotelid: user?.hotelid?.toString() || '0' 
+    });
+    setTaxGroups(Array.isArray(taxGroupsRes.data?.taxGroups) ? taxGroupsRes.data.taxGroups : []);
+  } catch (err: any) {
+    toast.error('Failed to fetch tax groups: ' + (err.response?.data?.message || err.message));
+  } finally {
+    setLoading(false);
+  }
+};
+
 
     useEffect(() => {
       fetchTaxGroups();

@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 // GET ALL
 exports.getDesignation = async (req, res) => {
@@ -27,11 +28,13 @@ exports.addDesignation = async (req, res) => {
   try {
     const { Designation, status, created_by_id, created_date } = req.body;
 
+    const formattedCreatedDate = formatMySQLDate(created_date);
+
     const [result] = await db.query(
       `INSERT INTO mstdesignation 
        (Designation, status, created_by_id, created_date) 
        VALUES (?, ?, ?, ?)`,
-      [Designation, status, created_by_id, created_date]
+      [Designation, status, created_by_id, formattedCreatedDate]
     );
 
     res.json({
@@ -47,6 +50,7 @@ exports.addDesignation = async (req, res) => {
     });
 
   } catch (error) {
+    console.log(error);
     res.status(500).json({
       success: false,
       message: 'Failed to add designation',
@@ -63,11 +67,13 @@ exports.updateDesignation = async (req, res) => {
     const { id } = req.params;
     const { Designation, status, updated_by_id, updated_date } = req.body;
 
+    const formattedUpdatedDate = formatMySQLDate(updated_date);
+
     const [result] = await db.query(
       `UPDATE mstdesignation 
        SET Designation = ?, status = ?, updated_by_id = ?, updated_date = ? 
        WHERE designationid = ?`,
-      [Designation, status, updated_by_id, updated_date, id]
+      [Designation, status, updated_by_id, formattedUpdatedDate, id]
     );
 
     if (result.affectedRows === 0) {
@@ -85,6 +91,7 @@ exports.updateDesignation = async (req, res) => {
     });
 
   } catch (error) {
+    console.log(error);
     res.status(500).json({
       success: false,
       message: 'Failed to update designation',

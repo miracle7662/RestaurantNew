@@ -18,7 +18,7 @@ const getBaseURL = () => {
 
   // 3. Electron single-machine (localhost backend)
   if (window.location.protocol === "file:") {
-    return "http://localhost:3001/api";
+    return "http://192.168.1.3:3001/api";
   }
 
   // 4. Browser development/network

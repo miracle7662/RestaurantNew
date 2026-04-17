@@ -85,6 +85,7 @@
     "lucide-react": "^0.503.0",
     "moment": "^2.29.4",
     "multer": "^2.0.2",
+    "mysql2": "^3.22.1",
     "nouislider-react": "^3.4.1",
     "path-to-regexp": "^6.2.1",
     "prism-react-renderer": "^2.3.1",

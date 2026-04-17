@@ -1,4 +1,5 @@
 const db = require('../config/db')
+const { formatMySQLDate } = require('../utils/dateUtils')
 
 // Welcome endpoint with logging
 exports.welcome = async (req, res) => {
@@ -196,7 +197,7 @@ exports.addOutlet = async (req, res) => {
       status,
       digital_order || 0,
       created_by_id,
-      new Date().toISOString(),
+      formatMySQLDate(),
       logout_pos == true || logout_pos == 1 ? 1 : 0,
       password_protection == true || password_protection == 1 ? 1 : 0,
       send_payment_link == true || send_payment_link == 1 ? 1 : 0,
@@ -824,7 +825,7 @@ exports.updateOutlet = async (req, res) => {
       warehouseid,
       reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
       updated_by_id,
-      new Date().toISOString(),
+      formatMySQLDate(),
       id,
     ])
 

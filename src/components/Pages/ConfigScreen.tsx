@@ -13,8 +13,10 @@ const ConfigScreen: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<ConfigTestResult | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [initialConfig, setInitialConfig] = useState<AppConfig | null>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<AppConfig>({
+
+  const { register, handleSubmit, formState: { errors }, setValue } = useForm<AppConfig>({
     defaultValues: {
       serverIP: 'localhost',
       port: 3001,
@@ -25,6 +27,23 @@ const ConfigScreen: React.FC = () => {
       dbPass: '',
     },
   });
+
+  // Load existing config on mount
+  React.useEffect(() => {
+    if ((window as any).electronAPI?.loadConfig) {
+      (window as any).electronAPI.loadConfig()
+        .then((config: AppConfig) => {
+          if (config) {
+            setInitialConfig(config);
+            // Set form values
+            Object.entries(config).forEach(([key, value]) => {
+              (setValue as any)(key as keyof AppConfig, value);
+            });
+          }
+        })
+        .catch(console.error);
+    }
+  }, [setValue]);
 
   const onTestConnection: SubmitHandler<AppConfig> = async (data) => {
     setTesting(true);

@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 exports.getHotelMasters = async (req, res) => {
     try {
@@ -91,7 +92,7 @@ exports.addHotelMasters = async (req, res) => {
 
         // created_by_id & created_date defaults
         const safeCreatedBy = created_by_id || 1;
-        const safeCreatedDate = created_date || new Date().toISOString();
+        const safeCreatedDate = formatMySQLDate(created_date);
 
         const [result] = await db.query(`
             INSERT INTO msthotelmasters 
@@ -146,7 +147,7 @@ exports.updateHotelMasters = async (req, res) => {
 
         // updated_by_id & updated_date defaults
         const safeUpdatedBy = updated_by_id || 1;
-        const safeUpdatedDate = updated_date || new Date().toISOString();
+        const safeUpdatedDate = formatMySQLDate(updated_date);
 
         const [result] = await db.query(`
             UPDATE msthotelmasters 

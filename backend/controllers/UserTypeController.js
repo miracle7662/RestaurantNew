@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 exports.getUserType = async (req, res) => {
     try {
@@ -19,7 +20,7 @@ exports.addUserType = async (req, res) => {
 
         const [result] = await db.query(
             'INSERT INTO mstuserType (User_type, status, created_by_id, created_date, hotelid) VALUES (?, ?, ?, ?, ?)',
-            [User_type, status, created_by_id, created_date, hotelid]
+[User_type, status, created_by_id, formatMySQLDate(created_date), hotelid]
         );
 
         const newUserType = {
@@ -46,7 +47,7 @@ exports.updateUserType = async (req, res) => {
 
     await db.query(
         'UPDATE mstuserType SET User_type = ?, status = ?, updated_by_id = ?, updated_date = ?, hotelid = ? WHERE usertypeid = ?',
-        [User_type, status, updated_by_id, updated_date, hotelid, id]
+[User_type, status, updated_by_id, formatMySQLDate(updated_date), hotelid, id]
     );
 
     res.json({ id, User_type, status, updated_by_id, updated_date, hotelid });

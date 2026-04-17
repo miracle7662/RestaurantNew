@@ -61,10 +61,11 @@ ipcMain.handle("direct-print", (event, { html, printerName }) => {
 
 // Config IPC Handlers
 const axios = require('axios');
+const mysql = require('mysql2/promise');
 
 ipcMain.handle('load-config', async () => {
   try {
-    const configPath = path.join(app.getPath('userData'), 'config.json');
+    const configPath = path.join(app.getPath('userData'), 'dbconfig.json');
     if (fs.existsSync(configPath)) {
       const data = fs.readFileSync(configPath, 'utf8');
       return JSON.parse(data);
@@ -90,8 +91,15 @@ ipcMain.handle('save-config', async (event, config) => {
     if (!config.serverIP || !config.port) {
       throw new Error('Server IP and port required');
     }
-    const configPath = path.join(app.getPath('userData'), 'config.json');
+    const configPath = path.join(app.getPath('userData'), 'dbconfig.json');
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    
+    // Restart backend with new config (for immediate DB env vars)
+    if (backendProcess) {
+      backendProcess.kill();
+    }
+    startBackendWithConfig(config);
+    
     return { success: true };
   } catch (error) {
     console.error('Save config error:', error);
@@ -100,69 +108,115 @@ ipcMain.handle('save-config', async (event, config) => {
 });
 
 ipcMain.handle('test-config', async (event, config) => {
-  
   try {
     console.log('=== TEST CONFIG START ===', JSON.stringify(config, null, 2));
     
     const apiUrl = `http://${config.serverIP}:${config.port}`;
-    console.log('Testing API:', apiUrl);
     
-    // Test backend API
+    // 1. Test backend API health
+    console.log('🌐 Testing API:', apiUrl);
     const apiResponse = await axios.get(`${apiUrl}/api/health`, { timeout: 5000 });
-    console.log('API test OK:', apiResponse.status);
     if (apiResponse.status !== 200) {
-      throw new Error('Backend not responding');
+      throw new Error(`Backend API failed: ${apiResponse.status}`);
     }
     
-    // Test frontend DB config with temp pool
+    // 2. Test MySQL connection
+    console.log('🗄️ Testing MySQL...');
     const dbTestConfig = {
       host: config.dbHost || 'localhost',
       port: config.dbPort || 3306,
       user: config.dbUser || 'root',
       password: config.dbPass || '',
       database: config.dbName || 'restaurant_db',
-      connectTimeout: 5000
+      connectTimeout: 5000,
+      acquireTimeout: 5000
     };
-    console.log('DB Test Config:', JSON.stringify(dbTestConfig, null, 2));
     
-   
+    const testConnection = await mysql.createConnection(dbTestConfig);
+    await testConnection.execute('SELECT 1');
+    await testConnection.end();
     
+    console.log('✅ MySQL test OK');
     console.log('=== TEST CONFIG COMPLETE ===');
-    return { success: true, apiUrl };
+    return { 
+      success: true, 
+      apiUrl,
+      dbConnected: true,
+      message: `Connected to ${apiUrl} + MySQL ${dbTestConfig.host}:${dbTestConfig.port}`
+    };
   } catch (error) {
-    console.error('Test config error:', error.message);
-    console.error('Full error:', error);
-    return { success: false, error: error.message };
+    console.error('❌ Test config failed:', error.message);
+    return { 
+      success: false, 
+      error: error.message,
+      dbConnected: false
+    };
   }
 });
+
+// Helper: Start backend with config env vars
+function startBackendWithConfig(config) {
+  const backendPath = isDev
+    ? path.join(__dirname, "backend", "server.js")
+    : path.join(process.resourcesPath, "app.asar.unpacked", "backend", "server.js");
+
+  // Set DB env vars for backend
+  process.env.DB_HOST = config.dbHost || 'localhost';
+  process.env.DB_PORT = config.dbPort?.toString() || '3306';
+  process.env.DB_USER = config.dbUser || 'root';
+  process.env.DB_PASSWORD = config.dbPass || '';
+  process.env.DB_NAME = config.dbName || 'restaurant_db';
+  
+  process.env.ELECTRON_USER_DATA_PATH = app.getPath('userData');
+  
+  try {
+    const backend = require(backendPath);
+    backend.startServer();
+    console.log('🔄 Backend restarted with new DB config');
+  } catch (err) {
+    console.error('❌ Backend restart failed:', err);
+  }
+}
 
 /* =========================
    Backend start
    ========================= */
 function startBackend() {
-  const isDev = !app.isPackaged;
+  const configPath = path.join(app.getPath('userData'), 'dbconfig.json');
+  let config = null;
+  
+  if (fs.existsSync(configPath)) {
+    try {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      console.log('✅ Found existing config, setting DB env vars');
+    } catch (err) {
+      console.error('Config parse failed:', err);
+    }
+  }
+  
+  // Set DB env vars from config (if exists) for backend
+  if (config) {
+    process.env.DB_HOST = config.dbHost || 'localhost';
+    process.env.DB_PORT = config.dbPort?.toString() || '3306';
+    process.env.DB_USER = config.dbUser || 'root';
+    process.env.DB_PASSWORD = config.dbPass || '';
+    process.env.DB_NAME = config.dbName || 'restaurant_db';
+  }
+  
+  process.env.ELECTRON_USER_DATA_PATH = app.getPath('userData');
+
+  const backendPath = isDev
+    ? path.join(__dirname, "backend", "server.js")
+    : path.join(process.resourcesPath, "app.asar.unpacked", "backend", "server.js");
 
   try {
-    const backendPath = isDev
-      ? path.join(__dirname, "backend", "server.js")
-      : path.join(process.resourcesPath, "app.asar.unpacked", "backend", "server.js");
-
-    console.log("🚀 Starting backend...");
+    console.log("🚀 Starting backend with DB config...");
     console.log("Backend Path:", backendPath);
-
-    // ✅ Pass userData path
-    if (!isDev) {
-      process.env.ELECTRON_USER_DATA_PATH = app.getPath("userData");
-    }
-
-    // ✅ Use exported functions
-      // ✅ FIXED
+    
     const backend = require(backendPath);
     backend.startServer();
-
-
   } catch (err) {
-     console.error("❌ Backend failed:", err);
+    console.error("❌ Backend start failed:", err);
   }
 }
 

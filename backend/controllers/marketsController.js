@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 exports.getmarkets = async (req, res) => {
     try {
@@ -87,9 +88,9 @@ exports.addmarkets = async (req, res) => {
                 market_name, 
                 parseInt(status), 
                 parseInt(created_by_id),
-                created_date || new Date().toISOString().slice(0, 19).replace('T', ' '),
+                formatMySQLDate(created_date),
                 parseInt(created_by_id),
-                new Date().toISOString().slice(0, 19).replace('T', ' ')
+                formatMySQLDate()
             ]
         );
 
@@ -139,7 +140,7 @@ exports.updatemarkets = async (req, res) => {
                 market_name,
                 parseInt(status),
                 parseInt(updated_by_id),
-                updated_date || new Date().toISOString().slice(0, 19).replace('T', ' '),
+                formatMySQLDate(updated_date),
                 parseInt(id)
             ]
         );
