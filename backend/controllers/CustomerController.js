@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 exports.getCustomer = async (req, res) => {
   try {
@@ -84,7 +85,7 @@ exports.addCustomer = async (req, res) => {
       body.status,
       body.createWallet ? 1 : 0,
       body.created_by_id,
-      body.created_date
+      formatMySQLDate(body.created_date)
     ]);
 
     const newCustomer = {
@@ -143,7 +144,7 @@ exports.updateCustomer = async (req, res) => {
       body.status,
       body.createWallet ? 1 : 0,
       body.updated_by_id,
-      body.updated_date,
+      formatMySQLDate(body.updated_date),
       id
     ]);
 
