@@ -1,14 +1,14 @@
-// reportController.js
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 const getReportData = async (req, res) => {
   try {
     console.log('=== REPORT DATA FETCH START ===');
     console.log('Query params:', { startDate: req.query.start, endDate: req.query.end, caseType: req.query.caseType });
     
-    const today = new Date().toISOString().split('T')[0];
-    const startDate = req.query.start || today;
-    const endDate = req.query.end || today;
+    const todayStr = formatMySQLDate(new Date()).split(' ')[0];   
+    const startDate = req.query.start || todayStr;
+    const endDate = req.query.end || todayStr;
     const caseType = req.query.caseType || 'billSummary';
 
     let baseQuery = `

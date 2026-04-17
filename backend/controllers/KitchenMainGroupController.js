@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 // GET all Kitchen Main Groups
 exports.getKitchenMainGroup = async (req, res) => {
@@ -32,7 +33,7 @@ exports.addKitchenMainGroup = async (req, res) => {
       `INSERT INTO mstkitchenmaingroup 
        (Kitchen_main_Group, status, created_by_id, created_date, hotelid, marketid) 
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [Kitchen_main_Group, status, created_by_id, created_date, hotelid, marketid]
+[Kitchen_main_Group, status, created_by_id, formatMySQLDate(created_date), hotelid, marketid]
     );
 
     res.json({
@@ -71,7 +72,7 @@ exports.updateKitchenMainGroup = async (req, res) => {
       `UPDATE mstkitchenmaingroup 
        SET Kitchen_main_Group = ?, status = ?, updated_by_id = ?, updated_date = ? 
        WHERE kitchenmaingroupid = ?`,
-      [Kitchen_main_Group, status, updated_by_id, updated_date, id]
+[Kitchen_main_Group, status, updated_by_id, formatMySQLDate(updated_date), id]
     );
 
     if (result.affectedRows === 0) {

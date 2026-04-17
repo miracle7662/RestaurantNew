@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 /* ═══════════════════════════════════════════════════════
    GET ALL KITCHEN SUB CATEGORY
@@ -53,7 +54,7 @@ exports.addKitchenSubCategory = async (req, res) => {
             kitchenmaingroupid,
             status,
             created_by_id,
-            created_date,
+            formatMySQLDate(created_date),
             hotelid,
             marketid
         ]);
@@ -115,7 +116,7 @@ exports.updateKitchenSubCategory = async (req, res) => {
             kitchencategoryid,
             kitchenmaingroupid,
             updated_by_id,
-            updated_date,
+            formatMySQLDate(updated_date),
             status,
             id
         ]);

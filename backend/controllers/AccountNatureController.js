@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 // ================= LIST =================
 exports.listAccountNatures = async (req, res) => {
@@ -61,7 +62,7 @@ exports.createAccountNature = async (req, res) => {
       accountnature,
       status,
       created_by_id,
-      created_date,
+      formatMySQLDate(created_date),
       hotelid
     ]);
 
@@ -103,7 +104,7 @@ exports.updateAccountNature = async (req, res) => {
       accountnature,
       status,
       updated_by_id,
-      updated_date,
+      formatMySQLDate(updated_date),
       hotelid,
       id,
       hotelid

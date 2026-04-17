@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 // ================= LIST =================
 exports.listAccountTypes = async (req, res) => {
@@ -74,9 +75,9 @@ exports.createAccountType = async (req, res) => {
       NatureOfC,
       status,
       created_by_id,
-      created_date,
+      formatMySQLDate(created_date),
       updated_by_id,
-      updated_date,
+      formatMySQLDate(updated_date),
       hotelid
     ]);
 
@@ -129,7 +130,7 @@ exports.updateAccountType = async (req, res) => {
       NatureOfC,
       status,
       updated_by_id,
-      updated_date,
+      formatMySQLDate(updated_date),
       id,
       hotelid
     ]);
@@ -171,4 +172,3 @@ exports.deleteAccountType = async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
-

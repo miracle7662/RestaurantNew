@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 exports.getKitchenCategory = async (req, res) => {
     try {
@@ -63,7 +64,7 @@ exports.addKitchenCategory = async (req, res) => {
       categorycolor,
       status,
       created_by_id,
-      created_date,
+      formatMySQLDate(created_date),
       hotelid,
       marketid,
       kitchenmaingroupid
@@ -137,7 +138,7 @@ exports.updateKitchenCategory = async (req, res) => {
       categorycolor,
       status,
       updated_by_id,
-      updated_date,
+      formatMySQLDate(updated_date),
       kitchenmaingroupid,
       id
     ]);

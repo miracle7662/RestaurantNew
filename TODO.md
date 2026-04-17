@@ -1,19 +1,21 @@
-# TODO: Apply similar standardization to hoteltypeController.js
+k# Task: Update formatMySQLDate in KitchenSubCategoryController to match main format
 
-**Step 1: [PENDING] Create/Update TODO.md** - Track progress of plan implementation.
+## Steps:
+- [ ] 1. Create TODO.md with plan steps
+- [x] 2. Add import and update date formatting in KitchenSubCategoryController.js
+- [x] 3. Verify changes
+- [x] 4. Mark complete and attempt_completion
 
-**Step 2: [PENDING] Read current hoteltypeController.js** - Already done.
+**KitchenSubCategoryController updated** ✅
 
-**Step 3: [COMPLETED] Edit hoteltypeController.js** - 
-  - Add dateUtils import ✓
-  - Use formatMySQLDate in add/update ✓
-  - Add hotelid || null defaults ✓
-  - Add affectedRows checks ✓
-  - Standardize responses ✓
+**Next: KitchenCategoryController formatMySQLDate updates**
 
-**Step 4: [COMPLETED] Verify changes** - Edits applied successfully per diffs.
 
-**Step 5: [PENDING] Update TODO.md** - Mark completed.
+## KitchenCategoryController Steps:
+- [x] 1. Add import
+- [x] 2. Update addKitchenCategory created_date  
+- [x] 3. Update updateKitchenCategory updated_date
+- [x] 4. Verify & complete
 
-**Step 6: [COMPLETED] attempt_completion** - Finalize task.
+**Account controllers updates in progress**
 

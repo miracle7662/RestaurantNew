@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 /* ═══════════════════════════════════════
    GET ALL
@@ -64,7 +65,7 @@ exports.addItemMainGroup = async (req, res) => {
       item_group_name,
       status,
       created_by_id,
-      created_date,
+      formatMySQLDate(created_date),
       hotelid,
       marketid
     ]);
@@ -120,7 +121,7 @@ exports.updateItemMainGroup = async (req, res) => {
       item_group_name,
       status,
       updated_by_id,
-      updated_date,
+      formatMySQLDate(updated_date),
       id
     ]);
 
