@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { formatMySQLDate } = require('../utils/dateUtils');
 
 // Get all hotel types with optional filtering
 exports.gethoteltype = async (req, res) => {
@@ -41,7 +42,7 @@ exports.addhoteltype = async (req, res) => {
 
     const [result] = await db.query(
       'INSERT INTO msthoteltype (hotel_type, status, created_by_id, created_date, hotelid) VALUES (?, ?, ?, ?, ?)',
-      [hotel_type, status, created_by_id || 1, created_date || new Date().toISOString(), hotelid]
+[hotel_type, status, created_by_id || 1, formatMySQLDate(created_date || new Date()), hotelid]
     );
 
     const newHoteltype = {
@@ -52,7 +53,7 @@ exports.addhoteltype = async (req, res) => {
       created_date: created_date || new Date().toISOString(),
       updated_by_id: null,
       updated_date: null,
-      hotelid: null
+      hotelid: hotelid || null
     };
 
     res.status(201).json({ success: true, data: newHoteltype });
@@ -74,11 +75,11 @@ exports.updatehoteltype = async (req, res) => {
 
     const [result] = await db.query(
       'UPDATE msthoteltype SET hotel_type = ?, status = ?, updated_by_id = ?, updated_date = ?, hotelid = ? WHERE hoteltypeid = ?',
-      [hotel_type, status, updated_by_id || 2, updated_date || new Date().toISOString(), hotelid, id]
+      [hotel_type, status, updated_by_id || 2, formatMySQLDate(updated_date || new Date()), hotelid, id]
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Hotel type not found' });
+      return res.status(404).json({ success: false, message: 'Hotel type not found', data: null });
     }
 
     const updatedHoteltype = {
@@ -87,7 +88,7 @@ exports.updatehoteltype = async (req, res) => {
       status,
       updated_by_id: updated_by_id || 2,
       updated_date: updated_date || new Date().toISOString(),
-      hotelid: null
+      hotelid: hotelid || null
     };
 
     res.json({ success: true, data: updatedHoteltype });
@@ -108,7 +109,7 @@ exports.deletehoteltype = async (req, res) => {
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Hotel type not found' });
+      return res.status(404).json({ success: false, message: 'Hotel type not found', data: null });
     }
 
     res.json({
@@ -151,6 +152,6 @@ exports.gethoteltypeCount = async (req, res) => {
     const [rows] = await db.query('SELECT COUNT(*) as count FROM msthoteltype');
     res.json(rows[0]);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch count' });
+    res.status(500).json({ success: false, message: 'Failed to fetch count', data: null });
   }
 };
