@@ -19,9 +19,9 @@ console.log('🔍 localStorage posServerConfig:', savedConfig);
   }
 
   // 3. Electron single-machine (localhost backend)
-  if (window.location.protocol === "file:") {
-    return "http://192.168.1.3:3001/api";
-  }
+ if (window.location.protocol === "file:") {
+  return "http://localhost:3001/api";
+}
 
   // 4. Browser development/network
   return `${window.location.protocol}//${window.location.hostname}:3001/api`;
