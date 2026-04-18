@@ -22,15 +22,15 @@ export interface Market {
   updated_date: number
 }
 
-/** Market payload for create/update */
+/** Market payload for create/update - backend handles timestamps */
 export interface MarketPayload {
   marketid?: number
   market_name: string
   status: number
   created_by_id: number
-  created_date: number
+  created_date?: number  // Optional: backend generates
   updated_by_id?: number
-  updated_date?: number
+  updated_date?: number  // Optional: backend generates
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

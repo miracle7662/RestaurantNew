@@ -133,17 +133,17 @@ exports.updatemarkets = async (req, res) => {
         }
 
         const [result] = await db.query(
-            `UPDATE mstmarkets 
-             SET market_name = ?, status = ?, updated_by_id = ?, updated_date = ?
-             WHERE marketid = ? AND status = 1`,
-            [
-                market_name,
-                parseInt(status),
-                parseInt(updated_by_id),
-                formatMySQLDate(updated_date),
-                parseInt(id)
-            ]
-        );
+    `UPDATE mstmarkets 
+     SET market_name = ?, status = ?, updated_by_id = ?, updated_date = ?
+     WHERE marketid = ?`,
+    [
+        market_name,
+        Number(status),
+        Number(updated_by_id),
+        formatMySQLDate(updated_date || new Date()),
+        Number(id)
+    ]
+);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ 
