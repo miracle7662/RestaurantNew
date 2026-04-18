@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Config APIs
   loadConfig: () => ipcRenderer.invoke('load-config'),
+  hasConfigFile: () => ipcRenderer.invoke('has-config-file'),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
   testConfig: (config) => ipcRenderer.invoke('test-config', config),
 });

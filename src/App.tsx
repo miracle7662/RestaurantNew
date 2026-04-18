@@ -19,24 +19,19 @@ function App() {
 
   useEffect(() => {
     const initApp = async () => {
-      const configDone = localStorage.getItem('configDone')
-      
-      if (!configDone) {
-        // Show config screen first
-        setShowConfigFirst(true)
-        setConfigReady(true)
-        return
-      }
-
       try {
-        // Load and configure
         await loadConfig()
-        setShowConfigFirst(false)
-        setConfigReady(true)
+        
+        // Check if config file actually exists (first-run detection)
+        const configExists = typeof window !== 'undefined' && 
+          (window as any).electronAPI?.hasConfigFile?.() 
+          ? await (window as any).electronAPI.hasConfigFile()
+          : false;
+          
+        setShowConfigFirst(!configExists);
+        setConfigReady(true);
       } catch (error) {
         console.error('Config init failed:', error)
-        // Show config screen if load fails
-        localStorage.removeItem('configDone')
         setShowConfigFirst(true)
         setConfigReady(true)
       }

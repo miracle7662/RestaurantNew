@@ -107,6 +107,16 @@ ipcMain.handle('save-config', async (event, config) => {
   }
 });
 
+ipcMain.handle('has-config-file', async () => {
+  try {
+    const configPath = path.join(app.getPath('userData'), 'config.json');
+    return fs.existsSync(configPath);
+  } catch (error) {
+    console.error('Has config file check failed:', error);
+    return false;
+  }
+});
+
 ipcMain.handle('test-config', async (event, config) => {
   try {
     console.log('=== TEST CONFIG START ===', JSON.stringify(config, null, 2));

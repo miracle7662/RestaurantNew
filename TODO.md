@@ -1,22 +1,22 @@
-# Market Insert/Update Fix - TODO List
+# ConfigScreen Not Opening Fix - TODO
 
-## Plan Implementation Steps:
-- [x] Step 1: Edit backend/controllers/marketsController.js (fix timestamps, remove status filter, add logging)
-- [ ] Step 2: Test create new market
-- [ ] Step 3: Test edit existing market  
-- [ ] Step 4: Verify DB changes and UI refresh
-- [ ] Step 5: Update TODO.md with completion
-- [ ] Step 6: Restart backend server if needed
-- [ ] Step 7: Final verification and completion
+## Status: 🔄 In Progress (0/5 complete)
 
-**Current Status:** Backend & Frontend fixed. Test create/edit in Market.tsx. Backend logs will show payloads. 
+### Plan Breakdown:
+1. [✅] **Add `has-config-file` IPC handler to main.cjs** - Check if config.json exists at app.getPath('userData')
+2. [✅] **Expose `hasConfigFile` in preload.js** - Add to electronAPI object
+3. [✅] **Update src/App.tsx useEffect logic** - Check `electronAPI.hasConfigFile()` to set `showConfigFirst`
+4. [ ] **Test first-run behavior** - Delete config.json → restart → ConfigScreen shows
+5. [ ] **Test configured behavior** - Save config → restart → skips to dashboard
 
-Updated TODO:
-## Plan Implementation Steps:
-- [x] Step 1: Backend controller fixes
-- [x] Step 2: Frontend improvements (better error handling, optimistic updates)
-- [ ] Step 3: Restart backend (`cd backend && node server.js`)
-- [ ] Step 4: Test add new market
-- [ ] Step 5: Test edit market
-- [ ] Step 6: Complete task
+## Status: ✅ 2/5 complete
+
+## Next Step: Implement IPC handlers (main.cjs → preload.js → App.tsx)
+
+**Commands to test:**
+```bash
+# Delete config for first-run test
+rmdir /s "C:\Users\Sharmin\AppData\Roaming\miracle-restaurant"
+# OR manually delete config.json there, then npm run dev/electron
+```
 
