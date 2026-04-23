@@ -33,85 +33,39 @@ const PRINTER_CONFIG = {
  * @param {string} kotData.orderId - Order ID (optional)
  * @param {Date} kotData.dateTime - Order datetime (optional)
  */
-const printKOT = async (kotData) => {
+const printKOT = async (outletid, kotData) => {
+  let printerConfig = { ...PRINTER_CONFIG }; // Global fallback
   let printer;
 
   try {
-    // Initialize printer
-    printer = new ThermalPrinter(PRINTER_CONFIG);
-
-    // Connect to printer
-    await printer.isPrinterConnected();
-    console.log("Printer connected successfully");
-
-    // ============ KOT PRINT FORMAT ============
-
-    // Header
-    printer.alignCenter();
-    printer.bold(true);
-    printer.setTextSize(1, 1);
-    printer.println("═══════════════════════════════════════");
-    printer.println("        KITCHEN ORDER TICKET (KOT)      ");
-    printer.println("═══════════════════════════════════════");
-    printer.bold(false);
-    printer.setTextSize(0, 0);
-    printer.newLine();
-
-    // Order Info
-    printer.alignLeft();
-    printer.println(`Table No. : ${kotData.tableNo || 'N/A'}`);
-
-    if (kotData.waiterName) {
-      printer.println(`Waiter    : ${kotData.waiterName}`);
-    }
-
-    if (kotData.orderId) {
-      printer.println(`Order ID  : ${kotData.orderId}`);
-    }
-
-    const dateTime = kotData.dateTime || new Date();
-    const formattedDate = typeof dateTime === 'string' ? dateTime :
-      `${dateTime.toLocaleDateString()} ${dateTime.toLocaleTimeString()}`;
-    printer.println(`Date/Time : ${formattedDate}`);
-
-    printer.println("───────────────────────────────────────");
-
-    // Items Header
-    printer.bold(true);
-    printer.println("ITEMS                    QTY");
-    printer.bold(false);
-    printer.println("───────────────────────────────────────");
-
-    // Items List
-    if (kotData.items && kotData.items.length > 0) {
-      for (const item of kotData.items) {
-        const itemName = item.name || 'Unknown Item';
-        const quantity = item.quantity || 0;
-        const notes = item.notes || '';
-
-        // Format: Item name padded to width, quantity on right
-        const namePart = itemName.length > 24 ? itemName.substring(0, 24) : itemName;
-        const qtyPart = String(quantity).padStart(3, ' ');
-
-        printer.println(`${namePart}${qtyPart}`);
-
-        // Print notes if any
-        if (notes) {
-          printer.setTextSize(0, 0);
-          printer.println(`  → ${notes}`);
+    // Optional: Load outlet-specific config (if DB columns exist)
+    if (outletid) {
+      try {
+        const db = require('../config/db');
+        const [settings] = await db.query(
+          'SELECT interface, width, characterSet, type FROM mstkot_print_settings WHERE outletid = ?',
+          [outletid]
+        );
+        if (settings.length > 0 && settings[0].interface) {
+          printerConfig.interface = settings[0].interface;
+          printerConfig.width = parseInt(settings[0].width) || 48;
+          printerConfig.characterSet = settings[0].characterSet || 'PC437_USA';
+          printerConfig.type = Types[settings[0].type || 'EPSON'];
+          console.log(`✅ Loaded outlet ${outletid} printer:`, printerConfig.interface);
+        } else {
+          console.log(`ℹ️ No printer config for outlet ${outletid}, using global`);
         }
+      } catch (dbError) {
+        console.warn(`DB config load failed for outlet ${outletid}:`, dbError.message);
       }
-    } else {
-      printer.println("No items to print");
     }
 
-    printer.println("───────────────────────────────────────");
+    const ThermalPrinter = require("node-thermal-printer").printer;
+    const Types = require("node-thermal-printer").types;
+    printer = new ThermalPrinter(printerConfig);
 
-    // Footer
-    printer.alignCenter();
-    printer.println("*** KOT PRINTED ***");
-    printer.println(" ");
-    printer.cut();  // Cut paper
+
+ 
 
     // Execute print
     const result = await printer.execute();
@@ -147,12 +101,13 @@ const printKOT = async (kotData) => {
  * @param {Object} kotData - KOT data object
  * @param {number} copies - Number of copies to print
  */
-const printKOTMultiple = async (kotData, copies = 1) => {
+const printKOTMultiple = async (outletid, kotData, copies = 1) => {
   const results = [];
 
   for (let i = 0; i < copies; i++) {
-    const result = await printKOT(kotData);
+    const result = await printKOT(outletid, kotData);
     results.push(result);
+
 
     // Small delay between copies
     if (i < copies - 1) {
@@ -208,3 +163,4 @@ module.exports = {
   updatePrinterConfig,
   PRINTER_CONFIG
 };
+

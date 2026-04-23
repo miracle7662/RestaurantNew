@@ -23,7 +23,7 @@ router.post("/print-kot", async (req, res) => {
   console.log(req.body)
   console.log(req.body);
   try {
-    const { tableNo, items, waiterName, orderId, copies } = req.body;
+const { outletid, tableNo, items, waiterName, orderId, copies } = req.body;
 
     if (!tableNo) {
       return res.status(400).json({
@@ -47,12 +47,15 @@ router.post("/print-kot", async (req, res) => {
       dateTime: new Date()
     };
 
+    // Pass outletid to print functions for config lookup
     let result;
     if (copies && copies > 1) {
-      result = await printKOTMultiple(kotData, copies);
+      result = await printKOTMultiple(outletid, kotData, copies);
     } else {
-      result = await printKOT(kotData);
+      result = await printKOT(outletid, kotData);
     }
+
+
 
     if (result.success) {
       res.json({
