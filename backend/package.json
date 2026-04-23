@@ -136,6 +136,7 @@
     "node-abi": "^3.85.0",
     "node-addon-api": "^7.1.1",
     "node-gyp": "^8.4.1",
+    "node-thermal-printer": "^4.6.0",
     "nopt": "^5.0.0",
     "npmlog": "^6.0.2",
     "object-assign": "^4.1.1",
