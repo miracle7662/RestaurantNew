@@ -1,31 +1,22 @@
-# Automatic KOT Printing Implementation - TODO
+# TODO: Automatic KOT Printing via Socket.IO
 
-## Status: In Progress
+## Backend
+- [x] 1. Add socket.io dependency to backend/package.json
+- [x] 2. Setup Socket.IO server in backend/server.js
+- [x] 3. Emit 'new_kot' event in createKOT controller
 
-### Step 1: [COMPLETED] DB Migration
-- Create and run SQL migration to add `printed` flag to `TAxnTrnbilldetails`
-- Files: `backend/migrations/auto_print_migration.sql`
+## Frontend (Shared)
+- [x] 4. Add socket.io-client dependency to root package.json
+- [x] 5. Extract KOT HTML generator to src/utils/kotHtmlGenerator.ts
+- [x] 6. Refactor KotPrint.tsx to use extracted generator
 
-### Step 2: [PENDING] Update printController.js
-- Add `getPrinterConfig(outletId)`
-- Add `printKOTByOrder(txnId, outletId)`
-- Make config dynamic
+## Frontend (Socket & Auto-Print)
+- [x] 7. Create socket client singleton src/common/api/socketClient.ts
+- [x] 8. Create useSocketKOT hook src/hooks/useSocketKOT.ts
+- [x] 9. Integrate hook into src/App.tsx
+- [x] 10. Update global.d.ts if needed
 
-### Step 3: [PENDING] Add order creation API
-- `backend/controllers/ordersController.js`: `createOrder()`
-- `backend/routes/ordersRoutes.js`: POST `/orders`
+## Testing & Verification
+- [ ] 11. Install dependencies
+- [ ] 12. Verify build succeeds
 
-### Step 4: [PENDING] Create printService.js
-- Background poller every 5s for new KOTs
-- Auto-print and mark as printed
-
-### Step 5: [PENDING] Integrate to server.js
-- Start printService on startup
-
-### Step 6: [COMPLETED] Test & Verify
-- Test order creation → auto-print
-- Check logs/DB/printer
-
----
-
-**Next Step:** DB Migration
