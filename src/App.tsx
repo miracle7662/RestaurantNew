@@ -20,46 +20,57 @@ function App() {
   const [ipMismatchInfo, setIpMismatchInfo] = useState<{ savedIP: string; currentIP: string } | null>(null)
 
   useEffect(() => {
-    const initApp = async () => {
-      try {
-        const config = await loadConfig()
-        
-        // Check if config file actually exists (first-run detection)
-        const configExists = typeof window !== 'undefined' && 
-          (window as any).electronAPI?.hasConfigFile?.() 
+  const initApp = async () => {
+    try {
+      const config = await loadConfig();
+
+      const configExists =
+        typeof window !== 'undefined' &&
+        (window as any).electronAPI?.hasConfigFile?.()
           ? await (window as any).electronAPI.hasConfigFile()
           : false;
 
-        if (!configExists) {
-          // First run — no config file at all
-          setShowConfigFirst(true)
-          setConfigReady(true)
-          return
-        }
+      const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
-        // Config file exists — detect current system IP and compare
-        const currentIP = await getSystemIPv4()
-        const savedIP = config?.serverIP
-        const ipChanged = hasIPChanged(savedIP, currentIP)
-
-        if (ipChanged) {
-          console.warn(`⚠️ IP changed: saved=${savedIP}, current=${currentIP}. Showing config screen.`)
-          setIpMismatchInfo({ savedIP: savedIP || 'unknown', currentIP })
-          setShowConfigFirst(true)
-        } else {
-          setShowConfigFirst(false)
-        }
-
+      // 🚨 Case 1: First time → Config
+      if (!configExists) {
+        setShowConfigFirst(true);
         setConfigReady(true);
-      } catch (error) {
-        console.error('Config init failed:', error)
-        setShowConfigFirst(true)
-        setConfigReady(true)
+        return;
       }
-    }
 
-    initApp()
-  }, [navigate])
+      // 🚨 Case 2: IP change → Config
+      const currentIP = await getSystemIPv4();
+      const savedIP = config?.serverIP;
+
+      if (hasIPChanged(savedIP, currentIP)) {
+        console.warn(`⚠️ IP changed: saved=${savedIP}, current=${currentIP}`);
+        setIpMismatchInfo({ savedIP: savedIP || 'unknown', currentIP });
+        setShowConfigFirst(true);
+        setConfigReady(true);
+        return;
+      }
+
+      // ✅ Normal flow (NO config screen)
+      setShowConfigFirst(false);
+
+      if (isLoggedIn) {
+        navigate('/dashboard');
+      } else {
+        navigate('/auth/minimal/login');
+      }
+
+      setConfigReady(true);
+
+    } catch (error) {
+      console.error('Config init failed:', error);
+      setShowConfigFirst(true);
+      setConfigReady(true);
+    }
+  };
+
+  initApp();
+}, []);
 
   if (!configReady) {
     return (
@@ -72,7 +83,7 @@ function App() {
   }
 
   if (showConfigFirst) {
-    return <ConfigScreen ipMismatchInfo={ipMismatchInfo || undefined} />
+    return <ConfigScreen ipMismatchInfo={ipMismatchInfo || undefined} onConfigSaved={() => setShowConfigFirst(false)} />
   }
 
   return (

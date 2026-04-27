@@ -1,10 +1,11 @@
-# IP Detection on App Startup — Implementation Steps
+# IP Change Save → Login Page Fix
 
-- [x] 1. Understand project structure and current config flow
-- [x] 2. Add `get-system-ipv4` IPC handler in `main.cjs`
-- [x] 3. Expose `getSystemIPv4` in `preload.js`
-- [x] 4. Add IP comparison helper in `src/config.ts`
-- [x] 5. Update `src/App.tsx` startup logic to compare IPs and show ConfigScreen on mismatch
-- [x] 6. Enhance `ConfigScreen.tsx` to show IP mismatch warning banner
-- [ ] 7. Test and verify
+## Steps
+- [x] 1. Read relevant files (App.tsx, ConfigScreen.tsx, routes, AuthContext, httpClient)
+- [x] 2. Confirm plan with user
+- [x] 3. Remove auto-login from ConfigScreen.tsx → always navigate to login after save
+- [ ] 4. Test the flow
+
+## Plan
+Remove hardcoded superadmin auto-login from `ConfigScreen.tsx`. After save success, set config in localStorage and navigate to `/auth/minimal/login` so user can manually login.
 

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import HttpClient from '../../common/helpers/httpClient';
 import { AppConfig, ConfigTestResult } from '../../types/config';
 import type { SubmitHandler } from 'react-hook-form';
 
@@ -10,9 +9,11 @@ import type { SubmitHandler } from 'react-hook-form';
 
 interface ConfigScreenProps {
   ipMismatchInfo?: { savedIP: string; currentIP: string };
+  onConfigSaved?: () => void;
 }
 
-const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo }) => {
+
+const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo, onConfigSaved }) => {
   const navigate = useNavigate();
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -87,26 +88,17 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo }) => {
         // Save config to localStorage for httpClient
         localStorage.setItem('posServerConfig', JSON.stringify(data));
         localStorage.setItem('configDone', 'true');
+
+        toast.success('Configuration saved! Please login to continue.');
+        onConfigSaved?.();
         
-        // Auto-login as superadmin
-        toast.loading('Auto-logging in as superadmin...', { id: 'autologin' });
-        const loginResponse = await HttpClient.post('auth/login', {
-          email: 'superadmin@miracle.com',
-          password: 'superadmin123'
-        }) as any;
-        
-        localStorage.setItem('token', loginResponse.token);
-        localStorage.setItem('user', JSON.stringify(loginResponse));
-        
-        toast.success('Auto-login successful! Redirecting to dashboard...', { id: 'autologin' });
-        setTimeout(() => navigate('/'), 1500);
       } else {
         toast.error(saveResult.error || 'Save failed');
       }
     } catch (error: any) {
-      toast.error('Config saved but auto-login failed. Login manually.', { id: 'autologin' });
+      toast.error('Config saved but redirect failed. Please login manually.');
       localStorage.setItem('configDone', 'true');
-      setTimeout(() => navigate('/auth/minimal/login'), 1500);
+      setTimeout(() => navigate('/auth/minimal/login'), 500);
     } finally {
       setSaving(false);
     }
