@@ -8,7 +8,11 @@ import type { SubmitHandler } from 'react-hook-form';
 
 /// <reference path="../../global.d.ts" />
 
-const ConfigScreen: React.FC = () => {
+interface ConfigScreenProps {
+  ipMismatchInfo?: { savedIP: string; currentIP: string };
+}
+
+const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo }) => {
   const navigate = useNavigate();
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -126,6 +130,19 @@ const ConfigScreen: React.FC = () => {
               <div className="card-body p-4">
                 <h4 className="text-center py-2">Server Configuration</h4>
                 <p className="text-muted text-center mb-4">Configure your backend server and database</p>
+
+                {ipMismatchInfo && (
+                  <div className="alert alert-warning mb-4">
+                    <strong>⚠️ Network IP Changed</strong>
+                    <div className="small mt-1">
+                      Saved IP: <code>{ipMismatchInfo.savedIP}</code><br/>
+                      Current IP: <code>{ipMismatchInfo.currentIP}</code>
+                    </div>
+                    <div className="small mt-1">
+                      Please verify the server IP below and save to continue.
+                    </div>
+                  </div>
+                )}
 
                 <form onSubmit={handleSubmit(connectionStatus === 'success' ? onSaveConfig : onTestConnection)}>
                   

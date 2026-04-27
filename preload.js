@@ -14,4 +14,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hasConfigFile: () => ipcRenderer.invoke('has-config-file'),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
   testConfig: (config) => ipcRenderer.invoke('test-config', config),
+  getSystemIPv4: () => ipcRenderer.invoke('get-system-ipv4'),
 });

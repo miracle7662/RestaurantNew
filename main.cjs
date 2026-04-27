@@ -117,6 +117,24 @@ ipcMain.handle('has-config-file', async () => {
   }
 });
 
+ipcMain.handle('get-system-ipv4', async () => {
+  try {
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+    return '127.0.0.1';
+  } catch (error) {
+    console.error('Get system IPv4 failed:', error);
+    return '127.0.0.1';
+  }
+});
+
 ipcMain.handle('test-config', async (event, config) => {
   try {
     console.log('=== TEST CONFIG START ===', JSON.stringify(config, null, 2));

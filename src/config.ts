@@ -44,4 +44,39 @@ export const clearConfigCache = () => {
 
 export const getCurrentConfig = () => cachedConfig;
 
+// Normalize IP for comparison: localhost === 127.0.0.1
+function normalizeIP(ip: string | undefined): string {
+  if (!ip) return '';
+  const trimmed = ip.trim().toLowerCase();
+  if (trimmed === 'localhost') return '127.0.0.1';
+  return trimmed;
+}
+
+/**
+ * Compare saved config IP with current system IP.
+ * Returns true if they differ (or either is missing).
+ * Treats localhost and 127.0.0.1 as equal.
+ */
+export const hasIPChanged = (savedIP: string | undefined, currentIP: string | undefined): boolean => {
+  const a = normalizeIP(savedIP);
+  const b = normalizeIP(currentIP);
+  if (!a || !b) return true; // missing = changed
+  return a !== b;
+};
+
+/**
+ * Get the system's current IPv4 address from the main process.
+ */
+export const getSystemIPv4 = async (): Promise<string> => {
+  if (typeof window !== 'undefined' && (window as any).electronAPI?.getSystemIPv4) {
+    try {
+      const ip = await (window as any).electronAPI.getSystemIPv4();
+      return ip || '127.0.0.1';
+    } catch (error) {
+      console.error('getSystemIPv4 failed:', error);
+    }
+  }
+  return '127.0.0.1';
+};
+
 export default { loadConfig, getAPIUrl };
