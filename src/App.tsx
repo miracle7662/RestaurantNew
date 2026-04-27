@@ -5,6 +5,7 @@ import { UIModeProvider } from './common/context'
 import ThemeRoutes from './routes/Routes'
 import ConfigScreen from '@/components/Pages/ConfigScreen'
 import { loadConfig } from './config'
+import SocketKOTPrinter from '@/components/SocketKOTPrinter'
 
 // Flaticons
 import './../node_modules/@flaticon/flaticon-uicons/css/all/all.css'
@@ -58,6 +59,7 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <UIModeProvider>
+          <SocketKOTPrinter />
           <ThemeRoutes />
         </UIModeProvider>
       </AuthProvider>

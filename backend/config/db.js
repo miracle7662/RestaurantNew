@@ -14,7 +14,7 @@ if (process.env.ELECTRON_USER_DATA_PATH) {
       console.log('✅ Loaded DB config from:', configPath);
       
       // Override env vars for MySQL pool
-      process.env.DB_HOST = config.dbHost || process.env.DB_HOST || '192.168.241.207';
+      process.env.DB_HOST = config.dbHost || process.env.DB_HOST || 'localhost';
       process.env.DB_USER = config.dbUser || process.env.DB_USER || 'root';
       process.env.DB_PASSWORD = config.dbPass || process.env.DB_PASSWORD || 'sharmin';
       process.env.DB_NAME = config.dbName || process.env.DB_NAME || 'restaurant_db';
@@ -29,7 +29,7 @@ if (process.env.ELECTRON_USER_DATA_PATH) {
 
 // Use env vars (now possibly overridden by config.json)
 const dbConfig = {
-  host: process.env.DB_HOST || '192.168.241.207',
+  host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '3306'),
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'sharmin',

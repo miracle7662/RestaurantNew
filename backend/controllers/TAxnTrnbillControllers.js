@@ -1189,6 +1189,32 @@ exports.createKOT = async (req, res) => {
         item_no: i.item_no || i.MenuItemNo,
       }))
 
+      // 🔥 Emit real-time KOT event to all desktops connected to this outlet
+      try {
+        const io = req.app.get('io')
+        if (io) {
+          const room = `outlet_${outletid}`
+          io.to(room).emit('new_kot', {
+            kotNo,
+            outletid,
+            tableId: TableID,
+            table_name,
+            items: mappedItems,
+            header,
+            steward: Steward,
+            orderType: Order_Type,
+            kotNote: req.body.kotNote || '',
+            pax: PAX,
+            customerName: CustomerName,
+            mobileNo: MobileNo,
+            txnId,
+          })
+          console.log(`📡 Emitted new_kot to room ${room} for KOT #${kotNo}`)
+        }
+      } catch (socketErr) {
+        console.warn('Socket emit failed (non-critical):', socketErr.message)
+      }
+
       res.json(ok('KOT processed successfully', { ...header, customerid: header.customerid, details: mappedItems, KOTNo: kotNo }))
     } catch (error) {
       await db.query('ROLLBACK')

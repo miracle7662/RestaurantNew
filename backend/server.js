@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 const app = express();
 const port = 3001;
 
@@ -60,6 +62,34 @@ const outletMenuRoutes = require('./routes/outletMenuRoutes');
 // ✅ Correct order of middleware
 app.use(cors());
 app.use(express.json());
+
+// ✅ Socket.IO setup
+const httpServer = http.createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+});
+
+// Attach io to Express app so controllers can access it
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  console.log('⚡ Socket connected:', socket.id);
+
+  socket.on('join_outlet', (outletId) => {
+    if (outletId) {
+      const room = `outlet_${outletId}`;
+      socket.join(room);
+      console.log(`✅ Socket ${socket.id} joined room ${room}`);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔌 Socket disconnected:', socket.id);
+  });
+});
 
 // ✅ Then register your routes
 app.use('/api/countries', countryRoutes);
@@ -146,7 +176,7 @@ function startServer(customPort) {
   
   console.log(`🚀 Starting POS Server on PORT ${port}`);
   
-  app.listen(port, '0.0.0.0', () => {
+  httpServer.listen(port, '0.0.0.0', () => {
     const os = require('os');
     const interfaces = os.networkInterfaces();
     const addresses = [];
