@@ -148,7 +148,7 @@ function startServer(customPort) {
   
   console.log(`🚀 Starting POS Server on PORT ${port}`);
   
- app.listen(port, '0.0.0.0', () => {
+  const server = app.listen(port, '0.0.0.0', () => {
     const os = require('os');
     const interfaces = os.networkInterfaces();
     const addresses = [];
@@ -166,6 +166,7 @@ function startServer(customPort) {
     console.log(`📱 Access from network: http://${addresses[0] || 'YOUR-IP'}:${port}`);
   });
 
+  return server;
 }
 
 module.exports = { startServer };

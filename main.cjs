@@ -7,7 +7,29 @@ const { spawn } = require("child_process");
 const fs = require('fs');
 
 let mainWindow;
-let backendProcess;
+let backendServer = null; // Store the server instance
+
+/* =========================
+   HELPERS
+   ========================= */
+
+function getSystemIPv4() {
+  try {
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+    return '127.0.0.1';
+  } catch (error) {
+    console.error('Get system IPv4 failed:', error);
+    return '127.0.0.1';
+  }
+}
 
 /* =========================
    IPC HANDLERS (GLOBAL)
@@ -66,20 +88,41 @@ const mysql = require('mysql2/promise');
 ipcMain.handle('load-config', async () => {
   try {
     const configPath = path.join(app.getPath('userData'), 'config.json');
+    let config;
     if (fs.existsSync(configPath)) {
       const data = fs.readFileSync(configPath, 'utf8');
-      return JSON.parse(data);
+      config = JSON.parse(data);
+    } else {
+      // Default config
+      config = {
+        serverIP: 'localhost',
+        port: 3001,
+        dbHost: 'localhost',
+        dbPort: 3306,
+        dbName: 'restaurant_db',
+        dbUser: 'root',
+        dbPass: ''
+      };
     }
-    // Default config
-    return {
-      serverIP: 'localhost',
-      port: 3001,
-      dbHost: 'localhost',
-      dbPort: 3306,
-      dbName: 'restaurant_db',
-      dbUser: 'root',
-      dbPass: ''
-    };
+    // Auto-inject real IPv4 if saved IP is localhost/127.0.0.1 OR network changed
+    const systemIP = getSystemIPv4();
+    const savedIP = (config.serverIP || '').trim().toLowerCase();
+    if (savedIP === 'localhost' || savedIP === '127.0.0.1' || !config.serverIP) {
+      config.serverIP = systemIP;
+      console.log('🔄 load-config: Auto-injected serverIP (localhost):', systemIP);
+    } else if (savedIP !== systemIP) {
+      config.serverIP = systemIP;
+      console.log('🔄 load-config: Auto-updated serverIP (network changed):', systemIP, '(was', config.serverIP, ')');
+    }
+    const dbHost = (config.dbHost || '').trim().toLowerCase();
+    if (dbHost === 'localhost' || dbHost === '127.0.0.1' || !config.dbHost) {
+      config.dbHost = systemIP;
+      console.log('🔄 load-config: Auto-injected dbHost (localhost):', systemIP);
+    } else if (dbHost !== systemIP) {
+      config.dbHost = systemIP;
+      console.log('🔄 load-config: Auto-updated dbHost (network changed):', systemIP, '(was', config.dbHost, ')');
+    }
+    return config;
   } catch (error) {
     console.error('Load config error:', error);
     return null;
@@ -88,17 +131,23 @@ ipcMain.handle('load-config', async () => {
 
 ipcMain.handle('save-config', async (event, config) => {
   try {
-    if (!config.serverIP || !config.port) {
-      throw new Error('Server IP and port required');
+    if (!config.port) {
+      throw new Error('Server port required');
+    }
+    // Auto-detect IP if serverIP is blank
+    if (!config.serverIP) {
+      config.serverIP = getSystemIPv4();
+      console.log('🔄 save-config: Auto-filled serverIP:', config.serverIP);
+    }
+    // Auto-fill dbHost with serverIP if blank
+    if (!config.dbHost) {
+      config.dbHost = config.serverIP;
     }
     const configPath = path.join(app.getPath('userData'), 'config.json');
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
     
     // Restart backend with new config (for immediate DB env vars)
-    if (backendProcess) {
-      backendProcess.kill();
-    }
-    startBackendWithConfig(config);
+    await restartBackendWithConfig(config);
     
     return { success: true };
   } catch (error) {
@@ -118,21 +167,7 @@ ipcMain.handle('has-config-file', async () => {
 });
 
 ipcMain.handle('get-system-ipv4', async () => {
-  try {
-    const os = require('os');
-    const interfaces = os.networkInterfaces();
-    for (const name of Object.keys(interfaces)) {
-      for (const iface of interfaces[name]) {
-        if (iface.family === 'IPv4' && !iface.internal) {
-          return iface.address;
-        }
-      }
-    }
-    return '127.0.0.1';
-  } catch (error) {
-    console.error('Get system IPv4 failed:', error);
-    return '127.0.0.1';
-  }
+  return getSystemIPv4();
 });
 
 ipcMain.handle('test-config', async (event, config) => {

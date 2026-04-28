@@ -1,9 +1,17 @@
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
+import { getCurrentConfig } from "../../config";
+
 console.log('🔍 httpClient: Checking baseURL sources...');
 const getBaseURL = () => {
-  // 1. Custom server URL from localStorage (Multi-machine config)
-const savedConfig = localStorage.getItem('posServerConfig');
-console.log('🔍 localStorage posServerConfig:', savedConfig);
+  // 1. Use cached config from config.ts (electron/multi-machine)
+  const cachedConfig = getCurrentConfig();
+  if (cachedConfig?.serverIP && cachedConfig?.port) {
+    return `http://${cachedConfig.serverIP}:${cachedConfig.port}/api`;
+  }
+
+  // 2. Custom server URL from localStorage (Multi-machine config)
+  const savedConfig = localStorage.getItem('posServerConfig');
+  console.log('🔍 localStorage posServerConfig:', savedConfig);
   if (savedConfig) {
     try {
       const config = JSON.parse(savedConfig);
@@ -13,17 +21,17 @@ console.log('🔍 localStorage posServerConfig:', savedConfig);
     }
   }
 
-  // 2. VITE_API_URL build-time env (installer embeds server IP)
+  // 3. VITE_API_URL build-time env (installer embeds server IP)
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
 
-  // 3. Electron single-machine (localhost backend)
- if (window.location.protocol === "file:") {
-  return "http://localhost:3001/api";
-}
+  // 4. Electron single-machine (localhost backend)
+  if (window.location.protocol === "file:") {
+    return "http://localhost:3001/api";
+  }
 
-  // 4. Browser development/network
+  // 5. Browser development/network
   return `${window.location.protocol}//${window.location.hostname}:3001/api`;
 }
 
@@ -39,8 +47,14 @@ const _httpClient = axios.create({
 
 _httpClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    // Dynamically update baseURL from current config before each request
+    const dynamicBaseURL = getBaseURL();
+    if (config.baseURL !== dynamicBaseURL) {
+      console.log('🔄 httpClient: Updating baseURL →', dynamicBaseURL);
+      config.baseURL = dynamicBaseURL;
+    }
 
+    const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

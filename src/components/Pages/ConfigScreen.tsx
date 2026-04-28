@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { AppConfig, ConfigTestResult } from '../../types/config';
+import { getSystemIPv4 } from '../../config';
 import type { SubmitHandler } from 'react-hook-form';
 
 /// <reference path="../../global.d.ts" />
@@ -19,6 +20,8 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo, onConfigSav
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<ConfigTestResult | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [detectedIP, setDetectedIP] = useState<string>('');
+  const [isDetecting, setIsDetecting] = useState(true);
 
 
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<AppConfig>({
@@ -33,10 +36,15 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo, onConfigSav
     },
   });
 
-  // Auto-check config on mount
+  // Auto-check config on mount + auto-detect IP
   React.useEffect(() => {
     const checkExistingConfig = async () => {
       try {
+        // 1. Auto-detect system IP first
+        const systemIP = await getSystemIPv4();
+        setDetectedIP(systemIP);
+        console.log('🔌 Auto-detected IP:', systemIP);
+
         const existingConfig = await (window as any).electronAPI.loadConfig();
         if (existingConfig && existingConfig.serverIP && existingConfig.port) {
           // Config exists → populate form + set configDone
@@ -47,9 +55,15 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo, onConfigSav
           });
           localStorage.setItem('configDone', 'true');
           toast.success('Config loaded! Click Test or Save to continue.');
+        } else {
+          // First-run → auto-fill with detected IP
+          setValue('serverIP', systemIP);
+          setValue('dbHost', systemIP);
         }
       } catch (error) {
         console.error('No existing config:', error);
+      } finally {
+        setIsDetecting(false);
       }
     };
     checkExistingConfig();
@@ -139,13 +153,18 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo, onConfigSav
                 <form onSubmit={handleSubmit(connectionStatus === 'success' ? onSaveConfig : onTestConnection)}>
                   
                   <div className="mb-3">
-                    <label className="form-label">Server IP/Hostname <span className="text-danger">*</span></label>
+                    <label className="form-label">Server IP/Hostname <span className="text-muted">(auto-detected)</span></label>
                     <input 
                       type="text" 
                       className={`form-control ${errors.serverIP ? 'is-invalid' : ''}`}
                       placeholder="localhost or 192.168.1.100"
-                      {...register('serverIP', { required: 'Server IP required' })}
+                      {...register('serverIP')}
                     />
+                    {detectedIP && (
+                      <div className="form-text text-muted small">
+                        Detected: <code>{detectedIP}</code> {isDetecting ? '(detecting...)' : ''}
+                      </div>
+                    )}
                     {errors.serverIP && <div className="invalid-feedback">{errors.serverIP.message}</div>}
                   </div>
 
