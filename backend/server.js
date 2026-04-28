@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const http = require('http');
 const app = express();
 const port = 3001;
 
@@ -61,7 +60,6 @@ const outletMenuRoutes = require('./routes/outletMenuRoutes');
 // ✅ Correct order of middleware
 app.use(cors());
 app.use(express.json());
-
 
 // ✅ Then register your routes
 app.use('/api/countries', countryRoutes);
@@ -148,7 +146,7 @@ function startServer(customPort) {
   
   console.log(`🚀 Starting POS Server on PORT ${port}`);
   
-app.listen(port, '0.0.0.0', () => {
+  app.listen(port, '0.0.0.0', () => {
     const os = require('os');
     const interfaces = os.networkInterfaces();
     const addresses = [];
@@ -166,7 +164,6 @@ app.listen(port, '0.0.0.0', () => {
     console.log(`📱 Access from network: http://${addresses[0] || 'YOUR-IP'}:${port}`);
   });
 
- 
 }
 
 module.exports = { startServer };

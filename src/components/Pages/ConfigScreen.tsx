@@ -2,26 +2,18 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import HttpClient from '../../common/helpers/httpClient';
 import { AppConfig, ConfigTestResult } from '../../types/config';
-import { getSystemIPv4 } from '../../config';
 import type { SubmitHandler } from 'react-hook-form';
 
 /// <reference path="../../global.d.ts" />
 
-interface ConfigScreenProps {
-  ipMismatchInfo?: { savedIP: string; currentIP: string };
-  onConfigSaved?: () => void;
-}
-
-
-const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo, onConfigSaved }) => {
+const ConfigScreen: React.FC = () => {
   const navigate = useNavigate();
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<ConfigTestResult | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [detectedIP, setDetectedIP] = useState<string>('');
-  const [isDetecting, setIsDetecting] = useState(true);
 
 
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<AppConfig>({
@@ -36,15 +28,10 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo, onConfigSav
     },
   });
 
-  // Auto-check config on mount + auto-detect IP
+  // Auto-check config on mount
   React.useEffect(() => {
     const checkExistingConfig = async () => {
       try {
-        // 1. Auto-detect system IP first
-        const systemIP = await getSystemIPv4();
-        setDetectedIP(systemIP);
-        console.log('🔌 Auto-detected IP:', systemIP);
-
         const existingConfig = await (window as any).electronAPI.loadConfig();
         if (existingConfig && existingConfig.serverIP && existingConfig.port) {
           // Config exists → populate form + set configDone
@@ -55,15 +42,9 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo, onConfigSav
           });
           localStorage.setItem('configDone', 'true');
           toast.success('Config loaded! Click Test or Save to continue.');
-        } else {
-          // First-run → auto-fill with detected IP
-          setValue('serverIP', systemIP);
-          setValue('dbHost', systemIP);
         }
       } catch (error) {
         console.error('No existing config:', error);
-      } finally {
-        setIsDetecting(false);
       }
     };
     checkExistingConfig();
@@ -102,17 +83,26 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo, onConfigSav
         // Save config to localStorage for httpClient
         localStorage.setItem('posServerConfig', JSON.stringify(data));
         localStorage.setItem('configDone', 'true');
-
-        toast.success('Configuration saved! Please login to continue.');
-        onConfigSaved?.();
         
+        // Auto-login as superadmin
+        toast.loading('Auto-logging in as superadmin...', { id: 'autologin' });
+        const loginResponse = await HttpClient.post('auth/login', {
+          email: 'superadmin@miracle.com',
+          password: 'superadmin123'
+        }) as any;
+        
+        localStorage.setItem('token', loginResponse.token);
+        localStorage.setItem('user', JSON.stringify(loginResponse));
+        
+        toast.success('Auto-login successful! Redirecting to dashboard...', { id: 'autologin' });
+        setTimeout(() => navigate('/'), 1500);
       } else {
         toast.error(saveResult.error || 'Save failed');
       }
     } catch (error: any) {
-      toast.error('Config saved but redirect failed. Please login manually.');
+      toast.error('Config saved but auto-login failed. Login manually.', { id: 'autologin' });
       localStorage.setItem('configDone', 'true');
-      setTimeout(() => navigate('/auth/minimal/login'), 500);
+      setTimeout(() => navigate('/auth/minimal/login'), 1500);
     } finally {
       setSaving(false);
     }
@@ -137,34 +127,16 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ ipMismatchInfo, onConfigSav
                 <h4 className="text-center py-2">Server Configuration</h4>
                 <p className="text-muted text-center mb-4">Configure your backend server and database</p>
 
-                {ipMismatchInfo && (
-                  <div className="alert alert-warning mb-4">
-                    <strong>⚠️ Network IP Changed</strong>
-                    <div className="small mt-1">
-                      Saved IP: <code>{ipMismatchInfo.savedIP}</code><br/>
-                      Current IP: <code>{ipMismatchInfo.currentIP}</code>
-                    </div>
-                    <div className="small mt-1">
-                      Please verify the server IP below and save to continue.
-                    </div>
-                  </div>
-                )}
-
                 <form onSubmit={handleSubmit(connectionStatus === 'success' ? onSaveConfig : onTestConnection)}>
                   
                   <div className="mb-3">
-                    <label className="form-label">Server IP/Hostname <span className="text-muted">(auto-detected)</span></label>
+                    <label className="form-label">Server IP/Hostname <span className="text-danger">*</span></label>
                     <input 
                       type="text" 
                       className={`form-control ${errors.serverIP ? 'is-invalid' : ''}`}
                       placeholder="localhost or 192.168.1.100"
-                      {...register('serverIP')}
+                      {...register('serverIP', { required: 'Server IP required' })}
                     />
-                    {detectedIP && (
-                      <div className="form-text text-muted small">
-                        Detected: <code>{detectedIP}</code> {isDetecting ? '(detecting...)' : ''}
-                      </div>
-                    )}
                     {errors.serverIP && <div className="invalid-feedback">{errors.serverIP.message}</div>}
                   </div>
 

@@ -3,60 +3,14 @@ const mysql = require('mysql2/promise');
 // 🌐 Load config from Electron userData (for packaged app)
 const fs = require('fs');
 const path = require('path');
-const os = require('os'); // ✅ NEW
-
-// ✅ Get current machine IP
-function getLocalIP() {
-  const interfaces = os.networkInterfaces();
-
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
-      }
-    }
-  }
-  return 'localhost';
-}
-
-// ✅ Update config.json with latest IP
-function updateConfigIP(configPath) {
-  try {
-    const currentIP = getLocalIP();
-    let config = {};
-
-    if (fs.existsSync(configPath)) {
-      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    }
-
-    // 🔄 Check & update IP
-    if (config.dbHost !== currentIP) {
-      console.log('🔄 IP Changed:', config.dbHost, '➡', currentIP);
-
-      config.dbHost = currentIP;
-
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-      console.log('✅ config.json updated with new IP');
-    }
-
-    return config;
-
-  } catch (err) {
-    console.error('❌ Error updating config:', err.message);
-    return {};
-  }
-}
 
 // Try to load config.json from Electron userData
 let configPath;
 if (process.env.ELECTRON_USER_DATA_PATH) {
   configPath = path.join(process.env.ELECTRON_USER_DATA_PATH, 'config.json');
-
   if (fs.existsSync(configPath)) {
     try {
-      // ✅ REPLACED (auto update IP + load config)
-      const config = updateConfigIP(configPath);
-
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
       console.log('✅ Loaded DB config from:', configPath);
       
       // Override env vars for MySQL pool
@@ -65,7 +19,6 @@ if (process.env.ELECTRON_USER_DATA_PATH) {
       process.env.DB_PASSWORD = config.dbPass || process.env.DB_PASSWORD || 'sharmin';
       process.env.DB_NAME = config.dbName || process.env.DB_NAME || 'restaurant_db';
       process.env.DB_PORT = config.dbPort?.toString() || process.env.DB_PORT || '3306';
-
     } catch (error) {
       console.error('❌ Failed to load config.json:', error.message);
     }
@@ -96,3 +49,4 @@ console.log('🗄️ MySQL Config:', {
 
 const pool = mysql.createPool(dbConfig);
 module.exports = pool;
+
