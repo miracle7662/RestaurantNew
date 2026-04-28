@@ -7,7 +7,7 @@ const { spawn } = require("child_process");
 const fs = require('fs');
 
 let mainWindow;
-let backendServer = null; // Store the server instance
+let backendProcess;
 
 /* =========================
    HELPERS
@@ -147,7 +147,10 @@ ipcMain.handle('save-config', async (event, config) => {
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
     
     // Restart backend with new config (for immediate DB env vars)
-    await restartBackendWithConfig(config);
+    if (backendProcess) {
+      backendProcess.kill();
+    }
+    startBackendWithConfig(config);
     
     return { success: true };
   } catch (error) {
