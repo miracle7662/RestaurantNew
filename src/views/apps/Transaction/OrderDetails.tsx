@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Dispatch, SetStateAction, useRef, useMemo, useCallback } from 'react';
 import { Row, Col, Card, Modal, Offcanvas, Table } from 'react-bootstrap';
+import { useAuthContext } from '@/common';
 import { fetchMenu, MenuItem } from '@/utils/commonfunction';
 import MenuService from '@/common/api/menu';
 import CustomerModal from './Customers';
@@ -154,6 +155,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
 
+  const { user } = useAuthContext();
+
   useEffect(() => {
     if (triggerFocus > 0 && tableInputRef.current) {
       // When KOT is saved with Focus Mode ON, clear the table search and focus it.
@@ -297,7 +300,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       try {
         setLoading(true);
         setError(null);
-        await fetchMenuItems(); // Fetch menu items for sidebar
+        await fetchMenuItems(user?.hotelid, user?.outletid); // Fetch menu items for sidebar
         await fetchMenu(
           (data: MenuItem[]) => {
             const mappedItems: CardItem[] = data
@@ -314,7 +317,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
               }));
             setCardItems(mappedItems);
           },
-          () => { }
+          () => { },
+          undefined,
+          user?.hotelid
         );
       } catch (error) {
         // console.error('Fetch error:', error);

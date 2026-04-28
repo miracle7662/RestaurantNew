@@ -501,9 +501,10 @@ export const fetchMenu = async (
   setMenuCategory: (data: MenuItem[]) => void,
   setmenuid: (id: number) => void,
   currentmenucategoryid?: string,
+  hotelid?: number,
 ) => {
   try {
-    const response = await MenuService.list()
+    const response = await MenuService.list(hotelid ? { hotelid } : undefined)
     // HttpClient returns the unwrapped response due to interceptor
     const rawData = Array.isArray(response.data) ? response.data : (response as any).data || []
     const data: MenuItem[] = rawData.map((item: any) => ({
