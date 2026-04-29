@@ -1,5 +1,6 @@
 import { Preloader, PreloaderFull } from '@/components/Misc/Preloader'
 import React, { Suspense, useEffect } from 'react'
+import SocketKOTPrinter from '@/components/SocketKOTPrinter.tsx'
 //import { Button, Stack } from 'react-bootstrap'
 import { ThemeSettings, useThemeContext } from '../common/context'
 //import { useViewport } from '../hooks'
@@ -63,6 +64,7 @@ const VerticalLayout = ({ children }: VerticalLayoutProps) => {
             className={`inner-content ${
               location.pathname.startsWith('/apps/') ? 'apps-content' : ''
             }`}>
+            <SocketKOTPrinter />
             <Suspense fallback={<Preloader />}> {children}</Suspense>
           </div>
         </main>

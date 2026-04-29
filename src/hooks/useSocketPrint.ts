@@ -19,6 +19,7 @@ export interface SocketOrderPayload {
 }
 
 export function useSocketPrint(outletId: number | null | undefined) {
+  console.log('🔌 === useSocketPrint HOOK CALLED === OutletID:', outletId);
   const [pendingOrders, setPendingOrders] = useState<SocketOrderPayload[]>([]);
   const socketRef = useRef<Socket | null>(null);
 
@@ -27,16 +28,26 @@ export function useSocketPrint(outletId: number | null | undefined) {
   }, []);
 
   useEffect(() => {
-    if (!outletId) return;
+    console.log('⚙️ useEffect triggered. outletId valid?', !!outletId);
+    if (!outletId) {
+      console.warn('❌ No outletId - skipping socket connection');
+      return;
+    }
 
     let isMounted = true;
 
     const connectSocket = async () => {
+      console.log('🚀 Starting socket connection attempt...');
       try {
         const config = await getCurrentConfig();
-        if (!config || !isMounted) return;
+        console.log('⚙️ Config loaded:', config ? `${config.serverIP}:${config.port}` : 'NO CONFIG');
+        if (!config || !isMounted) {
+          console.error('❌ No config or unmounted');
+          return;
+        }
 
         const socketUrl = `http://${config.serverIP}:${config.port}`;
+        console.log("🌐 Socket URL:", socketUrl);
         const socket = io(socketUrl, {
           transports: ['websocket', 'polling'],
           reconnection: true,
@@ -52,12 +63,15 @@ export function useSocketPrint(outletId: number | null | undefined) {
         });
 
         socket.on('new_kot', (data: SocketOrderPayload) => {
-          console.log('📡 new_kot received:', data);
+          console.log('🚨 MOBILE KOT DETECTED →', data.kotNo, 'Outlet:', data.outletid, 'Table:', data.table_name);
+          console.log('📦 Items:', data.items.map((i: any) => `${i.item_name || i.ItemName} x${i.qty || i.Qty}`).join(', '));
           setPendingOrders((prev) => {
             // Prevent duplicate entries for same txnId + kotNo
             if (prev.some((o) => o.txnId === data.txnId && o.kotNo === data.kotNo)) {
+              console.warn('⚠️ Duplicate KOT ignored:', data.kotNo);
               return prev;
             }
+            console.log('✅ New KOT queued for print:', data.kotNo);
             return [...prev, data];
           });
         });

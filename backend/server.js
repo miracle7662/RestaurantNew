@@ -1,7 +1,17 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 const app = express();
 const port = 3001;
+
+const httpServer = http.createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 const db = require('./config/db.js');
 const { authenticateToken } = require('./middleware/auth');
@@ -146,7 +156,22 @@ function startServer(customPort) {
   
   console.log(`🚀 Starting POS Server on PORT ${port}`);
   
-  app.listen(port, '0.0.0.0', () => {
+  app.set('io', io);  // For controllers
+  
+  io.on('connection', (socket) => {
+    console.log('🔌 Client connected:', socket.id);
+    
+    socket.on('join_outlet', (outletId) => {
+      socket.join(`outlet_${outletId}`);
+      console.log(`👥 Client ${socket.id} joined outlet_${outletId}`);
+    });
+    
+    socket.on('disconnect', () => {
+      console.log('🔌 Client disconnected:', socket.id);
+    });
+  });
+
+  httpServer.listen(port, '0.0.0.0', () => {
     const os = require('os');
     const interfaces = os.networkInterfaces();
     const addresses = [];

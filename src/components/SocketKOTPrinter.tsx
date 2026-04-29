@@ -5,9 +5,12 @@ import { useSocketPrint } from '@/hooks/useSocketPrint';
 import { OutletSettings } from '@/utils/applyOutletSettings';
 
 const SocketKOTPrinter: React.FC = () => {
+  console.log('🎯 === SOCKET KOT PRINTER MOUNTED ===');
   const { user } = useAuthContext();
   const outletId = user?.outletid ?? null;
-  const { pendingOrders, removeOrder } = useSocketPrint(outletId);
+  console.log('🏢 OUTLET ID:', outletId, 'User:', user?.username || 'No user');
+const { pendingOrders, removeOrder } = useSocketPrint(outletId);
+  console.log('📋 Pending orders count:', pendingOrders.length);
 
   const defaultFormData: OutletSettings = {} as OutletSettings;
 
@@ -39,6 +42,11 @@ const SocketKOTPrinter: React.FC = () => {
             key={`${order.txnId}-${order.kotNo}`}
             show={true}
             autoPrint={true}
+            onPrint={() => {
+              console.log(`🔥 SOCKET KOT PRINT → #${order.kotNo} | Outlet: ${order.outletid} | Table: ${order.table_name}`);
+              console.log('📦 Items:', mappedItems.map(i => `${i.name} x${i.qty}`).join(', '));
+              removeOrder(order.txnId);
+            }}
             onHide={() => removeOrder(order.txnId)}
             onClose={() => removeOrder(order.txnId)}
             printItems={mappedItems}
@@ -58,9 +66,7 @@ const SocketKOTPrinter: React.FC = () => {
             date={null}
             tableStatus={null}
             selectedWaiter={order.steward ?? ''}
-            onPrint={() => {
-              console.log(`✅ KOT #${order.kotNo} printed via socket`);
-            }}
+            
           />
         );
       })}
