@@ -113,7 +113,6 @@ app.use('/api/warehouse', WarehouseRoutes); // Register warehouse routes
 app.use('/api/reports', ReportRoutes); // Register report routes
 app.use('/api/kitchen-allocation', KitchenAllocationRoutes); // Register kitchen allocation routes
 app.use("/api/settings", settingsRoutes);
-app.use('/api/config', require('./routes/configRoutes'));  // Multi-machine server info
 
 app.use('/api/account-ledger', authenticateToken, AccountLedgerRoutes);
 app.use('/api/accountnature', authenticateToken, AccountNatureRoutes);
