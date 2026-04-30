@@ -730,7 +730,7 @@ exports.settleBill = async (req, res) => {
       throw error
     }
 
-    const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
     const header = headerRows[0]
     const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
     const [stl] = await db.query(`
@@ -738,6 +738,33 @@ exports.settleBill = async (req, res) => {
       WHERE OrderNo = ? AND HotelID = ?
       ORDER BY SettlementID
     `, [header.orderNo || null, header.HotelID || null])
+
+    // 🔥 Emit real-time bill event to all desktops connected to this outlet for auto-printing
+    try {
+      const io = req.app.get('io')
+      if (io && header.outletid) {
+        const room = `outlet_${header.outletid}`
+        io.to(room).emit('new_bill', {
+          billNo: header.TxnNo || header.orderNo,
+          txnId: header.TxnID,
+          outletid: header.outletid,
+          tableId: header.TableID,
+          table_name: header.table_name,
+          amount: header.Amount,
+          customerName: header.CustomerName,
+          mobileNo: header.MobileNo,
+          items: items,
+          settlement: stl,
+          pax: header.PAX,
+          steward: header.Steward,
+          orderType: header.Order_Type,
+        });
+        console.log(`📡 BILL emit: ${header.TxnNo || header.orderNo} | Outlet: ${header.outletid} | Table: ${header.table_name}`);
+        console.log(`📡 Emitted new_bill to room ${room} for bill #${header.TxnNo || header.orderNo}`);
+      }
+    } catch (socketErr) {
+      console.warn('Socket emit failed (non-critical):', socketErr.message)
+    }
 
     res.json(ok('Bill settled', { ...header, customerid: header.customerid, details: items, settlement: stl }))
   } catch (error) {
@@ -1187,7 +1214,8 @@ exports.createKOT = async (req, res) => {
       const mappedItems = items.map((i) => ({
         ...i,
         item_no: i.item_no || i.MenuItemNo,
-      }))
+        isNewItem: i.KOTNo === kotNo  // 🔥 ONLY NEW ITEMS FOR SOCKET PRINT
+      }));
 
       // 🔥 Emit real-time KOT event to all desktops connected to this outlet
       try {
@@ -1199,7 +1227,7 @@ exports.createKOT = async (req, res) => {
             outletid,
             tableId: TableID,
             table_name,
-            items: mappedItems,
+            items: mappedItems.filter(i => i.isNewItem),  // 🔥 ONLY NEW ITEMS
             header,
             steward: Steward,
             orderType: Order_Type,
@@ -1208,7 +1236,8 @@ exports.createKOT = async (req, res) => {
             customerName: CustomerName,
             mobileNo: MobileNo,
             txnId,
-          })
+          });
+          console.log(`📡 Delta KOT emit: ${mappedItems.filter(i => i.isNewItem).length}/${mappedItems.length} new items`);
           console.log(`📡 Emitted new_kot to room ${room} for KOT #${kotNo}`)
         }
       } catch (socketErr) {
@@ -2480,9 +2509,39 @@ exports.markBillAsBilled = async (req, res) => {
       throw error
     }
 
-    const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
+const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
     const header = headerRows[0]
     const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
+
+    // 🔥 Emit real-time bill event to all desktops connected to this outlet for auto-printing (when called from mobile)
+    try {
+      const io = req.app.get('io')
+      if (io && header.outletid) {
+        // Get mobile number from the request body (from mobile) or from bill
+        const printMobileNo = mobileNo || header.MobileNo;
+        
+        const room = `outlet_${header.outletid}`
+        io.to(room).emit('new_bill', {
+          billNo: header.TxnNo || header.orderNo,
+          txnId: header.TxnID,
+          outletid: header.outletid,
+          tableId: header.TableID,
+          table_name: header.table_name,
+          amount: header.Amount,
+          customerName: customerName || header.CustomerName,
+          mobileNo: printMobileNo,
+          items: items,
+          settlement: [],
+          pax: header.PAX,
+          steward: header.Steward,
+          orderType: header.Order_Type,
+        });
+        console.log(`📡 BILL emit from markBillAsBilled: ${header.TxnNo || header.orderNo} | Outlet: ${header.outletid} | Table: ${header.table_name} | Mobile: ${printMobileNo}`);
+        console.log(`📡 Emitted new_bill to room ${room} for bill #${header.TxnNo || header.orderNo}`);
+      }
+    } catch (socketErr) {
+      console.warn('Socket emit failed (non-critical):', socketErr.message)
+    }
 
     res.json(ok('Bill marked as billed', { ...header, customerid: header.customerid, details: items }))
   } catch (error) {

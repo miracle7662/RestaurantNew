@@ -17,8 +17,11 @@ const { pendingOrders, removeOrder } = useSocketPrint(outletId);
   return (
     <>
       {pendingOrders.map((order) => {
-        // Map backend socket payload items to MenuItem format expected by KotPreviewPrint
-        const mappedItems = order.items.map((item: any) => ({
+        // 🔥 FIXED: Filter ONLY NEW items from backend + respect isNewItem flag
+        const newItemsOnly = order.items.filter((item: any) => item.isNewItem);
+        console.log(`🔍 SOCKET KOT #${order.kotNo}: ${order.items.length} total → ${newItemsOnly.length} NEW only`);
+        
+        const mappedItems = newItemsOnly.map((item: any) => ({
           id: item.ItemID ?? item.itemId ?? 0,
           name: item.ItemName ?? item.item_name ?? item.name ?? 'Unknown',
           price: Number(item.RuntimeRate ?? item.price ?? 0),
@@ -28,18 +31,23 @@ const { pendingOrders, removeOrder } = useSocketPrint(outletId);
           NCName: item.NCName ?? '',
           NCPurpose: item.NCPurpose ?? '',
           table_name: order.table_name ?? undefined,
-          isNew: true,
+          isNew: item.isNewItem ?? true,  // ✅ Backend flag
           item_no: item.item_no ?? undefined,
           kotNo: order.kotNo,
           txnDetailId: item.TXnDetailID ?? item.txnDetailId ?? undefined,
           variantId: item.VariantID ?? item.variantId ?? undefined,
           variantName: item.VariantName ?? item.variantName ?? undefined,
           order_tag: item.order_tag ?? '',
-        }));
+        }));  
+        if (mappedItems.length === 0) {
+          console.log(`⚠️ No new items for KOT #${order.kotNo} → Skipping print`);
+          removeOrder(order.txnId);
+          return null;
+        }
 
         return (
           <KotPreviewPrint
-            key={`${order.txnId}-${order.kotNo}`}
+            key={`${order.txnId}-${order.kotNo}-${mappedItems.length}`}
             show={true}
             autoPrint={true}
             onPrint={() => {

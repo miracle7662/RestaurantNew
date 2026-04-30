@@ -241,12 +241,13 @@ const saveDayEndCashDenomination = async (req, res) => {
 const saveDayEnd = async (req, res) => {
   try {
     const { dayend_total_amt, outlet_id, hotel_id, created_by_id } = req.body;
+    console.log("Received Day End request with data:", { dayend_total_amt, outlet_id, hotel_id, created_by_id }); 
 
     if (!outlet_id || !hotel_id || !created_by_id)
       return res.status(400).json({ success: false, message: "Missing fields" });
 
-    // console.log("=== DAY END PROCESS ===");
-    // console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", created_by_id, "Amount:", dayend_total_amt);
+     console.log("=== DAY END PROCESS ===");
+     console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", created_by_id, "Amount:", dayend_total_amt);
 
     // ===========================================
     // ✅ CALCULATE CLOSING BALANCE (Cash received during the day)
@@ -779,7 +780,8 @@ const getNCKOTsData = async (businessDate, dayEndEmpID) => {
       t.NCPurpose AS purpose,
       td.Qty AS quantity,
       t.Amount AS amount,
-      t.TxnDatetime
+      t.TxnDatetime,
+      td.KOTNo AS kotNo
     FROM TAxnTrnbilldetails td
     JOIN TAxnTrnbill t ON td.TxnID = t.TxnID
     WHERE t.isDayEnd = 1
