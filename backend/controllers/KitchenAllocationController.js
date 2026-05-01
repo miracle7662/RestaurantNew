@@ -168,8 +168,9 @@ const getItemDetails = async (req, res) => {
 
     console.log('📅 Normalized dates:', { startDate, endDate });
 
-    let query = `
+let query = `
       SELECT
+        COALESCE(m.item_no, d.item_no) AS item_no,
         d.item_name,
         d.Qty,
         (d.Qty * d.RuntimeRate) AS Amount,
@@ -180,7 +181,8 @@ const getItemDetails = async (req, res) => {
         t.outletid
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
-      WHERE d.item_no = ?
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE (m.item_no = ? OR d.item_no = ?)
         AND DATE(t.TxnDatetime) >= ?
         AND DATE(t.TxnDatetime) <= ?
         AND t.HotelID = ?
