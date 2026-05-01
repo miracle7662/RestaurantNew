@@ -22,7 +22,7 @@ const getKitchenAllocation = async (req, res) => {
             startDate = new Date().toISOString().split('T')[0]; // Today fallback
             console.log('📅 Using today as fromDate fallback');
         }
-        if (toDate) {
+if (toDate) {
             const parsed = new Date(toDate);
             if (isNaN(parsed.getTime())) {
                 console.warn('⚠️ Invalid toDate format:', toDate);
@@ -33,6 +33,7 @@ const getKitchenAllocation = async (req, res) => {
             endDate = new Date().toISOString().split('T')[0];
             console.log('📅 Using today as toDate fallback');
         }
+
         if (!hotelId) {
             return res.status(400).json({ success: false, message: 'hotelId is required' });
         }
@@ -58,16 +59,21 @@ WHERE DATE(t.TxnDatetime) BETWEEN ? AND ?
 GROUP BY
     i.itemgroupname,
     d.item_no,
-    d.item_name
+    d.item_name,
+    t.outletid
 ORDER BY
     i.itemgroupname,
+    t.outletid,
     d.item_name
         `;
 
         const params = [startDate, endDate, hotelId];
 
         if (outletId) {
-            query += ' AND t.outletid = ?';
+            query = query.replace(
+                'GROUP BY\n    i.itemgroupname,',
+                'AND t.outletid = ?\nGROUP BY\n    i.itemgroupname,'
+            );
             params.push(outletId);
         }
 
