@@ -1,22 +1,28 @@
-# Socket Printer - Print Only New Items Fix
+## DEVICE_NAME IMPLEMENTATION - PROGRESS TRACKER
 
-## Status: 🚀 Implementation Started
+**Status**: ✅ APPROVED → IMPLEMENTING
 
-**✅ 1. Plan Approved & TODO Created**  
-**⏳ 2. Backend: TAxnTrnbillControllers.js** ← **NEXT**  
-**⏳ 3. Frontend: SocketKOTPrinter.tsx**  
-**⏳ 4. Testing**  
-**⏳ 5. Backend Restart**  
-**⏳ 6. Complete**
+### Completed ✅
+1. ~~Update API Types [src/common/api/order.ts]~~
+2. ~~Create Device Detection Hook [src/hooks/useDeviceName.ts]~~
+3. ~~TODO_device_name.md created & plan approved~~
 
-## Quick Test Commands
-```bash
-# Backend restart
-cd backend && npm start
+### In Progress 🔄
+4. **Update Frontend Components** 
+   - Billview.tsx: Add `{ deviceName }` usage + payload
+   - Orders.tsx: Add `{ deviceName }` usage + payload
+   
+5. **Backend Updates** 
+   - TAxnTrnbillControllers.js: DB save + socket emit
+   
+### Pending ⏳
+6. **Testing**
+   - Mobile: Verify DeviceInfo name saved to DB
+   - Desktop: Verify hostname saved to DB  
+   - Query: `SELECT TxnID, device_name FROM TAxnTrnbill ORDER BY TxnID DESC LIMIT 5;`
 
-# Check socket events (browser console)
-# Look for 'new_kot' → verify items.length == new items only
-```
+### Next Action
+- Apply frontend/backend edits
+- Test mobile/desktop
+- Mark complete + attempt_completion
 
-**Est. Time**: 15 mins  
-**Risk**: Low (isolated socket emit)

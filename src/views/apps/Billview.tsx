@@ -19,6 +19,7 @@ import OrderService from '@/common/api/order';
 import MenuService from "@/common/api/menu";
 import { DepartmentDetail } from "@/common/api/menu";
 import ReverseKotPrint from '../apps/PrintReport/ReverseKotPrint';
+import useDeviceName from "@/hooks/useDeviceName";
 
 const KOT_COLORS = [
   '#e3f2fd', // Green 50

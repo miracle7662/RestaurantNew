@@ -14,6 +14,7 @@ import { applyKotSettings, } from '@/utils/applyOutletSettings';
 import KotPreviewPrint from '../PrintReport/KotPrint';
 import BillPreviewPrint from '../PrintReport/BillPrint';
 import ReverseKotPrint from '../PrintReport/ReverseKotPrint';
+import useDeviceName from "@/hooks/useDeviceName";
 import NCKotPrint from "../PrintReport/NcKotPrint";
 
 import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';

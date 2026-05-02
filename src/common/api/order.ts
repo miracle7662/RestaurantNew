@@ -200,7 +200,8 @@ export interface CreateKOTPayload {
   order_tag?: string
   customerid?: number | null
   Steward?: string
-  PAX?: number | null
+PAX?: number | null,
+  device_name?: string | null
   DeptID?: number | null
   
   // Frontend calculated values - use these directly in backend
