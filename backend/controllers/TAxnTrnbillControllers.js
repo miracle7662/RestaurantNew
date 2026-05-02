@@ -853,7 +853,7 @@ exports.updateBillItemsIsBilled = async (req, res) => {
 exports.createKOT = async (req, res) => {
   try {
      console.log('Received createKOT body:', JSON.stringify(req.body, null, 2))
-    // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
+// Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
     const {
     outletid,
     tableId: TableID,
@@ -874,6 +874,7 @@ exports.createKOT = async (req, res) => {
     TxnDatetime,
     KOTUsedDate,
     curr_date,
+    device_name,
 
     // Frontend calculated values - use directly
     GrossAmt,
