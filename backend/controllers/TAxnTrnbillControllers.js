@@ -251,6 +251,7 @@ exports.createBill = async (req, res) => {
     // Start transaction
     await db.query('START TRANSACTION')
     
+    console.log('createBill device_name:', req.body.device_name);
     try {
 let txnNo = TxnNo
       if (!txnNo && outletid) {
@@ -264,8 +265,8 @@ let txnNo = TxnNo
           isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
           orderNo, isPickup, HotelID, customerid, DiscRefID, DiscPer, DiscountType, UserId,
           BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
-          ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3, NCName, NCPurpose, isNCKOT, DeptID
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3, NCName, NCPurpose, isNCKOT, DeptID, device_name
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `, [
         outletid ?? null,
         txnNo || null,
@@ -314,6 +315,7 @@ let txnNo = TxnNo
         NCPurpose || null,
         toBool(isHeaderNCKOT),
         DeptID,
+        req.body.device_name || null
       ])
 
       const txnId = result.insertId
@@ -465,6 +467,7 @@ exports.updateBill = async (req, res) => {
     // Start transaction
     await db.query('START TRANSACTION')
     
+    console.log('updateBill device_name:', req.body.device_name);
     try {
       const [updateResult] = await db.query(`
         UPDATE TAxnTrnbill SET
@@ -473,7 +476,7 @@ exports.updateBill = async (req, res) => {
           isHomeDelivery=?, DriverID=?, CustomerName=?, MobileNo=?, Address=?, Landmark=?,
           orderNo=?, isPickup=?, HotelID=?, customerid=?, DiscRefID=?, DiscPer=?, DiscountType=?, UserId=?,
           BatchNo=?, PrevTableID=?, PrevDeptId=?, isTrnsfered=?, isChangeTrfAmt=?,
-          ServiceCharge=?, ServiceCharge_Amount=?, Extra1=?, Extra2=?, Extra3=?
+          ServiceCharge=?, ServiceCharge_Amount=?, Extra1=?, Extra2=?, Extra3=?, device_name=?
         WHERE TxnID=?
       `, [
         outletid ?? null,
@@ -1043,7 +1046,7 @@ exports.createKOT = async (req, res) => {
             isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, customerid, Order_Type, orderNo,
 NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID,
             GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount, isHomeDelivery, device_name
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           headerOutletId,
           null,
@@ -1074,7 +1077,8 @@ NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID,
           finalCess,
           finalRoundOff,
           finalAmount,
-          isHomeDeliveryFlag
+          isHomeDeliveryFlag,
+          device_name
         ])
         txnId = result.insertId
         await db.query('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?', [Number(TableID)])
@@ -2488,6 +2492,49 @@ exports.markBillAsBilled = async (req, res) => {
     const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
 
     res.json(ok('Bill marked as billed', { ...header, customerid: header.customerid, details: items }))
+
+    // 🔥 SOCKET EMIT for Mobile Bill Print (like printBill/createKOT)
+    try {
+      const io = req.app.get('io')
+      if (io) {
+        const room = `outlet_${outletId || bill.outletid}`
+        const [kotResultRows] = await db.query(
+          `
+          SELECT MAX(KOTNo) as maxKOT
+          FROM TAxnTrnbilldetails
+          WHERE TxnID = ?
+        `, [Number(id)])
+        const kotResult = kotResultRows[0]
+        const kotNo = kotResult?.maxKOT || header.orderNo || null
+
+        io.to(room).emit('new_bill', {
+          billNo: header.TxnNo,
+          txnId: Number(id),
+          outletid: outletId || header.outletid,
+          tableId: header.TableID,
+          table_name: header.table_name,
+          amount: header.Amount,
+          customerName: header.CustomerName,
+          mobileNo: header.MobileNo,
+          items: items.map(item => ({
+            TXnDetailID: item.TXnDetailID,
+            ItemID: item.ItemID,
+            ItemName: item.item_name, // From DB
+            Qty: item.Qty - (item.RevQty || 0), // Net qty
+            RuntimeRate: item.RuntimeRate,
+            isBilled: 1
+          })),
+          settlement: [], // Empty unless fetched
+          pax: header.PAX,
+          steward: header.Steward,
+          orderType: header.Order_Type || 'Dine-in'
+        });
+        console.log(`📡 MOBILE BILL EMIT → #${header.TxnNo} | Outlet: ${room} | Table: ${header.table_name || 'N/A'} | Items: ${items.length} | Amount: ₹${header.Amount}`);
+        console.log('📦 Bill Items Preview:', items.slice(0,3).map(item => `${item.item_name || 'Item'} x${item.Qty || 0}`).join(', ') + (items.length > 3 ? '...' : ''));
+      }
+    } catch (socketErr) {
+      console.warn('Socket emit failed (non-critical):', socketErr.message)
+    }
   } catch (error) {
     res
       .status(500)

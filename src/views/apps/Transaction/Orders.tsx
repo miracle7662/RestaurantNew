@@ -1673,7 +1673,8 @@ const handlePrintKotAndBill = async () => {
   }
 };
 
-  const handlePrintAndSaveKOT = async () => {
+const { deviceName } = useDeviceName();
+const handlePrintAndSaveKOT = async () => {
     try {
       // Ensure customer details are fetched if mobile number is provided but customerid is null
       if (mobileNumber && !customerid) {
@@ -1849,7 +1850,8 @@ const handlePrintKotAndBill = async () => {
       const lineTotalForDiscount = activeItemsForDiscount.reduce((sum, item) => sum + item.price * item.qty, 0);
       const calculatedDiscountAmount = DiscountType === 1 ? (lineTotalForDiscount * discountInputValue) / 100 : discountInputValue;
 
-      const kotPayload = {
+        const kotPayload = {
+          device_name: deviceName,
         txnId: currentTxnId || 0,
         tableId: resolvedTableId,
         table_name: tableNameForKOT,
