@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
@@ -19,6 +19,7 @@ import OrderService from '@/common/api/order';
 import MenuService from "@/common/api/menu";
 import { DepartmentDetail } from "@/common/api/menu";
 import ReverseKotPrint from '../apps/PrintReport/ReverseKotPrint';
+import useDeviceName from "@/hooks/useDeviceName";
 
 const KOT_COLORS = [
   '#e3f2fd', // Green 50
@@ -1843,7 +1844,9 @@ setRevKOT(Number(data.header.RevKOT || 0));
   };
 
   // Button handlers
-  const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncName?: string, ncPurpose?: string) => {
+  const { deviceName } = useDeviceName();
+  console.log('Billview saveKOT device_name:', deviceName);
+const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncName?: string, ncPurpose?: string) => {
     
     try {
       if (!user) {
@@ -1915,6 +1918,7 @@ setRevKOT(Number(data.header.RevKOT || 0));
       }
       const payload = {
         outletid: outletId,
+        device_name: deviceName,
         tableId: isTakeaway ? null : targetTableId, // Use targetTableId
         table_name: targetTableName, // Use targetTableName
         userId: user.id,

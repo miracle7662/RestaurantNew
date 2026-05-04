@@ -13,6 +13,19 @@ let backendProcess;
    IPC HANDLERS (GLOBAL)
    ========================= */
 
+// Handle device name
+ipcMain.handle("get-device-name", async () => {
+  try {
+    const os = require('os');
+    const hostname = os.hostname();
+    console.log('🏠 Main process device name:', hostname);
+    return hostname || 'Electron-Main-Fallback';
+  } catch (error) {
+    console.error('❌ Main process device name error:', error);
+    return 'Electron-Main-Error';
+  }
+});
+
 // Handle get-installed-printers
 ipcMain.handle("get-installed-printers", async () => {
   if (!mainWindow) return [];

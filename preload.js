@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   directPrint: (html, printerName) =>
     ipcRenderer.invoke('direct-print', { html, printerName }),
 
+  // Device name for Electron
+  getDeviceName: () => ipcRenderer.invoke('get-device-name'),
+
   // Config APIs
   loadConfig: () => ipcRenderer.invoke('load-config'),
   hasConfigFile: () => ipcRenderer.invoke('has-config-file'),
