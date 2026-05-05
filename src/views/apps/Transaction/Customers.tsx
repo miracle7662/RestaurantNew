@@ -284,13 +284,7 @@ const [cityid, setCityId] = useState<number | null>(null);
         });
         setStateId(null);
         setCityId(null);
-        toast('New customer. Fill remaining details.', { 
-          icon: 'ℹ️',
-          style: {
-            background: '#fff3cd',
-            color: '#856404',
-          }
-        });
+       
       }
     } catch (err: any) {
       // 404 or error: new customer
