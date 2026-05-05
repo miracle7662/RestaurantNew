@@ -186,8 +186,7 @@ exports.deleteCustomer = async (req, res) => {
   }
 };
 
-// Get customer by mobile number
-// Promise-based version (with async/await)
+// Get customer by mobile number - FULL DATA
 exports.getCustomerByMobile = async (req, res) => {
   try {
     const { mobile } = req.query;
@@ -201,9 +200,36 @@ exports.getCustomerByMobile = async (req, res) => {
     }
 
     const [rows] = await db.query(`
-      SELECT customerid, name, mobile, address1, address2
-      FROM mstcustomer
-      WHERE TRIM(mobile) = TRIM(?)
+      SELECT
+        C.customerid,
+        C.name,
+        C.countryCode,
+        C.mobile,
+        C.mail,
+        C.cityid,
+        M.city_name,
+        C.address1,
+        C.address2,
+        C.stateid,
+        S.state_name,
+        C.pincode,
+        C.gstNo,
+        C.fssai,
+        C.panNo,
+        C.aadharNo,
+        C.birthday,
+        C.anniversary,
+        C.customerType,
+        C.status,
+        C.createWallet,
+        C.created_by_id,
+        C.created_date,
+        C.updated_by_id,
+        C.updated_date
+      FROM mstcustomer C
+      LEFT JOIN mstcitymaster M ON C.cityid = M.cityid
+      LEFT JOIN mststatemaster S ON C.stateid = S.stateid
+      WHERE TRIM(C.mobile) = TRIM(?)
       LIMIT 1
     `, [mobile]);
     

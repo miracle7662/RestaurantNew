@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Button } from "react-bootstrap";
 import { Printer, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-hot-toast";
 import { useAuthContext } from "@/common/context/useAuthContext";
+import { toast } from "react-hot-toast";
 import SettingsService from "@/common/api/settings";
 
 // ─────────────────────────────────────────────
@@ -113,6 +113,7 @@ function isPlainTextReceipt(html: string): boolean {
 
 const DayEndReportPreview: React.FC = () => {
   const navigate = useNavigate();
+  const { removeSession } = useAuthContext();
   const [previewHTML, setPreviewHTML] = useState("");
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [, setOutletId] = useState<number | null>(null);
@@ -190,6 +191,12 @@ const DayEndReportPreview: React.FC = () => {
       if ((window as any).electronAPI?.directPrint) {
         await (window as any).electronAPI.directPrint(getFullHTML(), finalPrinter);
         toast.success("Printed successfully!");
+        
+        // Auto-logout after successful print
+        setTimeout(() => {
+  removeSession();
+  navigate('/auth/minimal/login', { replace: true });
+}, 2000);
       } else {
         toast.error("Print API not available");
       }

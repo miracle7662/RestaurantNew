@@ -8,7 +8,7 @@ import {
   CityItem,
   fetchStates,
   fetchCities,
-} from "../../../utils/commonfunction";
+} from "@/utils/commonfunction";
 
 interface CustomerFormData {
   mobile1: string;
@@ -153,7 +153,9 @@ function Customers() {
   const [states, setStates] = useState<StateItem[]>([]);
   const [cities, setCities] = useState<CityItem[]>([]);
   const [stateid, setStateId] = useState<number | null>(null);
-  const [cityid, setCityId] = useState<number | null>(null);
+const [cityid, setCityId] = useState<number | null>(null);
+  const [checkingMobile, setCheckingMobile] = useState(false);
+  const [mobileFetchTimeout, setMobileFetchTimeout] = useState<NodeJS.Timeout | null>(null);
   const { user } = useAuthContext();
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -195,6 +197,20 @@ function Customers() {
     }
   }, [stateid]);
 
+  // Debounced mobile fetch
+  useEffect(() => {
+    if (formData.mobile1.length === 10 && !selectedCustomerId) {
+      if (mobileFetchTimeout) {
+        clearTimeout(mobileFetchTimeout);
+      }
+      const timeout = setTimeout(() => {
+        fetchCustomerByMobile(formData.mobile1);
+      }, 500);
+      setMobileFetchTimeout(timeout);
+      return () => clearTimeout(timeout);
+    }
+  }, [formData.mobile1]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
@@ -204,7 +220,9 @@ function Customers() {
 
   const handleMobile1Change = (e: React.ChangeEvent<HTMLInputElement>) => {
     const mobileValue = e.target.value.replace(/\D/g, '');
-    if (mobileValue.length <= 10) setFormData({ ...formData, mobile1: mobileValue });
+    if (mobileValue.length <= 10) {
+      setFormData({ ...formData, mobile1: mobileValue });
+    }
   };
 
   const handleMobile2Change = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -232,6 +250,76 @@ function Customers() {
   const handlePanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const panValue = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     if (panValue.length <= 10) setFormData({ ...formData, panNo: panValue });
+  };
+
+  const fetchCustomerByMobile = async (mobile: string) => {
+    if (!mobile || mobile.length !== 10) return;
+    setCheckingMobile(true);
+    try {
+      const response = await CustomerService.getByMobile(mobile);
+      if (response.success && response.data && response.data.customerid) {
+        populateFromCustomer(response.data);
+        toast.success('Customer data loaded. You can update now.');
+      } else {
+        // Clear other fields, keep mobile
+        setSelectedCustomerId(null);
+        setFormData({
+          ...formData,
+          mobile1: mobile,
+          name: '',
+          email: '',
+          add1: '',
+          add2: '',
+          city: '',
+          state: '',
+          pincode: '',
+          customerType: 'Regular',
+          status: '',
+          birthday: '',
+          anniversary: '',
+          gstin: '',
+          fssai: '',
+          panNo: '',
+          aadharNo: '',
+        });
+        setStateId(null);
+        setCityId(null);
+        toast('New customer. Fill remaining details.', { 
+          icon: 'ℹ️',
+          style: {
+            background: '#fff3cd',
+            color: '#856404',
+          }
+        });
+      }
+    } catch (err: any) {
+      // 404 or error: new customer
+      setSelectedCustomerId(null);
+      setFormData({
+        ...formData,
+        mobile1: mobile,
+        name: '',
+        email: '',
+        add1: '',
+        add2: '',
+        city: '',
+        state: '',
+        pincode: '',
+        customerType: 'Regular',
+        status: '',
+        birthday: '',
+        anniversary: '',
+        gstin: '',
+        fssai: '',
+        panNo: '',
+        aadharNo: '',
+      });
+      setStateId(null);
+      setCityId(null);
+      console.log('No existing customer');
+    } finally {
+      setCheckingMobile(false);
+    }
   };
 
   const validateForm = () => {
@@ -355,6 +443,31 @@ function Customers() {
     setCityId(customer.cityid ? Number(customer.cityid) : null);
   };
 
+  const populateFromCustomer = (customer: any) => {
+    setSelectedCustomerId(customer.customerid);
+    setFormData({
+      mobile1: customer.mobile || '',
+      mobile2: '',
+      email: customer.mail || '',
+      name: customer.name || '',
+      add2: customer.address2 || '',
+      add1: customer.address1 || '',
+      gstin: customer.gstNo || '',
+      aadharNo: customer.aadharNo || '',
+      city: customer.city_name || '',
+      pincode: customer.pincode || '',
+      fssai: customer.fssai || '',
+      panNo: customer.panNo || '',
+      state: customer.state_name || '',
+      customerType: customer.customerType || 'Regular',
+      status: customer.status === 0 ? 'Active' : 'Inactive',
+      birthday: customer.birthday || '',
+      anniversary: customer.anniversary || '',
+    });
+    setStateId(customer.stateid ? Number(customer.stateid) : null);
+    setCityId(customer.cityid ? Number(customer.cityid) : null);
+  };
+
   const handleClear = () => {
     setFormData({
       mobile1: "",
@@ -378,6 +491,7 @@ function Customers() {
     setSelectedCustomerId(null);
     setStateId(null);
     setCityId(null);
+    setCheckingMobile(false);
   };
 
   const filteredCustomers = useMemo(() => {
@@ -420,20 +534,21 @@ function Customers() {
                   <div className="d-flex align-items-center mb-3">
                     <Label required>Mobile No</Label>
                     <div className="d-flex" style={{ flex: "1", marginLeft: "10px" }}>
-                      <div className="input-group input-group-sm" style={{ flex: "1", marginRight: "5px" }}>
-                        <span className="input-group-text" style={{ width: "60px", backgroundColor: "#f8f9fa", borderRight: "none" }}>+91</span>
-                        <input
-                          type="tel"
-                          className="form-control form-control-sm"
-                          name="mobile1"
-                          value={formData.mobile1}
-                          onChange={handleMobile1Change}
-                          placeholder="Enter mobile number 1"
-                          required
-                          disabled={loading}
-                          style={{ borderLeft: "none" }}
-                        />
-                      </div>
+                <div className="input-group input-group-sm" style={{ flex: "1", marginRight: "5px" }}>
+                  <span className="input-group-text" style={{ width: "60px", backgroundColor: "#f8f9fa", borderRight: "none" }}>+91</span>
+                  <input
+                    type="tel"
+                    className={`form-control form-control-sm ${checkingMobile ? 'border-warning' : ''}`}
+                    name="mobile1"
+                    value={formData.mobile1}
+                    onChange={handleMobile1Change}
+                    placeholder="Enter mobile number 1"
+                    required
+                    disabled={loading || !!selectedCustomerId || checkingMobile}
+                    style={{ borderLeft: "none" }}
+                  />
+                  {checkingMobile && <div className="small text-warning mt-1">Checking...</div>}
+                </div>
                       <input
                         type="tel"
                         className="form-control form-control-sm"
