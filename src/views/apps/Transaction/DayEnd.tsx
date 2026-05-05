@@ -45,7 +45,6 @@ import HandoverPasswordModal from "../../../components/HandoverPasswordModal.tsx
 import DayendService from '@/common/api/dayend';
 import OrderService from '@/common/api/order.ts';
 
-
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 interface Order {
