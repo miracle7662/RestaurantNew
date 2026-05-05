@@ -1,6 +1,11 @@
 const db = require('../config/db')
 const bcrypt = require('bcrypt')
 
+// Helper to format dates for MySQL DATETIME columns
+const formatMySQLDate = (dateInput) => {
+  return new Date(dateInput || Date.now()).toISOString().slice(0, 19).replace('T', ' ');
+};
+
 // Get outlet users based on current user's role and hierarchy
 exports.getOutletUsers = async (req, res) => {
   try {
@@ -192,7 +197,7 @@ exports.createOutletUser = async (req, res) => {
       usertypeid, shift_time, mac_address, assign_warehouse, language_preference || 'English',
       address, city, sub_locality, web_access ? 1 : 0, self_order ? 1 : 0, captain_app ? 1 : 0,
       kds_app ? 1 : 0, captain_old_kot_access || 'Enabled', verify_mac_ip ? 1 : 0,
-      status || 0, last_login || null, created_by_id, created_date || new Date().toISOString()
+      status || 0, last_login || null, created_by_id, formatMySQLDate(created_date)
     ]
 
     const [insertResult] = await db.query(insertQuery, insertParams)
@@ -211,7 +216,7 @@ exports.createOutletUser = async (req, res) => {
       }
     })
   } catch (error) {
-    // console.error('Error creating outlet user:', error)
+    console.error('Error creating outlet user:', error)
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message })
   }
 }

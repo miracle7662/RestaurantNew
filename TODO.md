@@ -1,0 +1,2 @@
+# TODO: Fix MySQL Date Error in Outlet User Creation\n\n## Plan Steps (Approved by User)\n1. [x] **Create TODO.md** (Done - tracking progress)\n2. [x] Edit `backend/controllers/outletUserController.js`: Add date formatting helper and fix `createOutletUser` INSERT.\n3. [ ] Test the fix: Restart server and verify createOutletUser API.\n4. [ ] [Optional] Scan/fix similar patterns in other controllers.\n5. [ ] Mark complete and attempt_completion.\n\n**Status**: Edits complete. Test recommended before full completion.
+
