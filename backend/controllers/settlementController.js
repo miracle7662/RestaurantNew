@@ -94,10 +94,13 @@ exports.updateSettlement = async (req, res) => {
     const { id } = req.params;
     const { PaymentType, Amount, EditedBy } = req.body;
 
-    const settlement = db.query(
+    // ✅ FIX: await + destructuring
+    const [rows] = await db.query(
       'SELECT * FROM TrnSettlement WHERE SettlementID = ? AND isSettled = 1',
       [Number(id)]
-    )[0];
+    );
+
+    const settlement = rows[0];
 
     if (!settlement) {
       return res.status(404).json({
@@ -106,7 +109,8 @@ exports.updateSettlement = async (req, res) => {
       });
     }
 
-    db.query(`
+    // ✅ FIX: await
+    await db.query(`
       INSERT INTO TrnSettlementLog (
         SettlementID,
         OldPaymentType,
@@ -125,7 +129,8 @@ exports.updateSettlement = async (req, res) => {
       EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown'
     ]);
 
-    db.query(`
+    // ✅ FIX: await
+    await db.query(`
       UPDATE TrnSettlement
       SET PaymentType = ?, Amount = ?
       WHERE SettlementID = ?
@@ -141,7 +146,8 @@ exports.updateSettlement = async (req, res) => {
     });
 
   } catch (error) {
-    // console.error('updateSettlement error:', error);
+    console.error('updateSettlement error:', error); // optional but recommended
+
     res.status(500).json({
       success: false,
       message: 'Failed to update settlement'
@@ -161,12 +167,12 @@ exports.createSettlement = async (req, res) => {
       InsertDate
     } = req.body;
 
-    // Fetch TxnID from bill
-    const bill = db.query(`
+    // ✅ FIX: await + destructuring
+    const [billRows] = await db.query(`
       SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
-    `, [OrderNo, OrderNo])[0];
-    
-    const txnID = bill ? bill.TxnID : null;
+    `, [OrderNo, OrderNo]);
+
+    const txnID = billRows[0]?.TxnID || null;
 
     if (!OrderNo || !PaymentType || !Amount || !HotelID) {
       return res.status(400).json({
@@ -175,11 +181,14 @@ exports.createSettlement = async (req, res) => {
       });
     }
 
-    const paymentMode = db.query(`
+    // ✅ FIX: await + destructuring
+    const [paymentRows] = await db.query(`
       SELECT paymenttypeid
       FROM payment_types
       WHERE mode_name = ?
-    `, [PaymentType])[0];
+    `, [PaymentType]);
+
+    const paymentMode = paymentRows[0];
 
     if (!paymentMode) {
       return res.status(400).json({
@@ -190,9 +199,11 @@ exports.createSettlement = async (req, res) => {
 
     const paymentTypeID = paymentMode.paymenttypeid;
 
-    const insertDate = InsertDate || new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const insertDate =
+      InsertDate || new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-    db.query(`
+    // ✅ FIX: await
+    await db.query(`
       INSERT INTO TrnSettlement (
         OrderNo,
         TxnID,
@@ -208,7 +219,7 @@ exports.createSettlement = async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
     `, [
       OrderNo,
-      txnID || null,
+      txnID,
       req.body.table_name || null,
       paymentTypeID,
       PaymentType,
@@ -223,25 +234,25 @@ exports.createSettlement = async (req, res) => {
     });
 
   } catch (error) {
-    // console.error('createSettlement error:', error);
+    console.error('createSettlement error:', error); // helpful debug
+
     res.status(500).json({
       success: false,
       message: 'Failed to create settlement'
     });
   }
 };
-
 // Replace settlements
 exports.replaceSettlement = async (req, res) => {
   try {
     const { OrderNo, newSettlements, HotelID, EditedBy, InsertDate, TipAmount } = req.body;
 
-    // Fetch TxnID from bill for replaceSettlement
-    const bill = db.query(`
+    // ✅ FIX: await + destructuring
+    const [billRows] = await db.query(`
       SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
-    `, [OrderNo, OrderNo])[0];
-    
-    const txnID = bill ? bill.TxnID : null;
+    `, [OrderNo, OrderNo]);
+
+    const txnID = billRows[0]?.TxnID || null;
 
     if (!OrderNo || !Array.isArray(newSettlements) || !HotelID) {
       return res.status(400).json({
@@ -255,16 +266,14 @@ exports.replaceSettlement = async (req, res) => {
     const insertDate = InsertDate || new Date().toISOString().slice(0, 19).replace('T', ' ');
 
     // 1️⃣ Fetch existing settlements
-    const existingSettlements = db.query(`
+    const [existingSettlements] = await db.query(`
       SELECT *
       FROM TrnSettlement
       WHERE OrderNo = ? OR TxnNo = ?
     `, [OrderNo, OrderNo]);
 
-    // Preserve original values
-    let originalSettlement = existingSettlements.length > 0 ? existingSettlements[0] : {};
+    let originalSettlement = existingSettlements?.length > 0 ? existingSettlements[0] : {};
 
-    // Extract updated values from first new settlement (has received_amount etc.)
     let receive = 0;
     let refund = 0;
     let tipAmountFromPayload = Number(TipAmount) || 0;
@@ -274,7 +283,6 @@ exports.replaceSettlement = async (req, res) => {
       refund = Number(newSettlements[0].refund_amount) || originalSettlement.Refund || 0;
     }
 
-    // Preserve others from original
     let txnNo = originalSettlement?.TxnNo || null;
     let userId = originalSettlement?.UserId || null;
     let name = originalSettlement?.Name || null;
@@ -282,24 +290,22 @@ exports.replaceSettlement = async (req, res) => {
     let customerName = originalSettlement?.CustomerName || null;
     let mobileNo = originalSettlement?.MobileNo || null;
 
-    // ✅ Fallback: get UserId from bill table if missing
+    // ✅ FIX: await here also
     if (!userId) {
-      const billData = db.query(`
+      const [billDataRows] = await db.query(`
         SELECT UserId
         FROM TAxnTrnbill
         WHERE OrderNo = ? OR TxnNo = ?
-      `, [OrderNo, OrderNo])[0];
+      `, [OrderNo, OrderNo]);
 
-      if (billData) {
-        userId = billData.UserId;
+      if (billDataRows.length > 0) {
+        userId = billDataRows[0].UserId;
       }
     }
 
-    // 3️⃣ Log statement
-    // 4️⃣ Delete old settlements
-    db.query(`DELETE FROM TrnSettlement WHERE OrderNo = ?`, [OrderNo]);
+    // ✅ FIX: await DELETE
+    await db.query(`DELETE FROM TrnSettlement WHERE OrderNo = ?`, [OrderNo]);
 
-    // 5️⃣ Insert new settlements
     const settlementInsertStmt = `
       INSERT INTO TrnSettlement (
         OrderNo,
@@ -330,13 +336,13 @@ exports.replaceSettlement = async (req, res) => {
 
       if (!s.PaymentType || s.Amount == null) continue;
 
-     const [rows] = await db.query(`
-  SELECT paymenttypeid
-  FROM payment_types
-  WHERE mode_name = ?
-`, [s.PaymentType]);
+      const [rows] = await db.query(`
+        SELECT paymenttypeid
+        FROM payment_types
+        WHERE mode_name = ?
+      `, [s.PaymentType]);
 
-const paymentMode = rows[0];
+      const paymentMode = rows[0];
 
       if (!paymentMode) {
         return res.status(400).json({
@@ -345,13 +351,11 @@ const paymentMode = rows[0];
         });
       }
 
-      const paymentTypeID = paymentMode.paymenttypeid;
-
-      const result = db.query(settlementInsertStmt, [
+      const [result] = await db.query(settlementInsertStmt, [
         OrderNo,
         txnID,
         req.body.table_name || originalSettlement.table_name || null,
-        paymentTypeID,
+        paymentMode.paymenttypeid,
         s.PaymentType,
         Number(s.Amount),
         tipAmountFromPayload,
@@ -367,10 +371,17 @@ const paymentMode = rows[0];
         insertDate
       ]);
 
-      const newSettlementID = result.insertId;
+      const newSettlementID = result?.insertId;
 
-      // 6️⃣ Log edit
-      db.query(`
+      if (!newSettlementID) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to insert TrnSettlement (SettlementID is missing)'
+        });
+      }
+
+      // ✅ FIX: await log insert
+      await db.query(`
         INSERT INTO TrnSettlementLog (
           SettlementID,
           OldPaymentType,
@@ -396,7 +407,8 @@ const paymentMode = rows[0];
     });
 
   } catch (error) {
-    // console.error('replaceSettlement error:', error);
+    console.error('replaceSettlement error:', error);
+
     res.status(500).json({
       success: false,
       message: 'Failed to replace settlements'
@@ -410,12 +422,16 @@ exports.deleteSettlement = async (req, res) => {
     const { id } = req.params;
     const { EditedBy } = req.body;
 
-    const editedBySafe = EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown';
+    const editedBySafe =
+      EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown';
 
-    const settlement = db.query(
+    // ✅ FIX: await + destructuring
+    const [rows] = await db.query(
       `SELECT * FROM TrnSettlement WHERE SettlementID = ?`,
       [Number(id)]
-    )[0];
+    );
+
+    const settlement = rows[0];
 
     if (!settlement) {
       return res.status(404).json({
@@ -424,7 +440,8 @@ exports.deleteSettlement = async (req, res) => {
       });
     }
 
-    db.query(`
+    // ✅ FIX: await
+    await db.query(`
       INSERT INTO TrnSettlementLog (
         SettlementID,
         OldPaymentType,
@@ -443,7 +460,8 @@ exports.deleteSettlement = async (req, res) => {
       editedBySafe
     ]);
 
-    db.query(`
+    // ✅ FIX: await
+    await db.query(`
       UPDATE TrnSettlement
       SET isSettled = 0
       WHERE SettlementID = ?
@@ -455,7 +473,8 @@ exports.deleteSettlement = async (req, res) => {
     });
 
   } catch (error) {
-    // console.error('Error in deleteSettlement:', error);
+    console.error('Error in deleteSettlement:', error);
+
     res.status(500).json({
       success: false,
       message: 'Failed to reverse settlement'

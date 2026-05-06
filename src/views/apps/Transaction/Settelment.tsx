@@ -100,6 +100,13 @@ const EditSettlementPage: React.FC = () => {
   const currentUser = user;
   const currDate = user?.currDate || '';
 
+  // Auto-set hotelId filter to logged-in user's hotel on mount
+  useEffect(() => {
+    if (user?.hotelid && filters.hotelId !== user.hotelid) {
+      setFilters(prev => ({ ...prev, hotelId: user.hotelid }));
+    }
+  }, [user?.hotelid]);
+
   // ── Main States ───────────────────────────────────────────────────
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [filters, setFilters] = useState({
@@ -188,6 +195,10 @@ const EditSettlementPage: React.FC = () => {
   const fetchSettlements = async () => {
     try {
       const params: any = { ...filters };
+      // Always include user's hotelId for filtering
+      if (user?.hotelid) {
+        params.hotelId = user.hotelid;
+      }
       if (selectedOutletId !== null) {
         params.outletId = selectedOutletId;
       }
@@ -305,39 +316,61 @@ const EditSettlementPage: React.FC = () => {
   };
 
   const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
-    if (!editing) return;
+  if (!editing) return;
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      await SettlementService.replace({
-        OrderNo: editing.OrderNo,
-        newSettlements: newSettlements.filter(s => s.Amount > 0),
-        HotelID: editing.HotelID,
-        EditedBy: currentUser,
-        InsertDate: user?.currDate,
-        TipAmount: tip || 0,
-      });
+  // Prepare the payload
+  const userHotelId = Number(user?.hotelid || editing?.HotelID);
+  if (!userHotelId) {
+    throw new Error('No valid Hotel ID found. Please login again.');
+  }
 
-      setNotification({
-        show: true,
-        message: 'Settlement updated successfully',
-        type: 'success',
-      });
-
-      setShowSettlementModal(false);
-      setEditing(null);
-      fetchSettlements();
-    } catch (err: any) {
-      setNotification({
-        show: true,
-        message: err.response?.data?.message || 'Failed to update settlement',
-        type: 'danger',
-      });
-    } finally {
-      setLoading(false);
-    }
+  const payload = {
+    OrderNo: editing.OrderNo,
+    newSettlements: newSettlements.filter(s => s.Amount > 0).map(s => ({
+      PaymentType: s.PaymentType,
+      Amount: Number(s.Amount),
+    })),
+    HotelID: userHotelId,  // Use logged-in user's hotelid
+    EditedBy: currentUser?.username || currentUser?.full_name || 'Unknown',
+    InsertDate: user?.currDate,
+    TipAmount: Number(tip) || 0,
   };
+
+  // Log the actual payload for debugging
+  console.log("Sending Payload:", JSON.stringify(payload, null, 2));
+
+  try {
+    const response = await SettlementService.replace(payload);
+    console.log("API Response:", response); // Log the response
+
+    setNotification({
+      show: true,
+      message: 'Settlement updated successfully',
+      type: 'success',
+    });
+
+    setShowSettlementModal(false);
+    setEditing(null);
+    fetchSettlements();
+  } catch (err: any) {
+    console.error("API Error Details:", {
+      message: err.message,
+      response: err.response?.data,
+      status: err.response?.status,
+      config: err.config
+    });
+    
+    setNotification({
+      show: true,
+      message: err.response?.data?.message || err.message || 'Failed to update settlement',
+      type: 'danger',
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ── Print Bill Handlers with F8 Password ─────────────────────────
   const handlePrintDuplicateBill = (group: Settlement) => {
@@ -432,7 +465,9 @@ const EditSettlementPage: React.FC = () => {
   // ── UI ────────────────────────────────────────────────────────────
   return (
     <div className="container-fluid p-3" style={{ minHeight: '100vh' }}>
-      <h3 className="mb-4">Edit Settlements</h3>
+<h3 className="mb-4">Edit Settlements</h3>
+      
+     
       
       <Alert
         show={notification.show}
@@ -534,12 +569,11 @@ const EditSettlementPage: React.FC = () => {
                   <div className="d-flex gap-2">
                     <Button 
                       size="sm" 
-                      variant="primary" 
+                      variant={isBillBackdated ? "secondary" : "primary"} 
                       onClick={() => handleEdit(group)}
-                      disabled={isBillBackdated} // Disable edit button for backdated bills
-                      title={isBillBackdated ? "Cannot edit backdated bills" : ""}
+                      title={isBillBackdated ? "Backdated bill - Editing allowed with caution" : ""}
                     >
-                      Edit
+                      {isBillBackdated ? "Edit " : "Edit"}
                     </Button>
                     <Button 
                       size="sm" 

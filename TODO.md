@@ -1,20 +1,21 @@
-# ✅ TASK COMPLETED: Mobile Auto-Fetch in Customer Form
+# TODO: Implement handleUpdateSettlement with User Hotel ID
 
-## Implemented Features:
-- ✅ Full customer data fetch by mobile (updated backend query)
-- ✅ Auto-populate ALL form fields (name, address, GST, PAN, etc.)
-- ✅ Dynamic Add/Update button toggle
-- ✅ New customer auto-clear (except mobile)
-- ✅ Edit mode protection (mobile locked)
-- ✅ Debounced search (500ms), loading states, UX feedback
+## Steps:
 
-## Backend Fix:
-- `CustomerController.getCustomerByMobile`: Now returns **COMPLETE customer data** (joins city/state)
+1. [x] Auto-set filters.hotelId to user?.hotelid on component mount using useEffect.
+2. [x] Add UI display showing current user's hotel ID above the filters section.
+3. [x] Update handleUpdateSettlement to prioritize user?.hotelid for HotelID in payload.
+4. [x] Add validation/warning if user.hotelid is missing.
+5. [x] Always include user's hotelId in fetchSettlements params.
+6. [x] Mark complete.
 
-## Test:
-1. Type existing mobile → **ALL fields populate** + Update button
-2. New mobile → Clear fields + Add button  
-3. List Edit → Normal behavior
+**Status:** ✅ Completed with UX fix! 
 
-**Production ready!** 🚀
+Main changes:
+- handleUpdateSettlement now uses logged-in user's hotelid post-login ✓
+- Auto-filters + displays user's Hotel ID ✓
 
+Additional fix for feedback:
+- Edit button no longer disabled for backdated bills (now secondary styling + warning label).
+
+Ready to test: `npm run dev`, login → Settlements page shows your hotel's data, editable.
