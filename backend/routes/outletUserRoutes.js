@@ -20,6 +20,9 @@ router.get('/user-types', outletUserController.getUserTypes);
 // Get waiter users for a specific outlet
 router.get('/waiters/:outletId', outletUserController.getWaiterUsers);
 
+// Get waiters specifically
+router.get('/waiters/:outletId', outletUserController.getWaiters); // Changed from '/waiters', outletUserController.getWaiters);
+
 // Get hotel admin by ID (must come before /:id route)
 router.get('/hotel-admin/:id', outletUserController.getHotelAdminById);
 

@@ -535,6 +535,46 @@ exports.getWaiterUsers = async (req, res) => {
   }
 };
 
+exports.getWaiters = async (req, res) => {
+  try {
+    const { outletId } = req.params;
+
+    if (!outletId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Outlet ID is required'
+      });
+    }
+
+    const query = `
+      SELECT u.userid as userId,
+             u.username,
+             u.full_name as employee_name
+      FROM mst_users u
+      INNER JOIN mstdesignation d 
+        ON u.designationid = d.designationid
+      WHERE u.outletid = ?
+        AND u.status = 0
+        AND LOWER(d.Designation) = 'waiter'
+      ORDER BY u.full_name
+    `;
+
+    const [waiters] = await db.query(query, [outletId]);
+
+    res.json({
+      success: true,
+      data: waiters
+    });
+
+  } catch (error) {
+    console.error('Error fetching waiters:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 // Get hotel admin by ID
 exports.getHotelAdminById = async (req, res) => {
   try {

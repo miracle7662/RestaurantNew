@@ -186,7 +186,7 @@ const OutletUserService =  {
   /**
    * Get waiter/caption users for an outlet
    */
-  getWaiterUsers: (outletId: number): Promise<ApiResponse<any[]>> =>
+  getWaiters: (outletId: number): Promise<ApiResponse<any[]>> =>
     HttpClient.get<ApiResponse<any[]>>(`/outlet-users/waiters/${outletId}`),
 
   /**
