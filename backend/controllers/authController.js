@@ -232,17 +232,46 @@ exports.verifyF8Password = async (req, res) => {
         }
 
         // Allow only admins to perform this action
-        if (user.role_level !== 'hotel_admin' && user.role_level !== 'superadmin') {
-            return res.status(403).json({ success: false, message: 'Permission denied. Only admins can perform this action.' });
-        }
+       // ✅ Instead of checking logged-in user role,
+// check if entered password belongs to ANY admin
+
+const [admins] = await db.query(`
+    SELECT password FROM mst_users
+    WHERE role_level IN ('hotel_admin', 'superadmin')
+      AND status = 0
+`);
+
+let isValidPassword = false;
+
+for (const admin of admins) {
+    const match = await bcrypt.compare(password, admin.password);
+    if (match) {
+        isValidPassword = true;
+        break;
+    }
+}
+
+if (!isValidPassword) {
+    return res.status(401).json({
+        success: false,
+        message: 'Invalid admin password'
+    });
+}
+
+// ✅ IMPORTANT (this was missing)
+return res.json({
+    success: true,
+    verified: true,
+    message: 'Admin verified successfully'
+});
 
         // Verify password
-        const isValidPassword = await bcrypt.compare(password, user.password);
-        if (!isValidPassword) {
-            return res.status(401).json({ success: false, message: 'Invalid password' });
-        }
+        // const isValidPassword = await bcrypt.compare(password, user.password);
+        // if (!isValidPassword) {
+        //     return res.status(401).json({ success: false, message: 'Invalid password' });
+        // }
 
-        res.json({ success: true, message: 'Password verified successfully' });
+        // res.json({ success: true, message: 'Password verified successfully' });
 
     } catch (error) {
         // console.error('F8 password verification error:', error);
