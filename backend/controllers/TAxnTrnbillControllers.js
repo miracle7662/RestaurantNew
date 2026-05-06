@@ -57,80 +57,127 @@ function toIST(date) {
 /* -------------------------------------------------------------------------- */
 exports.getAllBills = async (req, res) => {
   try {
-    const { isBilled, tableId } = req.query
+    const { isBilled, tableId } = req.query;
 
-    let whereClauses = ['b.isCancelled = 0']
-    const params = []
+    let whereClauses = ['b.isCancelled = 0'];
+    const params = [];
 
     if (isBilled !== undefined) {
-      whereClauses.push('b.isBilled = ?')
-      params.push(Number(isBilled))
+      whereClauses.push('b.isBilled = ?');
+      params.push(Number(isBilled));
     }
 
     if (tableId !== undefined) {
-      whereClauses.push('b.TableID = ?')
-      params.push(Number(tableId))
+      whereClauses.push('b.TableID = ?');
+      params.push(Number(tableId));
     }
 
     const sql = `
-SELECT 
+      SELECT 
         b.*,
         b.isHomeDelivery,
-        GROUP_CONCAT(
-          DISTINCT json_object(
-            'TXnDetailID', d.TXnDetailID,
-            'outletid', d.outletid,
-            'ItemID', d.ItemID,
-            'TableID', d.TableID,
-            'Qty', d.Qty,
-            'CGST', d.CGST,
-            'CGST_AMOUNT', d.CGST_AMOUNT,
-            'SGST', d.SGST,
-            'SGST_AMOUNT', d.SGST_AMOUNT,
-            'IGST', d.IGST,
-            'IGST_AMOUNT', d.IGST_AMOUNT,
-            'CESS', d.CESS,
-            'CESS_AMOUNT', d.CESS_AMOUNT,
-            'Discount_Amount', d.Discount_Amount,
-            'AutoKOT', d.AutoKOT,
-            'ManualKOT', d.ManualKOT,
-            'SpecialInst', d.SpecialInst,
-            'isKOTGenerate', d.isKOTGenerate,
-            'isSetteled', d.isSetteled,
-            'isNCKOT', d.isNCKOT,
-            'isCancelled', d.isCancelled,
-            'DeptID', d.DeptID,
-            'HotelID', d.HotelID,
-            'RuntimeRate', d.RuntimeRate,
-            'RevQty', d.RevQty,
-            'KOTUsedDate', d.KOTUsedDate,
-            'isBilled', d.isBilled
-          )
-        ) as _details
+
+        d.TXnDetailID,
+        d.outletid AS d_outletid,
+        d.ItemID,
+        d.TableID AS d_TableID,
+        d.Qty,
+        d.CGST,
+        d.CGST_AMOUNT,
+        d.SGST,
+        d.SGST_AMOUNT,
+        d.IGST,
+        d.IGST_AMOUNT,
+        d.CESS,
+        d.CESS_AMOUNT,
+        d.Discount_Amount,
+        d.AutoKOT,
+        d.ManualKOT,
+        d.SpecialInst,
+        d.isKOTGenerate,
+        d.isSetteled AS d_isSetteled,
+        d.isNCKOT,
+        d.isCancelled AS d_isCancelled,
+        d.DeptID,
+        d.HotelID AS d_HotelID,
+        d.RuntimeRate,
+        d.RevQty,
+        d.KOTUsedDate,
+        d.isBilled AS d_isBilled
+
       FROM TAxnTrnbill b
       LEFT JOIN TAxnTrnbilldetails d 
         ON d.TxnID = b.TxnID AND d.isCancelled = 0
       WHERE ${whereClauses.join(' AND ')}
-      GROUP BY b.TxnID
       ORDER BY b.TxnDatetime DESC
-    `
+    `;
 
-    const rows = await db.query(sql, params)
-    
-    // Convert rows to expected format (db.query returns [rows, fields])
-    const dataRows = Array.isArray(rows) && rows[0] ? rows[0] : rows
+    const [rows] = await db.query(sql, params);
 
-    const data = (Array.isArray(dataRows) ? dataRows : []).map((r) => ({
-      ...r,
-      details: r._details ? JSON.parse(`[${r._details}]`) : [],
-    }))
-    res.json(ok('Fetched all bills', data))
+    // ✅ GROUP DATA IN NODE (SAFE)
+    const grouped = {};
+
+    rows.forEach((row) => {
+      if (!grouped[row.TxnID]) {
+        grouped[row.TxnID] = {
+          ...row,
+          details: [],
+        };
+      }
+
+      // Push detail only if exists
+      if (row.TXnDetailID) {
+        grouped[row.TxnID].details.push({
+          TXnDetailID: row.TXnDetailID,
+          outletid: row.d_outletid,
+          ItemID: row.ItemID,
+          TableID: row.d_TableID,
+          Qty: row.Qty,
+          CGST: row.CGST,
+          CGST_AMOUNT: row.CGST_AMOUNT,
+          SGST: row.SGST,
+          SGST_AMOUNT: row.SGST_AMOUNT,
+          IGST: row.IGST,
+          IGST_AMOUNT: row.IGST_AMOUNT,
+          CESS: row.CESS,
+          CESS_AMOUNT: row.CESS_AMOUNT,
+          Discount_Amount: row.Discount_Amount,
+          AutoKOT: row.AutoKOT,
+          ManualKOT: row.ManualKOT,
+          SpecialInst: row.SpecialInst,
+          isKOTGenerate: row.isKOTGenerate,
+          isSetteled: row.d_isSetteled,
+          isNCKOT: row.isNCKOT,
+          isCancelled: row.d_isCancelled,
+          DeptID: row.DeptID,
+          HotelID: row.d_HotelID,
+          RuntimeRate: row.RuntimeRate,
+          RevQty: row.RevQty,
+          KOTUsedDate: row.KOTUsedDate,
+          isBilled: row.d_isBilled,
+        });
+      }
+    });
+
+    const data = Object.values(grouped);
+
+    res.json({
+      success: true,
+      message: 'Fetched all bills',
+      data,
+    });
+
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: 'Failed to fetch bills', data: null, error: error.message })
+    console.error('❌ getAllBills Error:', error);
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch bills',
+      data: null,
+      error: error.message,
+    });
   }
-}
+};
 
 /* -------------------------------------------------------------------------- */
 /* 2) getBillById → header + details + settlements                            */

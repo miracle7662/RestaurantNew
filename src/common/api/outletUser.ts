@@ -184,10 +184,17 @@ const OutletUserService =  {
     HttpClient.get<ApiResponse<DropdownOption[]>>('/outlet-users/user-types'),
 
   /**
+   * Get waiter/caption users for an outlet
+   */
+  getWaiterUsers: (outletId: number): Promise<ApiResponse<any[]>> =>
+    HttpClient.get<ApiResponse<any[]>>(`/outlet-users/waiters/${outletId}`),
+
+  /**
    * Get outlet user by ID
    */
   getOutletUserById: (id: number): Promise<ApiResponse<OutletUser>> =>
     HttpClient.get<ApiResponse<OutletUser>>(`/outlet-users/${id}`),
+
 
   /**
    * Get hotel admin by ID

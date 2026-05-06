@@ -737,36 +737,34 @@ export const fetchOutletsForDropdown = async (
   }
 }
 
+import OrdersService from '@/common/api/orders'
+
 export const fetchShiftTypes = async (
   setShiftTypes: (data: ShiftTypeItem[]) => void,
   setSelectedShift: (shiftType: string) => void,
   currentShiftId?: number,
 ) => {
   try {
-    const res = await fetch('/api/orders/shift-types')
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-    }
-    const response = await res.json()
-    const data = Array.isArray(response) ? response : []
-    
+    const response = await OrdersService.listShiftTypes()
+    const data = Array.isArray(response?.data) ? response.data : []
+
     // Fallback static shifts if empty/missing
     const fallbackShifts: ShiftTypeItem[] = [
       { id: 1, shift_type: 'Morning' },
       { id: 2, shift_type: 'Evening' },
       { id: 3, shift_type: 'Night' }
     ]
-    
+
     const shiftsToUse = data.length > 0 ? data : fallbackShifts
     setShiftTypes(shiftsToUse)
-    
+
     if (shiftsToUse.length > 0 && !currentShiftId) {
       setSelectedShift(shiftsToUse[0].shift_type)
     }
   } catch (err: any) {
     toast.error('Failed to fetch shift types, using defaults')
     console.error('Fetch shift types error:', err)
-    
+
     // Use fallback
     const fallbackShifts: ShiftTypeItem[] = [
       { id: 1, shift_type: 'Morning' },
@@ -779,6 +777,7 @@ export const fetchShiftTypes = async (
     }
   }
 }
+
 
 
 export const fetchWarehouses = async (
