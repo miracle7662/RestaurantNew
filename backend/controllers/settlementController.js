@@ -290,6 +290,7 @@ exports.replaceSettlement = async (req, res) => {
     let customerName = originalSettlement?.CustomerName || null;
     let mobileNo = originalSettlement?.MobileNo || null;
 
+
     // ✅ FIX: await here also
     if (!userId) {
       const [billDataRows] = await db.query(`
@@ -351,6 +352,32 @@ exports.replaceSettlement = async (req, res) => {
         });
       }
 
+      // Credit ke case me frontend se aaye customer fields override karna zaroori hai
+      const isCredit = s.PaymentType && String(s.PaymentType).toLowerCase() === 'credit';
+      const finalCustomerId = isCredit ? (s.customerid ?? customerid) : customerid;
+      const finalCustomerName = isCredit ? (s.customerName ?? customerName) : customerName;
+      const finalMobileNo = isCredit ? (s.mobile ?? mobileNo) : mobileNo;
+
+      const finalName = s.Name || name;
+
+      // console.log('[replaceSettlement] insert TrnSettlement customer fields:', {
+      //   OrderNo,
+      //   PaymentType: s.PaymentType,
+      //   isCredit,
+      //   payload: {
+      //     customerid: s.customerid,
+      //     customerName: s.customerName,
+      //     mobile: s.mobile,
+      //     Name: s.Name,
+      //   },
+      //   final: {
+      //     Name: finalName,
+      //     customerid: finalCustomerId,
+      //     CustomerName: finalCustomerName,
+      //     MobileNo: finalMobileNo,
+      //   },
+      // });
+
       const [result] = await db.query(settlementInsertStmt, [
         OrderNo,
         txnID,
@@ -362,10 +389,10 @@ exports.replaceSettlement = async (req, res) => {
         HotelID,
         txnNo,
         userId,
-        name,
-        customerid,
-        customerName,
-        mobileNo,
+        finalName,
+        finalCustomerId,
+        finalCustomerName,
+        finalMobileNo,
         receive,
         refund,
         insertDate
