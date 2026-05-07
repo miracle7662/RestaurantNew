@@ -18,7 +18,7 @@ export const configureBackend = (config: AppConfig) => {
   // Set dynamic baseURL from config
   api.defaults.baseURL = getAPIUrl(config);
   
-  console.log(`🔗 Axios configured: ${api.defaults.baseURL}/api`);
+  console.log(`🔗 Axios configured: ${api.defaults.baseURL}`);
   
   // Auth interceptor
   api.interceptors.request.use(

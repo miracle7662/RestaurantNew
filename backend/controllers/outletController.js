@@ -1975,7 +1975,11 @@ exports.getOutletBillingSettings = async (req, res) => {
   try {
     const { outletid } = req.params;
 
+    // Ensure outletid is available for logging even if further logic changes
+// (keep outletid for logs)
+
     console.log('🔍 [getOutletBillingSettings] Fetching for outletid:', outletid, 'type:', typeof outletid);
+
 
     // Validate outletid
     if (!outletid || isNaN(outletid)) {
@@ -2427,8 +2431,9 @@ exports.getOutletBillingSettings = async (req, res) => {
     });
   } catch (error) {
     console.error('💥 [getOutletBillingSettings] ERROR:', {
-      outletid: outletid,
+      outletid: req?.params?.outletid,
       error: error.message,
+
       stack: error.stack,
       sqlState: error.sqlState,
       sqlMessage: error.sqlMessage
