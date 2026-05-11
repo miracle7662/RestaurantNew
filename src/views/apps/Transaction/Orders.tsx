@@ -435,11 +435,17 @@ const Order = () => {
           );
 
           // Set printed bill information
-          if (header.BilledDate) {
-            const date = new Date(header.BilledDate);
-            const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
-            setBillPrintedTime(istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }));
-          }
+         if (header.BilledDate) {
+  const date = new Date(header.BilledDate);
+
+  setBillPrintedTime(
+    date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
+  );
+}
           setNetAmount(header.Amount || null);
 
           setBillActionState('printOrSettle');
@@ -638,11 +644,16 @@ const Order = () => {
                   billNo = TxnNo || null;
                   billAmount = Amount || null;
                   if (BilledDate) {
-                    const date = new Date(BilledDate);
-                    const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
-                    billPrintedTime = istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                    billPrintedDate = istDate;
-                  }
+  const date = new Date(BilledDate);
+
+  billPrintedTime = date.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  billPrintedDate = date;
+}
                 }
                 if (isSetteled === 1) status = 0; // ⚪ vacant when settled
 

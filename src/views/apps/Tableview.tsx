@@ -164,10 +164,16 @@ export default function App() {
                   billNo = TxnNo || null;
                   billAmount = Amount || null;
                   if (BilledDate) {
-                    const date = new Date(BilledDate);
-                    billPrintedDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
-                    billPrintedTime = billPrintedDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                  }
+  const date = new Date(BilledDate);
+
+  billPrintedDate = date;
+
+  billPrintedTime = date.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
 
                   if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
                   if (isSetteled === 1) status = 0; // ⚪ vacant when settled

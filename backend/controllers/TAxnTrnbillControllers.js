@@ -3567,13 +3567,16 @@ exports.transferKOT = async (req, res) => {
           TableID, table_name, PrevTableID,
           outletid, HotelID,
           isSetteled, isBilled, isTrnsfered,
-          TxnDatetime
+          TxnDatetime,
+          DeptID
         )
         SELECT ?, ?, ?, outletid, HotelID,
-               0, 0, 1, CURRENT_TIMESTAMP
+               0, 0, 1, CURRENT_TIMESTAMP,
+               DeptID
         FROM TAxnTrnbill
         WHERE TxnID=?
       `, [proposedTableId, targetTableName, sourceTableId, sourceTxnId])
+
 
       const newTxnId = newBillResult.insertId
 
@@ -3679,7 +3682,7 @@ exports.transferKOT = async (req, res) => {
     res.json({ success: true, message: 'KOT transfer completed successfully' })
 
   } catch (err) {
-    // console.error('KOT Transfer Error:', err)
+    console.error('KOT Transfer Error:', err)
     res.status(500).json({
       success: false,
       message: 'KOT transfer failed',
