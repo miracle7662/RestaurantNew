@@ -1,5 +1,6 @@
 const db = require('../config/db')
 
+
 // Utility: standard success response
 function ok(message, data) {
   return { success: true, message, data } 
@@ -3480,161 +3481,486 @@ exports.saveFullReverse = async (req, res) => {
 /* 23) transferKOT → Transfer KOT/items between tables (FINAL FIXED VERSION)   */
 /* -------------------------------------------------------------------------- */
 exports.transferKOT = async (req, res) => {
-  const { sourceTableId, proposedTableId, targetTableName, selectedItems } = req.body
+  const {
+    sourceTableId,
+    proposedTableId,
+    targetTableName,
+    selectedItems,
+  } = req.body
 
   if (!selectedItems || selectedItems.length === 0) {
-    return res.json({ success: false, message: 'No items selected' })
+    return res.json({
+      success: false,
+      message: 'No items selected',
+    })
   }
 
   if (sourceTableId === proposedTableId) {
-    return res.json({ success: false, message: 'Source and target table cannot be same' })
+    return res.json({
+      success: false,
+      message: 'Source and target table cannot be same',
+    })
   }
 
   try {
-    // Start transaction
-    await db.query('START TRANSACTION')
-    
-    try {
-      /* ================= SOURCE BILL ================= */
-      const [sourceBillRows] = await db.query(`
-        SELECT TxnID, outletid, HotelID
+
+    /* =================================================
+       HELPER : RECALCULATE BILL TOTALS
+    ================================================= */
+    const recalculateBillTotals = async (txnId) => {
+
+      // Get Bill Header
+      const [billHeaderRows] = await db.query(`
+        SELECT
+          Discount,
+          outletid
         FROM TAxnTrnbill
-        WHERE TableID = ? AND isSetteled = 0
+        WHERE TxnID = ?
+      `, [txnId])
+
+      const billHeader = billHeaderRows[0]
+
+      if (!billHeader) return
+
+      // Get Bill Details
+      const [details] = await db.query(`
+        SELECT
+          Qty,
+          RuntimeRate,
+          RevQty,
+          CGST,
+          SGST,
+          IGST,
+          CESS
+        FROM TAxnTrnbilldetails
+        WHERE TxnID = ?
+          AND isCancelled = 0
+      `, [txnId])
+
+      // No Items
+      if (!details || details.length === 0) {
+
+        await db.query(`
+          UPDATE TAxnTrnbill
+          SET
+            GrossAmt = 0,
+            CGST = 0,
+            SGST = 0,
+            IGST = 0,
+            CESS = 0,
+            Amount = 0,
+            RoundOFF = 0,
+            TaxableValue = 0
+          WHERE TxnID = ?
+        `, [txnId])
+
+        return
+      }
+
+      // Outlet Settings
+      const [outletSettingsRows] = await db.query(`
+        SELECT
+          include_tax_in_invoice,
+          bill_round_off,
+          bill_round_off_to
+        FROM mstoutlet_settings
+        WHERE outletid = ?
+      `, [billHeader.outletid])
+
+      const outletSettings = outletSettingsRows[0] || {}
+
+      const includeTaxInInvoice =
+        outletSettings.include_tax_in_invoice || 0
+
+      let gross = 0
+      let taxable = 0
+      let cgst = 0
+      let sgst = 0
+      let igst = 0
+      let cess = 0
+
+      // Calculate Totals
+      for (const d of details) {
+
+        const qty = Number(d.Qty) || 0
+        const revQty = Number(d.RevQty) || 0
+        const runtimeRate = Number(d.RuntimeRate) || 0
+
+        const netQty = qty - revQty
+
+        const lineGross = netQty * runtimeRate
+
+        gross += lineGross
+
+        const cg = Number(d.CGST) || 0
+        const sg = Number(d.SGST) || 0
+        const ig = Number(d.IGST) || 0
+        const ce = Number(d.CESS) || 0
+
+        if (includeTaxInInvoice === 1) {
+
+          const totalTaxPer = cg + sg + ig + ce
+
+          const base =
+            totalTaxPer > 0
+              ? lineGross / (1 + totalTaxPer / 100)
+              : lineGross
+
+          taxable += base
+
+          cgst += (base * cg) / 100
+          sgst += (base * sg) / 100
+          igst += (base * ig) / 100
+          cess += (base * ce) / 100
+
+        } else {
+
+          taxable += lineGross
+
+          cgst += (lineGross * cg) / 100
+          sgst += (lineGross * sg) / 100
+          igst += (lineGross * ig) / 100
+          cess += (lineGross * ce) / 100
+        }
+      }
+
+      const discount =
+        Number(billHeader.Discount) || 0
+
+      const discountedTaxable =
+        Math.max(0, taxable - discount)
+
+      const taxableRatio =
+        taxable > 0
+          ? discountedTaxable / taxable
+          : 0
+
+      cgst *= taxableRatio
+      sgst *= taxableRatio
+      igst *= taxableRatio
+      cess *= taxableRatio
+
+      let amount =
+        discountedTaxable +
+        cgst +
+        sgst +
+        igst +
+        cess
+
+      let roundOff = 0
+
+      // Round Off
+      if (
+        outletSettings.bill_round_off &&
+        outletSettings.bill_round_off_to > 0
+      ) {
+
+        const roundedAmount =
+          Math.round(
+            amount / outletSettings.bill_round_off_to
+          ) * outletSettings.bill_round_off_to
+
+        roundOff = roundedAmount - amount
+
+        amount = roundedAmount
+      }
+
+      // Update Header
+      await db.query(`
+        UPDATE TAxnTrnbill
+        SET
+          GrossAmt = COALESCE(?, 0),
+          TaxableValue = COALESCE(?, 0),
+          CGST = COALESCE(?, 0),
+          SGST = COALESCE(?, 0),
+          IGST = COALESCE(?, 0),
+          CESS = COALESCE(?, 0),
+          Amount = COALESCE(?, 0),
+          RoundOFF = COALESCE(?, 0)
+        WHERE TxnID = ?
+      `, [
+        gross,
+        discountedTaxable,
+        cgst,
+        sgst,
+        igst,
+        cess,
+        amount,
+        roundOff,
+        txnId,
+      ])
+    }
+
+    // Start Transaction
+    await db.query('START TRANSACTION')
+
+    try {
+
+      /* =================================================
+         SOURCE BILL
+      ================================================= */
+      const [sourceBillRows] = await db.query(`
+        SELECT
+          TxnID,
+          outletid,
+          HotelID
+        FROM TAxnTrnbill
+        WHERE TableID = ?
+          AND isSetteled = 0
       `, [sourceTableId])
+
       const sourceBill = sourceBillRows[0]
 
-      if (!sourceBill) throw new Error('Source bill not found')
+      if (!sourceBill) {
+        throw new Error('Source bill not found')
+      }
 
       const sourceTxnId = sourceBill.TxnID
 
-      /* ================= TARGET STATUS ================= */
+      /* =================================================
+         TARGET TABLE STATUS
+      ================================================= */
       const [targetRowRows] = await db.query(`
-        SELECT status FROM msttablemanagement
+        SELECT status
+        FROM msttablemanagement
         WHERE tableid = ?
       `, [proposedTableId])
+
       const targetRow = targetRowRows[0]
 
-      if (!targetRow) throw new Error('Target table not found')
+      if (!targetRow) {
+        throw new Error('Target table not found')
+      }
 
       const targetStatus = targetRow.status
 
       let targetBill = null
+
+      // Existing Target Bill
       if (targetStatus === 1) {
+
         const [targetBillRows] = await db.query(`
-          SELECT TxnID FROM TAxnTrnbill
-          WHERE TableID = ? AND isSetteled = 0
+          SELECT TxnID
+          FROM TAxnTrnbill
+          WHERE TableID = ?
+            AND isSetteled = 0
         `, [proposedTableId])
+
         targetBill = targetBillRows[0]
+
+        if (!targetBill) {
+          throw new Error('Target bill not found')
+        }
       }
 
-      const ids = selectedItems.map(i => i.txnDetailId)
-      if (!ids.length) throw new Error('No valid items')
+      const ids =
+        selectedItems.map(i => i.txnDetailId)
+
+      if (!ids.length) {
+        throw new Error('No valid items')
+      }
+
+      const placeholders =
+        ids.map(() => '?').join(',')
 
       /* =================================================
-         CASE 1: TARGET OCCUPIED → MERGE
+         CASE 1 : TARGET OCCUPIED (MERGE)
       ================================================= */
       if (targetStatus === 1) {
-        const placeholders = ids.map(() => '?').join(',')
+
+        // Move Items
         await db.query(`
           UPDATE TAxnTrnbilldetails
-          SET TxnID=?, TableID=?, table_name=?
+          SET
+            TxnID = ?,
+            TableID = ?,
+            table_name = ?
           WHERE TXnDetailID IN (${placeholders})
-        `, [targetBill.TxnID, proposedTableId, targetTableName, ...ids])
+        `, [
+          targetBill.TxnID,
+          proposedTableId,
+          targetTableName,
+          ...ids,
+        ])
 
-        /* ---- delete source bill if empty ---- */
+        // Recalculate Target Bill
+        await recalculateBillTotals(
+          targetBill.TxnID
+        )
+
+        // Recalculate Source Bill
+        await recalculateBillTotals(
+          sourceTxnId
+        )
+
+        // Check Remaining Source Items
         const [remainingRows] = await db.query(`
           SELECT COUNT(*) as count
           FROM TAxnTrnbilldetails
-          WHERE TxnID = ? AND isCancelled = 0
+          WHERE TxnID = ?
+            AND isCancelled = 0
         `, [sourceTxnId])
-        const remaining = remainingRows[0].count
 
+        const remaining =
+          remainingRows[0].count
+
+        // Delete Empty Source Bill
         if (remaining === 0) {
-          await db.query(`DELETE FROM TAxnTrnbill WHERE TxnID = ?`, [sourceTxnId])
+
+          await db.query(`
+            DELETE FROM TAxnTrnbill
+            WHERE TxnID = ?
+          `, [sourceTxnId])
         }
 
         await db.query('COMMIT')
-        return res.json({ success: true, message: 'KOT transfer completed successfully' })
+
+        return res.json({
+          success: true,
+          message: 'KOT transfer completed successfully',
+        })
       }
 
       /* =================================================
-         CASE 2: TARGET VACANT
+         CASE 2 : TARGET VACANT
       ================================================= */
 
-      // Create new bill for target
+      // Create New Target Bill
       const [newBillResult] = await db.query(`
         INSERT INTO TAxnTrnbill (
-          TableID, table_name, PrevTableID,
-          outletid, HotelID,
-          isSetteled, isBilled, isTrnsfered,
+          TableID,
+          table_name,
+          PrevTableID,
+          outletid,
+          HotelID,
+          isSetteled,
+          isBilled,
+          isTrnsfered,
           TxnDatetime,
           DeptID
         )
-        SELECT ?, ?, ?, outletid, HotelID,
-               0, 0, 1, CURRENT_TIMESTAMP,
-               DeptID
+        SELECT
+          ?,
+          ?,
+          ?,
+          outletid,
+          HotelID,
+          0,
+          0,
+          1,
+          CURRENT_TIMESTAMP,
+          DeptID
         FROM TAxnTrnbill
-        WHERE TxnID=?
-      `, [proposedTableId, targetTableName, sourceTableId, sourceTxnId])
+        WHERE TxnID = ?
+      `, [
+        proposedTableId,
+        targetTableName,
+        sourceTableId,
+        sourceTxnId,
+      ])
 
+      const newTxnId =
+        newBillResult.insertId
 
-      const newTxnId = newBillResult.insertId
-
-      const placeholders = ids.map(() => '?').join(',')
+      // Move Items
       await db.query(`
         UPDATE TAxnTrnbilldetails
-        SET TxnID=?, TableID=?, table_name=?
+        SET
+          TxnID = ?,
+          TableID = ?,
+          table_name = ?
         WHERE TXnDetailID IN (${placeholders})
-      `, [newTxnId, proposedTableId, targetTableName, ...ids])
+      `, [
+        newTxnId,
+        proposedTableId,
+        targetTableName,
+        ...ids,
+      ])
 
-      await db.query(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`, [proposedTableId])
+      // Make Target Table Occupied
+      await db.query(`
+        UPDATE msttablemanagement
+        SET status = 1
+        WHERE tableid = ?
+      `, [proposedTableId])
 
-      /* ---- delete source bill if empty ---- */
+      // Recalculate New Bill
+      await recalculateBillTotals(
+        newTxnId
+      )
+
+      // Recalculate Source Bill
+      await recalculateBillTotals(
+        sourceTxnId
+      )
+
+      // Check Remaining Source Items
       const [remainingRows] = await db.query(`
         SELECT COUNT(*) as count
         FROM TAxnTrnbilldetails
-        WHERE TxnID = ? AND isCancelled = 0
+        WHERE TxnID = ?
+          AND isCancelled = 0
       `, [sourceTxnId])
-      const remaining = remainingRows[0].count
 
+      const remaining =
+        remainingRows[0].count
+
+      // Delete Empty Source Bill
       if (remaining === 0) {
-        await db.query(`DELETE FROM TAxnTrnbill WHERE TxnID = ?`, [sourceTxnId])
+
+        await db.query(`
+          DELETE FROM TAxnTrnbill
+          WHERE TxnID = ?
+        `, [sourceTxnId])
       }
 
       await db.query('COMMIT')
+
     } catch (error) {
+
       await db.query('ROLLBACK')
+
       throw error
     }
 
     /* =================================================
-       FINAL CLEANUP FOR SOURCE TABLE
+       FINAL CLEANUP
     ================================================= */
 
-    // Get the source table info to check if it's a sub-table
     const [sourceTableInfoRows] = await db.query(`
-      SELECT * FROM msttablemanagement
+      SELECT *
+      FROM msttablemanagement
       WHERE tableid = ?
     `, [sourceTableId])
-    const sourceTableInfo = sourceTableInfoRows[0]
 
-    // Check if source is a sub-table (has parentTableId)
-    const isSubTable = sourceTableInfo && sourceTableInfo.parentTableId
+    const sourceTableInfo =
+      sourceTableInfoRows[0]
 
+    const isSubTable =
+      sourceTableInfo &&
+      sourceTableInfo.parentTableId
+
+    // SUB TABLE
     if (isSubTable) {
-      // For sub-tables, check if there are any remaining items on the PARENT table
-      const parentTableId = sourceTableInfo.parentTableId
-      
-      // Check if there are any remaining items/bills for the parent table
-      const [remainingParentBillsRows] = await db.query(`
-        SELECT COUNT(*) as count
-        FROM TAxnTrnbill
-        WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
-      `, [parentTableId])
-      const remainingParentBills = remainingParentBillsRows[0].count
 
+      const parentTableId =
+        sourceTableInfo.parentTableId
+
+      const [remainingParentBillsRows] =
+        await db.query(`
+          SELECT COUNT(*) as count
+          FROM TAxnTrnbill
+          WHERE TableID = ?
+            AND isSetteled = 0
+            AND isCancelled = 0
+        `, [parentTableId])
+
+      const remainingParentBills =
+        remainingParentBillsRows[0].count
+
+      // Make Parent Vacant
       if (remainingParentBills === 0) {
-        // Parent table also has no remaining bills, make parent table vacant
+
         await db.query(`
           UPDATE msttablemanagement
           SET status = 0
@@ -3642,47 +3968,61 @@ exports.transferKOT = async (req, res) => {
         `, [parentTableId])
       }
 
-      // Delete the temporary sub-table (10A)
+      // Delete Temp Table
       await db.query(`
         DELETE FROM msttablemanagement
-        WHERE tableid = ? AND isTemporary = 1
+        WHERE tableid = ?
+          AND isTemporary = 1
       `, [sourceTableId])
-      
-      // Make the sub-table vacant as well
+
+      // Make Source Vacant
       await db.query(`
         UPDATE msttablemanagement
         SET status = 0
         WHERE tableid = ?
       `, [sourceTableId])
+
     } else {
-      // For regular tables
+
+      // Regular Table
       const [remainingBillsRows] = await db.query(`
         SELECT COUNT(*) as count
         FROM TAxnTrnbill
-        WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
+        WHERE TableID = ?
+          AND isSetteled = 0
+          AND isCancelled = 0
       `, [sourceTableId])
-      const remainingBills = remainingBillsRows[0].count
+
+      const remainingBills =
+        remainingBillsRows[0].count
 
       if (remainingBills === 0) {
-        // Make table vacant
+
+        // Make Vacant
         await db.query(`
           UPDATE msttablemanagement
           SET status = 0
           WHERE tableid = ?
         `, [sourceTableId])
 
-        // Delete temporary sub tables (10A,10B,10C type) if any
+        // Delete Temp Sub Tables
         await db.query(`
           DELETE FROM msttablemanagement
-          WHERE parentTableId = ? AND isTemporary = 1
+          WHERE parentTableId = ?
+            AND isTemporary = 1
         `, [sourceTableId])
       }
     }
 
-    res.json({ success: true, message: 'KOT transfer completed successfully' })
+    res.json({
+      success: true,
+      message: 'KOT transfer completed successfully',
+    })
 
   } catch (err) {
+
     console.error('KOT Transfer Error:', err)
+
     res.status(500).json({
       success: false,
       message: 'KOT transfer failed',

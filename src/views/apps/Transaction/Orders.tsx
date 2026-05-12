@@ -1930,6 +1930,11 @@ const handlePrintAndSaveKOT = async () => {
           const txnId = TxnID ?? null;
           setCurrentTxnId(txnId);
 
+          // ✅ Update Table Status in DB to 1 (Occupied) when KOT is saved
+          if (resolvedTableId) {
+            await OrderService.updateTableStatus(resolvedTableId, { status: 1 });
+          }
+
           // Robustly set KOT number, checking for different possible casings
           const receivedKotNo = resp.data.KOTNo ??
             resp.data.KOTNo ??
@@ -2674,27 +2679,38 @@ const handlePrintAndSaveKOT = async () => {
   };
 
   useEffect(() => {
-    if (!showSettlementModal) return;
-    if (outletPaymentModes.length === 0) return;
+  if (!showSettlementModal) return;
+  if (!Array.isArray(outletPaymentModes) || outletPaymentModes.length === 0)
+    return;
 
-    // Check if already selected
-    if (selectedPaymentModes.length > 0) return;
+  const cashMode = outletPaymentModes.find(
+    (m) => m.mode_name?.toLowerCase() === 'cash'
+  );
 
-    const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(     m => m.mode_name?.toLowerCase() === 'cash'    ) : null;
+  if (!cashMode?.mode_name) return;
 
-    if (!cashMode) return;
+  const payable = (
+    Number(taxCalc?.grandTotal || 0) + Number(tip || 0)
+  ).toFixed(2);
 
-    const payable = (taxCalc.grandTotal + (tip || 0)).toFixed(2);
+  const cashModeName = cashMode.mode_name;
 
-    setSelectedPaymentModes(['cash']);
-    setPaymentAmounts({ cash: payable });
-    setIsMixedPayment(false);
-  }, [
-    showSettlementModal,
-    outletPaymentModes,
-    taxCalc.grandTotal,
-    tip,
-  ]);
+  // Always reset settlement state
+  setSelectedPaymentModes([cashModeName]);
+
+  setPaymentAmounts({
+    [cashModeName]: payable,
+  });
+
+  setIsMixedPayment(false);
+
+}, [
+  showSettlementModal,
+  outletPaymentModes,
+  taxCalc?.grandTotal,
+  tip,
+  currentTxnId, // important after transfer
+]);
   const handleSettleAndPrint = async (settlementsData?: any[], tipData?: number) => {
     // 🔍 DEBUG – YAHI ADD KARO
     // console.log({
@@ -5083,6 +5099,11 @@ const handlePrintAndSaveKOT = async () => {
               await fetchTableManagement(); // ✅ now valid
 
               if (printThenSettleFlow) {
+                setSelectedPaymentModes([]);
+  
+  setPaymentAmounts({});
+  
+  setIsMixedPayment(false);
                 setShowSettlementModal(true);
                 setPrintThenSettleFlow(false);
               } else {
