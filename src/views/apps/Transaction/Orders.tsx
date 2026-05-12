@@ -1930,6 +1930,11 @@ const handlePrintAndSaveKOT = async () => {
           const txnId = TxnID ?? null;
           setCurrentTxnId(txnId);
 
+          // ✅ Update Table Status in DB to 1 (Occupied) when KOT is saved
+          if (resolvedTableId) {
+            await OrderService.updateTableStatus(resolvedTableId, { status: 1 });
+          }
+
           // Robustly set KOT number, checking for different possible casings
           const receivedKotNo = resp.data.KOTNo ??
             resp.data.KOTNo ??
