@@ -12,7 +12,9 @@ export interface WaiterUser {
 export const fetchWaiterUsers = async (outletId: number): Promise<WaiterUser[]> => {
    try {
     // console.log('Fetching waiter users for outletId:', outletId);
-    const response = await axios.get(`/api/outlet-users/waiters/${outletId}`);
+    // HttpClient baseURL already includes `/api`, so this must NOT include another `/api`
+    const response = await axios.get(`/outlet-users/waiters/${outletId}`);
+
     // console.log('API response:', response.data);
     if (response.data.success) {
       // console.log('Returning waiter users:', response.data.data);
