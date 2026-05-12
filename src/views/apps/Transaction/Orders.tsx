@@ -1535,34 +1535,6 @@ const Order = () => {
 
     setLoading(true);
     try {
-      // ✅ Ensure “print bill table” has its latest items inserted into bill details.
-      // backend addItemToBill will also update msttablemanagement.status = 1.
-      if (selectedTable && typeof sourceTableId === 'number' && sourceTableId > 0) {
-        const billDetailsPayload = items
-          .filter(it => (it.qty || 0) > 0)
-          .map(it => ({
-            ItemID: it.id,
-            Qty: it.qty,
-            RuntimeRate: it.price,
-            AutoKOT: false,
-            ManualKOT: false,
-            SpecialInst: null,
-            DeptID: selectedDeptId ?? null,
-            HotelID: user?.hotelid ?? null,
-            isBilled: 0,
-isNCKOT: it.isNCKOT ? 1 : 0,
-            NCName: it.isNCKOT ? it.NCName : null,
-            NCPurpose: it.isNCKOT ? it.NCPurpose : null,
-          })) as any;
-
-        // Only call if there are items to add and we have a txn id.
-        if (Array.isArray(billDetailsPayload) && billDetailsPayload.length > 0) {
-          const addRes = await OrderService.addItemToBill(id, billDetailsPayload);
-          if (!addRes.success) {
-            throw new Error(addRes.message || 'Failed to add items to bill before printing');
-          }
-        }
-      }
       // 1. Call the new endpoint to mark the bill as billed
       const printResult = await OrderService.markBillAsBilled(id, {
         outletId: selectedOutletId || Number(user?.outletid),
@@ -2708,14 +2680,15 @@ const handlePrintAndSaveKOT = async () => {
     // Check if already selected
     if (selectedPaymentModes.length > 0) return;
 
-    const cashMode = Array.isArray(outletPaymentModes)
+const cashMode = Array.isArray(outletPaymentModes)
       ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash')
       : null;
 
-    if (!cashMode?.mode_name) return;
+   if (!cashMode?.mode_name) return;
 
     const payable = (taxCalc.grandTotal + (tip || 0)).toFixed(2);
-    const cashModeName = cashMode.mode_name;
+        const cashModeName = cashMode.mode_name;
+
 
     setSelectedPaymentModes([cashModeName]);
     setPaymentAmounts({ [cashModeName]: payable });
