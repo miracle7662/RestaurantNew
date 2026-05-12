@@ -60,7 +60,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   initialCashReceived = 0,  // FIXED: Destructure the prop
   table_name,
   initialMobile,
-  initialCustomerName,  
+  initialCustomerName,
   initialCustomerId,
   selectedOutletId,
 }) => {
@@ -78,11 +78,11 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   const [tip, setTip] = useState<number>(initialTip);
   const [activePaymentIndex, setActivePaymentIndex] = useState(0);
 
-// Credit mode detection
+  // Credit mode detection
   const hasCreditMode = selectedPaymentModes.some(mode => mode.toLowerCase() === 'credit');
 
   // Customer states for Credit mode (ONLY visible when hasCreditMode)
-  
+
 
   const [customerMobile, setCustomerMobile] = useState(initialMobile || '');
   const [customerName, setCustomerName] = useState(initialCustomerName || '');
@@ -101,7 +101,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   // Auto-fetch customer when mobile changes (min 10 digits)
   useEffect(() => {
     if (customerMobile.length >= 10) {
-      fetchCustomerByMobile(customerMobile, setCustomerName, setCustomerId, () => {});
+      fetchCustomerByMobile(customerMobile, setCustomerName, setCustomerId, () => { });
     } else {
       setCustomerName('');
       setCustomerId(null);
@@ -203,7 +203,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
 
   // Keyboard navigation
   useEffect(() => {
-if (!show || !Array.isArray(outletPaymentModes) || outletPaymentModes.length === 0) return;
+    if (!show || !Array.isArray(outletPaymentModes) || outletPaymentModes.length === 0) return;
 
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
@@ -256,7 +256,7 @@ if (!show || !Array.isArray(outletPaymentModes) || outletPaymentModes.length ===
 
       // Auto-select Cash if no initial payment modes and not mixed
       if (!initialIsMixed && initialSelectedModes.length === 0) {
-const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash') : null;
+        const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash') : null;
         if (cashMode) {
           setSelectedPaymentModes([cashMode.mode_name]);
           setPaymentAmounts({ [cashMode.mode_name]: grandTotal.toFixed(2) });
@@ -275,7 +275,7 @@ const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m =
       return;
     }
 
-  
+
 
     // Validate: Received amount must be >= Bill amount (including tip)
     if (cashReceived > 0 && cashReceived < grandTotal) {
@@ -358,7 +358,7 @@ const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m =
               </h6>
 
               <div style={{ overflowY: 'auto' }}>
-{Array.isArray(outletPaymentModes) && outletPaymentModes.length > 0 ? (
+                {Array.isArray(outletPaymentModes) && outletPaymentModes.length > 0 ? (
                   outletPaymentModes.map((mode, index) => {
                     const isSelected = selectedPaymentModes.includes(mode.mode_name);
                     const isActive = index === activePaymentIndex;
@@ -375,8 +375,8 @@ const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m =
                           ${isSelected
                             ? 'bg-success text-white'
                             : isActive
-                            ? 'bg-primary-subtle border-primary'
-                            : 'border hover-bg-light'}
+                              ? 'bg-primary-subtle border-primary'
+                              : 'border hover-bg-light'}
                         `}
                       >
                         {mode.mode_name}
@@ -402,8 +402,8 @@ const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m =
           <Col md={8} className="p-2 bg-light d-flex flex-column">
             {/* Due Amount */}
             <div className="text-center mb-4">
-              
-             <div className="fs-2 fw-bold text-success  rounded text-center ">₹{grandTotal.toFixed(2)}</div>
+
+              <div className="fs-2 fw-bold text-success  rounded text-center ">₹{grandTotal.toFixed(2)}</div>
             </div>
 
             {/* Selected Payment Inputs */}
@@ -425,7 +425,7 @@ const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m =
                     style={{ minHeight: '52px' }}  // ← controls overall row height
                   >
                     {/* Mode Name */}
-                    <strong 
+                    <strong
                       className={`flex-grow-1 ${isMixedPayment ? 'text-danger' : 'text-success'}`}
                       style={{ fontSize: '1rem' }}  // slightly smaller than before
                     >
@@ -454,7 +454,7 @@ const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m =
                           onClick={() => removePaymentMode(modeName)}
                           style={{ fontSize: '0.85rem' }}
                         >
-                          × 
+                          ×
                         </Button>
                       )}
                     </div>
@@ -478,10 +478,10 @@ const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m =
                   </h6>
                   <span className="badge bg-danger">Credit Required</span>
                 </div>
-                
-                <Row className="g-2">
+
+                <div className="d-flex gap-2 align-items-center">
                   {/* Mobile with Country Code */}
-                  <Col xs={4}>
+                  <div style={{ flex: 1 }}>
                     <div className="input-group input-group-sm">
                       <span className="input-group-text bg-white border-info">+91</span>
                       <input
@@ -489,14 +489,14 @@ const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m =
                         className={`form-control form-control-sm ${!customerId ? 'border-danger' : 'border-success'}`}
                         placeholder="Mobile (10 digits)"
                         value={customerMobile}
-                        onChange={(e) => setCustomerMobile(e.target.value.replace(/\\D/g, ''))}
+                        onChange={(e) => setCustomerMobile(e.target.value.replace(/\D/g, ''))}
                         maxLength={10}
                       />
                     </div>
-                  </Col>
-                  
+                  </div>
+
                   {/* Customer Name (Auto-fetch) */}
-                  <Col xs={5}>
+                  <div style={{ flex: 1 }}>
                     <input
                       type="text"
                       className={`form-control form-control-sm ${!customerId ? 'border-danger bg-light' : 'border-success bg-success-subtle'}`}
@@ -504,31 +504,40 @@ const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m =
                       value={customerName || ''}
                       readOnly
                     />
-                  </Col>
-                  
-                  {/* Add New Customer */}
-                  <Col xs={3}>
-                    <Button 
-                      variant="outline-primary" 
-                      size="sm" 
-                      className="w-100 h-100"
-                      onClick={handleCustomerModalToggle}
+                  </div>
+
+                  {/* Add New Customer Button */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomerModal(true)}
+                      className="btn btn-primary btn-sm"
+                      style={{
+                        width: '32px',
+                        height: '31px',
+                        padding: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '18px',
+                        fontWeight: 'bold'
+                      }}
                     >
-                      <i className="fas fa-plus me-1"></i>Add New
-                    </Button>
-                  </Col>
-                </Row>
-                
+                      +
+                    </button>
+                  </div>
+                </div>
+
                 {/* Validation Message */}
                 {!customerId && customerMobile.length >= 10 && (
-                  <div className="mt-1 p-1 bg-danger-subtle rounded small text-danger">
+                  <div className="mt-2 p-2 bg-danger-subtle rounded small text-danger">
                     <i className="fas fa-exclamation-triangle me-1"></i>
                     Customer not found. Please verify mobile number.
                   </div>
                 )}
-                
+
                 {customerId && (
-                  <div className="mt-1 p-1 bg-success-subtle rounded small text-success">
+                  <div className="mt-2 p-2 bg-success-subtle rounded small text-success">
                     <i className="fas fa-check-circle me-1"></i>
                     Customer verified ✓
                   </div>
@@ -546,73 +555,63 @@ const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m =
                 }}
               >
                 <Card.Body className="py-3 px-4">
-                  <Row className="g-3 align-items-center">
+                  <Row className="g-3">
                     {/* TIP */}
                     <Col xs={4}>
-                      <div className="d-flex align-items-center justify-content-between gap-2">
-                        <Form.Label className="small fw-medium text-muted mb-0 flex-shrink-0">
-                          Tip
-                        </Form.Label>
-                        <Form.Control
-                          size="sm"
-                          type="number"
-                          value={tip || ''}
-                          onChange={e => setTip(Number(e.target.value) || 0)}
-                          className="text-center fw-bold"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          style={{ width: '80px' }}  // Compact width to match screenshot
-                        />
-                      </div>
+                      <Form.Label className="small fw-medium text-muted mb-1">
+                        Tip
+                      </Form.Label>
+                      <Form.Control
+                        size="sm"
+                        type="number"
+                        value={tip || ''}
+                        onChange={e => setTip(Number(e.target.value) || 0)}
+                        className="text-center fw-bold"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                      />
                     </Col>
 
                     {/* RECEIVED */}
                     <Col xs={4}>
-                      <div className="d-flex align-items-center justify-content-between gap-2">
-                        <Form.Label className="small fw-medium text-success mb-0 flex-shrink-0">
-                          Received
-                        </Form.Label>
-                        <Form.Control
-                          size="sm"
-                          type="number"
-                          value={cashReceived ?? ''}
-                          onChange={e => setCashReceived(Number(e.target.value) || 0)}
-                          className={`text-center fw-bold border ${
-                            cashReceived >= (grandTotal + (tip || 0))
-                              ? 'border-success text-success'
-                              : 'border-warning text-warning'
+                      <Form.Label className="small fw-medium text-success mb-1">
+                        Received
+                      </Form.Label>
+                      <Form.Control
+                        size="sm"
+                        type="number"
+                        value={cashReceived ?? ''}
+                        onChange={e => setCashReceived(Number(e.target.value) || 0)}
+                        className={`text-center fw-bold ${cashReceived >= (grandTotal + (tip || 0))
+                            ? 'border-success text-success'
+                            : 'border-warning text-warning'
                           }`}
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          style={{ width: '80px' }}  // Compact width to match screenshot
-                        />
-                      </div>
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                      />
                     </Col>
 
                     {/* BALANCE / CHANGE */}
                     <Col xs={4}>
-                      <div className="d-flex align-items-center justify-content-between gap-2">
-                        <Form.Label className="small fw-medium text-muted mb-0 flex-shrink-0">
-                          {cashReceived - (grandTotal + (tip || 0)) > 0 ? 'Change' : 'Balance'}
-                        </Form.Label>
-                        <div
-                          className={`form-control text-center fw-bold border-0 py-1 px-2 small ${
-                            cashReceived - (grandTotal + (tip || 0)) > 0
-                              ? 'text-success bg-success-subtle border-success'
-                              : cashReceived - (grandTotal + (tip || 0)) < 0
+                      <Form.Label className="small fw-medium text-muted mb-1">
+                        {cashReceived - (grandTotal + (tip || 0)) > 0 ? 'Change' : 'Balance'}
+                      </Form.Label>
+                      <div
+                        className={`form-control text-center fw-bold py-1 px-2 ${cashReceived - (grandTotal + (tip || 0)) > 0
+                            ? 'text-success bg-success-subtle border-success'
+                            : cashReceived - (grandTotal + (tip || 0)) < 0
                               ? 'text-danger bg-danger-subtle border-danger'
                               : 'text-success bg-success-subtle border-success'
                           }`}
-                          style={{ width: '80px' }}  // Compact width to match screenshot
-                        >
-                          {cashReceived - (grandTotal + (tip || 0)) > 0
-                            ? `₹${(cashReceived - (grandTotal + (tip || 0))).toFixed(2)}`
-                            : cashReceived - (grandTotal + (tip || 0)) < 0
+                        style={{ height: '31px' }} // Match Form.Control height
+                      >
+                        {cashReceived - (grandTotal + (tip || 0)) > 0
+                          ? `₹${(cashReceived - (grandTotal + (tip || 0))).toFixed(2)}`
+                          : cashReceived - (grandTotal + (tip || 0)) < 0
                             ? `₹${Math.abs(cashReceived - (grandTotal + (tip || 0))).toFixed(2)}`
                             : '✓ Done'}
-                        </div>
                       </div>
                     </Col>
                   </Row>
@@ -625,10 +624,10 @@ const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m =
 
       {/* Simplified Footer – now only buttons, since summary is in right column */}
       {/* Customer Management Modal */}
-      <Modal 
-        show={showCustomerModal} 
-        onHide={handleCustomerModalToggle} 
-        size="xl" 
+      <Modal
+        show={showCustomerModal}
+        onHide={handleCustomerModalToggle}
+        size="xl"
         centered
         style={{ maxHeight: '90vh' }}
       >
