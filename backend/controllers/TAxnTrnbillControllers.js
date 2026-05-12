@@ -3485,6 +3485,7 @@ exports.transferKOT = async (req, res) => {
     sourceTableId,
     proposedTableId,
     targetTableName,
+    TxnDatetime,
     selectedItems,
   } = req.body
 
@@ -3848,7 +3849,7 @@ exports.transferKOT = async (req, res) => {
           0,
           0,
           1,
-          CURRENT_TIMESTAMP,
+          ?,
           DeptID
         FROM TAxnTrnbill
         WHERE TxnID = ?
@@ -3856,6 +3857,7 @@ exports.transferKOT = async (req, res) => {
         proposedTableId,
         targetTableName,
         sourceTableId,
+        TxnDatetime || new Date().toISOString().slice(0, 19).replace('T', ' '),
         sourceTxnId,
       ])
 
@@ -4034,7 +4036,7 @@ exports.transferKOT = async (req, res) => {
 /* 24) transferTable → Transfer all items from source table to target table  */
 /* -------------------------------------------------------------------------- */
 exports.transferTable = async (req, res) => {
-  const { sourceTableId, targetTableId } = req.body
+  const { sourceTableId, targetTableId, TxnDatetime } = req.body
 
   if (!sourceTableId || !targetTableId) {
     return res.json({ success: false, message: 'Source and target table IDs are required' })
@@ -4249,10 +4251,10 @@ exports.transferTable = async (req, res) => {
         await db.query(
           `
           UPDATE TAxnTrnbill
-          SET TableID=?, table_name=?, PrevTableID=?, isTrnsfered=1
+          SET TableID=?, table_name=?, PrevTableID=?, isTrnsfered=1, TxnDatetime=COALESCE(?, TxnDatetime)
           WHERE TxnID=?
         `,
-          [targetTableId, targetTableInfo.table_name, sourceTableId, sourceTxnId]
+          [targetTableId, targetTableInfo.table_name, sourceTableId, TxnDatetime || null, sourceTxnId]
         )
 
         // Update all details
