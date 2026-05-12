@@ -2679,31 +2679,38 @@ const handlePrintAndSaveKOT = async () => {
   };
 
   useEffect(() => {
-    if (!showSettlementModal) return;
-    if (outletPaymentModes.length === 0) return;
+  if (!showSettlementModal) return;
+  if (!Array.isArray(outletPaymentModes) || outletPaymentModes.length === 0)
+    return;
 
-    // Check if already selected
-    if (selectedPaymentModes.length > 0) return;
+  const cashMode = outletPaymentModes.find(
+    (m) => m.mode_name?.toLowerCase() === 'cash'
+  );
 
-const cashMode = Array.isArray(outletPaymentModes)
-      ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash')
-      : null;
+  if (!cashMode?.mode_name) return;
 
-   if (!cashMode?.mode_name) return;
+  const payable = (
+    Number(taxCalc?.grandTotal || 0) + Number(tip || 0)
+  ).toFixed(2);
 
-    const payable = (taxCalc.grandTotal + (tip || 0)).toFixed(2);
-        const cashModeName = cashMode.mode_name;
+  const cashModeName = cashMode.mode_name;
 
+  // Always reset settlement state
+  setSelectedPaymentModes([cashModeName]);
 
-    setSelectedPaymentModes([cashModeName]);
-    setPaymentAmounts({ [cashModeName]: payable });
-    setIsMixedPayment(false);
-  }, [
-    showSettlementModal,
-    outletPaymentModes,
-    taxCalc.grandTotal,
-    tip,
-  ]);
+  setPaymentAmounts({
+    [cashModeName]: payable,
+  });
+
+  setIsMixedPayment(false);
+
+}, [
+  showSettlementModal,
+  outletPaymentModes,
+  taxCalc?.grandTotal,
+  tip,
+  currentTxnId, // important after transfer
+]);
   const handleSettleAndPrint = async (settlementsData?: any[], tipData?: number) => {
     // 🔍 DEBUG – YAHI ADD KARO
     // console.log({
@@ -5092,6 +5099,11 @@ const cashMode = Array.isArray(outletPaymentModes)
               await fetchTableManagement(); // ✅ now valid
 
               if (printThenSettleFlow) {
+                setSelectedPaymentModes([]);
+  
+  setPaymentAmounts({});
+  
+  setIsMixedPayment(false);
                 setShowSettlementModal(true);
                 setPrintThenSettleFlow(false);
               } else {
