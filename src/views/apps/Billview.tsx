@@ -1,4 +1,4 @@
- import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
@@ -117,7 +117,7 @@ interface ReverseModalItem {
   itemName: string;
   cancelQty: number;
   rate: number;
-  revKotNo:number;
+  revKotNo: number;
 }
 
 interface FormData {
@@ -223,7 +223,7 @@ const ModernBill = () => {
   const [reverseQtyConfig, setReverseQtyConfig] = useState('PasswordRequired');
   const [roundOffEnabled, setRoundOffEnabled] = useState(false);
   // Dept-aware dropdown states (Step 1/8 ✓)
- 
+
   const [itemCodeFilter, setItemCodeFilter] = useState('');
 
   // Form data for KOT settings
@@ -445,11 +445,11 @@ const ModernBill = () => {
   const [showReverseKot, setShowReverseKot] = useState(false);
   const [revKotNo, setRevKotNo] = useState(0);
   const [showKotPrintModal, setShowKotPrintModal] = useState(false);
- 
+
   const [currentKotNoForPrint, setCurrentKotNoForPrint] = useState<number | null>(null);
   const [showBillPrintModal, setShowBillPrintModal] = useState(false);
   const [showNCKotPrintModal, setShowNCKotPrintModal] = useState(false);
-const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
+  const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
 
   // PrintThenSettle flow state (like Orders.tsx)
   const [printThenSettleFlow, setPrintThenSettleFlow] = useState(false);
@@ -475,7 +475,7 @@ const [ncPrintItems, setNcPrintItems] = useState<any[]>([]);
   const [f8RevKotPasswordLoading, setF8RevKotPasswordLoading] = useState(false);
   const [showReverseBillConfirmationModal, setShowReverseBillConfirmationModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
-const [givenBy, setGivenBy] = useState<string>(user?.name || '');
+  const [givenBy, setGivenBy] = useState<string>(user?.name || '');
   const [reason, setReason] = useState('');
   const [DiscPer, setDiscPer] = useState(0);
   const handleDiscountModalKeyDown = (e: React.KeyboardEvent) => {
@@ -826,7 +826,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
             }))
           );
           const totalRev = (billedBillData.reversedItems || []).reduce((acc: number, item: any) => acc + ((item.Qty || 0) * (item.price || 0)), 0);
-         setRevKOT(Number((header.RevKOT ?? totalRev) || 0));          // Compute max RevKOTNo from details
+          setRevKOT(Number((header.RevKOT ?? totalRev) || 0));          // Compute max RevKOTNo from details
           const reversedDetails = details.filter((d: any) => d.RevQty > 0);
           const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
           setRevKotNo(maxRevKotNo);
@@ -980,7 +980,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
           setDiscPer(0);
         }
 
-setRevKOT(Number(data.header?.RevKOT ?? 0));
+        setRevKOT(Number(data.header?.RevKOT ?? 0));
 
         // ── NEW TAX & TOTAL FIELDS ──
         setCgst?.(data.header.CGST || data.header.CGST || 0);
@@ -1129,7 +1129,7 @@ setRevKOT(Number(data.header?.RevKOT ?? 0));
         }
 
         if (data.header.RevKOT) {
-setRevKOT(Number(data.header.RevKOT || 0));
+          setRevKOT(Number(data.header.RevKOT || 0));
         }
 
         // ── NEW TAX & TOTAL FIELDS ──
@@ -1285,12 +1285,12 @@ setRevKOT(Number(data.header.RevKOT || 0));
     try {
       // console.log('Fetching outlet details for ID:', outletId);
       const response = await OrderService.getOutletById(outletId);
-     const outletData = response?.data?.data ?? response?.data ?? {};
+      const outletData = response?.data?.data ?? response?.data ?? {};
       // console.log('Outlet API response:', outletData);
       setRestaurantName(outletData.brand_name || outletData.hotel_name || user?.hotel_name || 'Restaurant Name');
       setOutletName(outletData.outlet_name || user?.outlet_name || 'Outlet Name');
     } catch (error) {
-     
+
       setRestaurantName(user?.hotel_name || 'Restaurant Name');
       setOutletName(user?.outlet_name || 'Outlet Name');
     }
@@ -1714,81 +1714,81 @@ setRevKOT(Number(data.header.RevKOT || 0));
         currentItem.variantName = null;
         currentItem.isValidCode = false;
       }
-    }else if (field === "itemName") {
+    } else if (field === "itemName") {
 
-  const valueStr = value as string;
-  currentItem.itemName = valueStr;
+      const valueStr = value as string;
+      currentItem.itemName = valueStr;
 
-  if (valueStr.trim() === "") {
-    currentItem.itemCode = "";
-    currentItem.rate = 0;
-    currentItem.itemId = 0;
-    currentItem.variantId = null;
-    currentItem.variantName = null;
-    currentItem.isValidCode = true;
-  }
-  else {
-
-    const variantMatch = valueStr.match(/\((.*?)\)/);
-
-    let baseName = valueStr;
-
-    if (variantMatch) {
-      baseName = valueStr.split(" (")[0];
-    }
-
-    let found = deptFilteredMenuItems.find(
-      i => i.item_name.toLowerCase() === baseName.toLowerCase()
-    );
-
-    if (!found) {
-      found = menuItems.find(
-        i => i.item_name.toLowerCase() === baseName.toLowerCase()
-      );
-    }
-
-    if (found) {
-
-      currentItem.itemCode = found.item_no.toString();
-      currentItem.itemId = found.restitemid;
-      currentItem.item_no = Number(found.item_no);
-      currentItem.itemName = found.item_name;
-      currentItem.rate = found.price;
-
-      if (variantMatch && found.department_details?.length) {
-
-        const variantName = variantMatch[1];
-
-        const variantDetail = found.department_details.find(
-          (d: any) =>
-            d.variant_value_name?.toLowerCase() === variantName.toLowerCase()
-        );
-
-        if (variantDetail) {
-          currentItem.variantId = variantDetail.variant_value_id;
-          currentItem.variantName = variantDetail.variant_value_name;
-          currentItem.rate = variantDetail.item_rate || found.price;
-        }
-
-      } else {
+      if (valueStr.trim() === "") {
+        currentItem.itemCode = "";
+        currentItem.rate = 0;
+        currentItem.itemId = 0;
         currentItem.variantId = null;
         currentItem.variantName = null;
+        currentItem.isValidCode = true;
       }
+      else {
 
-      currentItem.isValidCode = true;
+        const variantMatch = valueStr.match(/\((.*?)\)/);
 
-    } else {
+        let baseName = valueStr;
 
-      // ❌ only search, no auto select
-      currentItem.itemCode = "";
-      currentItem.rate = 0;
-      currentItem.itemId = 0;
-      currentItem.variantId = null;
-      currentItem.variantName = null;
-      currentItem.isValidCode = false;
+        if (variantMatch) {
+          baseName = valueStr.split(" (")[0];
+        }
 
-    }
-  }
+        let found = deptFilteredMenuItems.find(
+          i => i.item_name.toLowerCase() === baseName.toLowerCase()
+        );
+
+        if (!found) {
+          found = menuItems.find(
+            i => i.item_name.toLowerCase() === baseName.toLowerCase()
+          );
+        }
+
+        if (found) {
+
+          currentItem.itemCode = found.item_no.toString();
+          currentItem.itemId = found.restitemid;
+          currentItem.item_no = Number(found.item_no);
+          currentItem.itemName = found.item_name;
+          currentItem.rate = found.price;
+
+          if (variantMatch && found.department_details?.length) {
+
+            const variantName = variantMatch[1];
+
+            const variantDetail = found.department_details.find(
+              (d: any) =>
+                d.variant_value_name?.toLowerCase() === variantName.toLowerCase()
+            );
+
+            if (variantDetail) {
+              currentItem.variantId = variantDetail.variant_value_id;
+              currentItem.variantName = variantDetail.variant_value_name;
+              currentItem.rate = variantDetail.item_rate || found.price;
+            }
+
+          } else {
+            currentItem.variantId = null;
+            currentItem.variantName = null;
+          }
+
+          currentItem.isValidCode = true;
+
+        } else {
+
+          // ❌ only search, no auto select
+          currentItem.itemCode = "";
+          currentItem.rate = 0;
+          currentItem.itemId = 0;
+          currentItem.variantId = null;
+          currentItem.variantName = null;
+          currentItem.isValidCode = false;
+
+        }
+      }
     } else {
       (currentItem[field] as any) = value;
     }
@@ -1848,8 +1848,8 @@ setRevKOT(Number(data.header.RevKOT || 0));
   // Button handlers
   const { deviceName } = useDeviceName();
   console.log('Billview saveKOT device_name:', deviceName);
-const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncName?: string, ncPurpose?: string) => {
-    
+  const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncName?: string, ncPurpose?: string) => {
+
     try {
       if (!user) {
         toast.error('User not authenticated. Cannot save KOT.');
@@ -1992,12 +1992,12 @@ const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncNa
 
       const res = await OrderService.createKOT(payload);
 
-        // console.log("📥 RAW KOT API RESPONSE:", res);
-        // console.log("📥 res.data:", res?.data);
+      // console.log("📥 RAW KOT API RESPONSE:", res);
+      // console.log("📥 res.data:", res?.data);
 
       const kotNo = res.data?.KOTNo ?? null;
 
-       console.log("🔢 Extracted KOT No:", kotNo);
+      console.log("🔢 Extracted KOT No:", kotNo);
 
       // Update txnId from the response
       if (res.data?.TxnID) {
@@ -2023,7 +2023,7 @@ const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncNa
       }
 
       toast.success('KOT saved successfully');
-      
+
       // Set table status to occupied (green)
       if (targetTableId) {
         try {
@@ -2187,9 +2187,9 @@ const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncNa
           // Precise full reversal check (post-backend, items should reflect remaining qty)
           const totalRemainingQty = billItems.reduce((sum, item) => sum + (item.qty || 0), 0);
           const allReversed = totalRemainingQty <= 0;
-          
+
           const newStatus = allReversed ? 0 : 1;
-          
+
           // console.log('🔧 F8 Reversal DEBUG (Billview):', {
           //   totalRemainingQty,
           //   allReversed,
@@ -2197,15 +2197,15 @@ const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncNa
           //   tableId: tableToUpdate.tablemanagementid || tableId,
           //   itemCount: billItems.length
           // });
-          
+
           await OrderService.updateTableStatus(tableToUpdate.tablemanagementid || tableId, { status: newStatus });
-          
+
           if (allReversed) {
             toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
           } else {
             toast.success('Partial KOTs reversed! Table remains occupied (status=1)');
           }
-          
+
           // Force refresh table management UI
           await fetchTableManagement();
         }
@@ -2214,11 +2214,11 @@ const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncNa
       // 🔥 PRINT PREVIEW (like Orders.tsx)
       setReverseSnapshot(reverseItemsFromModal.map(item => ({
         ...item,
-        name: item.itemName || "",   
+        name: item.itemName || "",
         price: item.rate,
-        revKotNo: item.revKotNo ,  // ✅ IMPORTANT
+        revKotNo: item.revKotNo,  // ✅ IMPORTANT
         isReverse: true,
-        revQty: item.cancelQty  
+        revQty: item.cancelQty
       })));
       setShowReverseKotPrintModal(true);
       setReversePrintTrigger(prev => prev + 1);
@@ -2242,7 +2242,7 @@ const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncNa
       });
       toast.success('KOT printed successfully');
       // Handle print data if needed
-       console.log('KOT Print Data:', response.data);
+      console.log('KOT Print Data:', response.data);
     } catch (error) {
       // console.error('Error printing KOT:', error);
       toast.error('Error printing KOT');
@@ -2285,7 +2285,7 @@ const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncNa
   };
 
 
-const PrintAndSettle = async () => {
+  const PrintAndSettle = async () => {
     if (!txnId) return;
 
     // Safety check for takeaway orders
@@ -2636,21 +2636,21 @@ const PrintAndSettle = async () => {
   const disableAll = !hasItems;
 
   const disableSettle = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway);
-const disablePrintSettle = !hasOnlyExistingItems || hasNewItems;
+  const disablePrintSettle = !hasOnlyExistingItems || hasNewItems;
 
   const disableSettlement = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway) || isTableOccupied;
 
   const isPrintDisabled = !hasOnlyExistingItems;
 
-const handleF8Action = useCallback(() => {
-    
+  const handleF8Action = useCallback(() => {
+
     // Force password modal for billed tables (print bill ho gaya)
     if (isBillPrintedState) {
       // console.log('💰 Billed table detected - forcing password modal');
       setShowF8RevKotPasswordModal(true);
       return;
     }
-    
+
     // Existing config logic for unbilled tables
     if (reverseQtyConfig === 'PasswordRequired') {
       setShowF8RevKotPasswordModal(true);
@@ -3137,289 +3137,289 @@ const handleF8Action = useCallback(() => {
 
         {/* Header */}
         <div className="bg-light border-bottom py-1">
-  <div className="container-fluid px-2">
-    {/* Add responsive wrapper - only this is added, nothing else changed */}
-    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-      <div style={{ minWidth: 'max-content' }}>
-        <Row className="g-2 align-items-stretch" style={{ flexWrap: 'nowrap' }}>
+          <div className="container-fluid px-2">
+            {/* Add responsive wrapper - only this is added, nothing else changed */}
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: 'max-content' }}>
+                <Row className="g-2 align-items-stretch" style={{ flexWrap: 'nowrap' }}>
 
-          {/* Table / Order */}
-          <Col style={{ flex: "0 0 150px", maxWidth: "150px" }}>
-            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
+                  {/* Table / Order */}
+                  <Col style={{ flex: "0 0 150px", maxWidth: "150px" }}>
+                    <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
 
-              <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                <i className="fi fi-rr-table me-1"></i>
-                {isTakeaway ? 'Order No' : 'Table No'}
+                      <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                        <i className="fi fi-rr-table me-1"></i>
+                        {isTakeaway ? 'Order No' : 'Table No'}
+                      </div>
+
+                      <div className="fw-bold fs-5 text-dark">
+                        {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
+                      </div>
+
+                    </div>
+                  </Col>
+
+                  {/* Waiter */}
+                  <Col style={{ flex: "0 0 160px", maxWidth: "160px" }}>
+                    <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+                      <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                        <i className="fi fi-rr-user me-1"></i> Waiter
+                      </div>
+                      <input
+                        type="text"
+                        value={waiter}
+                        onChange={(e) => setWaiter(e.target.value)}
+                        className="form-control form-control-sm text-center fw-semibold"
+                        placeholder="Name"
+                        list="waiters"
+                      />
+                      <datalist id="waiters">
+                        {waiterUsers.map((user) => (
+                          <option key={user.userId} value={user.username} />
+                        ))}
+                      </datalist>
+                    </div>
+                  </Col>
+
+                  {/* PAX */}
+                  <Col md={1}>
+                    <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+                      <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                        <i className="fi fi-rr-people me-1"></i> PAX
+                      </div>
+                      <input
+                        type="number"
+                        value={pax}
+                        onChange={(e) => setPax(Number(e.target.value))}
+                        className="form-control form-control-sm text-center fw-semibold"
+                        placeholder="0"
+                        min="1"
+                      />
+                    </div>
+                  </Col>
+
+                  {/* KOT */}
+                  <Col style={{ flex: "0 0 140px", maxWidth: "140px" }}>
+                    <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+
+                      <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                        <i className="fi fi-rr-document me-1"></i> KOT No
+                      </div>
+
+                      <div className="input-group input-group-sm">
+
+                        <span
+                          className="input-group-text fw-semibold text-center"
+                          style={{ width: "50%", justifyContent: "center" }}
+                        >
+                          {defaultKot || '--'}
+                        </span>
+
+                        <input
+                          type="number"
+                          value={editableKot || ''}
+                          onChange={(e) =>
+                            setEditableKot(e.target.value ? Number(e.target.value) : null)
+                          }
+                          className="form-control text-center fw-semibold"
+                          placeholder="Edit"
+                          style={{ width: "50%" }}
+                        />
+
+                      </div>
+
+                    </div>
+                  </Col>
+
+                  {/* Date (business date) */}
+                  <Col style={{ flex: "0 0 140px", maxWidth: "130px" }}>
+                    <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
+                      <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                        <i className="fi fi-rr-calendar"></i> Date
+                      </div>
+                      <div className="fw-bold fs-5 text-dark">
+                        {user?.currDate || '--'}
+                      </div>
+                    </div>
+                  </Col>
+
+                  {/* Delivery Type (Takeaway Only) */}
+                  {isTakeaway && (
+                    <Col md={2}>
+                      <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+                        <div className="text-uppercase small fw-semibold text-secondary text-center mb-1">
+                          <i className="fi fi-rr-shopping-cart me-1"></i> Delivery
+                        </div>
+
+                        <div className="btn-group w-100">
+                          <input
+                            type="radio"
+                            className="btn-check"
+                            name="deliveryType"
+                            id="pickup"
+                            value="pickup"
+                            checked={deliveryType === 'pickup'}
+                            onChange={(e) =>
+                              setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+                            }
+                          />
+                          <label className="btn btn-outline-primary btn-sm" htmlFor="pickup">
+                            Pickup
+                          </label>
+
+                          <input
+                            type="radio"
+                            className="btn-check"
+                            name="deliveryType"
+                            id="homedelivery"
+                            value="homedelivery"
+                            checked={deliveryType === 'homedelivery'}
+                            onChange={(e) =>
+                              setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+                            }
+                          />
+                          <label className="btn btn-outline-primary btn-sm" htmlFor="homedelivery">
+                            Delivery
+                          </label>
+                        </div>
+                      </div>
+                    </Col>
+                  )}
+
+                  {/* Customer */}
+                  <Col md={2}>
+                    <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+                      <input
+                        type="text"
+                        placeholder="Mobile No."
+                        value={customerNo}
+                        onChange={(e) => handleCustomerNoChange(e.target.value)}
+                        className="form-control form-control-sm text-center mb-1"
+                      />
+
+                      <div className="input-group input-group-sm">
+                        <input
+                          type="text"
+                          placeholder="Customer Name"
+                          value={customerName}
+                          readOnly
+                          className="form-control text-center"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCustomerModal(true)}
+                          className="btn btn-primary btn-sm"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </Col>
+
+                  {/* Total */}
+                  <Col md={2} className="ms-auto">
+                    <div className="bg-success text-white rounded shadow-sm py-1 px-2 text-center h-100 d-flex flex-column justify-content-center">
+                      <div className="small text-uppercase">Total</div>
+                      <div className="fw-bold fs-5">
+                        ₹{finalAmount.toFixed(2)}
+                      </div>
+                    </div>
+                  </Col>
+
+                </Row>
               </div>
-
-              <div className="fw-bold fs-5 text-dark">
-                {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
-              </div>
-
             </div>
-          </Col>
 
-          {/* Waiter */}
-          <Col style={{ flex: "0 0 160px", maxWidth: "160px" }}>
-            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
-              <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                <i className="fi fi-rr-user me-1"></i> Waiter
-              </div>
-              <input
-                type="text"
-                value={waiter}
-                onChange={(e) => setWaiter(e.target.value)}
-                className="form-control form-control-sm text-center fw-semibold"
-                placeholder="Name"
-                list="waiters"
-              />
-              <datalist id="waiters">
-                {waiterUsers.map((user) => (
-                  <option key={user.userId} value={user.username} />
-                ))}
-              </datalist>
-            </div>
-          </Col>
+            {/* Datalist Item Names */}
+            <datalist id="itemNames">
+              {(() => {
 
-          {/* PAX */}
-          <Col md={1}>
-            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
-              <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                <i className="fi fi-rr-people me-1"></i> PAX
-              </div>
-              <input
-                type="number"
-                value={pax}
-                onChange={(e) => setPax(Number(e.target.value))}
-                className="form-control form-control-sm text-center fw-semibold"
-                placeholder="0"
-                min="1"
-              />
-            </div>
-          </Col>
+                const results = deptFilteredMenuItems.flatMap(item => {
 
-          {/* KOT */}
-          <Col style={{ flex: "0 0 140px", maxWidth: "140px" }}>
-            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+                  const variants = (item.department_details || []).filter((d: any) =>
+                    d.departmentid === departmentIdFromState &&
+                    d.item_rate > 0 &&
+                    d.variant_value_id
+                  );
 
-              <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                <i className="fi fi-rr-document me-1"></i> KOT No
-              </div>
-
-              <div className="input-group input-group-sm">
-
-                <span
-                  className="input-group-text fw-semibold text-center"
-                  style={{ width: "50%", justifyContent: "center" }}
-                >
-                  {defaultKot || '--'}
-                </span>
-
-                <input
-                  type="number"
-                  value={editableKot || ''}
-                  onChange={(e) =>
-                    setEditableKot(e.target.value ? Number(e.target.value) : null)
+                  // ✅ If variants exist → return variants
+                  if (variants.length > 0) {
+                    return variants.map((d: any) => ({
+                      key: `${item.item_no}|${d.variant_value_id}`,
+                      value: `${item.item_name} (${d.variant_value_name})`,
+                      label: `${item.item_name} (${d.variant_value_name}) | ${item.short_name || ''} | ${item.item_no} | ₹${d.item_rate}`
+                    }));
                   }
-                  className="form-control text-center fw-semibold"
-                  placeholder="Edit"
-                  style={{ width: "50%" }}
-                />
 
-              </div>
+                  // ✅ If no variants → return base item
+                  const baseRate = (item.department_details || []).find((d: any) =>
+                    d.departmentid === departmentIdFromState && d.item_rate > 0
+                  );
 
-            </div>
-          </Col>
+                  if (baseRate) {
+                    return [{
+                      key: `${item.item_no}|base`,
+                      value: `${item.item_name}`,
+                      label: `${item.item_name} | ${item.short_name || ''} | ${item.item_no} | ₹${baseRate.item_rate}`
+                    }];
+                  }
 
-          {/* Date (business date) */}
-          <Col style={{ flex: "0 0 140px", maxWidth: "130px" }}>
-            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
-              <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                <i className="fi fi-rr-calendar"></i> Date
-              </div>
-              <div className="fw-bold fs-5 text-dark">
-                {user?.currDate || '--'}
-              </div>
-            </div>
-          </Col>
+                  return [];
+                });
 
-          {/* Delivery Type (Takeaway Only) */}
-          {isTakeaway && (
-            <Col md={2}>
-              <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
-                <div className="text-uppercase small fw-semibold text-secondary text-center mb-1">
-                  <i className="fi fi-rr-shopping-cart me-1"></i> Delivery
-                </div>
+                const limited = results.slice(0, 50);
 
-                <div className="btn-group w-100">
-                  <input
-                    type="radio"
-                    className="btn-check"
-                    name="deliveryType"
-                    id="pickup"
-                    value="pickup"
-                    checked={deliveryType === 'pickup'}
-                    onChange={(e) =>
-                      setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
-                    }
+                return limited.map(opt => (
+                  <option
+                    key={opt.key}
+                    value={opt.value}
+                    label={opt.label}
                   />
-                  <label className="btn btn-outline-primary btn-sm" htmlFor="pickup">
-                    Pickup
-                  </label>
+                ));
 
-                  <input
-                    type="radio"
-                    className="btn-check"
-                    name="deliveryType"
-                    id="homedelivery"
-                    value="homedelivery"
-                    checked={deliveryType === 'homedelivery'}
-                    onChange={(e) =>
-                      setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
-                    }
+              })()}
+            </datalist>
+
+            {/* Datalist Item Codes - Dynamic based on filter */}
+            <datalist id="itemNos">
+              {(() => {
+                const deptVariants = deptFilteredMenuItems
+                  .flatMap(item => {
+                    return (item.department_details || [])
+                      .filter((d: any) =>
+                        d.departmentid === departmentIdFromState &&
+                        d.item_rate > 0 &&
+                        d.variant_value_id
+                      )
+                      .map((d: any) => ({
+                        item_no: item.item_no,
+                        item_name: item.item_name,
+                        short_name: item.short_name || '',
+                        variant_value_id: d.variant_value_id,
+                        variant_value_name: d.variant_value_name,
+                        price: d.item_rate
+                      }));
+                  });
+
+                // Filter by itemCodeFilter if typing
+                const filtered = itemCodeFilter
+                  ? deptVariants.filter(v =>
+                    v.item_no.toString() === itemCodeFilter
+                  )
+                  : deptVariants.slice(0, 50);
+
+                return filtered.map(variant => (
+                  <option
+                    key={`${variant.item_no}|${variant.variant_value_id}`}
+                    value={`${variant.item_no}|${variant.variant_value_id}`}
+                    label={`${variant.item_name} (${variant.variant_value_name}) | ${variant.short_name} | ${variant.item_no} | ₹${variant.price}`}
                   />
-                  <label className="btn btn-outline-primary btn-sm" htmlFor="homedelivery">
-                    Delivery
-                  </label>
-                </div>
-              </div>
-            </Col>
-          )}
+                ));
+              })()}
+            </datalist>
 
-          {/* Customer */}
-          <Col md={2}>
-            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
-              <input
-                type="text"
-                placeholder="Mobile No."
-                value={customerNo}
-                onChange={(e) => handleCustomerNoChange(e.target.value)}
-                className="form-control form-control-sm text-center mb-1"
-              />
-
-              <div className="input-group input-group-sm">
-                <input
-                  type="text"
-                  placeholder="Customer Name"
-                  value={customerName}
-                  readOnly
-                  className="form-control text-center"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCustomerModal(true)}
-                  className="btn btn-primary btn-sm"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </Col>
-
-          {/* Total */}
-          <Col md={2} className="ms-auto">
-            <div className="bg-success text-white rounded shadow-sm py-1 px-2 text-center h-100 d-flex flex-column justify-content-center">
-              <div className="small text-uppercase">Total</div>
-              <div className="fw-bold fs-5">
-                ₹{finalAmount.toFixed(2)}
-              </div>
-            </div>
-          </Col>
-
-        </Row>
-      </div>
-    </div>
-
-    {/* Datalist Item Names */}
-    <datalist id="itemNames">
-      {(() => {
-
-        const results = deptFilteredMenuItems.flatMap(item => {
-
-          const variants = (item.department_details || []).filter((d: any) =>
-            d.departmentid === departmentIdFromState &&
-            d.item_rate > 0 &&
-            d.variant_value_id
-          );
-
-          // ✅ If variants exist → return variants
-          if (variants.length > 0) {
-            return variants.map((d: any) => ({
-              key: `${item.item_no}|${d.variant_value_id}`,
-              value: `${item.item_name} (${d.variant_value_name})`,
-              label: `${item.item_name} (${d.variant_value_name}) | ${item.short_name || ''} | ${item.item_no} | ₹${d.item_rate}`
-            }));
-          }
-
-          // ✅ If no variants → return base item
-          const baseRate = (item.department_details || []).find((d: any) =>
-            d.departmentid === departmentIdFromState && d.item_rate > 0
-          );
-
-          if (baseRate) {
-            return [{
-              key: `${item.item_no}|base`,
-              value: `${item.item_name}`,
-              label: `${item.item_name} | ${item.short_name || ''} | ${item.item_no} | ₹${baseRate.item_rate}`
-            }];
-          }
-
-          return [];
-        });
-
-        const limited = results.slice(0, 50);
-
-        return limited.map(opt => (
-          <option
-            key={opt.key}
-            value={opt.value}
-            label={opt.label}
-          />
-        ));
-
-      })()}
-    </datalist>
-
-    {/* Datalist Item Codes - Dynamic based on filter */}
-    <datalist id="itemNos">
-      {(() => {
-        const deptVariants = deptFilteredMenuItems
-          .flatMap(item => {
-            return (item.department_details || [])
-              .filter((d: any) =>
-                d.departmentid === departmentIdFromState &&
-                d.item_rate > 0 &&
-                d.variant_value_id
-              )
-              .map((d: any) => ({
-                item_no: item.item_no,
-                item_name: item.item_name,
-                short_name: item.short_name || '',
-                variant_value_id: d.variant_value_id,
-                variant_value_name: d.variant_value_name,
-                price: d.item_rate
-              }));
-          });
-
-        // Filter by itemCodeFilter if typing
-        const filtered = itemCodeFilter
-          ? deptVariants.filter(v =>
-              v.item_no.toString() === itemCodeFilter
-            )
-          : deptVariants.slice(0, 50);
-
-        return filtered.map(variant => (
-          <option
-            key={`${variant.item_no}|${variant.variant_value_id}`}
-            value={`${variant.item_no}|${variant.variant_value_id}`}
-            label={`${variant.item_name} (${variant.variant_value_name}) | ${variant.short_name} | ${variant.item_no} | ₹${variant.price}`}
-          />
-        ));
-      })()}
-    </datalist>
-
-  </div>
-</div>
+          </div>
+        </div>
         {/* Main Content */}
         <div className="full-screen-content px-2" style={{ top: `${headerHeight + toolbarHeight}px` }}>
           <div className="content-wrapper">
@@ -3613,7 +3613,7 @@ const handleF8Action = useCallback(() => {
                       <td>{DiscPer.toFixed(2)}</td>
                       <td className="text-end">{grossAmount.toFixed(2)}</td>
                       <td className="text-end">{taxCalc.taxableValue?.toFixed(2)}</td>
-{Number(RevKOT || 0).toFixed(2)}
+                      {Number(RevKOT || 0).toFixed(2)}
                       <td className="text-end">{discount.toFixed(2)}</td>
                       <td className="text-end">{cgst.toFixed(2)}</td>
                       <td className="text-end">{sgst.toFixed(2)}</td>
@@ -3702,17 +3702,17 @@ const handleF8Action = useCallback(() => {
       </Modal>
       <NCKotPrint
         show={showNCKotPrintModal}
-         autoPrint={true} 
-        selectedWaiter={waiter} 
+        autoPrint={true}
+        selectedWaiter={waiter}
         onHide={() => {
           setShowNCKotPrintModal(false);
           navigate('/apps/Tableview');
         }}
         items={ncPrintItems}
         user={user}
-        outletName={outletName}            
+        outletName={outletName}
         restaurantName={restaurantName}
-        tableName={tableName} 
+        tableName={tableName}
       />
       <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
         if (DiscountType === 1) {
@@ -3763,7 +3763,7 @@ const handleF8Action = useCallback(() => {
       </Modal>
 
       {/* Settlement Modal */}
-        <SettlementModal
+      <SettlementModal
         show={showSettlementModal}
         onHide={() => setShowSettlementModal(false)}
         onSettle={handleSettleAndPrint}
@@ -3887,10 +3887,10 @@ const handleF8Action = useCallback(() => {
       />
       <KotPreviewPrint
         show={showKotPrintModal}
-onHide={() => {
-  setShowKotPrintModal(false);
-  navigate('/apps/Tableview');
-}}
+        onHide={() => {
+          setShowKotPrintModal(false);
+          navigate('/apps/Tableview');
+        }}
 
         // ✅ PRINT ONLY NEW KOT ITEMS
         printItems={billItems
@@ -3944,11 +3944,11 @@ onHide={() => {
         autoPrint={true}
 
         // ✅ NAVIGATE AFTER PRINT COMPLETES
-       
+
 
         onClose={() => setShowKotPrintModal(false)}
         selectedOutletId={selectedOutletId}
-        selectedWaiter={waiter}    
+        selectedWaiter={waiter}
         date={user?.currDate}
         pax={pax}
         restaurantName={restaurantName}
@@ -3969,7 +3969,7 @@ onHide={() => {
           qty: item.qty,
           isBilled: item.isBilled || 0,
           variantId: item.variantId ?? null,
-            variantName: item.variantName ?? '',
+          variantName: item.variantName ?? '',
           isNCKOT: 0,
           NCName: '',
           NCPurpose: '',
@@ -3979,7 +3979,7 @@ onHide={() => {
           kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
         } as any))}
         currentKOTNos={currentKOTNos}
-        selectedWaiter={waiter}           
+        selectedWaiter={waiter}
         orderNo={orderNo ?? undefined}
         selectedTable={tableNo}
         activeTab={isTakeaway ? "Takeaway" : "Dine-in"}
@@ -4027,15 +4027,15 @@ onHide={() => {
             }, 300);
           }
         }}
-        
+
       />
 
       {/* 🔥 NEW: Reverse KOT Print Modal (copy from Orders.tsx) */}
       <ReverseKotPrint
         key={reversePrintTrigger}
         show={showReverseKotPrintModal}
-         autoPrint={true} 
-        selectedWaiter={waiter} 
+        autoPrint={true}
+        selectedWaiter={waiter}
         onHide={() => {
           setShowReverseKotPrintModal(false);
           setReverseSnapshot([]);
