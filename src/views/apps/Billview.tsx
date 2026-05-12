@@ -1820,16 +1820,38 @@ const ModernBill = () => {
           qtyRef.select();
         }
       } else if (field === 'qty') {
-        // Only add new row if current item has data (itemId > 0 or itemName not empty)
+        // Enter on Qty: if last row is already the existing blank row, DO NOT add another.
+        const lastIndexInBill = billItems.length - 1;
+        const lastRow = billItems[lastIndexInBill];
+
+        const isExistingBlankRow = !!lastRow &&
+          (lastRow.itemId === 0) &&
+          (lastRow.isFetched === false) &&
+          (lastRow.itemName?.trim?.() === '') &&
+          (lastRow.itemCode?.trim?.() === '');
+
+        // Move focus to the last row's itemCode when it's already blank.
+        if (isExistingBlankRow) {
+          const focusIndex = isGrouped ? displayedItems.length - 1 : lastIndexInBill;
+          const blankItemCodeRef = inputRefs.current[focusIndex]?.[0];
+          if (blankItemCodeRef) {
+            blankItemCodeRef.focus();
+            blankItemCodeRef.select();
+          }
+          return;
+        }
+
+        // Otherwise, only add a new row if current row has data.
         if (billItems[dataIndex].itemId > 0 || billItems[dataIndex].itemName.trim() !== '') {
           const newBillItems = [...billItems, { itemCode: "", itemgroupid: 0, itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '', isFetched: false }];
           setBillItems(newBillItems);
-          // Focus the new itemCode after state update
+          // Focus the new blank row itemCode after state update
           setTimeout(() => {
             const focusIndex = isGrouped ? displayedItems.length : newBillItems.length - 1;
             const newItemCodeRef = inputRefs.current[focusIndex]?.[0];
             if (newItemCodeRef) {
               newItemCodeRef.focus();
+              newItemCodeRef.select();
             }
           }, 0);
         }
