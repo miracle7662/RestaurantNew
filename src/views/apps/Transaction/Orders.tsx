@@ -5101,9 +5101,9 @@ const handlePrintAndSaveKOT = async () => {
               if (printThenSettleFlow) {
                 setSelectedPaymentModes([]);
   
-  setPaymentAmounts({});
-  
-  setIsMixedPayment(false);
+                setPaymentAmounts({});
+                  
+                setIsMixedPayment(false);
                 setShowSettlementModal(true);
                 setPrintThenSettleFlow(false);
               } else {

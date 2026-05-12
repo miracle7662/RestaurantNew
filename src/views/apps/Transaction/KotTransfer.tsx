@@ -10,7 +10,7 @@ import TableManagementService from '@/common/api/tablemanagement';
 
 const KOT_COLORS = [
   '#E8F5E9', // Green 50
-  '#FFF3E0', // Orange 50
+  '#FFF3E0', // Orange 50a
 ];
 
 const getRowColor = (kotNo: string | number | null | undefined) => {
@@ -451,7 +451,9 @@ const [proposedPax, setProposedPax] = useState<number>(1);
           targetTableId: proposedTableId,
           PAX: proposedPax,
           hotelid: user?.hotelid || user?.hotelId,
-          outletid: tableOutletId || user?.outletid || user?.outletId
+          outletid: tableOutletId || user?.outletid || user?.outletId,
+          TxnDatetime: user?.currDate,
+          curr_date: user?.currDate
         };
         // console.log('SAVE PAYLOAD:', payload);
         result = await OrderService.transferTable(payload);
@@ -469,7 +471,9 @@ const [proposedPax, setProposedPax] = useState<number>(1);
           PAX: proposedPax,
           userId: user?.id || user?.userid,
           hotelid: user?.hotelid || user?.hotelId,
-          outletid: tableOutletId || user?.outletid || user?.outletId
+          outletid: tableOutletId || user?.outletid || user?.outletId,
+          TxnDatetime: user?.currDate,
+          curr_date: user?.currDate
         };
         // console.log('SAVE PAYLOAD:', payload);
         result = await OrderService.transferKOT(payload);
