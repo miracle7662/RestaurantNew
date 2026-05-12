@@ -3137,285 +3137,289 @@ const handleF8Action = useCallback(() => {
 
         {/* Header */}
         <div className="bg-light border-bottom py-1">
-          <div className="container-fluid px-2">
-            <Row className="g-2 align-items-stretch">
+  <div className="container-fluid px-2">
+    {/* Add responsive wrapper - only this is added, nothing else changed */}
+    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <div style={{ minWidth: 'max-content' }}>
+        <Row className="g-2 align-items-stretch" style={{ flexWrap: 'nowrap' }}>
 
-              {/* Table / Order */}
-              <Col style={{ flex: "0 0 150px", maxWidth: "150px" }}>
-                <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
+          {/* Table / Order */}
+          <Col style={{ flex: "0 0 150px", maxWidth: "150px" }}>
+            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
 
-                  <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                    <i className="fi fi-rr-table me-1"></i>
-                    {isTakeaway ? 'Order No' : 'Table No'}
-                  </div>
+              <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                <i className="fi fi-rr-table me-1"></i>
+                {isTakeaway ? 'Order No' : 'Table No'}
+              </div>
 
-                  <div className="fw-bold fs-5 text-dark">
-                    {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
-                  </div>
+              <div className="fw-bold fs-5 text-dark">
+                {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
+              </div>
 
+            </div>
+          </Col>
+
+          {/* Waiter */}
+          <Col style={{ flex: "0 0 160px", maxWidth: "160px" }}>
+            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+              <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                <i className="fi fi-rr-user me-1"></i> Waiter
+              </div>
+              <input
+                type="text"
+                value={waiter}
+                onChange={(e) => setWaiter(e.target.value)}
+                className="form-control form-control-sm text-center fw-semibold"
+                placeholder="Name"
+                list="waiters"
+              />
+              <datalist id="waiters">
+                {waiterUsers.map((user) => (
+                  <option key={user.userId} value={user.username} />
+                ))}
+              </datalist>
+            </div>
+          </Col>
+
+          {/* PAX */}
+          <Col md={1}>
+            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+              <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                <i className="fi fi-rr-people me-1"></i> PAX
+              </div>
+              <input
+                type="number"
+                value={pax}
+                onChange={(e) => setPax(Number(e.target.value))}
+                className="form-control form-control-sm text-center fw-semibold"
+                placeholder="0"
+                min="1"
+              />
+            </div>
+          </Col>
+
+          {/* KOT */}
+          <Col style={{ flex: "0 0 140px", maxWidth: "140px" }}>
+            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+
+              <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                <i className="fi fi-rr-document me-1"></i> KOT No
+              </div>
+
+              <div className="input-group input-group-sm">
+
+                <span
+                  className="input-group-text fw-semibold text-center"
+                  style={{ width: "50%", justifyContent: "center" }}
+                >
+                  {defaultKot || '--'}
+                </span>
+
+                <input
+                  type="number"
+                  value={editableKot || ''}
+                  onChange={(e) =>
+                    setEditableKot(e.target.value ? Number(e.target.value) : null)
+                  }
+                  className="form-control text-center fw-semibold"
+                  placeholder="Edit"
+                  style={{ width: "50%" }}
+                />
+
+              </div>
+
+            </div>
+          </Col>
+
+          {/* Date (business date) */}
+          <Col style={{ flex: "0 0 140px", maxWidth: "130px" }}>
+            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
+              <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                <i className="fi fi-rr-calendar"></i> Date
+              </div>
+              <div className="fw-bold fs-5 text-dark">
+                {user?.currDate || '--'}
+              </div>
+            </div>
+          </Col>
+
+          {/* Delivery Type (Takeaway Only) */}
+          {isTakeaway && (
+            <Col md={2}>
+              <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+                <div className="text-uppercase small fw-semibold text-secondary text-center mb-1">
+                  <i className="fi fi-rr-shopping-cart me-1"></i> Delivery
                 </div>
-              </Col>
 
-              {/* Waiter */}
-              <Col style={{ flex: "0 0 160px", maxWidth: "160px" }}>
-                <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
-                  <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                    <i className="fi fi-rr-user me-1"></i> Waiter
-                  </div>
+                <div className="btn-group w-100">
                   <input
-                    type="text"
-                    value={waiter}
-                    onChange={(e) => setWaiter(e.target.value)}
-                    className="form-control form-control-sm text-center fw-semibold"
-                    placeholder="Name"
-                    list="waiters"
+                    type="radio"
+                    className="btn-check"
+                    name="deliveryType"
+                    id="pickup"
+                    value="pickup"
+                    checked={deliveryType === 'pickup'}
+                    onChange={(e) =>
+                      setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+                    }
                   />
-                  <datalist id="waiters">
-                    {waiterUsers.map((user) => (
-                      <option key={user.userId} value={user.username} />
-                    ))}
-                  </datalist>
-                </div>
-              </Col>
+                  <label className="btn btn-outline-primary btn-sm" htmlFor="pickup">
+                    Pickup
+                  </label>
 
-              {/* PAX */}
-              <Col md={1}>
-                <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
-                  <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                    <i className="fi fi-rr-people me-1"></i> PAX
-                  </div>
                   <input
-                    type="number"
-                    value={pax}
-                    onChange={(e) => setPax(Number(e.target.value))}
-                    className="form-control form-control-sm text-center fw-semibold"
-                    placeholder="0"
-                    min="1"
+                    type="radio"
+                    className="btn-check"
+                    name="deliveryType"
+                    id="homedelivery"
+                    value="homedelivery"
+                    checked={deliveryType === 'homedelivery'}
+                    onChange={(e) =>
+                      setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+                    }
                   />
+                  <label className="btn btn-outline-primary btn-sm" htmlFor="homedelivery">
+                    Delivery
+                  </label>
                 </div>
-              </Col>
+              </div>
+            </Col>
+          )}
 
-              {/* KOT */}
-              <Col style={{ flex: "0 0 140px", maxWidth: "140px" }}>
-                <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+          {/* Customer */}
+          <Col md={2}>
+            <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+              <input
+                type="text"
+                placeholder="Mobile No."
+                value={customerNo}
+                onChange={(e) => handleCustomerNoChange(e.target.value)}
+                className="form-control form-control-sm text-center mb-1"
+              />
 
-                  <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                    <i className="fi fi-rr-document me-1"></i> KOT No
-                  </div>
+              <div className="input-group input-group-sm">
+                <input
+                  type="text"
+                  placeholder="Customer Name"
+                  value={customerName}
+                  readOnly
+                  className="form-control text-center"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCustomerModal(true)}
+                  className="btn btn-primary btn-sm"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </Col>
 
-                  <div className="input-group input-group-sm">
+          {/* Total */}
+          <Col md={2} className="ms-auto">
+            <div className="bg-success text-white rounded shadow-sm py-1 px-2 text-center h-100 d-flex flex-column justify-content-center">
+              <div className="small text-uppercase">Total</div>
+              <div className="fw-bold fs-5">
+                ₹{finalAmount.toFixed(2)}
+              </div>
+            </div>
+          </Col>
 
-                    <span
-                      className="input-group-text fw-semibold text-center"
-                      style={{ width: "50%", justifyContent: "center" }}
-                    >
-                      {defaultKot || '--'}
-                    </span>
-
-                    <input
-                      type="number"
-                      value={editableKot || ''}
-                      onChange={(e) =>
-                        setEditableKot(e.target.value ? Number(e.target.value) : null)
-                      }
-                      className="form-control text-center fw-semibold"
-                      placeholder="Edit"
-                      style={{ width: "50%" }}
-                    />
-
-                  </div>
-
-                </div>
-              </Col>
-
-              {/* Date (business date) */}
-             <Col style={{ flex: "0 0 140px", maxWidth: "130px" }}>
-  <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
-    <div className="text-uppercase small fw-semibold text-secondary mb-1">
-      <i className="fi fi-rr-calendar"></i> Date
+        </Row>
+      </div>
     </div>
-    <div className="fw-bold fs-5 text-dark">
-      {user?.currDate || '--'}
-    </div>
+
+    {/* Datalist Item Names */}
+    <datalist id="itemNames">
+      {(() => {
+
+        const results = deptFilteredMenuItems.flatMap(item => {
+
+          const variants = (item.department_details || []).filter((d: any) =>
+            d.departmentid === departmentIdFromState &&
+            d.item_rate > 0 &&
+            d.variant_value_id
+          );
+
+          // ✅ If variants exist → return variants
+          if (variants.length > 0) {
+            return variants.map((d: any) => ({
+              key: `${item.item_no}|${d.variant_value_id}`,
+              value: `${item.item_name} (${d.variant_value_name})`,
+              label: `${item.item_name} (${d.variant_value_name}) | ${item.short_name || ''} | ${item.item_no} | ₹${d.item_rate}`
+            }));
+          }
+
+          // ✅ If no variants → return base item
+          const baseRate = (item.department_details || []).find((d: any) =>
+            d.departmentid === departmentIdFromState && d.item_rate > 0
+          );
+
+          if (baseRate) {
+            return [{
+              key: `${item.item_no}|base`,
+              value: `${item.item_name}`,
+              label: `${item.item_name} | ${item.short_name || ''} | ${item.item_no} | ₹${baseRate.item_rate}`
+            }];
+          }
+
+          return [];
+        });
+
+        const limited = results.slice(0, 50);
+
+        return limited.map(opt => (
+          <option
+            key={opt.key}
+            value={opt.value}
+            label={opt.label}
+          />
+        ));
+
+      })()}
+    </datalist>
+
+    {/* Datalist Item Codes - Dynamic based on filter */}
+    <datalist id="itemNos">
+      {(() => {
+        const deptVariants = deptFilteredMenuItems
+          .flatMap(item => {
+            return (item.department_details || [])
+              .filter((d: any) =>
+                d.departmentid === departmentIdFromState &&
+                d.item_rate > 0 &&
+                d.variant_value_id
+              )
+              .map((d: any) => ({
+                item_no: item.item_no,
+                item_name: item.item_name,
+                short_name: item.short_name || '',
+                variant_value_id: d.variant_value_id,
+                variant_value_name: d.variant_value_name,
+                price: d.item_rate
+              }));
+          });
+
+        // Filter by itemCodeFilter if typing
+        const filtered = itemCodeFilter
+          ? deptVariants.filter(v =>
+              v.item_no.toString() === itemCodeFilter
+            )
+          : deptVariants.slice(0, 50);
+
+        return filtered.map(variant => (
+          <option
+            key={`${variant.item_no}|${variant.variant_value_id}`}
+            value={`${variant.item_no}|${variant.variant_value_id}`}
+            label={`${variant.item_name} (${variant.variant_value_name}) | ${variant.short_name} | ${variant.item_no} | ₹${variant.price}`}
+          />
+        ));
+      })()}
+    </datalist>
+
   </div>
-</Col>
-
-
-              {/* Delivery Type (Takeaway Only) */}
-              {isTakeaway && (
-                <Col md={2}>
-                  <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
-                    <div className="text-uppercase small fw-semibold text-secondary text-center mb-1">
-                      <i className="fi fi-rr-shopping-cart me-1"></i> Delivery
-                    </div>
-
-                    <div className="btn-group w-100">
-                      <input
-                        type="radio"
-                        className="btn-check"
-                        name="deliveryType"
-                        id="pickup"
-                        value="pickup"
-                        checked={deliveryType === 'pickup'}
-                        onChange={(e) =>
-                          setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
-                        }
-                      />
-                      <label className="btn btn-outline-primary btn-sm" htmlFor="pickup">
-                        Pickup
-                      </label>
-
-                      <input
-                        type="radio"
-                        className="btn-check"
-                        name="deliveryType"
-                        id="homedelivery"
-                        value="homedelivery"
-                        checked={deliveryType === 'homedelivery'}
-                        onChange={(e) =>
-                          setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
-                        }
-                      />
-                      <label className="btn btn-outline-primary btn-sm" htmlFor="homedelivery">
-                        Delivery
-                      </label>
-                    </div>
-                  </div>
-                </Col>
-              )}
-
-              {/* Customer */}
-              <Col md={2}>
-                <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
-                  <input
-                    type="text"
-                    placeholder="Mobile No."
-                    value={customerNo}
-                    onChange={(e) => handleCustomerNoChange(e.target.value)}
-                    className="form-control form-control-sm text-center mb-1"
-                  />
-
-                  <div className="input-group input-group-sm">
-                    <input
-                      type="text"
-                      placeholder="Customer Name"
-                      value={customerName}
-                      readOnly
-                      className="form-control text-center"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCustomerModal(true)}
-                      className="btn btn-primary btn-sm"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </Col>
-
-              {/* Total */}
-              <Col md={2} className="ms-auto">
-                <div className="bg-success text-white rounded shadow-sm py-1 px-2 text-center h-100 d-flex flex-column justify-content-center">
-                  <div className="small text-uppercase">Total</div>
-                  <div className="fw-bold fs-5">
-                    ₹{finalAmount.toFixed(2)}
-                  </div>
-                </div>
-              </Col>
-
-            </Row>
-
-            {/* Datalist Item Names */}
-            <datalist id="itemNames">
-              {(() => {
-
-                const results = deptFilteredMenuItems.flatMap(item => {
-
-                  const variants = (item.department_details || []).filter((d: any) =>
-                    d.departmentid === departmentIdFromState &&
-                    d.item_rate > 0 &&
-                    d.variant_value_id
-                  );
-
-                  // ✅ If variants exist → return variants
-                  if (variants.length > 0) {
-                    return variants.map((d: any) => ({
-                      key: `${item.item_no}|${d.variant_value_id}`,
-                      value: `${item.item_name} (${d.variant_value_name})`,
-                      label: `${item.item_name} (${d.variant_value_name}) | ${item.short_name || ''} | ${item.item_no} | ₹${d.item_rate}`
-                    }));
-                  }
-
-                  // ✅ If no variants → return base item
-                  const baseRate = (item.department_details || []).find((d: any) =>
-                    d.departmentid === departmentIdFromState && d.item_rate > 0
-                  );
-
-                  if (baseRate) {
-                    return [{
-                      key: `${item.item_no}|base`,
-                      value: `${item.item_name}`,
-                      label: `${item.item_name} | ${item.short_name || ''} | ${item.item_no} | ₹${baseRate.item_rate}`
-                    }];
-                  }
-
-                  return [];
-                });
-
-                const limited = results.slice(0, 50);
-
-                return limited.map(opt => (
-                  <option
-                    key={opt.key}
-                    value={opt.value}
-                    label={opt.label}
-                  />
-                ));
-
-              })()}
-            </datalist>
-
-            {/* Datalist Item Codes - Dynamic based on filter */}
-            <datalist id="itemNos">
-              {(() => {
-                const deptVariants = deptFilteredMenuItems
-                  .flatMap(item => {
-                    return (item.department_details || [])
-                      .filter((d: any) =>
-                        d.departmentid === departmentIdFromState &&
-                        d.item_rate > 0 &&
-                        d.variant_value_id
-                      )
-                      .map((d: any) => ({
-                        item_no: item.item_no,
-                        item_name: item.item_name,
-                        short_name: item.short_name || '',
-                        variant_value_id: d.variant_value_id,
-                        variant_value_name: d.variant_value_name,
-                        price: d.item_rate
-                      }));
-                  });
-
-                // Filter by itemCodeFilter if typing
-               const filtered = itemCodeFilter
-                ? deptVariants.filter(v =>
-                    v.item_no.toString() === itemCodeFilter
-                  )
-                : deptVariants.slice(0, 50);
-
-                return filtered.map(variant => (
-                  <option
-                    key={`${variant.item_no}|${variant.variant_value_id}`}
-                    value={`${variant.item_no}|${variant.variant_value_id}`}
-                    label={`${variant.item_name} (${variant.variant_value_name}) | ${variant.short_name} | ${variant.item_no} | ₹${variant.price}`}
-                  />
-                ));
-              })()}
-            </datalist>
-
-          </div>
-        </div>
+</div>
         {/* Main Content */}
         <div className="full-screen-content px-2" style={{ top: `${headerHeight + toolbarHeight}px` }}>
           <div className="content-wrapper">
