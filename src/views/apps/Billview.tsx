@@ -708,7 +708,7 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
             .map((item: any) => ({
               id: item.ItemID,
               txnDetailId: item.TXnDetailID,
-              item_no: item.item_no,
+              item_no: (item.item_no || item.ItemNo || '').toString(),
               name: item.ItemName || 'Unknown Item',
               price: item.RuntimeRate,
               qty: Number(item.Qty) || 0,
@@ -873,10 +873,10 @@ const [givenBy, setGivenBy] = useState<string>(user?.name || '');
         const total = qty * rate;
 
         return {
-          itemCode: (item.item_no || item.ItemNo || '').toString(),
+          itemCode: (item.item_no || item.ItemNo || item.Item_No || '').toString(),
           itemId: item.itemId || item.ItemID || 0,
           itemgroupid: item.itemgroupid || 0,
-          item_no: item.item_no || item.ItemNo || '',
+          item_no: Number(item.item_no || item.ItemNo || item.Item_No || 0),
           itemName: item.itemName || item.ItemName || item.item_name || '',
           qty: qty,
           rate: rate,
@@ -1036,10 +1036,10 @@ setRevKOT(Number(data.header?.RevKOT ?? 0));
         const total = qty * rate;
 
         return {
-          itemCode: (item.item_no || item.ItemNo || '').toString(),
+          itemCode: (item.item_no || item.ItemNo || item.Item_No || '').toString(),
           itemId: item.itemId || item.ItemID || 0,
           itemgroupid: item.itemgroupid || 0,
-          item_no: item.item_no || item.ItemNo || '',
+          item_no: Number(item.item_no || item.ItemNo || item.Item_No || 0),
           itemName: item.itemName || item.ItemName || item.item_name || '',
           qty: qty,
           rate: rate,
@@ -1666,6 +1666,7 @@ setRevKOT(Number(data.header.RevKOT || 0));
         // ✅ FIXED: Keep BASE itemName separate from variant
         currentItem.itemName = found.item_name; // Base name only
         currentItem.itemId = found.restitemid;
+        currentItem.item_no = Number(found.item_no);
         currentItem.isValidCode = true;
 
         // If variant was selected, use variant-specific rate & SET SEPARATE FIELDS
@@ -1750,6 +1751,7 @@ setRevKOT(Number(data.header.RevKOT || 0));
 
       currentItem.itemCode = found.item_no.toString();
       currentItem.itemId = found.restitemid;
+      currentItem.item_no = Number(found.item_no);
       currentItem.itemName = found.item_name;
       currentItem.rate = found.price;
 
