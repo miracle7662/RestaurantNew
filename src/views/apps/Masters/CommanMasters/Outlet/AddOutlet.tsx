@@ -534,12 +534,12 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           throw new Error('No data returned from the server.');
         }
 
-        // Enhanced logging for debugging
-        console.error('🔍 Raw Backend Response:', data);
-        console.error('📊 Response keys:', Object.keys(data));
-        console.error('✅ bill_print_settings exists:', !!data.bill_print_settings);
-        console.error('✅ general_settings exists:', !!data.general_settings);
-        console.error('✅ bill_preview_settings exists:', !!data.bill_preview_settings);
+        // // Enhanced logging for debugging
+        // console.error('🔍 Raw Backend Response:', data);
+        // console.error('📊 Response keys:', Object.keys(data));
+        // console.error('✅ bill_print_settings exists:', !!data.bill_print_settings);
+        // console.error('✅ general_settings exists:', !!data.general_settings);
+        // console.error('✅ bill_preview_settings exists:', !!data.bill_preview_settings);
 
         // Parse nested JSON fields and map to formData
         const allFormData: OutletSettings = {
