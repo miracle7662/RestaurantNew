@@ -3196,7 +3196,7 @@ const handleF8Action = useCallback(() => {
               </Col>
 
               {/* KOT */}
-              <Col style={{ flex: "0 0 190px", maxWidth: "160px" }}>
+              <Col style={{ flex: "0 0 140px", maxWidth: "140px" }}>
                 <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
 
                   <div className="text-uppercase small fw-semibold text-secondary mb-1">
@@ -3229,16 +3229,16 @@ const handleF8Action = useCallback(() => {
               </Col>
 
               {/* Date (business date) */}
-              <Col style={{ flex: "0 0 170px", maxWidth: "170px" }}>
-                <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
-                  <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                    <i className="fi fi-rr-calendar"></i> Date
-                  </div>
-                  <div className="fw-bold fs-5 text-dark">
-                    {user?.currDate || '--'}
-                  </div>
-                </div>
-              </Col>
+             <Col style={{ flex: "0 0 140px", maxWidth: "130px" }}>
+  <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
+    <div className="text-uppercase small fw-semibold text-secondary mb-1">
+      <i className="fi fi-rr-calendar"></i> Date
+    </div>
+    <div className="fw-bold fs-5 text-dark">
+      {user?.currDate || '--'}
+    </div>
+  </div>
+</Col>
 
 
               {/* Delivery Type (Takeaway Only) */}
