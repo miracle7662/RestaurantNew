@@ -347,6 +347,8 @@ export interface TransferTablePayload {
   PAX?: number
   hotelid?: number
   outletid?: number
+  TxnDatetime?: string
+  curr_date?: string  
 }
 
 /** Transfer KOT payload */
@@ -362,6 +364,8 @@ export interface TransferKOTPayload {
   userId?: number
   hotelid?: number
   outletid?: number
+  TxnDatetime?: string
+  curr_date?: string
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
