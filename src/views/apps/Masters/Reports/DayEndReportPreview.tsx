@@ -14,7 +14,7 @@ import SettingsService from "@/common/api/settings";
 // every separator line into an <hr>, and data lines into
 // fixed-width monospace rows.
 // ─────────────────────────────────────────────
-function plaintextToStyledHTML(raw: string): string {
+function plaintextToStyledHTML(raw: string, hotelName: string): string {
   // Section header keywords
   const HEADERS = [
     "BILL DETAILS",
@@ -38,6 +38,20 @@ function plaintextToStyledHTML(raw: string): string {
 
   const lines = raw.split("\n");
   let out = "";
+
+  // Add hotel name at the top if provided
+  if (hotelName) {
+    out += `
+      <div style="
+        font-family:'Courier New',Courier,monospace;
+        font-size:13px;
+        font-weight:bold;
+        text-align:center;
+        margin:0 0 8px 0;
+        padding-bottom:4px;
+        border-bottom:1px solid #000;
+      ">${hotelName}</div>`;
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -142,7 +156,25 @@ const DayEndReportPreview: React.FC = () => {
     fetchPrinterAndOutlet();
   }, [user]);
 
-  const getFullHTML = () => `
+  const hotelName = user?.hotel_name || '';
+
+  const getFullHTML = () => {
+    // Process the content for print
+    const stripped = previewHTML
+      .replace(/<html[^>]*>/gi, "")
+      .replace(/<\/html>/gi, "")
+      .replace(/<head[\s\S]*?<\/head>/gi, "")
+      .replace(/<body[^>]*>/gi, "")
+      .replace(/<\/body>/gi, "");
+
+    const innerTextMatch = stripped.match(/<div[^>]*>([\s\S]*?)<\/div>/i);
+    const rawText = innerTextMatch ? innerTextMatch[1] : stripped;
+    
+    const renderContent = isPlainTextReceipt(stripped)
+      ? plaintextToStyledHTML(rawText, hotelName)
+      : stripped;
+
+    return `
     <html>
       <head>
         <style>
@@ -161,8 +193,9 @@ const DayEndReportPreview: React.FC = () => {
           .total { font-weight: bold; border-top: 1px solid #000; }
         </style>
       </head>
-      <body>${previewHTML}</body>
+      <body>${renderContent}</body>
     </html>`;
+  };
 
   const handlePrint = async () => {
     try {
@@ -194,9 +227,9 @@ const DayEndReportPreview: React.FC = () => {
         
         // Auto-logout after successful print
         setTimeout(() => {
-  removeSession();
-  navigate('/auth/minimal/login', { replace: true });
-}, 2000);
+          removeSession();
+          navigate('/auth/minimal/login', { replace: true });
+        }, 2000);
       } else {
         toast.error("Print API not available");
       }
@@ -223,7 +256,7 @@ const DayEndReportPreview: React.FC = () => {
   const rawText = innerTextMatch ? innerTextMatch[1] : stripped;
 
   const renderContent = isPlainTextReceipt(stripped)
-    ? plaintextToStyledHTML(rawText)   // ← convert plain text to styled HTML
+    ? plaintextToStyledHTML(rawText, hotelName)   // ← convert plain text to styled HTML with hotel name
     : stripped;                        // ← already has HTML tables etc.
 
   return (

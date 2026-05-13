@@ -16,7 +16,7 @@ import SettlementService from '@/common/api/settlements';
 import PaginationComponent from '@/components/Common/PaginationComponent';
 import BillPreviewPrint from '@/views/apps/PrintReport/BillPrint';
 import ReportsService from '@/common/api/billPrint';
-import F8PasswordModal from '@/components/F8PasswordModal'; // Import F8 password modal
+import F8PasswordModal from '@/components/F8PasswordModal';
 
 // Add interface for Bill data from duplicate bill API
 interface DuplicateBillData {
@@ -75,9 +75,9 @@ interface Settlement {
   table_name?: string;
   PaymentType: string;
   Amount: number;
-  TipAmount?: number;
-  Receive?: number;
-  Refund?: number;
+  TipAmount?: number | string;
+  Receive?: number | string;
+  Refund?: number | string;
   CustomerName?: string;
   MobileNo?: string;
   HotelID: string;
@@ -94,6 +94,13 @@ interface PaymentMode {
   paymenttypeid: number;
   mode_name: string;
 }
+
+// Helper function to safely convert to number
+const toNumber = (value: any, defaultValue: number = 0): number => {
+  if (value === null || value === undefined) return defaultValue;
+  const num = Number(value);
+  return isNaN(num) ? defaultValue : num;
+};
 
 const EditSettlementPage: React.FC = () => {
   const { user } = useAuthContext();
@@ -246,7 +253,7 @@ const EditSettlementPage: React.FC = () => {
     }
   }, [filters.outletId]);
 
-  // Group settlements by OrderNo
+  // Group settlements by OrderNo and aggregate TipAmount, Receive, Refund
   const groupedSettlements = useMemo(() => {
     const grouped: Record<string, Settlement> = {};
 
@@ -258,6 +265,9 @@ const EditSettlementPage: React.FC = () => {
           SettlementIDs: [s.SettlementID],
           PaymentTypes: [s.PaymentType],
           paymentBreakdown: { [s.PaymentType]: s.Amount },
+          TipAmount: toNumber(s.TipAmount),
+          Receive: toNumber(s.Receive),
+          Refund: toNumber(s.Refund),
         };
       } else {
         grouped[key].SettlementIDs!.push(s.SettlementID);
@@ -265,6 +275,10 @@ const EditSettlementPage: React.FC = () => {
         grouped[key].Amount += s.Amount;
         grouped[key].paymentBreakdown![s.PaymentType] =
           (grouped[key].paymentBreakdown![s.PaymentType] || 0) + s.Amount;
+        // Sum up TipAmount, Receive, Refund with proper number conversion
+        grouped[key].TipAmount = toNumber(grouped[key].TipAmount) + toNumber(s.TipAmount);
+        grouped[key].Receive = toNumber(grouped[key].Receive) + toNumber(s.Receive);
+        grouped[key].Refund = toNumber(grouped[key].Refund) + toNumber(s.Refund);
       }
     });
 
@@ -280,7 +294,7 @@ const EditSettlementPage: React.FC = () => {
 
   // Set totalItems based on grouped settlements
   useEffect(() => {
-    setTotalItems(paginatedGroupedSettlements.length);
+    setTotalItems(groupedSettlements.length);
   }, [groupedSettlements]);
 
   // ── Pagination Handlers ────────────────────────────────────────────
@@ -315,8 +329,8 @@ const EditSettlementPage: React.FC = () => {
       setInitialPaymentAmounts({});
     }
 
-    setInitialTip(group.TipAmount || 0);
-    setInitialCashReceived(group.Receive || 0);
+    setInitialTip(toNumber(group.TipAmount));
+    setInitialCashReceived(toNumber(group.Receive));
 
     setShowSettlementModal(true);
   };
@@ -513,8 +527,12 @@ const EditSettlementPage: React.FC = () => {
             <th>Tax No / Order No</th>
             <th>Table</th>
             <th>Payment Breakdown</th>
+            <th>Settlement Amount</th>
+            <th>Bill Amount</th>
+            <th>Tip Amount</th>
+            <th>Receive</th>
+            <th>Refund</th>
             
-            <th>Amount</th>
             <th>Date</th>
             <th>Actions</th>
           </tr>
@@ -522,6 +540,14 @@ const EditSettlementPage: React.FC = () => {
         <tbody>
           {paginatedGroupedSettlements.map(group => {
             const isBillBackdated = isBackdated(group.InsertDate);
+            // Safely convert values to numbers
+            
+            const settlementAmount = toNumber(group.Amount);
+            const tipAmount = toNumber(group.TipAmount);
+            const receiveAmount = toNumber(group.Receive);
+            const refundAmount = toNumber(group.Refund);
+             const totalAmountWithTip = settlementAmount + tipAmount;
+           
             
             return (
               <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
@@ -536,13 +562,25 @@ const EditSettlementPage: React.FC = () => {
                   {Object.entries(group.paymentBreakdown || {}).map(
                     ([type, amount]) => (
                       <div key={type} className="small">
-                        {type}: ₹{amount.toFixed(2)}
+                        {type}: ₹{toNumber(amount).toFixed(2)}
                       </div>
                     )
                   )}
                 </td>
-               
-                <td>₹{group.Amount.toFixed(2)}</td>
+                  <td className="fw-bold bg-light">
+                  ₹{totalAmountWithTip.toFixed(2)}
+                </td>
+                <td className="fw-bold">₹{settlementAmount.toFixed(2)}</td>
+                <td className="text-success">
+                  {tipAmount > 0 ? `₹${tipAmount.toFixed(2)}` : '-'}
+                </td>
+                <td className="text-info">
+                  {receiveAmount > 0 ? `₹${receiveAmount.toFixed(2)}` : '-'}
+                </td>
+                <td className="text-danger">
+                  {refundAmount > 0 ? `₹${refundAmount.toFixed(2)}` : '-'}
+                </td>
+              
                 <td>
                   {group.InsertDate
                     ? new Date(group.InsertDate).toLocaleString('en-IN')
@@ -612,7 +650,6 @@ const EditSettlementPage: React.FC = () => {
         initialCustomerId={null}
       />
 
-
       {/* F8 Password Modal */}
       <F8PasswordModal
         show={showF8Modal}
@@ -662,7 +699,7 @@ const EditSettlementPage: React.FC = () => {
           outletName={duplicateBillData.outletName || user?.outlet_name}
           billDate={duplicateBillData.billDate || selectedBillData.InsertDate}
         />
-      )}
+      )} 
     </div>
   );
 };
