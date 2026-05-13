@@ -8,7 +8,6 @@ import {
     Button,
     Badge,
     Form,
-   
 } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import OrderService from '@/common/api/order';
@@ -65,14 +64,12 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     useEffect(() => {
         const fetchNextRevKot = async () => {
             if (show && outletid) {
-                // console.log('Fetching next reverse KOT for outlet:', outletid);
                 try {
                     const response = await OrderService.fetchGlobalReverseKOTNumber(outletid, currDate);
                     if (response.data?.nextRevKOT) {
                         setNextRevKotNo(response.data.nextRevKOT);
                     }
                 } catch (error) {
-                    // console.error('Error fetching global reverse KOT number:', error);
                     toast.error('Failed to fetch reverse KOT number');
                 }
             }
@@ -80,29 +77,38 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         fetchNextRevKot();
     }, [show, outletid, currDate]);
 
-  useEffect(() => {
-  const initialized = kotItems.map(item => {
-    const rev = Number(item.revQty ?? item.RevQty ?? 0);
-    const rate = Number(item.rate ?? item.RuntimeRate ?? 0);
+    useEffect(() => {
+        const initialized = kotItems.map(item => {
+            const rev = Number(item.revQty ?? item.RevQty ?? 0);
+            const rate = Number(item.rate ?? item.RuntimeRate ?? 0);
+            
+            // 🔥 Preserve all ID fields for Takeaway orders
+            const txnDetailId = item.txnDetailId ?? item.TXnDetailID ?? null;
+            const itemId = item.itemId ?? item.ItemID ?? null;
 
-    return {
-      ...item,
-      reversedQty: rev,     // ✅ DB se fetch
-      cancelQty: 0,         // user yahan type karega
-      reason: '',
-      rate: rate,           // ✅ Add rate to the item object
-      amount: rev * rate,   // ✅ already reversed amount
-      revKotNo: item.revKotNo || item.RevKOTNo || 0  // ✅ Add revKotNo
-    };
-  });
-  setItems(initialized);
-}, [kotItems]);
+            return {
+                ...item,
+                txnDetailId: txnDetailId,      // ✅ For Dine-in
+                TXnDetailID: txnDetailId,      // ✅ For backend (uppercase)
+                itemId: itemId,                 // ✅ For Takeaway fallback
+                ItemID: itemId,                 // ✅ For backend fallback
+                kotNo: item.kotNo ?? item.mkotNo ?? null,
+                reversedQty: rev,
+                cancelQty: 0,
+                reason: '',
+                rate: rate,
+                amount: rev * rate,
+                revKotNo: item.revKotNo || item.RevKOTNo || 0
+            };
+        });
+        setItems(initialized);
+    }, [kotItems]);
 
-useEffect(() => {
-  if (show && cancelRefs.current[0]) {
-    cancelRefs.current[0].focus();
-  }
-}, [show]);
+    useEffect(() => {
+        if (show && cancelRefs.current[0]) {
+            cancelRefs.current[0].focus();
+        }
+    }, [show]);
 
     const updateQty = (
         idx: number,
@@ -116,24 +122,20 @@ useEffect(() => {
             updated[idx][field] = Number(value);
         }
 
-        // ✅ FINAL AMOUNT = reversed + cancel
         const totalQty =
             Number(updated[idx].reversedQty || 0) +
             Number(updated[idx].cancelQty || 0);
 
         updated[idx].amount = totalQty * Number(updated[idx].rate || 0);
-
         setItems(updated);
     };
 
-    // Focus next row's Cancel input
     const focusNextCancel = (currentIdx: number) => {
         const nextIdx = currentIdx + 1;
         if (nextIdx < items.length) {
             cancelRefs.current[nextIdx]?.focus();
-            cancelRefs.current[nextIdx]?.select(); // Optional: selects text for quick overwrite
+            cancelRefs.current[nextIdx]?.select();
         }
-        // Last row → do nothing (you can add Save focus here later if wanted)
     };
 
     const handleCancelKeyDown = (idx: number, e: React.KeyboardEvent<HTMLElement>) => {
@@ -148,7 +150,6 @@ useEffect(() => {
         if (e.key === 'Enter') {
             e.preventDefault();
             if (idx === items.length - 1) {
-                // Last row: trigger save
                 handleReverseKotSave();
             } else {
                 focusNextCancel(idx);
@@ -163,7 +164,7 @@ useEffect(() => {
 
     const handleReverseKotSave = () => {
         const filteredItems = items.filter(
-            i => Number(i.reversedQty) > 0 || Number(i.cancelQty) > 0
+            i => Number(i.cancelQty) > 0  // Only items with cancel quantity
         );
 
         if (filteredItems.length === 0) {
@@ -171,9 +172,31 @@ useEffect(() => {
             return;
         }
 
-        // console.log('Modal sending:', filteredItems);
+        // 🔥 FIX: Prepare data with all required fields for backend
+        const reversalData = filteredItems.map(item => ({
+            // For Dine-in orders (has txnDetailId)
+            txnDetailId: item.txnDetailId ?? null,
+            TXnDetailID: item.TXnDetailID ?? item.txnDetailId ?? null,
+            // For Takeaway orders (fallback)
+            itemId: item.itemId ?? item.ItemID ?? null,
+            ItemID: item.ItemID ?? item.itemId ?? null,
+            // Identification fields
+            kotNo: item.kotNo ?? null,
+            item_no: item.item_no,
+            itemName: item.itemName,
+            // Quantity and rate
+            qty: item.cancelQty,
+            cancelQty: item.cancelQty,
+            rate: item.rate,
+            price: item.rate,
+            // Reversal info
+            revKotNo: item.revKotNo,
+            reason: item.reason || ''
+        }));
 
-        onSave(filteredItems);
+        console.log('🔍 ReverseKotModal sending:', reversalData);
+        
+        onSave(reversalData);
         onClose();
     };
 
@@ -195,7 +218,7 @@ useEffect(() => {
 
                 {/* ===== INFO ===== */}
                 <Row className="g-2 mb-3 text-center">
-                        {[
+                    {[
                         { label: '', value: tableNo, highlight: true },
                         { label: 'REV KOT NO', value: nextRevKotNo },
                         { label: 'WAITER', value: waiter },
@@ -246,7 +269,7 @@ useEffect(() => {
                             {items.map((row, idx) => (
                                 <tr key={idx} style={{ backgroundColor: getRowColor(row.mkotNo) }}>
                                     <td>{row.itemName}</td>
-                                  <td>{row.qty + row.reversedQty}</td>
+                                    <td>{row.qty }</td>
 
                                     <td>
                                         <Form.Control

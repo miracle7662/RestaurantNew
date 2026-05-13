@@ -113,6 +113,7 @@ interface FetchedItem {
 
 interface ReverseModalItem {
   txnDetailId: number;
+  TXnDetailID: number;
   item_no: string;
   itemName: string;
   cancelQty: number;
@@ -890,7 +891,7 @@ const ModernBill = () => {
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
           SpecialInst: item.SpecialInst || item.SpecialInst || '',
           isBilled: 0,
-          txnDetailId: item.txnDetailId,
+          TXnDetailID: item.TXnDetailID,
           isFetched: true,
           revQty: item.revQty || item.RevQty || 0,
           // Variant fields
@@ -2169,7 +2170,7 @@ const ModernBill = () => {
       return;
     }
 
-    // console.log('Modal sending:', reverseItemsFromModal);
+  console.log('Modal sending:', reverseItemsFromModal);
 
     try {
       const result = await OrderService.createReverseKOT({
@@ -2179,7 +2180,8 @@ const ModernBill = () => {
         isReverseKot: 1,
 
         reversedItems: reverseItemsFromModal.map(item => ({
-          txnDetailId: item.txnDetailId,
+          TXnDetailID: item.TXnDetailID,
+          txnDetailId: item.TXnDetailID,
           item_no: item.item_no,
           name: item.itemName,
           qty: item.cancelQty,
@@ -2189,7 +2191,7 @@ const ModernBill = () => {
         reversalReason: 'Reverse from Billview',
         curr_date: user?.currDate,
       });
-      // console.log('Reverse KOT API response:', result);
+      console.log('Reverse KOT API response:', result);
 
       // Since HttpClient returns response.data directly
       if (!result?.success) {

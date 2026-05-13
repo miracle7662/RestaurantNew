@@ -220,6 +220,7 @@ PAX?: number | null,
 /** Reverse KOT item */
 export interface ReverseKOTItem {
   txnDetailId: number
+   TXnDetailID: number 
   item_no: string
   name: string
   qty: number
