@@ -51,7 +51,7 @@ exports.getSettlements = async (req, res) => {
       SELECT 
         s.SettlementID,
         s.OrderNo,
-        s.table_name,
+        tm.table_name,
         s.PaymentType,
         s.Amount,
         s.TipAmount,
@@ -66,9 +66,14 @@ exports.getSettlements = async (req, res) => {
         s.MobileNo,
         s.InsertDate,
         s.isSettled,
-        s.customerid
+        s.customerid,
+        tb.department_name AS department,
+        mo.outlet_name
       FROM TrnSettlement s
       LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.OrderNo OR s.TxnNo = b.TxnNo
+      LEFT JOIN msttablemanagement tm ON tm.tableid = b.TableID
+      left join msttable_department tb on tb.departmentid=b.DeptID
+      left join mst_outlets mo on mo.outletid=b.outletid
       ${whereSql}
       ORDER BY s.InsertDate DESC
     `;
@@ -80,7 +85,7 @@ exports.getSettlements = async (req, res) => {
       data: settlements
     });
   } catch (error) {
-    // console.error(error);
+     console.error(error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch settlements'

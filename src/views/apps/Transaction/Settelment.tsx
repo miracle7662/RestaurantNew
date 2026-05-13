@@ -87,6 +87,8 @@ interface Settlement {
   SettlementIDs?: number[];
   PaymentTypes?: string[];
   paymentBreakdown?: Record<string, number>;
+  outletName?: string;
+  department?: string;
 }
 
 interface PaymentMode {
@@ -525,14 +527,15 @@ const EditSettlementPage: React.FC = () => {
           <tr>
             <th>ID(s)</th>
             <th>Tax No / Order No</th>
+            <th>Outlet</th>
+            <th>Department</th>
             <th>Table</th>
             <th>Payment Breakdown</th>
-            <th>Settlement Amount</th>
             <th>Bill Amount</th>
+            <th>Settlement Amount</th>
             <th>Tip Amount</th>
             <th>Receive</th>
             <th>Refund</th>
-            
             <th>Date</th>
             <th>Actions</th>
           </tr>
@@ -546,9 +549,8 @@ const EditSettlementPage: React.FC = () => {
             const tipAmount = toNumber(group.TipAmount);
             const receiveAmount = toNumber(group.Receive);
             const refundAmount = toNumber(group.Refund);
-             const totalAmountWithTip = settlementAmount + tipAmount;
+            const totalAmountWithTip = settlementAmount + tipAmount;
            
-            
             return (
               <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
                 <td>{group.SettlementIDs?.join(', ')}</td>
@@ -557,6 +559,8 @@ const EditSettlementPage: React.FC = () => {
                   <br/>
                   <small className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small>
                 </td>
+                <td>{(group as any).outletName || (group as any).outlet_name || user?.outlet_name || '-'}</td>
+                <td>{group.department || '-'}</td>
                 <td>{group.table_name || 'N/A'}</td>
                 <td>
                   {Object.entries(group.paymentBreakdown || {}).map(
@@ -567,7 +571,7 @@ const EditSettlementPage: React.FC = () => {
                     )
                   )}
                 </td>
-                  <td className="fw-bold bg-light">
+                <td className="fw-bold bg-light">
                   ₹{totalAmountWithTip.toFixed(2)}
                 </td>
                 <td className="fw-bold">₹{settlementAmount.toFixed(2)}</td>
@@ -580,7 +584,6 @@ const EditSettlementPage: React.FC = () => {
                 <td className="text-danger">
                   {refundAmount > 0 ? `₹${refundAmount.toFixed(2)}` : '-'}
                 </td>
-              
                 <td>
                   {group.InsertDate
                     ? new Date(group.InsertDate).toLocaleString('en-IN')
@@ -703,5 +706,5 @@ const EditSettlementPage: React.FC = () => {
     </div>
   );
 };
-
+ 
 export default EditSettlementPage;
