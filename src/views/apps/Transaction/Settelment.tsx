@@ -157,7 +157,7 @@ const EditSettlementPage: React.FC = () => {
   const [selectedBillData, setSelectedBillData] = useState<Settlement | null>(null);
   const [billLoading, setBillLoading] = useState(false);
   const [duplicateBillData, setDuplicateBillData] = useState<DuplicateBillData | null>(null);
-  
+
   // ── F8 Password Modal States ─────────────────────────────────────
   const [showF8Modal, setShowF8Modal] = useState(false);
   const [pendingPrintGroup, setPendingPrintGroup] = useState<Settlement | null>(null);
@@ -194,7 +194,7 @@ const EditSettlementPage: React.FC = () => {
         setOutletPaymentModes([]);
         return;
       }
-      
+
       try {
         const response = await OutletPaymentModeService.list({ outletid: selectedOutletId.toString() });
         const data = response.data;
@@ -351,7 +351,7 @@ const EditSettlementPage: React.FC = () => {
         InsertDate: user?.currDate,
         TipAmount: tip || 0,
       });
-         console.log("Sending Payload:", SettlementService);
+      console.log("Sending Payload:", SettlementService);
 
       setNotification({
         show: true,
@@ -389,20 +389,20 @@ const EditSettlementPage: React.FC = () => {
 
   const handleF8PasswordSubmit = async (password: string, txnId?: string) => {
     if (!pendingPrintGroup) return;
-    
+
     setF8Loading(true);
     setF8Error('');
-    
+
     try {
       // Call your F8 password verification API here
       // Example: await F8Service.verifyPassword({ password, txnId });
-      
+
       // For now, let's assume password verification is successful
       // In production, replace this with actual API call
-      
+
       // After successful verification, fetch and print the bill
       await fetchAndPrintBill(pendingPrintGroup);
-      
+
       // Close the modal on success
       setShowF8Modal(false);
       setPendingPrintGroup(null);
@@ -416,7 +416,7 @@ const EditSettlementPage: React.FC = () => {
   const fetchAndPrintBill = async (group: Settlement) => {
     setBillLoading(true);
     setSelectedBillData(group);
-    
+
     try {
       const response = await ReportsService.getDuplicateBill({
         billNo: group.OrderNo,
@@ -466,8 +466,8 @@ const EditSettlementPage: React.FC = () => {
   // ── UI ────────────────────────────────────────────────────────────
   return (
     <div className="container-fluid p-3" style={{ minHeight: '100vh' }}>
-      <h3 className="mb-4">Edit Settlements</h3>
-      
+      <h3 className="mb-4">Settlements</h3>
+
       <Alert
         show={notification.show}
         variant={notification.type}
@@ -522,106 +522,115 @@ const EditSettlementPage: React.FC = () => {
       </div>
 
       {/* Main Table */}
-      <Table striped bordered hover responsive>
-        <thead className="table-light">
-          <tr>
-            <th>ID(s)</th>
-            <th>Tax No / Order No</th>
-            <th>Outlet</th>
-            <th>Department</th>
-            <th>Table</th>
-            <th>Payment Breakdown</th>
-            <th>Bill Amount</th>
-            <th>Settlement Amount</th>
-            <th>Tip Amount</th>
-            <th>Receive</th>
-            <th>Refund</th>
-            <th>Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {paginatedGroupedSettlements.map(group => {
-            const isBillBackdated = isBackdated(group.InsertDate);
-            // Safely convert values to numbers
-            
-            const settlementAmount = toNumber(group.Amount);
-            const tipAmount = toNumber(group.TipAmount);
-            const receiveAmount = toNumber(group.Receive);
-            const refundAmount = toNumber(group.Refund);
-            const totalAmountWithTip = settlementAmount + tipAmount;
-           
-            return (
-              <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
-                <td>{group.SettlementIDs?.join(', ')}</td>
-                <td>
-                  <strong>{group.TaxNo || group.OrderNo}</strong>
-                  <br/>
-                  <small className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small>
-                </td>
-                <td>{(group as any).outletName || (group as any).outlet_name || user?.outlet_name || '-'}</td>
-                <td>{group.department || '-'}</td>
-                <td>{group.table_name || 'N/A'}</td>
-                <td>
-                  {Object.entries(group.paymentBreakdown || {}).map(
-                    ([type, amount]) => (
-                      <div key={type} className="small">
-                        {type}: ₹{toNumber(amount).toFixed(2)}
-                      </div>
-                    )
-                  )}
-                </td>
-                <td className="fw-bold bg-light">
-                  ₹{totalAmountWithTip.toFixed(2)}
-                </td>
-                <td className="fw-bold">₹{settlementAmount.toFixed(2)}</td>
-                <td className="text-success">
-                  {tipAmount > 0 ? `₹${tipAmount.toFixed(2)}` : '-'}
-                </td>
-                <td className="text-info">
-                  {receiveAmount > 0 ? `₹${receiveAmount.toFixed(2)}` : '-'}
-                </td>
-                <td className="text-danger">
-                  {refundAmount > 0 ? `₹${refundAmount.toFixed(2)}` : '-'}
-                </td>
-                <td>
-                  {group.InsertDate
-                    ? new Date(group.InsertDate).toLocaleString('en-IN')
-                    : '-'}
-                </td>
-                <td>
-                  <div className="d-flex gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="primary" 
-                      onClick={() => handleEdit(group)}
-                      disabled={isBillBackdated} // Disable edit button for backdated bills
-                      title={isBillBackdated ? "Cannot edit backdated bills" : ""}
-                    >
-                      Edit
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="info" 
-                      onClick={() => handlePrintDuplicateBill(group)}
-                      disabled={billLoading}
-                    >
-                      {billLoading && selectedBillData?.OrderNo === group.OrderNo ? (
-                        <>
-                          <Spinner animation="border" size="sm" className="me-1" />
-                          Loading...
-                        </>
-                      ) : (
-                        'Print Bill'
-                      )}
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </Table>
+      <div className="table-responsive" style={{ fontSize: '12px' }}>
+        <Table striped bordered hover responsive size="sm">
+          <thead className="table-light">
+            <tr style={{ fontSize: '12px' }}>
+              <th style={{ width: '2%' }}>ID(s)</th>
+              <th style={{ width: '5%' }}>Bill NO</th>
+              <th style={{ width: '5%' }}>Outlet</th>
+              <th style={{ width: '5%' }}>Dept</th>
+              <th style={{ width: '5%' }}>Table</th>
+              <th style={{ width: '5%' }}>Payment</th>
+              <th style={{ width: '6%' }}>Bill Amt</th>
+              <th style={{ width: '6%' }}>Settle Amt</th>
+              <th style={{ width: '5%' }}>Tip</th>
+              <th style={{ width: '5%' }}>Receive</th>
+              <th style={{ width: '5%' }}>Refund</th>
+              <th style={{ width: '5%' }}>Date</th>
+              <th style={{ width: '6%' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody style={{ fontSize: '12px' }}>
+            {paginatedGroupedSettlements.map(group => {
+              const isBillBackdated = isBackdated(group.InsertDate);
+              // Safely convert values to numbers
+
+              const settlementAmount = toNumber(group.Amount);
+              const tipAmount = toNumber(group.TipAmount);
+              const receiveAmount = toNumber(group.Receive);
+              const refundAmount = toNumber(group.Refund);
+              const totalAmountWithTip = settlementAmount + tipAmount;
+
+              return (
+                <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
+                  <td style={{ fontSize: '11px' }}>{group.SettlementIDs?.join(', ')}</td>
+                  <td>
+                    <strong style={{ fontSize: '12px' }}>{group.TaxNo || group.OrderNo}</strong>
+                    <br />
+                    <small style={{ fontSize: '10px' }} className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small>
+                  </td>
+                  <td style={{ fontSize: '11px' }}>{(group as any).outletName || (group as any).outlet_name || user?.outlet_name || '-'}</td>
+                  <td style={{ fontSize: '11px' }}>{group.department || '-'}</td>
+                  <td style={{ fontSize: '11px' }}>{group.table_name || 'N/A'}</td>
+                  <td>
+                    {Object.entries(group.paymentBreakdown || {}).map(
+                      ([type, amount]) => (
+                        <div key={type} style={{ fontSize: '11px' }}>
+                          {type}: ₹{toNumber(amount).toFixed(2)}
+                        </div>
+                      )
+                    )}
+                  </td>
+                  <td className="fw-bold" style={{ fontSize: '12px', backgroundColor: '#f8f9fa' }}>
+                    ₹{totalAmountWithTip.toFixed(2)}
+                  </td>
+                  <td className="fw-bold" style={{ fontSize: '12px' }}>₹{settlementAmount.toFixed(2)}</td>
+                  <td className="text-success" style={{ fontSize: '11px' }}>
+                    {tipAmount > 0 ? `₹${tipAmount.toFixed(2)}` : '-'}
+                  </td>
+                  <td className="text-info" style={{ fontSize: '11px' }}>
+                    {receiveAmount > 0 ? `₹${receiveAmount.toFixed(2)}` : '-'}
+                  </td>
+                  <td className="text-danger" style={{ fontSize: '11px' }}>
+                    {refundAmount > 0 ? `₹${refundAmount.toFixed(2)}` : '-'}
+                  </td>
+                  <td style={{ fontSize: '11px' }}>
+                    {group.InsertDate
+                      ? new Date(group.InsertDate).toLocaleDateString('en-GB')
+                      : '-'}
+                  </td>
+                  <td>
+                    <div className="d-flex gap-1">
+
+                      {/* Edit Button */}
+                      <Button
+                        size="sm"
+                        variant="success"
+                        onClick={() => handleEdit(group)}
+                        disabled={isBillBackdated}
+                        title={isBillBackdated ? "Cannot edit backdated bills" : "Edit"}
+                        className="px-2 py-1"
+                        style={{ fontSize: '11px' }}
+                      >
+                        <i className="fi fi-rr-edit"></i>
+                      </Button>
+
+                      {/* Print Button */}
+                      <Button
+                        size="sm"
+                        variant="dark"
+                        onClick={() => handlePrintDuplicateBill(group)}
+                        disabled={billLoading}
+                        title="Print"
+                        className="px-2 py-1"
+                        style={{ fontSize: '11px' }}
+                      >
+                        {billLoading && selectedBillData?.OrderNo === group.OrderNo ? (
+                          <Spinner animation="border" size="sm" />
+                        ) : (
+                          <i className="fi fi-rr-print"></i>
+                        )}
+                      </Button>
+
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      </div>
 
       {/* Pagination */}
       <PaginationComponent
@@ -702,9 +711,9 @@ const EditSettlementPage: React.FC = () => {
           outletName={duplicateBillData.outletName || user?.outlet_name}
           billDate={duplicateBillData.billDate || selectedBillData.InsertDate}
         />
-      )} 
+      )}
     </div>
   );
 };
- 
+
 export default EditSettlementPage;

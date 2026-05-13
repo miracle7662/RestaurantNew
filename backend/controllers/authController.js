@@ -283,6 +283,7 @@ return res.json({
 };
 
 // Verify password of the user who created the bill for F8 action on billed tables
+// Verify password for F8 action on billed tables - ONLY ADMIN can verify
 exports.verifyBillCreatorPassword = async (req, res) => {
     try {
         const { password, txnId } = req.body;
@@ -305,11 +306,8 @@ exports.verifyBillCreatorPassword = async (req, res) => {
 
         // Get current user details (for logging purposes)
         const [currentUserRows] = await db.query(`
-            SELECT u.*, b.hotel_name as brand_name, h.hotel_name as hotel_name
+            SELECT u.userid, u.username, u.full_name, u.role_level, u.password
             FROM mst_users u
-            LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
-            LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
-            LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
             WHERE u.userid = ? AND u.status = 0
         `, [decoded.userid]);
 
@@ -336,73 +334,63 @@ exports.verifyBillCreatorPassword = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Bill creator information not available for this transaction.' });
         }
 
-        // Get the bill creator's details
-        const [billCreatorRows] = await db.query(`
-            SELECT u.*, b.hotel_name as brand_name, h.hotel_name as hotel_name
-            FROM mst_users u
-            LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
-            LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
-            LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
-            WHERE u.userid = ? AND u.status = 0
-        `, [transaction.UserId]);
+        // CRITICAL: Check if entered password belongs to ANY admin (hotel_admin or superadmin)
+        const [admins] = await db.query(`
+            SELECT userid, username, full_name, password, role_level 
+            FROM mst_users
+            WHERE role_level IN ('hotel_admin', 'superadmin')
+              AND status = 0
+        `);
 
-        const billCreator = billCreatorRows[0];
-
-        if (!billCreator) {
-            return res.status(404).json({ success: false, message: 'Bill creator not found' });
+        if (admins.length === 0) {
+            return res.status(500).json({ 
+                success: false, 
+                message: 'No admin users found in the system' 
+            });
         }
 
-        // If the current user is an admin, try their password first.
-        if (currentUser.role_level === 'hotel_admin' || currentUser.role_level === 'superadmin') {
-            const isAdminPasswordValid = await bcrypt.compare(password, currentUser.password);
-            if (isAdminPasswordValid) {
-                return res.json({ success: true, message: 'Admin password verified successfully.' });
+        let isValidAdminPassword = false;
+        let verifiedAdmin = null;
+
+        // Check password against ALL admins
+        for (const admin of admins) {
+            const match = await bcrypt.compare(password, admin.password);
+            if (match) {
+                isValidAdminPassword = true;
+                verifiedAdmin = admin;
+                break;
             }
         }
 
-        // If the current user is not an admin or their password was incorrect,
-        // check the password of the user who created the bill.
-        const isValidPassword = await bcrypt.compare(password, billCreator.password);
-        if (!isValidPassword) {
-            // If that fails, check the password of the admin who created the bill creator.
-            if (billCreator.created_by_id) {
-                const [creatorAdminRows] = await db.query(
-                    'SELECT password FROM mst_users WHERE userid = ?',
-                    [billCreator.created_by_id]
-                );
-                const creatorAdmin = creatorAdminRows[0];
-                if (creatorAdmin) {
-                    const isCreatorAdminPasswordValid = await bcrypt.compare(password, creatorAdmin.password);
-                    if (isCreatorAdminPasswordValid) {
-                        return res.json({ success: true, message: 'Creator admin password verified successfully.' });
-                    }
-                }
-            }
-            return res.status(401).json({ success: false, message: 'Invalid Password' });
+        // If password doesn't match any admin, REJECT
+        if (!isValidAdminPassword) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Invalid admin password. Only Hotel Admin or Super Admin can perform this action.' 
+            });
         }
 
-        // console.log('🔐 Bill Creator Password Verification:');
-        // console.log('   Current User ID:', currentUser.userid);
-        // console.log('   Current Username:', currentUser.username);
-        // console.log('   Bill Creator ID:', billCreator.userid);
-        // console.log('   Bill Creator Username:', billCreator.username);
-        // console.log('   Transaction ID:', txnId);
-        // console.log('   Verification Time:', new Date().toISOString());
-        // console.log('   ---');
+        // Log the verification
+        console.log('🔐 F8 Bill Creator Password Verification (Admin Only):');
+        console.log('   Current User:', currentUser.username, `(${currentUser.role_level})`);
+        console.log('   Verified Admin:', verifiedAdmin.username, `(${verifiedAdmin.role_level})`);
+        console.log('   Transaction ID:', txnId);
+        console.log('   Bill Creator ID:', transaction.UserId);
+        console.log('   Time:', new Date().toISOString());
 
         res.json({
             success: true,
-            message: 'Bill creator password verified successfully',
-            billCreator: {
-                id: billCreator.userid,
-                username: billCreator.username,
-                name: billCreator.full_name,
-                role_level: billCreator.role_level
+            message: 'Admin verified successfully for F8 action',
+            verifiedBy: {
+                id: verifiedAdmin.userid,
+                username: verifiedAdmin.username,
+                name: verifiedAdmin.full_name,
+                role: verifiedAdmin.role_level
             }
         });
 
     } catch (error) {
-        // console.error('Bill creator password verification error:', error);
+        console.error('Bill creator password verification error:', error);
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({ success: false, message: 'Invalid token' });
         }
@@ -461,6 +449,7 @@ exports.verifyPassword = async (req, res) => {
 };
 
 // Verify password of the user's creator (e.g., Hotel Admin for an Outlet User)
+// Verify password of the user's creator (ONLY Admin who created the user)
 exports.verifyCreatorPassword = async (req, res) => {
     try {
         const { password } = req.body;
@@ -479,7 +468,7 @@ exports.verifyCreatorPassword = async (req, res) => {
 
         // Get current user's full details
         const [currentUserRows] = await db.query(
-            'SELECT userid, password, role_level, created_by_id FROM mst_users WHERE userid = ?',
+            'SELECT userid, username, password, role_level, created_by_id FROM mst_users WHERE userid = ? AND status = 0',
             [decoded.userid]
         );
 
@@ -489,49 +478,58 @@ exports.verifyCreatorPassword = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Current user not found.' });
         }
 
-        // 1. First, try to verify against the current user's own password.
-        // This allows any user (including outlet users) to use their own password.
-        const isCurrentUserPasswordValid = await bcrypt.compare(password, currentUserInfo.password);
-        if (isCurrentUserPasswordValid) {
-            return res.json({ success: true, message: 'Password verified successfully.' });
-        }
-
-        // 2. If the current user's password fails, and they are an admin, we can stop here
-        // because we already checked their password. If they aren't an admin, we proceed
-        // to check their creator's password as a fallback.
+        // CRITICAL: First check if current user is admin themselves
         if (currentUserInfo.role_level === 'hotel_admin' || currentUserInfo.role_level === 'superadmin') {
-            return res.status(401).json({ success: false, message: 'Invalid Password' });
+            const isAdminPasswordValid = await bcrypt.compare(password, currentUserInfo.password);
+            if (isAdminPasswordValid) {
+                return res.json({ success: true, message: 'Admin password verified successfully.' });
+            }
+            return res.status(401).json({ success: false, message: 'Invalid admin password' });
         }
 
-        // 3. As a fallback for non-admin users, check the creator's password.
+        // If current user is NOT an admin (outlet_user etc.)
+        // Then check if password belongs to their creator (admin who created them)
         if (!currentUserInfo.created_by_id) {
             return res.status(404).json({ success: false, message: 'Creator (Hotel Admin) not found for this user.' });
         }
 
-        // Get the creator's (Hotel Admin's) details, specifically the password hash
+        // Get the creator's details
         const [creatorRows] = await db.query(
-            "SELECT password, role_level FROM mst_users WHERE userid = ? AND role_level IN ('hotel_admin', 'brand_admin', 'superadmin')",
+            "SELECT userid, username, password, role_level FROM mst_users WHERE userid = ? AND role_level IN ('hotel_admin', 'superadmin') AND status = 0",
             [currentUserInfo.created_by_id]
         );
 
         const creator = creatorRows[0];
 
         if (!creator) {
-            return res.status(404).json({ success: false, message: 'Creator user record not found or is not an authorized admin.' });
+            return res.status(404).json({ success: false, message: 'Creator admin not found or is not an authorized admin.' });
         }
 
-        // Verify the provided password against the creator's hashed password
+        // Verify password against creator (admin)
         const isValidPassword = await bcrypt.compare(password, creator.password);
 
         if (!isValidPassword) {
-            return res.status(401).json({ success: false, message: 'Invalid user or admin password' });
+            return res.status(401).json({ success: false, message: 'Invalid admin password' });
         }
 
-        // If password is valid
-        res.json({ success: true, message: 'Admin password verified successfully' });
+        // Log successful verification
+        console.log('🔐 Creator Password Verification:');
+        console.log('   Current User:', currentUserInfo.username, `(${currentUserInfo.role_level})`);
+        console.log('   Verified Creator Admin:', creator.username, `(${creator.role_level})`);
+        console.log('   Time:', new Date().toISOString());
+
+        res.json({ 
+            success: true, 
+            message: 'Admin password verified successfully',
+            verifiedBy: {
+                id: creator.userid,
+                username: creator.username,
+                role: creator.role_level
+            }
+        });
 
     } catch (error) {
-        // console.error('Creator password verification error:', error);
+        console.error('Creator password verification error:', error);
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({ success: false, message: 'Invalid token' });
         }
