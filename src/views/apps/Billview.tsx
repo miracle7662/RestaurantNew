@@ -3112,8 +3112,10 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         .items-table {
   flex: 1;
   overflow-y: auto;
+  overflow-x: auto;
   height: 100%;
-  max-height: 560px; /* Add this - 13 rows ke liye */
+  max-height: 560px;
+  position: relative;
 }
 
         .summary-section .modern-table thead tr {
@@ -3627,7 +3629,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
                 </div>
               ) : (
                 <div className="items-table">
-                  <Table responsive bordered className="modern-table">
+                  <Table bordered className="modern-table" style={{ marginBottom: 0 }}>
                     <thead  >
                       <tr className="table-primary">
                         <th style={{ width: '80px' }}> Code</th>
