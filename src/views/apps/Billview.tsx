@@ -165,6 +165,9 @@ const ModernBill = () => {
 
   const [defaultWaiterId, setDefaultWaiterId] = useState<number | null>(null);
   const [waiter, setWaiter] = useState('');
+  const [waiterSearch, setWaiterSearch] = useState('');
+  const [waiterDropdownOpen, setWaiterDropdownOpen] = useState(false);
+  const waiterDropdownRef = useRef<HTMLDivElement | null>(null);
   const [pax, setPax] = useState(1);
   const [tableNo, setTableNo] = useState(tableName || 'Loading...');
   const [defaultKot, setDefaultKot] = useState<number | null>(null); // last / system KOT
@@ -173,7 +176,7 @@ const ModernBill = () => {
   const [error, setError] = useState<string | null>(null);
   const [txnId, setTxnId] = useState<number | null>(null);
   const [billData] = useState<any>(null);
-
+const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   const [waiterUsers, setWaiterUsers] = useState<any[]>([]);
   const [discount, setDiscount] = useState(0);
   const [DiscountType, setDiscountType] = useState(1);
@@ -1562,11 +1565,29 @@ const ModernBill = () => {
     if (defaultWaiterId && waiterUsers.length > 0 && !waiter) {
       const defaultWaiter = waiterUsers.find(w => w.userId === defaultWaiterId);
       if (defaultWaiter) {
-        // Use employee_name if available, else username (matching dropdown value)
-        setWaiter(defaultWaiter.employee_name || defaultWaiter.username);
+        // Always store value as username (payload expects Steward to match waiter dropdown value)
+        setWaiter(defaultWaiter.username);
       }
     }
   }, [defaultWaiterId, waiterUsers, waiter]);
+
+  // Close waiter dropdown on outside click
+  useEffect(() => {
+    if (!waiterDropdownOpen) return;
+
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (!waiterDropdownRef.current) return;
+      if (!waiterDropdownRef.current.contains(target)) {
+        setWaiterDropdownOpen(false);
+        setWaiterSearch('');
+      }
+    };
+
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [waiterDropdownOpen]);
+
 
   useEffect(() => {
 
@@ -3200,26 +3221,156 @@ const ModernBill = () => {
                   </Col>
 
                   {/* Waiter */}
-                  <Col style={{ flex: "0 0 160px", maxWidth: "160px" }}>
-                    <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
-                      <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                        <i className="fi fi-rr-user me-1"></i> Waiter
-                      </div>
-                      <input
-                        type="text"
-                        value={waiter}
-                        onChange={(e) => setWaiter(e.target.value)}
-                        className="form-control form-control-sm text-center fw-semibold"
-                        placeholder="Name"
-                        list="waiters"
-                      />
-                      <datalist id="waiters">
-                        {waiterUsers.map((user) => (
-                          <option key={user.userId} value={user.username} />
-                        ))}
-                      </datalist>
-                    </div>
-                  </Col>
+<Col style={{ flex: '0 0 180px', maxWidth: '180px' }}>
+  <div
+    className="bg-white border rounded shadow-sm p-2"
+    ref={waiterDropdownRef as any}
+    style={{ position: 'relative' }}
+  >
+    <div className="text-uppercase small fw-semibold text-secondary mb-1">
+      <i className="fi fi-rr-user me-1"></i> Waiter
+    </div>
+
+    <div className="position-relative">
+      <input
+        type="text"
+        value={waiterDropdownOpen ? waiterSearch : waiter || ""}
+        onChange={(e) => {
+          setWaiterSearch(e.target.value);
+          setWaiterDropdownOpen(true);
+          setSelectedWaiterIndex(-1);
+        }}
+        onFocus={() => {
+          setWaiterDropdownOpen(true);
+          setWaiterSearch(waiter || "");
+          setSelectedWaiterIndex(-1);
+        }}
+        onKeyDown={(e) => {
+          const filtered = waiterUsers
+            .filter((u: any) => {
+              const q = waiterSearch.trim().toLowerCase();
+              if (!q) return true;
+              return (
+                (u.employee_name || "").toLowerCase().includes(q) ||
+                (u.username || "").toLowerCase().includes(q)
+              );
+            })
+            .slice(0, 50);
+
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSelectedWaiterIndex(prev => 
+              prev < filtered.length - 1 ? prev + 1 : prev
+            );
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedWaiterIndex(prev => prev > 0 ? prev - 1 : -1);
+          } else if (e.key === 'Enter' && selectedWaiterIndex >= 0 && filtered[selectedWaiterIndex]) {
+            e.preventDefault();
+            const selected = filtered[selectedWaiterIndex];
+            const display = selected.employee_name || selected.username;
+            setWaiter(selected.username);
+            setWaiterSearch(display);
+            setWaiterDropdownOpen(false);
+            setSelectedWaiterIndex(-1);
+          } else if (e.key === 'Escape') {
+            setWaiterDropdownOpen(false);
+            setSelectedWaiterIndex(-1);
+          }
+        }}
+        placeholder="Search waiter"
+        className="form-control form-control-sm"
+      />
+
+      {waiterDropdownOpen && (
+        <div
+          className="dropdown-menu show"
+          style={{
+            position: 'fixed',
+            top: 'auto',
+            left: 'auto',
+            maxHeight: "200px",
+            minWidth: "160px",     // 👈 Minimum width set karein
+            width: "auto",          // 👈 Auto width
+            maxWidth: "180px",      // 👈 Maximum width Col ke barabar
+            overflowY: "auto",
+            zIndex: 9999,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+            borderRadius: '4px',
+            padding: '2px 0',
+            fontSize: '12px'
+          }}
+          ref={(el) => {
+            if (el && waiterDropdownRef.current) {
+              const rect = waiterDropdownRef.current.getBoundingClientRect();
+              el.style.top = `${rect.bottom + window.scrollY + 2}px`;
+              el.style.left = `${rect.left + window.scrollX}px`;
+            }
+          }}
+        >
+          {(() => {
+            const q = waiterSearch.trim().toLowerCase();
+
+            const filtered = waiterUsers
+              .filter((u: any) => {
+                if (!q) return true;
+                return (
+                  (u.employee_name || "").toLowerCase().includes(q) ||
+                  (u.username || "").toLowerCase().includes(q)
+                );
+              })
+              .slice(0, 50);
+
+            if (filtered.length === 0) {
+              return (
+                <div className="dropdown-item text-muted" style={{ padding: '4px 10px', fontSize: '11px' }}>
+                  No matches found
+                </div>
+              );
+            }
+
+            return filtered.map((u: any, idx: number) => {
+              const display = u.employee_name || u.username;
+
+              return (
+                <button
+                  type="button"
+                  key={u.userId}
+                  className="dropdown-item"
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    border: 'none',
+                    background: selectedWaiterIndex === idx ? '#e7f1ff' : 'transparent',
+                    width: '100%',
+                    textAlign: 'left',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title={display}
+                  onMouseEnter={() => setSelectedWaiterIndex(idx)}
+                  onMouseLeave={() => setSelectedWaiterIndex(-1)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setWaiter(u.username);
+                    setWaiterSearch(display);
+                    setWaiterDropdownOpen(false);
+                    setSelectedWaiterIndex(-1);
+                  }}
+                >
+                  {display}
+                </button>
+              );
+            });
+          })()}
+        </div>
+      )}
+    </div>
+  </div>
+</Col>
 
                   {/* PAX */}
                   <Col md={1}>
