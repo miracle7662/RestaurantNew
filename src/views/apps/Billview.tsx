@@ -3110,11 +3110,12 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         }
 
         .items-table {
-          flex: 1;
-          overflow-y: auto;
-          height: 100%;
-          
-        }
+  flex: 1;
+  overflow-y: auto;
+  height: 100%;
+  max-height: 560px; /* Add this - 13 rows ke liye */
+}
+
 
         .summary-section .modern-table thead tr {
           background: #e3f2fd;
