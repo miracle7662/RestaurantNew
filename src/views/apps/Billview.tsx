@@ -3116,7 +3116,6 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   max-height: 560px; /* Add this - 13 rows ke liye */
 }
 
-
         .summary-section .modern-table thead tr {
           background: #e3f2fd;
         }
