@@ -118,7 +118,7 @@ const DayEnd = () => {
   
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordVerified, setPasswordVerified] = useState(false);
-  const [showOnlyNotDayEnded, setShowOnlyNotDayEnded] = useState(false);
+  const [showOnlyNotDayEnded, ] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportDate, setReportDate] = useState(`${yyyy}-${mm}-${dd}`);
   const [selectedReports, setSelectedReports] = useState({
@@ -556,8 +556,12 @@ const getFormattedDate = (dateStr: string) => {
         .table-container tbody td {
           font-size: 0.9rem;
         }
-        .table-container .table-row-compact td {
-          padding: 0.25rem 0.5rem;
+.table-container .table-row-compact td {
+          padding: 0.18rem 0.5rem; /* reduce row height */
+          line-height: 1.15;
+        }
+        .table-container .table-row-compact td small {
+          line-height: 1.1;
         }
         .table-row-discount, .table-row-discount td {
           background-color: #fff0f1 !important; /* Light pink for discount */
@@ -886,57 +890,48 @@ const getFormattedDate = (dateStr: string) => {
               {/* Orders Tab Content - Compact */}
               <div className="p-0">
                 {/* Filters - Compact */}
-                <Card className="mb-1 border-0 shadow-sm bg-light">
-                  <Card.Body className="filters-section">
-                    <Row className="g-2">
-                      <Col md={6}>
-                        <InputGroup size="sm">
-                          <InputGroup.Text>
-                            <Search size={14} />
-                          </InputGroup.Text>
-                          <Form.Control
-                            placeholder="Search orders, tables, waiters..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            size="sm"
-                          />
-                        </InputGroup>
-                      </Col>
-                      <Col md={3}>
-                        <Form.Select
-                          value={statusFilter}
-                          onChange={(e) => setStatusFilter(e.target.value)}
-                          size="sm"
-                        >
-                          <option value="all">All Status</option>
-                          <option value="settled">Settled</option>
-                          <option value="pending">Pending</option>
-                        </Form.Select>
-                      </Col>
-                      <Col md={3}>
-                        <div className="d-flex gap-1">
-                          <Button variant="outline-primary" size="sm">
-                            <Filter size={14} className="me-1" />
-                            Filter
-                          </Button>
-                          <Button variant="outline-secondary" size="sm">
-                            <Download size={14} className="me-1" />
-                            Export
-                          </Button>
-                        </div>
-                      </Col>
-                      <Col md={3}>
-                        <Form.Check
-                          type="checkbox"
-                          label="Show only not day-ended"
-                          checked={showOnlyNotDayEnded}
-                          onChange={(e) => setShowOnlyNotDayEnded(e.target.checked)}
-                          
-                        />
-                      </Col>
-                    </Row>
-                  </Card.Body>
-                </Card>
+               <Card className="mb-1 border-0 shadow-sm bg-light">
+  <Card.Body className="filters-section">
+    <Row className="g-2 align-items-center">
+      <Col md={3}>
+        <InputGroup size="sm">
+          <InputGroup.Text>
+            <Search size={14} />
+          </InputGroup.Text>
+          <Form.Control
+            placeholder="Search orders, tables, waiters..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            size="sm"
+          />
+        </InputGroup>
+      </Col>
+      <Col md={3}>
+        <Form.Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          size="sm"
+        >
+          <option value="all">All Status</option>
+          <option value="settled">Settled</option>
+          <option value="pending">Pending</option>
+        </Form.Select>
+      </Col>
+      <Col md={3} className="ms-auto">
+        <div className="d-flex gap-1 justify-content-end">
+          <Button variant="outline-primary" size="sm">
+            <Filter size={14} className="me-1" />
+            Filter
+          </Button>
+          <Button variant="outline-secondary" size="sm">
+            <Download size={14} className="me-1" />
+            Export
+          </Button>
+        </div>
+      </Col>
+    </Row>
+  </Card.Body>
+</Card>
 
                 {/* Orders Table - Compact with increased height for 15 rows */}
                 <Card className="border-0 shadow-sm mb-0">
