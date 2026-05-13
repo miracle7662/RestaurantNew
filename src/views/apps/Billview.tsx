@@ -3806,7 +3806,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
                       <td>{DiscPer.toFixed(2)}</td>
                       <td className="text-end">{grossAmount.toFixed(2)}</td>
                       <td className="text-end">{taxCalc.taxableValue?.toFixed(2)}</td>
-                      {Number(RevKOT || 0).toFixed(2)}
+                      <td className="text-end"> {Number(RevKOT || 0).toFixed(2)}</td>
                       <td className="text-end">{discount.toFixed(2)}</td>
                       <td className="text-end">{cgst.toFixed(2)}</td>
                       <td className="text-end">{sgst.toFixed(2)}</td>
