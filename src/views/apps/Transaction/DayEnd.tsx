@@ -572,71 +572,69 @@ const getFormattedDate = (dateStr: string) => {
           color: #721c24 !important;
         }
         /* Specific column widths */
-        .table-container th:nth-child(1),
-        .table-container td:nth-child(1) { width: 10%; } /* Bill No */
-        .table-container th:nth-child(2),
-        .table-container td:nth-child(2) { width: 6%; } /* Table */
-        .table-container th:nth-child(3),
-        .table-container td:nth-child(3) { width: 10%; text-align: right; } /* Total Amount */
-        .table-container th:nth-child(4),
-        .table-container td:nth-child(4) { width: 8%; text-align: right; } /* Discount */
-        .table-container th:nth-child(5),
-        .table-container td:nth-child(5) { width: 10%; text-align: right; } /* Gross Amount */
-        .table-container th:nth-child(6),
-        .table-container td:nth-child(6) { width: 7%; text-align: right; } /* CGST */
-        .table-container th:nth-child(7),
-        .table-container td:nth-child(7) { width: 7%; text-align: right; } /* SGST */
-        .table-container th:nth-child(8),
-        .table-container td:nth-child(8) { width: 8%; text-align: right; } /* Round off */
-        .table-container th:nth-child(9),
-        .table-container td:nth-child(9) { width: 8%; text-align: right; } /* Rev Amt */
-        .table-container th:nth-child(10),
-        .table-container td:nth-child(10) { width: 8%; } /* KOT No */
-        .table-container th:nth-child(11),
-        .table-container td:nth-child(11) { width: 10%; } /* Reverse KOT No */
-        .table-container th:nth-child(12),
-        .table-container td:nth-child(12) { width: 9%; } /* Reverse Bill */
-        .table-container th:nth-child(13),
-        .table-container td:nth-child(13) { width: 7%; text-align: right; } /* Water */
-        .table-container th:nth-child(14),
-        .table-container td:nth-child(14) { 
-          width: 15%; 
-          white-space: normal; 
-          word-wrap: break-word; 
-          overflow-wrap: break-word; 
-        } /* Payment Mode */
-        .table-container th:nth-child(15),
-        .table-container td:nth-child(15) { width: 8%; text-align: right; } /* Cash */
-        .table-container th:nth-child(16),
-        .table-container td:nth-child(16) { width: 8%; text-align: right; } /* Credit */
-        .table-container th:nth-child(17),
-        .table-container td:nth-child(17) { width: 8%; text-align: right; } /* Card */
-        .table-container th:nth-child(18),
-        .table-container td:nth-child(18) { width: 8%; text-align: right; } /* GPay */
-        .table-container th:nth-child(19),
-        .table-container td:nth-child(19) { width: 8%; text-align: right; } /* PhonePe */
-        .table-container th:nth-child(20),
-        .table-container td:nth-child(20) { width: 8%; text-align: right; } /* QR Code */
-        .table-container th:nth-child(21),
-        .table-container td:nth-child(21) { width: 8%; } /* Captain */
-        .table-container th:nth-child(22),
-        .table-container td:nth-child(22) { width: 7%; } /* User */
-        .table-container th:nth-child(23),
-        .table-container td:nth-child(23) { width: 7%; text-align: center; } /* Total Items */
-        .table-container th:nth-child(24),
-        .table-container td:nth-child(24) { width: 8%; } /* Time */
-        .table-container th:nth-child(25),
-        .table-container td:nth-child(25) { width: 8%; } /* Date */
-        .table-container th:nth-child(26),
-        .table-container td:nth-child(26) { width: 7%; text-align: center; } /* Status */
-        .table-container th:nth-child(27),
-        .table-container td:nth-child(27) { width: 7%; text-align: center; } /* Status */
-        .table-container th:nth-child(28),
-        .table-container td:nth-child(28) { width: 6%; text-align: center; } /* isNCKOT */
-        .table-container th:nth-child(29),
-        .table-container td:nth-child(29) { width: 7%; } /* Outlet ID */
-        .table-container th:nth-child(30),
-        .table-container td:nth-child(30) { width: 6%ter; } /* Actions */
+       /* Update the column width definitions - remove duplicate status entries */
+.table-container th:nth-child(1),
+.table-container td:nth-child(1) { width: 10%; } /* Bill No */
+.table-container th:nth-child(2),
+.table-container td:nth-child(2) { width: 6%; } /* Table */
+.table-container th:nth-child(3),
+.table-container td:nth-child(3) { width: 8%; text-align: right; } /* Total Amount */
+.table-container th:nth-child(4),
+.table-container td:nth-child(4) { width: 8%; text-align: right; } /* Discount */
+.table-container th:nth-child(5),
+.table-container td:nth-child(5) { width: 8%; text-align: right; } /* Gross Amount */
+.table-container th:nth-child(6),
+.table-container td:nth-child(6) { width: 6%; text-align: right; } /* CGST */
+.table-container th:nth-child(7),
+.table-container td:nth-child(7) { width: 6%; text-align: right; } /* SGST */
+.table-container th:nth-child(8),
+.table-container td:nth-child(8) { width: 6%; text-align: right; } /* Round off */
+.table-container th:nth-child(9),
+.table-container td:nth-child(9) { width: 6%; text-align: right; } /* Rev Amt */
+.table-container th:nth-child(10),
+.table-container td:nth-child(10) { width: 8%; } /* KOT No */
+.table-container th:nth-child(11),
+.table-container td:nth-child(11) { width: 8%; } /* Rev KOT No */
+.table-container th:nth-child(12),
+.table-container td:nth-child(12) { width: 8%; } /* NC Name */
+.table-container th:nth-child(13),
+.table-container td:nth-child(13) { width: 10%; } /* NC Purpose */
+.table-container th:nth-child(14),
+.table-container td:nth-child(14) { width: 7%; text-align: center; } /* isNCKOT */
+.table-container th:nth-child(15),
+.table-container td:nth-child(15) { width: 6%; text-align: right; } /* Water */
+.table-container th:nth-child(16),
+.table-container td:nth-child(16) { width: 10%; white-space: normal; word-wrap: break-word; } /* Payment Type */
+.table-container th:nth-child(17),
+.table-container td:nth-child(17) { width: 6%; text-align: right; } /* Cash */
+.table-container th:nth-child(18),
+.table-container td:nth-child(18) { width: 7%; text-align: right; } /* Reverse Bill */
+.table-container th:nth-child(19),
+.table-container td:nth-child(19) { width: 6%; text-align: right; } /* Credit */
+.table-container th:nth-child(20),
+.table-container td:nth-child(20) { width: 6%; text-align: right; } /* Card */
+.table-container th:nth-child(21),
+.table-container td:nth-child(21) { width: 6%; text-align: right; } /* GPay */
+.table-container th:nth-child(22),
+.table-container td:nth-child(22) { width: 6%; text-align: right; } /* PhonePe */
+.table-container th:nth-child(23),
+.table-container td:nth-child(23) { width: 6%; text-align: right; } /* QR Code */
+.table-container th:nth-child(24),
+.table-container td:nth-child(24) { width: 8%; } /* Captain */
+.table-container th:nth-child(25),
+.table-container td:nth-child(25) { width: 8%; } /* User */
+.table-container th:nth-child(26),
+.table-container td:nth-child(26) { width: 7%; text-align: center; } /* Total Items */
+.table-container th:nth-child(27),
+.table-container td:nth-child(27) { width: 8%; } /* Time */
+.table-container th:nth-child(28),
+.table-container td:nth-child(28) { width: 8%; } /* Date */
+.table-container th:nth-child(29),
+.table-container td:nth-child(29) { width: 8%; text-align: center; } /* Status */
+.table-container th:nth-child(30),
+.table-container td:nth-child(30) { width: 8%; } /* Outlet ID */
+.table-container th:nth-child(31),
+.table-container td:nth-child(31) { width: 5%; text-align: center; } /* Actions */
         .summary-cards {
           margin-bottom: 1rem;
         }
