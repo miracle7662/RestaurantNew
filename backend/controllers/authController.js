@@ -8,7 +8,7 @@ const JWT_SECRET = 'your-secret-key-change-this-in-production';
 exports.login = async (req, res) => {
     try {
         const { email, username, password } = req.body;
-        
+
         console.log('🔐 === LOGIN REQUEST START ===');
         console.log('🔐 LOGIN ENTRY: email=', email, 'username=', username, 'password-provided=', !!password);
 
@@ -232,38 +232,38 @@ exports.verifyF8Password = async (req, res) => {
         }
 
         // Allow only admins to perform this action
-       // ✅ Instead of checking logged-in user role,
-// check if entered password belongs to ANY admin
+        // ✅ Instead of checking logged-in user role,
+        // check if entered password belongs to ANY admin
 
-const [admins] = await db.query(`
+        const [admins] = await db.query(`
     SELECT password FROM mst_users
     WHERE role_level IN ('hotel_admin', 'superadmin')
       AND status = 0
 `);
 
-let isValidPassword = false;
+        let isValidPassword = false;
 
-for (const admin of admins) {
-    const match = await bcrypt.compare(password, admin.password);
-    if (match) {
-        isValidPassword = true;
-        break;
-    }
-}
+        for (const admin of admins) {
+            const match = await bcrypt.compare(password, admin.password);
+            if (match) {
+                isValidPassword = true;
+                break;
+            }
+        }
 
-if (!isValidPassword) {
-    return res.status(401).json({
-        success: false,
-        message: 'Invalid admin password'
-    });
-}
+        if (!isValidPassword) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid admin password'
+            });
+        }
 
-// ✅ IMPORTANT (this was missing)
-return res.json({
-    success: true,
-    verified: true,
-    message: 'Admin verified successfully'
-});
+        // ✅ IMPORTANT (this was missing)
+        return res.json({
+            success: true,
+            verified: true,
+            message: 'Admin verified successfully'
+        });
 
         // Verify password
         // const isValidPassword = await bcrypt.compare(password, user.password);
@@ -569,12 +569,12 @@ exports.createInitialSuperAdmin = async () => {
 
             // Create default permissions for SuperAdmin
             const defaultPermissions = {
-                'orders':    { view: 1, create: 1, edit: 1, delete: 1 },
+                'orders': { view: 1, create: 1, edit: 1, delete: 1 },
                 'customers': { view: 1, create: 1, edit: 1, delete: 1 },
-                'menu':      { view: 1, create: 1, edit: 1, delete: 1 },
-                'reports':   { view: 1, create: 1, edit: 1, delete: 1 },
-                'users':     { view: 1, create: 1, edit: 1, delete: 1 },
-                'settings':  { view: 1, create: 1, edit: 1, delete: 1 }
+                'menu': { view: 1, create: 1, edit: 1, delete: 1 },
+                'reports': { view: 1, create: 1, edit: 1, delete: 1 },
+                'users': { view: 1, create: 1, edit: 1, delete: 1 },
+                'settings': { view: 1, create: 1, edit: 1, delete: 1 }
             };
 
             for (const [module, perms] of Object.entries(defaultPermissions)) {
@@ -585,10 +585,10 @@ exports.createInitialSuperAdmin = async () => {
                 `, [
                     newUserId,
                     module,
-                    perms.view    ? 1 : 0,
-                    perms.create  ? 1 : 0,
-                    perms.edit    ? 1 : 0,
-                    perms.delete  ? 1 : 0,
+                    perms.view ? 1 : 0,
+                    perms.create ? 1 : 0,
+                    perms.edit ? 1 : 0,
+                    perms.delete ? 1 : 0,
                     newUserId
                 ]);
             }
