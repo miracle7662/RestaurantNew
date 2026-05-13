@@ -64,12 +64,14 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     useEffect(() => {
         const fetchNextRevKot = async () => {
             if (show && outletid) {
+                // console.log('Fetching next reverse KOT for outlet:', outletid);
                 try {
                     const response = await OrderService.fetchGlobalReverseKOTNumber(outletid, currDate);
                     if (response.data?.nextRevKOT) {
                         setNextRevKotNo(response.data.nextRevKOT);
                     }
                 } catch (error) {
+                    // console.error('Error fetching global reverse KOT number:', error);
                     toast.error('Failed to fetch reverse KOT number');
                 }
             }
@@ -82,22 +84,26 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
             const rev = Number(item.revQty ?? item.RevQty ?? 0);
             const rate = Number(item.rate ?? item.RuntimeRate ?? 0);
             
-            // 🔥 Preserve all ID fields for Takeaway orders
+            // Calculate original quantity (qty + already reversed qty)
+            const originalQty = Number(item.qty || 0) + rev;
+            
+            // Preserve all ID fields for Takeaway orders
             const txnDetailId = item.txnDetailId ?? item.TXnDetailID ?? null;
             const itemId = item.itemId ?? item.ItemID ?? null;
 
             return {
                 ...item,
-                txnDetailId: txnDetailId,      // ✅ For Dine-in
-                TXnDetailID: txnDetailId,      // ✅ For backend (uppercase)
-                itemId: itemId,                 // ✅ For Takeaway fallback
-                ItemID: itemId,                 // ✅ For backend fallback
+                originalQty: originalQty,           // ✅ Original quantity before any reversal
+                txnDetailId: txnDetailId,           // ✅ For Dine-in
+                TXnDetailID: txnDetailId,           // ✅ For backend (uppercase)
+                itemId: itemId,                     // ✅ For Takeaway fallback
+                ItemID: itemId,                     // ✅ For backend fallback
                 kotNo: item.kotNo ?? item.mkotNo ?? null,
-                reversedQty: rev,
-                cancelQty: 0,
+                reversedQty: rev,                   // Already reversed quantity
+                cancelQty: 0,                       // User will enter new reversal quantity
                 reason: '',
                 rate: rate,
-                amount: rev * rate,
+                amount: rev * rate,                 // Amount for already reversed items
                 revKotNo: item.revKotNo || item.RevKOTNo || 0
             };
         });
@@ -117,11 +123,14 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     ) => {
         const updated = [...items];
         if (field === 'cancelQty') {
-            updated[idx][field] = Math.min(Number(value), Number(updated[idx].qty || 0));
+            // Limit cancel quantity to remaining available quantity
+            const maxCancelQty = (updated[idx].originalQty || updated[idx].qty) - (updated[idx].reversedQty || 0);
+            updated[idx][field] = Math.min(Number(value), maxCancelQty);
         } else {
             updated[idx][field] = Number(value);
         }
 
+        // Total amount = (already reversed + new cancel) * rate
         const totalQty =
             Number(updated[idx].reversedQty || 0) +
             Number(updated[idx].cancelQty || 0);
@@ -130,12 +139,14 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         setItems(updated);
     };
 
+    // Focus next row's Cancel input
     const focusNextCancel = (currentIdx: number) => {
         const nextIdx = currentIdx + 1;
         if (nextIdx < items.length) {
             cancelRefs.current[nextIdx]?.focus();
             cancelRefs.current[nextIdx]?.select();
         }
+        // Last row → do nothing (you can add Save focus here later if wanted)
     };
 
     const handleCancelKeyDown = (idx: number, e: React.KeyboardEvent<HTMLElement>) => {
@@ -150,6 +161,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         if (e.key === 'Enter') {
             e.preventDefault();
             if (idx === items.length - 1) {
+                // Last row: trigger save
                 handleReverseKotSave();
             } else {
                 focusNextCancel(idx);
@@ -172,7 +184,9 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
             return;
         }
 
-        // 🔥 FIX: Prepare data with all required fields for backend
+        // console.log('Modal sending:', filteredItems);
+
+        // Prepare data with all required fields for backend
         const reversalData = filteredItems.map(item => ({
             // For Dine-in orders (has txnDetailId)
             txnDetailId: item.txnDetailId ?? null,
@@ -266,70 +280,79 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                         </thead>
 
                         <tbody>
-                            {items.map((row, idx) => (
-                                <tr key={idx} style={{ backgroundColor: getRowColor(row.mkotNo) }}>
-                                    <td>{row.itemName}</td>
-                                    <td>{row.qty }</td>
+                            {items.map((row, idx) => {
+                                // Calculate maximum cancel quantity (original - already reversed)
+                                const maxCancelQty = (row.originalQty || row.qty) - (row.reversedQty || 0);
+                                
+                                return (
+                                    <tr key={idx} style={{ backgroundColor: getRowColor(row.mkotNo) }}>
+                                        <td>{row.itemName}</td>
+                                        
+                                        {/* ✅ ACTUAL - Original quantity before any reversal */}
+                                        <td>{row.originalQty || row.qty}</td>
 
-                                    <td>
-                                        <Form.Control
-                                            type="number"
-                                            size="sm"
-                                            min={0}
-                                            max={row.qty}
-                                            value={row.reversedQty}
-                                            readOnly
-                                            tabIndex={-1}
-                                            className="bg-light"
-                                            style={{ cursor: 'not-allowed' }}
-                                        />
-                                    </td>
+                                        {/* REVERSED - Already reversed quantity (read-only) */}
+                                        <td>
+                                            <Form.Control
+                                                type="number"
+                                                size="sm"
+                                                min={0}
+                                                max={row.originalQty || row.qty}
+                                                value={row.reversedQty}
+                                                readOnly
+                                                tabIndex={-1}
+                                                className="bg-light"
+                                                style={{ cursor: 'not-allowed' }}
+                                            />
+                                        </td>
 
-                                    <td>
-                                        <Form.Control
-                                            type="number"
-                                            size="sm"
-                                            min={0}
-                                            max={row.qty}
-                                            value={row.cancelQty}
-                                            onChange={e => updateQty(idx, 'cancelQty', +e.target.value)}
-                                            onKeyDown={e => handleCancelKeyDown(idx, e)}
-                                            ref={el => { cancelRefs.current[idx] = el; }}
-                                        />
-                                    </td>
+                                        {/* CANCEL - New reversal quantity (user editable) */}
+                                        <td>
+                                            <Form.Control
+                                                type="number"
+                                                size="sm"
+                                                min={0}
+                                                max={maxCancelQty}
+                                                value={row.cancelQty}
+                                                onChange={e => updateQty(idx, 'cancelQty', +e.target.value)}
+                                                onKeyDown={e => handleCancelKeyDown(idx, e)}
+                                                ref={el => { cancelRefs.current[idx] = el; }}
+                                            />
+                                        </td>
 
-                                    <td>{row.rate}</td>
-                                    <td>{row.amount.toFixed(2)}</td>
+                                        <td>{row.rate}</td>
+                                        <td>{row.amount.toFixed(2)}</td>
 
-                                    <td>
-                                        {row.revKotNo ? (
-                                            <div className="d-flex flex-wrap gap-1 justify-content-center">
-                                                <Badge bg="danger">{row.revKotNo}</Badge>
-                                            </div>
-                                        ) : row.mkotNo ? (
-                                            <div className="d-flex flex-wrap gap-1 justify-content-center">
-                                                {row.mkotNo.split('|').map((kot: string, i: number) => (
-                                                    <Badge key={i} bg="secondary">{kot}</Badge>
-                                                ))}
-                                            </div>
-                                        ) : null}
-                                    </td>
+                                        <td>
+                                            {row.revKotNo ? (
+                                                <div className="d-flex flex-wrap gap-1 justify-content-center">
+                                                    <Badge bg="danger">{row.revKotNo}</Badge>
+                                                </div>
+                                            ) : row.mkotNo ? (
+                                                <div className="d-flex flex-wrap gap-1 justify-content-center">
+                                                    {row.mkotNo.split('|').map((kot: string, i: number) => (
+                                                        <Badge key={i} bg="secondary">{kot}</Badge>
+                                                    ))}
+                                                </div>
+                                            ) : null}
+                                        </td>
 
-                                    <td>
-                                        <Form.Control
-                                            size="sm"
-                                            value={row.reason}
-                                            onChange={e => {
-                                                const updated = [...items];
-                                                updated[idx].reason = e.target.value;
-                                                setItems(updated);
-                                            }}
-                                            onKeyDown={e => handleReasonKeyDown(idx, e)}
-                                            ref={el => { reasonRefs.current[idx] = el; }}
-                                        />
-                                    </td>
-                                </tr>
-                            ))}
+                                        <td>
+                                            <Form.Control
+                                                size="sm"
+                                                value={row.reason}
+                                                onChange={e => {
+                                                    const updated = [...items];
+                                                    updated[idx].reason = e.target.value;
+                                                    setItems(updated);
+                                                }}
+                                                onKeyDown={e => handleReasonKeyDown(idx, e)}
+                                                ref={el => { reasonRefs.current[idx] = el; }}
+                                            />
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </Table>
                 </div>

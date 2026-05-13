@@ -869,36 +869,52 @@ const ModernBill = () => {
 
       // Map items to BillItem interface
       const mappedItems: BillItem[] = (data.details || []).map((item: any) => {
-        const qty = item.netQty || item.Qty || 0;
-        const rate = item.RuntimeRate || item.price || item.Price || item.Rate || 0;
-        const total = qty * rate;
 
-        return {
-          itemCode: (item.item_no || item.ItemNo || item.Item_No || '').toString(),
-          itemId: item.itemId || item.ItemID || 0,
-          itemgroupid: item.itemgroupid || 0,
-          item_no: Number(item.item_no || item.ItemNo || item.Item_No || 0),
-          itemName: item.itemName || item.ItemName || item.item_name || '',
-          qty: qty,
-          rate: rate,
-          total: total,
+  const originalQty = Number(item.netQty || item.Qty || 0);
+  const revQty = Number(item.revQty || item.RevQty || 0);
 
-          // New tax fields - use from API if available, otherwise calculate fallback
-          cgst: item.cgst ?? 0,
-          sgst: item.sgst ?? 0,
-          igst: item.igst ?? 0,
-          cess: item.cess ?? 0,
-          mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-          SpecialInst: item.SpecialInst || item.SpecialInst || '',
-          isBilled: 0,
-          TXnDetailID: item.TXnDetailID,
-          isFetched: true,
-          revQty: item.revQty || item.RevQty || 0,
-          // Variant fields
-          variantId: item.variantId || item.VariantID || null,
-          variantName: item.variantName || item.VariantName || null
-        };
-      });
+  // Show remaining qty
+  const qty = Math.max(originalQty - revQty, 0);
+
+  const rate =
+    item.RuntimeRate ||
+    item.price ||
+    item.Price ||
+    item.Rate ||
+    0;
+
+  const total = qty * rate;
+
+  return {
+    itemCode: (item.item_no || item.ItemNo || item.Item_No || '').toString(),
+    itemId: item.itemId || item.ItemID || 0,
+    itemgroupid: item.itemgroupid || 0,
+    item_no: Number(item.item_no || item.ItemNo || item.Item_No || 0),
+    itemName: item.itemName || item.ItemName || item.item_name || '',
+    qty,
+    rate,
+    total,
+
+    cgst: item.cgst ?? 0,
+    sgst: item.sgst ?? 0,
+    igst: item.igst ?? 0,
+    cess: item.cess ?? 0,
+
+    mkotNo: item.kotNo
+      ? item.kotNo.toString()
+      : (item.KOTNo ? item.KOTNo.toString() : ''),
+
+    SpecialInst: item.SpecialInst || '',
+    isBilled: 0,
+    TXnDetailID: item.TXnDetailID,
+    isFetched: true,
+
+    revQty: revQty,
+
+    variantId: item.variantId || item.VariantID || null,
+    variantName: item.variantName || item.VariantName || null
+  };
+});
 
       // Always add a blank row at the end for new item entry
       mappedItems.push({
