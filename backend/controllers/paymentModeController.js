@@ -27,11 +27,19 @@ exports.createPaymentMode = async (req, res) => {
       });
     }
 
+    // 🔹 Get next sequence number for this outlet
+    const [seqResult] = await db.query(
+      'SELECT COALESCE(MAX(sequence), 0) + 1 as nextSeq FROM payment_modes WHERE outletid = ?',
+      [outletid]
+    );
+    const nextSequence = seqResult[0].nextSeq;
+
+    // 🔹 Insert with sequence
     const stmt = `
-      INSERT INTO payment_modes (outletid, hotelid, paymenttypeid, is_active) 
-      VALUES (?, ?, ?, ?)
+      INSERT INTO payment_modes (outletid, hotelid, paymenttypeid, is_active, sequence) 
+      VALUES (?, ?, ?, ?, ?)
     `;
-    const [result] = await db.query(stmt, [outletid, hotelid, paymenttypeid, is_active ?? 1]);
+    const [result] = await db.query(stmt, [outletid, hotelid, paymenttypeid, is_active ?? 1, nextSequence]);
 
     res.status(201).json({
       success: true,
@@ -42,6 +50,7 @@ exports.createPaymentMode = async (req, res) => {
         hotelid,
         paymenttypeid,
         is_active: is_active ?? 1,
+        sequence: nextSequence
       }
     });
   } catch (err) {
@@ -64,20 +73,16 @@ exports.createPaymentMode = async (req, res) => {
 // Get all payment modes with join to payment_types
 exports.getAllPaymentModes = async (req, res) => {
   try {
-    console.log('🔍 getAllPaymentModes called');
     const { outletid, hotelid } = req.query;
-    console.log('🔍 Params - outletid:', outletid, 'hotelid:', hotelid);
-
     let sql = `
       SELECT pm.id, pm.hotelid, pm.outletid, pm.paymenttypeid, 
-             pm.is_active, pm.created_at, pm.updated_at,
+             pm.sequence, pm.is_active, pm.created_at, pm.updated_at,
              pt.mode_name
       FROM payment_modes pm
       LEFT JOIN payment_types pt ON pm.paymenttypeid = pt.paymenttypeid
       WHERE 1=1
     `;
     const params = [];
-
     if (outletid) {
       sql += " AND pm.outletid = ?";
       params.push(outletid);
@@ -86,26 +91,12 @@ exports.getAllPaymentModes = async (req, res) => {
       sql += " AND pm.hotelid = ?";
       params.push(hotelid);
     }
-
-    console.log('🔍 SQL:', sql);
-    console.log('🔍 Params:', params);
-
+    sql += " ORDER BY pm.sequence ASC, pt.mode_name ASC"; // Added ORDER BY
     const [rows] = await db.query(sql, params);
-    console.log('🔍 getAllPaymentModes rows.length:', rows.length);
-    console.log('🔍 Sample data:', rows.slice(0, 3));
-
-    res.status(200).json({
-      success: true,
-      message: "Payment modes fetched successfully",
-      data: rows
-    });
+    res.status(200).json({ success: true, message: "Payment modes fetched successfully", data: rows });
   } catch (err) {
-    console.error('🔴 getAllPaymentModes ERROR:', err);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: err.message
-    });
+    console.error('getAllPaymentModes error:', err);
+    res.status(500).json({ success: false, message: "Internal server error", error: err.message });
   }
 };
 
@@ -171,33 +162,38 @@ exports.updatePaymentModeSequence = async (req, res) => {
 };
 
 // Get payment modes by outlet ID
+// Get payment modes by outlet ID – properly ordered by sequence
 exports.getPaymentModesByOutlet = async (req, res) => {
   try {
-    console.log('🔍 getPaymentModesByOutlet called');
     const { outletid } = req.query;
-    console.log('🔍 outletid param:', outletid);
 
-    let sql = `
-      SELECT pt.paymenttypeid as id, pt.mode_name, MIN(pm.sequence) as sequence
-      FROM payment_modes pm
-      JOIN payment_types pt ON pm.paymenttypeid = pt.paymenttypeid
-      WHERE pm.is_active = 1 AND pt.status = 1
-    `;
-    const params = [];
-
-    if (outletid && outletid !== 'null' && outletid !== 'undefined') {
-      sql += ' AND pm.outletid = ?';
-      params.push(outletid);
+    if (!outletid || outletid === 'null' || outletid === 'undefined') {
+      return res.status(400).json({
+        success: false,
+        message: "Valid outletid is required",
+      });
     }
 
-    sql += ' GROUP BY pt.paymenttypeid, pt.mode_name ORDER BY sequence, pt.mode_name';
+    const sql = `
+      SELECT 
+        pm.id,
+        pm.outletid,
+        pm.paymenttypeid,
+        pm.sequence,
+        pm.is_active,
+        pt.mode_name
+      FROM payment_modes pm
+      JOIN payment_types pt ON pm.paymenttypeid = pt.paymenttypeid
+      WHERE pm.outletid = ? 
+        AND pm.is_active = 1 
+        AND pt.status = 1
+      ORDER BY 
+        -- NULL/0 sequence wale last mein aayenge
+        CASE WHEN pm.sequence IS NULL OR pm.sequence = 0 THEN 1 ELSE 0 END,
+        pm.sequence ASC
+    `;
 
-    console.log('🔍 SQL:', sql);
-    console.log('🔍 Params:', params);
-
-    const [rows] = await db.query(sql, params);
-    console.log('🔍 getPaymentModesByOutlet rows.length:', rows.length);
-    console.log('🔍 Data:', rows);
+    const [rows] = await db.query(sql, [outletid]);
 
     res.status(200).json({
       success: true,
@@ -205,7 +201,7 @@ exports.getPaymentModesByOutlet = async (req, res) => {
       data: rows
     });
   } catch (err) {
-    console.error('🔴 getPaymentModesByOutlet ERROR:', err);
+    console.error('getPaymentModesByOutlet error:', err);
     res.status(500).json({
       success: false,
       message: "Internal server error",

@@ -669,4 +669,4 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   );
 };
 
-export default SettlementModal;0
+export default SettlementModal;
