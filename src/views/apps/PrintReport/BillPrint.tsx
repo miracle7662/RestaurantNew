@@ -484,8 +484,8 @@ ${(showAll || localFormData.trn_gstno) ? `<div style="font-size: 8pt;">GST No: $
                
               </div>
               ${(showAll || !localFormData.hide_item_quantity_column) ? `<div style="text-align: right;">${item.qty}</div>` : ''}
-              ${(showAll || !localFormData.hide_item_rate_column) ? `<div style="text-align: right;">${safePrice(item.price).toFixed(2)}</div>` : ''}
-              ${(showAll || !localFormData.hide_item_total_column) ? `<div style="text-align: right;">${(item.qty * safePrice(item.price)).toFixed(2)}</div>` : ''}
+              ${(showAll || !localFormData.hide_item_rate_column) ? `<div style="text-align: right;">${(() => { const v = safePrice(item.price); return Number.isInteger(v) ? v.toString() : v.toFixed(2).replace(/\.00$/, ''); })()}</div>` : ''}
+              ${(showAll || !localFormData.hide_item_total_column) ? `<div style="text-align: right;">${(() => { const v = item.qty * safePrice(item.price); return Number.isInteger(v) ? v.toString() : v.toFixed(2).replace(/\.00$/, ''); })()}</div>` : ''}
             </div>
           `).join('')}
         </div>

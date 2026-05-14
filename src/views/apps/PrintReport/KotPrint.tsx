@@ -105,19 +105,13 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
 
   const loadOutletSettings = async (outletId: number) => {
-    // console.log('loadOutletSettings called with outletId:', outletId);
     try {
       const kotData = await fetchKotPrintSettings(outletId);
-      // console.log('fetchKotPrintSettings returned:', kotData);
       if (kotData) {
         const newFormData = applyKotSettings(localFormData, kotData);
-        // console.log('New form data after applyKotSettings:', newFormData);
         setLocalFormData(newFormData);
-      } else {
-        // console.log('No KOT data returned from fetchKotPrintSettings');
       }
     } catch (err) {
-      // console.error('Failed to load outlet settings', err);
       toast.error('Failed to load KOT print settings.');
     }
   };
@@ -127,11 +121,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     if (!show) return;
 
     const outlet = selectedOutletId ?? Number(user?.outletid);
-    // console.log('KOT Settings Load Debug:', { selectedOutletId, userOutletId: user?.outletid, outlet, show });
-    if (!outlet || isNaN(outlet)) {
-      // console.log('Skipping outlet settings load - invalid outlet ID');
-      return;
-    }
+    if (!outlet || isNaN(outlet)) return;
 
     setOutletId(outlet);
     loadOutletSettings(outlet);
@@ -151,31 +141,24 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       setIsLoadingNames(true);
 
       try {
-        // Use PrintService for KOT printer settings
         const printerRes = await PrintService.getKotPrinterSettings(outletId);
-        // Handle both wrapped (res?.data) and unwrapped (res) responses due to HttpClient interceptor
         const data = printerRes?.data || printerRes;
         setPrinterName(data?.printer_name || null);
       } catch (err) {
-        // console.error('Error fetching printer:', err);
         toast.error('Failed to load printer settings.');
         setPrinterName(null);
       }
 
-      // Fetch outlet details if restaurantName or outletName are not provided or are defaults
       if (!restaurantName || restaurantName.trim() === '' || restaurantName === 'Restaurant Name' ||
         !outletName || outletName.trim() === '' || outletName === 'Outlet Name') {
         try {
-          // Use PrintService for outlet details
           const outletRes = await PrintService.getOutletDetails(outletId);
-          // Handle both wrapped (res?.data) and unwrapped (res) responses due to HttpClient interceptor
           const data = outletRes?.data || outletRes;
           if (data) {
             setLocalRestaurantName(data.brand_name || data.hotel_name || 'Restaurant Name');
             setLocalOutletName(data.outlet_name || 'Outlet Name');
           }
         } catch (error) {
-          // console.error('Error fetching outlet details:', error);
           setLocalRestaurantName(user?.hotel_name || 'Restaurant Name');
           setLocalOutletName(user?.outlet_name || 'Outlet Name');
         }
@@ -202,14 +185,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     const fetchKotSetting = async () => {
       try {
-        // Use PrintService for KOT printer settings
         const printerRes = await PrintService.getKotPrinterSettings(outletId);
-        // Handle both wrapped (res?.data) and unwrapped (res) responses due to HttpClient interceptor
         const data = printerRes?.data || printerRes;
-        // IMPORTANT: backend sends 0 / 1
         setEnableKotPrint(Number(data?.enableKotPrint) || 0);
       } catch (err) {
-        // console.error("KOT setting fetch failed", err);
         setEnableKotPrint(0);
       } finally {
         setLoadingSetting(false);
@@ -230,20 +209,25 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   <style>
 
     @page {
-      /* Roll/continuous printing */
-      size: 76mm auto;
+      size: 72mm auto;
       margin: 0;
     }
 
     @media print {
       html, body { overflow: visible !important; }
-      /* prevent phantom blank space at top */
       body { margin: 0 !important; padding: 0 !important; }
     }
 
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
     html, body {
-      width: 76mm !important;
-      min-width: 76mm !important;
+      width: 72mm !important;
+      max-width: 72mm !important;
+      min-width: 72mm !important;
       margin: 0;
       padding: 0;
       font-family: 'Courier New', monospace;
@@ -252,29 +236,26 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       color: #000;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
-      box-sizing: border-box;
+      overflow-x: hidden;
     }
 
-    /* CONTENT WRAPPER */
+    /* CONTENT WRAPPER — fixed 72mm, padded inside */
     #kot-preview-content {
-      width: 76mm !important;
-      min-width: 76mm !important;
+      width: 72mm !important;
+      max-width: 72mm !important;
+      min-width: 72mm !important;
+      /* 6px left + 5px right — enough room so 3-digit qty never clips */
+      padding: 6px 5px 6px 8px;
       margin: 0;
-      padding: 0; /* remove extra top/bottom influence */
-      box-sizing: border-box;
       font-weight: bold;
+      overflow-x: hidden;
     }
 
-    body {
-      /* critical for roll printers: no vertical padding/margins */
-      padding: 0;
-      margin: 0;
-    }
-
-    /* Avoid clipping/offset issues */
-    .kot-page {
-      height: auto;
-      overflow: visible;
+    /* All children must stay within parent width */
+    #kot-preview-content * {
+      max-width: 100%;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
 
     .center { text-align: center; }
@@ -285,38 +266,109 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     .text-smaller { font-size: 9px; }
     .separator { border: none; border-top: 1px dashed #000; margin: 5px 0; }
 
-    .item-table { width: 100%; border-collapse: collapse; }
-    .item-table th, .item-table td { padding: 2px 0; vertical-align: top; }
-    .item-table .col-item { width: 60%; }
-    .item-table .col-qty { width: 20%; text-align: center; }
-    .item-table .col-rate, .item-table .col-amt { width: 20%; text-align: right; }
-
-    /* Receipt typography tuned for 80mm */
-    #kot-preview-content { padding-left: 3px; padding-right: 3px; }
-    .kot-small { font-size: 11px; }
-    .kot-variant { font-size: 9.5px; color:#0066cc; font-weight:bold; }
-    .item-table thead th { border-bottom: 1px solid #000; padding-bottom: 4px; }
-
-    .totals-table { width: 100%; }
-    .totals-table td { padding: 1px 0; }
-
-    .tag { display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 9px; margin-top: 3px; }
-    .tag-new { background-color: #333; color: #fff; }
-    .tag-running { background-color: #666; color: #fff; }
-
-    .reverse-header {
-      text-align: center;
+    /* Grid items: never overflow, always wrap text */
+    .item-row {
+      display: grid;
+      column-gap: 4px;
       font-weight: bold;
-      color: #000;
-      margin: 5px 0;
-      padding: 3px;
-      background-color: #ccc;
-      border: 1px solid #000;
-      font-size: 11px;
+      border-bottom: 1px solid #000;
+      padding: 3px 0;
+      margin-bottom: 3px;
+      align-items: start;
+      width: 100%;
     }
 
-    .reverse-item td { color: #000; }
-    .reverse-item .reverse-qty, .reverse-item .reverse-amt { font-weight: bold; }
+    .item-qty {
+      text-align: center;
+      font-size: 12pt;
+      font-weight: bold;
+    }
+
+    .item-name {
+      text-align: left;
+      font-size: 10pt;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+
+    .item-rate {
+      text-align: right;
+      font-size: 10pt;
+      white-space: nowrap;
+    }
+
+    .item-amt {
+      text-align: right;
+      font-size: 10pt;
+      white-space: nowrap;
+    }
+
+    .header-row {
+      display: grid;
+      column-gap: 4px;
+      font-weight: bold;
+      border-bottom: 1px solid #000;
+      padding-bottom: 4px;
+      margin-bottom: 5px;
+      width: 100%;
+    }
+
+    .header-qty  { text-align: center; }
+    .header-item { text-align: left; }
+    .header-rate { text-align: right; }
+    .header-amt  { text-align: right; }
+
+    .kot-variant {
+      font-size: 9pt;
+      color: #0066cc;
+      font-weight: bold;
+    }
+
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+      font-size: 10pt;
+      padding: 2px 0;
+    }
+
+    .basic-details {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 9pt;
+      width: 100%;
+    }
+
+    .table-box {
+      border: 1px solid #696868;
+      min-width: 60px;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14pt;
+      font-weight: bold;
+      padding: 4px;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 1px 6px;
+      text-align: left;
+      justify-content: end;
+    }
+
+    hr.dashed {
+      border: none;
+      border-top: 1px dashed #000;
+      margin: 6px 0;
+      width: 100%;
+    }
+
   </style>
 </head>
 <body>
@@ -334,14 +386,11 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     try {
       setLoading(true);
 
-      // If no printer is configured, show error
       if (!printerName) {
         toast.error("No KOT printer configured. Please configure printer settings.");
         return;
       }
 
-      // Get system printers via Electron API (asynchronous)
-      // Handle case when running in browser (not Electron)
       if (!window.electronAPI?.getInstalledPrinters) {
         toast.error("Printer functionality is only available in the desktop app.");
         setLoading(false);
@@ -350,7 +399,6 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
       const systemPrintersRaw = await window.electronAPI?.getInstalledPrinters?.() || [];
       const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
-      // console.log("System Printers:", systemPrinters);
 
       if (systemPrinters.length === 0) {
         toast.error("No printers detected on this system. Please check printer connections and drivers.");
@@ -360,7 +408,6 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       const normalize = (s: string) =>
         s.toLowerCase().replace(/\s+/g, "").trim();
 
-      // Try to match the configured printer (case-insensitive, partial match)
       const matchedPrinter = systemPrinters.find((p) =>
         normalize(p.name).includes(normalize(printerName)) ||
         normalize(p.displayName || "").includes(normalize(printerName))
@@ -368,18 +415,17 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
       let finalPrinterName: string | null = null;
       let usedFallback = false;
+      
 
       if (matchedPrinter) {
         finalPrinterName = matchedPrinter.name;
       } else {
-        // Fallback: Use default printer or first available printer
         const defaultPrinter = systemPrinters.find((p) => p.isDefault);
         const fallbackPrinter = defaultPrinter || systemPrinters[0];
 
         if (fallbackPrinter) {
           finalPrinterName = fallbackPrinter.name;
           usedFallback = true;
-          // console.warn(`Configured printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
           toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
         } else {
           toast.error("No suitable printer found, including fallbacks.");
@@ -392,77 +438,96 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         return;
       }
 
-      if (usedFallback) {
-        // console.log("Fallback printer used");
-      }
-
-      // console.log(`Printing to printer: ${finalPrinterName}`);
-
-      // Generate KOT HTML for printing
       const kotHTML = generateKOTHTML();
 
-      // Print using Electron API
       if (window.electronAPI?.directPrint) {
         await window.electronAPI.directPrint(kotHTML, finalPrinterName);
         toast.success("KOT Printed Successfully!");
 
-        // Call onPrint callback if provided
         if (onPrint) {
           onPrint();
         }
 
-        // Call onClose immediately for UI update
         if (onClose) onClose();
 
-        // Close modal after printing with delay to prevent job cancellation
         setTimeout(onHide, 300);
       } else {
         toast.error("Electron print API not available.");
       }
     } catch (err) {
-      // console.error("Print error:", err);
       toast.error("Failed to print KOT.");
     } finally {
       setLoading(false);
     }
   };
 
-  const dateTime = date ? new Date(date).toLocaleString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }) : new Date().toLocaleString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  const formatKotDateTime = (input: string | null | undefined) => {
+    if (!input) {
+      return new Date().toLocaleString('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
 
+    // If input already has a timezone (ISO string with Z or +/-hh:mm), Date() conversion is correct.
+    const hasTimezone = /([zZ]|[\+\-]\d{2}:?\d{2})$/.test(String(input).trim());
+
+    if (hasTimezone) {
+      return new Date(input).toLocaleString('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    // Otherwise treat it as a business/local datetime in Asia/Kolkata (avoid UTC->IST shift showing 05:30).
+    const parts = String(input).trim().replace('T', ' ').split(' ');
+    const datePart = parts[0] || '';
+    const timePart = parts[1] || '00:00:00';
+
+    const [y, m, d] = datePart.includes('-') ? datePart.split('-').map(Number) : [NaN, NaN, NaN];
+    const [hh, mm] = timePart.split(':').map(Number);
+
+    if (![y, m, d, hh, mm].every((n) => Number.isFinite(n))) {
+      // fallback to normal behaviour
+      return new Date(input).toLocaleString('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    const zoned = new Date(Date.UTC(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0));
+    return zoned.toLocaleString('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const dateTime = formatKotDateTime(date);
 
 
 
   const generateKOTContent = useMemo(() => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
 
-    // console.log('KOT SETTINGS USED 👉', localFormData);
-
-    // Determine the names to use: outlet props first, then local state, then user object, then defaults
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
     const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
-    // console.log('KOT Print Debug:', {
-    //   restaurantName,
 
-    //   displayRestaurantName,
-    //   outletName,
-    //   localOutletName,
-    //   userOutletName: user?.outlet_name,
-    //   displayOutletName
-    // });
-
-    // Map activeTab to key suffix
     const tabKeyMap: { [key: string]: string } = {
       'Dine-in': 'dine_in',
       'Pickup': 'pickup',
@@ -471,7 +536,6 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     };
     const tabKey = tabKeyMap[activeTab] || 'dine_in';
 
-    // Determine order tag for KOT header - only show if settings enabled
     const orderTag = (() => {
       if (activeTab === 'Dine-in' && selectedTable && tableStatus !== null) {
         if (tableStatus === 0 && localFormData.show_new_order_tag) {
@@ -483,13 +547,9 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       return '';
     })();
 
-    // console.log('ACTIVE TAB 👉', activeTab, 'TAB KEY 👉', tabKey);
-
-    // Get KOT no prefix
     const kotNoPrefix = localFormData[`${tabKey}_kot_no`] || '';
     const displayKOTNo = currentKOTNo ? `${kotNoPrefix}${currentKOTNo}` : '—';
 
-    // Conditional rendering flags
     const showStoreName = localFormData.show_store_name;
     const showWaiter = localFormData.show_waiter && (selectedWaiter || user?.name);
 
@@ -498,21 +558,14 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     const showCaptainUsername = localFormData.show_captain_username && user?.captain_username;
     const showCustomerOnKOT = (() => {
       switch (activeTab) {
-        case 'Dine-in':
-          return localFormData.customer_on_kot_dine_in;
-        case 'Pickup':
-          return true; // Always show customer for Pickup
-        case 'Delivery':
-          return true; // Always show customer for Delivery
-        case 'Quick Bill':
-          return localFormData.customer_on_kot_quick_bill;
-        default:
-          return false;
+        case 'Dine-in': return localFormData.customer_on_kot_dine_in;
+        case 'Pickup': return true;
+        case 'Delivery': return true;
+        case 'Quick Bill': return localFormData.customer_on_kot_quick_bill;
+        default: return false;
       }
     })();
-    const displayOption =
-      localFormData.customer_kot_display_option ?? 'NAME_ONLY';
-
+    const displayOption = localFormData.customer_kot_display_option ?? 'NAME_ONLY';
 
     const showCustomerName =
       showCustomerOnKOT &&
@@ -528,7 +581,6 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     const showRateColumn = localFormData.show_item_price;
     const showAmountColumn = localFormData.hide_item_Amt_column;
     const showOrderTypeSymbol = localFormData.show_order_type_symbol;
-    // const _showCoversAsGuest = localFormData.show_covers_as_guest;
     const showKotNote = localFormData.show_kot_note;
     const showOnlineOrderOtp = localFormData.show_online_order_otp;
     const showOrderIdQuickBill = localFormData.show_order_id_quick_bill && activeTab === 'Quick Bill';
@@ -538,161 +590,137 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     const showAlternativeItem = localFormData.show_alternative_item;
     const groupKotItemsByCategory = localFormData.group_kot_items_by_category;
 
-    // Calculate grid columns for items
-    const columns = ['32px', '1fr'];
-    // pull Rate column towards left for better fit on 80mm
-    if (showRateColumn) columns.push('35px');
-    if (showAmountColumn) columns.push('45px');
-    const gridTemplateColumns = columns.join(' ');
-
-
+    // Grid columns: Qty is fixed wider to fit 3-digit numbers, Rate/Amt fixed narrow, Item takes the rest
+    // 40px qty comfortably fits "999" in Courier New at 12pt
+    const qtyW = '40px';
+    const rateW = '38px';
+    const amtW = '42px';
+    const gridCols = [
+      qtyW,
+      '1fr',
+      ...(showRateColumn ? [rateW] : []),
+      ...(showAmountColumn ? [amtW] : []),
+    ].join(' ');
 
     return `
     <!-- STORE INFO -->
     ${showStoreName ? `
-    <div style="text-align: center; margin-bottom: 10px;">
-      <div style="font-weight: bold; font-size: 12pt;">
+    <div style="text-align: center; margin-bottom: 8px;">
+      <div style="font-weight: bold; font-size: 12pt; word-wrap: break-word;">
         ${displayRestaurantName}
       </div>
-      <div style="font-size: 8pt;">
+      <div style="font-size: 8pt; word-wrap: break-word;">
         ${displayOutletName}
       </div>
     </div>
-
-    <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
+    <hr class="dashed" />
     ` : ''}
 
     <!-- KOT HEADER -->
-    <div style="text-align: center; margin-bottom: 8px;">
-      <div><strong>${showOrderTypeSymbol ? '🔸 ' : ''}Order Type:</strong> ${activeTab} ${orderTag ? `- ${orderTag}` : ''}</div>
-
-        ${showCustomerName
-        ? `<div style="font-size: 9pt; margin-bottom: 6px;">
-       <strong>Customer:</strong> ${customerName}
-     </div>`
-        : ''}
-
-${showCustomerMobile
-        ? `<div style="font-size: 9pt; margin-bottom: 6px;">
-       <strong>Mobile:</strong> ${mobileNumber}
-     </div>`
-        : ''}
+    <div style="text-align: center; margin-bottom: 6px; word-wrap: break-word;">
+      <div><strong>${showOrderTypeSymbol ? '🔸 ' : ''}Order Type:</strong> ${activeTab}${orderTag ? ` - ${orderTag}` : ''}</div>
+      ${showCustomerName ? `<div style="font-size: 9pt; margin-top: 3px;"><strong>Customer:</strong> ${customerName}</div>` : ''}
+      ${showCustomerMobile ? `<div style="font-size: 9pt;"><strong>Mobile:</strong> ${mobileNumber}</div>` : ''}
     </div>
 
-    <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
+    <hr class="dashed" />
 
-    <!-- BASIC DETAILS -->
-    <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px; margin-bottom: 10px; font-size: 9pt;">
+    <!-- BASIC DETAILS: Table box left, details right -->
+    <div class="basic-details">
+      <!-- TABLE BIG BOX -->
+      <div class="table-box">
+        ${showTable ? selectedTable : activeTab}
+      </div>
 
-  <!-- TABLE BIG BOX -->
-  <div style="
-    border: 1px solid #696868;
-    min-width: 70px;
-    min-height: 55px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16pt;
-    font-weight: bold;
-  ">
-    ${showTable ? selectedTable : activeTab}
-  </div>
-
-    <!-- RIGHT DETAILS -->
-    <div style="
-      display: flex;
-      justify-content: flex-end;
-    ">
-      <div style="
-        display: grid;
-        grid-template-columns: 60px auto;
-        text-align: left;
-      ">
-        ${activeTab !== 'Quick Bill' || showKotNoQuickBill ? `<div><strong>KOT No:</strong></div><div>${displayKOTNo}</div>` : ''}
-
-        <div><strong>Date:</strong></div>
-        <div>${dateTime}</div>
-
-${showWaiter ? `
-  <div style="font-size: 9pt; margin-bottom: 6px; display: flex; gap: 4px;">
-    <strong>Waiter:</strong>
-    <span>${selectedWaiter || user?.name || 'N/A'}</span>
-  </div>
-` : ''}
+      <!-- RIGHT DETAILS: right-aligned label/value pairs -->
+      <div style="display: flex; justify-content: flex-end; align-items: flex-start;">
+        <div class="details-grid">
+          ${activeTab !== 'Quick Bill' || showKotNoQuickBill ? `
+            <div><strong>KOT No:</strong></div><div>${displayKOTNo}</div>
+          ` : ''}
+          <div><strong>Date:</strong></div>
+          <div style="font-size: 8pt; white-space: nowrap;">${dateTime}</div>
+          ${showWaiter ? `
+            <div><strong>Waiter:</strong></div>
+            <div style="word-wrap: break-word; max-width: 80px;">${selectedWaiter || user?.name || 'N/A'}</div>
+          ` : ''}
+        </div>
       </div>
     </div>
 
+    <!-- EXTRA FIELDS -->
+    ${showUsername ? `<div style="font-size: 9pt; margin-bottom: 3px;"><strong>Username:</strong> ${user.username}</div>` : ''}
+    ${showTerminalUsername ? `<div style="font-size: 9pt; margin-bottom: 3px;"><strong>Terminal:</strong> ${user.terminal_username}</div>` : ''}
+    ${showCaptainUsername ? `<div style="font-size: 9pt; margin-bottom: 3px;"><strong>Captain:</strong> ${user.captain_username}</div>` : ''}
+    ${showOnlineOrderOtp ? `<div style="font-size: 9pt; margin-bottom: 3px;"><strong>OTP:</strong> 123456</div>` : ''}
+    ${showOrderIdQuickBill ? `<div style="font-size: 9pt; margin-bottom: 3px;"><strong>Order ID:</strong> QB-${currentKOTNo || 'N/A'}</div>` : ''}
+    ${showKotNoQuickBill ? `<div style="font-size: 9pt; margin-bottom: 3px;"><strong>KOT No:</strong> ${displayKOTNo}</div>` : ''}
+    ${showOrderNoQuickBillSection ? `<div style="font-size: 9pt; margin-bottom: 3px;"><strong>Order No:</strong> ${orderNo || 'N/A'}</div>` : ''}
 
-   </div>
+    <hr class="dashed" />
 
-    </div>
-
-
-    ${showUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Username:</strong> ${user.username}</div>` : ''}
-    ${showTerminalUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Terminal Username:</strong> ${user.terminal_username}</div>` : ''}
-    ${showCaptainUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Captain Username:</strong> ${user.captain_username}</div>` : ''}
- 
-    
-    ${showOnlineOrderOtp ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>OTP:</strong> 123456</div>` : ''}
-    ${showOrderIdQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order ID:</strong> QB-${currentKOTNo || 'N/A'}</div>` : ''}
-    ${showKotNoQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>KOT No:</strong> ${displayKOTNo}</div>` : ''}
-    ${showOrderNoQuickBillSection ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order No:</strong> ${orderNo || 'N/A'}</div>` : ''}
-
-    <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
     <!-- ITEM HEADER -->
-    <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; column-gap: 7px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">      <div style="text-align: center">Qty</div>
-      <div style="text-align: left">Item</div>
-      ${showRateColumn ? `<div style="text-align: right">Rate</div>` : ''}
-      ${showAmountColumn ? `<div style="text-align: right">Amt</div>` : ''}
+    <div class="header-row" style="grid-template-columns: ${gridCols};">
+      <div class="header-qty">Qty</div>
+      <div class="header-item">Item</div>
+      ${showRateColumn ? `<div class="header-rate">Rate</div>` : ''}
+      ${showAmountColumn ? `<div class="header-amt">Amt</div>` : ''}
     </div>
-    
-    <!-- ITEMS -->
+
+    <!-- CATEGORY GROUP HEADER (if enabled) -->
     ${groupKotItemsByCategory ? `
-
-    <!-- Grouped by Category Placeholder -->
-    <div style="font-weight: bold;   margin-bottom: 5px;">Category: Main Course</div>
+    <div style="font-weight: bold; margin-bottom: 4px; font-size: 9pt;">Category: Main Course</div>
     ` : ''}
-    ${kotItems.map((item) => {
-          const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
-          const modifierHtml = modifierDefaultOption && item.modifier && item.modifier.length > 0 ? `<div style="font-size: 8pt; color: #666;">Modifiers: ${item.modifier.join(', ')}</div>` : '';
-          const alternativeHtml = showAlternativeItem && item.alternativeItem ? `<div style="font-size: 8pt; color: #666;">Alt: ${item.alternativeItem}</div>` : '';
-          return `
-       <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; column-gap: 4px; font-weight: bold;  border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
-      <div style="text-align: center; font-size: 12pt; font-weight: bold;">
-    ${qty}
-  </div>
-  <div style="text-align: left; font-size: 11pt;">
-${item.name} 
-  <span class="kot-variant">(${item.variantName || ''})</span>${modifierHtml}${alternativeHtml}
-</div> 
 
-${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0)}</div>` : ''}
-        ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty)}</div>` : ''}
+    <!-- ITEMS -->
+    ${kotItems.map((item) => {
+      const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
+      const modifierHtml = modifierDefaultOption && item.modifier && item.modifier.length > 0
+        ? `<div style="font-size: 8pt; color: #444; font-weight: normal;">Mod: ${item.modifier.join(', ')}</div>`
+        : '';
+      const alternativeHtml = showAlternativeItem && item.alternativeItem
+        ? `<div style="font-size: 8pt; color: #555; font-weight: normal;">Alt: ${item.alternativeItem}</div>`
+        : '';
+      const variantHtml = item.variantName
+        ? `<span class="kot-variant"> (${item.variantName})</span>`
+        : '';
+
+      return `
+      <div class="item-row" style="grid-template-columns: ${gridCols};">
+        <div class="item-qty">${qty}</div>
+        <div class="item-name">
+          ${item.name}${variantHtml}
+          ${modifierHtml}
+          ${alternativeHtml}
+        </div>
+        ${showRateColumn ? `<div class="item-rate">${Number(item.price || 0)}</div>` : ''}
+        ${showAmountColumn ? `<div class="item-amt">${(item.price * qty).toFixed(2)}</div>` : ''}
       </div>
       `;
-        }).join('')}
+    }).join('')}
 
-
-    <!-- TOTALS -->
-    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt;">
-<div style="padding: 2px 10px;">
-   ${kotItems.reduce(
-          (a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty),
-          0
-        )}
-</div>
-
-      ${showAmountColumn ? `<div> ₹${kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0).toFixed(2)}</div>` : ''}
+    <!-- TOTALS ROW -->
+    <div class="totals-row">
+      <div style="min-width: ${qtyW}; text-align: center;">
+        ${kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0)}
+      </div>
+      <div style="flex: 1;"></div>
+      ${showAmountColumn ? `
+        <div style="text-align: right; white-space: nowrap;">
+          &#8377;${kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0).toFixed(2)}
+        </div>
+      ` : ''}
     </div>
-    <!-- FOOTER -->
-        ${showKotNote && kotNote ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Note:</strong> ${kotNote}</div>` : ''}
 
-    
+    <!-- KOT NOTE -->
+    ${showKotNote && kotNote ? `
+    <hr class="dashed" />
+    <div style="font-size: 9pt; word-wrap: break-word;"><strong>Note:</strong> ${kotNote}</div>
+    ` : ''}
     `;
   }, [localFormData, printItems, items, restaurantName, localRestaurantName, user, outletName, localOutletName, activeTab, currentKOTNo, selectedTable, customerName, mobileNumber, pax]);
 
   if (autoPrint) {
-    // For auto print, don't show the modal, just handle printing in useEffect
     return null;
   }
 
@@ -723,21 +751,25 @@ ${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0)}</d
               <div
                 key={JSON.stringify(localFormData)}
                 style={{
-                  width: "76mm",
+                  /* Preview wrapper: just enough to show the 72mm strip */
+                  width: "272px",          /* 72mm ≈ 272px at 96dpi */
+                  minWidth: "272px",
+                  maxWidth: "272px",
                   margin: "0 auto",
                   fontFamily: "'Courier New', monospace",
                   fontSize: "11px",
-                  lineHeight: "1.1",
-                  padding: "7px",
+                  lineHeight: "1.3",
                   color: "#000",
                   backgroundColor: "white",
-                  border: "1px solid #ccc"
+                  border: "1px solid #ccc",
+                  overflowX: "hidden",
+                  boxSizing: "border-box",
+                  paddingLeft: "8px",      /* mirror the #kot-preview-content left padding */
+                  paddingRight: "5px",
                 }}
                 dangerouslySetInnerHTML={{ __html: generateKOTContent }}
               />
             </div>
-
-
           </div>
         )}
       </Modal.Body>
@@ -752,11 +784,9 @@ ${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0)}</d
         >
           Print KOT
         </Button>
-
       </Modal.Footer>
     </Modal>
   );
 };
 
 export default KotPreviewPrint;
-

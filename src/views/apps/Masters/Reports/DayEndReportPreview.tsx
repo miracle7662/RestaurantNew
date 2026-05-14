@@ -109,21 +109,22 @@ const STYLES = `
     );
   }
   .der-empty { text-align: center; padding-top: 80px; color: #6b6055; }
-  .der-empty h6 { font-family: 'Courier Prime', monospace; margin-top: 12px; letter-spacing: 1px; }
+  .der-empty h6 { font-family: 'Courier Prime', monospace; margin-top: 11px; letter-spacing: 1px; }
 
   /* ── Receipt content classes ── */
-  .rc { font-family: 'Courier Prime','Courier New',Courier,monospace; font-size: 10.5px; color: #1a1612; line-height: 1.5; }
-  .rc-hotel { font-size: 15px; font-weight: 700; text-align: center; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 4px; padding-bottom: 5px; border-bottom: 2px solid #1a1612; }
-  .rc-meta  { text-align: center; font-size: 10px; color: #5a5048; margin-bottom: 2px; }
-  .rc-section { font-size: 10.5px; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 1.2px; border-top: 2px solid #1a1612; border-bottom: 1px solid #1a1612; padding: 3px 0; margin: 8px 0 4px; }
+  .rc { font-family: 'Courier Prime','Courier New',Courier,monospace; font-size: 11px; color: #1a1612; line-height: 1.5; }
+  .rc-hotel { font-size: 16px; font-weight: 700; text-align: center; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 4px; padding-bottom: 5px; border-bottom: 2px solid #1a1612; }
+  .rc-meta  { text-align: center; font-size: 11px; color: #5a5048; margin-bottom: 2px; }
+  .rc-section { font-size: 11px; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 1.2px; border-top: 2px solid #1a1612; border-bottom: 1px solid #1a1612; padding: 3px 0; margin: 8px 0 4px; }
   .rc-hr-dash { border: none; border-top: 1px dashed #8a7f72; margin: 3px 0; }
   .rc-hr-solid{ border: none; border-top: 1px solid #1a1612; margin: 3px 0; }
-  .rc-row      { display: flex; justify-content: space-between; font-size: 10px; padding: 1.2px 0; }
-  .rc-row-bold { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; padding: 2px 0; border-top: 1px solid #1a1612; border-bottom: 1px solid #1a1612; margin: 2px 0; }
-  .rc-col-hdr  { display: grid; font-size: 9.5px; font-weight: 700; border-bottom: 1px solid #1a1612; padding-bottom: 2px; margin-bottom: 2px; }
-  .rc-col-row  { display: grid; font-size: 9.5px; padding: 1.2px 0; border-bottom: 1px dashed #c8bfae; }
-  .rc-total    { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; border-top: 1px solid #1a1612; padding-top: 2px; margin-top: 2px; }
-  .rc-footer   { text-align: center; font-size: 9.5px; color: #7a6f62; margin-top: 6px; letter-spacing: 0.8px; }
+  .rc-row      { display: flex; justify-content: space-between; font-size: 13px; padding: 1.2px 0; }
+  .rc-row-bold { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; padding: 2px 0; border-top: 1px solid #1a1612; border-bottom: 1px solid #1a1612; margin: 2px 0; }
+  .rc-col-hdr  { display: grid; font-size: 14px; font-weight: 700; border-bottom: 1px solid #1a1612; padding-bottom: 2px; margin-bottom: 2px; }
+  .rc-col-row  { display: grid; font-size: 14px; padding: 1.2px 0; border-bottom: 1px dashed #c8bfae; }
+  .rc-total    { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; border-top: 1px solid #1a1612; padding-top: 2px; margin-top: 2px; }
+  .rc-footer   { text-align: center; font-size: 11px; color: #7a6f62; margin-top: 6px; letter-spacing: 0.8px; }
+
 `;
 
 // ─────────────────────────────────────────────
@@ -431,14 +432,16 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   let b = '';
 
   // Header
-  b += `<div style="text-align:center;font-weight:700;font-size:13px;border-bottom:1px solid #000;padding-bottom:3px;margin-bottom:5px;">${hotelName}</div>`;
-  b += `<div style="text-align:center;font-size:10px;margin-bottom:8px;">Date: ${businessDate}</div>`;
+  b += `<div style="text-align:center;font-weight:700;font-size:15px;border-bottom:1px solid #000;padding-bottom:3px;margin-bottom:5px;">${hotelName}</div>`;
+  b += `<div style="text-align:center;font-size:12px;margin-bottom:8px;">Date: ${businessDate}</div>`;
+
 
 
   // Bill Details Section
   if (data.billDetails?.length) {
-    b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:5px 0;">BILL DETAILS</div>`;
-    b += `<div style="font-size:10px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+      b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:5px 0;">BILL DETAILS</div>`;
+    b += `<div style="font-size:12px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+
             <span class="re-head" style="width:20%">Bill</span>
             <span class="re-head" style="width:15%">Tbl</span>
             <span class="re-head" style="width:14%;text-align:right">Disc</span>
@@ -484,9 +487,10 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
       b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">PAYMENT SUMMARY</div>`;
       let total = 0;
       filtered.forEach(p => {
-        b += `<div style="font-size:9px;display:flex;justify-content:space-between;padding:1px 0;">
+      b += `<div style="font-size:10px;display:flex;justify-content:space-between;padding:1px 0;">
                 <span class="re-val">${p.PaymentType}</span>
                 <span class="re-val" style="text-align:right">${f(p.totalAmount)}</span>
+
 
               </div>`;
         total += Number(p.totalAmount || 0);
@@ -500,15 +504,17 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   // Credit Summary Section
   if (data.creditSummary?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">CREDIT SUMMARY</div>`;
-    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
+      b += `<div style="font-size:10px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
               <span class="re-head" style="width:60%">Customer</span>
+
               <span class="re-head" style="width:15%;text-align:right">Bills</span>
               <span class="re-head" style="width:25%;text-align:right">Amount</span>
           </div>`;
     let total = 0;
     data.creditSummary.forEach(c => {
-      b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
+      b += `<div style="font-size:10px;display:flex;justify-content:space-between;">
               <span class="re-val" style="width:60%">${(c.customerName || '').substring(0, 18)}</span>
+
               <span class="re-val" style="width:15%;text-align:right">${c.billCount}</span>
               <span class="re-val" style="width:25%;text-align:right">${f(c.creditAmount)}</span>
             </div>`;
@@ -627,93 +633,73 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   return `<html>
 <head>
   <style>
-    @page {
-      size: 80mm auto;
-      margin: 0;
-    }
+   @page {
+  size: 80mm auto;
+  margin: 0;
+}
 
-    html,
-    body {
-      margin: 0;
-      padding: 0;
-      width: 80mm;
-      background: #ffffff;
-    }
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 80mm;
+  background: #ffffff;
+}
 
-    body {
-      font-family: monospace;
-      font-size: 10px;
-      line-height: 1.2;
-      width: 76mm;
-      margin: 0 auto;
-      padding: 2mm 2mm 4mm 2mm;
-      color: #000000;
+body {
+  font-family: monospace;
+  font-size: 12.5px;
+  line-height: 1.2;
+  width: 76mm;
+  margin: 0 auto;
+  padding: 2mm 2mm 4mm 2mm;
+  color: #000000;
 
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 
-      overflow: visible !important;
-    }
+  overflow: visible !important;
+}
 
-    * {
-      box-sizing: border-box;
-    }
+* {
+  box-sizing: border-box;
+}
 
-    div,
-    table,
-    tr,
-    td {
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-    }
+div,
+table,
+tr,
+td {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
 
-    /* ── DayEnd thermal print helpers ── */
-    .re-head {
-      font-weight: 700;
-      padding: 0 1mm;
-      white-space: nowrap;
-    }
+/* ── Heading Style ── */
+.re-head {
+  font-weight: 700;
+  font-size: 10px;
+  padding: 0 1mm;
+  white-space: nowrap;
+}
 
-    .re-val {
-      font-weight: 700;
-      padding: 0 1mm;
-      white-space: nowrap;
-    }
+/* ── Report Fetch Data / Values Style ── */
+.re-val {
+  font-weight: 700;
+  font-size: 12px;   /* increase value font size */
+  padding: 0 1mm;
+  white-space: nowrap;
+}
 
-    .re-col {
-      display: inline-block;
-    }
+/* ── Layout Helpers ── */
+.re-col {
+  display: inline-block;
+}
 
-    .re-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 0;
-      gap: 0;
-    }
-
-    /* ── DayEnd thermal print helpers ── */
-    .re-head {
-      font-weight: 700;
-      padding: 0 1mm;
-      white-space: nowrap;
-    }
-
-    .re-val {
-      font-weight: 700;
-      padding: 0 1mm;
-      white-space: nowrap;
-    }
-
-    .re-col {
-      display: inline-block;
-    }
-
-    .re-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 0;
-      gap: 0;
-    }
+.re-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 1px 0;
+  gap: 0;
+}
   </style>
 </head>
 
