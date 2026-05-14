@@ -33,6 +33,8 @@ const getDayendData = async (req, res) => {
           t.NCName,
           (SELECT GROUP_CONCAT(CONCAT(s.PaymentType, ':', s.Amount)) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1) as Settlements,
           (SELECT GROUP_CONCAT(s.PaymentType) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1) as PaymentType,
+          COALESCE((SELECT SUM(COALESCE(s.TipAmount, 0)) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1), 0) as TipAmountTotal,
+          COALESCE((SELECT SUM(COALESCE(s.Amount, 0)) + SUM(COALESCE(s.TipAmount, 0)) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1), 0) as SettlementAmountTotal,
           t.isSetteled,
           t.isBilled,
           t.isreversebill,
@@ -101,6 +103,8 @@ const getDayendData = async (req, res) => {
           cgst: parseFloat(row.CGST || 0),
           sgst: parseFloat(row.SGST || 0),
           outletid: row.outletid,
+          tip: parseFloat(row.TipAmountTotal || 0),
+          settlementAmount: parseFloat(row.SettlementAmountTotal || 0),
           grossAmount: parseFloat(row.GrossAmount || 0),
           roundOff: parseFloat(row.RoundOFF || 0),
           revAmt: parseFloat(row.RevAmt || 0),
@@ -120,6 +124,8 @@ const getDayendData = async (req, res) => {
           credit: paymentBreakdown.credit,
           isDayEnd: row.isDayEnd,
           dayEndEmpID: row.DayEndEmpID,
+          tip: parseFloat(row.TipAmountTotal || 0),
+          settlementAmount: parseFloat(row.SettlementAmountTotal || 0),
         };
       }
     }

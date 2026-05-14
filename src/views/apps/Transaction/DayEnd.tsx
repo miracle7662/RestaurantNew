@@ -870,9 +870,10 @@ const DayEnd = () => {
                             <th>Table</th>
                             <th>Gross Amount</th>
                             <th>Discount</th>
-                            <th>Total Amount</th>
+                            <th>Bill Amount</th>
+                            <th>Total Amt</th>
                             <th>Tip Amount</th>
-                            <th>Settlement Amount</th>
+                            
                             <th>CGST</th>
                             <th>SGST</th>
                             <th>Round off</th>
@@ -925,9 +926,10 @@ const DayEnd = () => {
                                 </td>
                                 <td className="fw-semibold" style={{ textAlign: 'right' }}>₹{(order.grossAmount || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>-₹{order.discount.toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.settlementAmount || 0).toLocaleString()}</td>
+
                                 <td style={{ textAlign: 'right' }}>₹{order.amount.toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.tip || 0).toLocaleString()}</td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.settlementAmount || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{order.cgst.toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{order.sgst.toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.roundOff || 0).toLocaleString()}</td>
@@ -968,9 +970,10 @@ const DayEnd = () => {
                             <td></td>
                             <td style={{ textAlign: 'right' }}>₹{totalGrossAmount.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>-₹{totalDiscount.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalSettlement.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalSales.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalTip.toLocaleString()}</td>
-                            <td style={{ textAlign: 'right' }}>₹{totalSettlement.toLocaleString()}</td>
+                            
                             <td style={{ textAlign: 'right' }}>₹{totalCGST.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalSGST.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalRoundOff.toLocaleString()}</td>
