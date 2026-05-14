@@ -1355,149 +1355,129 @@ const ReportPage = () => {
       serviceCharge_Amount: 0, 
       totalAmount: 0, 
       cardAmount: 0,
+      cash: 0,
+      upi: 0,
+      card: 0,
+      tipAmount: 0,
+      settleAmount: 0,
+      billAmount: 0,
+      netAmount: 0,
+      taxbleAmount: 0,
       ...paymentModes.reduce((acc, mode) => {
         const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
         acc[modeKey] = 0;
         return acc;
       }, {} as { [key: string]: number })
     };
+    
     const totals = billSummaryData.reduce((acc, bill) => {
-      acc.totalAmount += bill.totalAmount || 0;
+      acc.settleAmount += bill.settleAmount || bill.totalAmount || 0;
+      acc.tipAmount += bill.tipAmount || 0;
+      acc.billAmount += bill.billAmount || bill.amount || 0;
       acc.discount += bill.discount || 0;
-      acc.amount += bill.amount || 0;
+      acc.netAmount += bill.netAmount || bill.amount || 0;
+      acc.taxbleAmount += bill.taxbleAmount || (bill.cgst || 0) + (bill.sgst || 0) + (bill.igst || 0);
       acc.cgst += bill.cgst || 0;
       acc.sgst += bill.sgst || 0;
       acc.roundOff += bill.roundOff || 0;
       acc.grossAmount += bill.grossAmount || 0;
-      acc.revAmt += bill.revAmt || 0;
-      acc.igst += bill.igst || 0;
-      acc.serviceCharge_Amount += bill.serviceCharge_Amount || 0;
+      acc.cash += bill.cash || 0;
+      acc.upi += (bill.gpay || 0) + (bill.phonepe || 0) + (bill.qrcode || 0);
+      acc.card += bill.card || 0;
       paymentModes.forEach(pm => {
         const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
         acc[modeKey] += (bill as any)[modeKey] || 0;
       });
-      acc.cardAmount += bill.creditDetails?.amount || 0; // For the specific "Card Amount" column
       return acc;
     }, initialTotals);
+
+    // Calculate UPI total from payment modes if not directly available
+    const upiTotal = totals.upi || Object.keys(totals).filter(k => 
+      k.includes('gpay') || k.includes('phonepe') || k.includes('qr') || k.includes('upi')
+    ).reduce((sum, k) => sum + (totals as any)[k], 0);
 
     return (
       <Card className="p-2 shadow-sm border-0">
         <Card.Header style={{ backgroundColor: "#E3F2FD" }}>
-          <h5 className="mb-0">📋 Bill Summary with Credit Card Details</h5>
+          <h5 className="mb-0">📋 Bill Summary</h5>
         </Card.Header>
-        <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh' ,padding: '0.5rem'}}>
+        <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh', padding: '0.5rem' }}>
           <Table bordered hover responsive size="sm">
             <thead style={{ backgroundColor: "#FFF3E0" }}>
               <tr>
                 {[
-                  "Bill No", "Sale Amt (₹)", "Discount (₹)", "Net Amt (₹)", "CGST (₹)", "SGST (₹)", "Round Off", "Gross Total (₹)",
-                  ...paymentModes.map(pm => `${pm.mode_name} (₹)`),
-                  "Customer Name", "Bill Date", "KOT No", "Rev KOT No", "Rev Amt", "Payment Mode", "Waiter", "Captain", "User", "Order Type", "Card Number", "Bank", "Card Amount (₹)", "Outlet Name", "Table Name", "Department Name",
-                  "Discount %", "Discount Type", "IGST (₹)", "Service Charge (₹)", "PAX",
-                  "Home Delivery", "Pickup", "Cancelled", "NC KOT", "NC Name", "NC Purpose",
-                  "Billed Date", "Mobile No", "Address", "Landmark", "Handover Emp", "DayEnd Emp"
+                  "Bill No",
+                  "Bill Date",
+                  "Settle Amount (₹)",
+                  "Tip Amount (₹)",
+                  "Bill Amount (₹)",
+                  "Discount (₹)",
+                  "Net Amount (₹)",
+                  "Taxable Amount (₹)",
+                  "CGST (₹)",
+                  "SGST (₹)",
+                  "Round Off (₹)",
+                  "Gross Total (₹)",
+                  "Payment Mode",
+                  "Cash (₹)",
+                  "UPI (₹)",
+                  "Card (₹)",
+                  "Order Type"
                 ].map((h, i) => (
                   <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {billSummaryData.length > 0 ? billSummaryData.map((b, i) => (
-                <tr key={i}>
-                  <td className="text-start">{b.billNo}</td>                                     {/* BillNo */}
-                  <td className="text-end">{b.totalAmount?.toFixed(2) || '0.00'}</td>              {/* Sale Amt */}
-                  <td className="text-end">{b.discount?.toFixed(2) || '0.00'}</td>                  {/* Discount */}
-                  <td className="text-end">{b.amount?.toFixed(2) || '0.00'}</td>                    {/* Net Amt */}
-                  <td className="text-end">{b.cgst?.toFixed(2) || '0.00'}</td>                      {/* CGST */}
-                  <td className="text-end">{b.sgst?.toFixed(2) || '0.00'}</td>                      {/* SGST */}
-                  <td className="text-end">{b.roundOff?.toFixed(2) || '0.00'}</td>                  {/* R.Off */}
-                  <td className="text-end">{b.grossAmount?.toFixed(2) || '0.00'}</td>              {/* GrossTotal */}
-                  {paymentModes.map(pm => {
-                    const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
-                    let amount = 0;
-                    if (modeKey.includes('cash')) amount = b.cash ?? 0;
-                    else if (modeKey.includes('card')) amount = b.card ?? 0;
-                    else if (modeKey.includes('credit')) amount = b.credit ?? 0;
-                    else if (modeKey.includes('gpay')) amount = b.gpay ?? 0;
-                    else if (modeKey.includes('phonepe')) amount = b.phonepe ?? 0;
-                    else if (modeKey.includes('qr')) amount = b.qrcode ?? 0;
-                    else {
-                      // Fallback for other modes like Zomato, Swiggy, etc.
-                      // This assumes the backend provides a matching key.
-                      amount = (b as any)[modeKey] ?? 0;
-                    }
-                    return <td key={pm.id} className="text-end">{(amount).toFixed(2)}</td>;
-                  })}
-                  <td className="text-start">{b.customerName}</td>                               {/* Customer Name */}
-                  {/* Other fields */}
-                  <td className="text-start">{b.billDate}</td>
-                  <td className="text-start">{b.kotNo}</td>
-                  <td className="text-start">{b.revKotNo}</td>
-                  <td className="text-end">{b.revAmt?.toFixed(2) || '0.00'}</td>
-                  <td className="text-start">{b.paymentMode}</td>
-                  <td className="text-start">{b.waiter}</td>
-                  <td className="text-start">{b.captain}</td>
-                  <td className="text-start">{b.user}</td>
-                  <td className="text-start">{b.orderType}</td>
-                  <td className="text-start">{b.creditDetails?.cardNumber}</td>
-                  <td className="text-start">{b.creditDetails?.bank}</td>
-                  <td className="text-end">{b.creditDetails?.amount.toFixed(2)}</td>
-                  <td className="text-start">{b.outlet_name}</td>
-                  <td className="text-start">{b.table_name}</td>
-                  <td className="text-start">{b.department_name}</td>
-                  {/* New fields at the end */}
-                  <td className="text-end">{b.discPer?.toFixed(2) || '0.00'}</td>                   {/* Discount % */}
-                  <td className="text-start">{b.discountType === 1 ? 'Percentage' : 'Amount'}</td> {/* Discount Type */}
-                  <td className="text-end">{b.igst?.toFixed(2) || '0.00'}</td>                      {/* IGST */}
-                  <td className="text-end">{b.serviceCharge_Amount?.toFixed(2) || '0.00'}</td>      {/* Service Charge */}
-                  <td className="text-center">{b.pax}</td>                                        {/* PAX */}
-                  {/* Additional fields at the end */}
-                  <td className="text-center">{b.isHomeDelivery ? 'Yes' : 'No'}</td>
-                  <td className="text-center">{b.isPickup ? 'Yes' : 'No'}</td>
-                  <td className="text-center">{b.isCancelled ? 'Yes' : 'No'}</td>
-                  <td className="text-start">{b.ncKot || 'N/A'}</td>
-                  <td className="text-start">{b.ncName || 'N/A'}</td>
-                  <td className="text-start">{b.ncPurpose || 'N/A'}</td>
-                  {/* Final new fields */}
-                  <td className="text-start">{b.billedDate ? new Date(b.billedDate).toLocaleString() : 'N/A'}</td>
-                  <td className="text-start">{b.mobile || 'N/A'}</td>
-                  <td className="text-start">{b.address || 'N/A'}</td>
-                  <td className="text-start">{b.landmark || 'N/A'}</td>
-                  <td className="text-center">{b.handOverEmpID || 'N/A'}</td>
-                  <td className="text-center">{b.dayEndEmpID || 'N/A'}</td>
-                </tr>
-              )) : <tr><td colSpan={48} className="text-center">No data available</td></tr>}
+              {billSummaryData.length > 0 ? billSummaryData.map((b, i) => {
+                // Calculate UPI amount for this row
+                const upiAmount = (b.gpay || 0) + (b.phonepe || 0) + (b.qrcode || 0);
+                
+                return (
+                  <tr key={i}>
+                    <td className="text-start">{b.billNo || b.orderNo || 'N/A'}</td>
+                    <td className="text-start">{b.billDate || b.date || 'N/A'}</td>
+                    <td className="text-end">{(b.settleAmount || b.totalAmount || 0).toFixed(2)}</td>
+                    <td className="text-end">{(b.tipAmount || 0).toFixed(2)}</td>
+                    <td className="text-end">{(b.billAmount || b.amount || 0).toFixed(2)}</td>
+                    <td className="text-end">{(b.discount || 0).toFixed(2)}</td>
+                    <td className="text-end">{(b.netAmount || b.amount || 0).toFixed(2)}</td>
+                    <td className="text-end">{(b.taxbleAmount || (b.cgst || 0) + (b.sgst || 0) + (b.igst || 0)).toFixed(2)}</td>
+                    <td className="text-end">{(b.cgst || 0).toFixed(2)}</td>
+                    <td className="text-end">{(b.sgst || 0).toFixed(2)}</td>
+                    <td className="text-end">{(b.roundOff || 0).toFixed(2)}</td>
+                    <td className="text-end">{(b.grossAmount || 0).toFixed(2)}</td>
+                    <td className="text-start">{b.paymentMode || 'N/A'}</td>
+                    <td className="text-end">{(b.cash || 0).toFixed(2)}</td>
+                    <td className="text-end">{upiAmount.toFixed(2)}</td>
+                    <td className="text-end">{(b.card || 0).toFixed(2)}</td>
+                    <td className="text-start">{b.orderType || 'N/A'}</td>
+                  </tr>
+                );
+              }) : (
+                <tr><td colSpan={17} className="text-center">No data available</td></tr>
+              )}
             </tbody>
             {billSummaryData.length > 0 && (
               <tfoot className="fw-bold">
                 <tr>
                   <td>Total</td>
-                  <td className="text-end">{totals.totalAmount.toFixed(2)}</td>
+                  <td></td>
+                  <td className="text-end">{totals.settleAmount.toFixed(2)}</td>
+                  <td className="text-end">{totals.tipAmount.toFixed(2)}</td>
+                  <td className="text-end">{totals.billAmount.toFixed(2)}</td>
                   <td className="text-end">{totals.discount.toFixed(2)}</td>
-                  <td className="text-end">{totals.amount.toFixed(2)}</td>
+                  <td className="text-end">{totals.netAmount.toFixed(2)}</td>
+                  <td className="text-end">{totals.taxbleAmount.toFixed(2)}</td>
                   <td className="text-end">{totals.cgst.toFixed(2)}</td>
                   <td className="text-end">{totals.sgst.toFixed(2)}</td>
                   <td className="text-end">{totals.roundOff.toFixed(2)}</td>
                   <td className="text-end">{totals.grossAmount.toFixed(2)}</td>
-                  {/* Dynamic colspan for payment modes */}
-                  {paymentModes.map(pm => {
-                    const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
-                    return <td key={`total-${pm.id}`} className="text-end">{(totals as any)[modeKey]?.toFixed(2) || '0.00'}</td>;
-                  })}
-                  {/* Empty cells for non-total columns */}
-                  <td></td>{/* Customer Name */}
-                  <td></td>{/* Bill Date */}
-                  <td></td>{/* KOT No */}
-                  <td></td>{/* Rev KOT No */}
-                  <td className="text-end">{totals.revAmt.toFixed(2)}</td>
-                  <td colSpan={5}></td>{/* Payment Mode to Order Type */}
-                  <td></td>{/* Card Number */}
-                  <td></td>{/* Bank */}
-                  <td className="text-end">{totals.cardAmount.toFixed(2)}</td>
-                  <td colSpan={5}></td>{/* Outlet to PAX */}
-                  <td className="text-end">{totals.igst.toFixed(2)}</td>
-                  <td className="text-end">{totals.serviceCharge_Amount.toFixed(2)}</td>
-                  <td colSpan={7}></td>{/* PAX to DayEnd Emp */}
+                  <td></td>
+                  <td className="text-end">{totals.cash.toFixed(2)}</td>
+                  <td className="text-end">{upiTotal.toFixed(2)}</td>
+                  <td className="text-end">{totals.card.toFixed(2)}</td>
+                  <td></td>
                 </tr>
               </tfoot>
             )}
@@ -1506,7 +1486,6 @@ const ReportPage = () => {
       </Card>
     );
   };
-
   const renderCreditSummarySection = () => (
     <Card className="p-2 shadow-sm border-0">
       <Card.Header style={{ backgroundColor: "#E8F5E9" }}>

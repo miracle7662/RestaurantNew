@@ -3425,13 +3425,18 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
                   </Col>
 
                   {/* Date (business date) */}
-                  <Col style={{ flex: "0 0 140px", maxWidth: "130px" }}>
+                 <Col style={{ flex: "0 0 140px", maxWidth: "130px" }}>
                     <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
                       <div className="text-uppercase small fw-semibold text-secondary mb-1">
                         <i className="fi fi-rr-calendar"></i> Date
                       </div>
+
                       <div className="fw-bold fs-5 text-dark">
-                        {user?.currDate || '--'}
+                        {user?.currDate
+                          ? new Date(user.currDate)
+                              .toLocaleDateString("en-GB")
+                              .replace(/\//g, "-")
+                          : "--"}
                       </div>
                     </div>
                   </Col>

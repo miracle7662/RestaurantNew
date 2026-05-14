@@ -124,9 +124,13 @@ const Header = ({ toggleMenu, navOpen }: HeaderProps) => {
           {/* header-right */}
           <div className="header-right d-flex align-items-center justify-content-center">
 
-{user?.currDate && (
-                  <span className="text-white fw-bold -start ps-2 me-3">Date: {user.currDate}</span>
-                )}
+          {user?.currDate && (
+            <span className="text-white fw-bold -start ps-2 me-3">
+              Date: {new Date(user.currDate)
+                .toLocaleDateString("en-GB")
+                .replace(/\//g, "-")}
+            </span>
+          )}
                 <span className="text-white fw-bold -start ps-2">
                   IP: {isLoadingIP ? 'Loading...' : ipAddress}
                 </span>
