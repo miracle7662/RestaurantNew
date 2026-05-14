@@ -1,6 +1,5 @@
 // SettlementModal.tsx
 import React, { useState, useEffect } from 'react';
-
 import { fetchCustomerByMobile } from '@/utils/commonfunction';
 import Customers from './Customers';
 
@@ -11,7 +10,6 @@ interface PaymentMode {
   id: number;
   mode_name: string;
   outletid: number;
-  sequence?: number;          // ← ADDED: sequence for correct ordering
 }
 
 interface Settlement {
@@ -43,7 +41,7 @@ interface SettlementModalProps {
   initialPaymentAmounts?: { [key: string]: string };
   initialIsMixed?: boolean;
   initialTip?: number;
-  initialCashReceived?: number;
+  initialCashReceived?: number;  // FIXED: Added for received amount
   table_name?: string | null;
 }
 
@@ -59,7 +57,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   initialPaymentAmounts = {},
   initialIsMixed = false,
   initialTip = 0,
-  initialCashReceived = 0,
+  initialCashReceived = 0,  // FIXED: Destructure the prop
   table_name,
   initialMobile,
   initialCustomerName,
@@ -84,6 +82,8 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   const hasCreditMode = selectedPaymentModes.some(mode => mode.toLowerCase() === 'credit');
 
   // Customer states for Credit mode (ONLY visible when hasCreditMode)
+
+
   const [customerMobile, setCustomerMobile] = useState(initialMobile || '');
   const [customerName, setCustomerName] = useState(initialCustomerName || '');
   const [customerId, setCustomerId] = useState<number | null>(initialCustomerId || null);
@@ -265,25 +265,6 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     }
   }, [show, initialIsMixed, initialSelectedModes, initialPaymentAmounts, initialTip, outletPaymentModes, grandTotal]);
 
-  // ========== FIXED SORTING LOGIC ==========
-  // Sort selected payment modes by the sequence defined in outletPaymentModes
-  const sortedSelectedPaymentModes = (() => {
-    // Build a map of mode_name -> sequence (use Infinity if missing)
-    const seqMap = new Map<string, number>();
-    for (const m of outletPaymentModes || []) {
-      const seq = (m.sequence !== undefined && m.sequence !== null) ? m.sequence : Number.POSITIVE_INFINITY;
-      seqMap.set(m.mode_name, seq);
-    }
-    // Sort the selected mode names by their sequence, then alphabetically as fallback
-    return [...selectedPaymentModes].sort((a, b) => {
-      const sa = seqMap.get(a) ?? Number.POSITIVE_INFINITY;
-      const sb = seqMap.get(b) ?? Number.POSITIVE_INFINITY;
-      if (sa !== sb) return sa - sb;
-      return a.localeCompare(b);
-    });
-  })();
-  // =========================================
-
   const handleSettle = async () => {
     if (loading) return;
 
@@ -293,6 +274,8 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       toast.error('Customer details required for Credit payment');
       return;
     }
+
+
 
     // Validate: Received amount must be >= Bill amount (including tip)
     if (cashReceived > 0 && cashReceived < grandTotal) {
@@ -419,17 +402,19 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
           <Col md={8} className="p-2 bg-light d-flex flex-column">
             {/* Due Amount */}
             <div className="text-center mb-4">
+
               <div className="fs-2 fw-bold text-success  rounded text-center ">₹{grandTotal.toFixed(2)}</div>
             </div>
 
+            {/* Selected Payment Inputs */}
             {/* Selected Payment Inputs – compact version */}
-            {sortedSelectedPaymentModes.length === 0 ? (
+            {selectedPaymentModes.length === 0 ? (
               <div className="text-center text-muted py-3">
                 Select payment method(s) to continue
               </div>
             ) : (
-              <div className="mb-3">
-                {sortedSelectedPaymentModes.map(modeName => (
+              <div className="mb-3">  {/* adjusted bottom margin for new layout */}
+                {selectedPaymentModes.map(modeName => (
                   <div
                     key={modeName}
                     className={`
@@ -437,12 +422,12 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
                       d-flex align-items-center gap-2
                       ${isMixedPayment ? '' : 'border-success bg-success-subtle'}
                     `}
-                    style={{ minHeight: '52px' }}
+                    style={{ minHeight: '52px' }}  // ← controls overall row height
                   >
                     {/* Mode Name */}
                     <strong
                       className={`flex-grow-1 ${isMixedPayment ? 'text-danger' : 'text-success'}`}
-                      style={{ fontSize: '1rem' }}
+                      style={{ fontSize: '1rem' }}  // slightly smaller than before
                     >
                       {modeName}
                     </strong>
@@ -450,12 +435,12 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
                     {/* Amount input + Remove button */}
                     <div className="d-flex align-items-center gap-2" style={{ minWidth: '200px' }}>
                       <Form.Control
-                        size="sm"
+                        size="sm"                    // ← makes input noticeably shorter
                         type="number"
                         value={paymentAmounts[modeName] ?? ''}
                         onChange={e => handleAmountChange(modeName, e.target.value)}
                         onFocus={() => handleAmountFocus(modeName)}
-                        className="text-end fw-bold py-1"
+                        className="text-end fw-bold py-1"  // reduced vertical padding
                         style={{ width: '130px' }}
                         step="0.01"
                         min="0"
@@ -561,12 +546,12 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
             )}
 
             {/* Footer-like Summary Card – now inside right column */}
-            <div className="mt-auto">
+            <div className="mt-auto">  {/* Pushes it to the bottom of the right column */}
               <Card
                 className="shadow-sm border-0"
                 style={{
                   backgroundColor: '#f8f9fa',
-                  maxWidth: '100%',
+                  maxWidth: '100%',  // Full width in right column
                 }}
               >
                 <Card.Body className="py-3 px-4">
@@ -620,7 +605,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
                               ? 'text-danger bg-danger-subtle border-danger'
                               : 'text-success bg-success-subtle border-success'
                           }`}
-                        style={{ height: '31px' }}
+                        style={{ height: '31px' }} // Match Form.Control height
                       >
                         {cashReceived - (grandTotal + (tip || 0)) > 0
                           ? `₹${(cashReceived - (grandTotal + (tip || 0))).toFixed(2)}`
@@ -637,6 +622,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
         </Row>
       </Modal.Body>
 
+      {/* Simplified Footer – now only buttons, since summary is in right column */}
       {/* Customer Management Modal */}
       <Modal
         show={showCustomerModal}
@@ -666,7 +652,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
           variant="success"
           size="lg"
           onClick={handleSettle}
-          disabled={loading || balanceDue > 0 || sortedSelectedPaymentModes.length === 0}
+          disabled={loading || balanceDue > 0 || selectedPaymentModes.length === 0}
           style={{ minWidth: '180px' }}
         >
           {loading ? (

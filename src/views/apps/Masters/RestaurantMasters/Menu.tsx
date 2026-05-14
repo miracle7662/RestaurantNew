@@ -524,7 +524,7 @@ const Menu: React.FC = () => {
         </Offcanvas>
 
         <div className="flex-grow-1 p-3">
-          <div style={{ maxHeight: 'calc(100vh - 80px)', paddingRight: '10px' }}>
+          <div style={{ maxHeight: 'calc(100vh - 80px)', paddingRight: '10px', overflowY: 'auto', overflowX: 'hidden' }}>
             <Row xs={1} sm={2} md={3} lg={4} className="g-3 mb-4">
               {cardItems
                 .filter((item) => {
