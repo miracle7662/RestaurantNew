@@ -148,7 +148,9 @@ const Menu: React.FC = () => {
   const [editItem, setEditItem] = useState<MenuItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [globalFilter, setGlobalFilter] = useState<string>('');
+  const [nameSearch, setNameSearch] = useState<string>('');
+  const [codeSearch, setCodeSearch] = useState<string>('');
+
   const [loading, setLoading] = useState(true);
   const [, setOutlets] = useState<OutletData[]>([]);
   const [, setBrands] = useState<any[]>([]);
@@ -341,18 +343,21 @@ const Menu: React.FC = () => {
           <div className="d-flex flex-column flex-lg-row align-items-center gap-2 mt-2 mt-lg-0">
             <Form.Control
               type="text"
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              placeholder="Search by Item"
+              value={nameSearch}
+              onChange={(e) => setNameSearch(e.target.value)}
+              placeholder="Search by Item (name/short)"
               className="rounded-lg"
               style={{ width: '100%', maxWidth: '200px', border: '1px solid #d1d5db', padding: '6px 12px', fontSize: '14px', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)' }}
             />
             <Form.Control
               type="text"
-              placeholder="Search by Code"
+              value={codeSearch}
+              onChange={(e) => setCodeSearch(e.target.value)}
+              placeholder="Search by Code (item_no)"
               className="rounded-lg"
               style={{ width: '100%', maxWidth: '200px', border: '1px solid #d1d5db', padding: '6px 12px', fontSize: '14px', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)' }}
             />
+
             <Button
               variant="primary"
               size="sm"
@@ -521,9 +526,36 @@ const Menu: React.FC = () => {
         <div className="flex-grow-1 p-3">
           <div style={{ maxHeight: 'calc(100vh - 80px)', paddingRight: '10px' }}>
             <Row xs={1} sm={2} md={3} lg={4} className="g-3 mb-4">
-              {cardItems.filter(item => selectedItemGroup === null || data.find(d => d.restitemid === Number(item.userId))?.item_group_id === selectedItemGroup).map((item, index) => {
+              {cardItems
+                .filter((item) => {
+                  const menuItem = data.find((p) => p.restitemid === Number(item.userId));
+                  if (!menuItem) return false;
+
+                  const nameQ = nameSearch.trim().toLowerCase();
+                  const codeQ = codeSearch.trim().toLowerCase();
+
+                  const matchesName =
+                    nameQ.length === 0 ||
+                    (menuItem.item_name || '').toLowerCase().includes(nameQ) ||
+                    (menuItem.short_name || '').toLowerCase().includes(nameQ) ||
+                    (menuItem.print_name || '').toLowerCase().includes(nameQ);
+
+                  const matchesCode =
+                    codeQ.length === 0 ||
+                    (menuItem.item_no || '').toString().toLowerCase().includes(codeQ) ||
+                    (item.itemId || '').toString().toLowerCase().includes(codeQ);
+
+                  return matchesName && matchesCode;
+                })
+                .filter(
+                  (item) =>
+                    selectedItemGroup === null ||
+                    data.find((d) => d.restitemid === Number(item.userId))?.item_group_id === selectedItemGroup
+                )
+                .map((item, index) => {
                 const menuItem = data.find((p) => p.restitemid === Number(item.userId));
                 const isActive = item.cardStatus === '✅ Available';
+
                 return (
                   <Col key={index}>
                     <Card

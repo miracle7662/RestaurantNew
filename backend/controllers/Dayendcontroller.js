@@ -595,45 +595,25 @@ const generateDayEndReportHTML = async (req, res) => {
       }
     }
 
-    // ✅ Generate thermal HTML sections
-    let reportContent = '';
+  
+  // Extra debug info when NC KOT is requested but returns empty
+  const ncDebug = selectedReports.includes('ncKOTSummary')
+    ? { ncKOTSummaryCount: reportData?.ncKOTSummary?.length || 0 }
+    : undefined;
 
-    for (const reportKey of selectedReports) {
-      try {
-        let sectionHTML = '';
-        switch(reportKey) {
-          case 'billDetails': sectionHTML = generateBillDetailsHTML(reportData.billDetails); break;
-          case 'paymentSummary': sectionHTML = generatePaymentSummaryHTML(reportData.paymentSummary); break;
-          case 'creditSummary': sectionHTML = generateCreditSummaryHTML(reportData.creditSummary); break;
-          case 'discountSummary': sectionHTML = generateDiscountSummaryHTML(reportData.discountSummary); break;
-          case 'reverseKOTSummary': sectionHTML = generateReverseKOTsHTML(reportData.reverseKOTs); break;
-          case 'reverseBillSummary': sectionHTML = generateReverseBillsHTML(reportData.reverseBills); break;
-          case 'ncKOTSummary': sectionHTML = generateNCKOTsHTML(reportData.ncKOTSummary); break;
-        }
-        if (sectionHTML) reportContent += sectionHTML;
-      } catch (htmlError) {
-        console.error(`❌ HTML generation failed for ${reportKey}:`, htmlError);
-      }
-    }
-
-    if (!reportContent.trim()) {
-      reportContent = '\n' + centerText('NO DATA AVAILABLE', 48) + '\n\n';
-    }
-
-    const thermalHTML = `<div style="font-family:'Courier New',monospace;font-size:12px;line-height:1.2;max-width:384px;margin:0 auto;white-space:pre;">\n${reportContent}</div>`;
-
-    console.log(`✅ Generated ${selectedReports.length} report sections`);
-    
-    res.json({ 
-      success: true, 
-      html: thermalHTML,
-      debug: { 
-        reportsProcessed: selectedReports.length,
-        dataCounts: Object.keys(reportData).map(k => ({[k]: reportData[k]?.length || 0}))
-      }
-    });
-
+  res.json({
+  success: true,
+  data: reportData,
+  debug: {
+    reportsProcessed: selectedReports.length,
+    dataCounts: Object.keys(reportData).map(k => ({
+      [k]: reportData[k]?.length || 0
+    })),
+    ncDebug,
+  }
+});
   } catch (error) {
+
     console.error('❌ Fatal error in generateDayEndReportHTML:', error);
     res.status(500).json({ 
       success: false, 
@@ -779,6 +759,9 @@ const getReverseBillsData = async (businessDate, dayEndEmpID) => {
 
 const getNCKOTsData = async (businessDate, dayEndEmpID) => {
   console.log(`🔍 getNCKOTsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
+
+  // NOTE: timezone-safe filtering
+  // Try IST date match first using CONVERT_TZ, and also match raw DATE(t.TxnDatetime) as a fallback.
   const query = `
     SELECT DISTINCT
       t.NCName AS ncName,
@@ -791,268 +774,21 @@ const getNCKOTsData = async (businessDate, dayEndEmpID) => {
     JOIN TAxnTrnbill t ON td.TxnID = t.TxnID
     WHERE t.isDayEnd = 1
       AND t.DayEndEmpID = ?
-      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
       AND td.isNCKOT = 1
+      AND (
+        DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
+        OR DATE(t.TxnDatetime) = ?
+      )
     ORDER BY t.TxnDatetime DESC, td.KOTNo DESC
   `;
-  const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
+
+  const [rows] = await db.query(query, [dayEndEmpID, businessDate, businessDate]);
   console.log(`✅ getNCKOTsData found ${rows.length} records`);
   return rows;
 };
 
-// ==================== 80MM THERMAL PRINTER GENERATORS ====================
-// Fixed: 48 char width max, monospace, perfect alignment
 
-const centerText = (text, width) => {
-  text = text || '';
-  if (text.length >= width) return text.substring(0, width);
 
-  const totalSpace = width - text.length;
-  const left = Math.floor(totalSpace / 2);
-  const right = totalSpace - left;
-
-  return ' '.repeat(left) + text + ' '.repeat(right);
-};
-
-const generateBillDetailsHTML = (data) => {
-  if (!data?.length) return '';
-  
-  let html = '═'.repeat(48) + '\n';
-  html += '        BILL DETAILS REPORT        \n';
-  html += '═'.repeat(48) + '\n';
-
-  // ✅ Short header for space
-  html += 'Bill  Tbl   Gross  GST   Net   Mode\n';
-  
-  let totals = { gross: 0, gst: 0, net: 0 };
-
-  data.slice(0, 12).forEach((bill) => {
-
-    // ✅ Remove prefix (MI → only number)
-    const billNo = String(bill.TxnNo || '')
-      .replace(/^\D+/, '')   // remove non-digits from start
-      .substring(0, 5)
-      .padEnd(5);
-
-    // ✅ Center table
-    const table = centerText((bill.table_name || '').substring(0, 4), 4);
-
-    // ✅ Adjust widths for 80mm
-    const gross = Number(bill.grossAmount || 0).toFixed(0).padStart(6);
-    const gst = Number(bill.CGST || 0) + Number(bill.SGST || 0);
-    const gstStr = gst.toFixed(0).padStart(4);
-    const net = Number(bill.netAmount || 0).toFixed(0).padStart(6);
-
-    // ✅ Give space to Mode
-    const mode = (bill.paymentMode || 'Cash').substring(0, 6).padEnd(6);
-
-    html += `${billNo} ${table} ${gross} ${gstStr} ${net} ${mode}\n`;
-
-    totals.gross += Number(bill.grossAmount || 0);
-    totals.gst += gst;
-    totals.net += Number(bill.netAmount || 0);
-  });
-
-  html += '-'.repeat(48) + '\n';
-
-  // ✅ TOTAL aligned with new widths
-  html += 
-    'TOTAL'.padEnd(11) + // Bill(5)+space+Tbl(4)+space = 11
-    totals.gross.toLocaleString().padStart(6) + ' ' +
-    totals.gst.toFixed(0).padStart(4) + ' ' +
-    totals.net.toLocaleString().padStart(6) + '\n';
-
-  html += '═'.repeat(48) + '\n\n';
-
-  return html;
-};
-
-const generatePaymentSummaryHTML = (data) => {
-  if (!data?.length) return '';
-
-  let summary = {
-    cash: 0, card: 0, upi: 0, qrcode: 0, credit: 0, total: 0
-  };
-
-  data.forEach((payment) => {
-    const type = payment.PaymentType?.toLowerCase() || '';
-    const amt = Number(payment.totalAmount || 0);
-
-    if (type.includes('cash')) summary.cash += amt;
-    else if (type.includes('card')) summary.card += amt;
-    else if (type.includes('gpay') || type.includes('phone') || type.includes('upi')) summary.upi += amt;
-    else if (type.includes('qr')) summary.qrcode += amt;
-    else if (type.includes('credit')) summary.credit += amt;
-
-    summary.total += amt;
-  });
-
-  // ❌ Agar total hi 0 hai → kuch bhi print nahi
-  if (summary.total === 0) return '';
-
-  // ✅ Header AFTER validation
-  let html = '═'.repeat(48) + '\n';
-  html += '        PAYMENT SUMMARY              \n';
-  html += '═'.repeat(48) + '\n';
-
-  // 🔥 Only non-zero rows
-  if (summary.cash > 0)
-    html += `Cash          ${summary.cash.toLocaleString().padStart(12)}\n`;
-
-  if (summary.card > 0)
-    html += `Card          ${summary.card.toLocaleString().padStart(12)}\n`;
-
-  if (summary.upi > 0)
-    html += `UPI (GPay+PP) ${summary.upi.toLocaleString().padStart(12)}\n`;
-
-  if (summary.qrcode > 0)
-    html += `QR Code       ${summary.qrcode.toLocaleString().padStart(12)}\n`;
-
-  if (summary.credit > 0)
-    html += `Credit        ${summary.credit.toLocaleString().padStart(12)}\n`;
-
-  html += '\n';
-
-  // ✅ TOTAL always show (since >0 already checked)
-  html += `TOTAL         ${summary.total.toLocaleString().padStart(12)}\n`;
-
-  html += '═'.repeat(48) + '\n\n';
-
-  return html;
-};
-
-const generateCreditSummaryHTML = (data) => {
-  if (!data?.length) return '';
-  
-  let html = '═' + '═'.repeat(47) + '═\n';
-  html += '         CREDIT SUMMARY             \n';
-  html += '═' + '═'.repeat(47) + '═\n';
-  html += 'Customer             Bills   Amount  \n';
-  html += '───────────────────────────────\n';
-
-  let totalCredit = 0;
-  data.slice(0, 8).forEach((cred) => {
-    const name = (cred.customerName || '').substring(0, 18).padEnd(18);
-    const bills = String(cred.billCount || 0).padStart(4);
-    const amt = Number(cred.creditAmount || 0).toLocaleString().padStart(9);
-    html += `${name} ${bills} ${amt}\n`;
-    totalCredit += Number(cred.creditAmount || 0);
-  });
-
-  html += '-'.repeat(47) + '\n';
-  html += `TOTAL                      ${totalCredit.toLocaleString().padStart(9)}\n`;
-  html += '═' + '═'.repeat(47) + '═\n\n';
-  return html;
-};
-
-const generateDiscountSummaryHTML = (data) => {
-  if (!data?.length) return '';
-  
-  let html = '═' + '═'.repeat(47) + '═\n'; 
-  html += '        DISCOUNT SUMMARY            \n';
-  html += '═' + '═'.repeat(47) + '═\n';
-  html += 'Bill   Table   Reason   Amount\n';
- 
-
-  let totalDisc = 0;
-  data.slice(0, 10).forEach((disc) => {
-    const bill = (disc.TxnNo || '').substring(0, 6).padEnd(6);
-    const table = (disc.table_name || '').substring(0, 6).padEnd(6);
-    const reason = (disc.reason || '').substring(0, 8).padEnd(8);
-    const amt = String(Number(disc.Discount || 0).toLocaleString()).padStart(7);
-    html += `${bill} ${table} ${reason} ${amt}\n`;
-    totalDisc += Number(disc.Discount || 0);
-  });
-
-  html += '-'.repeat(47) + '\n';
-  html += 'TOTAL'.padEnd(23) + totalDisc.toLocaleString().padStart(7) + '\n';
-  html += '═' + '═'.repeat(47) + '═\n\n';
-  
-  return html;
-};
-
-const generateReverseKOTsHTML = (data) => {
-  if (!data?.length) return '';
-  
-  let html = '═' + '═'.repeat(47) + '═\n';
-  html += '       REVERSE KOT SUMMARY         \n';
-  html += '═' + '═'.repeat(47) + '═\n';
-  html += 'KOT#  Table  Item     Qty  Time\n';
-  html += '───────────────────────────────\n';
-
-  data.slice(0, 10).forEach((kot) => {
-    const kotNo = String(kot.kotNo || '').substring(0, 5).padEnd(5);
-    const table = String(kot.table_name || '').padEnd(6);
-    const item = String(kot.item_name || '').substring(0, 9).padEnd(9);
-    const qty = String(kot.quantity || 0).padStart(3);
-    const time = kot.TxnDatetime 
-      ? new Date(kot.TxnDatetime).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})
-      : '--:--';
-    
-    html += `${kotNo} ${table} ${item} ${qty} ${time}\n`;
-  });
-
-  return html;
-};
-
-const generateReverseBillsHTML = (data) => {
-  if (!data?.length) return '';
-  
-  let html = '═' + '═'.repeat(47) + '═\n';
-  html += '       REVERSE BILL SUMMARY        \n';
-  html += '═' + '═'.repeat(47) + '═\n';
-  html += 'BillNo Table    Amount    Time\n';
-  
-
-  let totalRev = 0;
-  data.slice(0, 10).forEach((bill) => {
-    const billNo = (bill.billNo || '').substring(0, 7).padEnd(7);
-    const table = (bill.table_name || '').padEnd(7);
-    const amt = centerText(Number(bill.reversedAmount || 0).toLocaleString(),9);
-    const time = bill.TxnDatetime 
-      ? new Date(bill.TxnDatetime).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})
-      : '--:--';
-    
-    html += `${billNo} ${table} ${amt} ${time}\n`;
-    totalRev += Number(bill.reversedAmount || 0);
-  });
-
-  html += '-'.repeat(47) + '\n';
-  html += 'TOTAL'.padEnd(16) + centerText(totalRev.toLocaleString(), 9) + '\n';
-  html += '═' + '═'.repeat(47) + '═\n\n';
-  return html;
-};
-
-const generateNCKOTsHTML = (data) => {
-  if (!data?.length) return '';
-
-  let html = '═' + '═'.repeat(47) + '═\n';
-  html += '           NC KOT SUMMARY           \n';
-  html += '═' + '═'.repeat(47) + '═\n';
-  html += 'NCName   Purpose    Qty    Amt\n';
- 
-
-  let totalQty = 0;
-  let totalAmt = 0;
-
-  data.slice(0, 12).forEach(n => {
-    const NCName  = String(n.ncName  || 'N/A').substring(0, 9).padEnd(10);
-    const purpose = String(n.purpose || 'N/A').substring(0, 9).padEnd(10);
-    const qty = centerText(n.quantity || 0, 4);
-    const amount  = (Number(n.amount) || 0).toFixed(2).padStart(9);
-
-    html += `${NCName}${purpose}${qty}${amount}\n`;
-
-    totalQty += Number(n.quantity || 0);
-    totalAmt += Number(n.amount || 0);
-  });
-
-  html += '-'.repeat(47) + '\n';
-  html += 'TOTAL'.padEnd(20) + centerText(totalQty, 4) + totalAmt.toFixed(2).padStart(9) + '\n';
-  html += '═' + '═'.repeat(47) + '═\n\n';
-
-  return html;
-};
 
 
 
