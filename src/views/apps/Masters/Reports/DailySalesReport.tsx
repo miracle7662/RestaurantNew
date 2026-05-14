@@ -19,6 +19,12 @@ interface Bill {
   orderNo: string;
   billNo: string;
   billDate: string;
+  settleAmount:number;
+  tipAmount:number;
+  billAmount:number;
+  netAmount:number;
+  taxbleAmount:number;
+
   kotNo: string;
   revKotNo?: string;
   revKot: boolean; // This can be derived from reverseBill
@@ -77,6 +83,11 @@ const defaultBill: Bill = {
   billNo: "N/A",
   orderNo: "N/A",
   billDate: "",
+  settleAmount: 0,
+  tipAmount: 0,
+  billAmount: 0,
+  netAmount: 0,
+  taxbleAmount: 0,
   kotNo: "N/A",
   revKot: false,
   grossAmount: 0,
@@ -239,6 +250,12 @@ const ReportPage = () => {
           orderNo: order.orderNo,
           billNo: order.orderNo,
           billDate: order.date ? new Date(order.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            settleAmount: order.settleAmount || 0,  
+            tipAmount: order.tipAmount || 0,
+            billAmount: order.billAmount || 0,
+            netAmount: order.netAmount || 0,
+            taxbleAmount: order.taxbleAmount || 0,
+            
           kotNo: order.kotNo || "N/A",
           revKotNo: order.revKotNo,
           revKot: order.reverseBill == 1,
