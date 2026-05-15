@@ -804,9 +804,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
           }
 
           // Fetch outlet details for restaurant and outlet names
-          if (header.outletid) {
-            await fetchOutletDetails(header.outletid);
-          }
+        
 
           // restore discount
           if (header.Discount || header.DiscPer) {
@@ -1021,9 +1019,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       calculateTotals(mappedItems);
 
       // Fetch outlet details for restaurant and outlet names
-      if (selectedOutletId) {
-        await fetchOutletDetails(selectedOutletId);
-      }
+     
 
     } catch (err: any) {
       if (err.response) {
@@ -1289,9 +1285,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         }
         await OrderService.getOutletsByHotel(user.hotelid);
         // Set default restaurant and outlet names from user's outlet
-        if (user?.outletid && !restaurantName && !outletName) {
-          await fetchOutletDetails(user.outletid);
-        }
+       
       } catch (error) {
         // console.error('Failed to fetch outlets:', error);
         // Fallback to user object
@@ -1303,20 +1297,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   }, [user]);
 
   // Fetch outlet details for restaurant and outlet names
-  const fetchOutletDetails = async (outletId: number) => {
-    try {
-      // console.log('Fetching outlet details for ID:', outletId);
-      const response = await OrderService.getOutletById(outletId);
-      const outletData = response?.data?.data ?? response?.data ?? {};
-      // console.log('Outlet API response:', outletData);
-      setRestaurantName(outletData.brand_name || outletData.hotel_name || user?.hotel_name || 'Restaurant Name');
-      setOutletName(outletData.outlet_name || user?.outlet_name || 'Outlet Name');
-    } catch (error) {
-
-      setRestaurantName(user?.hotel_name || 'Restaurant Name');
-      setOutletName(user?.outlet_name || 'Outlet Name');
-    }
-  };
+ 
 
   // Fetch payment modes based on selected outlet
   useEffect(() => {

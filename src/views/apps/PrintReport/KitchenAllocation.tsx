@@ -358,10 +358,37 @@ const reportHTML = `
       font-weight: bold;
     }
 
-    .total-row td {
+    .totals-block {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-top: 6px;
       font-weight: bold;
       border-top: 1px solid #000;
     }
+
+    .totals-left {
+      width: 40%;
+      text-align: left;
+    }
+
+    .totals-right {
+      width: 60%;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .totals-qty {
+      width: 40%;
+      text-align: right;
+    }
+
+    .totals-amt {
+      width: 60%;
+      text-align: right;
+    }
+
   </style>
 </head>
 
@@ -392,16 +419,21 @@ const reportHTML = `
         </tr>
       `).join('')}
 
-      <tr class="total-row">
-        <td colspan="2">Total</td>
-        <td class="col-qty">${totalQty}</td>
-        <td class="col-amt">${totalAmount.toFixed(2)}</td>
       </tr>
     </tbody>
   </table>
+
+  <div class="totals-block">
+    <div class="totals-left">Total</div>
+    <div class="totals-right">
+      <div class="totals-qty">${totalQty}</div>
+      <div class="totals-amt">${totalAmount.toFixed(2)}</div>
+    </div>
+  </div>
 </body>
 </html>
 `;
+
 
       // Print using Electron API
       if ((window as any).electronAPI?.directPrint) {
