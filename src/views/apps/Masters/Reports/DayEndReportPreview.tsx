@@ -161,13 +161,16 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
 
     return (
       <div
-        key={i}
-        className="rc-col-row"
-        style={{
-          gridTemplateColumns:
-            '42px 28px 36px 42px 28px 32px 42px auto'
-        }}
-      >
+  key={i}
+  className="rc-col-row"
+  style={{
+    gridTemplateColumns:
+      '42px 18px 14px 42px 28px 32px 42px auto',
+    columnGap: '1.5px'
+  }}
+>
+
+      
         {/* Bill */}
         <span
           style={{
@@ -232,13 +235,14 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
     <>
       <SecHdr title="BILL DETAILS" />
 
-      <div
-        className="rc-col-hdr"
-        style={{
-          gridTemplateColumns:
-            '42px 28px 36px 42px 28px 32px 42px auto'
-        }}
-      >
+     <div
+  className="rc-col-hdr"
+  style={{
+    gridTemplateColumns:
+'42px 18px 14px 42px 28px 32px 42px auto',
+    columnGap: '2px'
+  }}
+>
         <span>Bill</span>
         <span>Tbl</span>
 
@@ -430,18 +434,20 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   b += `<div style="text-align:center;font-weight:700;font-size:13px;border-bottom:1px solid #000;padding-bottom:3px;margin-bottom:5px;">${hotelName}</div>`;
   b += `<div style="text-align:center;font-size:10px;margin-bottom:8px;">Date: ${businessDate}</div>`;
 
+
   // Bill Details Section
   if (data.billDetails?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:5px 0;">BILL DETAILS</div>`;
-    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
-            <span style="width:20%">Bill</span>
-            <span style="width:15%">Tbl</span>
-            <span style="width:18%;text-align:right">Disc</span>
-            <span style="width:22%;text-align:right">Gross</span>
-            <span style="width:15%;text-align:right">GST</span>
-            <span style="width:10%;text-align:right">Tip</span>
-            <span style="width:18%;text-align:right">Net</span>
-            <span style="width:10%">Mode</span>
+    b += `<div style="font-size:10px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+            <span class="re-head" style="width:20%">Bill</span>
+            <span class="re-head" style="width:15%">Tbl</span>
+            <span class="re-head" style="width:14%;text-align:right">Disc</span>
+            <span class="re-head" style="width:22%;text-align:right">Gross</span>
+            <span class="re-head" style="width:15%;text-align:right">GST</span>
+            <span class="re-head" style="width:10%;text-align:right">Tip</span>
+            <span class="re-head" style="width:18%;text-align:right">Net</span>
+            <span class="re-head" style="width:10%">Mode</span>
+
           </div>`;
     let tDisc = 0, tGross = 0, tGST = 0, tTip = 0, tNet = 0;
     data.billDetails.forEach(row => {
@@ -452,20 +458,22 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
       tTip += Number(row.tipAmount || 0);
       tNet += Number(row.netAmount || 0);
       b += `<div style="font-size:9px;display:flex;justify-content:space-between;padding:1px 0;">
-              <span style="width:20%">${String(row.TxnNo).slice(-6)}</span>
-              <span style="width:15%">${(row.table_name || '').substring(0, 4)}</span>
-              <span style="width:18%;text-align:right">${f(row.Discount)}</span>
-              <span style="width:22%;text-align:right">${f(row.grossAmount)}</span>
-              <span style="width:15%;text-align:right">${gst.toFixed(0)}</span>
-              <span style="width:10%;text-align:right">${f(row.tipAmount)}</span>
-              <span style="width:18%;text-align:right">${f(row.netAmount)}</span>
-              <span style="width:10%">${(row.paymentMode || 'Cash').substring(0, 4)}</span>
+              <span class="re-val" style="width:20%">${String(row.TxnNo).slice(-6)}</span>
+              <span class="re-val" style="width:15%">${(row.table_name || '').substring(0, 4)}</span>
+              <span class="re-val" style="width:14%;text-align:right">${f(row.Discount)}</span>
+              <span class="re-val" style="width:22%;text-align:right">${f(row.grossAmount)}</span>
+              <span class="re-val" style="width:15%;text-align:right">${gst.toFixed(0)}</span>
+              <span class="re-val" style="width:10%;text-align:right">${f(row.tipAmount)}</span>
+              <span class="re-val" style="width:18%;text-align:right">${f(row.netAmount)}</span>
+              <span class="re-val" style="width:10%">${(row.paymentMode || 'Cash').substring(0, 4)}</span>
+
             </div>`;
     });
     b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
     b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;padding:2px 0;">
-            <span>TOTAL</span>
-            <span>${f(tDisc)} | ${f(tGross)} | ${tGST.toFixed(0)} | ${f(tTip)} | ${f(tNet)}</span>
+            <span class="re-head">TOTAL</span>
+            <span class="re-val">${f(tDisc)} | ${f(tGross)} | ${tGST.toFixed(0)} | ${f(tTip)} | ${f(tNet)}</span>
+
           </div>`;
   }
 
@@ -477,77 +485,82 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
       let total = 0;
       filtered.forEach(p => {
         b += `<div style="font-size:9px;display:flex;justify-content:space-between;padding:1px 0;">
-                <span>${p.PaymentType}</span>
-                <span>${f(p.totalAmount)}</span>
+                <span class="re-val">${p.PaymentType}</span>
+                <span class="re-val" style="text-align:right">${f(p.totalAmount)}</span>
+
               </div>`;
         total += Number(p.totalAmount || 0);
       });
       b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-      b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
+      b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span class="re-head">TOTAL</span><span class="re-val">${f(total)}</span></div>`;
     }
+
   }
 
   // Credit Summary Section
   if (data.creditSummary?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">CREDIT SUMMARY</div>`;
     b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-            <span style="width:60%">Customer</span>
-            <span style="width:15%;text-align:right">Bills</span>
-            <span style="width:25%;text-align:right">Amount</span>
+              <span class="re-head" style="width:60%">Customer</span>
+              <span class="re-head" style="width:15%;text-align:right">Bills</span>
+              <span class="re-head" style="width:25%;text-align:right">Amount</span>
           </div>`;
     let total = 0;
     data.creditSummary.forEach(c => {
       b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
-              <span style="width:60%">${(c.customerName || '').substring(0, 18)}</span>
-              <span style="width:15%;text-align:right">${c.billCount}</span>
-              <span style="width:25%;text-align:right">${f(c.creditAmount)}</span>
+              <span class="re-val" style="width:60%">${(c.customerName || '').substring(0, 18)}</span>
+              <span class="re-val" style="width:15%;text-align:right">${c.billCount}</span>
+              <span class="re-val" style="width:25%;text-align:right">${f(c.creditAmount)}</span>
             </div>`;
       total += Number(c.creditAmount || 0);
     });
     b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
+    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span class="re-head">TOTAL</span><span class="re-val">${f(total)}</span></div>`;
   }
 
   // Discount Summary Section
+
   if (data.discountSummary?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">DISCOUNT SUMMARY</div>`;
     b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-            <span style="width:20%">Bill</span>
-            <span style="width:20%">Table</span>
-            <span style="width:35%">Reason</span>
-            <span style="width:25%;text-align:right">Amount</span>
+            <span class="re-head" style="width:20%">Bill</span>
+            <span class="re-head" style="width:20%">Table</span>
+            <span class="re-head" style="width:35%">Reason</span>
+            <span class="re-head" style="width:25%;text-align:right">Amount</span>
           </div>`;
     let total = 0;
     data.discountSummary.forEach(d => {
       b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
-              <span style="width:20%">${String(d.TxnNo).slice(-5)}</span>
-              <span style="width:20%">${(d.table_name || '').substring(0, 6)}</span>
-              <span style="width:35%">${(d.reason || '').substring(0, 10)}</span>
-              <span style="width:25%;text-align:right">${f(d.Discount)}</span>
+              <span class="re-val" style="width:20%">${String(d.TxnNo).slice(-5)}</span>
+              <span class="re-val" style="width:20%">${(d.table_name || '').substring(0, 6)}</span>
+              <span class="re-val" style="width:35%">${(d.reason || '').substring(0, 10)}</span>
+              <span class="re-val" style="width:25%;text-align:right">${f(d.Discount)}</span>
             </div>`;
       total += Number(d.Discount || 0);
     });
     b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
+    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span class="re-head">TOTAL</span><span class="re-val">${f(total)}</span></div>`;
   }
 
   // Reverse KOT Section
+
   if (data.reverseKOTs?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">REVERSE KOT SUMMARY</div>`;
     b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-            <span style="width:15%">KOT</span>
-            <span style="width:15%">Tbl</span>
-            <span style="width:40%">Item</span>
-            <span style="width:10%;text-align:right">Qty</span>
-            <span style="width:20%">Time</span>
+            <span class="re-head" style="width:15%">KOT</span>
+            <span class="re-head" style="width:15%">Tbl</span>
+            <span class="re-head" style="width:40%">Item</span>
+            <span class="re-head" style="width:10%;text-align:right">Qty</span>
+            <span class="re-head" style="width:20%">Time</span>
+
           </div>`;
     data.reverseKOTs.forEach(k => {
       b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
-              <span style="width:15%">${String(k.kotNo).substring(0, 5)}</span>
-              <span style="width:15%">${(k.table_name || '').substring(0, 5)}</span>
-              <span style="width:40%">${(k.item_name || '').substring(0, 12)}</span>
-              <span style="width:10%;text-align:right">${k.quantity}</span>
-              <span style="width:20%">${t(k.TxnDatetime)}</span>
+              <span class="re-val" style="width:15%">${String(k.kotNo).substring(0, 5)}</span>
+              <span class="re-val" style="width:15%">${(k.table_name || '').substring(0, 5)}</span>
+              <span class="re-val" style="width:40%">${(k.item_name || '').substring(0, 12)}</span>
+              <span class="re-val" style="width:10%;text-align:right">${k.quantity}</span>
+              <span class="re-val" style="width:20%">${t(k.TxnDatetime)}</span>
             </div>`;
     });
   }
@@ -556,48 +569,51 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   if (data.reverseBills?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">REVERSE BILL SUMMARY</div>`;
     b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-            <span style="width:25%">BillNo</span>
-            <span style="width:25%">Table</span>
-            <span style="width:25%;text-align:right">Amount</span>
-            <span style="width:25%">Time</span>
+            <span class="re-head" style="width:25%">BillNo</span>
+            <span class="re-head" style="width:25%">Table</span>
+            <span class="re-head" style="width:25%;text-align:right">Amount</span>
+            <span class="re-head" style="width:25%">Time</span>
           </div>`;
     let total = 0;
     data.reverseBills.forEach(bill => {
       b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
-              <span style="width:25%">${String(bill.billNo).substring(0, 7)}</span>
-              <span style="width:25%">${(bill.table_name || '').substring(0, 7)}</span>
-              <span style="width:25%;text-align:right">${f(bill.reversedAmount)}</span>
-              <span style="width:25%">${t(bill.TxnDatetime)}</span>
+              <span class="re-val" style="width:25%">${String(bill.billNo).substring(0, 7)}</span>
+              <span class="re-val" style="width:25%">${(bill.table_name || '').substring(0, 7)}</span>
+              <span class="re-val" style="width:25%;text-align:right">${f(bill.reversedAmount)}</span>
+              <span class="re-val" style="width:25%">${t(bill.TxnDatetime)}</span>
             </div>`;
       total += Number(bill.reversedAmount || 0);
     });
     b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
+    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span class="re-head">TOTAL</span><span class="re-val">${f(total)}</span></div>`;
   }
 
   // NC KOT Section
+
   if (data.ncKOTSummary?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">NC KOT SUMMARY</div>`;
     b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-            <span style="width:30%">Name</span>
-            <span style="width:35%">Purpose</span>
-            <span style="width:15%;text-align:right">Qty</span>
-            <span style="width:20%;text-align:right">Amount</span>
+            <span class="re-head" style="width:30%">Name</span>
+            <span class="re-head" style="width:35%">Purpose</span>
+            <span class="re-head" style="width:15%;text-align:right">Qty</span>
+            <span class="re-head" style="width:20%;text-align:right">Amount</span>
+
           </div>`;
     let tQty = 0, tAmt = 0;
     data.ncKOTSummary.forEach(n => {
       b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
-              <span style="width:30%">${(n.ncName || 'N/A').substring(0, 10)}</span>
-              <span style="width:35%">${(n.purpose || 'N/A').substring(0, 12)}</span>
-              <span style="width:15%;text-align:right">${n.quantity}</span>
-              <span style="width:20%;text-align:right">${f(n.amount)}</span>
+              <span class="re-val" style="width:30%">${(n.ncName || 'N/A').substring(0, 10)}</span>
+              <span class="re-val" style="width:35%">${(n.purpose || 'N/A').substring(0, 12)}</span>
+              <span class="re-val" style="width:15%;text-align:right">${n.quantity}</span>
+              <span class="re-val" style="width:20%;text-align:right">${f(n.amount)}</span>
             </div>`;
       tQty += Number(n.quantity || 0);
       tAmt += Number(n.amount || 0);
     });
     b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>TOTAL</span><span>Qty:${tQty} | ${f(tAmt)}</span></div>`;
+    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span class="re-head">TOTAL</span><span class="re-val">Qty:${tQty} | ${f(tAmt)}</span></div>`;
   }
+
 
   // Footer
   b += `<div style="border-top:1px solid #000;margin:8px 0 3px;"></div>`;
@@ -650,6 +666,54 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
       page-break-inside: avoid !important;
       break-inside: avoid !important;
     }
+
+    /* ── DayEnd thermal print helpers ── */
+    .re-head {
+      font-weight: 700;
+      padding: 0 1mm;
+      white-space: nowrap;
+    }
+
+    .re-val {
+      font-weight: 700;
+      padding: 0 1mm;
+      white-space: nowrap;
+    }
+
+    .re-col {
+      display: inline-block;
+    }
+
+    .re-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0;
+      gap: 0;
+    }
+
+    /* ── DayEnd thermal print helpers ── */
+    .re-head {
+      font-weight: 700;
+      padding: 0 1mm;
+      white-space: nowrap;
+    }
+
+    .re-val {
+      font-weight: 700;
+      padding: 0 1mm;
+      white-space: nowrap;
+    }
+
+    .re-col {
+      display: inline-block;
+    }
+
+    .re-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0;
+      gap: 0;
+    }
   </style>
 </head>
 
@@ -657,6 +721,7 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   ${b}
 </body>
 </html>`;
+
 }
 
 // ─────────────────────────────────────────────

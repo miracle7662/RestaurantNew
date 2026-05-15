@@ -1,5 +1,6 @@
-- [x] Update DayEndReportPreview print HTML to include Discount & Tip columns inside BILL DETAILS (match preview)
-- [x] Ensure totals for Discount & Tip are shown in print output
-- [ ] Quick verification: preview vs printed output for 1-2 datasets
-
+- [ ] Inspect DayEndReportPreview.tsx for Discount/Table column widths (Bill Details + Discount Summary)
+- [ ] Update BILL DETAILS React gridTemplateColumns to reduce Discount column width
+- [ ] Update BILL DETAILS print HTML header/rows Disc width percentage
+- [ ] Update DISCOUNT SUMMARY column widths (Bill/Table/Reason/Amount) to reduce Table/discount-related spacing
+- [ ] Verify TypeScript build passes (npm test/build if applicable)
 
