@@ -1443,8 +1443,29 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       loadTakeawayOrder(takeawayOrderId);
     }
   }, [tableId, isTakeaway, takeawayOrderId]);
+  // Around line 850-900, after your other useEffects and before the return statement
 
+useEffect(() => {
+  if (showBillPrintModal) {
+    console.log('📋 Bill Print Modal Opening - Data Check:');
+    console.log('  - Restaurant Name:', restaurantName);
+    console.log('  - Outlet Name:', outletName);
+    console.log('  - Tax Rates:', { cgstRate, sgstRate, igstRate, cessRate });
+    console.log('  - Tax Amounts:', { cgst, sgst, igst, totalCess });
+    console.log('  - Final Amount:', finalAmount);
+  }
+}, [showBillPrintModal, restaurantName, outletName, cgstRate, sgstRate, igstRate, cessRate, cgst, sgst, igst, totalCess, finalAmount]);
 
+useEffect(() => {
+  if (showBillPrintModal) {
+    console.log('📋 User object data:', {
+      hotel_name: user?.hotel_name,
+      outlet_name: user?.outlet_name,
+      hotelid: user?.hotelid,
+      outletid: user?.outletid
+    });
+  }
+}, [showBillPrintModal, user]);
 
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
