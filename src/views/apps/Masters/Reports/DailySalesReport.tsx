@@ -1669,8 +1669,8 @@ const ReportPage = () => {
                   </td>
 
                   <td className="text-end">
-                    {(b.TipAmount || 0).toFixed(2)}
-                  </td>
+  {(b.tipAmount || 0).toFixed(2)}  
+</td>
 
                   <td className="text-end">
                     {(b.billAmount || 0).toFixed(2)}
