@@ -8,29 +8,29 @@ const getDayendData = async (req, res) => {
     console.log("DAYEND API START");
     console.log("========================================");
 
-    // =========================
-    // Get Dynamic Payment Types
-    // =========================
+    // ======================================================
+    // GET PAYMENT TYPES
+    // ======================================================
 
     const [paymentTypes] = await db.query(`
       SELECT DISTINCT PaymentType
       FROM TrnSettlement
       WHERE isSettled = 1
-      AND PaymentType IS NOT NULL
-      AND PaymentType != ''
+        AND PaymentType IS NOT NULL
+        AND PaymentType != ''
     `);
 
     console.log("PAYMENT TYPES =>", paymentTypes);
 
-    // =========================
-    // Create Dynamic Payment Columns
-    // =========================
+    // ======================================================
+    // DYNAMIC PAYMENT COLUMNS
+    // ======================================================
 
     const paymentColumns = paymentTypes
       .map(
         (p) => `
           COALESCE(
-            SUM(
+            MAX(
               CASE
                 WHEN s.PaymentType = '${p.PaymentType}'
                 THEN s.Amount
@@ -43,122 +43,202 @@ const getDayendData = async (req, res) => {
       )
       .join(",");
 
-    console.log("DYNAMIC PAYMENT COLUMNS =>");
-    console.log(paymentColumns);
-
-    // =========================
-    // Main Query
-    // =========================
+    // ======================================================
+    // MAIN QUERY
+    // ======================================================
 
     const query = `
+
       SELECT
 
-          t.TxnID,
-          t.TxnNo,
-          t.TableID,
-          t.table_name,
-          t.outletid,
-          t.HotelID,
+        t.TxnID,
+        t.TxnNo,
+        t.TableID,
+        t.table_name,
+        t.outletid,
+        t.HotelID,
 
-          t.Amount AS TotalAmount,
-          t.Discount,
-          t.GrossAmt AS GrossAmount,
-          t.CGST,
-          t.SGST,
-          t.RoundOFF,
-          t.RevKOT AS RevAmt,
-          t.TxnDatetime,
+        t.Amount AS TotalAmount,
+        t.Discount,
+        t.GrossAmt AS GrossAmount,
+        t.CGST,
+        t.SGST,
+        t.RoundOFF,
+        t.RevKOT AS RevAmt,
+        t.TxnDatetime,
 
-          t.Steward AS Captain,
-          t.UserId,
+        t.Steward AS Captain,
+        t.UserId,
 
-          u.username AS UserName,
+        u.username AS UserName,
 
-          (
-            SELECT SUM(
+        -- ==================================================
+        -- WATER AMOUNT
+        -- ==================================================
+
+        (
+          SELECT COALESCE(
+            SUM(
               CASE
-                WHEN i.item_name LIKE '%water%'
+                WHEN LOWER(i.item_name) LIKE '%water%'
                 THEN d.RuntimeRate * d.Qty
                 ELSE 0
               END
-            )
-            FROM TAxnTrnbilldetails d
-            JOIN mstrestmenu i
-              ON d.ItemID = i.restitemid
-            WHERE d.TxnID = t.TxnID
-          ) AS Water,
-
-          GROUP_CONCAT(
-            DISTINCT CASE
-              WHEN td.Qty > 0
-              THEN td.KOTNo
-            END
-          ) AS KOTNo,
-
-          COALESCE(
-            GROUP_CONCAT(DISTINCT td.RevKOTNo),
-            ''
-          ) AS RevKOTNo,
-
-          GROUP_CONCAT(
-            DISTINCT CASE
-              WHEN td.isNCKOT = 1
-              THEN td.KOTNo
-            END
-          ) AS NCKOT,
-
-          t.NCPurpose,
-          t.NCName,
-
-          ${paymentColumns},
-
-          GROUP_CONCAT(
-            DISTINCT CONCAT(
-              s.PaymentType,
-              ':',
-              s.Amount
-            )
-          ) AS Settlements,
-
-          GROUP_CONCAT(
-            DISTINCT s.PaymentType
-          ) AS PaymentType,
-
-          COALESCE(
-            SUM(COALESCE(s.TipAmount, 0)),
+            ),
             0
-          ) AS TipAmountTotal,
+          )
+          FROM TAxnTrnbilldetails d
+          JOIN mstrestmenu i
+            ON d.ItemID = i.restitemid
+          WHERE d.TxnID = t.TxnID
+        ) AS Water,
 
+        -- ==================================================
+        -- KOT DETAILS
+        -- ==================================================
+
+        GROUP_CONCAT(
+          DISTINCT CASE
+            WHEN td.Qty > 0
+            THEN td.KOTNo
+          END
+        ) AS KOTNo,
+
+        COALESCE(
+          GROUP_CONCAT(DISTINCT td.RevKOTNo),
+          ''
+        ) AS RevKOTNo,
+
+        GROUP_CONCAT(
+          DISTINCT CASE
+            WHEN td.isNCKOT = 1
+            THEN td.KOTNo
+          END
+        ) AS NCKOT,
+
+        t.NCPurpose,
+        t.NCName,
+
+        -- ==================================================
+        -- PAYMENT MODE COLUMNS
+        -- ==================================================
+
+        ${paymentColumns},
+
+        -- ==================================================
+        -- PAYMENT DETAILS
+        -- ==================================================
+
+        GROUP_CONCAT(
+          DISTINCT CONCAT(
+            s.PaymentType,
+            ':',
+            s.Amount
+          )
+        ) AS Settlements,
+
+        GROUP_CONCAT(
+          DISTINCT s.PaymentType
+        ) AS PaymentType,
+
+        -- ==================================================
+        -- TIP AMOUNT
+        -- ==================================================
+
+        COALESCE(
+          SUM(
+            DISTINCT COALESCE(s.TipAmount, 0)
+          ),
+          0
+        ) AS TipAmountTotal,
+
+        -- ==================================================
+        -- SETTLEMENT AMOUNT
+        -- BILL TOTAL + TIP
+        -- ==================================================
+
+        (
+          COALESCE(t.Amount, 0)
+          +
           COALESCE(
-            SUM(COALESCE(s.Amount, 0))
-            +
-            SUM(COALESCE(s.TipAmount, 0)),
+            SUM(
+              DISTINCT COALESCE(s.TipAmount, 0)
+            ),
             0
-          ) AS SettlementAmountTotal,
+          )
+        ) AS SettlementAmountTotal,
 
-          t.isSetteled,
-          t.isBilled,
-          t.isreversebill,
-          t.isCancelled,
-          t.isDayEnd,
-          t.DayEndEmpID,
+        -- ==================================================
+        -- STATUS
+        -- ==================================================
 
-          SUM(td.Qty) AS TotalItems
+        t.isSetteled,
+        t.isBilled,
+        t.isreversebill,
+        t.isCancelled,
+        t.isDayEnd,
+        t.DayEndEmpID,
+
+        -- ==================================================
+        -- TOTAL ITEMS
+        -- ==================================================
+
+        COALESCE(
+          SUM(td.Qty),
+          0
+        ) AS TotalItems
 
       FROM TAxnTrnbill t
+
+      -- ==================================================
+      -- BILL DETAILS
+      -- ==================================================
 
       LEFT JOIN TAxnTrnbilldetails td
         ON t.TxnID = td.TxnID
 
+      -- ==================================================
+      -- USER DETAILS
+      -- ==================================================
+
       LEFT JOIN mst_users u
         ON t.UserId = u.userid
 
-      LEFT JOIN TrnSettlement s
-        ON (
-          CAST(s.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
-          OR CAST(s.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
-        )
-        AND s.isSettled = 1
+      -- ==================================================
+      -- AGGREGATED SETTLEMENTS
+      -- ==================================================
+
+      LEFT JOIN (
+
+        SELECT
+
+          OrderNo,
+          PaymentType,
+
+          SUM(Amount) AS Amount,
+
+          SUM(
+            COALESCE(TipAmount, 0)
+          ) AS TipAmount
+
+        FROM TrnSettlement
+
+        WHERE isSettled = 1
+
+        GROUP BY
+          OrderNo,
+          PaymentType
+
+      ) s
+
+      ON (
+        CAST(s.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
+        OR CAST(s.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
+      )
+
+      -- ==================================================
+      -- FILTERS
+      -- ==================================================
 
       WHERE t.isDayEnd = 0
 
@@ -173,9 +253,16 @@ const getDayendData = async (req, res) => {
         OR t.isreversebill = 1
       )
 
-      GROUP BY t.TxnID, t.TxnNo
+      -- ==================================================
+      -- GROUP BY
+      -- ==================================================
 
-      ORDER BY t.TxnDatetime DESC
+      GROUP BY
+        t.TxnID,
+        t.TxnNo
+
+      ORDER BY
+        t.TxnDatetime DESC
     `;
 
     console.log("========================================");
@@ -183,77 +270,124 @@ const getDayendData = async (req, res) => {
     console.log(query);
     console.log("========================================");
 
-    // =========================
-    // Execute Query
-    // =========================
+    // ======================================================
+    // EXECUTE QUERY
+    // ======================================================
 
     const [rows] = await db.query(query);
 
     console.log("TOTAL ROWS =>", rows.length);
 
-    // =========================
-    // RAW SQL ROWS
-    // =========================
+    // ======================================================
+    // FORMAT RESPONSE
+    // ======================================================
 
-    rows.forEach((row, index) => {
+    const orders = rows.map((row) => {
 
-      console.log("========================================");
-      console.log(`RAW ROW ${index + 1}`);
-      console.log("========================================");
-
-      console.log("TxnNo =>", row.TxnNo);
-
-      paymentTypes.forEach((p) => {
-        console.log(
-          `${p.PaymentType} =>`,
-          row[p.PaymentType]
-        );
-      });
-
-      console.log("PaymentType =>", row.PaymentType);
-      console.log("Settlements =>", row.Settlements);
-
-      console.log("FULL ROW =>");
-      console.log(row);
-    });
-
-    // =========================
-    // Process Orders
-    // =========================
-
-    const transactions = {};
-
-    for (const row of rows) {
-
-      // =========================
-      // Dynamic Payments
-      // =========================
+      // ====================================================
+      // PAYMENT BREAKDOWN
+      // ====================================================
 
       const payments = {};
 
       paymentTypes.forEach((p) => {
 
-        payments[p.PaymentType] =
-          Number(row[p.PaymentType] || 0);
+        payments[p.PaymentType] = Number(
+          row[p.PaymentType] || 0
+        );
+
       });
 
-      console.log("========================================");
-      console.log("PAYMENT BREAKDOWN =>");
-      console.log(payments);
+      return {
 
-      // =========================
-      // Transaction Object
-      // =========================
+        // ==================================================
+        // BASIC DETAILS
+        // ==================================================
 
-      transactions[row.TxnID] = {
+        txnId: row.TxnID,
 
         orderNo: row.TxnNo,
 
         table: row.TableID,
 
+        tableName: row.table_name || '',
+
         waiter: row.Captain || 'Unknown',
 
-        amount: Number(row.TotalAmount || 0),
+        captain: row.Captain || 'N/A',
+
+        user: row.UserName || 'N/A',
+
+        outletid: row.outletid,
+
+        hotelid: row.HotelID,
+
+        date: row.TxnDatetime,
+
+        time: row.TxnDatetime,
+
+        // ==================================================
+        // AMOUNTS
+        // ==================================================
+
+        amount: Number(
+          row.TotalAmount || 0
+        ),
+
+        grossAmount: Number(
+          row.GrossAmount || 0
+        ),
+
+        discount: Number(
+          row.Discount || 0
+        ),
+
+        cgst: Number(
+          row.CGST || 0
+        ),
+
+        sgst: Number(
+          row.SGST || 0
+        ),
+
+        roundOff: Number(
+          row.RoundOFF || 0
+        ),
+
+        revAmt: Number(
+          row.RevAmt || 0
+        ),
+
+        water: Number(
+          row.Water || 0
+        ),
+
+        // ==================================================
+        // TIP
+        // ==================================================
+
+        tip: Number(
+          row.TipAmountTotal || 0
+        ),
+
+        // ==================================================
+        // BILL AMOUNT
+        // TOTAL BILL + TIP
+        // ==================================================
+
+        settlementAmount: Number(
+          row.SettlementAmountTotal || 0
+        ),
+
+        // ==================================================
+        // PAYMENT
+        // ==================================================
+
+        paymentType: row.PaymentType || '',
+
+        payments,
+
+        settlements: row.Settlements || '',
 
         type: row.isreversebill
           ? 'Reversed'
@@ -266,6 +400,10 @@ const getDayendData = async (req, res) => {
               )
             ),
 
+        // ==================================================
+        // STATUS
+        // ==================================================
+
         status: row.isSetteled
           ? 'Settled'
           : (
@@ -274,78 +412,40 @@ const getDayendData = async (req, res) => {
                 : 'Pending'
             ),
 
-        time: row.TxnDatetime,
+        isDayEnd: row.isDayEnd,
 
-        items: Number(row.TotalItems || 0),
+        dayEndEmpID: row.DayEndEmpID,
+
+        reverseBill: row.isreversebill,
+
+        // ==================================================
+        // KOT DETAILS
+        // ==================================================
+
+        items: Number(
+          row.TotalItems || 0
+        ),
 
         kotNo: row.KOTNo || '',
 
         revKotNo: row.RevKOTNo || '',
-
-        discount: Number(row.Discount || 0),
 
         ncKot: row.NCKOT || '',
 
         ncPurpose: row.NCPurpose || '',
 
         ncName: row.NCName || '',
-
-        cgst: Number(row.CGST || 0),
-
-        sgst: Number(row.SGST || 0),
-
-        outletid: row.outletid,
-
-        tip: Number(row.TipAmountTotal || 0),
-
-        settlementAmount: Number(
-          row.SettlementAmountTotal || 0
-        ),
-
-        grossAmount: Number(
-          row.GrossAmount || 0
-        ),
-
-        roundOff: Number(
-          row.RoundOFF || 0
-        ),
-
-        revAmt: Number(
-          row.RevAmt || 0
-        ),
-
-        reverseBill: row.isreversebill,
-
-        water: Number(
-          row.Water || 0
-        ),
-
-        captain: row.Captain || 'N/A',
-
-        user: row.UserName || 'N/A',
-
-        date: row.TxnDatetime,
-
-        paymentType: row.PaymentType || '',
-
-        payments,
-
-        isDayEnd: row.isDayEnd,
-
-        dayEndEmpID: row.DayEndEmpID,
       };
-    }
-
-    // =========================
-    // Orders Array
-    // =========================
-
-    const orders = Object.values(transactions);
+    });
 
     console.log("========================================");
     console.log("FINAL ORDERS =>");
     console.log(JSON.stringify(orders, null, 2));
     console.log("========================================");
+
+    // ======================================================
+    // RESPONSE
+    // ======================================================
 
     res.json({
       success: true,
