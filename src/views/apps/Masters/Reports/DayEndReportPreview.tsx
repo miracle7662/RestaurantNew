@@ -139,7 +139,6 @@ const DashHr = () => <hr className="rc-hr-dash" />;
 const SolidHr= () => <hr className="rc-hr-solid" />;
 
 const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
-  console.log("📊 BillDetailsSection rendering with:", data?.length || 0, "records");
   if (!data?.length) return null;
   let tGross = 0, tGST = 0, tNet = 0;
   const rows = data.map((b, i) => {
@@ -178,7 +177,6 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
 };
 
 const PaymentSummarySection: React.FC<{ data: PaymentSummary[] }> = ({ data }) => {
-  console.log("💰 PaymentSummarySection rendering with:", data?.length || 0, "records");
   const filtered = (data || []).filter(p => Number(p.totalAmount) > 0);
   if (!filtered.length) return null;
   const total = filtered.reduce((s, p) => s + Number(p.totalAmount || 0), 0);
@@ -197,7 +195,6 @@ const PaymentSummarySection: React.FC<{ data: PaymentSummary[] }> = ({ data }) =
 };
 
 const CreditSummarySection: React.FC<{ data: CreditSummary[] }> = ({ data }) => {
-  console.log("💳 CreditSummarySection rendering with:", data?.length || 0, "records");
   if (!data?.length) return null;
   const total = data.reduce((s, c) => s + Number(c.creditAmount || 0), 0);
   return (
@@ -221,7 +218,6 @@ const CreditSummarySection: React.FC<{ data: CreditSummary[] }> = ({ data }) => 
 };
 
 const DiscountSummarySection: React.FC<{ data: DiscountSummary[] }> = ({ data }) => {
-  console.log("🏷️ DiscountSummarySection rendering with:", data?.length || 0, "records");
   if (!data?.length) return null;
   const total = data.reduce((s, d) => s + Number(d.Discount || 0), 0);
   return (
@@ -245,7 +241,6 @@ const DiscountSummarySection: React.FC<{ data: DiscountSummary[] }> = ({ data })
 };
 
 const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
-  console.log("🔄 ReverseKOTSection rendering with:", data?.length || 0, "records");
   if (!data?.length) return null;
   return (
     <>
@@ -268,7 +263,6 @@ const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
 };
 
 const ReverseBillSection: React.FC<{ data: ReverseBill[] }> = ({ data }) => {
-  console.log("📄 ReverseBillSection rendering with:", data?.length || 0, "records");
   if (!data?.length) return null;
   const total = data.reduce((s, b) => s + Number(b.reversedAmount || 0), 0);
   return (
@@ -292,7 +286,6 @@ const ReverseBillSection: React.FC<{ data: ReverseBill[] }> = ({ data }) => {
 };
 
 const NCKOTSection: React.FC<{ data: NCKOTSummary[] }> = ({ data }) => {
-  console.log("📝 NCKOTSection rendering with:", data?.length || 0, "records");
   if (!data?.length) return null;
   const tQty = data.reduce((s, n) => s + Number(n.quantity || 0), 0);
   const tAmt = data.reduce((s, n) => s + Number(n.amount   || 0), 0);
@@ -321,137 +314,241 @@ const NCKOTSection: React.FC<{ data: NCKOTSummary[] }> = ({ data }) => {
 };
 
 // ─────────────────────────────────────────────
-// PRINT HTML BUILDER — plain 80mm HTML for printer
+// PRINT HTML BUILDER
+// ✅ FIX: rotate(180deg) REMOVED — content ab top se start hoga
+// ✅ FIX: @page margin: 0mm, body margin/padding: 0
 // ─────────────────────────────────────────────
 function buildPrintHTML(data: ReportData, hotelName: string, businessDate: string): string {
-  console.log("🖨️ Building print HTML with data:", {
-    billDetails: data.billDetails?.length || 0,
-    paymentSummary: data.paymentSummary?.length || 0,
-    creditSummary: data.creditSummary?.length || 0,
-    discountSummary: data.discountSummary?.length || 0,
-    reverseKOTs: data.reverseKOTs?.length || 0,
-    reverseBills: data.reverseBills?.length || 0,
-    ncKOTSummary: data.ncKOTSummary?.length || 0
-  });
-  
-  const f  = (n: number) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
-  const t  = (dt: string) => dt ? new Date(dt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-  const c  = (s: string, w: number) => (s||'').substring(0, w).padEnd(w);
-  const r  = (s: string, w: number) => (s||'').substring(0, w).padStart(w);
-  const ln = (s: string) => `<div style="font-size:10px;white-space:pre;line-height:1.35;">${s}</div>`;
-  const sec= (title: string) => `<div style="font-weight:700;text-align:center;border-top:2px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:6px 0 3px;letter-spacing:1px;font-size:10px;">${title}</div>`;
-  const hr = () => `<div style="border-top:1px dashed #555;margin:2px 0;"></div>`;
-  const hl = () => `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-  const tot= (s: string) => `<div style="font-size:10.5px;font-weight:700;white-space:pre;border-top:1px solid #000;border-bottom:1px solid #000;padding:1px 0;margin:1px 0;">${s}</div>`;
+  const f = (n: number) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  const t = (dt: string) => dt ? new Date(dt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--';
 
   let b = '';
-  b += `<div style="text-align:center;font-weight:700;font-size:13px;letter-spacing:2px;border-bottom:2px solid #000;padding-bottom:3px;margin-bottom:3px;">${hotelName}</div>`;
-  b += `<div style="text-align:center;font-size:10px;margin-bottom:5px;">Date: ${businessDate}</div>`;
 
-  // Bill Details
+  // Header
+  b += `<div style="text-align:center;font-weight:700;font-size:13px;border-bottom:1px solid #000;padding-bottom:3px;margin-bottom:5px;">${hotelName}</div>`;
+  b += `<div style="text-align:center;font-size:10px;margin-bottom:8px;">Date: ${businessDate}</div>`;
+
+  // Bill Details Section
   if (data.billDetails?.length) {
-    console.log("  - Adding Bill Details section");
-    b += sec('BILL DETAILS');
-    b += ln(`${c('Bill',7)} ${c('Tbl',5)} ${r('Gross',7)} ${r('GST',5)} ${r('Net',7)} Mode`);
-    b += hr();
-    let tG=0,tT=0,tN=0;
+    b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:5px 0;">BILL DETAILS</div>`;
+    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+            <span style="width:20%">Bill</span>
+            <span style="width:15%">Tbl</span>
+            <span style="width:22%;text-align:right">Gross</span>
+            <span style="width:15%;text-align:right">GST</span>
+            <span style="width:18%;text-align:right">Net</span>
+            <span style="width:10%">Mode</span>
+          </div>`;
+    let tGross = 0, tGST = 0, tNet = 0;
     data.billDetails.forEach(row => {
-      const gst = Number(row.CGST||0)+Number(row.SGST||0);
-      tG+=Number(row.grossAmount||0); tT+=gst; tN+=Number(row.netAmount||0);
-      b += ln(`${c(String(row.TxnNo).slice(-6),7)} ${c(row.table_name,5)} ${r(f(row.grossAmount),7)} ${r(gst.toFixed(0),5)} ${r(f(row.netAmount),7)} ${c(row.paymentMode||'Cash',5)}`);
+      const gst = Number(row.CGST || 0) + Number(row.SGST || 0);
+      tGross += Number(row.grossAmount || 0);
+      tGST += gst;
+      tNet += Number(row.netAmount || 0);
+      b += `<div style="font-size:9px;display:flex;justify-content:space-between;padding:1px 0;">
+              <span style="width:20%">${String(row.TxnNo).slice(-6)}</span>
+              <span style="width:15%">${(row.table_name || '').substring(0, 4)}</span>
+              <span style="width:22%;text-align:right">${f(row.grossAmount)}</span>
+              <span style="width:15%;text-align:right">${gst.toFixed(0)}</span>
+              <span style="width:18%;text-align:right">${f(row.netAmount)}</span>
+              <span style="width:10%">${(row.paymentMode || 'Cash').substring(0, 4)}</span>
+            </div>`;
     });
-    b += hl();
-    b += tot(`${'TOTAL'.padEnd(14)} ${r(f(tG),7)} ${r(tT.toFixed(0),5)} ${r(f(tN),7)}`);
+    b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
+    b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;padding:2px 0;">
+            <span>TOTAL</span>
+            <span>${f(tGross)} | ${tGST.toFixed(0)} | ${f(tNet)}</span>
+          </div>`;
   }
 
-  // Payment Summary
+  // Payment Summary Section
   if (data.paymentSummary?.length) {
-    const rows = data.paymentSummary.filter(p=>Number(p.totalAmount)>0);
-    if (rows.length) {
-      console.log("  - Adding Payment Summary section");
-      b += sec('PAYMENT SUMMARY');
-      let total=0;
-      rows.forEach(p=>{ b+=ln(`${c(p.PaymentType,22)} ${r(f(p.totalAmount),8)}`); total+=Number(p.totalAmount||0); });
-      b += hl();
-      b += tot(`${'TOTAL'.padEnd(22)} ${r(f(total),8)}`);
+    const filtered = data.paymentSummary.filter(p => Number(p.totalAmount) > 0);
+    if (filtered.length) {
+      b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">PAYMENT SUMMARY</div>`;
+      let total = 0;
+      filtered.forEach(p => {
+        b += `<div style="font-size:9px;display:flex;justify-content:space-between;padding:1px 0;">
+                <span>${p.PaymentType}</span>
+                <span>${f(p.totalAmount)}</span>
+              </div>`;
+        total += Number(p.totalAmount || 0);
+      });
+      b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
+      b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
     }
   }
 
-  // Credit Summary
+  // Credit Summary Section
   if (data.creditSummary?.length) {
-    console.log("  - Adding Credit Summary section");
-    b += sec('CREDIT SUMMARY');
-    b += ln(`${'Customer'.padEnd(18)} ${'Bills'.padStart(5)} ${'Amount'.padStart(8)}`);
-    b += hr();
-    let total=0;
-    data.creditSummary.forEach(row=>{
-      b+=ln(`${c(row.customerName,18)} ${r(String(row.billCount||0),5)} ${r(f(row.creditAmount),8)}`);
-      total+=Number(row.creditAmount||0);
+    b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">CREDIT SUMMARY</div>`;
+    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
+            <span style="width:60%">Customer</span>
+            <span style="width:15%;text-align:right">Bills</span>
+            <span style="width:25%;text-align:right">Amount</span>
+          </div>`;
+    let total = 0;
+    data.creditSummary.forEach(c => {
+      b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
+              <span style="width:60%">${(c.customerName || '').substring(0, 18)}</span>
+              <span style="width:15%;text-align:right">${c.billCount}</span>
+              <span style="width:25%;text-align:right">${f(c.creditAmount)}</span>
+            </div>`;
+      total += Number(c.creditAmount || 0);
     });
-    b+=hl(); b+=tot(`${'TOTAL'.padEnd(24)} ${r(f(total),8)}`);
+    b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
+    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
   }
 
-  // Discount Summary
+  // Discount Summary Section
   if (data.discountSummary?.length) {
-    console.log("  - Adding Discount Summary section");
-    b += sec('DISCOUNT SUMMARY');
-    b += ln(`${'Bill'.padEnd(7)} ${'Table'.padEnd(7)} ${'Reason'.padEnd(9)} ${'Amount'.padStart(7)}`);
-    b += hr();
-    let total=0;
-    data.discountSummary.forEach(row=>{
-      b+=ln(`${c(String(row.TxnNo).slice(-5),7)} ${c(row.table_name,7)} ${c(row.reason,9)} ${r(f(row.Discount),7)}`);
-      total+=Number(row.Discount||0);
+    b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">DISCOUNT SUMMARY</div>`;
+    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
+            <span style="width:20%">Bill</span>
+            <span style="width:20%">Table</span>
+            <span style="width:35%">Reason</span>
+            <span style="width:25%;text-align:right">Amount</span>
+          </div>`;
+    let total = 0;
+    data.discountSummary.forEach(d => {
+      b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
+              <span style="width:20%">${String(d.TxnNo).slice(-5)}</span>
+              <span style="width:20%">${(d.table_name || '').substring(0, 6)}</span>
+              <span style="width:35%">${(d.reason || '').substring(0, 10)}</span>
+              <span style="width:25%;text-align:right">${f(d.Discount)}</span>
+            </div>`;
+      total += Number(d.Discount || 0);
     });
-    b+=hl(); b+=tot(`${'TOTAL'.padEnd(24)} ${r(f(total),7)}`);
+    b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
+    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
   }
 
-  // Reverse KOTs
+  // Reverse KOT Section
   if (data.reverseKOTs?.length) {
-    console.log("  - Adding Reverse KOT section");
-    b += sec('REVERSE KOT SUMMARY');
-    b += ln(`${'KOT'.padEnd(6)} ${'Tbl'.padEnd(6)} ${'Item'.padEnd(13)} ${'Qty'.padStart(3)} Time`);
-    b += hr();
-    data.reverseKOTs.forEach(row=>{
-      b+=ln(`${c(String(row.kotNo),6)} ${c(row.table_name,6)} ${c(row.item_name,13)} ${r(String(row.quantity),3)} ${t(row.TxnDatetime)}`);
+    b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">REVERSE KOT SUMMARY</div>`;
+    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
+            <span style="width:15%">KOT</span>
+            <span style="width:15%">Tbl</span>
+            <span style="width:40%">Item</span>
+            <span style="width:10%;text-align:right">Qty</span>
+            <span style="width:20%">Time</span>
+          </div>`;
+    data.reverseKOTs.forEach(k => {
+      b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
+              <span style="width:15%">${String(k.kotNo).substring(0, 5)}</span>
+              <span style="width:15%">${(k.table_name || '').substring(0, 5)}</span>
+              <span style="width:40%">${(k.item_name || '').substring(0, 12)}</span>
+              <span style="width:10%;text-align:right">${k.quantity}</span>
+              <span style="width:20%">${t(k.TxnDatetime)}</span>
+            </div>`;
     });
   }
 
-  // Reverse Bills
+  // Reverse Bill Section
   if (data.reverseBills?.length) {
-    console.log("  - Adding Reverse Bill section");
-    b += sec('REVERSE BILL SUMMARY');
-    b += ln(`${'Bill'.padEnd(8)} ${'Table'.padEnd(8)} ${'Amount'.padStart(8)} Time`);
-    b += hr();
-    let total=0;
-    data.reverseBills.forEach(row=>{
-      b+=ln(`${c(String(row.billNo),8)} ${c(row.table_name,8)} ${r(f(row.reversedAmount),8)} ${t(row.TxnDatetime)}`);
-      total+=Number(row.reversedAmount||0);
+    b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">REVERSE BILL SUMMARY</div>`;
+    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
+            <span style="width:25%">BillNo</span>
+            <span style="width:25%">Table</span>
+            <span style="width:25%;text-align:right">Amount</span>
+            <span style="width:25%">Time</span>
+          </div>`;
+    let total = 0;
+    data.reverseBills.forEach(bill => {
+      b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
+              <span style="width:25%">${String(bill.billNo).substring(0, 7)}</span>
+              <span style="width:25%">${(bill.table_name || '').substring(0, 7)}</span>
+              <span style="width:25%;text-align:right">${f(bill.reversedAmount)}</span>
+              <span style="width:25%">${t(bill.TxnDatetime)}</span>
+            </div>`;
+      total += Number(bill.reversedAmount || 0);
     });
-    b+=hl(); b+=tot(`${'TOTAL'.padEnd(17)} ${r(f(total),8)}`);
+    b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
+    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
   }
 
-  // NC KOT
+  // NC KOT Section
   if (data.ncKOTSummary?.length) {
-    console.log("  - Adding NC KOT section");
-    b += sec('NC KOT SUMMARY');
-    b += ln(`${'Name'.padEnd(11)} ${'Purpose'.padEnd(11)} ${'Qty'.padStart(4)} ${'Amount'.padStart(8)}`);
-    b += hr();
-    let tQ=0, tA=0;
-    data.ncKOTSummary.forEach(row=>{
-      b+=ln(`${c(row.ncName||'N/A',11)} ${c(row.purpose||'N/A',11)} ${r(String(row.quantity||0),4)} ${r(f(row.amount),8)}`);
-      tQ+=Number(row.quantity||0); tA+=Number(row.amount||0);
+    b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">NC KOT SUMMARY</div>`;
+    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
+            <span style="width:30%">Name</span>
+            <span style="width:35%">Purpose</span>
+            <span style="width:15%;text-align:right">Qty</span>
+            <span style="width:20%;text-align:right">Amount</span>
+          </div>`;
+    let tQty = 0, tAmt = 0;
+    data.ncKOTSummary.forEach(n => {
+      b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
+              <span style="width:30%">${(n.ncName || 'N/A').substring(0, 10)}</span>
+              <span style="width:35%">${(n.purpose || 'N/A').substring(0, 12)}</span>
+              <span style="width:15%;text-align:right">${n.quantity}</span>
+              <span style="width:20%;text-align:right">${f(n.amount)}</span>
+            </div>`;
+      tQty += Number(n.quantity || 0);
+      tAmt += Number(n.amount || 0);
     });
-    b+=hl(); b+=tot(`${'TOTAL'.padEnd(22)} ${r(String(tQ),4)} ${r(f(tA),8)}`);
+    b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
+    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>TOTAL</span><span>Qty:${tQty} | ${f(tAmt)}</span></div>`;
   }
 
-  b += `<div style="text-align:center;margin-top:10px;font-size:10px;">*** END OF REPORT ***</div>`;
-  b += `<div style="text-align:center;font-size:9px;margin-top:2px;">${new Date().toLocaleString('en-IN')}</div>`;
+  // Footer
+  b += `<div style="border-top:1px solid #000;margin:8px 0 3px;"></div>`;
+  b += `<div style="text-align:center;font-size:9px;margin-top:5px;">*** END OF REPORT ***</div>`;
+  b += `<div style="text-align:center;font-size:8px;margin-top:2px;">${new Date().toLocaleString('en-IN')}</div>`;
 
-  console.log("✅ Print HTML built, total length:", b.length);
-  return `<html><head><style>
-    @page{size:80mm auto;margin:0;}
-    body{width:72mm;margin-left:3mm;font-family:'Courier New',Courier,monospace;font-size:10px;line-height:1.3;background:#fff;color:#000;}
-  </style></head><body>${b}</body></html>`;
+  // ✅ size: 80mm auto — printer setting se independent, content ke hisaab se page banta hai
+  // ✅ margin: 0 — top blank space bilkul nahi
+  // ✅ -webkit-print-color-adjust: exact — Electron rendering ke liye
+  // ✅ break-inside: avoid — sections cut nahi honge
+  return `<html>
+<head>
+  <style>
+    @page {
+      size: 80mm auto;
+      margin: 0;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 80mm;
+      background: #ffffff;
+    }
+
+    body {
+      font-family: monospace;
+      font-size: 10px;
+      line-height: 1.2;
+      width: 76mm;
+      margin: 0 auto;
+      padding: 2mm 2mm 4mm 2mm;
+      color: #000000;
+
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+
+      overflow: visible !important;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    div,
+    table,
+    tr,
+    td {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+  </style>
+</head>
+
+<body>
+  ${b}
+</body>
+</html>`;
 }
 
 // ─────────────────────────────────────────────
@@ -467,37 +564,19 @@ const DayEndReportPreview: React.FC = () => {
 
   // ── Load JSON data stored by DayEnd page ──
   useEffect(() => {
-    console.log("🚀 DayEndReportPreview Component Mounted");
-    console.log("🔍 Checking sessionStorage...");
-    
     const raw  = sessionStorage.getItem("dayEndReportData");
     const date = sessionStorage.getItem("dayEndReportDate") || '';
-    
-    console.log("📦 Raw data from sessionStorage:", raw ? `Found (length: ${raw.length})` : "NOT FOUND");
-    console.log("📅 Date from sessionStorage:", date || "NOT FOUND");
-    
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
-        console.log("✅ Parsed report data successfully:", parsed);
-        console.log("📊 Data counts:", {
-          billDetails: parsed.billDetails?.length || 0,
-          paymentSummary: parsed.paymentSummary?.length || 0,
-          creditSummary: parsed.creditSummary?.length || 0,
-          discountSummary: parsed.discountSummary?.length || 0,
-          reverseKOTs: parsed.reverseKOTs?.length || 0,
-          reverseBills: parsed.reverseBills?.length || 0,
-          ncKOTSummary: parsed.ncKOTSummary?.length || 0
-        });
         setReportData(parsed);
         setBusinessDate(date);
       } catch (error) {
-        console.error("❌ Failed to parse report data:", error);
+        console.error("Failed to parse report data:", error);
         toast.error("Failed to parse report data");
         navigate("/apps/DayEnd");
       }
     } else {
-      console.warn("⚠️ No data found in sessionStorage");
       toast.error("No report data found. Please generate report again.");
       navigate("/apps/DayEnd");
     }
@@ -507,17 +586,12 @@ const DayEndReportPreview: React.FC = () => {
   useEffect(() => {
     const fetchPrinter = async () => {
       const outletIdToUse = user?.outletid || user?.hotelid;
-      console.log("🖨️ Fetching printer for outlet:", outletIdToUse);
-      if (!outletIdToUse) {
-        console.warn("⚠️ No outletid or hotelid found");
-        return;
-      }
+      if (!outletIdToUse) return;
       try {
         const printerData = await SettingsService.getReportPrinterById(Number(outletIdToUse));
-        console.log("✅ Printer data received:", printerData);
         setPrinterName(printerData[0]?.printer_name || null);
       } catch (error) {
-        console.error("❌ Failed to load printer settings:", error);
+        console.error("Failed to load printer settings:", error);
         toast.error("Failed to load printer settings.");
       }
     };
@@ -526,80 +600,51 @@ const DayEndReportPreview: React.FC = () => {
 
   const hotelName = user?.hotel_name || 'Report';
   const hasData   = reportData && Object.values(reportData).some(v => Array.isArray(v) && v.length > 0);
-  
-  console.log("🎨 Rendering preview, hasData:", hasData);
-  console.log("🏨 Hotel name:", hotelName);
-  console.log("📅 Business date:", businessDate);
 
   // ── Print ──
   const handlePrint = async () => {
-    console.log("🖨️ Print button clicked");
     if (!reportData) {
-      console.error("❌ No report data available for printing");
       toast.error("No report data available");
       return;
     }
-    
     try {
       setLoading(true);
-      console.log("🔍 Getting installed printers...");
       const printersRaw = (await (window as any).electronAPI?.getInstalledPrinters?.()) || [];
       const printers = Array.isArray(printersRaw) ? printersRaw : [];
-      console.log("📋 Available printers:", printers.map((p: any) => p.name));
-      
-      if (!printers.length) { 
-        console.error("❌ No printers found");
-        toast.error("No printers found"); 
-        return; 
-      }
+      if (!printers.length) { toast.error("No printers found"); return; }
 
       const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, "");
       let finalPrinter: string | null = null;
-      
+
       if (printerName) {
-        console.log("🔍 Looking for configured printer:", printerName);
         const match = printers.find((p: any) =>
           normalize(p.name).includes(normalize(printerName)) ||
           normalize(p.displayName || "").includes(normalize(printerName))
         );
-        if (match) {
-          finalPrinter = match.name;
-          console.log("✅ Matched printer:", finalPrinter);
-        } else {
-          console.warn("⚠️ Configured printer not found, using fallback");
-        }
+        if (match) finalPrinter = match.name;
       }
-      
+
       if (!finalPrinter) {
         const fallback = printers.find((p: any) => p.isDefault) || printers[0];
         finalPrinter = fallback?.name;
-        console.log("📌 Using fallback printer:", finalPrinter);
-      }
-      
-      if (!finalPrinter) { 
-        console.error("❌ No printer available");
-        toast.error("No printer available"); 
-        return; 
       }
 
+      if (!finalPrinter) { toast.error("No printer available"); return; }
+
       const printHTML = buildPrintHTML(reportData, hotelName, businessDate);
-      console.log("📄 Print HTML generated, sending to printer...");
-      
+
       if ((window as any).electronAPI?.directPrint) {
         await (window as any).electronAPI.directPrint(printHTML, finalPrinter);
-        console.log("✅ Print successful!");
         toast.success("Printed successfully!");
-        setTimeout(() => { 
-          console.log("🚪 Removing session and navigating to login...");
-          removeSession(); 
-          navigate("/auth/minimal/login", { replace: true }); 
+        setTimeout(() => {
+          removeSession();
+          navigate("/auth/minimal/login", { replace: true });
         }, 2000);
       } else {
-        console.error("❌ Print API not available");
         toast.error("Print API not available");
       }
     } catch (error) {
-      console.error("❌ Print failed:", error);
+      console.error("Print failed:", error);
       toast.error("Print failed");
     } finally {
       setLoading(false);
