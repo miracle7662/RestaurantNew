@@ -311,25 +311,48 @@ const getDayendData = async (req, res) => {
       // PAYMENT BREAKDOWN
       // ====================================================
 
-      const payments = {};
+  const payments = {};
 
-const usedPaymentTypes = (
-  row.PaymentType || ''
-)
-.split(',')
-.map((p) => p.trim())
-.filter(Boolean);
+// Settlement format example:
+// Cash:500,Card:200,UPI:300
 
-usedPaymentTypes.forEach((paymentType) => {
+if (row.Settlements) {
 
-  payments[paymentType] = Number(
-    row.TotalAmount || 0
-  ) + Number(
-    row.TipAmountTotal || 0
-  );
+  const settlements = row.Settlements
+    .split(',');
 
-});
+  settlements.forEach((settlement, index) => {
 
+    const [paymentType, amount] =
+      settlement.split(':');
+
+    if (paymentType) {
+
+      let finalAmount = Number(
+        amount || 0
+      );
+
+      // Add tip amount only once
+      // and only in non-cash payment mode
+      if (
+        index === 0 &&
+        paymentType.trim().toLowerCase() !== 'cash'
+      ) {
+
+        finalAmount += Number(
+          row.TipAmountTotal || 0
+        );
+
+      }
+
+      payments[paymentType.trim()] =
+        finalAmount;
+
+    }
+
+  });
+
+}
       return {
 
         // ==================================================
