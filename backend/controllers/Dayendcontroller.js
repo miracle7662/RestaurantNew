@@ -290,13 +290,22 @@ const getDayendData = async (req, res) => {
 
       const payments = {};
 
-      paymentTypes.forEach((p) => {
+const usedPaymentTypes = (
+  row.PaymentType || ''
+)
+.split(',')
+.map((p) => p.trim())
+.filter(Boolean);
 
-        payments[p.PaymentType] = Number(
-          row[p.PaymentType] || 0
-        );
+usedPaymentTypes.forEach((paymentType) => {
 
-      });
+  payments[paymentType] = Number(
+    row.TotalAmount || 0
+  ) + Number(
+    row.TipAmountTotal || 0
+  );
+
+});
 
       return {
 
