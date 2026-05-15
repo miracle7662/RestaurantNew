@@ -231,7 +231,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     @page {
       /* Roll/continuous printing */
-      size: 80mm auto;
+      size: 77mm auto;
       margin: 0;
     }
 
@@ -242,8 +242,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     }
 
     html, body {
-      width: 80mm !important;
-      min-width: 80mm !important;
+      width: 7mm !important;
+      min-width: 77mm !important;
       margin: 0;
       padding: 0;
       font-family: 'Courier New', monospace;
@@ -257,8 +257,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     /* CONTENT WRAPPER */
     #kot-preview-content {
-      width: 80mm !important;
-      min-width: 80mm !important;
+      width: 76mm !important;
+      min-width: 76mm !important;
       margin: 0;
       padding: 0; /* remove extra top/bottom influence */
       box-sizing: border-box;
@@ -713,7 +713,7 @@ ${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0).toF
               <div
                 key={JSON.stringify(localFormData)}
                 style={{
-                  width: "80mm",
+                  width: "77mm",
                   margin: "0 auto",
                   fontFamily: "'Courier New', monospace",
                   fontSize: "12px",

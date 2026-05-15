@@ -926,25 +926,54 @@ const generateDayEndReportHTML = async (req, res) => {
 
 const getBillDetailsData = async (businessDate, dayEndEmpID) => {
   console.log(`🔍 getBillDetailsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
+
   const query = `
     SELECT 
-      t.TxnID, t.TxnNo, t.table_name, t.Amount as netAmount,
-      t.GrossAmt as grossAmount, t.Discount, t.CGST, t.SGST, t.RoundOFF,
-      t.TxnDatetime, 
-      GROUP_CONCAT(s.PaymentType) as paymentMode
+      t.TxnID,
+      t.TxnNo,
+      t.table_name,
+
+      t.Amount AS netAmount,
+      t.GrossAmt AS grossAmount,
+
+      -- Discount
+      IFNULL(t.Discount, 0) AS Discount,
+
+      -- GST
+      IFNULL(t.CGST, 0) AS CGST,
+      IFNULL(t.SGST, 0) AS SGST,
+
+      t.RoundOFF,
+      t.TxnDatetime,
+
+      -- Payment Modes
+      GROUP_CONCAT(DISTINCT s.PaymentType SEPARATOR ', ') AS paymentMode,
+
+      -- Total Tip
+      SUM(IFNULL(s.tipAmount, 0)) AS tipAmount
+
     FROM TAxnTrnbill t
-    LEFT JOIN TrnSettlement s ON s.OrderNo = t.TxnNo AND s.isSettled = 1
-    WHERE t.isDayEnd = 1 
+
+    LEFT JOIN TrnSettlement s 
+      ON s.OrderNo = t.TxnNo 
+      AND s.isSettled = 1
+
+    WHERE t.isDayEnd = 1
       AND t.DayEndEmpID = ?
       AND t.isNCKOT = 0
       AND t.isreversebill = 0
       AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
       AND t.isCancelled = 0
-    GROUP BY t.TxnID, t.TxnNo
+
+    GROUP BY t.TxnID
+
     ORDER BY t.TxnDatetime DESC
   `;
+
   const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
+
   console.log(`✅ getBillDetailsData found ${rows.length} records`);
+
   return rows;
 };
 
@@ -1097,14 +1126,22 @@ const centerText = (text, width) => {
 
 const generateBillDetailsText = (data) => {
   if (!data?.length) return '';
-  
+
   let text = '='.repeat(48) + '\n';
   text += centerText('BILL DETAILS', 48) + '\n';
   text += '='.repeat(48) + '\n';
-  text += 'Bill  Tbl   Gross  GST  Net    Mode\n';
+
+  // Header
+  text += 'Bill  Tbl  Disc Gross GST Tip  Net   Mode\n';
   text += '-'.repeat(48) + '\n';
-  
-  let totals = { gross: 0, gst: 0, net: 0 };
+
+  let totals = {
+    disc: 0,
+    gross: 0,
+    gst: 0,
+    tip: 0,
+    net: 0,
+  };
 
   data.slice(0, 12).forEach((bill) => {
     const billNo = String(bill.TxnNo || '')
@@ -1112,21 +1149,62 @@ const generateBillDetailsText = (data) => {
       .substring(0, 5)
       .padEnd(5);
 
-    const table = (bill.table_name || '').substring(0, 4).padEnd(4);
-    const gross = Number(bill.grossAmount || 0).toFixed(0).padStart(6);
-    const gst = (Number(bill.CGST || 0) + Number(bill.SGST || 0)).toFixed(0).padStart(4);
-    const net = Number(bill.netAmount || 0).toFixed(0).padStart(6);
-    const mode = (bill.paymentMode || 'Cash').substring(0, 6).padEnd(6);
+    const table = (bill.table_name || '')
+      .substring(0, 4)
+      .padEnd(4);
 
-    text += `${billNo} ${table} ${gross} ${gst} ${net} ${mode}\n`;
+    const disc = Number(bill.discountAmount || 0)
+      .toFixed(0)
+      .padStart(4);
 
+    const gross = Number(bill.grossAmount || 0)
+      .toFixed(0)
+      .padStart(5);
+
+    const gst = (
+      Number(bill.CGST || 0) +
+      Number(bill.SGST || 0)
+    )
+      .toFixed(0)
+      .padStart(3);
+
+    const tip = Number(bill.tipAmount || 0)
+      .toFixed(0)
+      .padStart(4);
+
+    const net = Number(bill.netAmount || 0)
+      .toFixed(0)
+      .padStart(5);
+
+    const mode = (bill.paymentMode || 'Cash')
+      .substring(0, 6)
+      .padEnd(6);
+
+    text += `${billNo} ${table} ${disc} ${gross} ${gst} ${tip} ${net} ${mode}\n`;
+
+    totals.disc += Number(bill.discountAmount || 0);
     totals.gross += Number(bill.grossAmount || 0);
-    totals.gst += Number(bill.CGST || 0) + Number(bill.SGST || 0);
+    totals.gst +=
+      Number(bill.CGST || 0) +
+      Number(bill.SGST || 0);
+    totals.tip += Number(bill.tipAmount || 0);
     totals.net += Number(bill.netAmount || 0);
   });
 
   text += '-'.repeat(48) + '\n';
-  text += `TOTAL${' '.repeat(10)}${totals.gross.toLocaleString().padStart(6)} ${totals.gst.toFixed(0).padStart(4)} ${totals.net.toLocaleString().padStart(6)}\n`;
+
+  text += `TOTAL      ${totals.disc
+    .toFixed(0)
+    .padStart(4)} ${totals.gross
+    .toFixed(0)
+    .padStart(5)} ${totals.gst
+    .toFixed(0)
+    .padStart(3)} ${totals.tip
+    .toFixed(0)
+    .padStart(4)} ${totals.net
+    .toFixed(0)
+    .padStart(5)}\n`;
+
   text += '='.repeat(48) + '\n\n';
 
   return text;
