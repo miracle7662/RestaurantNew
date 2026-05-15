@@ -233,9 +233,20 @@ const DayendService = {
    * Generate dayend report HTML
    * Backend returns { success: true, html: string } directly (not wrapped in data)
    */
-  generateReportHTML: (payload: DayendReportPayload): Promise<{ success: boolean; html: string; message?: string }> =>
-    HttpClient.post<{ success: boolean; html: string; message?: string }>('/dayend/generate-report-html', payload),
-
+  // Update the return type to include data
+generateReportHTML: (payload: DayendReportPayload): Promise<{ 
+  success: boolean; 
+  html: string; 
+  data?: any;  // ← Add this
+  message?: string;
+  debug?: any;
+}> => HttpClient.post<{ 
+  success: boolean; 
+  html: string; 
+  data?: any;
+  message?: string;
+  debug?: any;
+}>('/dayend/generate-report-html', payload),
   /**
    * Save opening balance for the day
    */

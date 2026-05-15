@@ -2981,29 +2981,17 @@ exports.getPendingOrders = async (req, res) => {
       params.push('Delivery')
     }
 
+    // Fetch bills first (header-level info only)
     const sql = `
       SELECT
         b.*,
         b.CustomerName,
         b.orderNo,
-        b.isBilled,  -- ✅ ADD THIS LINE
+        b.isBilled,
         (SELECT MAX(d2.KOTNo) FROM TAxnTrnbilldetails d2 WHERE d2.TxnID = b.TxnID) as KOTNo,
         b.outletid,
-        b.MobileNo,
-        GROUP_CONCAT(
-          DISTINCT json_object(
-            'TXnDetailID', d.TXnDetailID,
-            'ItemID', d.ItemID,
-            -- ✅ Show remaining quantity after reversal
-            'Qty', (d.Qty - COALESCE(d.RevQty, 0)),
-            'RuntimeRate', d.RuntimeRate,
-            'item_name', m.item_name,
-            'isBilled', d.isBilled  
-          )
-        ) as _details
+        b.MobileNo
       FROM TAxnTrnbill b
-      LEFT JOIN TAxnTrnbilldetails d ON d.TxnID = b.TxnID AND d.isCancelled = 0
-      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE ${whereClauses.join(' AND ')}
       GROUP BY b.TxnID, b.TxnNo
       ORDER BY b.TxnDatetime DESC
@@ -3011,33 +2999,75 @@ exports.getPendingOrders = async (req, res) => {
 
     const [rows] = await db.query(sql, params)
 
-    const orders = (Array.isArray(rows) ? rows : []).map((r) => ({
-      id: r.TxnID,
-      txnId: r.TxnID,
-      kotNo: r.KOTNo,
-      orderNo: r.orderNo,
-      isBilled: r.isBilled,
-      outletid: r.outletid,
-      customer: {
-        name: r.CustomerName || '',
-        mobile: r.MobileNo || '',
-      },
-      items: r._details
-        ? JSON.parse(`[${r._details}]`)
-            .filter((d) => d && d.Qty > 0) // ✅ Hide fully reversed items
-            .map((d) => ({
-              name: d.item_name || '',
-              qty: d.Qty || 0,
-              price: d.RuntimeRate || 0,
-              ItemID: d.ItemID,
-              TXnDetailID: d.TXnDetailID,
-            }))
-        : [],
-      total: r.Amount || 0,
-      type: r.Order_Type || r.table_name,
-    }))
+    const bills = Array.isArray(rows) ? rows : []
+    const txnIds = bills.map((b) => Number(b.TxnID)).filter((x) => Number.isFinite(x))
+
+    // If no bills, respond early
+    if (txnIds.length === 0) {
+      return res.json(ok('Fetched pending orders', []))
+    }
+
+    const placeholders = txnIds.map(() => '?').join(',')
+
+    // Fetch detail rows separately and group in Node.
+    // This avoids MySQL GROUP_CONCAT truncation / invalid JSON.
+    const detailSql = `
+      SELECT
+        d.TxnID,
+        d.TXnDetailID,
+        d.ItemID,
+        (d.Qty - COALESCE(d.RevQty, 0)) AS Qty,
+        d.RuntimeRate,
+        m.item_name AS item_name,
+        d.isBilled AS detail_isBilled
+      FROM TAxnTrnbilldetails d
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE d.isCancelled = 0
+        AND d.TxnID IN (${placeholders})
+    `
+
+    const [detailRows] = await db.query(detailSql, txnIds)
+
+    const detailsByTxn = new Map()
+    ;(Array.isArray(detailRows) ? detailRows : []).forEach((d) => {
+      const txnId = Number(d.TxnID)
+      if (!detailsByTxn.has(txnId)) detailsByTxn.set(txnId, [])
+      detailsByTxn.get(txnId).push(d)
+    })
+
+    const orders = bills.map((r) => {
+      const txnId = Number(r.TxnID)
+      const details = detailsByTxn.get(txnId) || []
+
+      const items = details
+        .filter((d) => Number(d.Qty) > 0)
+        .map((d) => ({
+          name: d.item_name || '',
+          qty: Number(d.Qty) || 0,
+          price: Number(d.RuntimeRate) || 0,
+          ItemID: d.ItemID,
+          TXnDetailID: d.TXnDetailID,
+        }))
+
+      return {
+        id: r.TxnID,
+        txnId: r.TxnID,
+        kotNo: r.KOTNo,
+        orderNo: r.orderNo,
+        isBilled: r.isBilled,
+        outletid: r.outletid,
+        customer: {
+          name: r.CustomerName || '',
+          mobile: r.MobileNo || '',
+        },
+        items,
+        total: r.Amount || 0,
+        type: r.Order_Type || r.table_name,
+      }
+    })
 
     res.json(ok('Fetched pending orders', orders))
+    console.log(`Fetched ${orders.length} pending orders for type: ${type || 'all'}`)
   } catch (error) {
     res.status(500).json({
       success: false,

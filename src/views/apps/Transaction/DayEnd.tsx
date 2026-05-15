@@ -447,41 +447,59 @@ const getPaymentAmount = (order: any, modeName: string): number => {
     }
   };
 
-  const handleGenerateReports = async () => {
-    try {
-      const selectedReportKeys = Object.keys(selectedReports).filter(key => selectedReports[key as keyof typeof selectedReports]);
-      if (selectedReportKeys.length === 0) {
-        toast.error("Please select at least one report to generate.");
-        return;
-      }
-      if (!user) {
-        toast.error("User information is not available. Please log in again.");
-        return;
-      }
-      const payload = {
-        DayEndEmpID: user.id,
-        businessDate: reportDate,
-        selectedReports: selectedReportKeys,
-      };
-      console.log('🔍 Report payload:', payload);
-      const response = await DayendService.generateReportHTML(payload);
-      console.log('📄 API Response:', response);
-      if (response.success && response.html && response.html.trim().length > 50) {
-        sessionStorage.setItem('dayEndReportHTML', response.html);
-        const outletId = orders[0]?.outletid || user?.outletid || user?.hotelid;
-        sessionStorage.setItem('dayEndReportOutletId', outletId?.toString() || '');
-        console.log('✅ Stored HTML length:', response.html.length, 'OutletId:', outletId);
+// DayEnd.tsx में handleGenerateReports फंक्शन को ठीक करें
+
+const handleGenerateReports = async () => {
+  try {
+    const selectedReportKeys = Object.keys(selectedReports).filter(
+      key => selectedReports[key as keyof typeof selectedReports]
+    );
+    
+    if (selectedReportKeys.length === 0) {
+      toast.error("Please select at least one report to generate.");
+      return;
+    }
+    
+    if (!user) {
+      toast.error("User information is not available. Please log in again.");
+      return;
+    }
+    
+    const payload = {
+      DayEndEmpID: user.id,
+      businessDate: reportDate,
+      selectedReports: selectedReportKeys,
+    };
+    
+    console.log('🔍 Report payload:', payload);
+    const response = await DayendService.generateReportHTML(payload);
+    console.log('📄 API Response:', response);
+    
+    if (response.success) {
+      // ✅ FIX: Store the data object (not HTML)
+      if (response.data) {
+        console.log('💾 Storing report data:', response.data);
+        sessionStorage.setItem('dayEndReportData', JSON.stringify(response.data));
+        sessionStorage.setItem('dayEndReportDate', reportDate);
+        
+        // ✅ Verify storage
+        const saved = sessionStorage.getItem('dayEndReportData');
+        console.log('✅ Verified saved data length:', saved?.length);
+        
         toast.success('✅ Report generated! Opening preview...');
         navigate('/apps/Masters/Reports/DayEndReportPreview');
       } else {
-        console.error('❌ Empty report HTML. Backend debug needed.');
-        toast.error(`Failed to generate reports. HTML empty. Check backend console: Found 0 records?`);
+        console.error('❌ No data in response:', response);
+        toast.error('No report data received from server');
       }
-    } catch (error) {
-      console.error('Error generating reports:', error);
-      toast.error("An error occurred while generating reports.");
+    } else {
+      toast.error(response.message || "Failed to generate reports.");
     }
-  };
+  } catch (error) {
+    console.error('Error generating reports:', error);
+    toast.error("An error occurred while generating reports.");
+  }
+};
 
   const StatusBadge = ({ status }: { status: string }) => {
     const variants = {
