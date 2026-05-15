@@ -252,6 +252,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       margin: 0 auto;
      
       box-sizing: border-box;
+      font-weight: bold; /* ensure all shown values are bold */
     }
 
     .center { text-align: center; }
