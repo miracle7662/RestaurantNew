@@ -76,6 +76,7 @@ interface BillPreviewPrintProps {
   dialogClassName?: string;
   billDate?: string;
   autoPrint?: boolean;
+  billData?: any; // New prop for backend bill data
 }
 
 const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
@@ -107,7 +108,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   outletName,
   dialogClassName,
   billDate,
-  autoPrint
+  autoPrint,
+  billData
 }) => {
   const [loading, setLoading] = React.useState(false);
   const [printerName, setPrinterName] = React.useState<string | null>(null);
@@ -435,17 +437,17 @@ html, body {
 <div style="margin: 0 auto; font-family: 'Courier New', monospace; font-size: 10pt; line-height: 1.2; padding: 10px; color: #000; font-weight: bold;">
         <!-- ================= HEADER (with conditional rendering) ================= -->
         <div style="text-align: center; margin-bottom: 10px;">
-          ${(showAll || localFormData.show_logo_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${(showAll || localFormData.show_brand_name_bill) ? displayRestaurantName : ''}</div>` : ''}
-          ${(showAll || localFormData.show_outlet_name_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${displayOutletName}</div>` : ''}
-<div style="font-size: 8pt;">${authUser?.address || user?.outlet_address || ''}</div>
-${(showAll || localFormData.trn_gstno) ? `<div style="font-size: 8pt;">GST No: ${user?.trn_gstno || 'N/A'}</div>` : ''}
+          ${(showAll || localFormData.show_logo_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${(showAll || localFormData.show_brand_name_bill) ? (billData?.hotelName || displayRestaurantName) : ''}</div>` : ''}
+          ${(showAll || localFormData.show_outlet_name_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${billData?.outletName || displayOutletName}</div>` : ''}
+          <div style="font-size: 8pt;">${billData?.address || ''}</div>
+          ${(showAll || localFormData.trn_gstno) ? `<div style="font-size: 8pt;">GST No: ${billData?.gstNo || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.email) ? `<div style="font-size: 8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.website) ? `<div style="font-size: 8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
-          ${(showAll || localFormData.show_phone_on_bill) ? `<div style="font-size: 8pt;">Phone: ${localFormData.show_phone_on_bill || 'N/A'}</div>` : ''}
-          
+          ${((showAll || localFormData.show_phone_on_bill) && billData?.phone) ? `<div style="font-size: 8pt;">Phone: ${billData?.phone}</div>` : ''}
+           
            ${(showAll || localFormData.show_item_hsn_code_bill) ? `<div>HSN: ${localFormData.hsn || 'N/A'}</div>` : ''}
            
-          ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${localFormData.fssai_no || 'N/A'}</div>` : ''}
+          ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${billData?.fssaiNo || 'N/A'}</div>` : ''}
            ${(showAll || localFormData.field1) ? `<div style="font-size: 8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
          
         </div>
@@ -546,28 +548,28 @@ ${(showAll || localFormData.trn_gstno) ? `<div style="font-size: 8pt;">GST No: $
   <div style="display:grid; grid-template-columns:auto 4px 55px; justify-content:end; column-gap:4px">
     <span><strong>Taxable Value</strong></span>
     <span style="text-align:center;">:</span>
-    <span style="text-align:right;">₹${(taxCalc.taxableValue ?? (taxCalc.subtotal - discount)).toFixed(2)}</span>
+    <span style="text-align:right;">₹${(billData?.taxableValue ?? taxCalc.taxableValue ?? (taxCalc.subtotal - discount)).toFixed(2)}</span>
   </div>
 
   ${taxCalc.cgstAmt > 0 ? `
   <div style="display:grid; grid-template-columns:auto 4px 55px; justify-content:end; column-gap:4px">
     <span>CGST @${taxRates.cgst}%</span>
     <span style="text-align:center;">:</span>
-    <span style="text-align:right;">₹${taxCalc.cgstAmt.toFixed(2)}</span>
+    <span style="text-align:right;">₹${(billData?.totalCGST ?? taxCalc.cgstAmt).toFixed(2)}</span>
   </div>` : ''}
 
   ${taxCalc.sgstAmt > 0 ? `
   <div style="display:grid; grid-template-columns:auto 4px 55px; justify-content:end; column-gap:4px">
     <span>SGST @${taxRates.sgst}%</span>
     <span style="text-align:center;">:</span>
-    <span style="text-align:right;">₹${taxCalc.sgstAmt.toFixed(2)}</span>
+    <span style="text-align:right;">₹${(billData?.totalSGST ?? taxCalc.sgstAmt).toFixed(2)}</span>
   </div>` : ''}
 
   ${taxCalc.igstAmt > 0 ? `
   <div style="display:grid; grid-template-columns:auto 4px 55px; justify-content:end; column-gap:4px;">
     <span>IGST @${taxRates.igst}%</span>
     <span style="text-align:center;">:</span>
-    <span style="text-align:right;">₹${taxCalc.igstAmt.toFixed(2)}</span>
+    <span style="text-align:right;">₹${(billData?.totalIGST ?? taxCalc.igstAmt).toFixed(2)}</span>
   </div>` : ''}
   ` : ''}
 
