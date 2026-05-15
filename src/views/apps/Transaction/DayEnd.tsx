@@ -319,9 +319,17 @@ const getPaymentAmount = (order: any, modeName: string): number => {
 
   // Compute totals for each payment mode based on filteredOrders
   const paymentModeTotals = paymentModes.reduce((acc, mode) => {
-    acc[mode.mode_name] = filteredOrders.reduce((sum, order) => sum + getPaymentAmount(order, mode.mode_name), 0);
+    acc[mode.mode_name] = filteredOrders.reduce(
+      (sum, order) => sum + getPaymentAmount(order, mode.mode_name),
+      0
+    );
     return acc;
   }, {} as Record<string, number>);
+
+  const visiblePaymentModes = paymentModes.filter(
+    (mode) => (paymentModeTotals[mode.mode_name] || 0) > 0
+  );
+
 
   const handleViewDetails = (order: Order) => {
     setSelectedOrder(order);
@@ -913,8 +921,8 @@ const getPaymentAmount = (order: any, modeName: string): number => {
                             <th>Outlet ID</th>
                             <th>Water</th>
                             <th>Payment Type</th>
-                            {/* Dynamic payment mode columns */}
-                            {paymentModes.map(mode => (
+                  {/* Dynamic payment mode columns */}
+                            {visiblePaymentModes.map(mode => (
                               <th key={mode.id}>{mode.mode_name}</th>
                             ))}
                             <th>Reverse Bill</th>
@@ -967,7 +975,7 @@ const getPaymentAmount = (order: any, modeName: string): number => {
                                 <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
                                 <td title={order.paymentType || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>{order.paymentType || ''}</td>
                                 {/* Dynamic payment amount cells */}
-                                {paymentModes.map(mode => (
+                                {visiblePaymentModes.map(mode => (
                                   <td key={mode.id} style={{ textAlign: 'right' }}>
                                     ₹{getPaymentAmount(order, mode.mode_name).toLocaleString()}
                                   </td>
@@ -1007,7 +1015,7 @@ const getPaymentAmount = (order: any, modeName: string): number => {
                             <td style={{ textAlign: 'right' }}>₹{totalWater.toLocaleString()}</td>
                             <td></td>
                             {/* Dynamic payment totals */}
-                            {paymentModes.map(mode => (
+                            {visiblePaymentModes.map(mode => (
                               <td key={mode.id} style={{ textAlign: 'right' }}>
                                 ₹{(paymentModeTotals[mode.mode_name] || 0).toLocaleString()}
                               </td>
