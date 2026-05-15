@@ -187,7 +187,7 @@ const DayendService = {
   /**
    * Get dayend data (transactions and summary)
    */
-  getDayendData: (params?: { outletid?: number; hotelid?: number }): Promise<ApiResponse<DayendData>> =>
+getDayendData: (params?: { outletid?: number; hotelid?: number; date?: string }): Promise<ApiResponse<DayendData>> =>
     HttpClient.get<ApiResponse<DayendData>>('/dayend/data', { params }),
 
   getBackDayendData: (params?: { outletid?: number; hotelid?: number; date?: string }): Promise<ApiResponse<DayendData>> =>

@@ -2,6 +2,9 @@ const db = require('../config/db');
 // Convert to India Standard Time (UTC+5:30)
 
 const getDayendData = async (req, res) => {
+  // Supports optional `date` query param to force filtering by DATE(TxnDatetime)=date
+  // When not provided, falls back to business date derived from getBusinessDate(outlet_id, hotelid)
+
   try {
 
     console.log("========================================");
@@ -237,12 +240,13 @@ const getDayendData = async (req, res) => {
       )
 
       -- ==================================================
-      -- FILTERS
-      -- ==================================================
+        -- FILTERS
+        -- ==================================================
 
       WHERE t.isDayEnd = 0
 
-      AND (
+
+    AND (
         (
           t.isCancelled = 0
           AND (
@@ -252,6 +256,12 @@ const getDayendData = async (req, res) => {
         )
         OR t.isreversebill = 1
       )
+
+      -- ==================================================
+      -- BUSINESS DATE FILTER (curr_date)
+      -- ==================================================
+
+      AND DATE(t.TxnDatetime) = ?
 
       -- ==================================================
       -- GROUP BY
@@ -274,7 +284,26 @@ const getDayendData = async (req, res) => {
     // EXECUTE QUERY
     // ======================================================
 
-    const [rows] = await db.query(query);
+    // Business date (curr_date) to filter by TxnDatetime
+    // If frontend sends explicit `date`, use it directly.
+    const { outletid: outlet_id, hotelid, date } = req.query;
+
+    let businessDate = null;
+
+    if (date) {
+      businessDate = date;
+    } else if (outlet_id && hotelid) {
+      businessDate = await getBusinessDate(outlet_id, hotelid);
+    }
+
+    if (!businessDate) {
+      const now = new Date();
+      const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+      businessDate = indiaTime.toISOString().split('T')[0];
+    }
+
+    const [rows] = await db.query(query, [businessDate]);
+
 
     console.log("TOTAL ROWS =>", rows.length);
 

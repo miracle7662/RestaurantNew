@@ -517,7 +517,6 @@ console.log('Loaded Report Data:', reportData);
   };
 
   const getFormattedTime = (timeStr: string) => {
-    if (!timeStr || !timeStr.includes(':')) return "";
     const utcDate = new Date(timeStr);
     if (isNaN(utcDate.getTime())) return timeStr;
     return utcDate.toLocaleTimeString("en-IN", {
@@ -1140,7 +1139,6 @@ console.log('Loaded Report Data:', reportData);
                   <Col md={6}><strong>Total Items:</strong> {selectedOrder.items}</Col>
                   <Col md={6}><strong>Time:</strong> {getFormattedTime(selectedOrder.time)}</Col>
                   <Col md={6}><strong>Date:</strong> {getFormattedDate(selectedOrder.time)}</Col>
-                  <Col md={6}><strong>Date:</strong> {getFormattedDate(selectedOrder.date)}</Col>
                   <Col md={6}><strong>Payment:</strong> {selectedOrder.type}</Col>
                   <Col md={6}><strong>Status:</strong> <StatusBadge status={selectedOrder.status} /></Col>
                   <Col md={12}><hr className="my-1" /></Col>
