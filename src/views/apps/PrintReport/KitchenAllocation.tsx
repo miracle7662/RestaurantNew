@@ -29,6 +29,11 @@ interface FilterOption {
 
 const KitchenAllocation: React.FC = () => {
   const { user } = useAuthContext();
+  const hotelName: string =
+    (user?.hotelname as string) ||
+    (user as any)?.hotelName ||
+    (user as any)?.hotel_name ||
+    '';
   const [data, setData] = useState<KitchenAllocationData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -190,7 +195,12 @@ const KitchenAllocation: React.FC = () => {
   // Handler functions for buttons
   const handlePDF = () => {
     const doc = new jsPDF();
-    doc.text('Kitchen Allocation Report', 20, 10);
+    let y = 10;
+    if (hotelName) {
+      doc.text(hotelName, 20, y);
+      y += 6;
+    }
+    doc.text('Kitchen Allocation Report', 20, y);
     const tableColumn = ['Item No', 'Item Name', 'Total Qty', 'Amount'];
       const tableRows = filteredData.map(item => [
       item.item_no,
@@ -287,7 +297,13 @@ const reportHTML = `
 
     @media print {
       html, body { overflow: visible !important; }
+
+      /* Prevent table header duplication on thermal printers / some print engines */
+      thead { display: table-header-group !important; }
+      tr { page-break-inside: avoid; }
+      table { page-break-inside: avoid; }
     }
+
 
     body {
       font-family: monospace;
@@ -301,11 +317,12 @@ const reportHTML = `
       padding: 0;
     }
 
-    .sub-header {
-      text-align: center;
-      font-size: 13px;
-      margin-bottom: 5px;
-    }
+   .sub-header {
+  text-align: center;
+  font-size: 15px;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
 
 
     table {
@@ -350,6 +367,7 @@ const reportHTML = `
 
 <body>
   <div class="sub-header">
+    <p>${hotelName || ''}</p>
     <p>Kitchen Allocation Report</p>
     <p>From: ${fromDate} To: ${toDate}</p>
   </div>
