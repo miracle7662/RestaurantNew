@@ -1027,18 +1027,27 @@ const getPaymentSummaryData = async (businessDate, dayEndEmpID) => {
   const query = `
     SELECT 
       s.PaymentType,
-      SUM(s.Amount) as totalAmount,
-      COUNT(DISTINCT s.OrderNo) as billCount
-    FROM TrnSettlement s
-    JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
-    WHERE t.isDayEnd = 1 
-      AND t.DayEndEmpID = ?
-      AND t.TxnDatetime = ?
-      AND s.isSettled = 1
+      SUM(s.Amount) AS totalAmount,
+      COUNT(DISTINCT s.OrderNo) AS billCount
+
+    FROM trnsettlement s
+
+    WHERE s.isSettled = 1
+      AND DATE(s.InsertDate) = ?
+
+      AND EXISTS (
+          SELECT 1
+          FROM TAxnTrnBill t
+          WHERE t.TxnNo = s.TxnNo
+            AND t.DayEndEmpID = ?
+      )
+
     GROUP BY s.PaymentType
-    ORDER BY totalAmount DESC
+    ORDER BY totalAmount DESC;
   `;
-  const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
+
+  const [rows] = await db.query(query, [businessDate, dayEndEmpID]);
+
   return rows;
 };
 
@@ -1263,7 +1272,7 @@ const generatePaymentSummaryText = (data) => {
 
   data.forEach((payment) => {
     const type = payment.PaymentType?.toLowerCase() || '';
-    const amt = Number(payment.totalAmount || 0);
+    const amt = Number(payment.TotalAmount || 0);
 
     if (type.includes('cash')) summary.cash += amt;
     else if (type.includes('card')) summary.card += amt;
