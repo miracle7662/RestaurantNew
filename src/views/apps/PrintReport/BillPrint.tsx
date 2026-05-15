@@ -1,5 +1,4 @@
 import React from 'react';
-import { useAuthContext } from '@/common/context/useAuthContext';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
 import { OutletSettings } from 'src/utils/applyOutletSettings';
@@ -33,7 +32,7 @@ interface MenuItem {
 
 interface TaxCalc {
   subtotal: number;
-  taxableValue?: number;
+  TaxableValue?: number;
   cgstAmt: number;
   sgstAmt: number;
   igstAmt: number;
@@ -128,7 +127,6 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   }, [currentKOTNos, items]);
   const [localOutletName, setLocalOutletName] = React.useState<string>('');
   const [, setIsLoadingNames] = React.useState(true);
-  const { user: authUser } = useAuthContext();
 
   const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
   const displayOutletName = outletName || localOutletName || user?.outlet_name || 'Outlet Name';
@@ -380,7 +378,7 @@ html, body {
 
       console.log('[BillPrint] generate Bill HTML with totals', {
         subtotal: taxCalc?.subtotal,
-        taxableValue: taxCalc?.taxableValue,
+        taxableValue: taxCalc?.TaxableValue,
         cgstAmt: taxCalc?.cgstAmt,
         sgstAmt: taxCalc?.sgstAmt,
         igstAmt: taxCalc?.igstAmt,
@@ -548,7 +546,7 @@ html, body {
   <div style="display:grid; grid-template-columns:auto 4px 55px; justify-content:end; column-gap:4px">
     <span><strong>Taxable Value</strong></span>
     <span style="text-align:center;">:</span>
-    <span style="text-align:right;">₹${(billData?.taxableValue ?? taxCalc.taxableValue ?? (taxCalc.subtotal - discount)).toFixed(2)}</span>
+    <span style="text-align:right;">₹${(billData?.TaxableValue ?? taxCalc.TaxableValue ?? (taxCalc.subtotal - discount)).toFixed(2)}</span>
   </div>
 
   ${taxCalc.cgstAmt > 0 ? `

@@ -51,8 +51,8 @@ const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onC
     <div
       className={`${getStatusClass(table.status)} cursor-pointer table-card d-flex flex-column align-items-center justify-content-center`}
       style={{
-        width: '100px',
-        height: '70px',
+        width: '110px',
+        height: '78px',
         borderRadius: '6px',
         cursor: 'pointer',
         border: '1px solid #ddd',
@@ -549,8 +549,8 @@ navigate('/apps/Billview', {
         }
         .table-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, 100px);
-          gap: 10px;
+          grid-template-columns: repeat(auto-fill, 110px);
+          gap: 12px;
           margin-bottom: 10px;
           justify-content: start;
         }

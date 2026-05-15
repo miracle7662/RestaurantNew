@@ -71,8 +71,8 @@ const fetchSummaryData = async () => {
         {
           icon: 'sack-dollar',
           title: 'Total Sales',
-          count: `₹${summary.totalSales.toLocaleString()}`,
-          amount: `Avg Sale: ₹${summary.totalOrders > 0 ? (summary.totalSales / summary.totalOrders).toFixed(0) : 0}`,
+          // count: `₹${summary.totalSales.toLocaleString()}`,
+          // amount: `Avg Sale: ₹${summary.totalOrders > 0 ? (summary.totalSales / summary.totalOrders).toFixed(0) : 0}`,
           percentage: 100,
           color: 'primary',
         },
