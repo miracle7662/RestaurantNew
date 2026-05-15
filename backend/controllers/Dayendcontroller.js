@@ -1201,7 +1201,9 @@ const checkOpeningBalanceRequired = async (req, res) => {
     }
 
     // Check if opening_balance is NULL
-    const isRequired = lastDayend.opening_balance === null || lastDayend.opening_balance === undefined;
+    const openingBalance = Number(lastDayend.opening_balance || 0);
+
+     const isRequired = openingBalance <= 0;
 
     res.json({
       success: true,

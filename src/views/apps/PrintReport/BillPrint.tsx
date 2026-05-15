@@ -405,7 +405,7 @@ html, body {
 ${(showAll || localFormData.trn_gstno) ? `<div style="font-size: 8pt;">GST No: ${user?.trn_gstno || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.email) ? `<div style="font-size: 8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.website) ? `<div style="font-size: 8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
-          ${(showAll || localFormData.show_phone_on_bill) ? `<div style="font-size: 8pt;">Phone: ${user?.outlet_phone || 'N/A'}</div>` : ''}
+          ${(showAll || localFormData.show_phone_on_bill) ? `<div style="font-size: 8pt;">Phone: ${localFormData.show_phone_on_bill || 'N/A'}</div>` : ''}
           
            ${(showAll || localFormData.show_item_hsn_code_bill) ? `<div>HSN: ${localFormData.hsn || 'N/A'}</div>` : ''}
            

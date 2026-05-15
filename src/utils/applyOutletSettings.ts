@@ -93,6 +93,7 @@ export interface OutletSettings {
   hide_item_total_column?: boolean;
   hide_total_without_tax?: boolean;
   trn_gstno?: boolean;
+  address?: string;
   
   outlet_name?: string;
   email?: string;

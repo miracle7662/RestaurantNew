@@ -271,7 +271,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         groupKey = (item) => `${item.itemId}-${item.variantId || 0}`;
         groupName = (key, item) => {
 
-          const variantName = item.variantName || 'Standard';
+          const variantName = item.variantName || '';
           return `${item.itemName} (${variantName})`;
         };
       }

@@ -41,7 +41,7 @@ exports.login = async (req, res) => {
             console.log('🔍 Querying user by USERNAME:', username);
             // Login with username (for Hotel Admin)
             const [rows] = await db.query(`
-                SELECT u.*, h.trn_gstno,
+                SELECT u.*, h.trn_gstno, h.address AS address,
                        b.hotel_name as brand_name,
                        h.hotel_name as hotel_name,
                        u.outletid
@@ -193,7 +193,7 @@ exports.getCurrentUser = async (req, res) => {
         res.json(userResponse);
 
     } catch (error) {
-        // console.error('Get current user error:', error);
+        console.error('Get current user error:', error);
         res.status(401).json({ message: 'Invalid token' });
     }
 };
