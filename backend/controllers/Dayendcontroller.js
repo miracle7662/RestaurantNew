@@ -247,15 +247,9 @@ const getDayendData = async (req, res) => {
 
 
     AND (
-        (
-          t.isCancelled = 0
-          AND (
-            t.isBilled = 1
-            OR t.isSetteled = 1
-          )
-        )
-        OR t.isreversebill = 1
-      )
+    t.isSetteled = 1
+    OR t.isreversebill = 1
+)
 
       -- ==================================================
       -- BUSINESS DATE FILTER (curr_date)
