@@ -3,191 +3,368 @@ const db = require('../config/db');
 
 const getDayendData = async (req, res) => {
   try {
-    // Get all billed or settled bills with their details
-    // console.log('🔍 Executing DayEndReport query...');
+
+    console.log("========================================");
+    console.log("DAYEND API START");
+    console.log("========================================");
+
+    // =========================
+    // Get Dynamic Payment Types
+    // =========================
+
+    const [paymentTypes] = await db.query(`
+      SELECT DISTINCT PaymentType
+      FROM TrnSettlement
+      WHERE isSettled = 1
+      AND PaymentType IS NOT NULL
+      AND PaymentType != ''
+    `);
+
+    console.log("PAYMENT TYPES =>", paymentTypes);
+
+    // =========================
+    // Create Dynamic Payment Columns
+    // =========================
+
+    const paymentColumns = paymentTypes
+      .map(
+        (p) => `
+          COALESCE(
+            SUM(
+              CASE
+                WHEN s.PaymentType = '${p.PaymentType}'
+                THEN s.Amount
+                ELSE 0
+              END
+            ),
+            0
+          ) AS \`${p.PaymentType}\`
+        `
+      )
+      .join(",");
+
+    console.log("DYNAMIC PAYMENT COLUMNS =>");
+    console.log(paymentColumns);
+
+    // =========================
+    // Main Query
+    // =========================
 
     const query = `
       SELECT
+
           t.TxnID,
           t.TxnNo,
-          t.TableID, 
+          t.TableID,
           t.table_name,
           t.outletid,
           t.HotelID,
-          t.Amount as TotalAmount,
+
+          t.Amount AS TotalAmount,
           t.Discount,
-          t.GrossAmt as GrossAmount,
+          t.GrossAmt AS GrossAmount,
           t.CGST,
           t.SGST,
           t.RoundOFF,
-          t.RevKOT as RevAmt,
+          t.RevKOT AS RevAmt,
           t.TxnDatetime,
-          t.Steward as Captain,
+
+          t.Steward AS Captain,
           t.UserId,
-          u.username as UserName,
-          (SELECT SUM(CASE WHEN i.item_name LIKE '%water%' THEN d.RuntimeRate * d.Qty ELSE 0 END) FROM TAxnTrnbilldetails d JOIN mstrestmenu i ON d.ItemID = i.restitemid WHERE d.TxnID = t.TxnID) as Water,
-          GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) as KOTNo,
-          COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') as RevKOTNo,
-          GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
+
+          u.username AS UserName,
+
+          (
+            SELECT SUM(
+              CASE
+                WHEN i.item_name LIKE '%water%'
+                THEN d.RuntimeRate * d.Qty
+                ELSE 0
+              END
+            )
+            FROM TAxnTrnbilldetails d
+            JOIN mstrestmenu i
+              ON d.ItemID = i.restitemid
+            WHERE d.TxnID = t.TxnID
+          ) AS Water,
+
+          GROUP_CONCAT(
+            DISTINCT CASE
+              WHEN td.Qty > 0
+              THEN td.KOTNo
+            END
+          ) AS KOTNo,
+
+          COALESCE(
+            GROUP_CONCAT(DISTINCT td.RevKOTNo),
+            ''
+          ) AS RevKOTNo,
+
+          GROUP_CONCAT(
+            DISTINCT CASE
+              WHEN td.isNCKOT = 1
+              THEN td.KOTNo
+            END
+          ) AS NCKOT,
+
           t.NCPurpose,
           t.NCName,
-          (SELECT GROUP_CONCAT(CONCAT(s.PaymentType, ':', s.Amount)) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1) as Settlements,
-          (SELECT GROUP_CONCAT(s.PaymentType) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1) as PaymentType,
-          COALESCE((SELECT SUM(COALESCE(s.TipAmount, 0)) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1), 0) as TipAmountTotal,
-          COALESCE((SELECT SUM(COALESCE(s.Amount, 0)) + SUM(COALESCE(s.TipAmount, 0)) FROM TrnSettlement s WHERE (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo) AND s.isSettled = 1), 0) as SettlementAmountTotal,
+
+          ${paymentColumns},
+
+          GROUP_CONCAT(
+            DISTINCT CONCAT(
+              s.PaymentType,
+              ':',
+              s.Amount
+            )
+          ) AS Settlements,
+
+          GROUP_CONCAT(
+            DISTINCT s.PaymentType
+          ) AS PaymentType,
+
+          COALESCE(
+            SUM(COALESCE(s.TipAmount, 0)),
+            0
+          ) AS TipAmountTotal,
+
+          COALESCE(
+            SUM(COALESCE(s.Amount, 0))
+            +
+            SUM(COALESCE(s.TipAmount, 0)),
+            0
+          ) AS SettlementAmountTotal,
+
           t.isSetteled,
           t.isBilled,
           t.isreversebill,
           t.isCancelled,
           t.isDayEnd,
           t.DayEndEmpID,
-          SUM(td.Qty) as TotalItems
+
+          SUM(td.Qty) AS TotalItems
+
       FROM TAxnTrnbill t
-      LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
-      LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE t.isDayEnd = 0 
+
+      LEFT JOIN TAxnTrnbilldetails td
+        ON t.TxnID = td.TxnID
+
+      LEFT JOIN mst_users u
+        ON t.UserId = u.userid
+
+      LEFT JOIN TrnSettlement s
+        ON (
+          CAST(s.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
+          OR CAST(s.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
+        )
+        AND s.isSettled = 1
+
+      WHERE t.isDayEnd = 0
+
       AND (
-          (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1))
-          OR t.isreversebill = 1
+        (
+          t.isCancelled = 0
+          AND (
+            t.isBilled = 1
+            OR t.isSetteled = 1
+          )
+        )
+        OR t.isreversebill = 1
       )
+
       GROUP BY t.TxnID, t.TxnNo
-      ORDER BY t.TxnDatetime DESC;
+
+      ORDER BY t.TxnDatetime DESC
     `;
 
-    // MySQL conversion: Changed from db.prepare(query).all() to db.query(query)
-    const [rows] = await db.query(query);
-   
-    // Group by transaction
-    const transactions = {};
-    for (const row of rows) {
-      const settlements = (row.Settlements || '').split(',');
-      const paymentBreakdown = {
-        cash: 0,
-        card: 0,
-        gpay: 0,
-        phonepe: 0,
-        qrcode: 0,
-        credit: 0,
-      };
+    console.log("========================================");
+    console.log("FINAL QUERY =>");
+    console.log(query);
+    console.log("========================================");
 
-      settlements.forEach(s => {
-        const [type, amountStr] = s.split(':');
-        const amount = parseFloat(amountStr) || 0;
-        if (!type) return;
-        if (type.toLowerCase().includes('cash')) paymentBreakdown.cash += amount;
-        if (type.toLowerCase().includes('card')) paymentBreakdown.card += amount;
-        if (type.toLowerCase().includes('gpay') || type.toLowerCase().includes('google')) paymentBreakdown.gpay += amount;
-        if (type.toLowerCase().includes('phonepe')) paymentBreakdown.phonepe += amount;
-        if (type.toLowerCase().includes('qr')) paymentBreakdown.qrcode += amount;
-        if (type.toLowerCase().includes('credit') && !type.toLowerCase().includes('card')) paymentBreakdown.credit += amount;
+    // =========================
+    // Execute Query
+    // =========================
+
+    const [rows] = await db.query(query);
+
+    console.log("TOTAL ROWS =>", rows.length);
+
+    // =========================
+    // RAW SQL ROWS
+    // =========================
+
+    rows.forEach((row, index) => {
+
+      console.log("========================================");
+      console.log(`RAW ROW ${index + 1}`);
+      console.log("========================================");
+
+      console.log("TxnNo =>", row.TxnNo);
+
+      paymentTypes.forEach((p) => {
+        console.log(
+          `${p.PaymentType} =>`,
+          row[p.PaymentType]
+        );
       });
 
-      if (!transactions[row.TxnID]) {
-        transactions[row.TxnID] = {
-          orderNo: row.TxnNo,
-          table: row.TableID,
-          waiter: row.Steward || 'Unknown',
-          amount: parseFloat(row.TotalAmount || 0),
-          type: row.isreversebill
-            ? 'Reversed'
-            : row.PaymentType || (row.isSetteled ? 'Cash' : 'Unpaid'),
-          status: row.isSetteled ? 'Settled' : (row.isBilled ? 'Billed' : 'Pending'),
-          time: row.TxnDatetime,
-          items: parseInt(row.TotalItems || 0),
-          kotNo: row.KOTNo || '',
-          revKotNo: row.RevKOTNo || '',
-          discount: parseFloat(row.Discount || 0),
-          ncKot: row.NCKOT || '',
-          ncPurpose: row.NCPurpose || '',
-          ncName: row.NCName || '',
-          cgst: parseFloat(row.CGST || 0),
-          sgst: parseFloat(row.SGST || 0),
-          outletid: row.outletid,
-          tip: parseFloat(row.TipAmountTotal || 0),
-          settlementAmount: parseFloat(row.SettlementAmountTotal || 0),
-          grossAmount: parseFloat(row.GrossAmount || 0),
-          roundOff: parseFloat(row.RoundOFF || 0),
-          revAmt: parseFloat(row.RevAmt || 0),
-          reverseBill: row.isreversebill,
-          water: parseFloat(row.Water || 0),
-          captain: row.Captain || 'N/A',
-          user: row.UserName || 'N/A',
-          date: row.TxnDatetime,
-          paymentType: row.isreversebill
-            ? 'Reversed'
-            : row.PaymentType || (row.isSetteled ? 'Cash' : 'Unpaid'),
-          cash: paymentBreakdown.cash,
-          card: paymentBreakdown.card,
-          gpay: paymentBreakdown.gpay,
-          phonepe: paymentBreakdown.phonepe,
-          qrcode: paymentBreakdown.qrcode,
-          credit: paymentBreakdown.credit,
-          isDayEnd: row.isDayEnd,
-          dayEndEmpID: row.DayEndEmpID,
-          tip: parseFloat(row.TipAmountTotal || 0),
-          settlementAmount: parseFloat(row.SettlementAmountTotal || 0),
-        };
-      }
+      console.log("PaymentType =>", row.PaymentType);
+      console.log("Settlements =>", row.Settlements);
+
+      console.log("FULL ROW =>");
+      console.log(row);
+    });
+
+    // =========================
+    // Process Orders
+    // =========================
+
+    const transactions = {};
+
+    for (const row of rows) {
+
+      // =========================
+      // Dynamic Payments
+      // =========================
+
+      const payments = {};
+
+      paymentTypes.forEach((p) => {
+
+        payments[p.PaymentType] =
+          Number(row[p.PaymentType] || 0);
+      });
+
+      console.log("========================================");
+      console.log("PAYMENT BREAKDOWN =>");
+      console.log(payments);
+
+      // =========================
+      // Transaction Object
+      // =========================
+
+      transactions[row.TxnID] = {
+
+        orderNo: row.TxnNo,
+
+        table: row.TableID,
+
+        waiter: row.Captain || 'Unknown',
+
+        amount: Number(row.TotalAmount || 0),
+
+        type: row.isreversebill
+          ? 'Reversed'
+          : (
+              row.PaymentType
+              || (
+                row.isSetteled
+                  ? 'Cash'
+                  : 'Unpaid'
+              )
+            ),
+
+        status: row.isSetteled
+          ? 'Settled'
+          : (
+              row.isBilled
+                ? 'Billed'
+                : 'Pending'
+            ),
+
+        time: row.TxnDatetime,
+
+        items: Number(row.TotalItems || 0),
+
+        kotNo: row.KOTNo || '',
+
+        revKotNo: row.RevKOTNo || '',
+
+        discount: Number(row.Discount || 0),
+
+        ncKot: row.NCKOT || '',
+
+        ncPurpose: row.NCPurpose || '',
+
+        ncName: row.NCName || '',
+
+        cgst: Number(row.CGST || 0),
+
+        sgst: Number(row.SGST || 0),
+
+        outletid: row.outletid,
+
+        tip: Number(row.TipAmountTotal || 0),
+
+        settlementAmount: Number(
+          row.SettlementAmountTotal || 0
+        ),
+
+        grossAmount: Number(
+          row.GrossAmount || 0
+        ),
+
+        roundOff: Number(
+          row.RoundOFF || 0
+        ),
+
+        revAmt: Number(
+          row.RevAmt || 0
+        ),
+
+        reverseBill: row.isreversebill,
+
+        water: Number(
+          row.Water || 0
+        ),
+
+        captain: row.Captain || 'N/A',
+
+        user: row.UserName || 'N/A',
+
+        date: row.TxnDatetime,
+
+        paymentType: row.PaymentType || '',
+
+        payments,
+
+        isDayEnd: row.isDayEnd,
+
+        dayEndEmpID: row.DayEndEmpID,
+      };
     }
+
+    // =========================
+    // Orders Array
+    // =========================
 
     const orders = Object.values(transactions);
 
-    // Calculate summaries
-    const totalOrders = orders.length;
-    const totalKOTs = orders.length;
-    const totalSales = orders.reduce((sum, order) => sum + (order.amount || 0), 0);
-    const cash = orders.reduce((sum, order) => sum + (order.cash || 0), 0);
-    const card = orders.reduce((sum, order) => sum + (order.card || 0), 0);
-    const gpay = orders.reduce((sum, order) => sum + (order.gpay || 0), 0);
-    const phonepe = orders.reduce((sum, order) => sum + (order.phonepe || 0), 0);
-    const qrcode = orders.reduce((sum, order) => sum + (order.qrcode || 0), 0);
-    const upi = gpay + phonepe + qrcode; // Total UPI for backward compatibility if needed elsewhere
-
-    const pending = orders.filter(order => order.status === "Pending").length;
-    const completed = orders.filter(order => order.status === "Settled").length;
-    const cancelled = 0;
-    const averageOrderValue = totalOrders > 0 ? Math.round(totalSales / totalOrders) : 0;
-    const totalDiscount = orders.reduce((sum, order) => sum + order.discount, 0);
-    const totalCGST = orders.reduce((sum, order) => sum + order.cgst, 0);
-    const totalSGST = orders.reduce((sum, order) => sum + order.sgst, 0);
-
-    const summary = {
-      totalOrders,
-      totalKOTs,
-      totalSales,
-      cash,
-      card,
-      gpay,
-      phonepe,
-      qrcode,
-      pending,
-      completed,
-      cancelled,
-      averageOrderValue,
-    };
-
-    const paymentMethods = [
-      { type: "Cash", amount: summary.cash, percentage: totalSales > 0 ? ((summary.cash / totalSales) * 100).toFixed(1) : "0" },
-      { type: "Card", amount: summary.card, percentage: totalSales > 0 ? ((summary.card / totalSales) * 100).toFixed(1) : "0" },
-      { type: "GPay", amount: summary.gpay, percentage: totalSales > 0 ? ((summary.gpay / totalSales) * 100).toFixed(1) : "0" },
-      { type: "PhonePe", amount: summary.phonepe, percentage: totalSales > 0 ? ((summary.phonepe / totalSales) * 100).toFixed(1) : "0" },
-      { type: "QR Code", amount: summary.qrcode, percentage: totalSales > 0 ? ((summary.qrcode / totalSales) * 100).toFixed(1) : "0" },
-    ];
+    console.log("========================================");
+    console.log("FINAL ORDERS =>");
+    console.log(JSON.stringify(orders, null, 2));
+    console.log("========================================");
 
     res.json({
       success: true,
       data: {
-        orders,
-        summary,
-        paymentMethods,
-        totalDiscount,
-        totalCGST,
-        totalSGST,
+        orders
       }
     });
+
   } catch (error) {
-    // console.error('Error fetching dayend data:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch dayend data' });
+
+    console.error(
+      'Error fetching dayend data:',
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch dayend data'
+    });
   }
 };
 

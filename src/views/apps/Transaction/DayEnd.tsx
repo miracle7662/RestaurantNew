@@ -44,6 +44,7 @@ import { useNavigate } from 'react-router-dom';
 import HandoverPasswordModal from "../../../components/HandoverPasswordModal.tsx";
 import DayendService from '@/common/api/dayend';
 import OrderService from '@/common/api/order.ts';
+import OutletPaymentModeService, { PaymentModeData } from '@/common/api/outletpaymentmode.ts';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -82,10 +83,19 @@ interface Order {
   isDayEnd?: number;
   dayEndEmpID?: number;
   outletid?: number;
-  // New fields for tip and settlement amount
   tip?: number;
   settlementAmount?: number;
 }
+
+// Mapping from payment mode name to the field in Order object
+// const PAYMENT_FIELD_MAP: Record<string, keyof Order> = {
+//   'Cash': 'cash',
+//   'Card': 'card',
+//   'GPay': 'gpay',
+//   'PhonePe': 'phonepe',
+//   'QR Code': 'qrcode',
+//   'Credit': 'credit'
+// };
 
 const DayEnd = () => {
   const { user } = useAuthContext();
@@ -134,6 +144,25 @@ const DayEnd = () => {
     ncKOTSummary: true,
   });
 
+  // Payment modes state (using PaymentModeData from service)
+  const [paymentModes, setPaymentModes] = useState<PaymentModeData[]>([]);
+
+  // Fetch payment modes for the outlet
+  useEffect(() => {
+    const fetchPaymentModes = async () => {
+      if (!user?.outletid) return;
+      try {
+        const response = await OutletPaymentModeService.list({ outletid: user.outletid.toString() });
+        if (response.success && response.data) {
+          setPaymentModes(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch payment modes:', error);
+      }
+    };
+    fetchPaymentModes();
+  }, [user?.outletid]);
+
   useEffect(() => {
     const fetchdayendData = async () => {
       try {
@@ -165,6 +194,30 @@ const DayEnd = () => {
     }
   }, [user, passwordVerified]);
 
+  // Helper to get payment amount for a given order and payment mode
+const getPaymentAmount = (order: any, modeName: string): number => {
+
+  console.log("================================");
+
+  const normalizedMode = modeName.trim().toLowerCase();
+
+  const paymentKey = Object.keys(order.payments || {}).find(
+    key => key.trim().toLowerCase() === normalizedMode
+  );
+
+  console.log("Mode Name:", modeName);
+  console.log("Matched Key:", paymentKey);
+  console.log("Payments Object:", order.payments);
+
+  if (paymentKey) {
+    console.log("Final Amount:", order.payments[paymentKey]);
+    return Number(order.payments[paymentKey]) || 0;
+  }
+
+  console.log("No payment key matched");
+
+  return 0;
+};
   const totalOrders = orders.length;
   const totalKOTs = orders.length;
   const totalSales = orders.reduce((sum, order) => sum + order.amount, 0);
@@ -186,12 +239,11 @@ const DayEnd = () => {
   const totalWater = orders.reduce((sum, order) => sum + (order.water || 0), 0);
   const totalItems = orders.reduce((sum, order) => sum + order.items, 0);
   const totalCash = orders.reduce((sum, order) => sum + (order.cash || 0), 0);
-  const totalCredit = orders.reduce((sum, order) => sum + (order.credit || 0), 0);
-  const totalCard = orders.reduce((sum, order) => sum + (order.card || 0), 0);
-  const totalGpay = orders.reduce((sum, order) => sum + (order.gpay || 0), 0);
-  const totalPhonepe = orders.reduce((sum, order) => sum + (order.phonepe || 0), 0);
-  const totalQrcode = orders.reduce((sum, order) => sum + (order.qrcode || 0), 0);
-  // New totals for tip and settlement amount
+  // const totalCredit = orders.reduce((sum, order) => sum + (order.credit || 0), 0);
+  // const totalCard = orders.reduce((sum, order) => sum + (order.card || 0), 0);
+  // const totalGpay = orders.reduce((sum, order) => sum + (order.gpay || 0), 0);
+  // const totalPhonepe = orders.reduce((sum, order) => sum + (order.phonepe || 0), 0);
+  // const totalQrcode = orders.reduce((sum, order) => sum + (order.qrcode || 0), 0);
   const totalTip = orders.reduce((sum, order) => sum + (order.tip || 0), 0);
   const totalSettlement = orders.reduce((sum, order) => sum + (order.settlementAmount || 0), 0);
 
@@ -208,23 +260,21 @@ const DayEnd = () => {
     averageOrderValue,
   };
 
-  const paymentMethods = [
-    { type: "Cash", amount: summary.cash, percentage: totalSales > 0 ? ((summary.cash / totalSales) * 100).toFixed(1) : "0" },
-    { type: "Card", amount: summary.card, percentage: totalSales > 0 ? ((summary.card / totalSales) * 100).toFixed(1) : "0" },
-    { type: "UPI", amount: summary.upi, percentage: totalSales > 0 ? ((summary.upi / totalSales) * 100).toFixed(1) : "0" },
-  ];
-
-  const [reason, setReason] = useState('');
-  const countedCashTotal = Object.entries(cashDenominations).reduce(
-    (sum, [denom, count]) => sum + parseInt(denom) * count,
-    0
-  );
+  // Dynamic payment methods for pie chart based on fetched payment modes
+  const dynamicPaymentMethods = paymentModes.map(mode => {
+    const amount = orders.reduce((sum, order) => sum + getPaymentAmount(order, mode.mode_name), 0);
+    return {
+      type: mode.mode_name,
+      amount,
+      percentage: totalSales > 0 ? ((amount / totalSales) * 100).toFixed(1) : "0"
+    };
+  });
 
   const paymentData = {
-    labels: paymentMethods.map(pm => pm.type),
+    labels: dynamicPaymentMethods.map(pm => pm.type),
     datasets: [{
       label: 'Payment Breakdown',
-      data: paymentMethods.map(pm => pm.amount),
+      data: dynamicPaymentMethods.map(pm => pm.amount),
       backgroundColor: [
         'rgba(75, 192, 192, 0.2)',
         'rgba(255, 99, 132, 0.2)',
@@ -266,6 +316,12 @@ const DayEnd = () => {
     const matchesDayEnd = !showOnlyNotDayEnded || (order.isDayEnd === 0 || order.isDayEnd == null);
     return matchesSearch && matchesStatus && matchesDayEnd;
   });
+
+  // Compute totals for each payment mode based on filteredOrders
+  const paymentModeTotals = paymentModes.reduce((acc, mode) => {
+    acc[mode.mode_name] = filteredOrders.reduce((sum, order) => sum + getPaymentAmount(order, mode.mode_name), 0);
+    return acc;
+  }, {} as Record<string, number>);
 
   const handleViewDetails = (order: Order) => {
     setSelectedOrder(order);
@@ -451,6 +507,12 @@ const DayEnd = () => {
     });
   };
 
+  const [reason, setReason] = useState('');
+  const countedCashTotal = Object.entries(cashDenominations).reduce(
+    (sum, [denom, count]) => sum + parseInt(denom) * count,
+    0
+  );
+
   return (
     <div>
       <style>{`
@@ -502,9 +564,9 @@ const DayEnd = () => {
         }
         .table-container table {
           margin-bottom: 0;
-          table-layout: fixed;
+          table-layout: auto;
           width: 100%;
-          min-width: 3600px; /* slightly increased for new columns */
+          min-width: max-content;
           border-collapse: separate;
         }
         .table-container th,
@@ -537,40 +599,6 @@ const DayEnd = () => {
           background-color: #f8d7da !important;
           color: #721c24 !important;
         }
-        /* Updated column widths for new order (33 columns) */
-        .table-container th:nth-child(1), .table-container td:nth-child(1) { width: 8%; } /* Bill No */
-        .table-container th:nth-child(2), .table-container td:nth-child(2) { width: 6%; } /* Table */
-        .table-container th:nth-child(3), .table-container td:nth-child(3) { width: 7%; text-align: right; } /* Gross Amount */
-        .table-container th:nth-child(4), .table-container td:nth-child(4) { width: 6%; text-align: right; } /* Discount */
-        .table-container th:nth-child(5), .table-container td:nth-child(5) { width: 7%; text-align: right; } /* Total Amount */
-        .table-container th:nth-child(6), .table-container td:nth-child(6) { width: 5%; text-align: right; } /* Tip Amount */
-        .table-container th:nth-child(7), .table-container td:nth-child(7) { width: 7%; text-align: right; } /* Settlement Amount */
-        .table-container th:nth-child(8), .table-container td:nth-child(8) { width: 5%; text-align: right; } /* CGST */
-        .table-container th:nth-child(9), .table-container td:nth-child(9) { width: 5%; text-align: right; } /* SGST */
-        .table-container th:nth-child(10), .table-container td:nth-child(10) { width: 5%; text-align: right; } /* Round off */
-        .table-container th:nth-child(11), .table-container td:nth-child(11) { width: 5%; text-align: right; } /* Rev Amt */
-        .table-container th:nth-child(12), .table-container td:nth-child(12) { width: 6%; } /* KOT No */
-        .table-container th:nth-child(13), .table-container td:nth-child(13) { width: 6%; } /* Rev KOT No */
-        .table-container th:nth-child(14), .table-container td:nth-child(14) { width: 6%; } /* NC Name */
-        .table-container th:nth-child(15), .table-container td:nth-child(15) { width: 8%; } /* NC Purpose */
-        .table-container th:nth-child(16), .table-container td:nth-child(16) { width: 5%; text-align: center; } /* isNCKOT */
-        .table-container th:nth-child(17), .table-container td:nth-child(17) { width: 5%; } /* Outlet ID */
-        .table-container th:nth-child(18), .table-container td:nth-child(18) { width: 5%; text-align: right; } /* Water */
-        .table-container th:nth-child(19), .table-container td:nth-child(19) { width: 8%; } /* Payment Type */
-        .table-container th:nth-child(20), .table-container td:nth-child(20) { width: 5%; text-align: right; } /* Cash */
-        .table-container th:nth-child(21), .table-container td:nth-child(21) { width: 5%; text-align: right; } /* Reverse Bill */
-        .table-container th:nth-child(22), .table-container td:nth-child(22) { width: 5%; text-align: right; } /* Credit */
-        .table-container th:nth-child(23), .table-container td:nth-child(23) { width: 5%; text-align: right; } /* Card */
-        .table-container th:nth-child(24), .table-container td:nth-child(24) { width: 5%; text-align: right; } /* GPay */
-        .table-container th:nth-child(25), .table-container td:nth-child(25) { width: 5%; text-align: right; } /* PhonePe */
-        .table-container th:nth-child(26), .table-container td:nth-child(26) { width: 5%; text-align: right; } /* QR Code */
-        .table-container th:nth-child(27), .table-container td:nth-child(27) { width: 6%; } /* Captain */
-        .table-container th:nth-child(28), .table-container td:nth-child(28) { width: 6%; } /* User */
-        .table-container th:nth-child(29), .table-container td:nth-child(29) { width: 5%; text-align: center; } /* Total Items */
-        .table-container th:nth-child(30), .table-container td:nth-child(30) { width: 7%; } /* Time */
-        .table-container th:nth-child(31), .table-container td:nth-child(31) { width: 7%; } /* Date */
-        .table-container th:nth-child(32), .table-container td:nth-child(32) { width: 6%; text-align: center; } /* Status */
-        .table-container th:nth-child(33), .table-container td:nth-child(33) { width: 5%; text-align: center; } /* Actions */
         .summary-cards {
           margin-bottom: 1rem;
         }
@@ -859,7 +887,7 @@ const DayEnd = () => {
                     </Row>
                   </Card.Body>
                 </Card>
-                {/* Orders Table - updated order and added Tip / Settlement columns */}
+                {/* Orders Table - dynamic payment columns */}
                 <Card className="border-0 shadow-sm mb-0">
                   <Card.Body className="p-0">
                     <div className="table-container">
@@ -873,7 +901,6 @@ const DayEnd = () => {
                             <th>Bill Amount</th>
                             <th>Total Amt</th>
                             <th>Tip Amount</th>
-                            
                             <th>CGST</th>
                             <th>SGST</th>
                             <th>Round off</th>
@@ -886,13 +913,11 @@ const DayEnd = () => {
                             <th>Outlet ID</th>
                             <th>Water</th>
                             <th>Payment Type</th>
-                            <th>Cash</th>
+                            {/* Dynamic payment mode columns */}
+                            {paymentModes.map(mode => (
+                              <th key={mode.id}>{mode.mode_name}</th>
+                            ))}
                             <th>Reverse Bill</th>
-                            <th>Credit</th>
-                            <th>Card</th>
-                            <th>GPay</th>
-                            <th>PhonePe</th>
-                            <th>QR Code</th>
                             <th>Captain</th>
                             <th>User</th>
                             <th>Total Items</th>
@@ -927,7 +952,6 @@ const DayEnd = () => {
                                 <td className="fw-semibold" style={{ textAlign: 'right' }}>₹{(order.grossAmount || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>-₹{order.discount.toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.settlementAmount || 0).toLocaleString()}</td>
-
                                 <td style={{ textAlign: 'right' }}>₹{order.amount.toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.tip || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{order.cgst.toLocaleString()}</td>
@@ -942,13 +966,13 @@ const DayEnd = () => {
                                 <td>{order.outletid}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
                                 <td title={order.paymentType || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>{order.paymentType || ''}</td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.cash || 0).toLocaleString()}</td>
+                                {/* Dynamic payment amount cells */}
+                                {paymentModes.map(mode => (
+                                  <td key={mode.id} style={{ textAlign: 'right' }}>
+                                    ₹{getPaymentAmount(order, mode.mode_name).toLocaleString()}
+                                  </td>
+                                ))}
                                 <td style={{ textAlign: 'right' }}>{order.reverseBill == 1 ? `₹${(order.revAmt || 0).toLocaleString()}` : 'No'}</td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.credit || 0).toLocaleString()}</td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.card || 0).toLocaleString()}</td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.gpay || 0).toLocaleString()}</td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.phonepe || 0).toLocaleString()}</td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.qrcode || 0).toLocaleString()}</td>
                                 <td>{order.captain || order.waiter || ''}</td>
                                 <td>{order.user || ''}</td>
                                 <td style={{ textAlign: 'center' }}><Badge bg="outline-primary" text="primary" className="fs-6">{order.items}</Badge></td>
@@ -973,7 +997,6 @@ const DayEnd = () => {
                             <td style={{ textAlign: 'right' }}>₹{totalSettlement.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalSales.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalTip.toLocaleString()}</td>
-                            
                             <td style={{ textAlign: 'right' }}>₹{totalCGST.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalSGST.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalRoundOff.toLocaleString()}</td>
@@ -983,14 +1006,15 @@ const DayEnd = () => {
                             <td></td>
                             <td style={{ textAlign: 'right' }}>₹{totalWater.toLocaleString()}</td>
                             <td></td>
-                            <td style={{ textAlign: 'right' }}>₹{totalCash.toLocaleString()}</td>
+                            {/* Dynamic payment totals */}
+                            {paymentModes.map(mode => (
+                              <td key={mode.id} style={{ textAlign: 'right' }}>
+                                ₹{(paymentModeTotals[mode.mode_name] || 0).toLocaleString()}
+                              </td>
+                            ))}
                             <td></td>
-                            <td style={{ textAlign: 'right' }}>₹{totalCredit.toLocaleString()}</td>
-                            <td style={{ textAlign: 'right' }}>₹{totalCard.toLocaleString()}</td>
-                            <td style={{ textAlign: 'right' }}>₹{totalGpay.toLocaleString()}</td>
-                            <td style={{ textAlign: 'right' }}>₹{totalPhonepe.toLocaleString()}</td>
-                            <td style={{ textAlign: 'right' }}>₹{totalQrcode.toLocaleString()}</td>
-                            <td></td><td></td>
+                            <td></td>
+                            <td></td>
                             <td style={{ textAlign: 'center' }}>{totalItems}</td>
                             <td></td><td></td><td></td><td></td>
                           </tr>
@@ -1045,7 +1069,7 @@ const DayEnd = () => {
           </Tabs>
         </div>
 
-        {/* Order Details Modal - updated to show tip & settlement if needed */}
+        {/* Order Details Modal - dynamic payment breakdown */}
         <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg" className="modal-compact">
           <Modal.Header closeButton className="py-1">
             <Modal.Title className="small">Order Details - {selectedOrder?.orderNo}</Modal.Title>
@@ -1080,12 +1104,10 @@ const DayEnd = () => {
                   <Col md={12}><hr className="my-1" /></Col>
                   <Col md={12}><strong>Payment Breakdown:</strong></Col>
                   <Col md={6}><strong>Payment Type:</strong> {selectedOrder.paymentType || ''}</Col>
-                  <Col md={6}><strong>Cash:</strong> ₹{(selectedOrder.cash || 0).toLocaleString()}</Col>
-                  <Col md={6}><strong>Credit:</strong> ₹{(selectedOrder.credit || 0).toLocaleString()}</Col>
-                  <Col md={6}><strong>Card:</strong> ₹{(selectedOrder.card || 0).toLocaleString()}</Col>
-                  <Col md={6}><strong>GPay:</strong> ₹{(selectedOrder.gpay || 0).toLocaleString()}</Col>
-                  <Col md={6}><strong>PhonePe:</strong> ₹{(selectedOrder.phonepe || 0).toLocaleString()}</Col>
-                  <Col md={6}><strong>QR Code:</strong> ₹{(selectedOrder.qrcode || 0).toLocaleString()}</Col>
+                  {/* Dynamic payment breakdown in modal */}
+                  {paymentModes.map(mode => (
+                    <Col md={6} key={mode.id}><strong>{mode.mode_name}:</strong> ₹{getPaymentAmount(selectedOrder, mode.mode_name).toLocaleString()}</Col>
+                  ))}
                 </Row>
                 <Col md={12}>
                   <hr className="my-1" />
@@ -1101,7 +1123,7 @@ const DayEnd = () => {
           <Modal.Footer className="p-1"></Modal.Footer>
         </Modal>
 
-        {/* Cash Denomination Modal */}
+        {/* Cash Denomination Modal - unchanged */}
         <Modal
           show={showCashModal}
           onHide={handleCloseCashModal}
@@ -1138,7 +1160,7 @@ const DayEnd = () => {
           </Modal.Body>
           <div className="px-4 pb-2 border-top bg-light">
             <div className="d-flex justify-content-between py-1"><span className="fw-bold text-dark">Total Cash:</span><span className="fw-semibold text-success">{countedCashTotal.toLocaleString()}</span></div>
-            <div className="d-flex justify-content-between py-1"><span className="fw-bold text-dark">Total CashExpected:</span><span className="fw-semibold text-primary" title="Total cash from all settled orders">{totalCash.toLocaleString()}</span></div>
+            <div className="d-flex justify-content-between py-1"><span className="fw-bold text-dark">Total Cash Expected:</span><span className="fw-semibold text-primary" title="Total cash from all settled orders">{totalCash.toLocaleString()}</span></div>
             <div className="d-flex justify-content-between py-1 border-top mt-1"><span className="fw-bold text-dark">Surplus / Deficit:</span><span className={`fw-bold ${countedCashTotal - totalCash >= 0 ? 'text-success' : 'text-danger'}`}>{(countedCashTotal - totalCash).toLocaleString()}</span></div>
             <div className="mt-3">
               <Form.Group controlId="reason">
@@ -1153,7 +1175,7 @@ const DayEnd = () => {
           </Modal.Footer>
         </Modal>
 
-        {/* Report Selection Modal */}
+        {/* Report Selection Modal - unchanged */}
         <Modal show={showReportModal} onHide={() => setShowReportModal(false)} centered size="sm">
           <Modal.Header closeButton className="border-0 pb-0">
             <Modal.Title className="fw-bold text-primary">Select Reports</Modal.Title>

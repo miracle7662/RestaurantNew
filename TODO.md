@@ -1,9 +1,23 @@
-# TODO
+# TODO - DayEnd dynamic payment mode columns
 
-- [ ] Add debug console logs to OpeningBalancePage mount/render
-- [ ] Add debug console logs to OpeningBalanceModal show/effect + API fetch start/end
-- [ ] Run app and open /apps/OpeningBalancePage route
-- [ ] Check browser console for logs and errors
-- [ ] If route opens but modal not shown: inspect react-bootstrap modal visibility/z-index issues (likely via DOM inspection)
-- [ ] If route not opening: inspect auth/PrivateRoute + layout rendering
+## Step 1
+- [ ] Update `src/views/apps/Transaction/DayEnd.tsx` to fetch outlet payment modes using `OutletPaymentModeService.list({ outletid })`.
+
+## Step 2
+- [ ] Add state `paymentModeColumns` (ordered by `sequence` / backend order).
+
+## Step 3
+- [ ] Replace hardcoded DayEnd table header payment columns (Cash/Credit/Card/GPay/PhonePe/QR Code) with dynamic headers from `paymentModeColumns`.
+
+## Step 4
+- [ ] Render each row’s payment values dynamically by mapping `mode_name` → existing `order.cash/card/credit/gpay/phonepe/qrcode`.
+
+## Step 5
+- [ ] Update table footer totals dynamically per payment column.
+
+## Step 6
+- [ ] Ensure rest of DayEnd functionality remains unchanged.
+
+## Step 7
+- [ ] Run `npm run build` or `npm run lint` (as available) to confirm no TS errors.
 
