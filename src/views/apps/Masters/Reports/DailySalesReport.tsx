@@ -1356,153 +1356,382 @@ const ReportPage = () => {
   };
 
 // Render sections remain the same, as they use calculated data
-  const renderBillSummarySection = () => {
-    // Ensure dynamicPaymentModes is always an array to prevent reduce/map errors
-    const paymentModes = Array.isArray(dynamicPaymentModes) ? dynamicPaymentModes : [];
+  // const renderBillSummarySection = () => {
+  //   // Ensure dynamicPaymentModes is always an array to prevent reduce/map errors
+  //   const paymentModes = Array.isArray(dynamicPaymentModes) ? dynamicPaymentModes : [];
     
-    const initialTotals: { [key: string]: number } = {
-      grossAmount: 0, 
-      discount: 0, 
-      amount: 0, 
-      cgst: 0, 
-      sgst: 0, 
-      igst: 0, 
-      roundOff: 0,
-      revAmt: 0, 
-      serviceCharge_Amount: 0, 
-      totalAmount: 0, 
-      cardAmount: 0,
-      cash: 0,
-      upi: 0,
-      card: 0,
-      tipAmount: 0,
-      settleAmount: 0,
-      billAmount: 0,
-      netAmount: 0,
-      taxbleAmount: 0,
-      ...paymentModes.reduce((acc, mode) => {
-        const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
-        acc[modeKey] = 0;
-        return acc;
-      }, {} as { [key: string]: number })
-    };
+  //   const initialTotals: { [key: string]: number } = {
+  //     grossAmount: 0, 
+  //     discount: 0, 
+  //     amount: 0, 
+  //     cgst: 0, 
+  //     sgst: 0, 
+  //     igst: 0, 
+  //     roundOff: 0,
+  //     revAmt: 0, 
+  //     serviceCharge_Amount: 0, 
+  //     totalAmount: 0, 
+  //     cardAmount: 0,
+  //     cash: 0,
+  //     upi: 0,
+  //     card: 0,
+  //     tipAmount: 0,
+  //     settleAmount: 0,
+  //     billAmount: 0,
+  //     netAmount: 0,
+  //     taxbleAmount: 0,
+  //     ...paymentModes.reduce((acc, mode) => {
+  //       const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+  //       acc[modeKey] = 0;
+  //       return acc;
+  //     }, {} as { [key: string]: number })
+  //   };
     
-    const totals = billSummaryData.reduce((acc, bill) => {
-      acc.settleAmount += bill.settleAmount || bill.totalAmount || 0;
-      acc.tipAmount += bill.tipAmount || 0;
-      acc.billAmount += bill.billAmount || bill.amount || 0;
-      acc.discount += bill.discount || 0;
-      acc.netAmount += bill.netAmount || bill.amount || 0;
-      acc.taxbleAmount += bill.taxbleAmount || (bill.cgst || 0) + (bill.sgst || 0) + (bill.igst || 0);
-      acc.cgst += bill.cgst || 0;
-      acc.sgst += bill.sgst || 0;
-      acc.roundOff += bill.roundOff || 0;
-      acc.grossAmount += bill.grossAmount || 0;
-      acc.cash += bill.cash || 0;
-      acc.upi += (bill.gpay || 0) + (bill.phonepe || 0) + (bill.qrcode || 0);
-      acc.card += bill.card || 0;
-      paymentModes.forEach(pm => {
-        const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
-        acc[modeKey] += (bill as any)[modeKey] || 0;
-      });
-      return acc;
-    }, initialTotals);
+  //   const totals = billSummaryData.reduce((acc, bill) => {
+  //     acc.settleAmount += bill.settleAmount || bill.totalAmount || 0;
+  //     acc.tipAmount += bill.tipAmount || 0;
+  //     acc.billAmount += bill.billAmount || bill.amount || 0;
+  //     acc.discount += bill.discount || 0;
+  //     acc.netAmount += bill.netAmount || bill.amount || 0;
+  //     acc.taxbleAmount += bill.taxbleAmount || (bill.cgst || 0) + (bill.sgst || 0) + (bill.igst || 0);
+  //     acc.cgst += bill.cgst || 0;
+  //     acc.sgst += bill.sgst || 0;
+  //     acc.roundOff += bill.roundOff || 0;
+  //     acc.grossAmount += bill.grossAmount || 0;
+  //     acc.cash += bill.cash || 0;
+  //     acc.upi += (bill.gpay || 0) + (bill.phonepe || 0) + (bill.qrcode || 0);
+  //     acc.card += bill.card || 0;
+  //     paymentModes.forEach(pm => {
+  //       const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+  //       acc[modeKey] += (bill as any)[modeKey] || 0;
+  //     });
+  //     return acc;
+  //   }, initialTotals);
 
-    // Calculate UPI total from payment modes if not directly available
-    const upiTotal = totals.upi || Object.keys(totals).filter(k => 
-      k.includes('gpay') || k.includes('phonepe') || k.includes('qr') || k.includes('upi')
-    ).reduce((sum, k) => sum + (totals as any)[k], 0);
+  //   // Calculate UPI total from payment modes if not directly available
+  //   const upiTotal = totals.upi || Object.keys(totals).filter(k => 
+  //     k.includes('gpay') || k.includes('phonepe') || k.includes('qr') || k.includes('upi')
+  //   ).reduce((sum, k) => sum + (totals as any)[k], 0);
 
-    return (
-      <Card className="p-2 shadow-sm border-0">
-        <Card.Header style={{ backgroundColor: "#E3F2FD" }}>
-          <h5 className="mb-0">📋 Bill Summary</h5>
-        </Card.Header>
-        <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh', padding: '0.5rem' }}>
-          <Table bordered hover responsive size="sm">
-            <thead style={{ backgroundColor: "#FFF3E0" }}>
-              <tr>
-                {[
-                  "Bill No",
-                  "Bill Date",
-                  "Settle Amount (₹)",
-                  "Tip Amount (₹)",
-                  "Bill Amount (₹)",
-                  "Discount (₹)",
-                  "Net Amount (₹)",
-                  "Taxable Amount (₹)",
-                  "CGST (₹)",
-                  "SGST (₹)",
-                  "Round Off (₹)",
-                  "Gross Total (₹)",
-                  "Payment Mode",
-                  "Cash (₹)",
-                  "UPI (₹)",
-                  "Card (₹)",
-                  "Order Type"
-                ].map((h, i) => (
-                  <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {billSummaryData.length > 0 ? billSummaryData.map((b, i) => {
-                // Calculate UPI amount for this row
-                const upiAmount = (b.gpay || 0) + (b.phonepe || 0) + (b.qrcode || 0);
+  //   return (
+  //     <Card className="p-2 shadow-sm border-0">
+  //       <Card.Header style={{ backgroundColor: "#E3F2FD" }}>
+  //         <h5 className="mb-0">📋 Bill Summary</h5>
+  //       </Card.Header>
+  //       <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh', padding: '0.5rem' }}>
+  //         <Table bordered hover responsive size="sm">
+  //           <thead style={{ backgroundColor: "#FFF3E0" }}>
+  //             <tr>
+  //               {[
+  //                 "Bill No",
+  //                 "Bill Date",
+  //                 "Settle Amount (₹)",
+  //                 "Tip Amount (₹)",
+  //                 "Bill Amount (₹)",
+  //                 "Discount (₹)",
+  //                 "Net Amount (₹)",
+  //                 "Taxable Amount (₹)",
+  //                 "CGST (₹)",
+  //                 "SGST (₹)",
+  //                 "Round Off (₹)",
+  //                 "Gross Total (₹)",
+  //                 "Payment Mode",
+  //                 "Cash (₹)",
+  //                 "UPI (₹)",
+  //                 "Card (₹)",
+  //                 "Order Type"
+  //               ].map((h, i) => (
+  //                 <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
+  //               ))}
+  //             </tr>
+  //           </thead>
+  //           <tbody>
+  //             {billSummaryData.length > 0 ? billSummaryData.map((b, i) => {
+  //               // Calculate UPI amount for this row
+  //               const upiAmount = (b.gpay || 0) + (b.phonepe || 0) + (b.qrcode || 0);
                 
-                return (
-                  <tr key={i}>
-                    <td className="text-start">{b.billNo || b.orderNo || 'N/A'}</td>
-                    <td className="text-start">{b.billDate || b.date || 'N/A'}</td>
-                    <td className="text-end">{(b.settleAmount || b.totalAmount || 0).toFixed(2)}</td>
-                    <td className="text-end">{(b.tipAmount || 0).toFixed(2)}</td>
-                    <td className="text-end">{(b.billAmount || b.amount || 0).toFixed(2)}</td>
-                    <td className="text-end">{(b.discount || 0).toFixed(2)}</td>
-                    <td className="text-end">{(b.netAmount || b.amount || 0).toFixed(2)}</td>
-                    <td className="text-end">{(b.taxbleAmount || (b.cgst || 0) + (b.sgst || 0) + (b.igst || 0)).toFixed(2)}</td>
-                    <td className="text-end">{(b.cgst || 0).toFixed(2)}</td>
-                    <td className="text-end">{(b.sgst || 0).toFixed(2)}</td>
-                    <td className="text-end">{(b.roundOff || 0).toFixed(2)}</td>
-                    <td className="text-end">{(b.grossAmount || 0).toFixed(2)}</td>
-                    <td className="text-start">{b.paymentMode || 'N/A'}</td>
-                    <td className="text-end">{(b.cash || 0).toFixed(2)}</td>
-                    <td className="text-end">{upiAmount.toFixed(2)}</td>
-                    <td className="text-end">{(b.card || 0).toFixed(2)}</td>
-                    <td className="text-start">{b.orderType || 'N/A'}</td>
-                  </tr>
-                );
-              }) : (
-                <tr><td colSpan={17} className="text-center">No data available</td></tr>
-              )}
-            </tbody>
-            {billSummaryData.length > 0 && (
-              <tfoot className="fw-bold">
-                <tr>
-                  <td>Total</td>
-                  <td></td>
-                  <td className="text-end">{totals.settleAmount.toFixed(2)}</td>
-                  <td className="text-end">{totals.tipAmount.toFixed(2)}</td>
-                  <td className="text-end">{totals.billAmount.toFixed(2)}</td>
-                  <td className="text-end">{totals.discount.toFixed(2)}</td>
-                  <td className="text-end">{totals.netAmount.toFixed(2)}</td>
-                  <td className="text-end">{totals.taxbleAmount.toFixed(2)}</td>
-                  <td className="text-end">{totals.cgst.toFixed(2)}</td>
-                  <td className="text-end">{totals.sgst.toFixed(2)}</td>
-                  <td className="text-end">{totals.roundOff.toFixed(2)}</td>
-                  <td className="text-end">{totals.grossAmount.toFixed(2)}</td>
-                  <td></td>
-                  <td className="text-end">{totals.cash.toFixed(2)}</td>
-                  <td className="text-end">{upiTotal.toFixed(2)}</td>
-                  <td className="text-end">{totals.card.toFixed(2)}</td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            )}
-          </Table>
-        </Card.Body>
-      </Card>
-    );
+  //               return (
+  //                 <tr key={i}>
+  //                   <td className="text-start">{b.billNo || b.orderNo || 'N/A'}</td>
+  //                   <td className="text-start">{b.billDate || b.date || 'N/A'}</td>
+  //                   <td className="text-end">{(b.settleAmount || b.totalAmount || 0).toFixed(2)}</td>
+  //                   <td className="text-end">{(b.tipAmount || 0).toFixed(2)}</td>
+  //                   <td className="text-end">{(b.billAmount || b.amount || 0).toFixed(2)}</td>
+  //                   <td className="text-end">{(b.discount || 0).toFixed(2)}</td>
+  //                   <td className="text-end">{(b.netAmount || b.amount || 0).toFixed(2)}</td>
+  //                   <td className="text-end">{(b.taxbleAmount || (b.cgst || 0) + (b.sgst || 0) + (b.igst || 0)).toFixed(2)}</td>
+  //                   <td className="text-end">{(b.cgst || 0).toFixed(2)}</td>
+  //                   <td className="text-end">{(b.sgst || 0).toFixed(2)}</td>
+  //                   <td className="text-end">{(b.roundOff || 0).toFixed(2)}</td>
+  //                   <td className="text-end">{(b.grossAmount || 0).toFixed(2)}</td>
+  //                   <td className="text-start">{b.paymentMode || 'N/A'}</td>
+  //                   <td className="text-end">{(b.cash || 0).toFixed(2)}</td>
+  //                   <td className="text-end">{upiAmount.toFixed(2)}</td>
+  //                   <td className="text-end">{(b.card || 0).toFixed(2)}</td>
+  //                   <td className="text-start">{b.orderType || 'N/A'}</td>
+  //                 </tr>
+  //               );
+  //             }) : (
+  //               <tr><td colSpan={17} className="text-center">No data available</td></tr>
+  //             )}
+  //           </tbody>
+  //           {billSummaryData.length > 0 && (
+  //             <tfoot className="fw-bold">
+  //               <tr>
+  //                 <td>Total</td>
+  //                 <td></td>
+  //                 <td className="text-end">{totals.settleAmount.toFixed(2)}</td>
+  //                 <td className="text-end">{totals.tipAmount.toFixed(2)}</td>
+  //                 <td className="text-end">{totals.billAmount.toFixed(2)}</td>
+  //                 <td className="text-end">{totals.discount.toFixed(2)}</td>
+  //                 <td className="text-end">{totals.netAmount.toFixed(2)}</td>
+  //                 <td className="text-end">{totals.taxbleAmount.toFixed(2)}</td>
+  //                 <td className="text-end">{totals.cgst.toFixed(2)}</td>
+  //                 <td className="text-end">{totals.sgst.toFixed(2)}</td>
+  //                 <td className="text-end">{totals.roundOff.toFixed(2)}</td>
+  //                 <td className="text-end">{totals.grossAmount.toFixed(2)}</td>
+  //                 <td></td>
+  //                 <td className="text-end">{totals.cash.toFixed(2)}</td>
+  //                 <td className="text-end">{upiTotal.toFixed(2)}</td>
+  //                 <td className="text-end">{totals.card.toFixed(2)}</td>
+  //                 <td></td>
+  //               </tr>
+  //             </tfoot>
+  //           )}
+  //         </Table>
+  //       </Card.Body>
+  //     </Card>
+  //   );
+  // };
+  const renderBillSummarySection = () => {
+
+  const paymentModes = Array.isArray(dynamicPaymentModes)
+    ? dynamicPaymentModes
+    : [];
+
+  // Dynamic payment keys
+  const paymentModeKeys = paymentModes.map((pm) => ({
+    label: pm.mode_name,
+    key: pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, "")
+  }));
+
+  const initialTotals: any = {
+    settleAmount: 0,
+    tipAmount: 0,
+    billAmount: 0,
+    discount: 0,
+    netAmount: 0,
+    taxbleAmount: 0,
+    cgst: 0,
+    sgst: 0,
+    roundOff: 0,
+    grossAmount: 0,
+    ...paymentModeKeys.reduce((acc: any, pm) => {
+      acc[pm.key] = 0;
+      return acc;
+    }, {})
   };
+
+  const totals = billSummaryData.reduce((acc: any, bill: any) => {
+
+    acc.settleAmount += bill.settleAmount || 0;
+    acc.tipAmount += bill.tipAmount || 0;
+    acc.billAmount += bill.billAmount || 0;
+    acc.discount += bill.discount || 0;
+    acc.netAmount += bill.netAmount || 0;
+    acc.taxbleAmount += bill.taxbleAmount || 0;
+    acc.cgst += bill.cgst || 0;
+    acc.sgst += bill.sgst || 0;
+    acc.roundOff += bill.roundOff || 0;
+    acc.grossAmount += bill.grossAmount || 0;
+
+    paymentModeKeys.forEach((pm) => {
+      acc[pm.key] += Number(bill[pm.key] || 0);
+    });
+
+    return acc;
+
+  }, initialTotals);
+
+  return (
+    <Card className="p-2 shadow-sm border-0">
+
+      <Card.Header style={{ backgroundColor: "#E3F2FD" }}>
+        <h5 className="mb-0">📋 Bill Summary</h5>
+      </Card.Header>
+
+      <Card.Body style={{ overflowY: "auto", maxHeight: "70vh" }}>
+
+        <Table bordered hover responsive size="sm">
+
+          <thead style={{ backgroundColor: "#FFF3E0" }}>
+            <tr>
+
+              <th>Bill No</th>
+              <th>Bill Date</th>
+              <th>Settle Amount</th>
+              <th>Tip Amount</th>
+              <th>Bill Amount</th>
+              <th>Discount</th>
+              <th>Net Amount</th>
+              <th>Taxable Amount</th>
+              <th>CGST</th>
+              <th>SGST</th>
+              <th>Round Off</th>
+              <th>Gross Total</th>
+
+              {/* Dynamic Payment Mode Columns */}
+              {paymentModeKeys.map((pm, i) => (
+                <th key={i}>{pm.label} (₹)</th>
+              ))}
+
+              <th>Order Type</th>
+
+            </tr>
+          </thead>
+
+          <tbody>
+
+            {billSummaryData.length > 0 ? (
+              billSummaryData.map((b: any, i: number) => (
+
+                <tr key={i}>
+
+                  <td>{b.billNo}</td>
+                  <td>{b.billDate}</td>
+
+                  <td className="text-end">
+                    {(b.settleAmount || 0).toFixed(2)}
+                  </td>
+
+                  <td className="text-end">
+                    {(b.tipAmount || 0).toFixed(2)}
+                  </td>
+
+                  <td className="text-end">
+                    {(b.billAmount || 0).toFixed(2)}
+                  </td>
+
+                  <td className="text-end">
+                    {(b.discount || 0).toFixed(2)}
+                  </td>
+
+                  <td className="text-end">
+                    {(b.netAmount || 0).toFixed(2)}
+                  </td>
+
+                  <td className="text-end">
+                    {(b.taxbleAmount || 0).toFixed(2)}
+                  </td>
+
+                  <td className="text-end">
+                    {(b.cgst || 0).toFixed(2)}
+                  </td>
+
+                  <td className="text-end">
+                    {(b.sgst || 0).toFixed(2)}
+                  </td>
+
+                  <td className="text-end">
+                    {(b.roundOff || 0).toFixed(2)}
+                  </td>
+
+                  <td className="text-end">
+                    {(b.grossAmount || 0).toFixed(2)}
+                  </td>
+
+                  {/* Dynamic Payment Values */}
+                  {paymentModeKeys.map((pm, idx) => (
+                    <td key={idx} className="text-end">
+                      {(Number(b[pm.key]) || 0).toFixed(2)}
+                    </td>
+                  ))}
+
+                  <td>{b.orderType}</td>
+
+                </tr>
+
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan={13 + paymentModeKeys.length}
+                  className="text-center"
+                >
+                  No data available
+                </td>
+              </tr>
+            )}
+
+          </tbody>
+
+          <tfoot className="fw-bold">
+
+            <tr>
+
+              <td>Total</td>
+              <td></td>
+
+              <td className="text-end">
+                {totals.settleAmount.toFixed(2)}
+              </td>
+
+              <td className="text-end">
+                {totals.tipAmount.toFixed(2)}
+              </td>
+
+              <td className="text-end">
+                {totals.billAmount.toFixed(2)}
+              </td>
+
+              <td className="text-end">
+                {totals.discount.toFixed(2)}
+              </td>
+
+              <td className="text-end">
+                {totals.netAmount.toFixed(2)}
+              </td>
+
+              <td className="text-end">
+                {totals.taxbleAmount.toFixed(2)}
+              </td>
+
+              <td className="text-end">
+                {totals.cgst.toFixed(2)}
+              </td>
+
+              <td className="text-end">
+                {totals.sgst.toFixed(2)}
+              </td>
+
+              <td className="text-end">
+                {totals.roundOff.toFixed(2)}
+              </td>
+
+              <td className="text-end">
+                {totals.grossAmount.toFixed(2)}
+              </td>
+
+              {/* Dynamic Totals */}
+              {paymentModeKeys.map((pm, idx) => (
+                <td key={idx} className="text-end">
+                  {(totals[pm.key] || 0).toFixed(2)}
+                </td>
+              ))}
+
+              <td></td>
+
+            </tr>
+
+          </tfoot>
+
+        </Table>
+
+      </Card.Body>
+
+    </Card>
+  );
+};
   const renderCreditSummarySection = () => (
     <Card className="p-2 shadow-sm border-0">
       <Card.Header style={{ backgroundColor: "#E8F5E9" }}>
