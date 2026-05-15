@@ -1140,8 +1140,8 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
         if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
         if (data.header.customerid) setCustomerId(data.header.customerid);
-        if ((data.header as any).DeptID && !selectedDeptId) {
-          setSelectedDeptId((data.header as any).DeptID);
+        if (data.header.DeptID && !selectedDeptId) {
+          setSelectedDeptId(data.header.DeptID);
         }
 
         // Discount handling
@@ -2047,7 +2047,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
             Discount_Amount: 0,
             isNCKOT: isNoCharge,
             isbilled: print ? 1 : 0,
-            DeptID: selectedDeptId && selectedDeptId > 0 ? selectedDeptId : undefined,
+            DeptID: selectedDeptId && selectedDeptId > 0 ? selectedDeptId : null,
             SpecialInst: item.SpecialInst || null,
             item_no: item.item_no,
             order_tag: order_tag,
