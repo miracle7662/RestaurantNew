@@ -773,7 +773,12 @@ const saveDayEnd = async (req, res) => {
     const [updateResult] = await db.query(`
       UPDATE TAxnTrnbill
       SET isDayEnd = 1, DayEndEmpID = ?
-      WHERE isDayEnd = 0 AND ((isCancelled = 0 AND (isBilled = 1 OR isSetteled = 1)) OR isreversebill = 1)
+      WHERE isDayEnd = 0
+        AND (
+          (isCancelled = 0 AND (isBilled = 1 OR isSetteled = 1))
+          OR isreversebill = 1
+          OR isCancelled = 1
+        )
     `, [created_by_id]);
 
     // console.log(`Updated ${updateResult.affectedRows} transactions in TAxnTrnbill`); // MySQL uses affectedRows
@@ -1097,21 +1102,22 @@ const getDiscountSummaryData = async (businessDate, dayEndEmpID) => {
 const getReverseKOTsData = async (businessDate, dayEndEmpID) => {
   console.log(`🔍 getReverseKOTsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
   const query = `
-    SELECT DISTINCT
-      td.RevKOTNo as kotNo,
-      t.table_name,
-      m.item_name,
-      td.Qty as quantity,
-      t.TxnDatetime
-    FROM TAxnTrnbilldetails td
-    JOIN TAxnTrnbill t ON td.TxnID = t.TxnID
-    LEFT JOIN mstrestmenu m ON td.ItemID = m.restitemid
-    WHERE t.isDayEnd = 1 
-      AND t.DayEndEmpID = ?
-      AND t.TxnDatetime = ?
-      AND td.RevKOTNo IS NOT NULL 
-      AND td.RevKOTNo != ''
-    ORDER BY td.RevKOTNo DESC, t.TxnDatetime
+  SELECT DISTINCT
+    td.RevKOTNo AS kotNo,
+    t.table_name,
+    m.item_name,
+    td.RevQty ,
+    td.RevQty * td.Runtimerate AS amount,
+    t.TxnDatetime
+FROM TAxnTrnBillDetails td
+JOIN TAxnTrnBill t 
+    ON td.TxnID = t.TxnID
+LEFT JOIN mstrestmenu m 
+    ON td.ItemID = m.restitemid
+WHERE t.DayEndEmpID = 6
+    AND DATE(t.TxnDatetime) = '2026-05-15'
+    AND td.RevKOTNo IS NOT NULL
+ORDER BY td.RevKOTNo DESC, t.TxnDatetime;
   `;
   const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
   console.log(`✅ getReverseKOTsData found ${rows.length} records`);
@@ -1364,19 +1370,20 @@ const generateReverseKOTsText = (data) => {
   let text = '='.repeat(48) + '\n';
   text += centerText('REVERSE KOT SUMMARY', 48) + '\n';
   text += '='.repeat(48) + '\n';
-  text += 'KOT#  Table  Item          Qty  Time\n';
+  text += 'KOT#  Table  Item      RevQty    amount  Time\n';
   text += '-'.repeat(48) + '\n';
 
   data.slice(0, 10).forEach((kot) => {
     const kotNo = String(kot.kotNo || '').substring(0, 5).padEnd(5);
     const table = String(kot.table_name || '').substring(0, 6).padEnd(6);
     const item = String(kot.item_name || '').substring(0, 12).padEnd(12);
-    const qty = String(kot.quantity || 0).padStart(3);
+    const RevQty = String(kot.RevQty || 0).padStart(3);
+    const amount = String(kot.amount || 0).padStart(8);
     const time = kot.TxnDatetime 
       ? new Date(kot.TxnDatetime).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'})
       : '--:--';
     
-    text += `${kotNo} ${table} ${item} ${qty} ${time}\n`;
+    text += `${kotNo} ${table} ${item} ${RevQty} ${time} ${amount}\n`;
   });
 
   text += '='.repeat(48) + '\n\n';

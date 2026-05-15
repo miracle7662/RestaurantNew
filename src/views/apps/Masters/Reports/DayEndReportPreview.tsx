@@ -18,7 +18,7 @@ interface BillDetail {
 interface PaymentSummary { PaymentType: string; totalAmount: number; billCount: number; }
 interface CreditSummary  { customerName: string; creditAmount: number; billCount: number; }
 interface DiscountSummary{ TxnNo: string; table_name: string; Discount: number; reason: string; }
-interface ReverseKOT     { kotNo: string; table_name: string; item_name: string; quantity: number; TxnDatetime: string; }
+interface ReverseKOT     { kotNo: string; table_name: string; item_name: string; RevQty: number; amount: number; TxnDatetime: string; }
 interface ReverseBill    { billNo: string; table_name: string; reversedAmount: number; TxnDatetime: string; }
 interface NCKOTSummary   { ncName: string; purpose: string; quantity: number; amount: number; TxnDatetime: string; kotNo: string; }
 
@@ -349,20 +349,71 @@ const DiscountSummarySection: React.FC<{ data: DiscountSummary[] }> = ({ data })
 
 const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
   if (!data?.length) return null;
+
   return (
     <>
       <SecHdr title="REVERSE KOT SUMMARY" />
-      <div className="rc-col-hdr" style={{ gridTemplateColumns: '38px 36px 1fr 22px 38px' }}>
-        <span>KOT</span><span>Tbl</span><span>Item</span>
-        <span style={{ textAlign:'right' }}>Qty</span><span>Time</span>
+
+      {/* Header */}
+      <div
+        className="rc-col-hdr"
+        style={{
+          gridTemplateColumns: "20px 20px 140px 10px 45px 20px",
+          columnGap: "3px",
+        }}
+      >
+        <span>KOT</span>
+        <span>Tbl</span>
+        <span>Item</span>
+        <span style={{ textAlign: "right" }}>Qty</span>
+        <span style={{ textAlign: "right" }}>Amt</span>
+        <span>Time</span>
       </div>
+
+      {/* Rows */}
       {data.map((k, i) => (
-        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: '38px 36px 1fr 22px 38px' }}>
-          <span>{String(k.kotNo).substring(0,5)}</span>
-          <span>{(k.table_name||'').substring(0,5)}</span>
-          <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{(k.item_name||'').substring(0,14)}</span>
-          <span style={{ textAlign:'right' }}>{k.quantity}</span>
-          <span>{timeStr(k.TxnDatetime)}</span>
+        <div
+          key={i}
+          className="rc-col-row"
+          style={{
+            gridTemplateColumns: "30px 30px 140px 10px 45px 20px",
+            columnGap: "3px",
+            alignItems: "center",
+          }}
+        >
+          <span>{String(k.kotNo).substring(0, 5)}</span>
+
+          <span>{(k.table_name || "").substring(0, 5)}</span>
+
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {k.item_name}
+          </span>
+
+          <span style={{ textAlign: "right" }}>
+            {k.RevQty}
+          </span>
+
+          <span style={{ textAlign: "right" }}>
+            {fmt(k.amount)}
+          </span>
+
+          <span
+  style={{
+    fontSize: "8px",
+    whiteSpace: "nowrap",
+    letterSpacing: "-0.2px",
+  }}
+>
+  {timeStr(k.TxnDatetime)
+    .toLowerCase()
+    .replace(" ", "")}
+</span>
         </div>
       ))}
     </>
@@ -553,20 +604,22 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   if (data.reverseKOTs?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">REVERSE KOT SUMMARY</div>`;
     b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-            <span class="re-head" style="width:15%">KOT</span>
-            <span class="re-head" style="width:15%">Tbl</span>
-            <span class="re-head" style="width:40%">Item</span>
+            <span class="re-head" style="width:10%">KOT</span>
+            <span class="re-head" style="width:10%">Tbl</span>
+            <span class="re-head" style="width:50%">Item</span>
             <span class="re-head" style="width:10%;text-align:right">Qty</span>
-            <span class="re-head" style="width:20%">Time</span>
+              <span class="re-head" style="width:10%;text-align:right">Amt</span>
+            <span class="re-head" style="width:10%">Time</span>
 
           </div>`;
     data.reverseKOTs.forEach(k => {
       b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
-              <span class="re-val" style="width:15%">${String(k.kotNo).substring(0, 5)}</span>
-              <span class="re-val" style="width:15%">${(k.table_name || '').substring(0, 5)}</span>
-              <span class="re-val" style="width:40%">${(k.item_name || '').substring(0, 12)}</span>
-              <span class="re-val" style="width:10%;text-align:right">${k.quantity}</span>
-              <span class="re-val" style="width:20%">${t(k.TxnDatetime)}</span>
+              <span class="re-val" style="width:10%">${String(k.kotNo).substring(0, 5)}</span>
+              <span class="re-val" style="width:10%">${(k.table_name || '').substring(0, 5)}</span>
+              <span class="re-val" style="width:50%">${(k.item_name || '').substring(0, 20)}</span>
+              <span class="re-val" style="width:10%;text-align:right">${k.RevQty}</span>
+              <span class="re-val" style="width:10%;text-align:right">${f(k.amount)}</span>
+              <span class="re-val" style="width:10%">${t(k.TxnDatetime)}</span>
             </div>`;
     });
   }

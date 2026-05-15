@@ -319,7 +319,7 @@ const reportHTML = `
 
    .sub-header {
   text-align: center;
-  font-size: 15px;
+  font-size: 14px;
   margin-bottom: 5px;
   font-weight: bold;
 }
@@ -426,8 +426,8 @@ const reportHTML = `
   <div class="totals-block">
     <div class="totals-left">Total</div>
     <div class="totals-right">
-      <div class="totals-qty">${totalQty}</div>
-      <div class="totals-amt">${totalAmount.toFixed(2)}</div>
+      <div class="totals-qty">${formatAmount(totalQty)}</div>
+      <div class="totals-amt">${formatAmount(totalAmount)}</div>
     </div>
   </div>
 </body>
