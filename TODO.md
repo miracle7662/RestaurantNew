@@ -1,6 +1,7 @@
-- [x] Fix BillPrint restaurant name not showing in preview/print
-  - [x] Update header brand name rendering to always fallback to `displayRestaurantName` even when `billData?.hotelName` is missing
-  - [ ] Ensure this works for both preview and autoPrint paths
-  - [ ] Re-run typecheck/build and verify preview + print output
+# TODO
 
+- [ ] Fix null-unsafe `.toString()` usages in `src/views/apps/Settings.tsx` that crash with `Cannot read properties of null (reading 'toString')`.
+  - [ ] Patch label printer state population effect to use `String(value ?? '')`
+  - [ ] Patch edit handlers for label/bill/kot printers to use null-safe conversions for `copies` / `paper_width`
+- [ ] Re-run/build and verify Settings page loads without runtime error.
 

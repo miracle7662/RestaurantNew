@@ -433,7 +433,8 @@ function SettingsPage() {
     if (labelPrinters && labelPrinters.length > 0) {
       const labelSetting = labelPrinters[0]; // Assuming single setting
       setLabelPrinterName(labelSetting.printer_name);
-      setLabelPaperWidth(labelSetting.paper_width.toString());
+      setLabelPaperWidth(String(labelSetting.paper_width ?? ''));
+
       setLabelIsEnabled(labelSetting.is_enabled);
       setSelectedLabelOrderType(labelSetting.order_type || '');
       setSelectedLabelSize(labelSetting.size || '');
@@ -538,7 +539,8 @@ function SettingsPage() {
     setSelectedKotPrinter(item.printer_name);
     setSelectedKotOrderType(item.order_type);
     setSelectedKotSize(item.size);
-    setKotCopies(item.copies.toString());
+    setKotCopies(String(item.copies ?? ''));
+
   };
 
   const handleDeleteKotPrinter = async (id: number) => {
@@ -607,7 +609,8 @@ function SettingsPage() {
     setReportPrinterName(item.printer_name);
     setSelectedReportOrderType(item.order_type || '');
     setSelectedReportSize(item.size || '');
-    setReportCopies(item.copies?.toString() || '');
+    setReportCopies(String(item.copies ?? ''));
+
     setReportPaperSize(item.paper_size);
     setReportAutoPrint(item.auto_print);
   };
@@ -682,7 +685,8 @@ function SettingsPage() {
     setSelectedLabelOrderType(item.order_type || '');
     setSelectedLabelSize(item.size || '');
     setLabelCopies(item.copies?.toString() || '');
-    setLabelPaperWidth(item.paper_width.toString());
+    setLabelPaperWidth(String(item.paper_width ?? ''));
+
     setLabelIsEnabled(item.is_enabled);
   };
 
@@ -763,7 +767,8 @@ function SettingsPage() {
     setSelectedBillPrinter(item.printer_name);
     setSelectedBillOrderType(item.order_type);
     setSelectedBillSize(item.size);
-    setBillCopies(item.copies.toString());
+    setBillCopies(String(item.copies ?? ''));
+
   };
 
   const handleDeleteBillPrinter = async (id: number) => {

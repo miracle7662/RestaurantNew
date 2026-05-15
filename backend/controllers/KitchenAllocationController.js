@@ -68,9 +68,7 @@ const getKitchenAllocation = async (req, res) => {
         d.item_name,
         t.outletid
       ORDER BY
-        i.itemgroupname,
-        t.outletid,
-        d.item_name
+            COALESCE(m.item_no, d.item_no) ASC;
     `;
 
     console.log('📊 SQL Query:', query);

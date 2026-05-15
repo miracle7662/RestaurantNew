@@ -266,7 +266,7 @@ const getDayendData = async (req, res) => {
         t.TxnNo
 
       ORDER BY
-        t.TxnDatetime DESC
+        t.TxnNo asc
     `;
 
     console.log("========================================");
@@ -1021,8 +1021,8 @@ const getBillDetailsData = async (businessDate, dayEndEmpID) => {
 
     GROUP BY t.TxnID
 
-    ORDER BY t.TxnDatetime DESC
-  `;
+    ORDER BY t.TxnNo ASC
+    `;
 
   const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
 
@@ -1117,10 +1117,9 @@ JOIN TAxnTrnBill t
     ON td.TxnID = t.TxnID
 LEFT JOIN mstrestmenu m 
     ON td.ItemID = m.restitemid
-WHERE t.DayEndEmpID = 6
-    AND DATE(t.TxnDatetime) = '2026-05-15'
+WHERE t.DayEndEmpID = ?
+    AND DATE(t.TxnDatetime) = ?
     AND td.RevKOTNo IS NOT NULL
-ORDER BY td.RevKOTNo DESC, t.TxnDatetime;
   `;
   const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
   console.log(`✅ getReverseKOTsData found ${rows.length} records`);
@@ -1141,7 +1140,7 @@ const getReverseBillsData = async (businessDate, dayEndEmpID) => {
       AND t.TxnDatetime = ?
       AND t.isreversebill = 1
       AND t.isCancelled = 1
-    ORDER BY t.TxnDatetime DESC
+    ORDER BY CAST(REPLACE(t.TxnNo, 'BILL-', '') AS UNSIGNED) ASC, t.TxnDatetime ASC
   `;
   const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
   console.log(`✅ getReverseBillsData found ${rows.length} records`);
@@ -1850,8 +1849,8 @@ const getBackDayendData = async (req, res) => {
       AND DATE(t.TxnDatetime) = ? 
       
       GROUP BY t.TxnID, t.TxnNo
-      ORDER BY t.TxnDatetime DESC
-    `;
+    ORDER BY CAST(REPLACE(t.TxnNo, 'BILL-', '') AS UNSIGNED) ASC, t.TxnDatetime ASC
+  `;
     
     console.log("Executing query with date:", targetDate);
     
