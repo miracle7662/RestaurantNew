@@ -152,11 +152,7 @@ const ModernBill = () => {
   const departmentIdFromState = location.state?.departmentId;
   const isTakeaway = location.state?.mode === 'TAKEAWAY' || location.state?.orderType === 'TAKEAWAY';
   const takeawayOrderId = location.state?.orderId;
-
   const { user } = useAuthContext();
-
-  // Outlet selection states (must be declared before any effects that use it)
-  const selectedOutletId = outletIdFromState || user?.outletid || 1;
 
 
 
@@ -693,10 +689,6 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
   // Handle customer modal
   const handleCloseCustomerModal = () => setShowCustomerModal(false);
-
-  // Tax fetch fallback: if route state doesn't provide deptid, we still try with a safe default
-  // (better than staying stuck at 0 forever after navigation)
-  const resolvedDepartmentId = departmentIdFromState ?? 1;
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
   // Discount Modal Refs
   const discountTypeRef = useRef<HTMLSelectElement>(null);
@@ -1013,11 +1005,11 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         setRevKOT(Number(data.header?.RevKOT ?? 0));
 
         // ── NEW TAX & TOTAL FIELDS ──
-        setCgst(data.header.CGST || data.header.CGST || 0);
-        setSgst(data.header.SGST || data.header.SGST || 0);
-        setIgst(data.header.IGST || data.header.IGST || 0);
-        setCess(data.header.CESS || data.header.CESS || 0);
-        setRoundOff(data.header.RoundOFF || data.header.RoundOFF || 0);
+        setCgst?.(data.header.CGST || data.header.CGST || 0);
+        setSgst?.(data.header.SGST || data.header.SGST || 0);
+        setIgst?.(data.header.IGST || data.header.IGST || 0);
+        setCess?.(data.header.CESS || data.header.CESS || 0);
+        setRoundOff?.(data.header.RoundOFF || data.header.RoundOFF || 0);
       }
 
       // Compute max RevKOTNo from details for unbilled orders
@@ -1163,11 +1155,11 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         }
 
         // ── NEW TAX & TOTAL FIELDS ──
-        setCgst(data.header.CGST || data.header.CGST || 0);
-        setSgst(data.header.SGST || data.header.SGST || 0);
-        setIgst(data.header.IGST || data.header.IGST || 0);
-        setCess(data.header.CESS || data.header.CESS || 0);
-        setRoundOff(data.header.RoundOFF || data.header.RoundOFF || 0);
+        setCgst?.(data.header.CGST || data.header.CGST || 0);
+        setSgst?.(data.header.SGST || data.header.SGST || 0);
+        setIgst?.(data.header.IGST || data.header.IGST || 0);
+        setCess?.(data.header.CESS || data.header.CESS || 0);
+        setRoundOff?.(data.header.RoundOFF || data.header.RoundOFF || 0);
         setFinalAmount(data.header.Amount || data.header.Amount || data.header.grandTotal || 0);
       }
 
@@ -1245,18 +1237,20 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
     if (includeTaxInInvoice) {
       // 🔹 TAX INCLUSIVE
+
       taxableValue =
         totalTaxRate > 0
           ? discountedGross / (1 + totalTaxRate / 100)
           : discountedGross;
 
-      cgstTotal = taxableValue * (cgstRate / 100);
-      sgstTotal = taxableValue * (sgstRate / 100);
+      cgstTotal = taxableValue * (cgstRate / 100); Number(grossAmount.toFixed(2)),
+        sgstTotal = taxableValue * (sgstRate / 100);
       igstTotal = taxableValue * (igstRate / 100);
       cessTotal = taxableValue * (cessRate / 100);
 
     } else {
       // 🔹 TAX EXCLUSIVE
+
       taxableValue = discountedGross;
 
       cgstTotal = taxableValue * (cgstRate / 100);
@@ -1285,14 +1279,6 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       taxableValue,
     });
   };
-
-  // 🔁 Ensure totals/tax re-sync after tax-rate fetch (prevents “table open shows wrong tax until Enter”)
-  useEffect(() => {
-    if (!loading && billItems.length > 0) {
-      calculateTotals(billItems);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
 
   // Fetch outlets and set default restaurant/outlet names
   useEffect(() => {
@@ -1382,21 +1368,13 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   // Fetch tax details based on selected outlet and department (matching Orders.tsx)
   useEffect(() => {
     const fetchTaxDetails = async () => {
-      if (!selectedOutletId) return;
+      if (!selectedOutletId || !departmentIdFromState) return;
 
       try {
-        const deptToUse = departmentIdFromState ?? 1;
-
-        // eslint-disable-next-line no-console
-        console.log('🧮 [Billview] fetchTaxDetails:', {
-          outletid: selectedOutletId,
-          departmentid: deptToUse,
-          departmentIdFromState,
-        });
-
+        // Use getTaxesByOutletAndDepartment like Orders.tsx
         const response = await OrderService.getTaxesByOutletAndDepartment({
           outletid: selectedOutletId,
-          departmentid: deptToUse,
+          departmentid: departmentIdFromState
         });
 
         if (response?.success && response?.data?.taxes) {
@@ -1406,12 +1384,16 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
           setIgstRate(Number(t.igst) || 0);
           setCessRate(Number(t.cess) || 0);
         } else {
+          // Fallback to 0 if no tax data
           setCgstRate(0);
           setSgstRate(0);
           setIgstRate(0);
           setCessRate(0);
         }
+        // console.log('Tax details:', response.data);
       } catch (error) {
+        // console.error('Error fetching tax details:', error);
+        // Fallback to 0 on error
         setCgstRate(0);
         setSgstRate(0);
         setIgstRate(0);
@@ -1420,7 +1402,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
     };
 
     fetchTaxDetails();
-  }, [selectedOutletId, departmentIdFromState, tableId]);
+  }, [selectedOutletId, departmentIdFromState]);
 
   const loadOutletSettings = async (outletId: number) => {
     try {
@@ -1610,6 +1592,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
 
   useEffect(() => {
+
     calculateTotals(billItems);
 
     // Remove padding or margin from layout containers
