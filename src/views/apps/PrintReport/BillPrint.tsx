@@ -245,7 +245,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
   const generateBillHTML = () => {
     return `
-<!DOCTYPE html>
+<!DOCTYPE html
 <html>
 <head>
   <meta charset="UTF-8" />
@@ -396,7 +396,7 @@ html, body {
     return `
     <!-- Bill Preview Section (for printing) -->
     <div id="bill-preview-section">
-      <div style="margin: 0 auto; font-family: 'Courier New', monospace; font-size: 10pt; line-height: 1.2; padding: 10px; color: #000;">
+<div style="margin: 0 auto; font-family: 'Courier New', monospace; font-size: 10pt; line-height: 1.2; padding: 10px; color: #000; font-weight: bold;">
         <!-- ================= HEADER (with conditional rendering) ================= -->
         <div style="text-align: center; margin-bottom: 10px;">
           ${(showAll || localFormData.show_logo_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${(showAll || localFormData.show_brand_name_bill) ? displayRestaurantName : ''}</div>` : ''}
