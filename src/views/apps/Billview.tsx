@@ -150,6 +150,7 @@ const ModernBill = () => {
   const tableName = location.state?.tableName;
   const outletIdFromState = location.state?.outletId;
   const departmentIdFromState = location.state?.departmentId;
+  const [selectedDeptId, setSelectedDeptId] = useState<number | null>(departmentIdFromState || null);
   const isTakeaway = location.state?.mode === 'TAKEAWAY' || location.state?.orderType === 'TAKEAWAY';
   const takeawayOrderId = location.state?.orderId;
   const { user } = useAuthContext();
@@ -807,6 +808,9 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
           if (header.outletid) {
             await fetchOutletDetails(header.outletid);
           }
+          if (header.DeptID && !selectedDeptId) {
+            setSelectedDeptId(header.DeptID);
+          }
 
           // restore discount
           if (header.Discount || header.DiscPer) {
@@ -1136,6 +1140,9 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
         if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
         if (data.header.customerid) setCustomerId(data.header.customerid);
+        if ((data.header as any).DeptID && !selectedDeptId) {
+          setSelectedDeptId((data.header as any).DeptID);
+        }
 
         // Discount handling
         if (data.header.Discount || data.header.DiscPer) {
@@ -1368,13 +1375,13 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   // Fetch tax details based on selected outlet and department (matching Orders.tsx)
   useEffect(() => {
     const fetchTaxDetails = async () => {
-      if (!selectedOutletId || !departmentIdFromState) return;
+      if (!selectedOutletId || !selectedDeptId) return;
 
       try {
         // Use getTaxesByOutletAndDepartment like Orders.tsx
         const response = await OrderService.getTaxesByOutletAndDepartment({
           outletid: selectedOutletId,
-          departmentid: departmentIdFromState
+          departmentid: selectedDeptId
         });
 
         if (response?.success && response?.data?.taxes) {
@@ -1402,7 +1409,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
     };
 
     fetchTaxDetails();
-  }, [selectedOutletId, departmentIdFromState]);
+  }, [selectedOutletId, selectedDeptId]);
 
   const loadOutletSettings = async (outletId: number) => {
     try {
@@ -1475,10 +1482,10 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   // Fetch menu items
   // NEW: Filter menuItems by current department
   useEffect(() => {
-    if (!departmentIdFromState || !menuItems.length) return;
+    if (!selectedDeptId || !menuItems.length) return;
 
     const prevDeptId = prevDepartmentIdRef.current;
-    const currDeptId = departmentIdFromState;
+    const currDeptId = selectedDeptId;
 
     // Clear billItems when department changes (prevent cross-dept mixing)
     if (prevDeptId && prevDeptId !== currDeptId) {
@@ -1513,7 +1520,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
     prevDepartmentIdRef.current = currDeptId;
 
     // console.log(`Filtered ${filtered.length} menu items for dept ${currDeptId}`);
-  }, [departmentIdFromState, menuItems]);
+  }, [selectedDeptId, menuItems]);
 
   // Original fetch (unchanged)
   useEffect(() => {
@@ -2040,7 +2047,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
             Discount_Amount: 0,
             isNCKOT: isNoCharge,
             isbilled: print ? 1 : 0,
-            DeptID: departmentIdFromState && departmentIdFromState > 0 ? departmentIdFromState : null,
+            DeptID: selectedDeptId && selectedDeptId > 0 ? selectedDeptId : undefined,
             SpecialInst: item.SpecialInst || null,
             item_no: item.item_no,
             order_tag: order_tag,
@@ -3538,7 +3545,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
                 const results = deptFilteredMenuItems.flatMap(item => {
 
                   const variants = (item.department_details || []).filter((d: any) =>
-                    d.departmentid === departmentIdFromState &&
+                  d.departmentid === selectedDeptId &&
                     d.item_rate > 0 &&
                     d.variant_value_id
                   );
@@ -3554,7 +3561,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
                   // ✅ If no variants → return base item
                   const baseRate = (item.department_details || []).find((d: any) =>
-                    d.departmentid === departmentIdFromState && d.item_rate > 0
+                    d.departmentid === selectedDeptId && d.item_rate > 0
                   );
 
                   if (baseRate) {
@@ -3588,7 +3595,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
                   .flatMap(item => {
                     return (item.department_details || [])
                       .filter((d: any) =>
-                        d.departmentid === departmentIdFromState &&
+                        d.departmentid === selectedDeptId &&
                         d.item_rate > 0 &&
                         d.variant_value_id
                       )

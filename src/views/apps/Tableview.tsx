@@ -198,7 +198,19 @@ export default function App() {
                   }
                 }
 
-                return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name, txnId, billNo, billAmount, billPrintedTime, billPrintedDate };
+                return { 
+                  id: item.tableid, 
+                  name: item.table_name, 
+                  status: statusString, 
+                  outletid: item.outletid || item.outletId, 
+                  departmentid: item.departmentid || item.DeptID || item.departmentId, 
+                  department_name: item.department_name, 
+                  txnId, 
+                  billNo, 
+                  billAmount, 
+                  billPrintedTime, 
+                  billPrintedDate 
+                };
               })
             );
 
@@ -423,13 +435,10 @@ export default function App() {
       e.preventDefault();
       e.stopPropagation();   // 🔥 IMPORTANT
 
-      const input = tableInput.trim();
+      const input = tableInput.trim().toLowerCase();
       if (input) {
-        const tables = selectedDepartmentId === 'all'
-          ? allTables
-          : tablesByDepartment[selectedDepartmentId] || [];
-
-        const table = tables.find(t => t.name === input);
+        // Search across ALL tables regardless of department filter for robust lookup
+        const table = allTables.find(t => t.name.toLowerCase() === input);
 
         if (table) {
           if (table.status === 'printed' ||
