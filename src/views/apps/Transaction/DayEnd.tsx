@@ -236,7 +236,7 @@ const getPaymentAmount = (order: any, modeName: string): number => {
   const totalGrossAmount = orders.reduce((sum, order) => sum + (order.grossAmount || 0), 0);
   const totalRoundOff = orders.reduce((sum, order) => sum + (order.roundOff || 0), 0);
   const totalRevAmt = orders.reduce((sum, order) => sum + (order.revAmt || 0), 0);
-  const totalWater = orders.reduce((sum, order) => sum + (order.water || 0), 0);
+  //const totalWater = orders.reduce((sum, order) => sum + (order.water || 0), 0);
   const totalItems = orders.reduce((sum, order) => sum + order.items, 0);
   const totalCash = orders.reduce((sum, order) => sum + (order.cash || 0), 0);
   // const totalCredit = orders.reduce((sum, order) => sum + (order.credit || 0), 0);
@@ -911,7 +911,12 @@ const getPaymentAmount = (order: any, modeName: string): number => {
                             <th>Tip Amount</th>
                             <th>CGST</th>
                             <th>SGST</th>
-                            <th>Round off</th>
+                            <th>Round off</th>                            
+                            <th>Payment Type</th>
+                  {/* Dynamic payment mode columns */}
+                            {visiblePaymentModes.map(mode => (
+                              <th key={mode.id}>{mode.mode_name}</th>
+                            ))}
                             <th>Rev Amt</th>
                             <th>KOT No</th>
                             <th>Rev KOT No</th>
@@ -920,11 +925,6 @@ const getPaymentAmount = (order: any, modeName: string): number => {
                             <th>isNCKOT</th>
                             <th>Outlet ID</th>
                             <th>Waiter</th>
-                            <th>Payment Type</th>
-                  {/* Dynamic payment mode columns */}
-                            {visiblePaymentModes.map(mode => (
-                              <th key={mode.id}>{mode.mode_name}</th>
-                            ))}
                             <th>Reverse Bill</th>
                             <th>Captain</th>
                             <th>User</th>
@@ -957,22 +957,17 @@ const getPaymentAmount = (order: any, modeName: string): number => {
                                     {order.table}
                                   </Badge>
                                 </td>
+                                  <td style={{ textAlign: 'right' }}>₹{(order.settlementAmount || 0).toLocaleString()}</td>
                                 <td className="fw-semibold" style={{ textAlign: 'right' }}>₹{(order.grossAmount || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>-₹{order.discount.toLocaleString()}</td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.settlementAmount || 0).toLocaleString()}</td>
+                              
                                 <td style={{ textAlign: 'right' }}>₹{order.amount.toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.tip || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{order.cgst.toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{order.sgst.toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.roundOff || 0).toLocaleString()}</td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.revAmt || 0).toLocaleString()}</td>
-                                <td><small className="text-muted">{order.kotNo}</small></td>
-                                <td><small className="text-muted">{order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}</small></td>
-                                <td>{order.ncName || ''}</td>
-                                <td title={order.ncPurpose || ''} style={{whiteSpace:'normal'}}>{order.ncPurpose || ''}</td>
-                                <td style={{textAlign:'center'}}><Badge bg={order.ncKot ? "primary" : "secondary"} className="fs-6">{order.ncKot ? 'Yes' : 'No'}</Badge></td>
-                                <td>{order.outletid}</td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
+                                             
+
                                 <td title={order.paymentType || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>{order.paymentType || ''}</td>
                                 {/* Dynamic payment amount cells */}
                                 {visiblePaymentModes.map(mode => (
@@ -980,6 +975,15 @@ const getPaymentAmount = (order: any, modeName: string): number => {
                                     ₹{getPaymentAmount(order, mode.mode_name).toLocaleString()}
                                   </td>
                                 ))}
+                                   <td style={{ textAlign: 'right' }}>₹{(order.revAmt || 0).toLocaleString()}</td>
+                                <td><small className="text-muted">{order.kotNo}</small></td>
+                                <td><small className="text-muted">{order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}</small></td>
+                                <td>{order.ncName || ''}</td>
+                                <td title={order.ncPurpose || ''} style={{whiteSpace:'normal'}}>{order.ncPurpose || ''}</td>
+                                <td style={{textAlign:'center'}}><Badge bg={order.ncKot ? "primary" : "secondary"} className="fs-6">{order.ncKot ? 'Yes' : 'No'}</Badge></td>
+                                <td>{order.outletid}</td>
+                                
+                                <td>{order.captain || order.waiter || ''}</td>
                                 <td style={{ textAlign: 'right' }}>{order.reverseBill == 1 ? `₹${(order.revAmt || 0).toLocaleString()}` : 'No'}</td>
                                 <td>{order.captain || order.waiter || ''}</td>
                                 <td>{order.user || ''}</td>
@@ -1008,18 +1012,22 @@ const getPaymentAmount = (order: any, modeName: string): number => {
                             <td style={{ textAlign: 'right' }}>₹{totalCGST.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalSGST.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalRoundOff.toLocaleString()}</td>
-                            <td style={{ textAlign: 'right' }}>₹{totalRevAmt.toLocaleString()}</td>
-                            <td></td><td></td><td></td><td></td>
-                            <td style={{ textAlign: 'center' }}>{orders.filter(o => o.ncKot).length}</td>
-                            <td></td>
-                            <td style={{ textAlign: 'right' }}>₹{totalWater.toLocaleString()}</td>
-                            <td></td>
+                           <td></td>
                             {/* Dynamic payment totals */}
                             {visiblePaymentModes.map(mode => (
                               <td key={mode.id} style={{ textAlign: 'right' }}>
                                 ₹{(paymentModeTotals[mode.mode_name] || 0).toLocaleString()}
                               </td>
                             ))}
+
+                            
+                             <td style={{ textAlign: 'right' }}>₹{totalRevAmt.toLocaleString()}</td>
+                            <td></td><td></td><td></td><td></td>
+                            <td style={{ textAlign: 'center' }}>{orders.filter(o => o.ncKot).length}</td>
+                            <td></td>
+                            <td></td>
+                            {/* <td style={{ textAlign: 'right' }}>₹{totalWater.toLocaleString()}</td> */}
+                            {/* <td></td> */}
                             <td></td>
                             <td></td>
                             <td></td>
