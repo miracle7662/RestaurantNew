@@ -438,11 +438,12 @@ export default function App() {
             setSelectedTable(table);
             setShowModal(true);
           } else {
-            navigate('/apps/Billview', {
+navigate('/apps/Billview', {
               state: {
                 tableId: table.id,
                 tableName: table.name,
-                outletId: table.outletid
+                outletId: table.outletid,
+                departmentId: table.departmentid
               }
             });
           }
