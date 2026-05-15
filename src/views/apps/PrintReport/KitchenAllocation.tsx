@@ -502,16 +502,6 @@ const reportHTML = `
             font-weight: bold !important;
             font-size: 13px !important;
           }
-
-    /* If header gets sticky via some global styles, add space below it */
-    .kitchen-sticky-bottom thead th,
-    .kitchen-sticky-bottom thead tr {
-      margin-bottom: 10px;
-    }
-
-    .kitchen-sticky-bottom thead {
-      border-bottom: 10px solid transparent;
-    }
         `}
       </style>
       <Card>
@@ -617,7 +607,7 @@ const reportHTML = `
 
           {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
 
-      <Table striped bordered hover responsive className="mt-3 kitchen-allocation-table kitchen-sticky-bottom">
+          <Table striped bordered hover responsive className="mt-3 kitchen-allocation-table">
             <thead>
               <tr>
                 <th>Item No</th>
