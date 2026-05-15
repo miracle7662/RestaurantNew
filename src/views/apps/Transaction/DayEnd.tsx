@@ -919,13 +919,12 @@ const getPaymentAmount = (order: any, modeName: string): number => {
                             <th>NC Purpose</th>
                             <th>isNCKOT</th>
                             <th>Outlet ID</th>
-                            <th>Water</th>
+                            <th>Waiter</th>
                             <th>Payment Type</th>
-                            {/* Dynamic payment mode columns */}
+                  {/* Dynamic payment mode columns */}
                             {visiblePaymentModes.map(mode => (
                               <th key={mode.id}>{mode.mode_name}</th>
                             ))}
-                            <th>Water</th>
                             <th>Reverse Bill</th>
                             <th>Captain</th>
                             <th>User</th>
@@ -958,9 +957,9 @@ const getPaymentAmount = (order: any, modeName: string): number => {
                                     {order.table}
                                   </Badge>
                                 </td>
-                                <td className="fw-semibold" style={{ textAlign: 'right' }}>₹{(order.settlementAmount || 0).toLocaleString()}</td>
                                 <td className="fw-semibold" style={{ textAlign: 'right' }}>₹{(order.grossAmount || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>-₹{order.discount.toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.settlementAmount || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{order.amount.toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.tip || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{order.cgst.toLocaleString()}</td>
@@ -973,8 +972,15 @@ const getPaymentAmount = (order: any, modeName: string): number => {
                                 <td title={order.ncPurpose || ''} style={{whiteSpace:'normal'}}>{order.ncPurpose || ''}</td>
                                 <td style={{textAlign:'center'}}><Badge bg={order.ncKot ? "primary" : "secondary"} className="fs-6">{order.ncKot ? 'Yes' : 'No'}</Badge></td>
                                 <td>{order.outletid}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
                                 <td title={order.paymentType || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>{order.paymentType || ''}</td>
                                 {/* Dynamic payment amount cells */}
+                                {visiblePaymentModes.map(mode => (
+                                  <td key={mode.id} style={{ textAlign: 'right' }}>
+                                    ₹{getPaymentAmount(order, mode.mode_name).toLocaleString()}
+                                  </td>
+                                ))}
+                                <td style={{ textAlign: 'right' }}>{order.reverseBill == 1 ? `₹${(order.revAmt || 0).toLocaleString()}` : 'No'}</td>
                                 <td>{order.captain || order.waiter || ''}</td>
                                 <td>{order.user || ''}</td>
                                 <td style={{ textAlign: 'center' }}><Badge bg="outline-primary" text="primary" className="fs-6">{order.items}</Badge></td>
