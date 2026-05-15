@@ -13,6 +13,16 @@ import OutletUserService from '@/common/api/outletUser';
 import SettingsService from '@/common/api/settings';
 // import { Eye } from 'react-feather';
 
+const formatAmount = (value: any) => {
+  const num = typeof value === 'number' ? value : Number(value);
+  if (Number.isNaN(num)) return value ?? '-';
+  // Remove trailing .00 for display
+  if (Number.isInteger(num)) return String(num);
+  const fixed = num.toFixed(2);
+  return fixed.endsWith('.00') ? String(num.toFixed(0)) : fixed;
+};
+
+
 interface FilterOption {
   [key: string]: any;
 }
@@ -182,11 +192,11 @@ const KitchenAllocation: React.FC = () => {
     const doc = new jsPDF();
     doc.text('Kitchen Allocation Report', 20, 10);
     const tableColumn = ['Item No', 'Item Name', 'Total Qty', 'Amount'];
-    const tableRows = filteredData.map(item => [
+      const tableRows = filteredData.map(item => [
       item.item_no,
       item.item_name,
       item.TotalQty.toString(),
-      item.Amount.toString()
+      item.Amount
     ]);
     autoTable(doc, {
       head: [tableColumn],
@@ -281,8 +291,9 @@ const reportHTML = `
 
     body {
       font-family: monospace;
-      font-size: 11px;
+      font-size: 14px;
       line-height: 1.3;
+
 
       width: 72mm;              /* SAFE printable width */
       margin-left: 3mm;         /* 🔥 IMPORTANT: left gap */
@@ -292,9 +303,10 @@ const reportHTML = `
 
     .sub-header {
       text-align: center;
-      font-size: 10px;
+      font-size: 13px;
       margin-bottom: 5px;
     }
+
 
     table {
       width: 100%;
@@ -305,10 +317,11 @@ const reportHTML = `
     th, td {
       border-bottom: 1px dashed #000;
       padding: 2px;
-      font-size: 10px;
+      font-size: 13px;
     }
 
     th {
+
       text-align: left;
     }
 
@@ -322,6 +335,10 @@ const reportHTML = `
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
+    }
+
+    th, td {
+      font-weight: bold;
     }
 
     .total-row td {
@@ -353,7 +370,7 @@ const reportHTML = `
           <td class="col-no">${item.item_no ?? '-'}</td>
           <td class="col-name">${item.item_name}</td>
           <td class="col-qty">${item.TotalQty}</td>
-          <td class="col-amt">${Number(item.Amount || 0).toFixed(2)}</td>
+          <td class="col-amt">${formatAmount(item.Amount)}</td>
         </tr>
       `).join('')}
 
@@ -428,6 +445,15 @@ const reportHTML = `
 
   return (
     <div>
+      <style>
+        {`
+    .kitchen-allocation-table th,
+          .kitchen-allocation-table td {
+            font-weight: bold !important;
+            font-size: 13px !important;
+          }
+        `}
+      </style>
       <Card>
         <Card.Header className="d-flex justify-content-between align-items-center">
           <h4>Kitchen Allocation Report</h4>
@@ -531,7 +557,7 @@ const reportHTML = `
 
           {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
 
-          <Table striped bordered hover responsive className="mt-3">
+          <Table striped bordered hover responsive className="mt-3 kitchen-allocation-table">
             <thead>
               <tr>
                 <th>Item No</th>
@@ -547,8 +573,9 @@ const reportHTML = `
                   <td>{item.item_no}</td>
                   <td>{item.item_name}</td>
                   <td>{item.TotalQty}</td>
-                  <td>{item.Amount}</td>
+                  <td>{formatAmount(item.Amount)}</td>
                   <td>
+
                     <Button
                       variant="link"
                       size="sm"
@@ -593,7 +620,7 @@ const reportHTML = `
                       <tr key={index}>
                         <td>{detail.item_name}</td>
                         <td>{detail.Qty}</td>
-                        <td>{detail.Amount}</td>
+                        <td>{formatAmount(detail.Amount)}</td>
                         <td>{detail.KOTNo || 'N/A'}</td>
                         <td>{new Date(detail.TxnDatetime).toLocaleString()}</td>
                         <td>{detail.table_name || `Table ${detail.TableID}`}</td>

@@ -16,6 +16,8 @@ import BillPreviewPrint from '../PrintReport/BillPrint';
 import ReverseKotPrint from '../PrintReport/ReverseKotPrint';
 import useDeviceName from "@/hooks/useDeviceName";
 import NCKotPrint from "../PrintReport/NcKotPrint";
+import { getMySQLDateTime } from "@/utils/dateTime";
+
 
 import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
 import TableManagementService from '@/common/api/tablemanagement';
@@ -1890,7 +1892,7 @@ const handlePrintAndSaveKOT = async () => {
         PAX: pax || 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
         curr_date: user?.currDate, // Pass curr_date for KOT number generation based on business date
-        KOTUsedDate: user?.currDate,
+        KOTUsedDate: getMySQLDateTime(user?.currDate),
 
         // Frontend calculated totals - send to backend
         GrossAmt: Number(taxCalc.subtotal.toFixed(2)),

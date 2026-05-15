@@ -20,6 +20,8 @@ import MenuService from "@/common/api/menu";
 import { DepartmentDetail } from "@/common/api/menu";
 import ReverseKotPrint from '../apps/PrintReport/ReverseKotPrint';
 import useDeviceName from "@/hooks/useDeviceName";
+import { getMySQLDateTime } from "@/utils/dateTime";
+
 
 const KOT_COLORS = [
   '#e3f2fd', // Green 50
@@ -2000,7 +2002,8 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         DiscountType: DiscountType,
         TxnDatetime: user?.currDate,
         curr_date: user?.currDate, // Pass curr_date for KOT number generation based on business date
-        KOTUsedDate: user?.currDate, // Pass curr_date for KOTUsedDate similar to TxnDatetime
+        KOTUsedDate: getMySQLDateTime(user?.currDate),
+         // Pass curr_date for KOTUsedDate similar to TxnDatetime
         // Frontend calculated totals - send to backend (rounded to 2 decimal places)
         GrossAmt: Number(grossAmount.toFixed(2)),
         TaxableValue: Number(taxCalc.taxableValue.toFixed(2)),
