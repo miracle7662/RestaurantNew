@@ -389,11 +389,35 @@ const ReportPage = () => {
   };
 
   // Calculations using fetched data
+  // IMPORTANT: keep dynamic payment columns (Cash/Card/UPI/etc) coming from backend Reportcontroller.js.
+  // The Bill Summary table expects values at keys derived from `dynamicPaymentModes`.
   const calculateBillSummary = (bills: Bill[]) => {
-    return bills.map(bill => ({
-      ...bill,
-      creditDetails: { cardNumber: "N/A", bank: "N/A", amount: bill.card || 0 }
-    }));
+    return bills.map((bill) => {
+      const safeCardAmount =
+        typeof bill.card === "number"
+          ? bill.card
+          : Number(bill.card || 0);
+
+      const safeCreditAmount =
+        typeof bill.credit === "number"
+          ? bill.credit
+          : Number(bill.credit || 0);
+
+      return {
+        ...bill, // preserve dynamic payment keys like `cash`, `card`, `gpay`, etc
+        creditDetails:
+          bill.creditDetails && typeof bill.creditDetails === "object"
+            ? bill.creditDetails
+            : {
+                cardNumber: "N/A",
+                bank: "N/A",
+                amount:
+                  safeCreditAmount > 0
+                    ? safeCreditAmount
+                    : safeCardAmount,
+              },
+      };
+    });
   };
 
   const calculateCreditSummary = (bills: Bill[]) => {
@@ -1504,16 +1528,56 @@ const ReportPage = () => {
   //   );
   // };
   const renderBillSummarySection = () => {
+  // IMPORTANT:
+  // Backend `Reportcontroller.js` sends dynamic payment columns on each bill row using
+  // the raw PaymentType values as keys (e.g., Cash, Card, GPay, PhonePe, QRCode...).
+  //
+  // Issue: earlier implementation tried to detect keys using fragile numeric-convertibility checks.
+  // Fix: Prefer keys coming from `dynamicPaymentModes` (mode_name). Fallback: detect keys from row object.
 
-  const paymentModes = Array.isArray(dynamicPaymentModes)
-    ? dynamicPaymentModes
-    : [];
+  const paymentModeKeys = (() => {
+    const first = (billSummaryData && billSummaryData.length > 0 ? (billSummaryData[0] as any) : null);
 
-  // Dynamic payment keys
-  const paymentModeKeys = paymentModes.map((pm) => ({
-    label: pm.mode_name,
-    key: pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, "")
-  }));
+    if (!first) return [] as { label: string; key: string }[];
+
+    // 1) Prefer payment columns from API payment modes ordering
+    //    (mode_name should match PaymentType values used as SQL aliases)
+    const apiModeKeys = (dynamicPaymentModes || [])
+      .map((pm) => pm?.mode_name)
+      .filter((k): k is string => !!k);
+
+    const paymentKeysFromApi = apiModeKeys
+      .filter((k) => k in first) // must exist on the backend row
+      .map((k) => ({ label: k, key: k }));
+
+    if (paymentKeysFromApi.length > 0) return paymentKeysFromApi;
+
+    // 2) Fallback: discover payment-like columns from first row
+    const excluded = new Set([
+      'billNo','orderNo','billDate','settleAmount','tipAmount','billAmount','netAmount','taxbleAmount',
+      'kotNo','revKotNo','revKot','grossAmount','discount','amount','cgst','sgst','igst','cess','roundOff',
+      'revAmt','serviceCharge','serviceCharge_Amount','discountType','discPer','ncPurpose','totalAmount',
+      'paymentMode','customerName','address','mobile','orderType','waiter','captain','pax','user',
+      'itemsCount','tax','reverseBill','date','ncKot','ncName','creditDetails',
+      // also ignore known structured payment fields (non-dynamic)
+      'cash','credit','card','gpay','phonepe','qrcode','outlet','outletid','outlet_name','table_name','department_name'
+    ]);
+
+    const paymentKeys = Object.keys(first).filter((k) => !excluded.has(k) && first[k] !== undefined);
+
+    // Deterministic order: prefer common modes first, then rest.
+    const priority = ['Cash','Card','Credit','GPay','UPI','PhonePe','QR','QRCode','Cheque','DD'];
+    paymentKeys.sort((a,b)=>{
+      const ia = priority.indexOf(a);
+      const ib = priority.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+
+    return paymentKeys.map((k) => ({ label: k, key: k }));
+  })();
 
   const initialTotals: any = {
     settleAmount: 0,
@@ -1605,7 +1669,7 @@ const ReportPage = () => {
                   </td>
 
                   <td className="text-end">
-                    {(b.tipAmount || 0).toFixed(2)}
+                    {(b.TipAmount || 0).toFixed(2)}
                   </td>
 
                   <td className="text-end">
