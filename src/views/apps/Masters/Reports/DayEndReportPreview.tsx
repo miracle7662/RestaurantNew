@@ -10,7 +10,8 @@ import SettingsService from "@/common/api/settings";
 // TYPES
 // ─────────────────────────────────────────────
 interface BillDetail {
-  TxnNo: string; table_name: string;
+  TxnNo: string; table_name: string;  Discount: number;
+  tipAmount: number;
   grossAmount: number; CGST: number; SGST: number;
   netAmount: number; paymentMode: string; TxnDatetime: string;
 }
@@ -140,37 +141,138 @@ const SolidHr= () => <hr className="rc-hr-solid" />;
 
 const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
   if (!data?.length) return null;
-  let tGross = 0, tGST = 0, tNet = 0;
+
+  let tDisc = 0,
+      tGross = 0,
+      tGST = 0,
+      tTip = 0,
+      tNet = 0;
+
   const rows = data.map((b, i) => {
-    const gst = Number(b.CGST || 0) + Number(b.SGST || 0);
+    const gst =
+      Number(b.CGST || 0) +
+      Number(b.SGST || 0);
+
+    tDisc  += Number(b.Discount || 0);
     tGross += Number(b.grossAmount || 0);
     tGST   += gst;
+    tTip   += Number(b.tipAmount || 0);
     tNet   += Number(b.netAmount || 0);
+
     return (
-      <div key={i} className="rc-col-row" style={{ gridTemplateColumns: '50px 34px 52px 34px 50px auto' }}>
-        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{String(b.TxnNo).slice(-6)}</span>
-        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{(b.table_name||'').substring(0,5)}</span>
-        <span style={{ textAlign:'right' }}>{fmt(b.grossAmount)}</span>
-        <span style={{ textAlign:'right' }}>{gst.toFixed(0)}</span>
-        <span style={{ textAlign:'right' }}>{fmt(b.netAmount)}</span>
-        <span style={{ overflow:'hidden', whiteSpace:'nowrap' }}>{(b.paymentMode||'Cash').substring(0,5)}</span>
+      <div
+        key={i}
+        className="rc-col-row"
+        style={{
+          gridTemplateColumns:
+            '42px 28px 36px 42px 28px 32px 42px auto'
+        }}
+      >
+        {/* Bill */}
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {String(b.TxnNo).slice(-5)}
+        </span>
+
+        {/* Table */}
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {(b.table_name || '').substring(0, 4)}
+        </span>
+
+        {/* Discount */}
+        <span style={{ textAlign: 'right' }}>
+          {fmt(b.Discount)}
+        </span>
+
+        {/* Gross */}
+        <span style={{ textAlign: 'right' }}>
+          {fmt(b.grossAmount)}
+        </span>
+
+        {/* GST */}
+        <span style={{ textAlign: 'right' }}>
+          {gst.toFixed(0)}
+        </span>
+
+        {/* Tip */}
+        <span style={{ textAlign: 'right' }}>
+          {fmt(b.tipAmount)}
+        </span>
+
+        {/* Net */}
+        <span style={{ textAlign: 'right' }}>
+          {fmt(b.netAmount)}
+        </span>
+
+        {/* Payment Mode */}
+        <span
+          style={{
+            overflow: 'hidden',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {(b.paymentMode || 'Cash').substring(0, 5)}
+        </span>
       </div>
     );
   });
+
   return (
     <>
       <SecHdr title="BILL DETAILS" />
-      <div className="rc-col-hdr" style={{ gridTemplateColumns: '50px 34px 52px 34px 50px auto' }}>
-        <span>Bill</span><span>Tbl</span>
-        <span style={{ textAlign:'right' }}>Gross</span>
-        <span style={{ textAlign:'right' }}>GST</span>
-        <span style={{ textAlign:'right' }}>Net</span>
+
+      <div
+        className="rc-col-hdr"
+        style={{
+          gridTemplateColumns:
+            '42px 28px 36px 42px 28px 32px 42px auto'
+        }}
+      >
+        <span>Bill</span>
+        <span>Tbl</span>
+
+        <span style={{ textAlign: 'right' }}>
+          Disc
+        </span>
+
+        <span style={{ textAlign: 'right' }}>
+          Gross
+        </span>
+
+        <span style={{ textAlign: 'right' }}>
+          GST
+        </span>
+
+        <span style={{ textAlign: 'right' }}>
+          Tip
+        </span>
+
+        <span style={{ textAlign: 'right' }}>
+          Net
+        </span>
+
         <span>Mode</span>
       </div>
+
       {rows}
+
       <div className="rc-row-bold">
         <span>TOTAL</span>
-        <span>{fmt(tGross)} | {tGST.toFixed(0)} | {fmt(tNet)}</span>
+
+        <span>
+          {fmt(tDisc)} | {fmt(tGross)} | {tGST.toFixed(0)} | {fmt(tTip)} | {fmt(tNet)}
+        </span>
       </div>
     </>
   );
@@ -334,22 +436,28 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
     b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
             <span style="width:20%">Bill</span>
             <span style="width:15%">Tbl</span>
+            <span style="width:18%;text-align:right">Disc</span>
             <span style="width:22%;text-align:right">Gross</span>
             <span style="width:15%;text-align:right">GST</span>
+            <span style="width:10%;text-align:right">Tip</span>
             <span style="width:18%;text-align:right">Net</span>
             <span style="width:10%">Mode</span>
           </div>`;
-    let tGross = 0, tGST = 0, tNet = 0;
+    let tDisc = 0, tGross = 0, tGST = 0, tTip = 0, tNet = 0;
     data.billDetails.forEach(row => {
       const gst = Number(row.CGST || 0) + Number(row.SGST || 0);
+      tDisc += Number(row.Discount || 0);
       tGross += Number(row.grossAmount || 0);
       tGST += gst;
+      tTip += Number(row.tipAmount || 0);
       tNet += Number(row.netAmount || 0);
       b += `<div style="font-size:9px;display:flex;justify-content:space-between;padding:1px 0;">
               <span style="width:20%">${String(row.TxnNo).slice(-6)}</span>
               <span style="width:15%">${(row.table_name || '').substring(0, 4)}</span>
+              <span style="width:18%;text-align:right">${f(row.Discount)}</span>
               <span style="width:22%;text-align:right">${f(row.grossAmount)}</span>
               <span style="width:15%;text-align:right">${gst.toFixed(0)}</span>
+              <span style="width:10%;text-align:right">${f(row.tipAmount)}</span>
               <span style="width:18%;text-align:right">${f(row.netAmount)}</span>
               <span style="width:10%">${(row.paymentMode || 'Cash').substring(0, 4)}</span>
             </div>`;
@@ -357,7 +465,7 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
     b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
     b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;padding:2px 0;">
             <span>TOTAL</span>
-            <span>${f(tGross)} | ${tGST.toFixed(0)} | ${f(tNet)}</span>
+            <span>${f(tDisc)} | ${f(tGross)} | ${tGST.toFixed(0)} | ${f(tTip)} | ${f(tNet)}</span>
           </div>`;
   }
 
