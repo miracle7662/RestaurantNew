@@ -415,6 +415,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
       let finalPrinterName: string | null = null;
       let usedFallback = false;
+
+      if (usedFallback) {
+  toast(`Printer "${printerName}" not found. Using fallback: `);
+}
       
 
       if (matchedPrinter) {
