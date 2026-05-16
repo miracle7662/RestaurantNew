@@ -3475,7 +3475,7 @@ const handlePrintAndSaveKOT = async () => {
                                           handleTableClick(table.table_name);
                                         }}
                                       >
-                                        <span className="text-dark fw-bold" style={{ fontSize: '15px', lineHeight: '1.1' }}>{table.table_name}</span>
+<span className="text-dark fw-bold" style={{ fontSize: '18px', lineHeight: '1.1' }}>{table.table_name}</span>
                                         {(table.status === 2 || table.status === 4) && (
                                           <div className="d-flex flex-column align-items-center" style={{ fontSize: '11px', lineHeight: '1', color: 'white' }}>
                                             <span>{table.billNo || 'N/A'}</span>
@@ -3552,7 +3552,7 @@ const handlePrintAndSaveKOT = async () => {
                                 handleTableClick(table.table_name);
                               }}
                             >
-                              <span className="text-dark fw-bold" style={{ fontSize: '13px', lineHeight: '1.1' }}>{table.table_name}</span>
+<span className="text-dark fw-bold" style={{ fontSize: '18px', lineHeight: '1.1' }}>{table.table_name}</span>
                               {(table.status === 2 || table.status === 4) && (
                                 <div className="d-flex flex-column align-items-center" style={{ fontSize: '11px', lineHeight: '1', color: 'white' }}>
                                   <span>{table.billNo || 'N/A'}</span>

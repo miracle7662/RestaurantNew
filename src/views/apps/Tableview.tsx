@@ -60,7 +60,7 @@ const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onC
       }}
       onClick={onClick}
     >
-      <span className="text-dark fw-bold" style={{ fontSize: '14px', lineHeight: '1.1' }}>{table.name}</span>
+<span className="text-dark fw-bold" style={{ fontSize: '18px', lineHeight: '1.1' }}>{table.name}</span>
       {(table.status === 'printed' || table.status === 'running-kot') && table.billNo && table.billAmount && table.billPrintedTime && (
         <div className="d-flex flex-column align-items-center" style={{ fontSize: '10px', lineHeight: '1', color: 'white' }}>
           <span>{table.billNo}</span>

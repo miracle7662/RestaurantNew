@@ -553,21 +553,21 @@ html, body {
   <div style="display:grid; grid-template-columns:auto 4px 55px; justify-content:end; column-gap:4px">
     <span>CGST @${taxRates.cgst}%</span>
     <span style="text-align:center;">:</span>
-    <span style="text-align:right;">₹${(billData?.totalCGST ?? taxCalc.cgstAmt).toFixed(2)}</span>
+     <span style="text-align:right;">₹${taxCalc.cgstAmt.toFixed(2)}</span>
   </div>` : ''}
 
   ${taxCalc.sgstAmt > 0 ? `
   <div style="display:grid; grid-template-columns:auto 4px 55px; justify-content:end; column-gap:4px">
     <span>SGST @${taxRates.sgst}%</span>
     <span style="text-align:center;">:</span>
-    <span style="text-align:right;">₹${(billData?.totalSGST ?? taxCalc.sgstAmt).toFixed(2)}</span>
+   <span style="text-align:right;">₹${taxCalc.sgstAmt.toFixed(2)}</span>
   </div>` : ''}
 
   ${taxCalc.igstAmt > 0 ? `
   <div style="display:grid; grid-template-columns:auto 4px 55px; justify-content:end; column-gap:4px;">
     <span>IGST @${taxRates.igst}%</span>
     <span style="text-align:center;">:</span>
-    <span style="text-align:right;">₹${(billData?.totalIGST ?? taxCalc.igstAmt).toFixed(2)}</span>
+   <span style="text-align:right;">₹${taxCalc.igstAmt.toFixed(2)}</span>
   </div>` : ''}
   ` : ''}
 
