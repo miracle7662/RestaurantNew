@@ -287,9 +287,14 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     .item-table { width: 100%; border-collapse: collapse; }
     .item-table th, .item-table td { padding: 2px 0; vertical-align: top; }
-    .item-table .col-item { width: 55%; }
-    .item-table .col-qty { width: 15%; text-align: center; }
-    .item-table .col-rate, .item-table .col-amt { width: 15%; text-align: right; }
+    .item-table .col-item { width: 60%; }
+    .item-table .col-qty { width: 20%; text-align: center; }
+    .item-table .col-rate, .item-table .col-amt { width: 20%; text-align: right; }
+
+    /* Receipt typography tuned for 80mm */
+    #kot-preview-content { padding-left: 3px; padding-right: 3px; }
+    .kot-small { font-size: 11px; }
+    .kot-variant { font-size: 9.5px; color:#0066cc; font-weight:bold; }
     .item-table thead th { border-bottom: 1px solid #000; padding-bottom: 4px; }
 
     .totals-table { width: 100%; }
@@ -534,10 +539,13 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     const groupKotItemsByCategory = localFormData.group_kot_items_by_category;
 
     // Calculate grid columns for items
-    const columns = ['35px', '1fr'];
-    if (showRateColumn) columns.push('55px');
+    const columns = ['32px', '1fr'];
+    // pull Rate column towards left for better fit on 80mm
+    if (showRateColumn) columns.push('44px');
     if (showAmountColumn) columns.push('55px');
     const gridTemplateColumns = columns.join(' ');
+
+
 
     return `
     <!-- STORE INFO -->
@@ -632,7 +640,7 @@ ${showWaiter ? `
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
     <!-- ITEM HEADER -->
-    <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; column-gap: 15px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">      <div style="text-align: center">Qty</div>
+    <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; column-gap: 7px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">      <div style="text-align: center">Qty</div>
       <div style="text-align: left">Item</div>
       ${showRateColumn ? `<div style="text-align: right">Rate</div>` : ''}
       ${showAmountColumn ? `<div style="text-align: right">Amt</div>` : ''}
@@ -640,6 +648,7 @@ ${showWaiter ? `
     
     <!-- ITEMS -->
     ${groupKotItemsByCategory ? `
+
     <!-- Grouped by Category Placeholder -->
     <div style="font-weight: bold;   margin-bottom: 5px;">Category: Main Course</div>
     ` : ''}
@@ -648,14 +657,15 @@ ${showWaiter ? `
           const modifierHtml = modifierDefaultOption && item.modifier && item.modifier.length > 0 ? `<div style="font-size: 8pt; color: #666;">Modifiers: ${item.modifier.join(', ')}</div>` : '';
           const alternativeHtml = showAlternativeItem && item.alternativeItem ? `<div style="font-size: 8pt; color: #666;">Alt: ${item.alternativeItem}</div>` : '';
           return `
-       <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; column-gap: 15px; font-weight: bold;  border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
+       <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; column-gap: 10px; font-weight: bold;  border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
       <div style="text-align: center; font-size: 12pt; font-weight: bold;">
     ${qty}
   </div>
-  <div style="text-align: left; font-size: 12pt;">
+  <div style="text-align: left; font-size: 11pt;">
 ${item.name} 
-  <span style="font-size:11pt; color:#0066cc; font-weight:bold;">(${item.variantName || ''})</span>${modifierHtml}${alternativeHtml}
+  <span class="kot-variant">(${item.variantName || ''})</span>${modifierHtml}${alternativeHtml}
 </div> 
+
 ${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0).toFixed(2)}</div>` : ''}
         ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty).toFixed(2)}</div>` : ''}
       </div>
@@ -665,7 +675,7 @@ ${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0).toF
 
     <!-- TOTALS -->
     <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt;">
-<div style="padding: 2px 11px;">
+<div style="padding: 2px 10px;">
    ${kotItems.reduce(
           (a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty),
           0
@@ -713,12 +723,12 @@ ${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0).toF
               <div
                 key={JSON.stringify(localFormData)}
                 style={{
-                  width: "80mm",
+                  width: "76mm",
                   margin: "0 auto",
                   fontFamily: "'Courier New', monospace",
-                  fontSize: "12px",
-                  lineHeight: "1.3",
-                  padding: "10px",
+                  fontSize: "11px",
+                  lineHeight: "1.1",
+                  padding: "7px",
                   color: "#000",
                   backgroundColor: "white",
                   border: "1px solid #ccc"
