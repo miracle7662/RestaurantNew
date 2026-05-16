@@ -231,7 +231,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     @page {
       /* Roll/continuous printing */
-      size: 80mm auto;
+      size: 76mm auto;
       margin: 0;
     }
 
@@ -242,8 +242,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     }
 
     html, body {
-      width: 80mm !important;
-      min-width: 80mm !important;
+      width: 76mm !important;
+      min-width: 76mm !important;
       margin: 0;
       padding: 0;
       font-family: 'Courier New', monospace;
@@ -257,8 +257,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     /* CONTENT WRAPPER */
     #kot-preview-content {
-      width: 80mm !important;
-      min-width: 80mm !important;
+      width: 76mm !important;
+      min-width: 76mm !important;
       margin: 0;
       padding: 0; /* remove extra top/bottom influence */
       box-sizing: border-box;
@@ -541,8 +541,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     // Calculate grid columns for items
     const columns = ['32px', '1fr'];
     // pull Rate column towards left for better fit on 80mm
-    if (showRateColumn) columns.push('44px');
-    if (showAmountColumn) columns.push('55px');
+    if (showRateColumn) columns.push('35px');
+    if (showAmountColumn) columns.push('45px');
     const gridTemplateColumns = columns.join(' ');
 
 
@@ -657,7 +657,7 @@ ${showWaiter ? `
           const modifierHtml = modifierDefaultOption && item.modifier && item.modifier.length > 0 ? `<div style="font-size: 8pt; color: #666;">Modifiers: ${item.modifier.join(', ')}</div>` : '';
           const alternativeHtml = showAlternativeItem && item.alternativeItem ? `<div style="font-size: 8pt; color: #666;">Alt: ${item.alternativeItem}</div>` : '';
           return `
-       <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; column-gap: 10px; font-weight: bold;  border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
+       <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; column-gap: 4px; font-weight: bold;  border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
       <div style="text-align: center; font-size: 12pt; font-weight: bold;">
     ${qty}
   </div>
@@ -666,8 +666,8 @@ ${item.name}
   <span class="kot-variant">(${item.variantName || ''})</span>${modifierHtml}${alternativeHtml}
 </div> 
 
-${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0).toFixed(2)}</div>` : ''}
-        ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty).toFixed(2)}</div>` : ''}
+${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0)}</div>` : ''}
+        ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty)}</div>` : ''}
       </div>
       `;
         }).join('')}
