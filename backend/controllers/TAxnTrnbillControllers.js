@@ -2348,7 +2348,7 @@ const [billRows] = await db.query(
 
     h.hotel_name,
     h.address,
-     h.trn_gstno,
+    h.trn_gstno,
     h.fssai_no,
     h.phone,
 
@@ -2372,8 +2372,28 @@ const [billRows] = await db.query(
   LIMIT 1
 `,
   [Number(tableId)]
-)
+);
 
+// ✅ Full console log
+console.log("Bill Rows:", billRows);
+
+// ✅ Pretty JSON format
+console.log(
+  "Bill Rows JSON:\n",
+  JSON.stringify(billRows, null, 2)
+);
+
+// ✅ First row values
+if (billRows.length > 0) {
+  console.log("First Bill Row:", billRows[0]);
+
+  // ✅ Print each field separately
+  Object.entries(billRows[0]).forEach(([key, value]) => {
+    console.log(`${key}:`, value);
+  });
+} else {
+  console.log("No bill found");
+}
 const bill = billRows[0]
 
     if (!bill) {

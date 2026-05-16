@@ -10,6 +10,7 @@ import {
 import { Preloader, PreloaderFull } from '@/components/Misc/Preloader'
 import { getCurrentUser } from '@/common/api/auth'
 import DayendService from '@/common/api/dayend'
+import BillPrintService from '@/common/api/billPrint'
 
 type User = {
   id: number
@@ -29,6 +30,13 @@ type User = {
   currDate?: string
 }
 
+export type BillRawSettings = {
+  preview: Record<string, any>
+  print: Record<string, any>
+} | null
+
+
+
 const AuthContext = createContext<any>({})
 
 export function useAuthContext() {
@@ -42,31 +50,51 @@ export function useAuthContext() {
 const authSessionKey = 'WINDOW_AUTH_SESSION'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState(
+  const [user, setUser] = useState<User | undefined>(
     localStorage.getItem(authSessionKey)
       ? JSON.parse(localStorage.getItem(authSessionKey) || '{}')
       : undefined,
   )
+  const [loading, setLoading] = useState(true)
+  const [billSettings, setBillSettings] = useState<BillRawSettings>(null)
+  const [billSettingsLoading, setBillSettingsLoading] = useState(false)
 
-  const saveSession = useCallback(
-    (user: User) => {
-      localStorage.setItem(authSessionKey, JSON.stringify(user))
-      // Also save the token separately for httpClient to access
-      if (user.token) {
-        localStorage.setItem("token", user.token)
-      }
-       console.log('User saved to context:', user);
-      setUser(user)
-    },
-    [setUser],
-  )
+  const saveSession = useCallback((user: User) => {
+    localStorage.setItem(authSessionKey, JSON.stringify(user))
+    if (user.token) {
+      localStorage.setItem('token', user.token)
+    }
+    console.log('User saved to context:', user)
+    setUser(user)
+  }, [])
 
   const removeSession = useCallback(() => {
     localStorage.removeItem(authSessionKey)
+    setBillSettings(null)
     setUser(undefined)
-  }, [setUser])
+  }, [])
 
-  const [loading, setLoading] = useState(true)
+  // Fetch bill preview + print settings for a given outlet.
+  // Called once on login (or when outlet changes in BillPreviewPrint).
+  const fetchBillSettings = useCallback(async (outletId: number) => {
+    if (!outletId) return
+    setBillSettingsLoading(true)
+    try {
+      const [previewRes, printRes] = await Promise.all([
+        BillPrintService.getBillPreviewSettings(outletId),
+        BillPrintService.getBillPrintSettings(outletId),
+      ])
+      setBillSettings({
+        preview: previewRes?.data || previewRes || {},
+        print: printRes?.data || printRes || {},
+      })
+    } catch (err) {
+      console.error('Failed to fetch bill settings:', err)
+      setBillSettings(null)
+    } finally {
+      setBillSettingsLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -76,31 +104,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const parsedUser = JSON.parse(storedUser)
           if (parsedUser && parsedUser.token) {
             const currentUser = await getCurrentUser(parsedUser.token)
+
             const currDateData = await DayendService.getLatestCurrDate({
-              brandId: currentUser.outletid,   
-              hotelid: currentUser.hotelid
-             })  
+              brandId: currentUser.outletid,
+              hotelid: currentUser.hotelid,
+            })
+
             if (currDateData.success) {
-  const currDate = currDateData.data.curr_date
-   console.log("Business Date:", currDate)
-}
-             // console.log('Current user data:', currentUser)
-            // console.log('Curr date data:', currDateData)
-            
-            
-         saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.data.curr_date })
-            // console.log('User session restored from localStorage.')
+              console.log('Business Date:', currDateData.data.curr_date)
+            }
+
+            // Fetch bill settings for this outlet before saving session
+            const outletId = Number(currentUser?.outletid) || 1
+            await fetchBillSettings(outletId)
+
+            saveSession({
+              ...currentUser,
+              token: parsedUser.token,
+              currDate: currDateData.data.curr_date,
+            })
           } else {
             removeSession()
           }
         } catch (error) {
+          console.error('Error restoring session:', error)
           removeSession()
         }
       }
       setLoading(false)
     }
+
     fetchUser()
-  }, [saveSession, removeSession])
+  }, [saveSession, removeSession, fetchBillSettings])
 
   return (
     <>
@@ -114,6 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               isAuthenticated: Boolean(user),
               saveSession,
               removeSession,
+              billSettings,
+              billSettingsLoading,
+              fetchBillSettings,
             }}
           >
             {children}
