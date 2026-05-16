@@ -962,7 +962,7 @@ const getBillDetailsData = async (businessDate, dayEndEmpID) => {
       AND t.DayEndEmpID = ?
       AND t.isNCKOT = 0
       AND t.isreversebill = 0
-      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
+      AND t.TxnDatetime = ?
       AND t.isCancelled = 0
 
     GROUP BY t.TxnID
@@ -987,7 +987,7 @@ const getPaymentSummaryData = async (businessDate, dayEndEmpID) => {
     JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
+      AND t.TxnDatetime = ?
       AND s.isSettled = 1
     GROUP BY s.PaymentType
     ORDER BY totalAmount DESC
@@ -1008,7 +1008,7 @@ const getCreditSummaryData = async (businessDate, dayEndEmpID) => {
       AND s.isSettled = 1
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
+      AND t.TxnDatetime= ?
       AND t.isCancelled = 0
     GROUP BY t.NCName
     HAVING creditAmount > 0
@@ -1030,7 +1030,7 @@ const getDiscountSummaryData = async (businessDate, dayEndEmpID) => {
     FROM TAxnTrnbill t
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
+      AND t.TxnDatetime = ?
       AND t.Discount > 0
       AND t.isCancelled = 0
     ORDER BY t.Discount DESC
@@ -1053,7 +1053,7 @@ const getReverseKOTsData = async (businessDate, dayEndEmpID) => {
     LEFT JOIN mstrestmenu m ON td.ItemID = m.restitemid
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
+      AND t.TxnDatetime = ?
       AND td.RevKOTNo IS NOT NULL 
       AND td.RevKOTNo != ''
     ORDER BY td.RevKOTNo DESC, t.TxnDatetime
@@ -1074,7 +1074,7 @@ const getReverseBillsData = async (businessDate, dayEndEmpID) => {
     FROM TAxnTrnbill t
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
+      AND t.TxnDatetime= ?
       AND t.isreversebill = 1
       AND t.isCancelled = 1
     ORDER BY t.TxnDatetime DESC
@@ -1100,10 +1100,8 @@ const getNCKOTsData = async (businessDate, dayEndEmpID) => {
     WHERE t.isDayEnd = 1
       AND t.DayEndEmpID = ?
       AND td.isNCKOT = 1
-      AND (
-        DATE(CONVERT_TZ(t.TxnDatetime, '+00:00', '+05:30')) = ?
-        OR DATE(t.TxnDatetime) = ?
-      )
+      AND t.TxnDatetime= ?
+    
     ORDER BY t.TxnDatetime DESC, td.KOTNo DESC
   `;
 

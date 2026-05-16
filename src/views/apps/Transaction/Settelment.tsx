@@ -527,8 +527,9 @@ const EditSettlementPage: React.FC = () => {
           <thead className="table-light">
             <tr style={{ fontSize: '12px' }}>
               <th style={{ width: '2%' }}>ID(s)</th>
+              <th style={{ width: '5%' }}>Date</th>
               <th style={{ width: '5%' }}>Bill NO</th>
-              <th style={{ width: '5%' }}>Outlet</th>
+              
               <th style={{ width: '5%' }}>Dept</th>
               <th style={{ width: '5%' }}>Table</th>
               <th style={{ width: '5%' }}>Payment</th>
@@ -537,7 +538,7 @@ const EditSettlementPage: React.FC = () => {
               <th style={{ width: '5%' }}>Tip</th>
               <th style={{ width: '5%' }}>Receive</th>
               <th style={{ width: '5%' }}>Refund</th>
-              <th style={{ width: '5%' }}>Date</th>
+        
               <th style={{ width: '6%' }}>Actions</th>
             </tr>
           </thead>
@@ -555,12 +556,18 @@ const EditSettlementPage: React.FC = () => {
               return (
                 <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
                   <td style={{ fontSize: '11px' }}>{group.SettlementIDs?.join(', ')}</td>
+
+                   <td style={{ fontSize: '11px' }}>
+                    {group.InsertDate
+                      ? new Date(group.InsertDate).toLocaleDateString('en-GB')
+                      : '-'}
+                  </td>
                   <td>
                     <strong style={{ fontSize: '12px' }}>{group.TaxNo || group.OrderNo}</strong>
                     <br />
                     <small style={{ fontSize: '10px' }} className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small>
                   </td>
-                  <td style={{ fontSize: '11px' }}>{(group as any).outletName || (group as any).outlet_name || user?.outlet_name || '-'}</td>
+                  
                   <td style={{ fontSize: '11px' }}>{group.department || '-'}</td>
                   <td style={{ fontSize: '11px' }}>{group.table_name || 'N/A'}</td>
                   <td>
@@ -585,11 +592,7 @@ const EditSettlementPage: React.FC = () => {
                   <td className="text-danger" style={{ fontSize: '11px' }}>
                     {refundAmount > 0 ? `₹${refundAmount.toFixed(2)}` : '-'}
                   </td>
-                  <td style={{ fontSize: '11px' }}>
-                    {group.InsertDate
-                      ? new Date(group.InsertDate).toLocaleDateString('en-GB')
-                      : '-'}
-                  </td>
+                 
                   <td>
                     <div className="d-flex gap-1">
 
