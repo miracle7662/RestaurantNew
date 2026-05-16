@@ -40,7 +40,7 @@ ipcMain.handle("get-installed-printers", async () => {
 ipcMain.handle("direct-print", (event, { html, printerName }) => {
   return new Promise((resolve, reject) => {
     try {
-      const win = new BrowserWindow({width: 302, height: 600,  show: false,
+const win = new BrowserWindow({ width: 302, height: 600, show: false,
           icon: path.resolve(__dirname, 'build/icon.ico'),
           webPreferences: {
           contextIsolation: true,
@@ -50,21 +50,37 @@ ipcMain.handle("direct-print", (event, { html, printerName }) => {
 
       win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
 
-      win.webContents.on("did-finish-load", () => {
-        win.webContents.print({
-          silent: true,
-          printBackground: true,
-          deviceName: printerName,
-          margins: { marginType: "none" },
-          pageSize: {
-            width: 302000,
-            height: 1000000,
+      win.webContents.on("did-finish-load", async () => {
+        try {
+          // Ensure styles/layout are applied before print origin is calculated.
+          await win.webContents.executeJavaScript(
+            "(async () => {\n" +
+              "  if (document.fonts && document.fonts.ready) await document.fonts.ready;\n" +
+              "  await new Promise(r => setTimeout(r, 50));\n" +
+              "  return true;\n" +
+              "})()",
+            true
+          );
+        } catch (_) {
+          // ignore JS execution errors
+        }
+
+        win.webContents.print(
+          {
+            silent: true,
+            printBackground: true,
+            deviceName: printerName,
+            margins: { marginType: "none" },
+            preferCSSPageSize: true,
+            pageSize: undefined,
+            landscape: false,
+          },
+          (success, error) => {
+            if (!success) reject(error);
+            else resolve(true);
+            setTimeout(() => win.close(), 300);
           }
-        }, (success, error) => {
-          if (!success) reject(error);
-          else resolve(true);
-  setTimeout(() => win.close(), 300);
-        });
+        );
       });
     } catch (err) {
       reject(err);

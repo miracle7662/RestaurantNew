@@ -228,31 +228,53 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   <meta charset="UTF-8" />
   <title>KOT</title>
   <style>
+
     @page {
-      size: 302px auto;
+      /* Roll/continuous printing */
+      size: 80mm auto;
       margin: 0;
     }
 
+    @media print {
+      html, body { overflow: visible !important; }
+      /* prevent phantom blank space at top */
+      body { margin: 0 !important; padding: 0 !important; }
+    }
+
     html, body {
-      width: 302px !important;
-      min-width: 302px !important;
+      width: 80mm !important;
+      min-width: 80mm !important;
       margin: 0;
-      padding: 0 6px;  /* LEFT + RIGHT SAFE ZONE */
+      padding: 0;
       font-family: 'Courier New', monospace;
       font-size: 12px;
       line-height: 1.3;
       color: #000;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
       box-sizing: border-box;
     }
 
     /* CONTENT WRAPPER */
     #kot-preview-content {
-      
-      min-width: 302px !important;
-      margin: 0 auto;
-     
+      width: 80mm !important;
+      min-width: 80mm !important;
+      margin: 0;
+      padding: 0; /* remove extra top/bottom influence */
       box-sizing: border-box;
-      font-weight: bold; /* ensure all shown values are bold */
+      font-weight: bold;
+    }
+
+    body {
+      /* critical for roll printers: no vertical padding/margins */
+      padding: 0;
+      margin: 0;
+    }
+
+    /* Avoid clipping/offset issues */
+    .kot-page {
+      height: auto;
+      overflow: visible;
     }
 
     .center { text-align: center; }
@@ -691,7 +713,7 @@ ${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0).toF
               <div
                 key={JSON.stringify(localFormData)}
                 style={{
-                  width: "302px",
+                  width: "80mm",
                   margin: "0 auto",
                   fontFamily: "'Courier New', monospace",
                   fontSize: "12px",
@@ -727,3 +749,4 @@ ${showRateColumn ? `<div style="text-align: right">${Number(item.price || 0).toF
 };
 
 export default KotPreviewPrint;
+

@@ -275,6 +275,10 @@ const reportHTML = `
       margin: 0;
     }
 
+    @media print {
+      html, body { overflow: visible !important; }
+    }
+
     body {
       font-family: monospace;
       font-size: 11px;

@@ -251,10 +251,15 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <meta charset="UTF-8" />
   <title>BILL</title>
   <style>
-   @page {
+    @page {
+  /* Roll/continuous printing */
   size: 80mm auto;
   margin: 0;
 }
+
+    @media print {
+      html, body { overflow: visible !important; }
+    }
 
 html, body {
   width: 80mm !important;

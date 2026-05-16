@@ -106,6 +106,10 @@ const NCKotPrint: React.FC<NCKotPrintProps> = ({
     margin: 0;
   }
 
+  @media print {
+    html, body { overflow: visible !important; }
+  }
+
   body {
     width: 72mm;              /* 🔥 SAFE WIDTH */
     margin-left: 4mm;         /* 🔥 LEFT FIX */

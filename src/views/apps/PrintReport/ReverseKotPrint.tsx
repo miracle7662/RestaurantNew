@@ -251,6 +251,10 @@ const generateHTML = () => `
     margin: 0;
   }
 
+  @media print {
+    html, body { overflow: visible !important; }
+  }
+
   body {
     width: 70mm;              /* 🔥 SAFE WIDTH */
     margin-left: 4mm;         /* 🔥 LEFT CUT FIX */
