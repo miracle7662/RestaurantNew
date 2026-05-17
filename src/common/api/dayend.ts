@@ -190,6 +190,9 @@ const DayendService = {
   getDayendData: (params?: { outletid?: number; hotelid?: number }): Promise<ApiResponse<DayendData>> =>
     HttpClient.get<ApiResponse<DayendData>>('/dayend/data', { params }),
 
+  getBackDayendData: (params?: { outletid?: number; hotelid?: number; date?: string }): Promise<ApiResponse<DayendData>> =>
+  HttpClient.get<ApiResponse<DayendData>>('/dayend/back-data', { params }),
+
   /**
    * Get latest current date for the business
    */

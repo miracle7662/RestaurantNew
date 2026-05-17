@@ -36,6 +36,7 @@ const Tableview = React.lazy(() => import('../views/apps/Tableview'))
 const Billview = React.lazy(() => import('../views/apps/Billview'))
 const DuplicateBillPrint = React.lazy(() => import('../views/apps/PrintReport/DuplicateBillPrint'))
 const Settings = React.lazy(() => import('../views/apps/Settings'))
+const BackdatedDayend = React.lazy(() => import('../views/apps/BackdatedDayend'))
 const OpeningBalancePage = React.lazy(() => import('../views/apps/OpeningBalancePage')) // Updated to use <OpeningBalancePage /> component'@/pages/opening-balance/OpeningBalancePage'
 
 
@@ -434,6 +435,13 @@ const appsRoutes: RoutesProps = {
       path: '/apps/Billview',
       name: 'Billview',
       element: <Billview />,
+      route: PrivateRoute,
+    },
+
+     {
+      path: '/apps/BackdatedDayend',
+      name: 'BackdatedDayend',
+      element: <BackdatedDayend />,
       route: PrivateRoute,
     },
 

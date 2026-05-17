@@ -1601,6 +1601,333 @@ const saveOpeningBalance = async (req, res) => {
   }
 };
 
+const getBackDayendData = async (req, res) => {
+  try {
+    const { date } = req.query;
+    
+    console.log("Requested date:", date);
+    
+    let targetDate = date;
+    if (!targetDate) {
+      targetDate = new Date().toISOString().split('T')[0];
+    }
+    
+    // Get payment types
+    const [paymentTypes] = await db.query(`
+      SELECT DISTINCT PaymentType
+      FROM TrnSettlement
+      WHERE isSettled = 1
+        AND PaymentType IS NOT NULL
+        AND PaymentType != ''
+    `);
+    
+    console.log("Payment types:", paymentTypes);
+    
+    // Build dynamic payment columns WITHOUT using prepared statements for column names
+    // (Column names cannot use placeholders in MySQL)
+    const paymentColumns = paymentTypes
+      .map((p) => `
+        COALESCE(
+          MAX(
+            CASE
+              WHEN s.PaymentType = '${p.PaymentType.replace(/'/g, "\\'")}'
+              THEN s.Amount
+              ELSE 0
+            END
+          ),
+          0
+        ) AS \`${p.PaymentType.replace(/`/g, '')}\`
+      `)
+      .join(",");
+    
+    // Main query - payment type values are directly embedded (safe because they come from DB)
+    // Date parameters use placeholders
+    const query = `
+     SELECT
+        t.TxnID,
+        t.TxnNo,
+        t.TableID,
+        t.table_name,
+        t.outletid,
+        t.HotelID,
+        t.Amount AS TotalAmount,
+        t.Discount,
+        t.GrossAmt AS GrossAmount,
+        t.CGST,
+        t.SGST,
+        t.RoundOFF,
+        t.RevKOT AS RevAmt,
+        t.TxnDatetime,
+        t.Steward AS Captain,
+        t.UserId,
+        u.username AS UserName,
+        
+        -- WATER AMOUNT
+        (
+          SELECT COALESCE(
+            SUM(
+              CASE
+                WHEN LOWER(i.item_name) LIKE '%water%'
+                THEN d.RuntimeRate * d.Qty
+                ELSE 0
+              END
+            ),
+            0
+          )
+          FROM TAxnTrnbilldetails d
+          JOIN mstrestmenu i
+            ON d.ItemID = i.restitemid
+          WHERE d.TxnID = t.TxnID
+        ) AS Water,
+        
+        -- KOT DETAILS
+        GROUP_CONCAT(
+          DISTINCT CASE
+            WHEN td.Qty > 0
+            THEN td.KOTNo
+          END
+        ) AS KOTNo,
+        
+        COALESCE(
+          GROUP_CONCAT(DISTINCT td.RevKOTNo),
+          ''
+        ) AS RevKOTNo,
+        
+        GROUP_CONCAT(
+          DISTINCT CASE
+            WHEN td.isNCKOT = 1
+            THEN td.KOTNo
+          END
+        ) AS NCKOT,
+        
+        t.NCPurpose,
+        t.NCName,
+        
+        -- PAYMENT MODE COLUMNS
+        ${paymentColumns},
+        
+        -- PAYMENT DETAILS
+        GROUP_CONCAT(
+          DISTINCT CONCAT(
+            s.PaymentType,
+            ':',
+            s.Amount
+          )
+        ) AS Settlements,
+        
+        GROUP_CONCAT(
+          DISTINCT s.PaymentType
+        ) AS PaymentType,
+        
+        -- TIP AMOUNT
+        COALESCE(
+          SUM(
+            DISTINCT COALESCE(s.TipAmount, 0)
+          ),
+          0
+        ) AS TipAmountTotal,
+        
+        -- SETTLEMENT AMOUNT
+        (
+          COALESCE(t.Amount, 0)
+          +
+          COALESCE(
+            SUM(
+              DISTINCT COALESCE(s.TipAmount, 0)
+            ),
+            0
+          )
+        ) AS SettlementAmountTotal,
+        
+        -- STATUS
+        t.isSetteled,
+        t.isBilled,
+        t.isreversebill,
+        t.isCancelled,
+        t.isDayEnd,
+        t.DayEndEmpID,
+        
+        -- TOTAL ITEMS
+        COALESCE(
+          SUM(td.Qty),
+          0
+        ) AS TotalItems
+        
+      FROM TAxnTrnbill t
+      
+      LEFT JOIN TAxnTrnbilldetails td
+        ON t.TxnID = td.TxnID
+      
+      LEFT JOIN mst_users u
+        ON t.UserId = u.userid
+      
+      LEFT JOIN (
+        SELECT
+          OrderNo,
+          PaymentType,
+          SUM(Amount) AS Amount,
+          SUM(COALESCE(TipAmount, 0)) AS TipAmount
+        FROM TrnSettlement
+        WHERE isSettled = 1
+        GROUP BY OrderNo, PaymentType
+      ) s
+      ON (
+        CAST(s.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
+        OR CAST(s.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
+      )
+      
+      WHERE  (
+        (
+          t.isCancelled = 0
+          AND (
+            t.isBilled = 1
+            OR t.isSetteled = 1
+          )
+        )
+        OR t.isreversebill = 1
+      )
+      
+      -- SIMPLE DATE FILTER - Just use DATE() function
+      AND DATE(t.TxnDatetime) = ? 
+      
+      GROUP BY t.TxnID, t.TxnNo
+      ORDER BY t.TxnDatetime DESC
+    `;
+    
+    console.log("Executing query with date:", targetDate);
+    
+    const [rows] = await db.query(query, [targetDate]);
+    
+    console.log(`Query returned ${rows.length} rows`);
+    
+    if (rows.length === 0) {
+      // Debug: Check what dates are available
+      const [availableDates] = await db.query(`
+        SELECT 
+          DISTINCT DATE(TxnDatetime) as date,
+          COUNT(*) as count
+        FROM TAxnTrnbill 
+        WHERE (isDayEnd = 0 OR isDayEnd IS NULL)
+        GROUP BY DATE(TxnDatetime)
+        ORDER BY date DESC
+        LIMIT 10
+      `);
+      
+      console.log("Available dates with data:", availableDates);
+    }
+    
+    // Format the response
+    const orders = rows.map((row) => {
+      const payments = {};
+      
+      // Build payments object from dynamic columns
+      paymentTypes.forEach((paymentType) => {
+        const amount = Number(row[paymentType.PaymentType]) || 0;
+        if (amount > 0) {
+          payments[paymentType.PaymentType] = amount;
+        }
+      });
+      
+      // If no payments found from dynamic columns, try to parse from PaymentType string
+      if (Object.keys(payments).length === 0 && row.PaymentType) {
+        const paymentTypeList = row.PaymentType.split(',');
+        paymentTypeList.forEach((type) => {
+          const trimmedType = type.trim();
+          if (trimmedType && row[trimmedType]) {
+            payments[trimmedType] = Number(row[trimmedType]);
+          }
+        });
+      }
+      
+      return {
+        txnId: row.TxnID,
+        orderNo: row.TxnNo,
+        table: row.TableID,
+        tableName: row.table_name || '',
+        waiter: row.Captain || 'Unknown',
+        captain: row.Captain || 'N/A',
+        user: row.UserName || 'N/A',
+        outletid: row.outletid,
+        hotelid: row.HotelID,
+        date: row.TxnDatetime,
+        time: row.TxnDatetime,
+        amount: Number(row.TotalAmount || 0),
+        grossAmount: Number(row.GrossAmount || 0),
+        discount: Number(row.Discount || 0),
+        cgst: Number(row.CGST || 0),
+        sgst: Number(row.SGST || 0),
+        roundOff: Number(row.RoundOFF || 0),
+        revAmt: Number(row.RevAmt || 0),
+        water: Number(row.Water || 0),
+        tip: Number(row.TipAmountTotal || 0),
+        settlementAmount: Number(row.SettlementAmountTotal || 0),
+        paymentType: row.PaymentType || '',
+        payments: payments,
+        settlements: row.Settlements || '',
+        type: row.isreversebill ? 'Reversed' : (row.PaymentType ? (row.PaymentType.split(',')[0]) : (row.isSetteled ? 'Cash' : 'Unpaid')),
+        status: row.isSetteled ? 'Settled' : (row.isBilled ? 'Billed' : 'Pending'),
+        isDayEnd: row.isDayEnd,
+        dayEndEmpID: row.DayEndEmpID,
+        reverseBill: row.isreversebill,
+        items: Number(row.TotalItems || 0),
+        kotNo: row.KOTNo || '',
+        revKotNo: row.RevKOTNo || '',
+        ncKot: row.NCKOT || '',
+        ncPurpose: row.NCPurpose || '',
+        ncName: row.NCName || '',
+        // Also add individual payment amounts as properties for frontend compatibility
+        ...payments
+      };
+    });
+    
+    // Calculate totals
+    const totalSales = orders.reduce((sum, order) => sum + order.amount, 0);
+    const totalDiscount = orders.reduce((sum, order) => sum + order.discount, 0);
+    const totalCGST = orders.reduce((sum, order) => sum + order.cgst, 0);
+    const totalSGST = orders.reduce((sum, order) => sum + order.sgst, 0);
+    
+    // Prepare payment methods for pie chart
+    const paymentMethods = paymentTypes.map(pt => ({
+      type: pt.PaymentType,
+      amount: orders.reduce((sum, order) => sum + (order[pt.PaymentType] || 0), 0),
+      percentage: totalSales > 0 ? ((orders.reduce((sum, order) => sum + (order[pt.PaymentType] || 0), 0) / totalSales) * 100).toFixed(1) : "0"
+    })).filter(pm => pm.amount > 0);
+    
+    res.json({
+      success: true,
+      data: {
+        orders: orders,
+        summary: {
+          totalOrders: orders.length,
+          totalKOTs: orders.length,
+          totalSales: totalSales,
+          cash: orders.reduce((sum, order) => sum + (order.Cash || 0), 0),
+          card: orders.reduce((sum, order) => sum + (order.Card || 0), 0),
+          gpay: orders.reduce((sum, order) => sum + (order.GPay || order.gpay || 0), 0),
+          phonepe: orders.reduce((sum, order) => sum + (order.PhonePe || order.phonepe || 0), 0),
+          qrcode: orders.reduce((sum, order) => sum + (order.QRCode || order.qrcode || 0), 0),
+          pending: orders.filter(o => o.status === "Pending").length,
+          completed: orders.filter(o => o.status === "Settled").length,
+          cancelled: orders.filter(o => o.status === "Cancelled").length,
+          averageOrderValue: orders.length > 0 ? Math.round(totalSales / orders.length) : 0
+        },
+        paymentMethods: paymentMethods,
+        totalDiscount: totalDiscount,
+        totalCGST: totalCGST,
+        totalSGST: totalSGST
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching dayend data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch dayend data',
+      error: error.message
+    });
+  }
+};
+
 
 module.exports = {
   getDayendData,
@@ -1611,4 +1938,5 @@ module.exports = {
   checkOpeningBalanceRequired,
   saveOpeningBalance,
   generateDayEndReportHTML,
+  getBackDayendData,
 };
