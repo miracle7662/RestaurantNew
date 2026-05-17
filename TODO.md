@@ -1,6 +1,9 @@
-- [ ] Inspect DayEndReportPreview.tsx for Discount/Table column widths (Bill Details + Discount Summary)
-- [ ] Update BILL DETAILS React gridTemplateColumns to reduce Discount column width
-- [ ] Update BILL DETAILS print HTML header/rows Disc width percentage
-- [ ] Update DISCOUNT SUMMARY column widths (Bill/Table/Reason/Amount) to reduce Table/discount-related spacing
-- [ ] Verify TypeScript build passes (npm test/build if applicable)
+# TODO - Day End Report Debug Logging
+
+- [x] Inspect `generateDayEndReportHTML` flow in `backend/controllers/Dayendcontroller.js`.
+- [ ] Add pre-query logs for `businessDate`, `DayEndEmpID`, and `selectedReports`.
+- [ ] After each report-data fetch (DB query) log: query name, total rows fetched, first row sample.
+- [ ] Add `console.error("Day End Report Error:", error);` in relevant `catch` blocks.
+- [ ] Ensure response structure and business logic remain unchanged.
+
 

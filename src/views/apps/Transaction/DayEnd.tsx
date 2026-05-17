@@ -483,7 +483,13 @@ const handleGenerateReports = async () => {
         sessionStorage.setItem('dayEndReportDate', reportDate);
         
         // ✅ Verify storage
-        const saved = sessionStorage.getItem('dayEndReportData');
+       const saved = sessionStorage.getItem('dayEndReportData');
+
+const reportData = saved
+  ? JSON.parse(saved)
+  : {};
+
+console.log('Loaded Report Data:', reportData);
         console.log('✅ Verified saved data length:', saved?.length);
         
         toast.success('✅ Report generated! Opening preview...');

@@ -1074,7 +1074,7 @@ const getReverseBillsData = async (businessDate, dayEndEmpID) => {
     FROM TAxnTrnbill t
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND t.TxnDatetime= ?
+      AND t.TxnDatetime = ?
       AND t.isreversebill = 1
       AND t.isCancelled = 1
     ORDER BY t.TxnDatetime DESC
@@ -1100,7 +1100,7 @@ const getNCKOTsData = async (businessDate, dayEndEmpID) => {
     WHERE t.isDayEnd = 1
       AND t.DayEndEmpID = ?
       AND td.isNCKOT = 1
-      AND t.TxnDatetime= ?
+      AND t.TxnDatetime = ?
     
     ORDER BY t.TxnDatetime DESC, td.KOTNo DESC
   `;
