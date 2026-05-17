@@ -1776,16 +1776,10 @@ const getBackDayendData = async (req, res) => {
         OR CAST(s.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
       )
       
-      WHERE  (
-        (
-          t.isCancelled = 0
-          AND (
-            t.isBilled = 1
-            OR t.isSetteled = 1
-          )
-        )
-        OR t.isreversebill = 1
-      )
+      WHERE (
+    t.isSetteled = 1
+    OR t.isreversebill = 1
+)
       
       -- SIMPLE DATE FILTER - Just use DATE() function
       AND DATE(t.TxnDatetime) = ? 
