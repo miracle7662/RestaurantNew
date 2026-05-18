@@ -78,6 +78,8 @@ export interface BillHeader {
   TableID: number
   Steward?: string
     departmentid?: number; // ✅ ADD THIS
+  DeptID?: number | null
+
 
   PAX?: number
   pax?: number

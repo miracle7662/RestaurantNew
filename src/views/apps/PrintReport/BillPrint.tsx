@@ -33,6 +33,7 @@ interface MenuItem {
 
 interface TaxCalc {
   subtotal: number;
+  taxableValue?: number;
   cgstAmt: number;
   sgstAmt: number;
   igstAmt: number;
@@ -515,7 +516,7 @@ ${(showAll || localFormData.trn_gstno) ? `<div style="font-size: 8pt;">GST No: $
   <div style="display:grid; grid-template-columns:auto 4px 55px; justify-content:end; column-gap:4px">
     <span><strong>Taxable Value</strong></span>
     <span style="text-align:center;">:</span>
-    <span style="text-align:right;">₹${(taxCalc.subtotal - discount).toFixed(2)}</span>
+    <span style="text-align:right;">₹${(taxCalc.taxableValue ?? (taxCalc.subtotal - discount)).toFixed(2)}</span>
   </div>
 
   ${taxCalc.cgstAmt > 0 ? `

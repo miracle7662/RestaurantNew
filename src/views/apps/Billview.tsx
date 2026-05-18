@@ -2047,7 +2047,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
             Discount_Amount: 0,
             isNCKOT: isNoCharge,
             isbilled: print ? 1 : 0,
-            DeptID: selectedDeptId && selectedDeptId > 0 ? selectedDeptId : null,
+DeptID: selectedDeptId && selectedDeptId > 0 ? selectedDeptId : undefined,
             SpecialInst: item.SpecialInst || null,
             item_no: item.item_no,
             order_tag: order_tag,
@@ -4197,6 +4197,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
         taxCalc={{
           subtotal: grossAmount,
+          taxableValue: taxCalc.taxableValue,
           cgstAmt: cgst,
           sgstAmt: sgst,
           igstAmt: igst,
