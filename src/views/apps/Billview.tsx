@@ -2321,6 +2321,22 @@ DeptID: selectedDeptId && selectedDeptId > 0 ? selectedDeptId : undefined,
   };
 
   const printBill = async () => {
+    console.log('[Billview] printBill called', {
+      txnId,
+      isTakeaway,
+      orderNo,
+      finalAmount,
+      grossAmount,
+      discount,
+      discountInputValue,
+      DiscountType,
+      cgst,
+      sgst,
+      igst,
+      totalCess,
+      roundOff,
+      taxCalc
+    });
     if (!txnId) return;
 
     if (isTakeaway && !txnId) {
@@ -2347,7 +2363,9 @@ DeptID: selectedDeptId && selectedDeptId > 0 ? selectedDeptId : undefined,
       setOrderNo(txnNo);
 
       // ✅ 3️⃣ OPEN BILL PRINT MODAL (THIS WAS MISSING)
+      console.log('[Billview] markBillAsBilled success, TxnNo:', txnNo, 'finalAmount:', finalAmount, 'taxCalc:', taxCalc);
       setShowBillPrintModal(true);
+
 
     } catch (error) {
       // console.error('Error printing bill:', error);

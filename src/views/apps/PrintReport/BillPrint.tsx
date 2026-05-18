@@ -298,6 +298,25 @@ html, body {
   };
 
   const handlePrintBill = async () => {
+    console.log('[BillPrint] handlePrintBill start', {
+      autoPrint,
+      show,
+      hasPrinted,
+      loading,
+      printerName,
+      outletId,
+      orderNo,
+      currentTxnId,
+      selectedTable,
+      discount,
+      roundOffEnabled,
+      roundOffValue,
+      taxCalc,
+      taxRates,
+      selectedPaymentModes,
+      itemsCount: items?.length,
+      itemsSample: items?.slice?.(0, 3)
+    });
     // console.log('Print Bill button clicked');
     // console.log('Current printerName:', printerName);
     // console.log('Current outletId:', outletId);
@@ -356,6 +375,17 @@ html, body {
       if (usedFallback) {
         // console.log("Fallback printer used");
       }
+
+      console.log('[BillPrint] generate Bill HTML with totals', {
+        subtotal: taxCalc?.subtotal,
+        taxableValue: taxCalc?.taxableValue,
+        cgstAmt: taxCalc?.cgstAmt,
+        sgstAmt: taxCalc?.sgstAmt,
+        igstAmt: taxCalc?.igstAmt,
+        grandTotal: taxCalc?.grandTotal,
+        discount,
+        roundOffValue
+      });
 
       // Generate KOT HTML for printing
       const kotHTML = generateBillHTML();
