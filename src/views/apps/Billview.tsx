@@ -4240,6 +4240,8 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   roundOffValue={roundOff}
   selectedPaymentModes={selectedPaymentModes}
   selectedOutletId={selectedOutletId}
+  restaurantName={restaurantName}
+  outletName={outletName}
   
   // ✅ AFTER SUCCESS PRINT
   onPrint={async () => {
