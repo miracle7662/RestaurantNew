@@ -230,34 +230,12 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   }, [outletId, restaurantName, outletName, user]);
 
   // MAIN AUTO-PRINT LOGIC (exact KOT pattern)
-  // Guard: billData/taxCalc keys sometimes arrive late after F10.
   React.useEffect(() => {
-    if (!autoPrint || !show || loading || hasPrinted || !printerName) return;
-
-    const hasTaxNumbers =
-      taxCalc &&
-      typeof taxCalc.subtotal === 'number' &&
-      typeof taxCalc.grandTotal === 'number' &&
-      !Number.isNaN(taxCalc.subtotal) &&
-      !Number.isNaN(taxCalc.grandTotal);
-
-    if (!hasTaxNumbers) return;
-
-    // Also ensure at least one of taxable value sources is present/derivable.
-    const taxableCandidates = [
-      billData?.TaxableValue,
-      (taxCalc as any)?.TaxableValue,
-      (taxCalc as any)?.taxableValue,
-      (taxCalc as any)?.taxable_value,
-      (taxCalc.subtotal - discount)
-    ];
-    const hasUsableTaxable = taxableCandidates.some(v => v !== undefined && v !== null && !Number.isNaN(Number(v)));
-
-    if (!hasUsableTaxable) return;
-
-    setHasPrinted(true);
-    handlePrintBill();
-  }, [autoPrint, show, loading, hasPrinted, printerName, taxCalc, billData, discount]);
+    if (autoPrint && show && !loading && !hasPrinted && printerName) {
+      setHasPrinted(true);
+      handlePrintBill();
+    }
+  }, [autoPrint, show, loading, hasPrinted, printerName]);
 
   // Reset hasPrinted when modal closes
   React.useEffect(() => {
@@ -459,16 +437,15 @@ html, body {
         <div style="text-align: center; margin-bottom: 10px;">
           ${(showAll || localFormData.show_logo_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${(showAll || localFormData.show_brand_name_bill) ? (billData?.hotelName || displayRestaurantName) : ''}</div>` : ''}
           ${(showAll || localFormData.show_outlet_name_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${billData?.outletName || displayOutletName}</div>` : ''}
-          <div style="font-size: 8pt;">${billData?.address || billData?.outlet_address || billData?.outletAddress || ''}</div>
-          ${(showAll || localFormData.trn_gstno) ? `<div style="font-size: 8pt;">GST No: ${billData?.gstNo || billData?.trn_gstno || billData?.gstno || 'N/A'}</div>` : ''}
-
+          <div style="font-size: 8pt;">${billData?.address || ''}</div>
+          ${(showAll || localFormData.trn_gstno) ? `<div style="font-size: 8pt;">GST No: ${billData?.gstNo || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.email) ? `<div style="font-size: 8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.website) ? `<div style="font-size: 8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
           ${((showAll || localFormData.show_phone_on_bill) && billData?.phone) ? `<div style="font-size: 8pt;">Phone: ${billData?.phone}</div>` : ''}
            
            ${(showAll || localFormData.show_item_hsn_code_bill) ? `<div>HSN: ${localFormData.hsn || 'N/A'}</div>` : ''}
            
-          ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${billData?.fssaiNo || 'N/A'}</div>` : ''}
+          ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${billData?.fssai_no || 'N/A'}</div>` : ''}
            ${(showAll || localFormData.field1) ? `<div style="font-size: 8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
          
         </div>
