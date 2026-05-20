@@ -85,7 +85,9 @@ interface Order {
   outletid?: number;
   tip?: number;
   settlementAmount?: number;
+  billedDate?: string;
 }
+
 
 // Mapping from payment mode name to the field in Order object
 // const PAYMENT_FIELD_MAP: Record<string, keyof Order> = {
@@ -455,7 +457,8 @@ const getPaymentAmount = (order: any, modeName: string): number => {
 
 // DayEnd.tsx में handleGenerateReports फंक्शन को ठीक करें
 
-const handleGenerateReports = async () => {
+  const handleGenerateReports = async () => {
+
   try {
     const selectedReportKeys = Object.keys(selectedReports).filter(
       key => selectedReports[key as keyof typeof selectedReports]
@@ -522,16 +525,8 @@ console.log('Loaded Report Data:', reportData);
     return <Badge bg={variants[status as keyof typeof variants] || "secondary"}>{status}</Badge>;
   };
 
-  const getFormattedTime = (timeStr: string) => {
-    const utcDate = new Date(timeStr);
-    if (isNaN(utcDate.getTime())) return timeStr;
-    return utcDate.toLocaleTimeString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  };
+
+
 
   const getFormattedDate = (dateStr: string) => {
     const dateObj = new Date(dateStr);
@@ -544,6 +539,29 @@ console.log('Loaded Report Data:', reportData);
       year: "numeric",
     });
   };
+
+  const getFormattedTimeFromDateTime = (dateTimeStr?: string) => {
+    if (!dateTimeStr) return "";
+
+    // MySQL might send dateTime already as 'YYYY-MM-DD HH:mm:ss'
+    // new Date(...) can interpret it inconsistently depending on browser.
+    // Extract time part directly when possible.
+    const asStr = String(dateTimeStr);
+    const timeMatch = asStr.match(/\b(\d{1,2}:\d{2}:\d{2})\b/);
+    if (timeMatch?.[1]) return timeMatch[1];
+
+    const d = new Date(asStr);
+    if (isNaN(d.getTime())) return asStr;
+
+    return d.toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
+
 
   const [reason, setReason] = useState('');
   const countedCashTotal = Object.entries(cashDenominations).reduce(
@@ -967,8 +985,9 @@ console.log('Loaded Report Data:', reportData);
                         </thead>
                         <tbody>
                           {filteredOrders.map((order, idx) => {
-                            const formattedTime = getFormattedTime(order.time);
+                            const formattedTime = getFormattedTimeFromDateTime(order.billedDate || order.time);
                             const formattedDate = getFormattedDate(order.date);
+
                             const rowClasses = ['table-row-compact'];
                             if (order.discount > 0) {
                               rowClasses.push('table-row-discount');
@@ -1143,8 +1162,9 @@ console.log('Loaded Report Data:', reportData);
                   <Col md={6}><strong>Captain:</strong> {selectedOrder.captain || selectedOrder.waiter || ''}</Col>
                   <Col md={6}><strong>User:</strong> {selectedOrder.user || ''}</Col>
                   <Col md={6}><strong>Total Items:</strong> {selectedOrder.items}</Col>
-                  <Col md={6}><strong>Time:</strong> {getFormattedTime(selectedOrder.time)}</Col>
+                  <Col md={6}><strong>Time:</strong> {getFormattedTimeFromDateTime(selectedOrder.billedDate)}</Col>
                   <Col md={6}><strong>Date:</strong> {getFormattedDate(selectedOrder.time)}</Col>
+
                   <Col md={6}><strong>Payment:</strong> {selectedOrder.type}</Col>
                   <Col md={6}><strong>Status:</strong> <StatusBadge status={selectedOrder.status} /></Col>
                   <Col md={12}><hr className="my-1" /></Col>

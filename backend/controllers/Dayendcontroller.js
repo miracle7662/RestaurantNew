@@ -60,7 +60,6 @@ const getDayendData = async (req, res) => {
         t.table_name,
         t.outletid,
         t.HotelID,
-
         t.Amount AS TotalAmount,
         t.Discount,
         t.GrossAmt AS GrossAmount,
@@ -69,7 +68,7 @@ const getDayendData = async (req, res) => {
         t.RoundOFF,
         t.RevKOT AS RevAmt,
         t.TxnDatetime,
-
+        t.BilledDate,
         t.Steward AS Captain,
         t.UserId,
 
@@ -383,6 +382,10 @@ if (row.Settlements) {
         date: row.TxnDatetime,
 
         time: row.TxnDatetime,
+
+        // New field: exact billed date/time (used for showing time in DayEnd order details)
+        billedDate: row.BilledDate,
+
 
         // ==================================================
         // AMOUNTS
