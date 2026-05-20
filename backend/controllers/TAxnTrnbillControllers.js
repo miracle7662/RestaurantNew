@@ -2341,60 +2341,17 @@ exports.getLatestBilledBillForTable = async (req, res) => {
     }
 
     // Step 1: Fetch the latest billed and unsettled transaction for the table
-const [billRows] = await db.query(
-  `
-  SELECT 
-    t.*,
-
-    h.hotel_name,
-    h.address,
-    h.trn_gstno,
-    h.fssai_no,
-    h.phone,
-
-    o.outlet_name
-
-  FROM TAxnTrnbill t
-
-  LEFT JOIN msthotelmasters h 
-    ON t.HotelID = h.hotelid
-
-  LEFT JOIN mst_outlets o
-    ON t.outletid = o.outletid
-
-  WHERE 
-    t.TableID = ?
-    AND t.isBilled = 1
-    AND t.isSetteled = 0
-    AND t.isreversebill = 0
-
-  ORDER BY t.TxnID DESC
-  LIMIT 1
-`,
-  [Number(tableId)]
-);
-
-// ✅ Full console log
-console.log("Bill Rows:", billRows);
-
-// ✅ Pretty JSON format
-console.log(
-  "Bill Rows JSON:\n",
-  JSON.stringify(billRows, null, 2)
-);
-
-// ✅ First row values
-if (billRows.length > 0) {
-  console.log("First Bill Row:", billRows[0]);
-
-  // ✅ Print each field separately
-  Object.entries(billRows[0]).forEach(([key, value]) => {
-    console.log(`${key}:`, value);
-  });
-} else {
-  console.log("No bill found");
-}
-const bill = billRows[0]
+    const [billRows] = await db.query(
+      `
+      SELECT * 
+      FROM TAxnTrnbill 
+      WHERE TableID = ? AND isBilled = 1 AND isSetteled = 0 AND isreversebill = 0
+      ORDER BY TxnID DESC 
+      LIMIT 1
+    `,
+      [Number(tableId)]
+    )
+    const bill = billRows[0]
 
     if (!bill) {
       return res.json({
@@ -2456,52 +2413,16 @@ const bill = billRows[0]
     // The frontend will handle displaying them correctly.
     const combinedDetails = [...allDetailsForBill, ...otherUnbilledItems]
 
-    const taxableValue = allDetailsForBill.reduce(
-  (sum, item) => sum + Number(item.Amount || 0),
-  0
-)
-
-const totalCGST = allDetailsForBill.reduce(
-  (sum, item) => sum + Number(item.CGST_AMOUNT || 0),
-  0
-)
-
-const totalSGST = allDetailsForBill.reduce(
-  (sum, item) => sum + Number(item.SGST_AMOUNT || 0),
-  0
-)
-
-const totalIGST = allDetailsForBill.reduce(
-  (sum, item) => sum + Number(item.IGST_AMOUNT || 0),
-  0
-)
-
-
-
     // Respond with the main billed transaction header, all items, and the reversed items
-   res.json(
-  ok('Fetched billed items for the table', {
-    ...bill,
-
-    hotelName: bill.hotel_name,
-    outletName: bill.outlet_name,
-    address: bill.address,
-
-     gstNo: bill.trn_gstno,
-    fssaiNo: bill.fssai_no,
-    phone: bill.phone,
-
-
-    taxableValue,
-    totalCGST,
-    totalSGST,
-    totalIGST,
-
-    details: combinedDetails,
-    reversedItems: reversedItemsRows,
-  }),
-)
+    res.json(
+      ok('Fetched billed items for the table', {
+        ...bill,
+        details: combinedDetails,
+        reversedItems: reversedItemsRows,
+      }),
+    )
   } catch (error) {
+    console.error('Error in getLatestBilledBillForTable:', error)
     res
       .status(500)
       .json({

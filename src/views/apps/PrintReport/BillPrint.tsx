@@ -272,7 +272,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
     return `
 <div id="bill-preview-section">
-<div style="margin:0 auto;font-family:'Courier New',monospace;font-size:10pt;line-height:1.2;padding:10px;color:#000;font-weight:bold;">
+<div style="margin:0 auto;font-family:'Courier New',monospace;font-size:12pt;line-height:1.2;padding:10px;color:#000;font-weight:bold;">
 
   <!-- HEADER -->
  <div style="text-align:center;margin-bottom:10px;">
@@ -403,16 +403,17 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
           ${(showAll || !localFormData.hide_item_rate_column)     ? '40px' : ''}
           ${(showAll || !localFormData.hide_item_total_column)    ? '50px' : ''};
         gap:5px;padding:2px 0;font-size:9pt;">
-        <div>
+        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
           ${item.name}
-          ${item.variantName ? `<span style="font-size:8pt;color:#0066cc;font-weight:bold;">(${item.variantName})</span>` : ''}
+          ${item.variantName ? `<span style="font-size:8pt;color:#0066cc;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">(${item.variantName})</span>` : ''}
           ${(showAll || (localFormData.print_bill_both_languages && localFormData.show_alt_name_bill && item.alternativeItem))
             ? ` / ${item.alternativeItem || 'N/A'}` : ''}
           ${(showAll || (localFormData.show_item_note_bill && item.note))
-            ? `<div style="font-size:8pt;color:#6c757d;">${item.note || 'N/A'}</div>` : ''}
+            ? `<div style="font-size:8pt;color:#6c757d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.note || 'N/A'}</div>` : ''}
           ${(showAll || (localFormData.modifier_default_option_bill && item.modifier))
-            ? `<div style="font-size:8pt;color:#6c757d;">${item.modifier ? item.modifier.join(', ') : 'N/A'}</div>` : ''}
+            ? `<div style="font-size:8pt;color:#6c757d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.modifier ? item.modifier.join(', ') : 'N/A'}</div>` : ''}
         </div>
+
         ${(showAll || !localFormData.hide_item_quantity_column)
           ? `<div style="text-align:right;">${item.qty}</div>` : ''}
         ${(showAll || !localFormData.hide_item_rate_column)

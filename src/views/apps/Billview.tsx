@@ -178,6 +178,7 @@ const ModernBill = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txnId, setTxnId] = useState<number | null>(null);
+  const [billData] = useState<any>(null);
 const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   const [waiterUsers, setWaiterUsers] = useState<any[]>([]);
   const [discount, setDiscount] = useState(0);
@@ -195,7 +196,6 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot' | 'varianttype'>('varianttype');
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
   const [isTableOccupied, setIsTableOccupied] = useState(false);
-  const [billData, setBillData] = useState<any>(null);
 
   // NEW: Filtered menu for current department only
   const [deptFilteredMenuItems, setDeptFilteredMenuItems] = useState<MenuItem[]>([]);
@@ -2321,110 +2321,82 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   };
 
   const printBill = async () => {
-  if (!txnId) return;
+    if (!txnId) return;
 
-  if (isTakeaway && !txnId) {
-    toast.error('Transaction not loaded. Please reopen order.');
-    return;
-  }
-
-  try {
-    // 1️⃣ Generate TxnNo (Bill No) using common API service
-    const response = await OrderService.markBillAsBilled(txnId, {
-      outletId: selectedOutletId || Number(user?.outletid),
-      customerName: customerName || null,
-      mobileNo: customerNo || null,
-      customerid: customerId || null,
-    });
-
-    const txnNo = response.data?.TxnNo;
-    if (!txnNo) {
-      toast.error('TxnNo not generated');
+    if (isTakeaway && !txnId) {
+      toast.error('Transaction not loaded. Please reopen order.');
       return;
     }
 
-    // ✅ ADD THIS: Fetch the latest bill data after marking as billed
     try {
-      const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
-      const updatedBillData = updatedBillRes.data || updatedBillRes;
-      if (updatedBillData && updatedBillData.details) {
-        setBillData(updatedBillData);
-      } else if (updatedBillData) {
-        setBillData(updatedBillData);
+      // 1️⃣ Generate TxnNo (Bill No) using common API service
+      const response = await OrderService.markBillAsBilled(txnId, {
+        outletId: selectedOutletId || Number(user?.outletid),
+        customerName: customerName || null,
+        mobileNo: customerNo || null,
+        customerid: customerId || null,
+      });
+
+      const txnNo = response.data?.TxnNo;
+      if (!txnNo) {
+        toast.error('TxnNo not generated');
+        return;
       }
-    } catch (billFetchError) {
-      console.error('Failed to fetch updated bill data:', billFetchError);
-      // Don't block the flow if bill fetch fails
+
+      // 2️⃣ Save Bill No in state
+      setOrderNo(txnNo);
+
+      // ✅ 3️⃣ OPEN BILL PRINT MODAL (THIS WAS MISSING)
+      setShowBillPrintModal(true);
+
+    } catch (error) {
+      // console.error('Error printing bill:', error);
+      toast.error('Error printing bill');
     }
-
-    // 2️⃣ Save Bill No in state
-    setOrderNo(txnNo);
-
-    // ✅ 3️⃣ OPEN BILL PRINT MODAL
-    setShowBillPrintModal(true);
-
-  } catch (error) {
-    // console.error('Error printing bill:', error);
-    toast.error('Error printing bill');
-  }
-};
+  };
 
 
- const PrintAndSettle = async () => {
-  if (!txnId) return;
+  const PrintAndSettle = async () => {
+    if (!txnId) return;
 
-  // Safety check for takeaway orders
-  if (isTakeaway && !txnId) {
-    toast.error('Transaction not loaded. Please reopen order.');
-    return;
-  }
-
-  try {
-    // 1️⃣ Call mark-billed API to generate TxnNo
-    const response = await OrderService.markBillAsBilled(txnId, {
-      outletId: selectedOutletId || Number(user?.outletid),
-      customerName: customerName || null,
-      mobileNo: customerNo || null,
-      customerid: customerId || null,
-    });
-
-    const txnNo = response.data?.TxnNo;
-    if (!txnNo) {
-      toast.error('TxnNo not generated');
+    // Safety check for takeaway orders
+    if (isTakeaway && !txnId) {
+      toast.error('Transaction not loaded. Please reopen order.');
       return;
     }
 
-    // ✅ ADD THIS: Fetch the latest bill data after marking as billed
     try {
-      const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
-      const updatedBillData = updatedBillRes.data || updatedBillRes;
-      if (updatedBillData && updatedBillData.details) {
-        setBillData(updatedBillData);
-      } else if (updatedBillData) {
-        // Handle case where data might be in different format
-        setBillData(updatedBillData);
+      // 1️⃣ Call mark-billed API to generate TxnNo
+      const response = await OrderService.markBillAsBilled(txnId, {
+        outletId: selectedOutletId || Number(user?.outletid),
+        customerName: customerName || null,
+        mobileNo: customerNo || null,
+        customerid: customerId || null,
+      });
+
+      const txnNo = response.data?.TxnNo;
+      if (!txnNo) {
+        toast.error('TxnNo not generated');
+        return;
       }
-    } catch (billFetchError) {
-      console.error('Failed to fetch updated bill data:', billFetchError);
-      // Don't block the flow if bill fetch fails - use existing data
+
+      // 2️⃣ Set TxnNo and open BillPreviewPrint modal (like Orders.tsx)
+      setOrderNo(txnNo);
+      setPrintThenSettleFlow(true);
+      setShowBillPrintModal(true);
+      toast.success('Bill marked as printed and ready for settlement!');
+
+
+      // 3️⃣ Table status update (only for dine-in orders)
+      if (!isTakeaway && tableId) {
+        await OrderService.updateTableStatus(tableId, { status: 2 });
+      }
+
+    } catch (error) {
+      // console.error('Error printing bill:', error);
+      toast.error('Error printing bill');
     }
-
-    // 2️⃣ Set TxnNo and open BillPreviewPrint modal (like Orders.tsx)
-    setOrderNo(txnNo);
-    setPrintThenSettleFlow(true);
-    setShowBillPrintModal(true);
-    toast.success('Bill marked as printed and ready for settlement!');
-
-    // 3️⃣ Table status update (only for dine-in orders)
-    if (!isTakeaway && tableId) {
-      await OrderService.updateTableStatus(tableId, { status: 2 });
-    }
-
-  } catch (error) {
-    // console.error('Error printing bill:', error);
-    toast.error('Error printing bill');
-  }
-};
+  };
 
   const resetBillState = () => {
     setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '', isFetched: false }]);
@@ -2734,7 +2706,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   // 🔘 BUTTON ENABLE FLAGS
   const disableAll = !hasItems;
 
-  const disableSettle = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway);
+  const disableSettle = disableAll || hasNewItems || (isTakeaway ? !isBillPrintedState : (!isBillPrintedState && !isTakeaway));
   const disablePrintSettle = !hasOnlyExistingItems || hasNewItems;
 
   const disableSettlement = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway) || isTableOccupied;
@@ -4191,80 +4163,80 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         outletName={outletName}
       />
 
-     <BillPreviewPrint
-  show={showBillPrintModal}
-  autoPrint={true}  // 👈 Direct print (no modal)
-  onHide={() => setShowBillPrintModal(false)}
-  billData={billData}  // ✅ ADD THIS LINE - Pass bill data to component
-  formData={formData}
-  user={user}
-  items={billItems.filter(i => i.itemId > 0).map((item) => ({
-    id: item.itemId,
-    name: item.itemName,
-    price: item.rate,
-    qty: item.qty,
-    isBilled: item.isBilled || 0,
-    variantId: item.variantId ?? null,
-    variantName: item.variantName ?? '',
-    isNCKOT: 0,
-    NCName: '',
-    NCPurpose: '',
-    item_no: item.item_no.toString(),
-    txnDetailId: item.txnDetailId,
-    revQty: item.reversedQty || 0,
-    kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
-  } as any))}
-  currentKOTNos={currentKOTNos}
-  selectedWaiter={waiter}
-  orderNo={orderNo ?? undefined}
-  selectedTable={tableNo}
-  activeTab={isTakeaway ? "Takeaway" : "Dine-in"}
-  customerName={customerName}
-  mobileNumber={customerNo ?? undefined}
-  currentTxnId={txnId?.toString()}
-  taxCalc={{
-    subtotal: grossAmount,
-    cgstAmt: cgst,
-    sgstAmt: sgst,
-    igstAmt: igst,
-    grandTotal: finalAmount,
-    TaxableValue: taxCalc.taxableValue  // ✅ Also add taxableValue if available
-  }}
-  taxRates={{
-    cgst: cgstRate,
-    sgst: sgstRate,
-    igst: igstRate
-  }}
-  discount={discount}
-  roundOffEnabled={roundOffEnabled}
-  roundOffValue={roundOff}
-  selectedPaymentModes={selectedPaymentModes}
-  selectedOutletId={selectedOutletId}
-  restaurantName={restaurantName}
-  outletName={outletName}
-  
-  // ✅ AFTER SUCCESS PRINT
-  onPrint={async () => {
-    toast.success("Bill printed successfully");
+      <BillPreviewPrint
+        show={showBillPrintModal}
+        autoPrint={true}  // 👈 Direct print (no modal)
+        onHide={() => setShowBillPrintModal(false)}
 
-    // Table status update AFTER print
-    if (tableId) {
-      await OrderService.updateTableStatus(tableId, { status: 2 });
-    }
+        formData={formData}
+        user={user}
+        items={billItems.filter(i => i.itemId > 0).map((item) => ({
+          id: item.itemId,
+          name: item.itemName,
+          price: item.rate,
+          qty: item.qty,
+          isBilled: item.isBilled || 0,
+          variantId: item.variantId ?? null,
+          variantName: item.variantName ?? '',
+          isNCKOT: 0,
+          NCName: '',
+          NCPurpose: '',
+          item_no: item.item_no.toString(),
+          txnDetailId: item.txnDetailId,
+          revQty: item.reversedQty || 0,
+          kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
+        } as any))}
+        currentKOTNos={currentKOTNos}
+        selectedWaiter={waiter}
+        orderNo={orderNo ?? undefined}
+        selectedTable={tableNo}
+        activeTab={isTakeaway ? "Takeaway" : "Dine-in"}
+        customerName={customerName}
+        mobileNumber={customerNo ?? undefined}
+        currentTxnId={txnId?.toString()}
 
-    setShowBillPrintModal(false);
+        taxCalc={{
+          subtotal: grossAmount,
+          cgstAmt: cgst,
+          sgstAmt: sgst,
+          igstAmt: igst,
+          grandTotal: finalAmount
+        }}
 
-    // PrintThenSettle flow: Open settlement after print
-    if (printThenSettleFlow) {
-      setPrintThenSettleFlow(false);
-      setShowSettlementModal(true);
-    } else {
-      setTimeout(() => {
-        navigate("/apps/Tableview");
-      }, 300);
-    }
-  }}
-/>
+        taxRates={{
+          cgst: cgstRate,
+          sgst: sgstRate,
+          igst: igstRate
+        }}
+        discount={discount}
+        roundOffEnabled={roundOffEnabled}
+        roundOffValue={roundOff}
+        selectedPaymentModes={selectedPaymentModes}
+        selectedOutletId={selectedOutletId}
+
+        // ✅ AFTER SUCCESS PRINT
+        onPrint={async () => {
+          toast.success("Bill printed successfully");
+
+          // Table status update AFTER print
+          if (tableId) {
+            await OrderService.updateTableStatus(tableId, { status: 2 });
+          }
+
+          setShowBillPrintModal(false);
+
+          // PrintThenSettle flow: Open settlement after print
+          if (printThenSettleFlow) {
+            setPrintThenSettleFlow(false);
+            setShowSettlementModal(true);
+          } else {
+            setTimeout(() => {
+              navigate("/apps/Tableview");
+            }, 300);
+          }
+        }}
+
+      />
 
       {/* 🔥 NEW: Reverse KOT Print Modal (copy from Orders.tsx) */}
       <ReverseKotPrint
