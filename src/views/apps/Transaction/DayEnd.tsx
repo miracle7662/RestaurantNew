@@ -166,7 +166,13 @@ const DayEnd = () => {
   useEffect(() => {
     const fetchdayendData = async () => {
       try {
-        const response = await DayendService.getDayendData();
+        console.log('DayEnd getDayendData => using user.currDate:', (user as any)?.currDate, 'reportDate:', reportDate);
+        const response = await DayendService.getDayendData({
+          outletid: user?.outletid ? Number(user.outletid) : undefined,
+          hotelid: user?.hotelid ? Number(user.hotelid) : undefined,
+          // If user context has business curr_date, it should match backend businessDate
+          date: (user as any)?.currDate || reportDate || undefined,
+        });
         if (!response.success) {
           throw new Error('Network response was not ok');
         }

@@ -299,7 +299,10 @@ const getDayendData = async (req, res) => {
     const [rows] = await db.query(query, [businessDate]);
 
 
+    console.log("DAYEND getDayendData req.query =>", req.query);
+    console.log("DAYEND getDayendData businessDate =>", businessDate);
     console.log("TOTAL ROWS =>", rows.length);
+
 
     // ======================================================
     // FORMAT RESPONSE
