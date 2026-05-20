@@ -1524,58 +1524,108 @@ exports.createReverseKOT = async (req, res) => {
       )
       const remainingItemsCheck = remainingItemsCheckRows[0]
 
-      if (remainingItemsCheck && remainingItemsCheck.netQty <= 0) {
+      const remainingNetQty = Number(remainingItemsCheck?.netQty ?? 0)
+
+      if (remainingItemsCheck && remainingNetQty <= 0) {
+        // ================= FULL REVERSE =================
+
+        isFullReverse = true
+
         await db.query(
           `
           UPDATE TAxnTrnbill
-          SET isreversebill = 0, isCancelled = 1, status = 0, isSetteled = 1
+          SET 
+            isreversebill = 0,
+            isCancelled = 1,
+            status = 0,
+            isSetteled = 1
           WHERE TxnID = ?
-        `,
+          `,
           [txnId]
         )
-        
-        // Only update table status and delete temporary table if a tableId was provided (for Dine-in)
+
+        // Only for Dine-in tables
         if (tableId) {
-          // Check if there are any other pending items for the same table from other transactions
+          // Check other active transactions on same table
           const [otherPendingItemsCheckRows] = await db.query(
             `
-            SELECT SUM(d.Qty - COALESCE(d.RevQty, 0)) as netQty
+            SELECT 
+              SUM(d.Qty - COALESCE(d.RevQty, 0)) as netQty
             FROM TAxnTrnbilldetails d
-            JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
-            WHERE b.TableID = ? AND b.isCancelled = 0 AND b.TxnID != ?
-          `,
+            JOIN TAxnTrnbill b 
+              ON d.TxnID = b.TxnID
+            WHERE 
+              b.TableID = ?
+              AND b.isCancelled = 0
+              AND b.TxnID != ?
+            `,
             [tableId, txnId]
           )
+
           const otherPendingItemsCheck = otherPendingItemsCheckRows[0]
 
-          // Only delete temporary table if there are NO other pending items from other transactions
-          if (!otherPendingItemsCheck || !otherPendingItemsCheck.netQty || otherPendingItemsCheck.netQty <= 0) {
-            await db.query(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`, [tableId])
+          // Delete temporary table only if no other running KOTs
+          if (
+            !otherPendingItemsCheck ||
+            !otherPendingItemsCheck.netQty ||
+            Number(otherPendingItemsCheck.netQty) <= 0
+          ) {
+            await db.query(
+              `
+              DELETE FROM msttablemanagement
+              WHERE tableid = ?
+              AND isTemporary = 1
+              `,
+              [tableId]
+            )
           }
-          
-          // Update table status to vacant
+
+          // FULL REVERSE => VACANT
           await db.query(
             `
             UPDATE msttablemanagement
             SET status = 0
             WHERE tableid = ?
-          `,
+            `,
             [tableId]
           )
         }
-        
-        isFullReverse = true
-      }
+      } else {
+        // ================= PARTIAL REVERSE =================
 
-      // After a partial reversal, the bill is no longer considered fully billed or settled.
-      // Reset these flags to allow for re-billing or further modifications.
-      if (!isFullReverse) {
+        // Bill editable again
         await db.query(
           `
-        UPDATE TAxnTrnbill
-        SET isBilled = 0, isSetteled = 0
-        WHERE TxnID = ?
-      `,
+          UPDATE TAxnTrnbill
+          SET 
+            isBilled = 0,
+            isSetteled = 0
+          WHERE TxnID = ?
+          `,
+          [txnId]
+        )
+
+        // User should be able to reprint revised bill => table must be occupied again (status=1)
+        // Force update for partial reverse when netQty > 0
+        if (tableId) {
+          await db.query(
+            `
+            UPDATE msttablemanagement
+            SET status = 1
+            WHERE tableid = ?
+            `,
+            [tableId]
+          )
+        }
+
+        // After a partial reversal, bill is no longer fully billed/settled.
+        // Keep flags reset for re-billing.
+        await db.query(
+          `
+          UPDATE TAxnTrnbill
+          SET isBilled = 0, isSetteled = 0
+          WHERE TxnID = ?
+          `,
           [txnId]
         )
       }

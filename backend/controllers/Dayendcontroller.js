@@ -381,7 +381,7 @@ if (row.Settlements) {
 
         date: row.TxnDatetime,
 
-        time: row.TxnDatetime,
+        time: row.BilledDate,
 
         // New field: exact billed date/time (used for showing time in DayEnd order details)
         billedDate: row.BilledDate,
