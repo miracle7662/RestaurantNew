@@ -116,7 +116,11 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     billSettings,
     billSettingsLoading: contextSettingsLoading,
     fetchBillSettings,
+    user: authUser,
   } = useAuthContext()
+
+  // Business date (curr_date) from AuthContext. Fallback to prop billDate.
+  const businessCurrDate = (authUser as any)?.currDate || undefined
 
   // ─── Local state ─────────────────────────────────────────────────────────────
   const [loading, setLoading] = React.useState(false)
@@ -298,10 +302,10 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
 
   <!-- BILL INFO -->
-  <div style="display:flex;gap:8px;margin-bottom:5px;font-size:9pt;">
-    <div style="flex:1;"><strong>BillNo</strong><br />${localFormData.dine_in_kot_no || ''}${orderNo || ''}</div>
+<div style="display:flex;gap:8px;margin-bottom:5px;font-size:9pt;">
+    <div style="flex:1;"><strong>BillNo</strong><br />${(orderNo || '').toString().replace(/^DIN-/, '')}</div>
     <div style="flex:1;"><strong>Table</strong><br />${selectedTable || '—'}</div>
-    <div style="flex:1;"><strong>Date</strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}</div>
+    <div style="flex:1;"><strong>Date</strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : (businessCurrDate ? new Date(businessCurrDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'))}</div>
     <div style="flex:1;white-space:nowrap;"><strong>Time</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:10px;font-size:9pt;">
@@ -403,7 +407,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     ${discount > 0 ? `
     <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
       <span>Discount</span><span style="text-align:center;">:</span>
-      <span style="text-align:right;">-₹${discount.toFixed(2)}</span>
+      <span style="text-align:right;">₹${discount.toFixed(2)}</span>
     </div>
     ${(showAll || (localFormData.show_discount_reason_bill && reason))
       ? `<div style="font-size:8pt;">(${reason || 'N/A'})</div>` : ''}` : ''}

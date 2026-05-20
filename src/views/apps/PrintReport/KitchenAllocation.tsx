@@ -672,7 +672,7 @@ const reportHTML = `
                         <td>{detail.Qty}</td>
                         <td>{formatAmount(detail.Amount)}</td>
                         <td>{detail.KOTNo || 'N/A'}</td>
-                        <td>{new Date(detail.TxnDatetime).toLocaleString()}</td>
+                        <td>{new Date(detail.TxnDatetime).toLocaleDateString('en-GB')}</td>
                         <td>{detail.table_name || `Table ${detail.TableID}`}</td>
                       </tr>
                     ))}

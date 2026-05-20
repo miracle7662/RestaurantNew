@@ -50,8 +50,6 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   const [localOutletName, setLocalOutletName] = useState("");
   const [isLoadingNames, setIsLoadingNames] = useState(true);
 
-  
-
   /** 🔹 Filter reverse items */
   const reverseItems = useMemo(() => {
     return items.filter(i => i.isReverse && (i.revQty ?? 0) > 0);
@@ -143,19 +141,29 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
     }
   }, [show]);
 
-  /** 🔹 DateTime */
-  const dateTime = useMemo(() => {
-  const d = date ? new Date(date) : new Date();
+  /** 🔹 DateTime – FIXED: removed time part to avoid UTC+5:30 default time */
+/** 🔹 DateTime – Always shows current date (no time, no UTC offset issue) */
+/** 🔹 DateTime – Indian format, 12-hour with AM/PM, IST, no 5:30 issue */
+const dateTime = useMemo(() => {
+  const now = new Date();
 
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
+  const formatter = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,   // 12-hour format with AM/PM
+  });
 
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
+  // Format to a readable string, e.g., "19/05/2026, 03:45 PM"
+  const formatted = formatter.format(now);
+  
+  // Replace comma with space to match your existing style
+  return formatted.replace(',', '');
+}, []);
 
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-}, [date]);
   /** 🔹 PREVIEW + PRINT CONTENT (Shared) */
   const generateContent = useMemo(() => {
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || "";
