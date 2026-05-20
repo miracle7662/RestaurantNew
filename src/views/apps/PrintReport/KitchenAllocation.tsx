@@ -202,11 +202,22 @@ const KitchenAllocation: React.FC = () => {
     }
     doc.text('Kitchen Allocation Report', 20, y);
     const tableColumn = ['Item No', 'Item Name', 'Total Qty', 'Amount'];
-      const tableRows = filteredData.map(item => [
+    const tableRows = filteredData.map((item) => [
       item.item_no,
       item.item_name,
-      item.TotalQty.toString(),
+      item.TotalQty?.toString?.() ?? String(item.TotalQty ?? '-'),
       item.Amount
+    ]);
+
+    // Add totals row (Qty & Amount)
+    const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty ?? 0), 0);
+    const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount ?? 0), 0);
+
+    tableRows.push([
+      '',
+      'Total',
+      totalQty.toString(),
+      totalAmount
     ]);
     autoTable(doc, {
       head: [tableColumn],
@@ -217,7 +228,20 @@ const KitchenAllocation: React.FC = () => {
   };
 
   const handleExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(filteredData);
+    const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty ?? 0), 0);
+    const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount ?? 0), 0);
+
+    const rowsWithTotal = [
+      ...filteredData,
+      {
+        item_no: '',
+        item_name: 'Total',
+        TotalQty: totalQty,
+        Amount: totalAmount,
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(rowsWithTotal);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Kitchen Allocation');
     XLSX.writeFile(workbook, 'kitchen_allocation_report.xlsx');
@@ -319,8 +343,8 @@ const reportHTML = `
 
    .sub-header {
   text-align: center;
-  font-size: 14px;
-  margin-bottom: 5px;
+  font-size: 13px;
+  margin-bottom:5px;
   font-weight: bold;
 }
 
