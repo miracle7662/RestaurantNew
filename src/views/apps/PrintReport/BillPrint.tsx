@@ -275,42 +275,71 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 <div style="margin:0 auto;font-family:'Courier New',monospace;font-size:10pt;line-height:1.2;padding:10px;color:#000;font-weight:bold;">
 
   <!-- HEADER -->
-  <div style="text-align:center;margin-bottom:10px;">
-    ${(showAll || localFormData.show_logo_bill)
-      ? `<div style="font-weight:bold;font-size:12pt;margin-bottom:5px;">
-           ${(showAll || localFormData.show_brand_name_bill) ? (billData?.hotelName || displayRestaurantName) : ''}
-         </div>` : ''}
-    ${(showAll || localFormData.show_outlet_name_bill)
-      ? `<div style="font-weight:bold;font-size:12pt;margin-bottom:5px;">${billData?.outletName || displayOutletName}</div>` : ''}
-    <div style="font-size:8pt;">${billData?.address || ''}</div>
-    ${(showAll || localFormData.trn_gstno)
-      ? `<div style="font-size:8pt;">GST No: ${billData?.gstNo || 'N/A'}</div>` : ''}
-    ${(showAll || localFormData.email)
-      ? `<div style="font-size:8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
-    ${(showAll || localFormData.website)
-      ? `<div style="font-size:8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
-    ${((showAll || localFormData.show_phone_on_bill) && billData?.phone)
-      ? `<div style="font-size:8pt;">Phone: ${billData.phone}</div>` : ''}
-    ${(showAll || localFormData.show_item_hsn_code_bill)
-      ? `<div>HSN: ${localFormData.hsn || 'N/A'}</div>` : ''}
-    ${(showAll || localFormData.fssai_no)
-      ? `<div style="font-size:8pt;">FSSAI: ${billData?.fssaiNo || 'N/A'}</div>` : ''}
-    ${(showAll || localFormData.field1)
-      ? `<div style="font-size:8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
+ <div style="text-align:center;margin-bottom:10px;">
+
+  <!-- HOTEL / BRAND NAME -->
+  <div style="font-weight:bold;font-size:14pt;margin-bottom:2px;">
+    ${billData?.hotelName || displayRestaurantName || ''}
   </div>
+
+  <!-- OUTLET NAME -->
+  <div style="font-weight:bold;font-size:10pt;margin-bottom:2px;">
+    ${billData?.outletName || displayOutletName || ''}
+  </div>
+
+  <!-- ADDRESS -->
+  <div style="font-size:8pt;">
+    ${billData?.address || user?.address || ''}
+  </div>
+
+  <!-- GST -->
+  <div style="font-size:8pt;">
+    GST No: ${billData?.gstNo || user?.trn_gstno || 'N/A'}
+  </div>
+
+  <!-- PHONE -->
+  <div style="font-size:8pt;">
+    Phone: ${billData?.phone || 'N/A'}
+  </div>
+
+  <!-- FSSAI -->
+  <div style="font-size:8pt;">
+    FSSAI: ${billData?.fssaiNo || 'N/A'}
+  </div>
+
+  <!-- EMAIL -->
+  ${(showAll || localFormData.email)
+    ? `<div style="font-size:8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
+
+  <!-- WEBSITE -->
+  ${(showAll || localFormData.website)
+    ? `<div style="font-size:8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
+
+  <!-- HSN -->
+  ${(showAll || localFormData.show_item_hsn_code_bill)
+    ? `<div>HSN: ${localFormData.hsn || 'N/A'}</div>` : ''}
+
+  <!-- CUSTOM FIELD -->
+  ${(showAll || localFormData.field1)
+    ? `<div style="font-size:8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
+
+</div>
 
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
 
   <!-- BILL INFO -->
 <div style="display:flex;gap:8px;margin-bottom:5px;font-size:9pt;">
     <div style="flex:1;"><strong>BillNo</strong><br />${(orderNo || '').toString().replace(/^DIN-/, '')}</div>
-    <div style="flex:1;"><strong>Table</strong><br />${selectedTable || '—'}</div>
+   
     <div style="flex:1;"><strong>Date</strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : (businessCurrDate ? new Date(businessCurrDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'))}</div>
     <div style="flex:1;white-space:nowrap;"><strong>Time</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:10px;font-size:9pt;">
+   <div style="flex:1;"><strong>Table</strong><br />${selectedTable || '—'}</div>
     <div style="flex:1;"><strong>Waiter</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>
-    <div style="flex:1;"><strong>Covers</strong><br />N/A</div>
+<div style="flex:1;font-size:7pt;">
+  <strong>Covers</strong><br />N/A
+</div>
     <div style="flex:1;white-space:nowrap;"><strong>KOT No</strong><br />${allKOTNos.length > 0 ? allKOTNos.join(', ') : currentKOTNo || '—'}</div>
     <div style="flex:1;"></div>
   </div>
@@ -412,26 +441,34 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     ${(showAll || (localFormData.show_discount_reason_bill && reason))
       ? `<div style="font-size:8pt;">(${reason || 'N/A'})</div>` : ''}` : ''}
 
-    ${(showAll || localFormData.show_tax_charge_bill) ? `
-    <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
-      <span><strong>Taxable Value</strong></span><span style="text-align:center;">:</span>
-      <span style="text-align:right;">₹${(billData?.TaxableValue ?? taxCalc.TaxableValue ?? (taxCalc.subtotal - discount)).toFixed(2)}</span>
-    </div>
-    ${taxCalc.cgstAmt > 0 ? `
-    <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
-      <span>CGST @${taxRates.cgst}%</span><span style="text-align:center;">:</span>
-      <span style="text-align:right;">₹${taxCalc.cgstAmt.toFixed(2)}</span>
-    </div>` : ''}
-    ${taxCalc.sgstAmt > 0 ? `
-    <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
-      <span>SGST @${taxRates.sgst}%</span><span style="text-align:center;">:</span>
-      <span style="text-align:right;">₹${taxCalc.sgstAmt.toFixed(2)}</span>
-    </div>` : ''}
-    ${taxCalc.igstAmt > 0 ? `
-    <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
-      <span>IGST @${taxRates.igst}%</span><span style="text-align:center;">:</span>
-      <span style="text-align:right;">₹${taxCalc.igstAmt.toFixed(2)}</span>
-    </div>` : ''}` : ''}
+  <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
+  <span><strong>Taxable Value</strong></span>
+  <span style="text-align:center;">:</span>
+  <span style="text-align:right;">
+    ₹${(billData?.TaxableValue ?? taxCalc.TaxableValue ?? (taxCalc.subtotal - discount)).toFixed(2)}
+  </span>
+</div>
+
+${taxCalc.cgstAmt > 0 ? `
+<div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
+  <span>CGST @${taxRates.cgst}%</span>
+  <span style="text-align:center;">:</span>
+  <span style="text-align:right;">₹${taxCalc.cgstAmt.toFixed(2)}</span>
+</div>` : ''}
+
+${taxCalc.sgstAmt > 0 ? `
+<div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
+  <span>SGST @${taxRates.sgst}%</span>
+  <span style="text-align:center;">:</span>
+  <span style="text-align:right;">₹${taxCalc.sgstAmt.toFixed(2)}</span>
+</div>` : ''}
+
+${taxCalc.igstAmt > 0 ? `
+<div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
+  <span>IGST @${taxRates.igst}%</span>
+  <span style="text-align:center;">:</span>
+  <span style="text-align:right;">₹${taxCalc.igstAmt.toFixed(2)}</span>
+</div>` : ''}
 
     ${roundOffEnabled && roundOffValue !== 0 ? `
     <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
