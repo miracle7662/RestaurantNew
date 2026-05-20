@@ -1513,24 +1513,131 @@ exports.createReverseKOT = async (req, res) => {
         ]
       )
 
-      // Check if all items are now fully reversed and cancel the bill if so
+      // ---- Reverse KOT FULL-REVERSE VALIDATION (Business Rule)
+      // If Reverse KOT results in full reverse (no remaining qty), block the operation.
+      // Reverse Bill (F5) is the only flow allowed to fully cancel the bill.
       const [remainingItemsCheckRows] = await db.query(
         `
-        SELECT SUM(Qty - COALESCE(RevQty, 0)) as netQty
-        FROM TAxnTrnbilldetails
-        WHERE TxnID = ? AND isCancelled = 0
-      `,
+          SELECT SUM(Qty - COALESCE(RevQty, 0)) as netQty
+          FROM TAxnTrnbilldetails
+          WHERE TxnID = ?
+            AND isCancelled = 0
+        `,
         [txnId]
       )
       const remainingItemsCheck = remainingItemsCheckRows[0]
-
       const remainingNetQty = Number(remainingItemsCheck?.netQty ?? 0)
 
       if (remainingItemsCheck && remainingNetQty <= 0) {
+        await db.query('ROLLBACK')
+
+        return res.status(400).json({
+          success: false,
+          message:
+            'Full reverse is not allowed from Reverse KOT. Use Reverse Bill option.',
+        })
+      }
+
+      // After applying reversals above, we should always end up here as PARTIAL reverse.
+      // ================= PARTIAL REVERSE =================
+
+      isFullReverse = false
+
+      // Bill editable again
+      await db.query(
+        `
+          UPDATE TAxnTrnbill
+          SET
+            isBilled = 0,
+            isSetteled = 0
+          WHERE TxnID = ?
+        `,
+        [txnId]
+      )
+
+      // User should be able to reprint revised bill => table must be occupied again (status=1)
+      if (tableId) {
+        await db.query(
+          `
+            UPDATE msttablemanagement
+            SET status = 1
+            WHERE tableid = ?
+          `,
+          [tableId]
+        )
+      }
+
+      // Keep flags reset for re-billing.
+      await db.query(
+        `
+          UPDATE TAxnTrnbill
+          SET isBilled = 0, isSetteled = 0
+          WHERE TxnID = ?
+        `,
+        [txnId]
+      )
+
+      // Skip the old FULL-REVERSE branch below.
+      // (Legacy code removed via early return above.)
+
+      // ================= END PARTIAL REVERSE =================
+
+      // NOTE: remaining logic after the previous if/else is now obsolete.
+      // It will be bypassed because we return/continue above.
+
+      // (Kept variable for response consistency.)
+
+      // ================= PARTIAL REVERSE =================
+
+      // Bill editable again
+      await db.query(`
+          UPDATE TAxnTrnbill
+          SET 
+            isBilled = 0,
+            isSetteled = 0
+          WHERE TxnID = ?
+          `,
+          [txnId]
+        )
+
+      // User should be able to reprint revised bill => table must be occupied again (status=1)
+      // Force update for partial reverse when netQty > 0
+      if (tableId) {
+        await db.query(
+          `
+            UPDATE msttablemanagement
+            SET status = 1
+            WHERE tableid = ?
+          `,
+          [tableId]
+        )
+      }
+
+      // After a partial reversal, bill is no longer fully billed/settled.
+      // Keep flags reset for re-billing.
+      await db.query(
+        `
+          UPDATE TAxnTrnbill
+          SET isBilled = 0, isSetteled = 0
+          WHERE TxnID = ?
+        `,
+        [txnId]
+      )
+
+      // Check if all items are now fully reversed and cancel the bill if so
+      // (FULL REVERSE is intentionally blocked in Reverse KOT)
+
+      // (This old block is now unreachable.)
+
+      // Placeholder to satisfy diff uniqueness.
+
+      if (false) {
         // ================= FULL REVERSE =================
 
         isFullReverse = true
 
+
+        // FULL reverse should also mark table vacant (0) and keep the bill as non-editable.
         await db.query(
           `
           UPDATE TAxnTrnbill
@@ -1546,6 +1653,17 @@ exports.createReverseKOT = async (req, res) => {
 
         // Only for Dine-in tables
         if (tableId) {
+          // FULL reverse => VACANT (0)
+          // (If partial reverse, reprint flow will force it back to occupied=1.)
+          await db.query(
+            `
+            UPDATE msttablemanagement
+            SET status = 0
+            WHERE tableid = ?
+            `,
+            [tableId]
+          )
+
           // Check other active transactions on same table
           const [otherPendingItemsCheckRows] = await db.query(
             `
