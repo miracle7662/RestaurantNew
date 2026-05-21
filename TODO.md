@@ -1,15 +1,6 @@
-# TODO - Billview billed items edit lock
-
-## Steps
-- [ ] Update `src/views/apps/Billview.tsx`:
-  - [ ] Compute `hasBilledItems` / `isBilledLocked` helper
-  - [ ] Ensure `displayedItems` marks rows non-editable when `item.isBilled === 1` (including existing billed lines)
-  - [ ] Add hard guard in `handleItemChange` to prevent edits when target row has `isBilled === 1`
-  - [ ] Ensure input/new row remains editable so user can add new items after reopen and then print KOT only for new items
-- [ ] Run TypeScript/lint check (if scripts exist)
-- [ ] Manual test flow:
-  1) Add items (isbilled=0) → KOT print
-  2) Print bill (isbilled becomes 1 for old items)
-  3) Reopen billview → old items visible but locked
-  4) Add new item (isbilled=0) → KOT print works
+- [ ] BackdatedDayend.tsx: Orders Detail tab me Export button ka click handler implement karna
+- [ ] Export ka data: selectedDate ke hisaab se fetched filteredOrders (search/status filter applied) ko Excel me convert karna
+- [ ] Columns: Bill No, Table, Settlement/Gross/Discount/Tip/CGST/SGST/RoundOff/RevAmt, Payment Type + dynamic payment modes, KOT/RevKOT/NC info, Outlet ID, Waiter/Captain/User, Reverse Bill, Total Items, Time/Date, Status
+- [ ] XLSX generation: xlsx.utils.json_to_sheet + workbook, filename include selectedDate
+- [ ] Testing: build/run + export click se download file verify
 

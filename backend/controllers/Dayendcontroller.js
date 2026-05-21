@@ -1727,6 +1727,7 @@ const getBackDayendData = async (req, res) => {
         t.TxnDatetime,
         t.Steward AS Captain,
         t.UserId,
+        t.BilledDate,
         u.username AS UserName,
         
         -- WATER AMOUNT
@@ -1852,7 +1853,8 @@ const getBackDayendData = async (req, res) => {
       AND DATE(t.TxnDatetime) = ? 
       
       GROUP BY t.TxnID, t.TxnNo
-    ORDER BY CAST(REPLACE(t.TxnNo, 'BILL-', '') AS UNSIGNED) ASC, t.TxnDatetime ASC
+    ORDER BY
+        t.TxnNo asc
   `;
     
     console.log("Executing query with date:", targetDate);
@@ -1864,15 +1866,14 @@ const getBackDayendData = async (req, res) => {
     if (rows.length === 0) {
       // Debug: Check what dates are available
       const [availableDates] = await db.query(`
-        SELECT 
-          DISTINCT DATE(TxnDatetime) as date,
-          COUNT(*) as count
-        FROM TAxnTrnbill 
-        WHERE (isDayEnd = 0 OR isDayEnd IS NULL)
-        GROUP BY DATE(TxnDatetime)
-        ORDER BY date DESC
-        LIMIT 10
-      `);
+      SELECT 
+    DATE(TxnDatetime) AS date,
+    TxnNo
+FROM TAxnTrnbill
+WHERE (isDayEnd = 0 OR isDayEnd IS NULL)
+ORDER BY TxnNo ASC
+LIMIT 10;
+    `);
       
       console.log("Available dates with data:", availableDates);
     }
@@ -1936,6 +1937,7 @@ const getBackDayendData = async (req, res) => {
         ncKot: row.NCKOT || '',
         ncPurpose: row.NCPurpose || '',
         ncName: row.NCName || '',
+         billedDate: row.BilledDate,
         // Also add individual payment amounts as properties for frontend compatibility
         ...payments
       };

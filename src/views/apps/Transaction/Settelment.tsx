@@ -17,6 +17,7 @@ import PaginationComponent from '@/components/Common/PaginationComponent';
 import BillPreviewPrint from '@/views/apps/PrintReport/BillPrint';
 import ReportsService from '@/common/api/billPrint';
 import F8PasswordModal from '@/components/F8PasswordModal';
+import OrderService from '@/common/api/order'; // ✅ for fetching outlet details
 
 // Add interface for Bill data from duplicate bill API
 interface DuplicateBillData {
@@ -97,6 +98,15 @@ interface PaymentMode {
   mode_name: string;
 }
 
+interface OutletBillData {
+  hotelName: string;
+  outletName: string;
+  address: string;
+  gstNo: string;
+  phone: string;
+  fssaiNo: string;
+}
+
 // Helper function to safely convert to number
 const toNumber = (value: any, defaultValue: number = 0): number => {
   if (value === null || value === undefined) return defaultValue;
@@ -157,6 +167,7 @@ const EditSettlementPage: React.FC = () => {
   const [selectedBillData, setSelectedBillData] = useState<Settlement | null>(null);
   const [billLoading, setBillLoading] = useState(false);
   const [duplicateBillData, setDuplicateBillData] = useState<DuplicateBillData | null>(null);
+  const [billDataForPrint, setBillDataForPrint] = useState<OutletBillData | null>(null); // ✅ new
 
   // ── F8 Password Modal States ─────────────────────────────────────
   const [showF8Modal, setShowF8Modal] = useState(false);
@@ -168,15 +179,12 @@ const EditSettlementPage: React.FC = () => {
   const isBackdated = (billDate: string): boolean => {
     if (!billDate || !currDate) return false;
 
-    // Normalize to date-only (ignore time + timezone issues)
-    // currDate is expected as YYYY-MM-DD, but billDate may contain time: YYYY-MM-DD HH:mm:ss
     const billDay = new Date(billDate);
     const currDay = new Date(currDate);
 
     const billY = billDay.getFullYear();
     const billM = billDay.getMonth();
     const billD = billDay.getDate();
-
     const currY = currDay.getFullYear();
     const currM = currDay.getMonth();
     const currD = currDay.getDate();
@@ -203,7 +211,6 @@ const EditSettlementPage: React.FC = () => {
         }
         setOutletPaymentModes(data);
       } catch (err) {
-        // console.error('Failed to load payment modes:', err);
         setOutletPaymentModes([]);
       }
     };
@@ -228,7 +235,6 @@ const EditSettlementPage: React.FC = () => {
         setSettlements([]);
       }
     } catch (err) {
-      // console.error(err);
       setNotification({ show: true, message: 'Failed to fetch settlements', type: 'danger' });
       setSettlements([]);
     }
@@ -277,7 +283,6 @@ const EditSettlementPage: React.FC = () => {
         grouped[key].Amount += s.Amount;
         grouped[key].paymentBreakdown![s.PaymentType] =
           (grouped[key].paymentBreakdown![s.PaymentType] || 0) + s.Amount;
-        // Sum up TipAmount, Receive, Refund with proper number conversion
         grouped[key].TipAmount = toNumber(grouped[key].TipAmount) + toNumber(s.TipAmount);
         grouped[key].Receive = toNumber(grouped[key].Receive) + toNumber(s.Receive);
         grouped[key].Refund = toNumber(grouped[key].Refund) + toNumber(s.Refund);
@@ -351,7 +356,6 @@ const EditSettlementPage: React.FC = () => {
         InsertDate: user?.currDate,
         TipAmount: tip || 0,
       });
-      console.log("Sending Payload:", SettlementService);
 
       setNotification({
         show: true,
@@ -375,14 +379,11 @@ const EditSettlementPage: React.FC = () => {
 
   // ── Print Bill Handlers with F8 Password ─────────────────────────
   const handlePrintDuplicateBill = (group: Settlement) => {
-    // Check if bill is backdated
     if (isBackdated(group.InsertDate)) {
-      // Open F8 password modal for backdated bills
       setPendingPrintGroup(group);
       setF8Error('');
       setShowF8Modal(true);
     } else {
-      // Directly fetch and print for current date bills
       fetchAndPrintBill(group);
     }
   };
@@ -394,16 +395,8 @@ const EditSettlementPage: React.FC = () => {
     setF8Error('');
 
     try {
-      // Call your F8 password verification API here
-      // Example: await F8Service.verifyPassword({ password, txnId });
-
-      // For now, let's assume password verification is successful
-      // In production, replace this with actual API call
-
-      // After successful verification, fetch and print the bill
+      // Assume password verification is successful (replace with actual API)
       await fetchAndPrintBill(pendingPrintGroup);
-
-      // Close the modal on success
       setShowF8Modal(false);
       setPendingPrintGroup(null);
     } catch (error: any) {
@@ -413,28 +406,74 @@ const EditSettlementPage: React.FC = () => {
     }
   };
 
+  // ✅ REWRITTEN fetchAndPrintBill with correct tax values and outlet details
   const fetchAndPrintBill = async (group: Settlement) => {
     setBillLoading(true);
     setSelectedBillData(group);
 
     try {
+      // 1. Fetch duplicate bill data from backend
       const response = await ReportsService.getDuplicateBill({
         billNo: group.OrderNo,
         outletId: selectedOutletId || Number(currentUser?.outletid) || 1
       });
 
-      // console.log('API RESPONSE:', response);
-
       if (response.success && response.data) {
         const billData = response.data;
-        setDuplicateBillData(billData);
+        const rawTaxCalc = billData.taxCalc;
+
+        // ✅ Convert all taxCalc fields to numbers and add TaxableValue (capital T) for BillPreviewPrint
+        const numericTaxCalc = {
+          taxableValue: Number(rawTaxCalc.taxableValue) || 0,
+          TaxableValue: Number(rawTaxCalc.taxableValue) || 0,   // required by BillPreviewPrint
+          subtotal: Number(rawTaxCalc.subtotal) || 0,
+          cgstAmt: Number(rawTaxCalc.cgstAmt) || 0,
+          sgstAmt: Number(rawTaxCalc.sgstAmt) || 0,
+          igstAmt: Number(rawTaxCalc.igstAmt) || 0,
+          grandTotal: Number(rawTaxCalc.grandTotal) || 0,
+        };
+
+        // ✅ Ensure taxRates are numbers
+        const numericTaxRates = {
+          cgst: Number(billData.taxRates?.cgst) || 0,
+          sgst: Number(billData.taxRates?.sgst) || 0,
+          igst: Number(billData.taxRates?.igst) || 0,
+        };
+
+        // 2. Fetch outlet details for bill header (address, GST, phone, FSSAI)
+        let outletDetails: any = {};
+        const outletIdToFetch = selectedOutletId || Number(currentUser?.outletid) || 1;
+        try {
+          const outletRes = await OrderService.getOutletById(outletIdToFetch);
+          // Response may be nested: { success: true, data: { data: {...} } }
+          outletDetails = outletRes?.data?.data || outletRes?.data || outletRes || {};
+        } catch (err) {
+          console.warn('Failed to fetch outlet details, using user data fallback', err);
+        }
+
+        const billDataForPrintObj: OutletBillData = {
+          hotelName: outletDetails.brand_name || billData.restaurantName || user?.hotel_name || '',
+          outletName: outletDetails.outlet_name || billData.outletName || user?.outlet_name || '',
+          address: outletDetails.address || user?.address || '',
+          gstNo: outletDetails.gst_no || user?.trn_gstno || '',
+          phone: outletDetails.phone || user?.phone || '',
+          fssaiNo: outletDetails.fssai_no || user?.fssai_no || '',
+        };
+
+        // 3. Merge all data
+        const completeBillData = {
+          ...billData,
+          taxCalc: numericTaxCalc,
+          taxRates: numericTaxRates,
+        };
+
+        setDuplicateBillData(completeBillData);
+        setBillDataForPrint(billDataForPrintObj);
         setShowBillPreview(true);
       } else {
         throw new Error(response.message || 'Failed to fetch bill details');
       }
-
     } catch (error: any) {
-      // console.error('Failed to fetch bill details:', error);
       setNotification({
         show: true,
         message: error?.message || 'Failed to fetch bill details for printing. Please check if the order exists.',
@@ -529,7 +568,6 @@ const EditSettlementPage: React.FC = () => {
               <th style={{ width: '2%' }}>ID(s)</th>
               <th style={{ width: '5%' }}>Date</th>
               <th style={{ width: '5%' }}>Bill NO</th>
-              
               <th style={{ width: '5%' }}>Dept</th>
               <th style={{ width: '5%' }}>Table</th>
               <th style={{ width: '5%' }}>Payment</th>
@@ -538,15 +576,12 @@ const EditSettlementPage: React.FC = () => {
               <th style={{ width: '5%' }}>Tip</th>
               <th style={{ width: '5%' }}>Receive</th>
               <th style={{ width: '5%' }}>Refund</th>
-        
               <th style={{ width: '6%' }}>Actions</th>
             </tr>
           </thead>
           <tbody style={{ fontSize: '12px' }}>
             {paginatedGroupedSettlements.map(group => {
               const isBillBackdated = isBackdated(group.InsertDate);
-              // Safely convert values to numbers
-
               const settlementAmount = toNumber(group.Amount);
               const tipAmount = toNumber(group.TipAmount);
               const receiveAmount = toNumber(group.Receive);
@@ -556,8 +591,7 @@ const EditSettlementPage: React.FC = () => {
               return (
                 <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
                   <td style={{ fontSize: '11px' }}>{group.SettlementIDs?.join(', ')}</td>
-
-                   <td style={{ fontSize: '11px' }}>
+                  <td style={{ fontSize: '11px' }}>
                     {group.InsertDate
                       ? new Date(group.InsertDate).toLocaleDateString('en-GB')
                       : '-'}
@@ -567,7 +601,6 @@ const EditSettlementPage: React.FC = () => {
                     <br />
                     <small style={{ fontSize: '10px' }} className="text-muted">{group.TaxNo ? group.OrderNo : ''}</small>
                   </td>
-                  
                   <td style={{ fontSize: '11px' }}>{group.department || '-'}</td>
                   <td style={{ fontSize: '11px' }}>{group.table_name || 'N/A'}</td>
                   <td>
@@ -592,11 +625,8 @@ const EditSettlementPage: React.FC = () => {
                   <td className="text-danger" style={{ fontSize: '11px' }}>
                     {refundAmount > 0 ? `₹${refundAmount.toFixed(2)}` : '-'}
                   </td>
-                 
                   <td>
                     <div className="d-flex gap-1">
-
-                      {/* Edit Button */}
                       <Button
                         size="sm"
                         variant="success"
@@ -608,8 +638,6 @@ const EditSettlementPage: React.FC = () => {
                       >
                         <i className="fi fi-rr-edit"></i>
                       </Button>
-
-                      {/* Print Button */}
                       <Button
                         size="sm"
                         variant="dark"
@@ -625,7 +653,6 @@ const EditSettlementPage: React.FC = () => {
                           <i className="fi fi-rr-print"></i>
                         )}
                       </Button>
-
                     </div>
                   </td>
                 </tr>
@@ -684,11 +711,13 @@ const EditSettlementPage: React.FC = () => {
       {/* Bill Preview Print Modal */}
       {showBillPreview && duplicateBillData && selectedBillData && (
         <BillPreviewPrint
+          key={duplicateBillData.currentTxnId} // force re-render on new bill
           show={showBillPreview}
           onHide={() => {
             setShowBillPreview(false);
             setSelectedBillData(null);
             setDuplicateBillData(null);
+            setBillDataForPrint(null);
           }}
           formData={user?.outletSettings || {}}
           user={user}
@@ -713,6 +742,7 @@ const EditSettlementPage: React.FC = () => {
           restaurantName={duplicateBillData.restaurantName || user?.hotel_name}
           outletName={duplicateBillData.outletName || user?.outlet_name}
           billDate={duplicateBillData.billDate || selectedBillData.InsertDate}
+          billData={billDataForPrint}  // ✅ pass outlet details for header
         />
       )}
     </div>

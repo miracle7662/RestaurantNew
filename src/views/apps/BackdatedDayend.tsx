@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-
+import * as XLSX from "xlsx";
 
 import {
   Container,
@@ -86,6 +86,7 @@ interface Order {
   outletid?: number;
   tip?: number;
   settlementAmount?: number;
+  billedDate?: string;
 }
 
 const DayEnd = () => {
@@ -311,6 +312,95 @@ const DayEnd = () => {
     setShowReportModal(true);
   };
 
+  const exportOrdersToExcel = () => {
+    try {
+      const exportRows = filteredOrders.map((order) => {
+        const row: Record<string, any> = {
+          "Bill No": order.orderNo,
+          "Table": order.table,
+          "Settlement Amt (₹)": order.settlementAmount || 0,
+          "Gross Amount (₹)": order.grossAmount || 0,
+          "Discount (₹)": order.discount || 0,
+          "Total Amt (₹)": order.amount || 0,
+          "Tip Amount (₹)": order.tip || 0,
+          "CGST (₹)": order.cgst || 0,
+          "SGST (₹)": order.sgst || 0,
+          "Round off (₹)": order.roundOff || 0,
+          "Rev Amt (₹)": order.revAmt || 0,
+          "KOT No": order.kotNo || "",
+          "Rev KOT No": order.revKotNo ? order.revKotNo.split(',').map(k => k.trim()).join(', ') : "",
+          "NC Name": order.ncName || "",
+          "NC Purpose": order.ncPurpose || "",
+          "isNCKOT": order.ncKot ? "Yes" : "No",
+          "Outlet ID": order.outletid || "",
+          "Waiter/Captain": order.captain || order.waiter || "",
+          "Reverse Bill": order.reverseBill == 1 ? "Yes" : "No",
+          "User": order.user || "",
+          "Total Items": order.items || 0,
+          "Time": getFormattedTimeFromDateTime(order.billedDate ),
+          "Date": getFormattedDate(order.date),
+          "Status": order.status,
+        };
+
+        // Payment Type (first mode) + dynamic payment mode columns
+        row["Payment Type"] = order.paymentType || "";
+        visiblePaymentModes.forEach((mode) => {
+          row[`${mode.mode_name}`] = getPaymentAmount(order, mode.mode_name) || 0;
+        });
+
+        return row;
+      });
+
+      // Add Total Footer Rows in Excel
+      if (exportRows.length > 0) {
+        const totalFooterRow: Record<string, any> = {
+          "Bill No": "Total",
+          "Table": "",
+          "Settlement Amt (₹)": totalSettlement || 0,
+          "Gross Amount (₹)": totalGrossAmount || 0,
+          "Discount (₹)": totalDiscount || 0,
+          "Total Amt (₹)": totalSales || 0,
+          "Tip Amount (₹)": totalTip || 0,
+          "CGST (₹)": totalCGST || 0,
+          "SGST (₹)": totalSGST || 0,
+          "Round off (₹)": totalRoundOff || 0,
+          "Rev Amt (₹)": totalRevAmt || 0,
+          "KOT No": "",
+          "Rev KOT No": "",
+          "NC Name": "",
+          "NC Purpose": "",
+          "isNCKOT": "",
+          "Outlet ID": "",
+          "Waiter/Captain": "",
+          "Reverse Bill": "",
+          "User": "",
+          "Total Items": totalItems || 0,
+          "Time": "",
+          "Date": "",
+          "Status": "",
+          "Payment Type": "",
+        };
+
+        visiblePaymentModes.forEach((mode) => {
+          totalFooterRow[`${mode.mode_name}`] = paymentModeTotals?.[mode.mode_name] || 0;
+        });
+
+        exportRows.push(totalFooterRow);
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Backdated Orders");
+
+
+      const fileDate = selectedDate || todayStr;
+      XLSX.writeFile(workbook, `backdated-orders-${fileDate}.xlsx`);
+    } catch (e) {
+      console.error("Export failed:", e);
+      toast.error("Export to Excel failed");
+    }
+  };
+
   const handleClose = () => {
     if (window.confirm("Are you sure you want to close?")) {
       window.history.back();
@@ -440,16 +530,27 @@ const DayEnd = () => {
     return <Badge bg={variants[status as keyof typeof variants] || "secondary"}>{status}</Badge>;
   };
 
-  const getFormattedTime = (timeStr: string) => {
-    const utcDate = new Date(timeStr);
-    if (isNaN(utcDate.getTime())) return timeStr;
-    return utcDate.toLocaleTimeString("en-IN", {
+  const getFormattedTimeFromDateTime = (dateTimeStr?: string) => {
+    if (!dateTimeStr) return "";
+
+    // MySQL might send dateTime already as 'YYYY-MM-DD HH:mm:ss'
+    // new Date(...) can interpret it inconsistently depending on browser.
+    // Extract time part directly when possible.
+    const asStr = String(dateTimeStr);
+    const timeMatch = asStr.match(/\b(\d{1,2}:\d{2}:\d{2})\b/);
+    if (timeMatch?.[1]) return timeMatch[1];
+
+    const d = new Date(asStr);
+    if (isNaN(d.getTime())) return asStr;
+
+    return d.toLocaleTimeString("en-IN", {
       timeZone: "Asia/Kolkata",
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
     });
   };
+
 
   const getFormattedDate = (dateStr: string) => {
     const dateObj = new Date(dateStr);
@@ -866,7 +967,7 @@ const DayEnd = () => {
                               <Filter size={14} className="me-1" />
                               Filter
                             </Button>
-                            <Button variant="outline-secondary" size="sm">
+                            <Button variant="outline-secondary" size="sm" onClick={exportOrdersToExcel}>
                               <Download size={14} className="me-1" />
                               Export
                             </Button>
@@ -917,7 +1018,7 @@ const DayEnd = () => {
                           </thead>
                           <tbody>
                             {filteredOrders.map((order, idx) => {
-                              const formattedTime = getFormattedTime(order.time);
+                               const formattedTime = getFormattedTimeFromDateTime(order.billedDate || order.time);
                               const formattedDate = getFormattedDate(order.date);
                               const rowClasses = ['table-row-compact'];
                               if (order.discount > 0) {
@@ -1095,7 +1196,7 @@ const DayEnd = () => {
                     <Col md={6}><strong>Captain:</strong> {selectedOrder.captain || selectedOrder.waiter || ''}</Col>
                     <Col md={6}><strong>User:</strong> {selectedOrder.user || ''}</Col>
                     <Col md={6}><strong>Total Items:</strong> {selectedOrder.items}</Col>
-                    <Col md={6}><strong>Time:</strong> {getFormattedTime(selectedOrder.time)}</Col>
+                  <Col md={6}><strong>Time:</strong> {getFormattedTimeFromDateTime(selectedOrder.billedDate)}</Col>
                     <Col md={6}><strong>Date:</strong> {getFormattedDate(selectedOrder.time)}</Col>
                     <Col md={6}><strong>Payment:</strong> {selectedOrder.type}</Col>
                     <Col md={6}><strong>Status:</strong> <StatusBadge status={selectedOrder.status} /></Col>
