@@ -2204,106 +2204,101 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       setNcPurpose('');
     }
   };
-  const handleReverseKotSave = async (
-    reverseItemsFromModal: ReverseModalItem[]
-  ) => {
-    if (!txnId) {
-      toast.error('Transaction not found');
-      return;
-    }
+  const handleReverseKotSave = async (reverseItemsFromModal: ReverseModalItem[]) => {
+  if (!txnId) {
+    toast.error('Transaction not found');
+    return;
+  }
 
-    if (!reverseItemsFromModal.length) {
-      toast.error('No items selected for reverse');
-      return;
-    }
+  if (!reverseItemsFromModal.length) {
+    toast.error('No items selected for reverse');
+    return;
+  }
 
   console.log('Modal sending:', reverseItemsFromModal);
 
-    try {
-      const result = await OrderService.createReverseKOT({
-        txnId,
-        tableId,
-        kotType: 'REVERSE',
-        isReverseKot: 1,
+  try {
+    const result = await OrderService.createReverseKOT({
+      txnId,
+      tableId,
+      kotType: 'REVERSE',
+      isReverseKot: 1,
+      reversedItems: reverseItemsFromModal.map(item => ({
+        TXnDetailID: item.TXnDetailID,
+        txnDetailId: item.TXnDetailID,
+        item_no: item.item_no,
+        name: item.itemName,
+        qty: item.cancelQty,
+        price: item.rate,
+      })),
+      userId: user?.id,
+      reversalReason: 'Reverse from Billview',
+      curr_date: user?.currDate,
+    });
 
-        reversedItems: reverseItemsFromModal.map(item => ({
-          TXnDetailID: item.TXnDetailID,
-          txnDetailId: item.TXnDetailID,
-          item_no: item.item_no,
-          name: item.itemName,
-          qty: item.cancelQty,
-          price: item.rate,
-        })),
-        userId: user?.id,
-        reversalReason: 'Reverse from Billview',
-        curr_date: user?.currDate,
-      });
-      console.log('Reverse KOT API response:', result);
+    console.log('Reverse KOT API response:', result);
 
-      // Since HttpClient returns response.data directly
-      if (!result?.success) {
-        toast.error('Reverse failed');
-        return;
-      }
+    if (!result?.success) {
+      toast.error('Reverse failed');
+      return;
+    }
 
-      // Get the revKotNo from result.data.revKotNo (backend now returns it in this format)
-      const reverseKotNo = result?.data?.revkotNo;
+    // ✅ DEBUG: Log the full data to see what backend returns
+    console.log('Backend data:', result.data);
 
-      toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);
+    // ✅ Extract reverse KOT number - try common field names
+   const reverseKotNo =
+  (result.data as any)?.revKotNo ??      // ✅ exactly as returned
+  (result.data as any)?.RevKOTNo ??
+  (result.data as any)?.revKOTNo ??
+  (result.data as any)?.revkotNo ??
+  (result.data as any)?.KOTNo ??
+  null;
 
-      // 🔥 ✅ NEW: Orders.tsx-style full reversal check + table status logic
-      if (tableId && billItems.length > 0) {
-        const tableToUpdate = tableItems.find(t => t.table_name === tableNo);
-        if (tableToUpdate) {
-          // Precise full reversal check (post-backend, items should reflect remaining qty)
-          const totalRemainingQty = billItems.reduce((sum, item) => sum + (item.qty || 0), 0);
-          const allReversed = totalRemainingQty <= 0;
+    console.log('Reverse KOT Number extracted:', reverseKotNo);
+    toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);
 
-          const newStatus = allReversed ? 0 : 1;
+    // ✅ Table status update logic (unchanged)
+    if (tableId && billItems.length > 0) {
+      const tableToUpdate = tableItems.find(t => t.table_name === tableNo);
+      if (tableToUpdate) {
+        const totalRemainingQty = billItems.reduce((sum, item) => sum + (item.qty || 0), 0);
+        const allReversed = totalRemainingQty <= 0;
+        const newStatus = allReversed ? 0 : 1;
 
-          // console.log('🔧 F8 Reversal DEBUG (Billview):', {
-          //   totalRemainingQty,
-          //   allReversed,
-          //   newStatus,
-          //   tableId: tableToUpdate.tablemanagementid || tableId,
-          //   itemCount: billItems.length
-          // });
+        await OrderService.updateTableStatus(tableToUpdate.tablemanagementid || tableId, { status: newStatus });
 
-          await OrderService.updateTableStatus(tableToUpdate.tablemanagementid || tableId, { status: newStatus });
-
-          if (allReversed) {
-            toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
-          } else {
-            toast.success('Partial KOTs reversed! Table remains occupied (status=1)');
-          }
-
-          // Force refresh table management UI
-          await fetchTableManagement();
+        if (allReversed) {
+          toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
+        } else {
+          toast.success('Partial KOTs reversed! Table remains occupied (status=1)');
         }
+        await fetchTableManagement();
       }
+    }
 
-      // 🔥 PRINT PREVIEW (like Orders.tsx)
-      setReverseSnapshot(reverseItemsFromModal.map(item => ({
+    // ✅ Set snapshot with the actual reverse KOT number (overwrites modal's 0)
+    setReverseSnapshot(
+      reverseItemsFromModal.map(item => ({
         ...item,
         name: item.itemName || "",
         price: item.rate,
-        revKotNo: item.revKotNo,  // ✅ IMPORTANT
+        revKotNo: reverseKotNo,   // 🔥 backend-generated number
         isReverse: true,
         revQty: item.cancelQty
-      })));
-      setShowReverseKotPrintModal(true);
-      setReversePrintTrigger(prev => prev + 1);
+      }))
+    );
 
-      await loadBillDetails();
-      await fetchTableManagement();
+    setShowReverseKotPrintModal(true);
+    setReversePrintTrigger(prev => prev + 1);
 
-      // 🔥 Navigate moved to ReverseKotPrint onHide
+    await loadBillDetails();
+    await fetchTableManagement();
 
-    } catch (err: any) {
-      // console.error(err);
-      toast.error(err?.message || 'Reverse failed');
-    }
-  };
+  } catch (err: any) {
+    toast.error(err?.message || 'Reverse failed');
+  }
+};
 
   const printKOT = async (kotNo: number) => {
     try {

@@ -141,9 +141,7 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
     }
   }, [show]);
 
-  /** 🔹 DateTime – FIXED: removed time part to avoid UTC+5:30 default time */
-/** 🔹 DateTime – Always shows current date (no time, no UTC offset issue) */
-/** 🔹 DateTime – Indian format, 12-hour with AM/PM, IST, no 5:30 issue */
+  /** 🔹 DateTime – Indian format, 12-hour with AM/PM, IST */
 const dateTime = useMemo(() => {
   const now = new Date();
 
@@ -164,7 +162,7 @@ const dateTime = useMemo(() => {
   return formatted.replace(',', '');
 }, []);
 
-  /** 🔹 PREVIEW + PRINT CONTENT (Shared) */
+  /** 🔹 PREVIEW + PRINT CONTENT (Shared) – NOW WITH Reverse KOT No row */
   const generateContent = useMemo(() => {
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || "";
     const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
@@ -189,7 +187,9 @@ const dateTime = useMemo(() => {
   <!-- LEFT SIDE (Details) -->
   <div style="font-size: 10pt;">
     <div><strong>Date:</strong> ${dateTime}</div>
+    <div><strong>Reverse KOT No:</strong> ${reverseKotNos}</div>
     <div><strong>Waiter:</strong> ${selectedWaiter || user?.name || "-"}</div>
+    
   </div>
 
   <!-- RIGHT SIDE (TABLE BOX) -->
