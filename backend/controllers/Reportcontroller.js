@@ -365,22 +365,44 @@ const getDuplicateBill = async (req, res) => {
 
     // ✅ ITEMS QUERY (FULL)
     const itemsQuery = `
-      SELECT
-        d.ItemID AS id,
-        m.item_name AS name,
-        d.Qty AS qty,
-        d.RuntimeRate AS price,
-        d.KOTNo AS kotNo,
-        d.isNCKOT,
-        t.NCName,
-        t.NCPurpose,
-        d.SpecialInst AS note,
-        d.VariantName AS modifier
-      FROM TAxnTrnbilldetails d
-      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      LEFT JOIN TAxnTrnbill t ON d.TxnID = t.TxnID
-      WHERE d.TxnID = ? AND d.Qty > 0
-      ORDER BY d.TXnDetailID
+    SELECT
+    d.ItemID AS id,
+    m.item_name AS name,
+    d.Qty AS qty,
+    d.RuntimeRate AS price,
+    d.KOTNo AS kotNo,
+    d.isNCKOT,
+    t.NCName,
+    t.NCPurpose,
+    d.SpecialInst AS note,
+    d.VariantName AS modifier,
+
+    h.hotel_name,
+    h.address,
+    h.trn_gstno,
+    h.fssai_no,
+    h.phone,
+
+    o.outlet_name
+
+FROM TAxnTrnbilldetails d
+
+LEFT JOIN mstrestmenu m
+    ON d.ItemID = m.restitemid
+
+LEFT JOIN TAxnTrnbill t
+    ON d.TxnID = t.TxnID
+
+LEFT JOIN msthotelmasters h
+    ON t.hotelid = h.hotelid
+
+LEFT JOIN mst_outlets o
+    ON t.outletid = o.outletid
+
+WHERE d.TxnID = ?
+AND d.Qty > 0
+
+ORDER BY d.TXnDetailID;
     `;
 
     console.log('Executing items query for TxnID:', bill.TxnID);

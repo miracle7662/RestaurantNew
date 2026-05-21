@@ -895,12 +895,13 @@ exports.getOutletById = async (req, res) => {
     const { id } = req.params
     const [rows] = await db.query(
       `
-        SELECT o.*, h.hotel_name as brand_name 
+        SELECT o.*, h.hotel_name as brand_name, h.Logo as Logo 
         FROM mst_outlets o 
         LEFT JOIN msthotelmasters h ON o.hotelid = h.hotelid 
         WHERE o.outletid = ?`, [id]
     )
     const outlet = rows[0]
+
 
     if (!outlet) {
       return res.status(404).json({ success: false, message: 'Outlet not found', data: null })

@@ -17,7 +17,6 @@ import PaginationComponent from '@/components/Common/PaginationComponent';
 import BillPreviewPrint from '@/views/apps/PrintReport/BillPrint';
 import ReportsService from '@/common/api/billPrint';
 import F8PasswordModal from '@/components/F8PasswordModal';
-import OrderService from '@/common/api/order'; // ✅ for fetching outlet details
 
 // Add interface for Bill data from duplicate bill API
 interface DuplicateBillData {
@@ -407,82 +406,75 @@ const EditSettlementPage: React.FC = () => {
   };
 
   // ✅ REWRITTEN fetchAndPrintBill with correct tax values and outlet details
-  const fetchAndPrintBill = async (group: Settlement) => {
-    setBillLoading(true);
-    setSelectedBillData(group);
+ const fetchAndPrintBill = async (group: Settlement) => {
+  setBillLoading(true);
+  setSelectedBillData(group);
 
-    try {
-      // 1. Fetch duplicate bill data from backend
-      const response = await ReportsService.getDuplicateBill({
-        billNo: group.OrderNo,
-        outletId: selectedOutletId || Number(currentUser?.outletid) || 1
-      });
+  try {
+    const response = await ReportsService.getDuplicateBill({
+      billNo: group.OrderNo,
+      outletId: selectedOutletId || Number(currentUser?.outletid) || 1
+    });
 
-      if (response.success && response.data) {
-        const billData = response.data;
-        const rawTaxCalc = billData.taxCalc;
+    if (response.success && response.data) {
+      const billData = response.data;
+      const rawTaxCalc = billData.taxCalc;
 
-        // ✅ Convert all taxCalc fields to numbers and add TaxableValue (capital T) for BillPreviewPrint
-        const numericTaxCalc = {
-          taxableValue: Number(rawTaxCalc.taxableValue) || 0,
-          TaxableValue: Number(rawTaxCalc.taxableValue) || 0,   // required by BillPreviewPrint
-          subtotal: Number(rawTaxCalc.subtotal) || 0,
-          cgstAmt: Number(rawTaxCalc.cgstAmt) || 0,
-          sgstAmt: Number(rawTaxCalc.sgstAmt) || 0,
-          igstAmt: Number(rawTaxCalc.igstAmt) || 0,
-          grandTotal: Number(rawTaxCalc.grandTotal) || 0,
-        };
+      // Convert taxCalc fields to numbers
+      const numericTaxCalc = {
+        taxableValue: Number(rawTaxCalc.taxableValue) || 0,
+        TaxableValue: Number(rawTaxCalc.taxableValue) || 0,
+        subtotal: Number(rawTaxCalc.subtotal) || 0,
+        cgstAmt: Number(rawTaxCalc.cgstAmt) || 0,
+        sgstAmt: Number(rawTaxCalc.sgstAmt) || 0,
+        igstAmt: Number(rawTaxCalc.igstAmt) || 0,
+        grandTotal: Number(rawTaxCalc.grandTotal) || 0,
+      };
 
-        // ✅ Ensure taxRates are numbers
-        const numericTaxRates = {
-          cgst: Number(billData.taxRates?.cgst) || 0,
-          sgst: Number(billData.taxRates?.sgst) || 0,
-          igst: Number(billData.taxRates?.igst) || 0,
-        };
+      // ✅ Compute tax rates from stored amounts and taxable value
+      const taxable = numericTaxCalc.taxableValue;
+      const cgstAmt = numericTaxCalc.cgstAmt;
+      const sgstAmt = numericTaxCalc.sgstAmt;
+      const igstAmt = numericTaxCalc.igstAmt;
 
-        // 2. Fetch outlet details for bill header (address, GST, phone, FSSAI)
-        let outletDetails: any = {};
-        const outletIdToFetch = selectedOutletId || Number(currentUser?.outletid) || 1;
-        try {
-          const outletRes = await OrderService.getOutletById(outletIdToFetch);
-          // Response may be nested: { success: true, data: { data: {...} } }
-          outletDetails = outletRes?.data?.data || outletRes?.data || outletRes || {};
-        } catch (err) {
-          console.warn('Failed to fetch outlet details, using user data fallback', err);
-        }
+      const computedTaxRates = {
+        cgst: taxable > 0 ? (cgstAmt / taxable) * 100 : 0,
+        sgst: taxable > 0 ? (sgstAmt / taxable) * 100 : 0,
+        igst: taxable > 0 ? (igstAmt / taxable) * 100 : 0,
+      };
 
-        const billDataForPrintObj: OutletBillData = {
-          hotelName: outletDetails.brand_name || billData.restaurantName || user?.hotel_name || '',
-          outletName: outletDetails.outlet_name || billData.outletName || user?.outlet_name || '',
-          address: outletDetails.address || user?.address || '',
-          gstNo: outletDetails.gst_no || user?.trn_gstno || '',
-          phone: outletDetails.phone || user?.phone || '',
-          fssaiNo: outletDetails.fssai_no || user?.fssai_no || '',
-        };
+      // ✅ Directly use billData for outlet/hotel details (no extra fetch)
+      const billDataForPrintObj = {
+        hotelName: billData.restaurantName || user?.hotel_name || '',
+        outletName: billData.outletName || user?.outlet_name || '',
+        address: billData.address || '',
+        gstNo: billData.gstNo || '',
+        phone: billData.phone || '',
+        fssaiNo: billData.fssaiNo || '',
+      };
 
-        // 3. Merge all data
-        const completeBillData = {
-          ...billData,
-          taxCalc: numericTaxCalc,
-          taxRates: numericTaxRates,
-        };
+      const completeBillData = {
+        ...billData,
+        taxCalc: numericTaxCalc,
+        taxRates: computedTaxRates,  // ab sahi percentage milega
+      };
 
-        setDuplicateBillData(completeBillData);
-        setBillDataForPrint(billDataForPrintObj);
-        setShowBillPreview(true);
-      } else {
-        throw new Error(response.message || 'Failed to fetch bill details');
-      }
-    } catch (error: any) {
-      setNotification({
-        show: true,
-        message: error?.message || 'Failed to fetch bill details for printing. Please check if the order exists.',
-        type: 'danger',
-      });
-    } finally {
-      setBillLoading(false);
+      setDuplicateBillData(completeBillData);
+      setBillDataForPrint(billDataForPrintObj);
+      setShowBillPreview(true);
+    } else {
+      throw new Error(response.message || 'Failed to fetch bill details');
     }
-  };
+  } catch (error: any) {
+    setNotification({
+      show: true,
+      message: error?.message || 'Failed to fetch bill details for printing. Please check if the order exists.',
+      type: 'danger',
+    });
+  } finally {
+    setBillLoading(false);
+  }
+};
 
   // Format items for BillPreviewPrint component
   const formatItemsForPrint = (items: BillItem[]) => {

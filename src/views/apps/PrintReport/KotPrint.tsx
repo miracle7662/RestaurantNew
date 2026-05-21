@@ -546,12 +546,11 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         ${kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0)}
       </div>
       <div style="flex:1;"></div>
-      ${showAmountColumn ? `
-        <div style="text-align:right;white-space:nowrap;">
-          &#8377;${kotItems
-            .reduce((a, b) => a + b.price * (b.originalQty ? b.qty - b.originalQty : b.qty), 0)
-            .toFixed(2)}
-        </div>` : ""}
+      <div style="text-align:right;white-space:nowrap;">
+  &#8377;${kotItems
+    .reduce((a, b) => a + b.price * (b.originalQty ? b.qty - b.originalQty : b.qty), 0)
+    .toFixed(2)}
+</div>
     </div>
 
     ${showKotNote && kotNote ? `
