@@ -1333,18 +1333,36 @@ exports.createReverseKOT = async (req, res) => {
       let totalReverseAmount = 0
 
       for (const item of reversedItems) {
-        if (!item.txnDetailId || !item.qty) continue
+        // Normalize identifiers/qty because frontend may send different key casing:
+        // txnDetailId vs TXnDetailID, qty vs cancelQty, etc.
+        const txnDetailId =
+          item.txnDetailId ??
+          item.TXnDetailID ??
+          item.TxnDetailID ??
+          item.TXNDetailID ??
+          null
+
+        const qtyRaw =
+          item.qty ??
+          item.cancelQty ??
+          item.ReversedQty ??
+          item.RevQty ??
+          0
+
+        const qty = Number(qtyRaw) || 0
+
+        if (!txnDetailId || qty <= 0) continue
 
         const [detailRows] = await db.query(
           'SELECT d.*, m.item_name as itemName FROM TAxnTrnbilldetails d LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid WHERE d.TXnDetailID = ?',
-          [item.txnDetailId]
+          [txnDetailId]
         )
         const detail = detailRows[0]
         if (detail) {
-          const newRevQty = (detail.RevQty || 0) + item.qty
+          const newRevQty = (detail.RevQty || 0) + qty
           await db.query(
             'UPDATE TAxnTrnbilldetails SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?, KOTUsedDate = ? WHERE TXnDetailID = ?',
-            [item.qty, newRevKOTNo, kotDate, item.txnDetailId]
+            [qty, newRevKOTNo, kotDate, txnDetailId]
           )
 
           const remainingQty = detail.Qty - newRevQty
@@ -1354,14 +1372,14 @@ exports.createReverseKOT = async (req, res) => {
               IsBeforeBill, IsAfterBill, ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason, ReversalDate
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `, [
-            item.txnDetailId,
+            txnDetailId,
             detail.TxnID,
             detail.KOTNo,
             newRevKOTNo, // RevKOTNo
             detail.ItemID,
             detail.itemName || 'Unknown Item', // ItemName
             detail.Qty, // ActualQty
-            item.qty, // ReversedQty
+            qty, // ReversedQty
             remainingQty, // RemainingQty
             detail.isBilled ? 0 : 1, // IsBeforeBill
             detail.isBilled ? 1 : 0, // IsAfterBill
@@ -1372,7 +1390,7 @@ exports.createReverseKOT = async (req, res) => {
             ReversalDate || null, // ReversalDate
           ])
 
-          totalReverseAmount += (Number(detail.RuntimeRate) || 0) * item.qty
+          totalReverseAmount += (Number(detail.RuntimeRate) || 0) * qty
         }
       }
 
