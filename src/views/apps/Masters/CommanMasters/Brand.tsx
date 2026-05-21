@@ -49,6 +49,7 @@ interface HotelMastersItem {
   updated_date: string;
   Masteruserid: string;
   image?: string | null;
+   Logo?: string | null;
 }
 
 // Register User Modal Component
@@ -360,12 +361,23 @@ const BrandList: React.FC = () => {
         size: 80,
         cell: ({ row }) => <span>{row.index + 1}</span>,
       },
-      {
-        accessorKey: 'image',
-        header: 'Logo',
-        size: 200,
-        cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || '-'}</div>,
-      },
+     {
+  accessorKey: 'Logo',   // use 'Logo' (capital L) to match backend response
+  header: 'Logo',
+  size: 80,
+  cell: (info) => {
+    const logoUrl = info.getValue<string>();
+    return logoUrl ? (
+      <img
+        src={logoUrl}
+        alt="logo"
+        style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
+      />
+    ) : (
+      <span style={{ color: '#aaa' }}>No logo</span>
+    );
+  },
+},
       {
         accessorKey: 'hotel_name',
         header: 'hotel_name ',
@@ -747,6 +759,7 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
   const [hoteltype, setHoteltype] = useState<HotelTypeItem[]>([]);
 
   const [loading, setLoading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
 
   // Fill form when editing
   useEffect(() => {
@@ -815,53 +828,56 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
 
     setLoading(true);
 
-    try {
-      const statusValue = status === 'Active' ? 0 : 1;
-      const safeStatusValue = statusValue ?? 0; // Safeguard null/undefined
-      const currentDate = new Date().toISOString();
-      const userId = user?.id || 1;
+     try {
+    const statusValue = status === 'Active' ? 0 : 1;
+    const userId = user?.id || 1;
+    const currentDate = new Date().toISOString();
 
-      const payload: any = {
-        hotel_name,
-        short_name,
-        phone,
-        email,
-        fssai_no,
-        trn_gstno,
-        panno,
-        website,
-        address,
-        marketid,
-        stateid,
-        cityid,
-        hoteltypeid,
-        status: safeStatusValue,
-        created_date: currentDate, // only for create
-        updated_date: currentDate, // only for update
-        created_by_id: userId, // only for create
-        updated_by_id: userId, // only for update
-      };
+    // Create FormData (supports file upload)
+    const formData = new FormData();
+    formData.append('hotel_name', hotel_name);
+    formData.append('short_name', short_name);
+    formData.append('phone', phone || '');
+    formData.append('email', email || '');
+    formData.append('fssai_no', fssai_no || '');
+    formData.append('trn_gstno', trn_gstno || '');
+    formData.append('panno', panno || '');
+    formData.append('website', website || '');
+    formData.append('address', address || '');
+    formData.append('marketid', String(marketid));
+    formData.append('stateid', String(stateid));
+    formData.append('cityid', String(cityid));
+    formData.append('hoteltypeid', String(hoteltypeid));
+    formData.append('status', String(statusValue));
+    formData.append('created_by_id', String(userId));
+    formData.append('created_date', currentDate);
+    formData.append('updated_by_id', String(userId));
+    formData.append('updated_date', currentDate);
+    if (initialData?.Masteruserid) formData.append('Masteruserid', initialData.Masteruserid);
 
-      console.log('Brand payload status:', safeStatusValue); // Debug
-
+    // ⭐ Append logo file only if a new file is selected
+    if (image) {
+      formData.append('logo', image);   // field name must match backend 'logo'
+    }
+     
       if (isEditMode) {
         // === EDIT ===
         const hotelid = initialData?.hotelid;
         if (!hotelid) throw new Error('Missing hotelid in edit mode');
 
-        payload.hotelid = hotelid;
-        payload.updated_by_id = userId; // use actual user ID
+        formData.append('hotelid', String(hotelid));
+        formData.append('updated_by_id', String(userId)); // use actual user ID
 
-        // console.log('Updating HotelMasters:', payload);
+        // console.log('Updating HotelMasters:', formData );
 
-        await BrandService.updateBrand(hotelid, payload);
+        await BrandService.updateBrand(hotelid, formData);
       } else {
         // === ADD ===
-        payload.created_by_id = userId; // use actual user ID
+        formData.append('created_by_id', String(userId)); // use actual user ID
 
-        // console.log('Creating HotelMasters:', payload);
+        // console.log('Creating HotelMasters:', formData );
 
-        await BrandService.addBrand(payload);
+        await BrandService.addBrand(formData  );
       }
 
       toast.success(isEditMode ? 'Hotel updated successfully' : 'Hotel added successfully');
@@ -869,8 +885,9 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
       if (isEditMode && onUpdateSelectedHotelMasters && initialData) {
         onUpdateSelectedHotelMasters({
           ...initialData,
-          ...payload,
-          status: statusValue,
+          ...formData,
+            status: statusValue.toString(), // Convert statusValue to a string
+
         });
       }
 
@@ -885,11 +902,13 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      setImage(e.target.files[0]);
-    }
-  };
+const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  if (e.target.files && e.target.files[0]) {
+    const file = e.target.files[0];
+    setImage(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  }
+};
 
   if (!show) return null;
 
@@ -1133,33 +1152,50 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
               />
             </div>
 
-            <div className="mb-3">
-              <label className="form-label">Image</label>
-              <div className="input-group">
-                <input
-                  type="text"
-                  className="form-control"
-                  value={image ? image.name : (isEditMode ? initialData?.image || '' : '')}
-                  placeholder="Choose a File or Drop it Here"
-                  readOnly
-                  disabled={loading}
-                />
-                <button
-                  className="btn btn-outline-secondary"
-                  onClick={() => document.getElementById(fileInputId)?.click()}
-                  disabled={loading}
-                >
-                  Browse
-                </button>
-                <input
-                  id={fileInputId}
-                  type="file"
-                  hidden
-                  onChange={handleImageChange}
-                  disabled={loading}
-                />
-              </div>
-            </div>
+           <div className="mb-3">
+  <label className="form-label">Logo / Image</label>
+  <div className="input-group">
+    <input
+      type="text"
+      className="form-control"
+      value={image ? image.name : (previewUrl ? 'Current logo selected' : '')}
+      placeholder="Choose a file or drop it here"
+      readOnly
+      disabled={loading}
+    />
+    <button
+      className="btn btn-outline-secondary"
+      onClick={() => document.getElementById(fileInputId)?.click()}
+      type="button"
+      disabled={loading}
+    >
+      Browse
+    </button>
+    <input
+      id={fileInputId}
+      type="file"
+      hidden
+      accept="image/jpeg,image/png,image/gif,image/webp"
+      onChange={handleImageChange}
+      disabled={loading}
+    />
+  </div>
+  {previewUrl && (
+    <div className="mt-2">
+      <img
+        src={previewUrl}
+        alt="Logo preview"
+        style={{ maxWidth: '120px', maxHeight: '120px', objectFit: 'contain', border: '1px solid #ddd', padding: '4px' }}
+      />
+      {isEditMode && !image && (
+        <small className="text-muted ms-2">Current logo</small>
+      )}
+      {image && (
+        <small className="text-success ms-2">New logo selected</small>
+      )}
+    </div>
+  )}
+</div>
           </div>
         </div>
 

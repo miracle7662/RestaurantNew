@@ -350,6 +350,9 @@ const DiscountSummarySection: React.FC<{ data: DiscountSummary[] }> = ({ data })
 const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
   if (!data?.length) return null;
 
+  const totalQty = data.reduce((s, k) => s + Number(k.RevQty || 0), 0);
+  const totalAmt = data.reduce((s, k) => s + Number(k.amount || 0), 0);
+
   return (
     <>
       <SecHdr title="REVERSE KOT SUMMARY" />
@@ -404,18 +407,23 @@ const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
           </span>
 
           <span
-  style={{
-    fontSize: "8px",
-    whiteSpace: "nowrap",
-    letterSpacing: "-0.2px",
-  }}
->
-  {timeStr(k.TxnDatetime)
-    .toLowerCase()
-    .replace(" ", "")}
-</span>
+            style={{
+              fontSize: "8px",
+              whiteSpace: "nowrap",
+              letterSpacing: "-0.2px",
+            }}
+          >
+            {timeStr(k.TxnDatetime)
+              .toLowerCase()
+              .replace(" ", "")}
+          </span>
         </div>
       ))}
+
+      <div className="rc-total">
+        <span>TOTAL</span>
+        <span>{totalQty} | {fmt(totalAmt)}</span>
+      </div>
     </>
   );
 };

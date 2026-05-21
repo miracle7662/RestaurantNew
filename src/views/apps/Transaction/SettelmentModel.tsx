@@ -352,7 +352,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
               </div>
             </div>
 
-            <div className="p-3">
+            <div className="p-2">
               <h6 className="fw-bold text-uppercase small mb-3 text-secondary">
                 Payment Methods
               </h6>
@@ -371,7 +371,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
                           togglePaymentMode(mode);
                         }}
                         className={`
-                          p-3 mb-2 rounded border cursor-pointer transition-all
+                          p-2 mb-2 rounded border cursor-pointer transition-all
                           ${isSelected
                             ? 'bg-success text-white'
                             : isActive

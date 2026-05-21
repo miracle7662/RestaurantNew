@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
@@ -138,7 +139,7 @@ app.get("/get-server-ip", (req, res) => {
 });
 
 
-
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // ✅ Add a health check endpoint
 app.get('/api/health', (req, res) => {
