@@ -77,7 +77,7 @@ export interface BillHeader {
   TxnNo: string
   TableID: number
   Steward?: string
-    departmentid?: number; // ✅ ADD THIS
+  departmentid?: number; // ✅ ADD THIS
   DeptID?: number | null
 
 
@@ -111,6 +111,7 @@ export interface BillHeader {
   hotel_name?: string
   outlet_name?: string
   orderNo?: string
+  isBilled?: number
 }
 
 /** Create bill payload */

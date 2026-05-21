@@ -178,6 +178,7 @@ const ModernBill = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txnId, setTxnId] = useState<number | null>(null);
+  const [isTransactionBilled, setIsTransactionBilled] = useState(false);
 const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   const [waiterUsers, setWaiterUsers] = useState<any[]>([]);
   const [discount, setDiscount] = useState(0);
@@ -849,6 +850,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
           calculateTotals(mappedItems);
           setOriginalTableStatus(2); // Set to billed status for order_tag logic
+          setIsTransactionBilled(true);
           setLoading(false);
           return;
 
@@ -1014,6 +1016,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         setIgst?.(data.header.IGST || data.header.IGST || 0);
         setCess?.(data.header.CESS || data.header.CESS || 0);
         setRoundOff?.(data.header.RoundOFF || data.header.RoundOFF || 0);
+        setIsTransactionBilled(data.header.isBilled === 1 || data.header.isBilled === 1);
       }
 
       // Compute max RevKOTNo from details for unbilled orders
@@ -1167,6 +1170,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         setIgst?.(data.header.IGST || data.header.IGST || 0);
         setCess?.(data.header.CESS || data.header.CESS || 0);
         setRoundOff?.(data.header.RoundOFF || data.header.RoundOFF || 0);
+        setIsTransactionBilled(false);
         setFinalAmount(data.header.Amount || data.header.Amount || data.header.grandTotal || 0);
       }
 
@@ -2353,6 +2357,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
     }
 
     // 2️⃣ Save Bill No in state
+    setIsTransactionBilled(true);
     setOrderNo(txnNo);
 
     // ✅ 3️⃣ OPEN BILL PRINT MODAL
@@ -2405,6 +2410,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
     }
 
     // 2️⃣ Set TxnNo and open BillPreviewPrint modal (like Orders.tsx)
+    setIsTransactionBilled(true);
     setOrderNo(txnNo);
     setPrintThenSettleFlow(true);
     setShowBillPrintModal(true);
@@ -2432,6 +2438,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
     setCustomerNo('');
     setCustomerName('');
     calculateTotals([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '' }]);
+    setIsTransactionBilled(false);
   };
 
   const fetchTableManagement = async () => {
@@ -2729,10 +2736,10 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   // 🔘 BUTTON ENABLE FLAGS
   const disableAll = !hasItems;
 
-  const disableSettle = disableAll || hasNewItems || (isTakeaway ? !isBillPrintedState : (!isBillPrintedState && !isTakeaway));
+  const disableSettle = disableAll || hasNewItems || !isTransactionBilled;
   const disablePrintSettle = !hasOnlyExistingItems || hasNewItems;
 
-  const disableSettlement = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway) || isTableOccupied;
+  const disableSettlement = disableAll || hasNewItems || !isTransactionBilled || isTableOccupied;
 
   const isPrintDisabled = !hasOnlyExistingItems;
 
