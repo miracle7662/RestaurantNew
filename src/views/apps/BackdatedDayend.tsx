@@ -312,7 +312,7 @@ const DayEnd = () => {
     setShowReportModal(true);
   };
 
-  const exportOrdersToExcel = () => {
+const exportOrdersToExcel = () => {
   try {
     // Helper to format date as DD/MM/YYYY
     const formatDateForExport = (dateStr: string): string => {
@@ -329,15 +329,16 @@ const DayEnd = () => {
       const row: Record<string, any> = {
         "Date": formatDateForExport(order.date),
         "Bill No": order.orderNo,
-        "Table": order.table,
-        "Settlement Amt (₹)": order.settlementAmount || 0,
-        "Gross Amount (₹)": order.grossAmount || 0,
-        "Discount (₹)": order.discount || 0,
         "Total Amt (₹)": order.amount || 0,
         "Tip Amount (₹)": order.tip || 0,
+        "Discount (₹)": order.discount || 0,
         "CGST (₹)": order.cgst || 0,
         "SGST (₹)": order.sgst || 0,
         "Round off (₹)": order.roundOff || 0,
+        "Gross Amount (₹)": order.grossAmount || 0,
+        "Settlement Amt (₹)": order.settlementAmount || 0,
+        "Table": order.table,
+        
         // "Rev Amt (₹)": order.revAmt || 0,
         // "KOT No": order.kotNo || "",
         // "Rev KOT No": order.revKotNo ? order.revKotNo.split(',').map(k => k.trim()).join(', ') : "",
@@ -383,7 +384,60 @@ const DayEnd = () => {
       exportRows.push(totalFooterRow);
     }
 
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    // Prepare data for Excel with header rows
+    const sheetData: any[][] = [];
+    
+    // Row 1 - Hotel name on left and Date on right within the same merged cell
+    const hotelName = user?.hotel?.hotel_name || user?.hotel_name || 'Hotel Name';
+    // Format the selected date (from date picker) as DD/MM/YYYY
+    const selectedDateObj = new Date(selectedDate);
+    const formattedSelectedDate = selectedDateObj.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    
+    // Create header text with hotel name on left and date on right with spaces in between
+    const headerText = `${hotelName.toUpperCase()}${' '.repeat(20)}Date - ${formattedSelectedDate}`;
+    sheetData.push([headerText]);
+    
+    // Add the actual data rows with column headers
+    if (exportRows.length > 0) {
+      // Get column headers from first row
+      const columnHeaders = Object.keys(exportRows[0]);
+      
+      // Add column headers as a row
+      sheetData.push(columnHeaders);
+      
+      // Add data rows
+      exportRows.forEach(row => {
+        const rowData: any[] = [];
+        columnHeaders.forEach(header => {
+          rowData.push(row[header]);
+        });
+        sheetData.push(rowData);
+      });
+    }
+    
+    // Create worksheet from the array data
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+    
+    // Style the worksheet
+    if (exportRows.length > 0) {
+      const numberOfColumns = Object.keys(exportRows[0]).length;
+      
+      // Set column widths
+      const colWidths = Array(numberOfColumns).fill({ wch: 15 });
+      worksheet['!cols'] = colWidths;
+      
+      // Merge cells for the header row (row 1 in sheetData, which is index 0 in worksheet)
+      if (numberOfColumns > 0) {
+        worksheet['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: numberOfColumns - 1 } } // Merge row 1 (index 0)
+        ];
+      }
+    }
+    
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Backdated Orders");
 
