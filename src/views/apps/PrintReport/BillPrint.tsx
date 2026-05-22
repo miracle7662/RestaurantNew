@@ -4,8 +4,12 @@ import { toast } from 'react-hot-toast'
 import { OutletSettings } from 'src/utils/applyOutletSettings'
 import { applyBillSettings } from '@/utils/applyOutletSettings'
 import BillPrintService from '@/common/api/billPrint'
-import { useAuthContext } from '@/common/context/useAuthContext' // adjust path if needed
+import { useAuthContext } from '@/common/context/useAuthContext'
+import HotelService from '@/common/api/hotels'  // ✅ Import for logo fetching
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Type Definitions (keep exactly as in original)
+// ─────────────────────────────────────────────────────────────────────────────
 interface MenuItem {
   id: number
   name: string
@@ -79,6 +83,9 @@ interface BillPreviewPrintProps {
   billData?: any
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────────────────────────────────
 const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   show,
   onHide,
@@ -111,7 +118,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   autoPrint,
   billData,
 }) => {
-  // ─── Auth context: bill settings fetched once at login ───────────────────────
+  // ─── Auth context ──────────────────────────────────────────────────────────
   const {
     billSettings,
     billSettingsLoading: contextSettingsLoading,
@@ -119,34 +126,31 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     user: authUser,
   } = useAuthContext()
 
-  // Business date (curr_date) from AuthContext. Fallback to prop billDate.
   const businessCurrDate = (authUser as any)?.currDate || undefined
 
-  // ─── Local state ─────────────────────────────────────────────────────────────
+  // ─── Local state ───────────────────────────────────────────────────────────
   const [loading, setLoading] = React.useState(false)
   const [printerName, setPrinterName] = React.useState<string | null>(null)
   const [outletId, setOutletId] = React.useState<number | null>(null)
   const [hasPrinted, setHasPrinted] = React.useState(false)
   const [localRestaurantName, setLocalRestaurantName] = React.useState('')
   const [localOutletName, setLocalOutletName] = React.useState('')
+  const [hotelLogoUrl, setHotelLogoUrl] = React.useState<string | null>(null)   // ✅ Logo state
 
-  // Derive localFormData from context billSettings.
-  // Falls back to raw formData if context has nothing yet.
+  // ─── FormData with bill settings ───────────────────────────────────────────
   const [localFormData, setLocalFormData] = React.useState<OutletSettings>(() =>
     billSettings
       ? applyBillSettings(formData, billSettings.preview, billSettings.print)
       : formData,
   )
 
-  // Sync localFormData whenever context billSettings update
-  // (covers both initial load and outlet-change re-fetch)
   React.useEffect(() => {
     if (billSettings) {
       setLocalFormData(applyBillSettings(formData, billSettings.preview, billSettings.print))
     }
   }, [billSettings, formData])
 
-  // ─── Derived display values ───────────────────────────────────────────────────
+  // ─── Derived display values ────────────────────────────────────────────────
   const displayRestaurantName =
     restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name'
   const displayOutletName =
@@ -155,36 +159,29 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   const canPreviewBill = localFormData.enabled_bill_section !== false
   const canPrintBill = localFormData.enabled_bill_section !== false
 
-  // Collect all unique KOT numbers
   const allKOTNos = React.useMemo(() => {
     if (currentKOTNos && currentKOTNos.length > 0) return currentKOTNos
     const kotsFromItems = items.map((item) => item.kotNo).filter(Boolean) as number[]
     return [...new Set(kotsFromItems)].sort((a, b) => a - b)
   }, [currentKOTNos, items])
 
-  // ─── On modal open: resolve outlet, fetch settings only if different outlet ──
+  // ─── Outlet settings fetch ─────────────────────────────────────────────────
   React.useEffect(() => {
     if (!show) return
-
     const outlet = selectedOutletId ?? Number(user?.outletid) ?? 1
     if (!outlet || isNaN(outlet)) return
-
     setOutletId(outlet)
-
     const defaultOutlet = Number(user?.outletid) ?? 1
-    // If same as login outlet and context already has settings, skip re-fetch
-    if (outlet === defaultOutlet && billSettings) return
+    if (outlet !== defaultOutlet || !billSettings) {
+      fetchBillSettings(outlet)
+    }
+  }, [show, selectedOutletId, user, billSettings, fetchBillSettings])
 
-    // Different outlet — fetch fresh settings (context updates → useEffect above applies them)
-    fetchBillSettings(outlet)
-  }, [show, selectedOutletId, user])
-
-  // ─── Reset hasPrinted when modal closes ──────────────────────────────────────
   React.useEffect(() => {
     if (!show) setHasPrinted(false)
   }, [show])
 
-  // ─── Fetch printer settings ───────────────────────────────────────────────────
+  // ─── Printer settings ──────────────────────────────────────────────────────
   React.useEffect(() => {
     const fetchPrinter = async () => {
       if (!outletId) return
@@ -200,7 +197,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     fetchPrinter()
   }, [outletId])
 
-  // ─── Fetch outlet display names if not provided ───────────────────────────────
+  // ─── Outlet display names ──────────────────────────────────────────────────
   React.useEffect(() => {
     const fetchOutletDetails = async () => {
       if (!outletId) return
@@ -224,7 +221,93 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     fetchOutletDetails()
   }, [outletId, restaurantName, outletName, user])
 
-  // ─── Auto-print logic ─────────────────────────────────────────────────────────
+  // ─── Helper: Build API base URL (same as HttpClient) ───────────────────────
+  const getApiBaseUrl = React.useCallback(() => {
+    try {
+      const savedConfig = localStorage.getItem('posServerConfig')
+      if (savedConfig) {
+        const cfg = JSON.parse(savedConfig)
+        return `http://${cfg.serverIP || 'localhost'}:${cfg.port || 3001}/api`
+      }
+    } catch {}
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL
+    if (window.location.protocol === 'file:') return 'http://localhost:3001/api'
+    return `${window.location.protocol}//${window.location.hostname}:3001/api`
+  }, [])
+
+  // ─── Helper: Build server base URL (no /api) for static files ───────────
+  const getServerBaseUrl = React.useCallback(() => {
+    try {
+      const savedConfig = localStorage.getItem('posServerConfig')
+      if (savedConfig) {
+        const cfg = JSON.parse(savedConfig)
+        return `http://${cfg.serverIP || 'localhost'}:${cfg.port || 3001}`
+      }
+    } catch {}
+
+    const viteApiUrl = import.meta.env.VITE_API_URL as string | undefined
+    if (viteApiUrl) {
+      // VITE_API_URL usually ends with /api; strip it.
+      return viteApiUrl.replace(/\/api\/?$/, '')
+    }
+
+    if (window.location.protocol === 'file:') return 'http://localhost:3001'
+    return `${window.location.protocol}//${window.location.hostname}:3001`
+  }, [])
+
+  // ─── Normalize logo URL (relative/absolute → absolute URL) ─────────────────
+  const normalizeLogoUrl = React.useCallback((logo: any): string | null => {
+    if (!logo) return null
+    if (typeof logo === 'string') {
+      if (
+        logo.startsWith('http://') ||
+        logo.startsWith('https://') ||
+        logo.startsWith('data:')
+      ) {
+        return logo
+      }
+
+      // Backend stores logo as something like: /uploads/brands/<filename>
+      // Backend serves static files from: /uploads
+      const base = getServerBaseUrl()
+      const cleanPath = logo.startsWith('/') ? logo.slice(1) : logo
+      return `${base}/${cleanPath}`
+    }
+    if (logo instanceof Uint8Array) {
+      try {
+        const base64 = btoa(String.fromCharCode(...logo))
+        return `data:image/png;base64,${base64}`
+      } catch {
+        return null
+      }
+    }
+    return null
+  }, [getServerBaseUrl, getApiBaseUrl])
+
+
+  // ─── Fetch hotel logo when modal opens ─────────────────────────────────────
+  React.useEffect(() => {
+    const fetchHotelLogo = async () => {
+      const hotelid = (user as any)?.hotelid ?? (user as any)?.hotelId
+      if (!hotelid || isNaN(Number(hotelid))) {
+        setHotelLogoUrl(null)
+        return
+      }
+      try {
+        const res = await HotelService.get(hotelid)
+        const data = res?.data || res
+        const rawLogo = data?.Logo ?? data?.Logo ?? null
+        const normalized = normalizeLogoUrl(rawLogo)
+        setHotelLogoUrl(normalized)
+      } catch (err) {
+        console.error('Failed to fetch hotel logo:', err)
+        setHotelLogoUrl(null)
+      }
+    }
+    if (show) fetchHotelLogo()
+  }, [show, user, normalizeLogoUrl])
+
+  // ─── Auto-print logic ──────────────────────────────────────────────────────
   React.useEffect(() => {
     if (autoPrint && show && !loading && !hasPrinted && printerName) {
       setHasPrinted(true)
@@ -232,9 +315,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     }
   }, [autoPrint, show, loading, hasPrinted, printerName])
 
-  // ─── HTML generation ──────────────────────────────────────────────────────────
-  const generateBillHTML = () => `
-<!DOCTYPE html>
+  // ─── HTML generation ───────────────────────────────────────────────────────
+  const generateBillHTML = () => `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
@@ -269,77 +351,66 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   const generateBillContent = (isPreview = false) => {
     const safePrice = (p: any): number => Number(p) || 0
     const showAll = isPreview
+    const showLogo = localFormData.show_logo_bill !== false && !!hotelLogoUrl
+
+    const formatAmount = (val: number) => {
+      return Number.isInteger(val) ? val.toString() : val.toFixed(2).replace(/\.00$/, '')
+    }
 
     return `
 <div id="bill-preview-section">
 <div style="margin:0 auto;font-family:'Courier New',monospace;font-size:12pt;line-height:1.2;padding:10px;color:#000;font-weight:bold;">
 
   <!-- HEADER -->
- <div style="text-align:center;margin-bottom:10px;">
+  <div style="text-align:center;margin-bottom:10px;">
 
-  <!-- HOTEL / BRAND NAME -->
-  <div style="font-weight:bold;font-size:14pt;margin-bottom:2px;">
-    ${billData?.hotelName || displayRestaurantName || ''}
+    ${showLogo ? `
+    <div style="text-align:center;margin-bottom:4px;">
+      <img src="${hotelLogoUrl}" alt="Hotel Logo" style="max-width:70px;max-height:40px;object-fit:contain;display:inline-block;" onerror="this.style.display='none'" />
+    </div>` : ''}
+
+    <div style="font-weight:bold;font-size:14pt;margin-bottom:2px;">
+      ${billData?.hotelName || displayRestaurantName || ''}
+    </div>
+
+    <div style="font-weight:bold;font-size:10pt;margin-bottom:2px;">
+      ${billData?.outletName || displayOutletName || ''}
+    </div>
+
+    <div style="font-size:8pt;">
+      ${billData?.address || user?.address || ''}
+    </div>
+
+    <div style="font-size:8pt;">
+      GST No: ${billData?.gstNo || user?.trn_gstno || 'N/A'}
+    </div>
+
+    <div style="font-size:8pt;">
+      Phone: ${billData?.phone || 'N/A'}
+    </div>
+
+    <div style="font-size:8pt;">
+      FSSAI: ${billData?.fssaiNo || 'N/A'}
+    </div>
+
+    ${(showAll || localFormData.email) ? `<div style="font-size:8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
+    ${(showAll || localFormData.website) ? `<div style="font-size:8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
+    ${(showAll || localFormData.show_item_hsn_code_bill) ? `<div>HSN: ${localFormData.hsn || 'N/A'}</div>` : ''}
+    ${(showAll || localFormData.field1) ? `<div style="font-size:8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
   </div>
-
-  <!-- OUTLET NAME -->
-  <div style="font-weight:bold;font-size:10pt;margin-bottom:2px;">
-    ${billData?.outletName || displayOutletName || ''}
-  </div>
-
-  <!-- ADDRESS -->
-  <div style="font-size:8pt;">
-    ${billData?.address || user?.address || ''}
-  </div>
-
-  <!-- GST -->
-  <div style="font-size:8pt;">
-    GST No: ${billData?.gstNo || user?.trn_gstno || 'N/A'}
-  </div>
-
-  <!-- PHONE -->
-  <div style="font-size:8pt;">
-    Phone: ${billData?.phone || 'N/A'}
-  </div>
-
-  <!-- FSSAI -->
-  <div style="font-size:8pt;">
-    FSSAI: ${billData?.fssaiNo || 'N/A'}
-  </div>
-
-  <!-- EMAIL -->
-  ${(showAll || localFormData.email)
-    ? `<div style="font-size:8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
-
-  <!-- WEBSITE -->
-  ${(showAll || localFormData.website)
-    ? `<div style="font-size:8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
-
-  <!-- HSN -->
-  ${(showAll || localFormData.show_item_hsn_code_bill)
-    ? `<div>HSN: ${localFormData.hsn || 'N/A'}</div>` : ''}
-
-  <!-- CUSTOM FIELD -->
-  ${(showAll || localFormData.field1)
-    ? `<div style="font-size:8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
-
-</div>
 
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
 
   <!-- BILL INFO -->
-<div style="display:flex;gap:8px;margin-bottom:5px;font-size:9pt;">
+  <div style="display:flex;gap:8px;margin-bottom:5px;font-size:9pt;">
     <div style="flex:1;"><strong>BillNo</strong><br />${(orderNo || '').toString().replace(/^DIN-/, '')}</div>
-   
     <div style="flex:1;"><strong>Date</strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : (businessCurrDate ? new Date(businessCurrDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'))}</div>
     <div style="flex:1;white-space:nowrap;"><strong>Time</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:10px;font-size:9pt;">
-   <div style="flex:1;"><strong>Table</strong><br />${selectedTable || '—'}</div>
+    <div style="flex:1;"><strong>Table</strong><br />${selectedTable || '—'}</div>
     <div style="flex:1;"><strong>Waiter</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>
-<div style="flex:1;font-size:7pt;">
-  <strong>Covers</strong><br />N/A
-</div>
+    <div style="flex:1;font-size:7pt;"><strong>Covers</strong><br />N/A</div>
     <div style="flex:1;white-space:nowrap;"><strong>KOT No</strong><br />${allKOTNos.length > 0 ? allKOTNos.join(', ') : currentKOTNo || '—'}</div>
     <div style="flex:1;"></div>
   </div>
@@ -350,15 +421,14 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     ${customerName ? `<div><strong>Customer:</strong> ${customerName}</div>` : ''}
     ${mobileNumber ? `<div><strong>Mobile:</strong> ${mobileNumber}</div>` : ''}
     ${(showAll || localFormData.show_customer_gst_bill) ? `<div><strong>GSTIN:</strong> N/A</div>` : ''}
-    ${(showAll || (activeTab === 'Pickup' && localFormData.show_customer_address_pickup_bill))
-      ? `<div><strong>Address:</strong> N/A</div>` : ''}
+    ${(showAll || (activeTab === 'Pickup' && localFormData.show_customer_address_pickup_bill)) ? `<div><strong>Address:</strong> N/A</div>` : ''}
   </div>` : ''}
 
   ${(showAll || (
-    (activeTab === 'Dine-in'   && localFormData.order_type_dine_in)  ||
-    (activeTab === 'Pickup'    && localFormData.order_type_pickup)    ||
-    (activeTab === 'Delivery'  && localFormData.order_type_delivery)  ||
-    (activeTab === 'Quick Bill'&& localFormData.order_type_quick_bill)
+    (activeTab === 'Dine-in'    && localFormData.order_type_dine_in)  ||
+    (activeTab === 'Pickup'     && localFormData.order_type_pickup)    ||
+    (activeTab === 'Delivery'   && localFormData.order_type_delivery)  ||
+    (activeTab === 'Quick Bill' && localFormData.order_type_quick_bill)
   )) ? `
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
   <div style="text-align:center;font-weight:bold;font-size:10pt;margin-bottom:5px;">
@@ -405,21 +475,14 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         gap:5px;padding:2px 0;font-size:9pt;">
         <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
           ${item.name}
-          ${item.variantName ? `<span style="font-size:8pt;color:#0066cc;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">(${item.variantName})</span>` : ''}
-          ${(showAll || (localFormData.print_bill_both_languages && localFormData.show_alt_name_bill && item.alternativeItem))
-            ? ` / ${item.alternativeItem || 'N/A'}` : ''}
-          ${(showAll || (localFormData.show_item_note_bill && item.note))
-            ? `<div style="font-size:8pt;color:#6c757d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.note || 'N/A'}</div>` : ''}
-          ${(showAll || (localFormData.modifier_default_option_bill && item.modifier))
-            ? `<div style="font-size:8pt;color:#6c757d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.modifier ? item.modifier.join(', ') : 'N/A'}</div>` : ''}
+          ${item.variantName ? `<span style="font-size:8pt;color:#0066cc;font-weight:bold;">(${item.variantName})</span>` : ''}
+          ${(showAll || (localFormData.print_bill_both_languages && localFormData.show_alt_name_bill && item.alternativeItem)) ? ` / ${item.alternativeItem || 'N/A'}` : ''}
+          ${(showAll || (localFormData.show_item_note_bill && item.note)) ? `<div style="font-size:8pt;color:#6c757d;">${item.note || 'N/A'}</div>` : ''}
+          ${(showAll || (localFormData.modifier_default_option_bill && item.modifier)) ? `<div style="font-size:8pt;color:#6c757d;">${item.modifier ? item.modifier.join(', ') : 'N/A'}</div>` : ''}
         </div>
-
-        ${(showAll || !localFormData.hide_item_quantity_column)
-          ? `<div style="text-align:right;">${item.qty}</div>` : ''}
-        ${(showAll || !localFormData.hide_item_rate_column)
-          ? `<div style="text-align:right;">${(() => { const v = safePrice(item.price); return Number.isInteger(v) ? v.toString() : v.toFixed(2).replace(/\.00$/, '') })()}</div>` : ''}
-        ${(showAll || !localFormData.hide_item_total_column)
-          ? `<div style="text-align:right;">${(() => { const v = item.qty * safePrice(item.price); return Number.isInteger(v) ? v.toString() : v.toFixed(2).replace(/\.00$/, '') })()}</div>` : ''}
+        ${(showAll || !localFormData.hide_item_quantity_column) ? `<div style="text-align:right;">${item.qty}</div>` : ''}
+        ${(showAll || !localFormData.hide_item_rate_column) ? `<div style="text-align:right;">${formatAmount(safePrice(item.price))}</div>` : ''}
+        ${(showAll || !localFormData.hide_item_total_column) ? `<div style="text-align:right;">${formatAmount(item.qty * safePrice(item.price))}</div>` : ''}
       </div>`).join('')}
   </div>
 
@@ -427,7 +490,6 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
   <!-- TOTALS -->
   <div style="text-align:right;font-size:9pt;margin-bottom:5px;font-family:monospace;">
-
     ${(showAll || !localFormData.hide_total_without_tax) ? `
     <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
       <span>Subtotal</span><span style="text-align:center;">:</span>
@@ -439,37 +501,34 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       <span>Discount</span><span style="text-align:center;">:</span>
       <span style="text-align:right;">₹${discount.toFixed(2)}</span>
     </div>
-    ${(showAll || (localFormData.show_discount_reason_bill && reason))
-      ? `<div style="font-size:8pt;">(${reason || 'N/A'})</div>` : ''}` : ''}
+    ${(showAll || (localFormData.show_discount_reason_bill && reason)) ? `<div style="font-size:8pt;">(${reason || 'N/A'})</div>` : ''}` : ''}
 
-  <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
-  <span><strong>Taxable Value</strong></span>
-  <span style="text-align:center;">:</span>
-  <span style="text-align:right;">
-    ₹${(billData?.TaxableValue ?? taxCalc.TaxableValue ?? (taxCalc.subtotal - discount)).toFixed(2)}
-  </span>
-</div>
+    <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
+      <span><strong>Taxable Value</strong></span>
+      <span style="text-align:center;">:</span>
+      <span style="text-align:right;">₹${(billData?.TaxableValue ?? taxCalc.TaxableValue ?? (taxCalc.subtotal - discount)).toFixed(2)}</span>
+    </div>
 
-${taxCalc.cgstAmt > 0 ? `
-<div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
-  <span>CGST @${taxRates.cgst}%</span>
-  <span style="text-align:center;">:</span>
-  <span style="text-align:right;">₹${taxCalc.cgstAmt.toFixed(2)}</span>
-</div>` : ''}
+    ${taxCalc.cgstAmt > 0 ? `
+    <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
+      <span>CGST @${taxRates.cgst}%</span>
+      <span style="text-align:center;">:</span>
+      <span style="text-align:right;">₹${taxCalc.cgstAmt.toFixed(2)}</span>
+    </div>` : ''}
 
-${taxCalc.sgstAmt > 0 ? `
-<div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
-  <span>SGST @${taxRates.sgst}%</span>
-  <span style="text-align:center;">:</span>
-  <span style="text-align:right;">₹${taxCalc.sgstAmt.toFixed(2)}</span>
-</div>` : ''}
+    ${taxCalc.sgstAmt > 0 ? `
+    <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
+      <span>SGST @${taxRates.sgst}%</span>
+      <span style="text-align:center;">:</span>
+      <span style="text-align:right;">₹${taxCalc.sgstAmt.toFixed(2)}</span>
+    </div>` : ''}
 
-${taxCalc.igstAmt > 0 ? `
-<div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
-  <span>IGST @${taxRates.igst}%</span>
-  <span style="text-align:center;">:</span>
-  <span style="text-align:right;">₹${taxCalc.igstAmt.toFixed(2)}</span>
-</div>` : ''}
+    ${taxCalc.igstAmt > 0 ? `
+    <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
+      <span>IGST @${taxRates.igst}%</span>
+      <span style="text-align:center;">:</span>
+      <span style="text-align:right;">₹${taxCalc.igstAmt.toFixed(2)}</span>
+    </div>` : ''}
 
     ${roundOffEnabled && roundOffValue !== 0 ? `
     <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
@@ -486,15 +545,10 @@ ${taxCalc.igstAmt > 0 ? `
     </div>
   </div>
 
-  ${(showAll || localFormData.show_bill_amount_words)
-    ? '<div>In Words: {/* TODO: number-to-words */}</div>' : ''}
-  ${(showAll || localFormData.show_customer_paid_amount)
-    ? `<div>Paid: ₹${taxCalc.grandTotal.toFixed(2)}</div>` : ''}
-  ${(showAll || localFormData.show_due_amount_bill) && localFormData.due > 0
-    ? `<div>Due: ₹${localFormData.due.toFixed(2)}</div>` : ''}
-
-  ${(showAll || (localFormData.show_order_note_bill && localFormData.note))
-    ? `<div style="text-align:center;font-size:8pt;margin-top:5px;">${localFormData.note || 'N/A'}</div>` : ''}
+  ${(showAll || localFormData.show_bill_amount_words) ? '<div>In Words: {/* TODO */}</div>' : ''}
+  ${(showAll || localFormData.show_customer_paid_amount) ? `<div>Paid: ₹${taxCalc.grandTotal.toFixed(2)}</div>` : ''}
+  ${(showAll || localFormData.show_due_amount_bill) && localFormData.due > 0 ? `<div>Due: ₹${localFormData.due.toFixed(2)}</div>` : ''}
+  ${(showAll || (localFormData.show_order_note_bill && localFormData.note)) ? `<div style="text-align:center;font-size:8pt;margin-top:5px;">${localFormData.note || 'N/A'}</div>` : ''}
 
   ${(showAll || ((
     (activeTab === 'Dine-in'    && localFormData.payment_mode_dine_in)   ||
@@ -517,7 +571,7 @@ ${taxCalc.igstAmt > 0 ? `
 </div>`
   }
 
-  // ─── Print handler ────────────────────────────────────────────────────────────
+  // ─── Print handler with base64 logo conversion ──────────────────────────────
   const handlePrintBill = async () => {
     console.log('[BillPrint] handlePrintBill start', {
       printerName, outletId, orderNo, currentTxnId,
@@ -568,8 +622,37 @@ ${taxCalc.igstAmt > 0 ? `
         return
       }
 
-      const kotHTML = generateBillHTML()
+      // 1. Convert logo to base64 if needed (bypass Electron print blocking)
+      let logoSrcForHtml = hotelLogoUrl
+      if (hotelLogoUrl && !hotelLogoUrl.startsWith('data:')) {
+        try {
+          console.log('[Print] Fetching logo from:', hotelLogoUrl)
+          const response = await fetch(hotelLogoUrl)
+          if (response.ok) {
+            const blob = await response.blob()
+            const base64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader()
+              reader.onloadend = () => resolve(reader.result as string)
+              reader.readAsDataURL(blob)
+            })
+            console.log('[Print] Logo successfully converted to base64')
+            logoSrcForHtml = base64
+          } else {
+            console.warn('[Print] Logo fetch failed, status:', response.status)
+          }
+        } catch (err) {
+          console.error('[Print] Error converting logo to base64:', err)
+        }
+      }
 
+      // 2. Generate HTML using the correct logo src (avoid regex replace mismatch)
+      let kotHTML = generateBillHTML()
+      if (hotelLogoUrl && logoSrcForHtml && hotelLogoUrl !== logoSrcForHtml) {
+        // String-safe replace (no regex): guarantees the <img src="..."> gets updated
+        kotHTML = kotHTML.split(hotelLogoUrl).join(logoSrcForHtml)
+      }
+
+      // 3. Send to Electron
       if ((window as any).electronAPI?.directPrint) {
         await (window as any).electronAPI.directPrint(kotHTML, finalPrinterName)
         toast.success('Bill Printed Successfully!')
@@ -587,12 +670,12 @@ ${taxCalc.igstAmt > 0 ? `
     }
   }
 
-  // ─── Auto-print mode: render nothing ─────────────────────────────────────────
+  // ─── Auto-print mode ───────────────────────────────────────────────────────
   if (autoPrint) return null
 
   const isSettingsLoading = loading || contextSettingsLoading
 
-  // ─── Modal UI ─────────────────────────────────────────────────────────────────
+  // ─── Modal UI ───────────────────────────────────────────────────────────────
   return (
     <Modal
       show={show}
@@ -627,7 +710,7 @@ ${taxCalc.igstAmt > 0 ? `
                   backgroundColor: 'white',
                   border: '1px solid #ccc',
                 }}
-                dangerouslySetInnerHTML={{ __html: generateBillContent(false) }}
+                dangerouslySetInnerHTML={{ __html: generateBillContent(true) }}
               />
             </div>
           )

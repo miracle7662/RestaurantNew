@@ -10,18 +10,24 @@ import SettingsService from "@/common/api/settings";
 // TYPES
 // ─────────────────────────────────────────────
 interface BillDetail {
-  TxnNo: string; table_name: string;  Discount: number;
+  TxnNo: string;
+  table_name: string;
+  Discount: number;
   tipAmount: number;
-  grossAmount: number; CGST: number; SGST: number;
-  netAmount: number; paymentMode: string; TxnDatetime: string;
-  settlement_breakdown?: string; // ✅ ADD THIS LINE
+  grossAmount: number;
+  CGST: number;
+  SGST: number;
+  netAmount: number;
+  paymentMode: string;
+  TxnDatetime: string;
+  settlement_breakdown?: string;
 }
-interface PaymentSummary { PaymentType: string; totalAmount: number; billCount: number; }
-interface CreditSummary  { customerName: string; creditAmount: number; billCount: number; }
-interface DiscountSummary{ TxnNo: string; table_name: string; Discount: number; reason: string; }
-interface ReverseKOT     { kotNo: string; table_name: string; item_name: string; RevQty: number; amount: number; TxnDatetime: string; }
-interface ReverseBill    { billNo: string; table_name: string; reversedAmount: number; TxnDatetime: string; }
-interface NCKOTSummary   { ncName: string; purpose: string; quantity: number; amount: number; TxnDatetime: string; kotNo: string; }
+interface PaymentSummary  { PaymentType: string; totalAmount: number; billCount: number; }
+interface CreditSummary   { customerName: string; creditAmount: number; billCount: number; }
+interface DiscountSummary { TxnNo: string; table_name: string; Discount: number; reason: string; }
+interface ReverseKOT      { kotNo: string; table_name: string; item_name: string; RevQty: number; amount: number; TxnDatetime: string; }
+interface ReverseBill     { billNo: string; table_name: string; reversedAmount: number; TxnDatetime: string; }
+interface NCKOTSummary    { ncName: string; purpose: string; quantity: number; amount: number; TxnDatetime: string; kotNo: string; }
 
 interface ReportData {
   billDetails?:     BillDetail[];
@@ -121,11 +127,10 @@ const STYLES = `
   .rc-hr-solid{ border: none; border-top: 1px solid #1a1612; margin: 3px 0; }
   .rc-row      { display: flex; justify-content: space-between; font-size: 13px; padding: 1.2px 0; }
   .rc-row-bold { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; padding: 2px 0; border-top: 1px solid #1a1612; border-bottom: 1px solid #1a1612; margin: 2px 0; }
-  .rc-col-hdr  { display: grid; font-size: 14px; font-weight: 700; border-bottom: 1px solid #1a1612; padding-bottom: 2px; margin-bottom: 2px; }
-  .rc-col-row  { display: grid; font-size: 14px; padding: 1.2px 0; border-bottom: 1px dashed #c8bfae; }
+  .rc-col-hdr  { display: grid; font-size: 11px; font-weight: 700; border-bottom: 1px solid #1a1612; padding-bottom: 2px; margin-bottom: 2px; }
+  .rc-col-row  { display: grid; font-size: 11px; font-weight: 700; padding: 1.5px 0; border-bottom: 1px dashed #c8bfae; }
   .rc-total    { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; border-top: 1px solid #1a1612; padding-top: 2px; margin-top: 2px; }
   .rc-footer   { text-align: center; font-size: 11px; color: #7a6f62; margin-top: 6px; letter-spacing: 0.8px; }
-
 `;
 
 // ─────────────────────────────────────────────
@@ -134,61 +139,41 @@ const STYLES = `
 const fmt = (n: number) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const timeStr = (dt: string) => dt ? new Date(dt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--';
 
-// Parse "ICICI:220,Cash:1500" into { ICICI: 220, Cash: 1500 }
 const parseSettlementBreakdown = (breakdown: string | undefined): Record<string, number> => {
   const result: Record<string, number> = {};
   if (!breakdown) return result;
-  
   breakdown.split(',').forEach(item => {
     const [type, amount] = item.split(':');
-    if (type && amount) {
-      result[type.trim()] = Number(amount) || 0;
-    }
+    if (type && amount) result[type.trim()] = Number(amount) || 0;
   });
   return result;
 };
 
-// Check if a bill uses multiple payment modes
 const isSplitPayment = (paymentMode: string): boolean => {
   const modes = (paymentMode || '').split(',').map(m => m.trim().toLowerCase());
   return modes.length > 1;
 };
 
-// Group bill details by single payment mode (exclude cash and split)
 const groupBillsByPaymentMode = (billDetails: BillDetail[]) => {
   const groups: Record<string, { bills: BillDetail[]; totalAmount: number }> = {};
-  
   (billDetails || []).forEach((bill) => {
-    // First check if we have settlement_breakdown
     const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
-    
     if (Object.keys(breakdown).length > 0) {
-      // Split bill - add each non-cash portion to respective mode
       Object.entries(breakdown).forEach(([mode, amount]) => {
         const modeKey = mode.toLowerCase();
-        if (modeKey === 'cash') return; // Skip cash
-        
-        if (!groups[modeKey]) {
-          groups[modeKey] = { bills: [], totalAmount: 0 };
-        }
-        
-        const portionBill = { ...bill, netAmount: amount };
-        groups[modeKey].bills.push(portionBill);
+        if (modeKey === 'cash') return;
+        if (!groups[modeKey]) groups[modeKey] = { bills: [], totalAmount: 0 };
+        groups[modeKey].bills.push({ ...bill, netAmount: amount });
         groups[modeKey].totalAmount += amount;
       });
     } else {
-      // Single mode bill - add normally
       const modeRaw = (bill.paymentMode || 'Cash').trim().toLowerCase();
       if (modeRaw === 'cash') return;
-      
-      if (!groups[modeRaw]) {
-        groups[modeRaw] = { bills: [], totalAmount: 0 };
-      }
+      if (!groups[modeRaw]) groups[modeRaw] = { bills: [], totalAmount: 0 };
       groups[modeRaw].bills.push(bill);
       groups[modeRaw].totalAmount += Number(bill.netAmount || 0);
     }
   });
-  
   return groups;
 };
 
@@ -197,22 +182,19 @@ const groupBillsByPaymentMode = (billDetails: BillDetail[]) => {
 // ─────────────────────────────────────────────
 const SecHdr: React.FC<{ title: string }> = ({ title }) => <div className="rc-section">{title}</div>;
 const DashHr = () => <hr className="rc-hr-dash" />;
-const SolidHr= () => <hr className="rc-hr-solid" />;
+const SolidHr = () => <hr className="rc-hr-solid" />;
+
+// Bill Details — 8-column grid with consistent widths
+// Columns: Bill(52) | Tbl(20) | Disc(32) | Gross(44) | GST(28) | Tip(28) | Net(44) | Mode(auto)
+const BILL_COLS = '52px 20px 32px 44px 28px 28px 44px auto';
 
 const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
   if (!data?.length) return null;
 
-  let tDisc = 0,
-      tGross = 0,
-      tGST = 0,
-      tTip = 0,
-      tNet = 0;
+  let tDisc = 0, tGross = 0, tGST = 0, tTip = 0, tNet = 0;
 
   const rows = data.map((b, i) => {
-    const gst =
-      Number(b.CGST || 0) +
-      Number(b.SGST || 0);
-
+    const gst = Number(b.CGST || 0) + Number(b.SGST || 0);
     tDisc  += Number(b.Discount || 0);
     tGross += Number(b.grossAmount || 0);
     tGST   += gst;
@@ -220,69 +202,19 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
     tNet   += Number(b.netAmount || 0);
 
     return (
-      <div
-        key={i}
-        className="rc-col-row"
-        style={{
-          gridTemplateColumns:
-            '42px 18px 14px 42px 28px 32px 42px auto',
-          columnGap: '1.5px'
-        }}
-      >
-        {/* Bill */}
-        <span
-          style={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}
-        >
+      <div key={i} className="rc-col-row" style={{ gridTemplateColumns: BILL_COLS, columnGap: '2px' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {String(b.TxnNo).slice(-5)}
         </span>
-
-        {/* Table */}
-        <span
-          style={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}
-        >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {(b.table_name || '').substring(0, 4)}
         </span>
-
-        {/* Discount */}
-        <span style={{ textAlign: 'right' }}>
-          {fmt(b.Discount)}
-        </span>
-
-        {/* Gross */}
-        <span style={{ textAlign: 'right' }}>
-          {fmt(b.grossAmount)}
-        </span>
-
-        {/* GST */}
-        <span style={{ textAlign: 'right' }}>
-          {gst.toFixed(0)}
-        </span>
-
-        {/* Tip */}
-        <span style={{ textAlign: 'right' }}>
-          {fmt(b.tipAmount)}
-        </span>
-
-        {/* Net */}
-        <span style={{ textAlign: 'right' }}>
-          {fmt(b.netAmount)}
-        </span>
-
-        {/* Payment Mode */}
-        <span
-          style={{
-            overflow: 'hidden',
-            whiteSpace: 'nowrap'
-          }}
-        >
+        <span style={{ textAlign: 'right' }}>{fmt(b.Discount)}</span>
+        <span style={{ textAlign: 'right' }}>{fmt(b.grossAmount)}</span>
+        <span style={{ textAlign: 'right' }}>{gst.toFixed(0)}</span>
+        <span style={{ textAlign: 'right' }}>{fmt(b.tipAmount)}</span>
+        <span style={{ textAlign: 'right' }}>{fmt(b.netAmount)}</span>
+        <span style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>
           {(b.paymentMode || 'Cash').substring(0, 5)}
         </span>
       </div>
@@ -292,15 +224,7 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
   return (
     <>
       <SecHdr title="BILL DETAILS" />
-
-      <div
-        className="rc-col-hdr"
-        style={{
-          gridTemplateColumns:
-            '42px 18px 14px 42px 28px 32px 42px auto',
-          columnGap: '2px'
-        }}
-      >
+      <div className="rc-col-hdr" style={{ gridTemplateColumns: BILL_COLS, columnGap: '2px' }}>
         <span>Bill</span>
         <span>Tbl</span>
         <span style={{ textAlign: 'right' }}>Disc</span>
@@ -310,14 +234,10 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
         <span style={{ textAlign: 'right' }}>Net</span>
         <span>Mode</span>
       </div>
-
       {rows}
-
       <div className="rc-row-bold">
         <span>TOTAL</span>
-        <span>
-          {fmt(tDisc)} | {fmt(tGross)} | {tGST.toFixed(0)} | {fmt(tTip)} | {fmt(tNet)}
-        </span>
+        <span>{fmt(tDisc)} | {fmt(tGross)} | {tGST.toFixed(0)} | {fmt(tTip)} | {fmt(tNet)}</span>
       </div>
     </>
   );
@@ -331,7 +251,7 @@ const PaymentSummarySection: React.FC<{ data: PaymentSummary[] }> = ({ data }) =
     <>
       <SecHdr title="PAYMENT SUMMARY" />
       {filtered.map((p, i) => (
-        <div key={i} className="rc-row">
+        <div key={i} className="rc-row" style={{ fontWeight: 700 }}>
           <span>{p.PaymentType}</span>
           <span>{fmt(p.totalAmount)}</span>
         </div>
@@ -341,7 +261,9 @@ const PaymentSummarySection: React.FC<{ data: PaymentSummary[] }> = ({ data }) =
   );
 };
 
-// Detailed payment mode wise list (excludes Cash and split payments)
+// Columns: BillNo(52) | Table(52) | Amount(1fr)
+const MODE_COLS = '52px 52px 1fr';
+
 const PaymentModeDetailsSection: React.FC<{ billDetails: BillDetail[] }> = ({ billDetails }) => {
   const groups = groupBillsByPaymentMode(billDetails);
   if (Object.keys(groups).length === 0) return null;
@@ -353,28 +275,13 @@ const PaymentModeDetailsSection: React.FC<{ billDetails: BillDetail[] }> = ({ bi
           <div className="rc-section" style={{ textTransform: 'uppercase' }}>
             {mode.toUpperCase()} PAYMENTS
           </div>
-          <div
-            className="rc-col-hdr"
-            style={{
-              gridTemplateColumns: '48px 48px 1fr',
-              columnGap: '5px',
-              fontSize: '12px',
-            }}
-          >
+          <div className="rc-col-hdr" style={{ gridTemplateColumns: MODE_COLS, columnGap: '5px' }}>
             <span>Bill No</span>
             <span>Table</span>
             <span style={{ textAlign: 'right' }}>Amount</span>
           </div>
           {bills.map((bill, idx) => (
-            <div
-              key={idx}
-              className="rc-col-row"
-              style={{
-                gridTemplateColumns: '48px 48px 1fr',
-                columnGap: '5px',
-                fontSize: '13px',
-              }}
-            >
+            <div key={idx} className="rc-col-row" style={{ gridTemplateColumns: MODE_COLS, columnGap: '5px' }}>
               <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {String(bill.TxnNo).slice(-6)}
               </span>
@@ -384,7 +291,7 @@ const PaymentModeDetailsSection: React.FC<{ billDetails: BillDetail[] }> = ({ bi
               <span style={{ textAlign: 'right' }}>₹{fmt(bill.netAmount)}</span>
             </div>
           ))}
-          <div className="rc-total" style={{ borderTop: '1px solid #1a1612', marginTop: '4px' }}>
+          <div className="rc-total">
             <span>Total ({mode.toUpperCase()})</span>
             <span>₹{fmt(totalAmount)}</span>
           </div>
@@ -394,28 +301,21 @@ const PaymentModeDetailsSection: React.FC<{ billDetails: BillDetail[] }> = ({ bi
   );
 };
 
-// Split Payments Section – bills paid with multiple modes
+// Columns: BillNo(52) | Table(52) | Modes(1fr) | Amount(64)
+const SPLIT_COLS = '52px 52px 1fr 64px';
+
 const SplitPaymentsSection: React.FC<{ billDetails: BillDetail[] }> = ({ billDetails }) => {
   const splitBills = (billDetails || []).filter(bill => {
     const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
     return Object.keys(breakdown).length > 1;
   });
-
   if (splitBills.length === 0) return null;
-
   const total = splitBills.reduce((sum, b) => sum + Number(b.netAmount || 0), 0);
 
   return (
     <>
       <div className="rc-section">SPLIT PAYMENTS</div>
-      <div
-        className="rc-col-hdr"
-        style={{
-          gridTemplateColumns: '48px 48px 1fr 60px',
-          columnGap: '5px',
-          fontSize: '13px',
-        }}
-      >
+      <div className="rc-col-hdr" style={{ gridTemplateColumns: SPLIT_COLS, columnGap: '5px' }}>
         <span>Bill No</span>
         <span>Table</span>
         <span>Modes</span>
@@ -424,17 +324,8 @@ const SplitPaymentsSection: React.FC<{ billDetails: BillDetail[] }> = ({ billDet
       {splitBills.map((bill, idx) => {
         const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
         const modesText = Object.keys(breakdown).join(', ');
-        
         return (
-          <div
-            key={idx}
-            className="rc-col-row"
-            style={{
-              gridTemplateColumns: '48px 48px 1fr 60px',
-              columnGap: '5px',
-              fontSize: '13px',
-            }}
-          >
+          <div key={idx} className="rc-col-row" style={{ gridTemplateColumns: SPLIT_COLS, columnGap: '5px' }}>
             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {String(bill.TxnNo).slice(-6)}
             </span>
@@ -448,7 +339,7 @@ const SplitPaymentsSection: React.FC<{ billDetails: BillDetail[] }> = ({ billDet
           </div>
         );
       })}
-      <div className="rc-total" style={{ borderTop: '1px solid #1a1612', marginTop: '4px' }}>
+      <div className="rc-total">
         <span>Total Split</span>
         <span>₹{fmt(total)}</span>
       </div>
@@ -456,28 +347,36 @@ const SplitPaymentsSection: React.FC<{ billDetails: BillDetail[] }> = ({ billDet
   );
 };
 
+// Columns: Customer(1fr) | Bills(28) | Amount(58)
+const CREDIT_COLS = '1fr 28px 58px';
+
 const CreditSummarySection: React.FC<{ data: CreditSummary[] }> = ({ data }) => {
   if (!data?.length) return null;
   const total = data.reduce((s, c) => s + Number(c.creditAmount || 0), 0);
   return (
     <>
       <SecHdr title="CREDIT SUMMARY" />
-      <div className="rc-col-hdr" style={{ gridTemplateColumns: '1fr 28px 58px' }}>
+      <div className="rc-col-hdr" style={{ gridTemplateColumns: CREDIT_COLS, columnGap: '4px' }}>
         <span>Customer</span>
-        <span style={{ textAlign:'right' }}>Bills</span>
-        <span style={{ textAlign:'right' }}>Amount</span>
+        <span style={{ textAlign: 'right' }}>Bills</span>
+        <span style={{ textAlign: 'right' }}>Amount</span>
       </div>
       {data.map((c, i) => (
-        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: '1fr 28px 58px' }}>
-          <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{(c.customerName||'').substring(0,18)}</span>
-          <span style={{ textAlign:'right' }}>{c.billCount}</span>
-          <span style={{ textAlign:'right' }}>{fmt(c.creditAmount)}</span>
+        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: CREDIT_COLS, columnGap: '4px' }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {(c.customerName || '').substring(0, 18)}
+          </span>
+          <span style={{ textAlign: 'right' }}>{c.billCount}</span>
+          <span style={{ textAlign: 'right' }}>{fmt(c.creditAmount)}</span>
         </div>
       ))}
       <div className="rc-total"><span>TOTAL</span><span>{fmt(total)}</span></div>
     </>
   );
 };
+
+// Columns: Bill(48) | Table(48) | Reason(1fr) | Amount(54)
+const DISC_COLS = '48px 48px 1fr 54px';
 
 const DiscountSummarySection: React.FC<{ data: DiscountSummary[] }> = ({ data }) => {
   if (!data?.length) return null;
@@ -485,16 +384,20 @@ const DiscountSummarySection: React.FC<{ data: DiscountSummary[] }> = ({ data })
   return (
     <>
       <SecHdr title="DISCOUNT SUMMARY" />
-      <div className="rc-col-hdr" style={{ gridTemplateColumns: '48px 48px 1fr 54px' }}>
-        <span>Bill</span><span>Table</span><span>Reason</span>
-        <span style={{ textAlign:'right' }}>Amount</span>
+      <div className="rc-col-hdr" style={{ gridTemplateColumns: DISC_COLS, columnGap: '4px' }}>
+        <span>Bill</span>
+        <span>Table</span>
+        <span>Reason</span>
+        <span style={{ textAlign: 'right' }}>Amount</span>
       </div>
       {data.map((d, i) => (
-        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: '48px 48px 1fr 54px' }}>
+        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: DISC_COLS, columnGap: '4px' }}>
           <span>{String(d.TxnNo).slice(-5)}</span>
-          <span>{(d.table_name||'').substring(0,6)}</span>
-          <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{(d.reason||'').substring(0,10)}</span>
-          <span style={{ textAlign:'right' }}>{fmt(d.Discount)}</span>
+          <span>{(d.table_name || '').substring(0, 6)}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {(d.reason || '').substring(0, 10)}
+          </span>
+          <span style={{ textAlign: 'right' }}>{fmt(d.Discount)}</span>
         </div>
       ))}
       <div className="rc-total"><span>TOTAL</span><span>{fmt(total)}</span></div>
@@ -502,79 +405,43 @@ const DiscountSummarySection: React.FC<{ data: DiscountSummary[] }> = ({ data })
   );
 };
 
+// Columns: KOT(32) | Table(32) | Item(1fr) | Qty(24) | Amt(44) | Time(38)
+const RKOT_COLS = '32px 32px 1fr 24px 44px 38px';
+
 const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
   if (!data?.length) return null;
-
   const totalQty = data.reduce((s, k) => s + Number(k.RevQty || 0), 0);
   const totalAmt = data.reduce((s, k) => s + Number(k.amount || 0), 0);
 
   return (
     <>
       <SecHdr title="REVERSE KOT SUMMARY" />
-
-      {/* Header */}
-      <div
-        className="rc-col-hdr"
-        style={{
-          gridTemplateColumns: "20px 20px 140px 10px 45px 20px",
-          columnGap: "3px",
-        }}
-      >
+      <div className="rc-col-hdr" style={{ gridTemplateColumns: RKOT_COLS, columnGap: '3px' }}>
         <span>KOT</span>
         <span>Tbl</span>
         <span>Item</span>
-        <span style={{ textAlign: "right" }}>Qty</span>
-        <span style={{ textAlign: "right" }}>Amt</span>
+        <span style={{ textAlign: 'right' }}>Qty</span>
+        <span style={{ textAlign: 'right' }}>Amt</span>
         <span>Time</span>
       </div>
-
-      {/* Rows */}
       {data.map((k, i) => (
-        <div
-          key={i}
-          className="rc-col-row"
-          style={{
-            gridTemplateColumns: "30px 30px 140px 10px 45px 20px",
-            columnGap: "3px",
-            alignItems: "center",
-          }}
-        >
-          <span>{String(k.kotNo).substring(0, 5)}</span>
-
-          <span>{(k.table_name || "").substring(0, 5)}</span>
-
-          <span
-            style={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: RKOT_COLS, columnGap: '3px', alignItems: 'center' }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {String(k.kotNo).substring(0, 5)}
+          </span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {(k.table_name || '').substring(0, 5)}
+          </span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {k.item_name}
           </span>
-
-          <span style={{ textAlign: "right" }}>
-            {k.RevQty}
-          </span>
-
-          <span style={{ textAlign: "right" }}>
-            {fmt(k.amount)}
-          </span>
-
-          <span
-            style={{
-              fontSize: "8px",
-              whiteSpace: "nowrap",
-              letterSpacing: "-0.2px",
-            }}
-          >
-            {timeStr(k.TxnDatetime)
-              .toLowerCase()
-              .replace(" ", "")}
+          <span style={{ textAlign: 'right' }}>{k.RevQty}</span>
+          <span style={{ textAlign: 'right' }}>{fmt(k.amount)}</span>
+          <span style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>
+            {timeStr(k.TxnDatetime).toLowerCase().replace(' ', '')}
           </span>
         </div>
       ))}
-
       <div className="rc-total">
         <span>TOTAL</span>
         <span>{totalQty} | {fmt(totalAmt)}</span>
@@ -583,28 +450,40 @@ const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
   );
 };
 
+// Columns: Bill(56) | Table(56) | Amount(1fr) | Time(42)
+const RBILL_COLS = '56px 56px 1fr 42px';
+
 const ReverseBillSection: React.FC<{ data: ReverseBill[] }> = ({ data }) => {
   if (!data?.length) return null;
   const total = data.reduce((s, b) => s + Number(b.reversedAmount || 0), 0);
   return (
     <>
       <SecHdr title="REVERSE BILL SUMMARY" />
-      <div className="rc-col-hdr" style={{ gridTemplateColumns: '54px 54px 1fr 38px' }}>
-        <span>Bill</span><span>Table</span>
-        <span style={{ textAlign:'right' }}>Amount</span><span>Time</span>
+      <div className="rc-col-hdr" style={{ gridTemplateColumns: RBILL_COLS, columnGap: '4px' }}>
+        <span>Bill</span>
+        <span>Table</span>
+        <span style={{ textAlign: 'right' }}>Amount</span>
+        <span>Time</span>
       </div>
       {data.map((b, i) => (
-        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: '54px 54px 1fr 38px' }}>
-          <span>{String(b.billNo).substring(0,7)}</span>
-          <span>{(b.table_name||'').substring(0,7)}</span>
-          <span style={{ textAlign:'right' }}>{fmt(b.reversedAmount)}</span>
-          <span>{timeStr(b.TxnDatetime)}</span>
+        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: RBILL_COLS, columnGap: '4px' }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {String(b.billNo).substring(0, 7)}
+          </span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {(b.table_name || '').substring(0, 7)}
+          </span>
+          <span style={{ textAlign: 'right' }}>{fmt(b.reversedAmount)}</span>
+          <span style={{ whiteSpace: 'nowrap' }}>{timeStr(b.TxnDatetime)}</span>
         </div>
       ))}
       <div className="rc-total"><span>TOTAL</span><span>{fmt(total)}</span></div>
     </>
   );
 };
+
+// Columns: Name(70) | Purpose(1fr) | Qty(28) | Amount(58)
+const NCKOT_COLS = '70px 1fr 28px 58px';
 
 const NCKOTSection: React.FC<{ data: NCKOTSummary[] }> = ({ data }) => {
   if (!data?.length) return null;
@@ -613,17 +492,22 @@ const NCKOTSection: React.FC<{ data: NCKOTSummary[] }> = ({ data }) => {
   return (
     <>
       <SecHdr title="NC KOT SUMMARY" />
-      <div className="rc-col-hdr" style={{ gridTemplateColumns: '68px 1fr 28px 58px' }}>
-        <span>Name</span><span>Purpose</span>
-        <span style={{ textAlign:'right' }}>Qty</span>
-        <span style={{ textAlign:'right' }}>Amount</span>
+      <div className="rc-col-hdr" style={{ gridTemplateColumns: NCKOT_COLS, columnGap: '4px' }}>
+        <span>Name</span>
+        <span>Purpose</span>
+        <span style={{ textAlign: 'right' }}>Qty</span>
+        <span style={{ textAlign: 'right' }}>Amount</span>
       </div>
       {data.map((n, i) => (
-        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: '68px 1fr 28px 58px' }}>
-          <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{(n.ncName||'N/A').substring(0,10)}</span>
-          <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{(n.purpose||'N/A').substring(0,12)}</span>
-          <span style={{ textAlign:'right' }}>{n.quantity}</span>
-          <span style={{ textAlign:'right' }}>{fmt(n.amount)}</span>
+        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: NCKOT_COLS, columnGap: '4px' }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {(n.ncName || 'N/A').substring(0, 10)}
+          </span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {(n.purpose || 'N/A').substring(0, 12)}
+          </span>
+          <span style={{ textAlign: 'right' }}>{n.quantity}</span>
+          <span style={{ textAlign: 'right' }}>{fmt(n.amount)}</span>
         </div>
       ))}
       <div className="rc-total">
@@ -650,15 +534,15 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   // Bill Details Section
   if (data.billDetails?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:5px 0;">BILL DETAILS</div>`;
-    b += `<div style="font-size:12px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
-            <span class="re-head" style="width:20%">Bill</span>
-            <span class="re-head" style="width:15%">Tbl</span>
-            <span class="re-head" style="width:14%;text-align:right">Disc</span>
-            <span class="re-head" style="width:22%;text-align:right">Gross</span>
-            <span class="re-head" style="width:15%;text-align:right">GST</span>
-            <span class="re-head" style="width:10%;text-align:right">Tip</span>
-            <span class="re-head" style="width:18%;text-align:right">Net</span>
-            <span class="re-head" style="width:10%">Mode</span>
+    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+            <span style="width:20%">Bill</span>
+            <span style="width:12%">Tbl</span>
+            <span style="width:13%;text-align:right">Disc</span>
+            <span style="width:18%;text-align:right">Gross</span>
+            <span style="width:10%;text-align:right">GST</span>
+            <span style="width:10%;text-align:right">Tip</span>
+            <span style="width:15%;text-align:right">Net</span>
+            <span style="width:10%">Mode</span>
           </div>`;
     let tDisc = 0, tGross = 0, tGST = 0, tTip = 0, tNet = 0;
     data.billDetails.forEach(row => {
@@ -668,21 +552,21 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
       tGST += gst;
       tTip += Number(row.tipAmount || 0);
       tNet += Number(row.netAmount || 0);
-      b += `<div style="font-size:9px;display:flex;justify-content:space-between;padding:1px 0;">
-              <span class="re-val" style="width:20%">${String(row.TxnNo).slice(-6)}</span>
-              <span class="re-val" style="width:15%">${(row.table_name || '').substring(0, 4)}</span>
-              <span class="re-val" style="width:14%;text-align:right">${f(row.Discount)}</span>
-              <span class="re-val" style="width:22%;text-align:right">${f(row.grossAmount)}</span>
-              <span class="re-val" style="width:15%;text-align:right">${gst.toFixed(0)}</span>
-              <span class="re-val" style="width:10%;text-align:right">${f(row.tipAmount)}</span>
-              <span class="re-val" style="width:18%;text-align:right">${f(row.netAmount)}</span>
-              <span class="re-val" style="width:10%">${(row.paymentMode || 'Cash').substring(0, 4)}</span>
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+              <span style="width:20%;overflow:hidden;white-space:nowrap">${String(row.TxnNo).slice(-6)}</span>
+              <span style="width:12%;overflow:hidden;white-space:nowrap">${(row.table_name || '').substring(0, 4)}</span>
+              <span style="width:13%;text-align:right">${f(row.Discount)}</span>
+              <span style="width:18%;text-align:right">${f(row.grossAmount)}</span>
+              <span style="width:10%;text-align:right">${gst.toFixed(0)}</span>
+              <span style="width:10%;text-align:right">${f(row.tipAmount)}</span>
+              <span style="width:15%;text-align:right">${f(row.netAmount)}</span>
+              <span style="width:10%;overflow:hidden;white-space:nowrap">${(row.paymentMode || 'Cash').substring(0, 5)}</span>
             </div>`;
     });
     b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
     b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;padding:2px 0;">
-            <span class="re-head">TOTAL</span>
-            <span class="re-val">${f(tDisc)} | ${f(tGross)} | ${tGST.toFixed(0)} | ${f(tTip)} | ${f(tNet)}</span>
+            <span>TOTAL</span>
+            <span>${f(tDisc)} | ${f(tGross)} | ${tGST.toFixed(0)} | ${f(tTip)} | ${f(tNet)}</span>
           </div>`;
   }
 
@@ -693,51 +577,74 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
       b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">PAYMENT SUMMARY</div>`;
       let total = 0;
       filtered.forEach(p => {
-        b += `<div style="font-size:10px;display:flex;justify-content:space-between;padding:1px 0;">
-                <span class="re-val">${p.PaymentType}</span>
-                <span class="re-val" style="text-align:right">${f(p.totalAmount)}</span>
+        b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;">
+                <span>${p.PaymentType}</span>
+                <span style="text-align:right">${f(p.totalAmount)}</span>
               </div>`;
         total += Number(p.totalAmount || 0);
       });
       b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-      b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span class="re-head">TOTAL</span><span class="re-val">${f(total)}</span></div>`;
+      b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
     }
   }
 
-  // ---- Detailed payment mode wise list (excl. Cash and split) ----
+    // Detailed payment mode wise list (using the same logic as screen preview)
   if (data.billDetails?.length) {
-    const modeGroups: Record<string, typeof data.billDetails> = {};
-    data.billDetails.forEach((bill) => {
-      const modeRaw = (bill.paymentMode || 'Cash').trim().toLowerCase();
-      if (modeRaw === 'cash') return;
-      if (isSplitPayment(modeRaw)) return;
-      if (!modeGroups[modeRaw]) modeGroups[modeRaw] = [];
-      modeGroups[modeRaw].push(bill);
+    // Helper to parse settlement_breakdown (same as screen)
+    const parseBreakdown = (breakdown: string | undefined): Record<string, number> => {
+      const result: Record<string, number> = {};
+      if (!breakdown) return result;
+      breakdown.split(',').forEach(item => {
+        const [type, amount] = item.split(':');
+        if (type && amount) result[type.trim()] = Number(amount) || 0;
+      });
+      return result;
+    };
+
+    // Group exactly like groupBillsByPaymentMode (includes split portions)
+    const groups: Record<string, { bills: Array<{ bill: BillDetail; amount: number }>; totalAmount: number }> = {};
+
+    data.billDetails.forEach(bill => {
+      const breakdown = parseBreakdown(bill.settlement_breakdown);
+      if (Object.keys(breakdown).length > 0) {
+        // Split bill – add each non‑cash portion
+        Object.entries(breakdown).forEach(([mode, amount]) => {
+          const modeKey = mode.toLowerCase();
+          if (modeKey === 'cash') return;
+          if (!groups[modeKey]) groups[modeKey] = { bills: [], totalAmount: 0 };
+          groups[modeKey].bills.push({ bill, amount });
+          groups[modeKey].totalAmount += amount;
+        });
+      } else {
+        // Single‑mode bill
+        const modeRaw = (bill.paymentMode || 'Cash').trim().toLowerCase();
+        if (modeRaw === 'cash') return;
+        if (!groups[modeRaw]) groups[modeRaw] = { bills: [], totalAmount: 0 };
+        groups[modeRaw].bills.push({ bill, amount: bill.netAmount });
+        groups[modeRaw].totalAmount += bill.netAmount;
+      }
     });
 
-    for (const [mode, bills] of Object.entries(modeGroups)) {
+    // Render each mode section (same style as screen)
+    for (const [mode, { bills, totalAmount }] of Object.entries(groups)) {
       b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">${mode.toUpperCase()} PAYMENTS</div>`;
-      b += `<div style="font-size:12px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-              <span style="width:30%">Bill No</span>
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+              <span style="width:35%">Bill No</span>
               <span style="width:30%">Table</span>
-              <span style="width:40%;text-align:right">Amount</span>
+              <span style="width:35%;text-align:right">Amount</span>
             </div>`;
-      let total = 0;
-      bills.forEach((bill) => {
-        const amt = Number(bill.netAmount || 0);
-        total += amt;
-        b += `<div style="font-size:12px;display:flex;justify-content:space-between;">
-                <span style="width:30%">${String(bill.TxnNo).slice(-6)}</span>
-                <span style="width:30%">${(bill.table_name || '').substring(0, 6)}</span>
-                <span style="width:40%;text-align:right">₹${f(amt)}</span>
+      for (const { bill, amount } of bills) {
+        b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+                <span style="width:35%;overflow:hidden;white-space:nowrap">${String(bill.TxnNo).slice(-6)}</span>
+                <span style="width:30%;overflow:hidden;white-space:nowrap">${(bill.table_name || '').substring(0, 6)}</span>
+                <span style="width:35%;text-align:right">₹${f(amount)}</span>
               </div>`;
-      });
+      }
       b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
-      b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>Total (${mode.toUpperCase()})</span><span>₹${f(total)}</span></div>`;
+      b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>Total (${mode.toUpperCase()})</span><span>₹${f(totalAmount)}</span></div>`;
     }
   }
-
-  // ---- Split Payments Section (bills with multiple modes) ----
+  // Split Payments Section
   if (data.billDetails?.length) {
     const splitBills = data.billDetails.filter(bill => {
       const mode = (bill.paymentMode || '').trim().toLowerCase();
@@ -745,140 +652,145 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
     });
     if (splitBills.length > 0) {
       b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">SPLIT PAYMENTS</div>`;
-      b += `<div style="font-size:12px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-              <span style="width:30%">Bill No</span>
-              <span style="width:30%">Table</span>
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+              <span style="width:25%">Bill No</span>
+              <span style="width:25%">Table</span>
               <span style="width:30%">Modes</span>
-              <span style="width:10%;text-align:right">Amount</span>
+              <span style="width:20%;text-align:right">Amount</span>
             </div>`;
       let total = 0;
       splitBills.forEach(bill => {
         const amt = Number(bill.netAmount || 0);
         total += amt;
-        b += `<div style="font-size:12px;display:flex;justify-content:space-between;">
-                <span style="width:30%">${String(bill.TxnNo).slice(-6)}</span>
-                <span style="width:30%">${(bill.table_name || '').substring(0, 6)}</span>
-                <span style="width:30%">${bill.paymentMode}</span>
-                <span style="width:10%;text-align:right">₹${f(amt)}</span>
+        b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+                <span style="width:25%;overflow:hidden;white-space:nowrap">${String(bill.TxnNo).slice(-6)}</span>
+                <span style="width:25%;overflow:hidden;white-space:nowrap">${(bill.table_name || '').substring(0, 6)}</span>
+                <span style="width:30%;overflow:hidden;white-space:nowrap">${bill.paymentMode}</span>
+                <span style="width:20%;text-align:right">₹${f(amt)}</span>
               </div>`;
       });
       b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
-      b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span>Total Split</span><span>₹${f(total)}</span></div>`;
+      b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>Total Split</span><span>₹${f(total)}</span></div>`;
     }
   }
 
   // Credit Summary Section
   if (data.creditSummary?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">CREDIT SUMMARY</div>`;
-    b += `<div style="font-size:10px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-            <span class="re-head" style="width:60%">Customer</span>
-            <span class="re-head" style="width:15%;text-align:right">Bills</span>
-            <span class="re-head" style="width:25%;text-align:right">Amount</span>
+    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+            <span style="width:55%">Customer</span>
+            <span style="width:15%;text-align:right">Bills</span>
+            <span style="width:30%;text-align:right">Amount</span>
           </div>`;
     let total = 0;
     data.creditSummary.forEach(c => {
-      b += `<div style="font-size:10px;display:flex;justify-content:space-between;">
-              <span class="re-val" style="width:60%">${(c.customerName || '').substring(0, 18)}</span>
-              <span class="re-val" style="width:15%;text-align:right">${c.billCount}</span>
-              <span class="re-val" style="width:25%;text-align:right">${f(c.creditAmount)}</span>
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+              <span style="width:55%;overflow:hidden;white-space:nowrap">${(c.customerName || '').substring(0, 18)}</span>
+              <span style="width:15%;text-align:right">${c.billCount}</span>
+              <span style="width:30%;text-align:right">${f(c.creditAmount)}</span>
             </div>`;
       total += Number(c.creditAmount || 0);
     });
     b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span class="re-head">TOTAL</span><span class="re-val">${f(total)}</span></div>`;
+    b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
   }
 
   // Discount Summary Section
   if (data.discountSummary?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">DISCOUNT SUMMARY</div>`;
-    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-            <span class="re-head" style="width:20%">Bill</span>
-            <span class="re-head" style="width:20%">Table</span>
-            <span class="re-head" style="width:35%">Reason</span>
-            <span class="re-head" style="width:25%;text-align:right">Amount</span>
+    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+            <span style="width:22%">Bill</span>
+            <span style="width:22%">Table</span>
+            <span style="width:34%">Reason</span>
+            <span style="width:22%;text-align:right">Amount</span>
           </div>`;
     let total = 0;
     data.discountSummary.forEach(d => {
-      b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
-              <span class="re-val" style="width:20%">${String(d.TxnNo).slice(-5)}</span>
-              <span class="re-val" style="width:20%">${(d.table_name || '').substring(0, 6)}</span>
-              <span class="re-val" style="width:35%">${(d.reason || '').substring(0, 10)}</span>
-              <span class="re-val" style="width:25%;text-align:right">${f(d.Discount)}</span>
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+              <span style="width:22%;overflow:hidden;white-space:nowrap">${String(d.TxnNo).slice(-5)}</span>
+              <span style="width:22%;overflow:hidden;white-space:nowrap">${(d.table_name || '').substring(0, 6)}</span>
+              <span style="width:34%;overflow:hidden;white-space:nowrap">${(d.reason || '').substring(0, 10)}</span>
+              <span style="width:22%;text-align:right">${f(d.Discount)}</span>
             </div>`;
       total += Number(d.Discount || 0);
     });
     b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span class="re-head">TOTAL</span><span class="re-val">${f(total)}</span></div>`;
+    b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
   }
 
   // Reverse KOT Section
   if (data.reverseKOTs?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">REVERSE KOT SUMMARY</div>`;
-    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-            <span class="re-head" style="width:10%">KOT</span>
-            <span class="re-head" style="width:10%">Tbl</span>
-            <span class="re-head" style="width:50%">Item</span>
-            <span class="re-head" style="width:10%;text-align:right">Qty</span>
-            <span class="re-head" style="width:10%;text-align:right">Amt</span>
-            <span class="re-head" style="width:10%">Time</span>
+    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+            <span style="width:12%">KOT</span>
+            <span style="width:12%">Tbl</span>
+            <span style="width:44%">Item</span>
+            <span style="width:10%;text-align:right">Qty</span>
+            <span style="width:12%;text-align:right">Amt</span>
+            <span style="width:10%">Time</span>
           </div>`;
+    let tQty = 0, tAmt = 0;
     data.reverseKOTs.forEach(k => {
-      b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
-              <span class="re-val" style="width:10%">${String(k.kotNo).substring(0, 5)}</span>
-              <span class="re-val" style="width:10%">${(k.table_name || '').substring(0, 5)}</span>
-              <span class="re-val" style="width:50%">${(k.item_name || '').substring(0, 20)}</span>
-              <span class="re-val" style="width:10%;text-align:right">${k.RevQty}</span>
-              <span class="re-val" style="width:10%;text-align:right">${f(k.amount)}</span>
-              <span class="re-val" style="width:10%">${t(k.TxnDatetime)}</span>
+      tQty += Number(k.RevQty || 0);
+      tAmt += Number(k.amount || 0);
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+              <span style="width:12%;overflow:hidden;white-space:nowrap">${String(k.kotNo).substring(0, 5)}</span>
+              <span style="width:12%;overflow:hidden;white-space:nowrap">${(k.table_name || '').substring(0, 5)}</span>
+              <span style="width:44%;overflow:hidden;white-space:nowrap">${(k.item_name || '').substring(0, 20)}</span>
+              <span style="width:10%;text-align:right">${k.RevQty}</span>
+              <span style="width:12%;text-align:right">${f(k.amount)}</span>
+              <span style="width:10%;font-size:9px;white-space:nowrap">${t(k.TxnDatetime)}</span>
             </div>`;
     });
+    b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
+    b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${tQty} | ${f(tAmt)}</span></div>`;
   }
 
   // Reverse Bill Section
   if (data.reverseBills?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">REVERSE BILL SUMMARY</div>`;
-    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-            <span class="re-head" style="width:25%">BillNo</span>
-            <span class="re-head" style="width:25%">Table</span>
-            <span class="re-head" style="width:25%;text-align:right">Amount</span>
-            <span class="re-head" style="width:25%">Time</span>
+    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+            <span style="width:28%">BillNo</span>
+            <span style="width:28%">Table</span>
+            <span style="width:25%;text-align:right">Amount</span>
+            <span style="width:19%">Time</span>
           </div>`;
     let total = 0;
     data.reverseBills.forEach(bill => {
-      b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
-              <span class="re-val" style="width:25%">${String(bill.billNo).substring(0, 7)}</span>
-              <span class="re-val" style="width:25%">${(bill.table_name || '').substring(0, 7)}</span>
-              <span class="re-val" style="width:25%;text-align:right">${f(bill.reversedAmount)}</span>
-              <span class="re-val" style="width:25%">${t(bill.TxnDatetime)}</span>
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+              <span style="width:28%;overflow:hidden;white-space:nowrap">${String(bill.billNo).substring(0, 7)}</span>
+              <span style="width:28%;overflow:hidden;white-space:nowrap">${(bill.table_name || '').substring(0, 7)}</span>
+              <span style="width:25%;text-align:right">${f(bill.reversedAmount)}</span>
+              <span style="width:19%;white-space:nowrap">${t(bill.TxnDatetime)}</span>
             </div>`;
       total += Number(bill.reversedAmount || 0);
     });
     b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span class="re-head">TOTAL</span><span class="re-val">${f(total)}</span></div>`;
+    b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${f(total)}</span></div>`;
   }
 
   // NC KOT Section
   if (data.ncKOTSummary?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">NC KOT SUMMARY</div>`;
-    b += `<div style="font-size:9px;display:flex;justify-content:space-between;border-bottom:1px dashed #000;">
-            <span class="re-head" style="width:30%">Name</span>
-            <span class="re-head" style="width:35%">Purpose</span>
-            <span class="re-head" style="width:15%;text-align:right">Qty</span>
-            <span class="re-head" style="width:20%;text-align:right">Amount</span>
+    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+            <span style="width:30%">Name</span>
+            <span style="width:35%">Purpose</span>
+            <span style="width:10%;text-align:right">Qty</span>
+            <span style="width:25%;text-align:right">Amount</span>
           </div>`;
     let tQty = 0, tAmt = 0;
     data.ncKOTSummary.forEach(n => {
-      b += `<div style="font-size:9px;display:flex;justify-content:space-between;">
-              <span class="re-val" style="width:30%">${(n.ncName || 'N/A').substring(0, 10)}</span>
-              <span class="re-val" style="width:35%">${(n.purpose || 'N/A').substring(0, 12)}</span>
-              <span class="re-val" style="width:15%;text-align:right">${n.quantity}</span>
-              <span class="re-val" style="width:20%;text-align:right">${f(n.amount)}</span>
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+              <span style="width:30%;overflow:hidden;white-space:nowrap">${(n.ncName || 'N/A').substring(0, 10)}</span>
+              <span style="width:35%;overflow:hidden;white-space:nowrap">${(n.purpose || 'N/A').substring(0, 12)}</span>
+              <span style="width:10%;text-align:right">${n.quantity}</span>
+              <span style="width:25%;text-align:right">${f(n.amount)}</span>
             </div>`;
       tQty += Number(n.quantity || 0);
       tAmt += Number(n.amount || 0);
     });
     b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-    b += `<div style="font-weight:700;display:flex;justify-content:space-between;"><span class="re-head">TOTAL</span><span class="re-val">Qty:${tQty} | ${f(tAmt)}</span></div>`;
+    b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>TOTAL</span><span>Qty:${tQty} | ${f(tAmt)}</span></div>`;
   }
 
   // Footer
@@ -889,57 +801,19 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   return `<html>
 <head>
   <style>
-    @page {
-      size: 80mm auto;
-      margin: 0;
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 80mm;
-      background: #ffffff;
-    }
+    @page { size: 80mm auto; margin: 0; }
+    html, body { margin: 0; padding: 0; width: 80mm; background: #ffffff; }
     body {
-      font-family: monospace;
-      font-size: 12.5px;
-      line-height: 1.2;
-      width: 76mm;
-      margin: 0 auto;
-      padding: 2mm 2mm 4mm 2mm;
-      color: #000000;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+      font-family: monospace; font-size: 12.5px; line-height: 1.2;
+      width: 76mm; margin: 0 auto; padding: 2mm 2mm 4mm 2mm;
+      color: #000000; -webkit-print-color-adjust: exact; print-color-adjust: exact;
       overflow: visible !important;
     }
     * { box-sizing: border-box; }
-    div, table, tr, td {
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-    }
-    .re-head {
-      font-weight: 700;
-      font-size: 10px;
-      padding: 0 1mm;
-      white-space: nowrap;
-    }
-    .re-val {
-      font-weight: 700;
-      font-size: 12px;
-      padding: 0 1mm;
-      white-space: nowrap;
-    }
-    .re-col { display: inline-block; }
-    .re-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 1px 0;
-      gap: 0;
-    }
+    div, table, tr, td { page-break-inside: avoid !important; break-inside: avoid !important; }
   </style>
 </head>
-<body>
-  ${b}
-</body>
+<body>${b}</body>
 </html>`;
 }
 
@@ -992,10 +866,7 @@ const DayEndReportPreview: React.FC = () => {
   const hasData   = reportData && Object.values(reportData).some(v => Array.isArray(v) && v.length > 0);
 
   const handlePrint = async () => {
-    if (!reportData) {
-      toast.error("No report data available");
-      return;
-    }
+    if (!reportData) { toast.error("No report data available"); return; }
     try {
       setLoading(true);
       const printersRaw = (await (window as any).electronAPI?.getInstalledPrinters?.()) || [];
@@ -1069,13 +940,8 @@ const DayEndReportPreview: React.FC = () => {
 
                   <BillDetailsSection    data={reportData?.billDetails    || []} />
                   <PaymentSummarySection data={reportData?.paymentSummary || []} />
-
-                  {/* Detailed single‑mode non‑cash payments */}
                   <PaymentModeDetailsSection billDetails={reportData?.billDetails || []} />
-
-                  {/* Split payments (bills with multiple modes) */}
-                  <SplitPaymentsSection billDetails={reportData?.billDetails || []} />
-
+                  <SplitPaymentsSection      billDetails={reportData?.billDetails || []} />
                   <CreditSummarySection  data={reportData?.creditSummary  || []} />
                   <DiscountSummarySection data={reportData?.discountSummary || []} />
                   <ReverseKOTSection     data={reportData?.reverseKOTs    || []} />
