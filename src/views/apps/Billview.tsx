@@ -2782,11 +2782,41 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
             setShowDiscountModal(true);
             return;
 
+          case 'F4': // Focus Special Instructions input (SpecialInst)
+            event.preventDefault();
+            {
+              const specialColIndex = 4; // SpecialInst column index in inputRefs
+              const activeEl = document.activeElement;
+
+              let activeRowIndex: number | null = null;
+              for (let r = 0; r < inputRefs.current.length; r++) {
+                const rowRefs = inputRefs.current[r] || [];
+                if (rowRefs.includes(activeEl as any)) {
+                  activeRowIndex = r;
+                  break;
+                }
+              }
+
+              const fallbackRowIndex = isGrouped
+                ? (displayedItems.length ? displayedItems.length - 1 : 0)
+                : (billItems.length ? billItems.length - 1 : 0);
+
+              const targetRow = activeRowIndex ?? fallbackRowIndex;
+              const targetInput = inputRefs.current[targetRow]?.[specialColIndex];
+
+              if (targetInput) {
+                targetInput.focus();
+                targetInput.select();
+              }
+            }
+            return;
+
           case 'F5': // 🔒 Reverse Bill (only if isBilled = 1)
             event.preventDefault();
             if (disableReverseBill) return;
             setShowReverseBillModal(true);
             return;
+
 
           case 'F6':
             event.preventDefault();
@@ -3800,6 +3830,10 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
                             <td>
                               <Form.Control
+                                ref={(el) => {
+                                  if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                                  inputRefs.current[index][4] = el;
+                                }}
                                 type="text"
                                 value={item.SpecialInst}
                                 disabled={!item.isEditable}
