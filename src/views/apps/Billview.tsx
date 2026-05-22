@@ -947,6 +947,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       });
 
       setBillItems(mappedItems);
+      setBillData(data);   // ✅ LINE 1: Store full bill data for print
 
       if (data.reversedItems) {
         setReversedItems(

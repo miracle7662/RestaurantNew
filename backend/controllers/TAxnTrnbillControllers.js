@@ -1189,8 +1189,8 @@ NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID,
             TxnID, outletid, ItemID, TableID, table_name, Qty, RuntimeRate, DeptID, HotelID,
             isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
             CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo,
-            item_no, item_name, order_tag, VariantID, VariantName
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            item_no, item_name, order_tag, VariantID, VariantName, SpecialInst                       
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           txnId,
           outletid,
@@ -1218,6 +1218,7 @@ NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID,
           order_tag,
           item.VariantID || item.variantId || null,
           item.VariantName || item.variantName || null,
+          item.SpecialInst || ''
         ])
       }
 
@@ -1902,7 +1903,8 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         m.item_group_id,
         d.order_tag,
         d.VariantID,
-        d.VariantName
+        d.VariantName,
+        d.SpecialInst   
       FROM TAxnTrnbilldetails d
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
@@ -1984,6 +1986,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       order_tag: r.order_tag || '',
       VariantID: r.VariantID || null,
       VariantName: r.VariantName || null,
+      SpecialInst: r.SpecialInst || '' 
     }))
 
     // console.log('Unbilled items for tableId', tableId, ':', items)
@@ -1999,6 +2002,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       },
     })
   } catch (error) {
+    console.error('Error fetching unbilled items:', error)
     res
       .status(500)
       .json({
