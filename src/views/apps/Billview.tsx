@@ -198,6 +198,8 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
   const [isTableOccupied, setIsTableOccupied] = useState(false);
   const [billData, setBillData] = useState<any>(null);
+  const [reversalReasonMap, setReversalReasonMap] = useState<Map<number, string>>(new Map());
+
 
   // NEW: Filtered menu for current department only
   const [deptFilteredMenuItems, setDeptFilteredMenuItems] = useState<MenuItem[]>([]);
@@ -783,12 +785,24 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
             isFetched: false
           });
 
-          setBillItems(mappedItems);
-          setTxnId((header as any).TxnID || (header as any).txnId || null);
-          setOrderNo(header.TxnNo);
-          setWaiter(header.Steward || header.waiter || '');
-          setPax(header.pax || header.PAX || 1);
-          setTableNo(header.table_name || tableName);
+      setBillItems(mappedItems);
+
+      // Build reversal reason map (billed bill path)
+      const reasonMap = new Map<number, string>();
+      const apiReversalLogs = billedBillData?.reversalLogs || [];
+      if (Array.isArray(apiReversalLogs)) {
+        apiReversalLogs.forEach((log: any) => {
+          if (log?.TxnDetailID != null) reasonMap.set(Number(log.TxnDetailID), log.ReversalReason || '');
+        });
+      }
+      setReversalReasonMap(reasonMap);
+
+      setTxnId((header as any).TxnID || (header as any).txnId || null);
+      setOrderNo(header.TxnNo);
+      setWaiter(header.Steward || header.waiter || '');
+      setPax(header.pax || header.PAX || 1);
+      setTableNo(header.table_name || tableName);
+
           if (header.RevKOTNo) {
             setRevKotNo(Number(header.RevKOTNo));
           }
@@ -948,7 +962,18 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       });
 
       setBillItems(mappedItems);
+
+      // Build reversal reason map (takeaway bill path)
+      const reasonMap = new Map<number, string>();
+      if (Array.isArray(data.reversalLogs)) {
+        data.reversalLogs.forEach((log: any) => {
+          if (log?.TxnDetailID != null) reasonMap.set(Number(log.TxnDetailID), log.ReversalReason || '');
+        });
+      }
+      setReversalReasonMap(reasonMap);
+
       setBillData(data);   // ✅ LINE 1: Store full bill data for print
+
 
       if (data.reversedItems) {
         setReversedItems(
@@ -1114,6 +1139,27 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       });
 
       setBillItems(mappedItems);
+
+      // Build reversal reason map (unbilled bill path)
+      const reasonMap = new Map<number, string>();
+      const reversalLogs = (data as any)?.reversalLogs;
+      if (reversalLogs && Array.isArray(reversalLogs)) {
+        reversalLogs.forEach((log: any) => {
+          if (log?.TxnDetailID != null) {
+            reasonMap.set(Number(log.TxnDetailID), log.ReversalReason || '');
+          }
+        });
+      } else if (Array.isArray(data.reversedItems)) {
+        // Fallback: build from reversedItems if they carry a reason field
+        data.reversedItems.forEach((item: any) => {
+          const txnDetailId = item?.TxnDetailID ?? item?.txnDetailId ?? item?.TXnDetailID;
+          const reasonValue = item?.reason ?? item?.ReversalReason ?? item?.Reversal_Reason;
+          if (txnDetailId != null) {
+            reasonMap.set(Number(txnDetailId), reasonValue || '');
+          }
+        });
+      }
+      setReversalReasonMap(reasonMap);
 
       if (data.reversedItems) {
         setReversedItems(
@@ -4147,7 +4193,12 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       <ReverseKotModal
         show={showReverseKot}
         revKotNo={revKotNo}
-        kotItems={billItems}
+        kotItems={billItems.map((item: any) => ({
+          ...item,
+          existingReason: reversalReasonMap.get(item.txnDetailId ?? item.TxnDetailId ?? item.TXnDetailID) || '',
+          // also cover common keys used in this screen
+          existingReason2: reversalReasonMap.get(item.TXnDetailID) || '',
+        }))}
         tableNo={tableNo}
         waiter={waiter}
         pax={pax}

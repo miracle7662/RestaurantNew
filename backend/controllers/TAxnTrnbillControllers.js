@@ -209,6 +209,18 @@ exports.getBillById = async (req, res) => {
     `, [bill.orderNo || null, bill.HotelID || null])
     const settlements = settlementsRows
 
+    // Fetch reversal logs with reasons
+    const [reversalLogsRows] = await db.query(
+      `
+        SELECT TxnDetailID, ReversedQty, RevKOTNo, ReversalReason, ReversalDate
+        FROM TAxnTrnReversalLog
+        WHERE TxnID = ?
+        ORDER BY ReversalID DESC
+      `, [Number(id)]
+    )
+    const reversalLogs = reversalLogsRows
+
+
     const [kotResultRows] = await db.query(
       `
       SELECT MAX(KOTNo) as maxKOT
@@ -219,7 +231,7 @@ exports.getBillById = async (req, res) => {
 
     const kotNo = kotResult?.maxKOT || bill.orderNo || null
 
-    res.json(ok('Fetched bill', { header: { ...bill, customerid: bill.customerid }, details, settlement: settlements, kotNo }))
+    res.json(ok('Fetched bill', { header: { ...bill, customerid: bill.customerid }, details, settlement: settlements, kotNo, reversalLogs }))
   } catch (error) {
     res
       .status(500)
@@ -1946,7 +1958,8 @@ exports.getUnbilledItemsByTable = async (req, res) => {
           'Reversed' as status,
           l.RevKOTNo as kotNo,
           d.TXnDetailID as txnDetailId,
-          l.ReversalDate as reversalTime
+          l.ReversalDate as reversalTime,
+          l.ReversalReason as reason   
         FROM TAxnTrnReversalLog l
         JOIN TAxnTrnbilldetails d ON l.TxnDetailID = d.TXnDetailID
         LEFT JOIN mstrestmenu m ON l.ItemID = m.restitemid

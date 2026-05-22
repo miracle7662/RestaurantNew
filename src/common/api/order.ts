@@ -293,6 +293,14 @@ export interface BillDetailsResponse {
   details: BillItem[]
   reversedItems: BillItem[]
   header: BillHeader
+  /** reversal logs with per-item reason */
+  reversalLogs?: Array<{
+    TxnDetailID: number
+    ReversedQty?: number
+    RevKOTNo?: number
+    ReversalReason?: string
+    ReversalDate?: string
+  }>
 }
 
 /** Unbilled items response */
