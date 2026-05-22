@@ -12,7 +12,7 @@ interface MenuItem {
   isReverse?: boolean;
   kotNo?: number;
   revKotNo?: number;
-  reason?: string;               // ✅ ADDED
+  reason?: string;
 }
 
 interface ReverseKotPrintProps {
@@ -51,12 +51,10 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
   const [localOutletName, setLocalOutletName] = useState("");
   const [isLoadingNames, setIsLoadingNames] = useState(true);
 
-  /** 🔹 Filter reverse items */
   const reverseItems = useMemo(() => {
     return items.filter(i => i.isReverse && (i.revQty ?? 0) > 0);
   }, [items]);
 
-  /** 🔹 Unique Reverse KOT Nos */
   const reverseKotNos = useMemo(() => {
     const set = new Set<number>();
     reverseItems.forEach(i => {
@@ -65,7 +63,10 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
     return set.size ? Array.from(set).join(", ") : "-";
   }, [reverseItems]);
 
-  /** 🔹 Fetch printer + outlet details */
+  const totalAmount = useMemo(() => {
+    return reverseItems.reduce((sum, item) => sum + ((item.price || 0) * (item.revQty || 0)), 0);
+  }, [reverseItems]);
+
   useEffect(() => {
     if (!show || !user?.outletid) {
       setIsLoadingNames(false);
@@ -103,7 +104,6 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
     fetchPrinterAndOutlet();
   }, [show, user, outletName]);
 
-  // Auto Print Logic
   useEffect(() => {
     if (
       autoPrint &&
@@ -119,12 +119,10 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
     }
   }, [autoPrint, show, loading, isLoadingNames, hasPrinted, printerName, reverseItems]);
 
-  // Reset when modal closes
   useEffect(() => {
     if (!show) setHasPrinted(false);
   }, [show]);
 
-  /** 🔹 DateTime – Indian format, 12-hour with AM/PM, IST */
   const dateTime = useMemo(() => {
     const now = new Date();
     const formatter = new Intl.DateTimeFormat('en-IN', {
@@ -140,12 +138,11 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
     return formatted.replace(',', '');
   }, []);
 
-  /** 🔹 PREVIEW + PRINT CONTENT – WITH REASON COLUMN (2nd position) */
   const generateContent = useMemo(() => {
-  const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || "";
-  const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
-  const displayTableName = tableName || selectedTable || "-";
-  return `
+    const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || "";
+    const displayOutletName = localOutletName || outletName || user?.outlet_name || "";
+    const displayTableName = tableName || selectedTable || "-";
+    return `
 <div style="text-align:center; font-weight:bold;">${displayRestaurantName}</div>
 <div style="text-align:center;">${displayOutletName}</div>
 
@@ -155,7 +152,6 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 
 <hr style="border-top:1px dashed #000; margin:8px 0;" />
 
-<!-- TOP ROW -->
 <div style="display: flex; justify-content: space-between; align-items: center;">
   <div style="font-size: 10pt;">
     <div><strong>Date:</strong> ${dateTime}</div>
@@ -169,7 +165,6 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 
 <hr style="border-top:1px dashed #000; margin:8px 0;" />
 
-<!-- Table Header – wider Item column -->
 <div style="display:grid; grid-template-columns: 45% 20% 15% 20%; font-weight:bold; border-bottom:1px solid #000; padding:4px 0;">
   <div style="text-align:left;">Item</div>
   <div style="text-align:left;">Reason</div>
@@ -182,31 +177,38 @@ ${reverseItems
     i => `
 <div style="display:grid; grid-template-columns: 45% 20% 15% 20%; border-bottom:1px solid #000; padding:4px 0;">
   <div style="text-align:left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${i.name}">${i.name}</div>
-  <div style="text-align:left; font-size:9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${i.reason || ''}">${i.reason || ''}</div>
+  <div style="text-align:left; font-size:9px; white-space: normal; word-break: break-word;">${i.reason || ''}</div>
   <div style="text-align:center; color:#d32f2f;">-${i.revQty}</div>
   <div style="text-align:right;">₹${(i.price || 0).toFixed(2)}</div>
 </div>`
   )
   .join("")}
 
+<div style="display:grid; grid-template-columns: 45% 20% 15% 20%; border-bottom:1px solid #000; padding:4px 0; font-weight:bold;">
+  <div style="text-align:left;"></div>
+  <div style="text-align:left;"></div>
+  <div style="text-align:center;">Total</div>
+  <div style="text-align:right;">₹${totalAmount.toFixed(2)}</div>
+</div>
+
 <hr style="border-top:1px dashed #000; margin:8px 0;" />
 
 <div style="text-align:center;">*** REVERSE KOT ***</div>
     `;
-}, [
-  restaurantName,
-  localRestaurantName,
-  outletName,
-  localOutletName,
-  selectedTable,
-  tableName,
-  user,
-  reverseKotNos,
-  dateTime,
-  reverseItems
-]);
+  }, [
+    restaurantName,
+    localRestaurantName,
+    outletName,
+    localOutletName,
+    selectedTable,
+    tableName,
+    user,
+    reverseKotNos,
+    dateTime,
+    reverseItems,
+    totalAmount
+  ]);
 
-  /** 🔹 FULL HTML for Printing */
   const generateHTML = () => `
 <!DOCTYPE html>
 <html>
@@ -255,7 +257,6 @@ ${generateContent}
 </html>
 `;
 
-  /** 🔹 Print Handler */
   const handlePrint = async () => {
     try {
       setLoading(true);
@@ -273,10 +274,7 @@ ${generateContent}
     }
   };
 
-  // Auto-print mode: hide modal
-  if (autoPrint) {
-    return null;
-  }
+  if (autoPrint) return null;
 
   return (
     <Modal show={show} onHide={onHide} centered backdrop="static">
