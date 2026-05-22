@@ -121,6 +121,7 @@ interface ReverseModalItem {
   cancelQty: number;
   rate: number;
   revKotNo: number;
+  reason?: string;
 }
 
 interface FormData {
@@ -2235,6 +2236,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         name: item.itemName,
         qty: item.cancelQty,
         price: item.rate,
+        reason: item.reason || '',
       })),
       userId: user?.id,
       reversalReason: 'Reverse from Billview',

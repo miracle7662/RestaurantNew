@@ -1348,6 +1348,8 @@ exports.createReverseKOT = async (req, res) => {
             [item.qty, newRevKOTNo, kotDate, item.txnDetailId]
           )
 
+          const itemReason = item.reason || reversalReason || 'Item Reversed';
+
           const remainingQty = detail.Qty - newRevQty
           await db.query(`
             INSERT INTO TAxnTrnReversalLog (
@@ -1369,7 +1371,7 @@ exports.createReverseKOT = async (req, res) => {
             userId, // ReversedByUserID
             null, // ApprovedByAdmin
             detail.HotelID, // HotelID
-            reversalReason || 'Item Reversed', // ReversalReason
+            itemReason, // ReversalReason
             ReversalDate || null, // ReversalDate
           ])
 
