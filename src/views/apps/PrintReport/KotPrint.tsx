@@ -6,7 +6,6 @@ import { fetchKotPrintSettings } from "@/services/outletSettings.service";
 import { applyKotSettings } from "@/utils/applyOutletSettings";
 import PrintService from "@/common/api/print";
 
-
 interface MenuItem {
   id: number;
   name: string;
@@ -28,6 +27,7 @@ interface MenuItem {
   revQty?: number;
   variantId?: number;
   variantName?: string;
+  specialInst?: string; // ✅ ADDED
 }
 
 interface KotPreviewPrintProps {
@@ -204,27 +204,23 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-      hour12: true, // 12-hour format with AM/PM
+      hour12: true,
     };
 
-    // No input → show current time
     if (!input) {
       return new Date().toLocaleString("en-IN", IST_OPTIONS);
     }
 
     const raw = String(input).trim();
 
-    // Input already carries timezone info (Z / +hh:mm / -hh:mm) → let Date() handle it
     if (/([zZ]|[+\-]\d{2}:?\d{2})$/.test(raw)) {
       return new Date(raw).toLocaleString("en-IN", IST_OPTIONS);
     }
 
-    // No timezone — parse manually so we don't get a UTC→IST shift
     const [datePart = "", timePart = ""] = raw.replace("T", " ").split(" ");
     const [y, m, d] = datePart.split("-").map(Number);
     const [hh, mm] = timePart.split(":").map(Number);
 
-    // If any date/time component is missing or NaN, fall back to current time
     if (
       !Number.isFinite(y) ||
       !Number.isFinite(m) ||
@@ -235,15 +231,13 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       return new Date().toLocaleString("en-IN", IST_OPTIONS);
     }
 
-    // Treat the stored datetime as IST:
-    // subtract 5h 30m so that Date.UTC → toLocaleString(IST) gives back the original values
     const zoned = new Date(Date.UTC(y, m - 1, d, hh - 5, mm - 30, 0));
     return zoned.toLocaleString("en-IN", IST_OPTIONS);
   };
 
   const dateTime = formatKotDateTime(date);
 
-  // ─── KOT HTML shell ──────────────────────────────────────────────────────────
+  // ─── KOT HTML shell (unchanged) ──────────────────────────────────────────────
   const generateKOTHTML = () => `
 <!DOCTYPE html>
 <html>
@@ -303,7 +297,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 </body>
 </html>`;
 
-  // ─── Print handler ────────────────────────────────────────────────────────────
+  // ─── Print handler (unchanged) ───────────────────────────────────────────────
   const handlePrintKOT = async () => {
     try {
       setLoading(true);
@@ -375,6 +369,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   };
 
   // ─── KOT content (memoised) ───────────────────────────────────────────────────
+  // MODIFIED: Removed modifierHtml and alternativeHtml, added special instruction
   const generateKOTContent = useMemo(() => {
     const kotItems = printItems.length > 0 ? printItems : items.filter((i) => i.isNew);
 
@@ -447,8 +442,6 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     const showOrderNoQuickBillSection =
       localFormData.show_order_no_quick_bill_section &&
       ["Pickup", "Quick Bill", "Delivery"].includes(activeTab);
-    const modifierDefaultOption = localFormData.modifier_default_option;
-    const showAlternativeItem   = localFormData.show_alternative_item;
     const groupKotItemsByCategory = localFormData.group_kot_items_by_category;
 
     const qtyW  = "40px";
@@ -516,25 +509,18 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     ${kotItems.map((item) => {
       const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
-      const modifierHtml =
-        modifierDefaultOption && item.modifier && item.modifier.length > 0
-          ? `<div style="font-size:8pt;color:#444;font-weight:normal;">Mod: ${item.modifier.join(", ")}</div>`
-          : "";
-      const alternativeHtml =
-        showAlternativeItem && item.alternativeItem
-          ? `<div style="font-size:8pt;color:#555;font-weight:normal;">Alt: ${item.alternativeItem}</div>`
-          : "";
       const variantHtml = item.variantName
         ? `<span class="kot-variant"> (${item.variantName})</span>`
         : "";
-
+      const specialInstHtml = item.specialInst
+        ? `<div style="font-size:8pt;color:#333;font-weight:normal;margin-top:2px;">📝 ${item.specialInst}</div>`
+        : "";
       return `
       <div class="item-row" style="grid-template-columns:${gridCols};">
         <div class="item-qty">${qty}</div>
         <div class="item-name">
           ${item.name}${variantHtml}
-          ${modifierHtml}
-          ${alternativeHtml}
+          ${specialInstHtml}
         </div>
         ${showRateColumn   ? `<div class="item-rate">${Number(item.price || 0)}</div>` : ""}
         ${showAmountColumn ? `<div class="item-amt">${(item.price * qty).toFixed(2)}</div>` : ""}
@@ -560,13 +546,13 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   }, [
     localFormData, printItems, items, restaurantName, localRestaurantName,
     user, outletName, localOutletName, activeTab, currentKOTNo, selectedTable,
-    customerName, mobileNumber, pax,
+    customerName, mobileNumber, pax, date, orderNo, selectedWaiter, tableStatus,
   ]);
 
   // ─── Auto-print: render nothing ──────────────────────────────────────────────
   if (autoPrint) return null;
 
-  // ─── Modal UI ────────────────────────────────────────────────────────────────
+  // ─── Modal UI (unchanged) ────────────────────────────────────────────────────
   return (
     <Modal
       show={show}

@@ -313,94 +313,88 @@ const DayEnd = () => {
   };
 
   const exportOrdersToExcel = () => {
-    try {
-      const exportRows = filteredOrders.map((order) => {
-        const row: Record<string, any> = {
-          "Bill No": order.orderNo,
-          "Table": order.table,
-          "Settlement Amt (₹)": order.settlementAmount || 0,
-          "Gross Amount (₹)": order.grossAmount || 0,
-          "Discount (₹)": order.discount || 0,
-          "Total Amt (₹)": order.amount || 0,
-          "Tip Amount (₹)": order.tip || 0,
-          "CGST (₹)": order.cgst || 0,
-          "SGST (₹)": order.sgst || 0,
-          "Round off (₹)": order.roundOff || 0,
-          "Rev Amt (₹)": order.revAmt || 0,
-          "KOT No": order.kotNo || "",
-          "Rev KOT No": order.revKotNo ? order.revKotNo.split(',').map(k => k.trim()).join(', ') : "",
-          "NC Name": order.ncName || "",
-          "NC Purpose": order.ncPurpose || "",
-          "isNCKOT": order.ncKot ? "Yes" : "No",
-          "Outlet ID": order.outletid || "",
-          "Waiter/Captain": order.captain || order.waiter || "",
-          "Reverse Bill": order.reverseBill == 1 ? "Yes" : "No",
-          "User": order.user || "",
-          "Total Items": order.items || 0,
-          "Time": getFormattedTimeFromDateTime(order.billedDate ),
-          "Date": getFormattedDate(order.date),
-          "Status": order.status,
-        };
+  try {
+    // Helper to format date as DD/MM/YYYY
+    const formatDateForExport = (dateStr: string): string => {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
 
-        // Payment Type (first mode) + dynamic payment mode columns
-        row["Payment Type"] = order.paymentType || "";
-        visiblePaymentModes.forEach((mode) => {
-          row[`${mode.mode_name}`] = getPaymentAmount(order, mode.mode_name) || 0;
-        });
+    const exportRows = filteredOrders.map((order) => {
+      // Fixed columns in the exact order of your sample file (up to Payment Type)
+      const row: Record<string, any> = {
+        "Date": formatDateForExport(order.date),
+        "Bill No": order.orderNo,
+        "Table": order.table,
+        "Settlement Amt (₹)": order.settlementAmount || 0,
+        "Gross Amount (₹)": order.grossAmount || 0,
+        "Discount (₹)": order.discount || 0,
+        "Total Amt (₹)": order.amount || 0,
+        "Tip Amount (₹)": order.tip || 0,
+        "CGST (₹)": order.cgst || 0,
+        "SGST (₹)": order.sgst || 0,
+        "Round off (₹)": order.roundOff || 0,
+        // "Rev Amt (₹)": order.revAmt || 0,
+        // "KOT No": order.kotNo || "",
+        // "Rev KOT No": order.revKotNo ? order.revKotNo.split(',').map(k => k.trim()).join(', ') : "",
+        // "NC Name": order.ncName || "",
+        // "NC Purpose": order.ncPurpose || "",
+        // "isNCKOT": order.ncKot ? "Yes" : "No",
+        // "Outlet ID": order.outletid || "",
+        // "Waiter/Captain": order.captain || order.waiter || "",
+        // "Reverse Bill": order.reverseBill == 1 ? "Yes" : "No",
+        // "User": order.user || "",
+        // "Total Items": order.items || 0,
+        // "Time": getFormattedTimeFromDateTime(order.billedDate || order.time),
+        // "Status": order.status,
+        "Payment Type": order.paymentType || "",
+      };
 
-        return row;
+      // YOUR ORIGINAL DYNAMIC PAYMENT MODES LOOP (unchanged)
+      visiblePaymentModes.forEach((mode) => {
+        row[`${mode.mode_name}`] = getPaymentAmount(order, mode.mode_name) || 0;
       });
 
-      // Add Total Footer Rows in Excel
-      if (exportRows.length > 0) {
-        const totalFooterRow: Record<string, any> = {
-          "Bill No": "Total",
-          "Table": "",
-          "Settlement Amt (₹)": totalSettlement || 0,
-          "Gross Amount (₹)": totalGrossAmount || 0,
-          "Discount (₹)": totalDiscount || 0,
-          "Total Amt (₹)": totalSales || 0,
-          "Tip Amount (₹)": totalTip || 0,
-          "CGST (₹)": totalCGST || 0,
-          "SGST (₹)": totalSGST || 0,
-          "Round off (₹)": totalRoundOff || 0,
-          "Rev Amt (₹)": totalRevAmt || 0,
-          "KOT No": "",
-          "Rev KOT No": "",
-          "NC Name": "",
-          "NC Purpose": "",
-          "isNCKOT": "",
-          "Outlet ID": "",
-          "Waiter/Captain": "",
-          "Reverse Bill": "",
-          "User": "",
-          "Total Items": totalItems || 0,
-          "Time": "",
-          "Date": "",
-          "Status": "",
-          "Payment Type": "",
-        };
+      return row;
+    });
 
-        visiblePaymentModes.forEach((mode) => {
-          totalFooterRow[`${mode.mode_name}`] = paymentModeTotals?.[mode.mode_name] || 0;
-        });
-
-        exportRows.push(totalFooterRow);
-      }
-
-      const worksheet = XLSX.utils.json_to_sheet(exportRows);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Backdated Orders");
-
-
-      const fileDate = selectedDate || todayStr;
-      XLSX.writeFile(workbook, `backdated-orders-${fileDate}.xlsx`);
-    } catch (e) {
-      console.error("Export failed:", e);
-      toast.error("Export to Excel failed");
+    // Add Total Footer Row
+    if (exportRows.length > 0) {
+      const totalFooterRow: Record<string, any> = {};
+      // Get all column keys from the first row
+      const allColumns = Object.keys(exportRows[0]);
+      allColumns.forEach(col => {
+        if (col === "Date" || col === "Bill No" || col === "KOT No" || col === "Rev KOT No" ||
+            col === "NC Name" || col === "NC Purpose" || col === "Outlet ID" ||
+            col === "Waiter/Captain" || col === "User" || col === "Time" || col === "Status" ||
+            col === "Payment Type" || col === "Table" || col === "Reverse Bill" || col === "isNCKOT") {
+          totalFooterRow[col] = "";
+        } else if (col === "Bill No") {
+          totalFooterRow[col] = "Total";
+        } else {
+          const sum = exportRows.reduce((acc, row) => acc + (Number(row[col]) || 0), 0);
+          totalFooterRow[col] = sum;
+        }
+      });
+      exportRows.push(totalFooterRow);
     }
-  };
 
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Backdated Orders");
+
+    const fileDate = selectedDate || todayStr;
+    XLSX.writeFile(workbook, `backdated-orders-${fileDate}.xlsx`);
+    toast.success("Export successful!");
+  } catch (e) {
+    console.error("Export failed:", e);
+    toast.error("Export to Excel failed");
+  }
+};
   const handleClose = () => {
     if (window.confirm("Are you sure you want to close?")) {
       window.history.back();

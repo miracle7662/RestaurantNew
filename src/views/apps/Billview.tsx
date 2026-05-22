@@ -4235,7 +4235,8 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
             item_no: item.item_no || 0,
             kotNo: currentKotNoForPrint || undefined,
             txnDetailId: item.txnDetailId,
-            isNew: true
+            isNew: true,
+            specialInst: item.SpecialInst   // ✅ Add this
           }))
         }
 
@@ -4252,7 +4253,8 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
           txnDetailId: item.txnDetailId,
           revQty: item.reversedQty || 0,
           kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined,
-          isNew: !item.mkotNo
+          isNew: !item.mkotNo,
+          specialInst: item.SpecialInst   // ✅ Add this
         } as any))}
 
         currentKOTNo={currentKotNoForPrint}
