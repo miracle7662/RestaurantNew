@@ -5,6 +5,7 @@ import { OutletSettings } from "src/utils/applyOutletSettings";
 import { fetchKotPrintSettings } from "@/services/outletSettings.service";
 import { applyKotSettings } from "@/utils/applyOutletSettings";
 import PrintService from "@/common/api/print";
+import { useAuthContext } from "@/common/context/useAuthContext";
 
 interface MenuItem {
   id: number;
@@ -196,46 +197,33 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   }, [selectedOutletId, user]);
 
   // ─── Date/time formatter ─────────────────────────────────────────────────────
-  const formatKotDateTime = (input: string | null | undefined): string => {
-    const IST_OPTIONS: Intl.DateTimeFormatOptions = {
-      timeZone: "Asia/Kolkata",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    };
 
-    if (!input) {
-      return new Date().toLocaleString("en-IN", IST_OPTIONS);
-    }
 
-    const raw = String(input).trim();
+  const { user: authUser } = useAuthContext();
 
-    if (/([zZ]|[+\-]\d{2}:?\d{2})$/.test(raw)) {
-      return new Date(raw).toLocaleString("en-IN", IST_OPTIONS);
-    }
+ const userDate = authUser?.currDate ?? date;
 
-    const [datePart = "", timePart = ""] = raw.replace("T", " ").split(" ");
-    const [y, m, d] = datePart.split("-").map(Number);
-    const [hh, mm] = timePart.split(":").map(Number);
+// User date se only date part
+const [datePart] = userDate.split("T");
+const [year, month, day] = datePart.split("-");
 
-    if (
-      !Number.isFinite(y) ||
-      !Number.isFinite(m) ||
-      !Number.isFinite(d) ||
-      !Number.isFinite(hh) ||
-      !Number.isFinite(mm)
-    ) {
-      return new Date().toLocaleString("en-IN", IST_OPTIONS);
-    }
+// Current time
+const now = new Date();
 
-    const zoned = new Date(Date.UTC(y, m - 1, d, hh - 5, mm - 30, 0));
-    return zoned.toLocaleString("en-IN", IST_OPTIONS);
-  };
+let hours = now.getHours();
+const minutes = String(now.getMinutes()).padStart(2, "0");
 
-  const dateTime = formatKotDateTime(date);
+const ampm = hours >= 12 ? "PM" : "AM";
+
+hours = hours % 12;
+hours = hours ? hours : 12;
+
+const formattedHours = String(hours).padStart(2, "0");
+
+const kotBusinessDateTime =
+  `${day}/${month}/${year} ${formattedHours}:${minutes}:${ampm}`;
+
+
 
   // ─── KOT HTML shell (unchanged) ──────────────────────────────────────────────
   const generateKOTHTML = () => `
@@ -491,7 +479,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
        <div style="font-weight:bold;font-size:14pt;">${displayKOTNo}</div>`
     : ""}
   <div><strong>Date:</strong></div>
-  <div style="font-size:8pt;white-space:nowrap;">${dateTime}</div>
+  <div style=" font-weight:bold;font-size:8pt;white-space:nowrap;">${kotBusinessDateTime}</div>
+
   ${showWaiter ? `
     <div><strong>Waiter:</strong></div>
     <div style="word-wrap:break-word;max-width:80px;">${selectedWaiter || user?.name || "N/A"}</div>` : ""}
@@ -527,7 +516,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         ? `<span class="kot-variant"> (${item.variantName})</span>`
         : "";
       const specialInstHtml = item.specialInst
-        ? `<div style="font-size:8pt;color:#333;font-weight:normal;margin-top:2px;">📝 ${item.specialInst}</div>`
+        ? `<div style="font-weight:bold;font-size:10pt;margin-top:2px;">📝 ${item.specialInst}</div>`
         : "";
       return `
       <div class="item-row" style="grid-template-columns:${gridCols};">
