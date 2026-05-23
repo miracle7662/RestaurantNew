@@ -81,7 +81,9 @@ interface BillPreviewPrintProps {
   billDate?: string
   autoPrint?: boolean
   billData?: any
+  departmentName?: string
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
@@ -117,6 +119,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   billDate,
   autoPrint,
   billData,
+  departmentName,
 }) => {
   // ─── Auth context ──────────────────────────────────────────────────────────
   const {
@@ -431,11 +434,16 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     (activeTab === 'Quick Bill' && localFormData.order_type_quick_bill)
   )) ? `
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
-  <div style="text-align:center;font-weight:bold;font-size:10pt;margin-bottom:5px;">
-    ${activeTab === 'Dine-in'    && (showAll || localFormData.bill_title_dine_in)   ? 'Dine-In Bill'  : ''}
-    ${activeTab === 'Pickup'     && (showAll || localFormData.bill_title_pickup)     ? 'Pickup Bill'   : ''}
-    ${activeTab === 'Delivery'   && (showAll || localFormData.bill_title_delivery)   ? 'Delivery Bill' : ''}
-    ${activeTab === 'Quick Bill' && (showAll || localFormData.bill_title_quick_bill) ? 'Quick Bill'    : ''}
+  <div style="display:flex;justify-content:space-between;gap:8px;font-weight:bold;font-size:12pt;margin-bottom:5px;">
+    <div style="text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%;">
+      ${departmentName ? ` ${departmentName}` : ''}
+    </div>
+    <div style="text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;">
+      ${activeTab === 'Dine-in'    && (showAll || localFormData.bill_title_dine_in)   ? 'Dine-In Bill'  : ''}
+      ${activeTab === 'Pickup'     && (showAll || localFormData.bill_title_pickup)     ? 'Pickup Bill'   : ''}
+      ${activeTab === 'Delivery'   && (showAll || localFormData.bill_title_delivery)   ? 'Delivery Bill' : ''}
+      ${activeTab === 'Quick Bill' && (showAll || localFormData.bill_title_quick_bill) ? 'Quick Bill'    : ''}
+    </div>
   </div>` : ''}
 
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />

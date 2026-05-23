@@ -4317,6 +4317,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   } as any))}
   currentKOTNos={currentKOTNos}
   selectedWaiter={waiter}
+  orderNo={orderNo ?? undefined}
    
   selectedTable={tableNo}
     activeTab={activeTab}  // ✅ FIXED: Direct activeTab bhejo
@@ -4344,6 +4345,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   selectedOutletId={selectedOutletId}
   restaurantName={restaurantName}
   outletName={outletName}
+  departmentName={departmentName}
   
   // ✅ AFTER SUCCESS PRINT
   onPrint={async () => {
