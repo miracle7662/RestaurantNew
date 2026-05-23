@@ -1003,7 +1003,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       // console.log('Takeaway API Response Header:', data.header);
       if (data.header) {
         setTxnId(data.header.TxnID);
-        setOrderNo(data.header.TxnNo ?? data.header.orderNo);
+       setOrderNo(data.header.TxnNo ?? data.header.orderNo);
         setWaiter(data.header.waiter || '');
         setPax(data.header.pax || data.header.PAX || 1);
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
@@ -4317,7 +4317,10 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   } as any))}
   currentKOTNos={currentKOTNos}
   selectedWaiter={waiter}
-  orderNo={orderNo ?? undefined}
+   orderNo={orderNo ?? undefined}
+    // ✅ "0037" (Order Number from billData)
+
+
    
   selectedTable={tableNo}
     activeTab={activeTab}  // ✅ FIXED: Direct activeTab bhejo

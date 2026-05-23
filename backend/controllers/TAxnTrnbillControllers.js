@@ -2543,7 +2543,9 @@ const [billRows] = await db.query(
     h.fssai_no,
     h.phone,
 
-    o.outlet_name
+    o.outlet_name,
+    t.TxnNo,
+    t.orderNo
 
   FROM TAxnTrnbill t
 
@@ -2681,6 +2683,9 @@ const totalIGST = allDetailsForBill.reduce(
      gstNo: bill.trn_gstno,
     fssaiNo: bill.fssai_no,
     phone: bill.phone,
+        txnNo: bill.TxnNo,
+    orderNo: bill.orderNo,
+    
 
 
     taxableValue,
