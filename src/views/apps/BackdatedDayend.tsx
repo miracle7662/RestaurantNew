@@ -87,6 +87,7 @@ interface Order {
   tip?: number;
   settlementAmount?: number;
   billedDate?: string;
+  taxableValue?: number;
 }
 
 const DayEnd = () => {
@@ -222,6 +223,7 @@ const DayEnd = () => {
   const totalCash = orders.reduce((sum, order) => sum + (order.cash || 0), 0);
   const totalTip = orders.reduce((sum, order) => sum + (order.tip || 0), 0);
   const totalSettlement = orders.reduce((sum, order) => sum + (order.settlementAmount || 0), 0);
+  const totalTaxableValue = orders.reduce((sum, order) => sum + (order.taxableValue || 0), 0);
 
   const summary = {
     totalOrders,
@@ -315,29 +317,22 @@ const DayEnd = () => {
 const exportOrdersToExcel = () => {
   try {
     // Helper to format date as DD/MM/YYYY
-    const formatDateForExport = (dateStr: string): string => {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}/${month}/${year}`;
-    };
+   
 
     const exportRows = filteredOrders.map((order) => {
       // Fixed columns in the exact order of your sample file (up to Payment Type)
       const row: Record<string, any> = {
-        "Date": formatDateForExport(order.date),
         "Bill No": order.orderNo,
         "Total Amt (₹)": order.amount || 0,
         "Tip Amount (₹)": order.tip || 0,
         "Discount (₹)": order.discount || 0,
+        "Taxable Value (₹)": order.taxableValue || 0,
         "CGST (₹)": order.cgst || 0,
         "SGST (₹)": order.sgst || 0,
         "Round off (₹)": order.roundOff || 0,
         "Gross Amount (₹)": order.grossAmount || 0,
         "Settlement Amt (₹)": order.settlementAmount || 0,
-        "Table": order.table,
+        //"Table": order.table,
         
         // "Rev Amt (₹)": order.revAmt || 0,
         // "KOT No": order.kotNo || "",
@@ -388,8 +383,9 @@ const exportOrdersToExcel = () => {
     const sheetData: any[][] = [];
     
     // Row 1 - Hotel name on left and Date on right within the same merged cell
-    const hotelName = user?.hotel?.hotel_name || user?.hotel_name || 'Hotel Name';
-    // Format the selected date (from date picker) as DD/MM/YYYY
+   // Row 1 - Hotel name on left and Date on right within the same merged cell
+// Row 1 - Hotel name on left and Date on right within the same merged cell
+   const hotelName = `${(user?.hotel?.hotel_name || user?.hotel_name || 'Hotel Name').toUpperCase()} - DAILY SALES SUMMARY`;    // Format the selected date (from date picker) as DD/MM/YYYY
     const selectedDateObj = new Date(selectedDate);
     const formattedSelectedDate = selectedDateObj.toLocaleDateString('en-GB', {
       day: '2-digit',
@@ -1039,6 +1035,7 @@ const exportOrdersToExcel = () => {
                               <th>Discount</th>
                               <th>Total Amt</th>
                               <th>Tip Amount</th>
+                              <th>TaxableValue</th>
                               <th>CGST</th>
                               <th>SGST</th>
                               <th>Round off</th>
@@ -1091,6 +1088,7 @@ const exportOrdersToExcel = () => {
                                   <td style={{ textAlign: 'right' }}>-₹{order.discount.toLocaleString()}</td>
                                   <td style={{ textAlign: 'right' }}>₹{order.amount.toLocaleString()}</td>
                                   <td style={{ textAlign: 'right' }}>₹{(order.tip || 0).toLocaleString()}</td>
+                                  <td style={{ textAlign: 'right' }}>₹{(order.taxableValue || 0).toLocaleString()}</td>
                                   <td style={{ textAlign: 'right' }}>₹{order.cgst.toLocaleString()}</td>
                                   <td style={{ textAlign: 'right' }}>₹{order.sgst.toLocaleString()}</td>
                                   <td style={{ textAlign: 'right' }}>₹{(order.roundOff || 0).toLocaleString()}</td>
@@ -1133,6 +1131,7 @@ const exportOrdersToExcel = () => {
                               <td style={{ textAlign: 'right' }}>-₹{totalDiscount.toLocaleString()}</td>
                               <td style={{ textAlign: 'right' }}>₹{totalSales.toLocaleString()}</td>
                               <td style={{ textAlign: 'right' }}>₹{totalTip.toLocaleString()}</td>
+                              <td style={{ textAlign: 'right' }}>₹{totalTaxableValue.toLocaleString()}</td>
                               <td style={{ textAlign: 'right' }}>₹{totalCGST.toLocaleString()}</td>
                               <td style={{ textAlign: 'right' }}>₹{totalSGST.toLocaleString()}</td>
                               <td style={{ textAlign: 'right' }}>₹{totalRoundOff.toLocaleString()}</td>
