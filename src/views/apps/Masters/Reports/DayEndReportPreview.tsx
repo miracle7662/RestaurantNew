@@ -215,7 +215,7 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
         <span style={{ textAlign: 'right' }}>{fmt(b.tipAmount)}</span>
         <span style={{ textAlign: 'right' }}>{fmt(b.netAmount)}</span>
         <span style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>
-          {(b.paymentMode || 'Cash').substring(0, 5)}
+          {(b.paymentMode || 'Cash').substring(0, 2)  .toUpperCase()}
         </span>
       </div>
     );
@@ -560,7 +560,7 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
               <span style="width:10%;text-align:right">${gst.toFixed(0)}</span>
               <span style="width:10%;text-align:right">${f(row.tipAmount)}</span>
               <span style="width:15%;text-align:right">${f(row.netAmount)}</span>
-              <span style="width:10%;overflow:hidden;white-space:nowrap">${(row.paymentMode || 'Cash').substring(0, 5)}</span>
+              <span style="width:10%;overflow:hidden;white-space:nowrap">${(row.paymentMode || 'Cash').substring(0, 2).toUpperCase() }</span>
             </div>`;
     });
     b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;

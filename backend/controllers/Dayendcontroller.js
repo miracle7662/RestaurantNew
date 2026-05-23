@@ -1277,9 +1277,11 @@ const generateBillDetailsText = (data) => {
       .toFixed(0)
       .padStart(5);
 
-    const mode = (bill.paymentMode || 'Cash')
-      .substring(0, 6)
-      .padEnd(6);
+   // Payment mode only first 2 letters
+const mode = (bill.paymentMode || 'Cash')
+  .substring(0, 2)
+  .toUpperCase()
+  .padEnd(2);
 
     text += `${billNo} ${table} ${disc} ${gross} ${gst} ${tip} ${net} ${mode}\n`;
 

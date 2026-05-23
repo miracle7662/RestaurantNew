@@ -151,7 +151,9 @@ const ModernBill = () => {
   const tableName = location.state?.tableName;
   const outletIdFromState = location.state?.outletId;
   const departmentIdFromState = location.state?.departmentId;
+  const departmentNameFromState = location.state?.departmentName;
   const [selectedDeptId, setSelectedDeptId] = useState<number | null>(departmentIdFromState || null);
+  const [departmentName, setDepartmentName] = useState<string>(departmentNameFromState || '');
   const isTakeaway = location.state?.mode === 'TAKEAWAY' || location.state?.orderType === 'TAKEAWAY';
   const takeawayOrderId = location.state?.orderId;
   const { user } = useAuthContext();
@@ -826,6 +828,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
           }
           if (header.DeptID && !selectedDeptId) {
             setSelectedDeptId(header.DeptID);
+            if (header.department_name) setDepartmentName(header.department_name);
           }
 
           // restore discount
@@ -1193,6 +1196,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         if (data.header.customerid) setCustomerId(data.header.customerid);
         if (data.header.DeptID && !selectedDeptId) {
           setSelectedDeptId(data.header.DeptID);
+          if (data.header.department_name) setDepartmentName(data.header.department_name);
         }
 
         // Discount handling
@@ -4285,6 +4289,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         pax={pax}
         restaurantName={restaurantName}
         outletName={outletName}
+        departmentName={departmentName}
       />
 
      <BillPreviewPrint

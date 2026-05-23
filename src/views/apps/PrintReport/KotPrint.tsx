@@ -54,12 +54,14 @@ interface KotPreviewPrintProps {
   pax?: number;
   restaurantName?: string;
   outletName?: string;
+  departmentName?: string | null;
   kotNote?: string;
   orderNo?: string | null;
   date?: string | null;
   tableStatus?: number | null;
   order_tag?: string;
 }
+
 
 const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   show,
@@ -83,6 +85,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   pax,
   restaurantName,
   outletName,
+  departmentName,
   kotNote,
   orderNo,
   date,
@@ -450,10 +453,16 @@ const kotBusinessDateTime =
     <div style="text-align:center;margin-bottom:8px;">
       <div style="font-weight:bold;font-size:12pt;word-wrap:break-word;">${displayRestaurantName}</div>
       <div style="font-size:8pt;word-wrap:break-word;">${displayOutletName}</div>
-    </div>
+    
     <hr class="dashed" />` : ""}
 
     <div style="text-align:center;margin-bottom:0px;word-wrap:break-word;">
+
+     ${departmentName && !["Pickup", "Delivery"].includes(activeTab)
+  ? `<div style="font-weight:bold; font-size:10pt; word-wrap:break-word; margin-top:1px;">
+       ${departmentName}
+    </div>`
+  : ``}
      ${isTakeaway && orderNo ? `
   <div style="margin-top:1px; text-align:center;">
     <strong style="font-size:11pt;">Order No: ${orderNo}</strong>
@@ -549,7 +558,7 @@ const kotBusinessDateTime =
   }, [
     localFormData, printItems, items, restaurantName, localRestaurantName,
     user, outletName, localOutletName, activeTab, currentKOTNo, selectedTable,
-    customerName, mobileNumber, pax, date, orderNo, selectedWaiter, tableStatus,
+    customerName, mobileNumber, pax, date, orderNo, selectedWaiter, tableStatus, departmentName,
   ]);
 
   // ─── Auto-print: render nothing ──────────────────────────────────────────────
