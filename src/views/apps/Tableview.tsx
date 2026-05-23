@@ -313,7 +313,7 @@ export default function App() {
         noButtonRef.current?.focus();
       } else if (event.key === 'Enter') {
         if (focusedButton === 'yes') {
-          navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, openSettlement: true, txnId: selectedTable.txnId } });
+navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, departmentId: selectedTable.departmentid, departmentName: selectedTable.department_name, openSettlement: true, txnId: selectedTable.txnId } });
         } else {
           navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, txnId: selectedTable.txnId } });
         }
@@ -721,6 +721,7 @@ navigate('/apps/Billview', {
                             txnId: order.id,
                             outletId: order.outletid,
                             departmentId: selectedDepartmentId !== 'all' ? selectedDepartmentId : departments[0]?.departmentid || null,
+                            departmentName: departments.find(d => d.departmentid === selectedDepartmentId)?.department_name || '',
                             tableId: null,
                             tableName: 'TAKE AWAY'
                           }

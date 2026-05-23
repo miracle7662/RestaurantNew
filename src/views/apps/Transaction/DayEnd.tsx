@@ -85,6 +85,7 @@ interface Order {
   outletid?: number;
   tip?: number;
   settlementAmount?: number;
+  taxableValue?: number;
   billedDate?: string;
 }
 
@@ -253,7 +254,11 @@ const getPaymentAmount = (order: any, modeName: string): number => {
   // const totalPhonepe = orders.reduce((sum, order) => sum + (order.phonepe || 0), 0);
   // const totalQrcode = orders.reduce((sum, order) => sum + (order.qrcode || 0), 0);
   const totalTip = orders.reduce((sum, order) => sum + (order.tip || 0), 0);
+  const totalTaxableValue = orders.reduce((sum, order) => sum + (order.taxableValue || 0), 0);
+
+
   const totalSettlement = orders.reduce((sum, order) => sum + (order.settlementAmount || 0), 0);
+
 
   const summary = {
     totalOrders,
@@ -957,8 +962,10 @@ console.log('Loaded Report Data:', reportData);
                             <th>Discount</th>
                             <th>Total Amt</th>
                             <th>Tip Amount</th>
+                            <th>TaxableValue</th>
                             <th>CGST</th>
                             <th>SGST</th>
+
                             <th>Round off</th>                            
                             <th>Payment Type</th>
                   {/* Dynamic payment mode columns */}
@@ -1012,8 +1019,10 @@ console.log('Loaded Report Data:', reportData);
                               
                                 <td style={{ textAlign: 'right' }}>₹{order.amount.toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.tip || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.taxableValue || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{order.cgst.toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{order.sgst.toLocaleString()}</td>
+
                                 <td style={{ textAlign: 'right' }}>₹{(order.roundOff || 0).toLocaleString()}</td>
                                              
 
@@ -1058,6 +1067,7 @@ console.log('Loaded Report Data:', reportData);
                             <td style={{ textAlign: 'right' }}>-₹{totalDiscount.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalSales.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalTip.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalTaxableValue.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalCGST.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalSGST.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalRoundOff.toLocaleString()}</td>

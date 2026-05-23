@@ -60,6 +60,7 @@ interface BillPreviewPrintProps {
   currentKOTNos?: number[]
   currentKOTNo?: number | null
   orderNo?: string
+  txnNo?: string
   selectedTable?: string | null
   activeTab: string
   customerName?: string
@@ -98,6 +99,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   currentKOTNos,
   currentKOTNo,
   orderNo,
+  txnNo,
   selectedTable,
   activeTab,
   customerName,
@@ -406,7 +408,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
   <!-- BILL INFO -->
   <div style="display:flex;gap:8px;margin-bottom:5px;font-size:9pt;">
-    <div style="flex:1;"><strong>BillNo</strong><br />${(orderNo || '').toString().replace(/^DIN-/, '')}</div>
+ <div style="flex:1;"><strong>BillNo</strong><br />${(orderNo || '').toString().replace(/^DIN-/, '')}</div>
     <div style="flex:1;"><strong>Date</strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : (businessCurrDate ? new Date(businessCurrDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'))}</div>
     <div style="flex:1;white-space:nowrap;"><strong>Time</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
   </div>

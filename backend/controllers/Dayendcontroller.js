@@ -68,6 +68,7 @@ const getDayendData = async (req, res) => {
         t.RoundOFF,
         t.RevKOT AS RevAmt,
         t.TxnDatetime,
+        t.TaxableValue,
         t.BilledDate,
         t.Steward AS Captain,
         t.UserId,
@@ -422,6 +423,9 @@ if (row.Settlements) {
         water: Number(
           row.Water || 0
         ),
+
+        taxableValue: Number(row.TaxableValue || 0),
+
 
         // ==================================================
         // TIP
@@ -1767,6 +1771,7 @@ const getBackDayendData = async (req, res) => {
         t.Steward AS Captain,
         t.UserId,
         t.BilledDate,
+        t.TaxableValue,
         u.username AS UserName,
         
         -- WATER AMOUNT
@@ -1976,7 +1981,8 @@ LIMIT 10;
         ncKot: row.NCKOT || '',
         ncPurpose: row.NCPurpose || '',
         ncName: row.NCName || '',
-         billedDate: row.BilledDate,
+        billedDate: row.BilledDate,
+        taxableValue: Number(row.TaxableValue || 0),
         // Also add individual payment amounts as properties for frontend compatibility
         ...payments
       };
