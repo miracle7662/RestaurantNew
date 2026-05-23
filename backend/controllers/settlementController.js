@@ -75,7 +75,7 @@ exports.getSettlements = async (req, res) => {
       left join msttable_department tb on tb.departmentid=b.DeptID
       left join mst_outlets mo on mo.outletid=b.outletid
       ${whereSql}
-      ORDER BY s.InsertDate DESC
+      ORDER BY s.TxnNo asc
     `;
 
     const [settlements] = await db.query(sql, params);// FIXED: Await the query result

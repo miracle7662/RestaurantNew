@@ -34,6 +34,7 @@ export interface Brand {
   updated_by_id: string
   updated_date: string
   market_name: string
+  Logo?: string | null;  
 }
 
 /** Brand payload for create/update */
@@ -100,14 +101,13 @@ const BrandService = {
   /**
    * Add new brand
    */
-  addBrand: (brandData: BrandPayload): Promise<ApiResponse<Brand>> =>
-    HttpClient.post<ApiResponse<Brand>>('/HotelMasters', brandData),
+  // Add new brand with FormData (supports file upload)
+addBrand: (brandData: FormData): Promise<ApiResponse<Brand>> =>
+  HttpClient.post('/HotelMasters', brandData),   // no manual Content-Type
 
-  /**
-   * Update brand
-   */
-  updateBrand: (id: string, brandData: BrandPayload): Promise<ApiResponse<Brand>> =>
-    HttpClient.put<ApiResponse<Brand>>(`/HotelMasters/${id}`, brandData),
+// Update brand with FormData (supports optional file)
+updateBrand: (id: string, brandData: FormData): Promise<ApiResponse<Brand>> =>
+  HttpClient.put(`/HotelMasters/${id}`, brandData),
 
   /**
    * Delete brand

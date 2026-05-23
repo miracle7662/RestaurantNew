@@ -32,6 +32,7 @@ export interface Hotel {
   created_date?: string
   updated_by_id?: string
   updated_date?: string
+  Logo?: string | null;  
 }
 
 /** Hotel payload for create/update */
@@ -55,6 +56,7 @@ export interface HotelPayload {
   created_date?: string
   updated_by_id?: string
   updated_date?: string
+  Logo?: string | null;  
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

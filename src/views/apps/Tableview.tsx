@@ -415,6 +415,7 @@ export default function App() {
         orderType: 'TAKEAWAY',
         outletId,
         departmentId,
+        departmentName: departments.find(d => d.departmentid === departmentId)?.department_name || '',
         tableId: null,
         tableName: 'TAKE AWAY'
       }
@@ -426,7 +427,15 @@ export default function App() {
       setSelectedTable(table);
       setShowModal(true);
     } else {
-      navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid, departmentId: table.departmentid } });
+      navigate('/apps/Billview', { 
+        state: { 
+          tableId: table.id, 
+          tableName: table.name, 
+          outletId: table.outletid, 
+          departmentId: table.departmentid,
+          departmentName: table.department_name 
+        } 
+      });
     }
   };
 
@@ -452,7 +461,8 @@ navigate('/apps/Billview', {
                 tableId: table.id,
                 tableName: table.name,
                 outletId: table.outletid,
-                departmentId: table.departmentid
+                departmentId: table.departmentid,
+                departmentName: table.department_name
               }
             });
           }
@@ -795,7 +805,17 @@ navigate('/apps/Billview', {
 
           <Button ref={yesButtonRef} variant="primary" onClick={() => {
             if (selectedTable) {
-              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, departmentId: selectedTable.departmentid, openSettlement: true, txnId: selectedTable.txnId } });
+              navigate('/apps/Billview', { 
+                state: { 
+                  tableId: selectedTable.id, 
+                  tableName: selectedTable.name, 
+                  outletId: selectedTable.outletid, 
+                  departmentId: selectedTable.departmentid, 
+                  departmentName: selectedTable.department_name,
+                  openSettlement: true, 
+                  txnId: selectedTable.txnId 
+                } 
+              });
             }
             setShowModal(false);
           }}>
@@ -803,7 +823,16 @@ navigate('/apps/Billview', {
           </Button>
           <Button ref={noButtonRef} variant="secondary" onClick={() => {
             if (selectedTable) {
-              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, departmentId: selectedTable.departmentid, txnId: selectedTable.txnId } });
+              navigate('/apps/Billview', { 
+                state: { 
+                  tableId: selectedTable.id, 
+                  tableName: selectedTable.name, 
+                  outletId: selectedTable.outletid, 
+                  departmentId: selectedTable.departmentid, 
+                  departmentName: selectedTable.department_name,
+                  txnId: selectedTable.txnId 
+                } 
+              });
             }
             setShowModal(false);
           }}>

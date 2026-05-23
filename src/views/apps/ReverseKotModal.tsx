@@ -92,6 +92,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
             const itemId = item.itemId ?? item.ItemID ?? null;
 
             return {
+                
                 ...item,
                 originalQty: originalQty,           // ✅ Original quantity before any reversal
                 txnDetailId: txnDetailId,           // ✅ For Dine-in
@@ -101,11 +102,12 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                 kotNo: item.kotNo ?? item.mkotNo ?? null,
                 reversedQty: rev,                   // Already reversed quantity
                 cancelQty: 0,                       // User will enter new reversal quantity
-                reason: '',
+                reason: (item.existingReason as string) || '',
                 rate: rate,
                 amount: rev * rate,                 // Amount for already reversed items
                 revKotNo: item.revKotNo || item.RevKOTNo || 0
             };
+            
         });
         setItems(initialized);
     }, [kotItems]);

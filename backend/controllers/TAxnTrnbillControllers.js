@@ -209,6 +209,18 @@ exports.getBillById = async (req, res) => {
     `, [bill.orderNo || null, bill.HotelID || null])
     const settlements = settlementsRows
 
+    // Fetch reversal logs with reasons
+    const [reversalLogsRows] = await db.query(
+      `
+        SELECT TxnDetailID, ReversedQty, RevKOTNo, ReversalReason, ReversalDate
+        FROM TAxnTrnReversalLog
+        WHERE TxnID = ?
+        ORDER BY ReversalID DESC
+      `, [Number(id)]
+    )
+    const reversalLogs = reversalLogsRows
+
+
     const [kotResultRows] = await db.query(
       `
       SELECT MAX(KOTNo) as maxKOT
@@ -219,7 +231,7 @@ exports.getBillById = async (req, res) => {
 
     const kotNo = kotResult?.maxKOT || bill.orderNo || null
 
-    res.json(ok('Fetched bill', { header: { ...bill, customerid: bill.customerid }, details, settlement: settlements, kotNo }))
+    res.json(ok('Fetched bill', { header: { ...bill, customerid: bill.customerid }, details, settlement: settlements, kotNo, reversalLogs }))
   } catch (error) {
     res
       .status(500)
@@ -1189,8 +1201,8 @@ NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID,
             TxnID, outletid, ItemID, TableID, table_name, Qty, RuntimeRate, DeptID, HotelID,
             isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
             CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo,
-            item_no, item_name, order_tag, VariantID, VariantName
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            item_no, item_name, order_tag, VariantID, VariantName, SpecialInst                       
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           txnId,
           outletid,
@@ -1218,6 +1230,7 @@ NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID,
           order_tag,
           item.VariantID || item.variantId || null,
           item.VariantName || item.variantName || null,
+          item.SpecialInst || ''
         ])
       }
 
@@ -1365,6 +1378,8 @@ exports.createReverseKOT = async (req, res) => {
             [qty, newRevKOTNo, kotDate, txnDetailId]
           )
 
+          const itemReason = item.reason || reversalReason || 'Item Reversed';
+
           const remainingQty = detail.Qty - newRevQty
           await db.query(`
             INSERT INTO TAxnTrnReversalLog (
@@ -1386,7 +1401,7 @@ exports.createReverseKOT = async (req, res) => {
             userId, // ReversedByUserID
             null, // ApprovedByAdmin
             detail.HotelID, // HotelID
-            reversalReason || 'Item Reversed', // ReversalReason
+            itemReason, // ReversalReason
             ReversalDate || null, // ReversalDate
           ])
 
@@ -1942,7 +1957,8 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         m.item_group_id,
         d.order_tag,
         d.VariantID,
-        d.VariantName
+        d.VariantName,
+        d.SpecialInst   
       FROM TAxnTrnbilldetails d
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
@@ -1982,7 +1998,8 @@ exports.getUnbilledItemsByTable = async (req, res) => {
           'Reversed' as status,
           l.RevKOTNo as kotNo,
           d.TXnDetailID as txnDetailId,
-          l.ReversalDate as reversalTime
+          l.ReversalDate as reversalTime,
+          l.ReversalReason as reason   
         FROM TAxnTrnReversalLog l
         JOIN TAxnTrnbilldetails d ON l.TxnDetailID = d.TXnDetailID
         LEFT JOIN mstrestmenu m ON l.ItemID = m.restitemid
@@ -2024,6 +2041,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       order_tag: r.order_tag || '',
       VariantID: r.VariantID || null,
       VariantName: r.VariantName || null,
+      SpecialInst: r.SpecialInst || '' 
     }))
 
     // console.log('Unbilled items for tableId', tableId, ':', items)
@@ -2039,6 +2057,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       },
     })
   } catch (error) {
+    console.error('Error fetching unbilled items:', error)
     res
       .status(500)
       .json({

@@ -984,54 +984,91 @@ const generateDayEndReportHTML = async (req, res) => {
 const getBillDetailsData = async (businessDate, dayEndEmpID) => {
   console.log(`🔍 getBillDetailsData: EmpID=${dayEndEmpID}, Date=${businessDate}`);
 
-  const query = `
-    SELECT 
-      t.TxnID,
-      t.TxnNo,
-      t.table_name,
+  try {
+    // Set group_concat_max_len
+    await db.query("SET SESSION group_concat_max_len = 1000000");
 
-      t.Amount AS netAmount,
-      t.GrossAmt AS grossAmount,
+    // Step 1: Get payment types for dynamic columns
+    const [paymentTypes] = await db.query(`
+      SELECT DISTINCT PaymentType
+      FROM TrnSettlement
+      WHERE isSettled = 1
+        AND PaymentType IS NOT NULL
+        AND PaymentType != ''
+    `);
 
-      -- Discount
-      IFNULL(t.Discount, 0) AS Discount,
+    // Step 2: Generate dynamic payment columns
+    let paymentColumns = '';
+    paymentTypes.forEach((p, index) => {
+      if (index > 0) paymentColumns += ',\n    ';
+      paymentColumns += `SUM(CASE WHEN s.PaymentType = '${p.PaymentType}' THEN IFNULL(s.Amount,0) ELSE 0 END) AS \`${p.PaymentType}\``;
+    });
 
-      -- GST
-      IFNULL(t.CGST, 0) AS CGST,
-      IFNULL(t.SGST, 0) AS SGST,
+    // Step 3: Add settlement_breakdown column for split payments
+    const settlementBreakdownCol = `
+    GROUP_CONCAT(
+      DISTINCT CONCAT(s.PaymentType, ':', CAST(IFNULL(s.Amount,0) AS CHAR)) 
+      SEPARATOR ','
+    ) AS settlement_breakdown,
+    GROUP_CONCAT(DISTINCT s.PaymentType SEPARATOR ', ') AS paymentMode`;
 
-      t.RoundOFF,
-      t.TxnDatetime,
+    // Step 4: Final query (exactly like your SQL but with placeholders)
+    const query = `
+      SELECT 
+        t.TxnID,
+        t.TxnNo,
+        t.table_name,
+        t.Amount AS netAmount,
+        t.GrossAmt AS grossAmount,
+        IFNULL(t.Discount,0) AS Discount,
+        IFNULL(t.CGST,0) AS CGST,
+        IFNULL(t.SGST,0) AS SGST,
+        t.RoundOFF,
+        t.TxnDatetime,
+        
+        ${paymentColumns},
+        
+        ${settlementBreakdownCol},
+        
+        SUM(IFNULL(s.tipAmount,0)) AS tipAmount,
+        SUM(IFNULL(s.Amount,0)) AS totalSettlement
 
-      -- Payment Modes
-      GROUP_CONCAT(DISTINCT s.PaymentType SEPARATOR ', ') AS paymentMode,
+      FROM TAxnTrnbill t
 
-      -- Total Tip
-      SUM(IFNULL(s.tipAmount, 0)) AS tipAmount
+      LEFT JOIN TrnSettlement s
+        ON s.TxnNo = t.TxnNo
+        AND s.isSettled = 1
 
-    FROM TAxnTrnbill t
+      WHERE t.isDayEnd = 1
+        AND t.DayEndEmpID = ?
+        AND t.isNCKOT = 0
+        AND t.isreversebill = 0
+        AND DATE(t.TxnDatetime) = ?
+        AND t.isCancelled = 0
 
-    LEFT JOIN TrnSettlement s 
-      ON s.OrderNo = t.TxnNo 
-      AND s.isSettled = 1
+      GROUP BY t.TxnID, t.TxnNo, t.table_name, t.Amount, t.GrossAmt, 
+               t.Discount, t.CGST, t.SGST, t.RoundOFF, t.TxnDatetime
 
-    WHERE t.isDayEnd = 1
-      AND t.DayEndEmpID = ?
-      AND t.isNCKOT = 0
-      AND t.isreversebill = 0
-      AND t.TxnDatetime = ?
-      AND t.isCancelled = 0
-
-    GROUP BY t.TxnID
-
-    ORDER BY t.TxnNo ASC
+      ORDER BY t.TxnNo ASC
     `;
 
-  const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
+    const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
 
-  console.log(`✅ getBillDetailsData found ${rows.length} records`);
+    console.log(`✅ getBillDetailsData found ${rows.length} records`);
+    
+    // Debug: Show split bills
+    rows.forEach(row => {
+      if (row.settlement_breakdown && row.settlement_breakdown.includes(',')) {
+        console.log(`Split bill ${row.TxnNo}: ${row.settlement_breakdown}`);
+      }
+    });
 
-  return rows;
+    return rows;
+
+  } catch (error) {
+    console.error('Error in getBillDetailsData:', error);
+    throw error;
+  }
 };
 
 const getPaymentSummaryData = async (businessDate, dayEndEmpID) => {
@@ -1240,9 +1277,11 @@ const generateBillDetailsText = (data) => {
       .toFixed(0)
       .padStart(5);
 
-    const mode = (bill.paymentMode || 'Cash')
-      .substring(0, 6)
-      .padEnd(6);
+   // Payment mode only first 2 letters
+const mode = (bill.paymentMode || 'Cash')
+  .substring(0, 2)
+  .toUpperCase()
+  .padEnd(2);
 
     text += `${billNo} ${table} ${disc} ${gross} ${gst} ${tip} ${net} ${mode}\n`;
 
@@ -1727,6 +1766,7 @@ const getBackDayendData = async (req, res) => {
         t.TxnDatetime,
         t.Steward AS Captain,
         t.UserId,
+        t.BilledDate,
         u.username AS UserName,
         
         -- WATER AMOUNT
@@ -1852,7 +1892,8 @@ const getBackDayendData = async (req, res) => {
       AND DATE(t.TxnDatetime) = ? 
       
       GROUP BY t.TxnID, t.TxnNo
-    ORDER BY CAST(REPLACE(t.TxnNo, 'BILL-', '') AS UNSIGNED) ASC, t.TxnDatetime ASC
+    ORDER BY
+        t.TxnNo asc
   `;
     
     console.log("Executing query with date:", targetDate);
@@ -1864,15 +1905,14 @@ const getBackDayendData = async (req, res) => {
     if (rows.length === 0) {
       // Debug: Check what dates are available
       const [availableDates] = await db.query(`
-        SELECT 
-          DISTINCT DATE(TxnDatetime) as date,
-          COUNT(*) as count
-        FROM TAxnTrnbill 
-        WHERE (isDayEnd = 0 OR isDayEnd IS NULL)
-        GROUP BY DATE(TxnDatetime)
-        ORDER BY date DESC
-        LIMIT 10
-      `);
+      SELECT 
+    DATE(TxnDatetime) AS date,
+    TxnNo
+FROM TAxnTrnbill
+WHERE (isDayEnd = 0 OR isDayEnd IS NULL)
+ORDER BY TxnNo ASC
+LIMIT 10;
+    `);
       
       console.log("Available dates with data:", availableDates);
     }
@@ -1936,6 +1976,7 @@ const getBackDayendData = async (req, res) => {
         ncKot: row.NCKOT || '',
         ncPurpose: row.NCPurpose || '',
         ncName: row.NCName || '',
+         billedDate: row.BilledDate,
         // Also add individual payment amounts as properties for frontend compatibility
         ...payments
       };

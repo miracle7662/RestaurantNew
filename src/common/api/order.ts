@@ -77,8 +77,9 @@ export interface BillHeader {
   TxnNo: string
   TableID: number
   Steward?: string
-    departmentid?: number; // ✅ ADD THIS
+  departmentid?: number; // ✅ ADD THIS
   DeptID?: number | null
+  department_name?: string
 
 
   PAX?: number
@@ -111,6 +112,7 @@ export interface BillHeader {
   hotel_name?: string
   outlet_name?: string
   orderNo?: string
+  isBilled?: number
 }
 
 /** Create bill payload */
@@ -292,6 +294,14 @@ export interface BillDetailsResponse {
   details: BillItem[]
   reversedItems: BillItem[]
   header: BillHeader
+  /** reversal logs with per-item reason */
+  reversalLogs?: Array<{
+    TxnDetailID: number
+    ReversedQty?: number
+    RevKOTNo?: number
+    ReversalReason?: string
+    ReversalDate?: string
+  }>
 }
 
 /** Unbilled items response */

@@ -121,6 +121,7 @@ interface ReverseModalItem {
   cancelQty: number;
   rate: number;
   revKotNo: number;
+  reason?: string;
 }
 
 interface FormData {
@@ -150,7 +151,9 @@ const ModernBill = () => {
   const tableName = location.state?.tableName;
   const outletIdFromState = location.state?.outletId;
   const departmentIdFromState = location.state?.departmentId;
+  const departmentNameFromState = location.state?.departmentName;
   const [selectedDeptId, setSelectedDeptId] = useState<number | null>(departmentIdFromState || null);
+  const [departmentName, setDepartmentName] = useState<string>(departmentNameFromState || '');
   const isTakeaway = location.state?.mode === 'TAKEAWAY' || location.state?.orderType === 'TAKEAWAY';
   const takeawayOrderId = location.state?.orderId;
   const { user } = useAuthContext();
@@ -178,6 +181,7 @@ const ModernBill = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txnId, setTxnId] = useState<number | null>(null);
+  const [isTransactionBilled, setIsTransactionBilled] = useState(false);
 const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   const [waiterUsers, setWaiterUsers] = useState<any[]>([]);
   const [discount, setDiscount] = useState(0);
@@ -196,6 +200,8 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
   const [isTableOccupied, setIsTableOccupied] = useState(false);
   const [billData, setBillData] = useState<any>(null);
+  const [reversalReasonMap, setReversalReasonMap] = useState<Map<number, string>>(new Map());
+
 
   // NEW: Filtered menu for current department only
   const [deptFilteredMenuItems, setDeptFilteredMenuItems] = useState<MenuItem[]>([]);
@@ -781,12 +787,24 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
             isFetched: false
           });
 
-          setBillItems(mappedItems);
-          setTxnId((header as any).TxnID || (header as any).txnId || null);
-          setOrderNo(header.TxnNo);
-          setWaiter(header.Steward || header.waiter || '');
-          setPax(header.pax || header.PAX || 1);
-          setTableNo(header.table_name || tableName);
+      setBillItems(mappedItems);
+
+      // Build reversal reason map (billed bill path)
+      const reasonMap = new Map<number, string>();
+      const apiReversalLogs = billedBillData?.reversalLogs || [];
+      if (Array.isArray(apiReversalLogs)) {
+        apiReversalLogs.forEach((log: any) => {
+          if (log?.TxnDetailID != null) reasonMap.set(Number(log.TxnDetailID), log.ReversalReason || '');
+        });
+      }
+      setReversalReasonMap(reasonMap);
+
+      setTxnId((header as any).TxnID || (header as any).txnId || null);
+      setOrderNo(header.TxnNo);
+      setWaiter(header.Steward || header.waiter || '');
+      setPax(header.pax || header.PAX || 1);
+      setTableNo(header.table_name || tableName);
+
           if (header.RevKOTNo) {
             setRevKotNo(Number(header.RevKOTNo));
           }
@@ -810,6 +828,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
           }
           if (header.DeptID && !selectedDeptId) {
             setSelectedDeptId(header.DeptID);
+            if (header.department_name) setDepartmentName(header.department_name);
           }
 
           // restore discount
@@ -849,6 +868,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
           calculateTotals(mappedItems);
           setOriginalTableStatus(2); // Set to billed status for order_tag logic
+          setIsTransactionBilled(true);
           setLoading(false);
           return;
 
@@ -946,6 +966,18 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
       setBillItems(mappedItems);
 
+      // Build reversal reason map (takeaway bill path)
+      const reasonMap = new Map<number, string>();
+      if (Array.isArray(data.reversalLogs)) {
+        data.reversalLogs.forEach((log: any) => {
+          if (log?.TxnDetailID != null) reasonMap.set(Number(log.TxnDetailID), log.ReversalReason || '');
+        });
+      }
+      setReversalReasonMap(reasonMap);
+
+      setBillData(data);   // ✅ LINE 1: Store full bill data for print
+
+
       if (data.reversedItems) {
         setReversedItems(
           (data.reversedItems || []).map((item: any) => ({
@@ -1014,6 +1046,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         setIgst?.(data.header.IGST || data.header.IGST || 0);
         setCess?.(data.header.CESS || data.header.CESS || 0);
         setRoundOff?.(data.header.RoundOFF || data.header.RoundOFF || 0);
+        setIsTransactionBilled(data.header.isBilled === 1 || data.header.isBilled === 1);
       }
 
       // Compute max RevKOTNo from details for unbilled orders
@@ -1110,6 +1143,27 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
       setBillItems(mappedItems);
 
+      // Build reversal reason map (unbilled bill path)
+      const reasonMap = new Map<number, string>();
+      const reversalLogs = (data as any)?.reversalLogs;
+      if (reversalLogs && Array.isArray(reversalLogs)) {
+        reversalLogs.forEach((log: any) => {
+          if (log?.TxnDetailID != null) {
+            reasonMap.set(Number(log.TxnDetailID), log.ReversalReason || '');
+          }
+        });
+      } else if (Array.isArray(data.reversedItems)) {
+        // Fallback: build from reversedItems if they carry a reason field
+        data.reversedItems.forEach((item: any) => {
+          const txnDetailId = item?.TxnDetailID ?? item?.txnDetailId ?? item?.TXnDetailID;
+          const reasonValue = item?.reason ?? item?.ReversalReason ?? item?.Reversal_Reason;
+          if (txnDetailId != null) {
+            reasonMap.set(Number(txnDetailId), reasonValue || '');
+          }
+        });
+      }
+      setReversalReasonMap(reasonMap);
+
       if (data.reversedItems) {
         setReversedItems(
           (data.reversedItems || []).map((item: any) => ({
@@ -1142,6 +1196,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         if (data.header.customerid) setCustomerId(data.header.customerid);
         if (data.header.DeptID && !selectedDeptId) {
           setSelectedDeptId(data.header.DeptID);
+          if (data.header.department_name) setDepartmentName(data.header.department_name);
         }
 
         // Discount handling
@@ -1167,6 +1222,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         setIgst?.(data.header.IGST || data.header.IGST || 0);
         setCess?.(data.header.CESS || data.header.CESS || 0);
         setRoundOff?.(data.header.RoundOFF || data.header.RoundOFF || 0);
+        setIsTransactionBilled(false);
         setFinalAmount(data.header.Amount || data.header.Amount || data.header.grandTotal || 0);
       }
 
@@ -2204,106 +2260,102 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       setNcPurpose('');
     }
   };
-  const handleReverseKotSave = async (
-    reverseItemsFromModal: ReverseModalItem[]
-  ) => {
-    if (!txnId) {
-      toast.error('Transaction not found');
-      return;
-    }
+  const handleReverseKotSave = async (reverseItemsFromModal: ReverseModalItem[]) => {
+  if (!txnId) {
+    toast.error('Transaction not found');
+    return;
+  }
 
-    if (!reverseItemsFromModal.length) {
-      toast.error('No items selected for reverse');
-      return;
-    }
+  if (!reverseItemsFromModal.length) {
+    toast.error('No items selected for reverse');
+    return;
+  }
 
   console.log('Modal sending:', reverseItemsFromModal);
 
-    try {
-      const result = await OrderService.createReverseKOT({
-        txnId,
-        tableId,
-        kotType: 'REVERSE',
-        isReverseKot: 1,
+  try {
+    const result = await OrderService.createReverseKOT({
+      txnId,
+      tableId,
+      kotType: 'REVERSE',
+      isReverseKot: 1,
+      reversedItems: reverseItemsFromModal.map(item => ({
+        TXnDetailID: item.TXnDetailID,
+        txnDetailId: item.TXnDetailID,
+        item_no: item.item_no,
+        name: item.itemName,
+        qty: item.cancelQty,
+        price: item.rate,
+        reason: item.reason || '',
+      })),
+      userId: user?.id,
+      reversalReason: 'Reverse from Billview',
+      curr_date: user?.currDate,
+    });
 
-        reversedItems: reverseItemsFromModal.map(item => ({
-          TXnDetailID: item.TXnDetailID,
-          txnDetailId: item.TXnDetailID,
-          item_no: item.item_no,
-          name: item.itemName,
-          qty: item.cancelQty,
-          price: item.rate,
-        })),
-        userId: user?.id,
-        reversalReason: 'Reverse from Billview',
-        curr_date: user?.currDate,
-      });
-      console.log('Reverse KOT API response:', result);
+    console.log('Reverse KOT API response:', result);
 
-      // Since HttpClient returns response.data directly
-      if (!result?.success) {
-        toast.error('Reverse failed');
-        return;
-      }
+    if (!result?.success) {
+      toast.error('Reverse failed');
+      return;
+    }
 
-      // Get the revKotNo from result.data.revKotNo (backend now returns it in this format)
-      const reverseKotNo = result?.data?.revkotNo;
+    // ✅ DEBUG: Log the full data to see what backend returns
+    console.log('Backend data:', result.data);
 
-      toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);
+    // ✅ Extract reverse KOT number - try common field names
+   const reverseKotNo =
+  (result.data as any)?.revKotNo ??      // ✅ exactly as returned
+  (result.data as any)?.RevKOTNo ??
+  (result.data as any)?.revKOTNo ??
+  (result.data as any)?.revkotNo ??
+  (result.data as any)?.KOTNo ??
+  null;
 
-      // 🔥 ✅ NEW: Orders.tsx-style full reversal check + table status logic
-      if (tableId && billItems.length > 0) {
-        const tableToUpdate = tableItems.find(t => t.table_name === tableNo);
-        if (tableToUpdate) {
-          // Precise full reversal check (post-backend, items should reflect remaining qty)
-          const totalRemainingQty = billItems.reduce((sum, item) => sum + (item.qty || 0), 0);
-          const allReversed = totalRemainingQty <= 0;
+    console.log('Reverse KOT Number extracted:', reverseKotNo);
+    toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);
 
-          const newStatus = allReversed ? 0 : 1;
+    // ✅ Table status update logic (unchanged)
+    if (tableId && billItems.length > 0) {
+      const tableToUpdate = tableItems.find(t => t.table_name === tableNo);
+      if (tableToUpdate) {
+        const totalRemainingQty = billItems.reduce((sum, item) => sum + (item.qty || 0), 0);
+        const allReversed = totalRemainingQty <= 0;
+        const newStatus = allReversed ? 0 : 1;
 
-          // console.log('🔧 F8 Reversal DEBUG (Billview):', {
-          //   totalRemainingQty,
-          //   allReversed,
-          //   newStatus,
-          //   tableId: tableToUpdate.tablemanagementid || tableId,
-          //   itemCount: billItems.length
-          // });
+        await OrderService.updateTableStatus(tableToUpdate.tablemanagementid || tableId, { status: newStatus });
 
-          await OrderService.updateTableStatus(tableToUpdate.tablemanagementid || tableId, { status: newStatus });
-
-          if (allReversed) {
-            toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
-          } else {
-            toast.success('Partial KOTs reversed! Table remains occupied (status=1)');
-          }
-
-          // Force refresh table management UI
-          await fetchTableManagement();
+        if (allReversed) {
+          toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
+        } else {
+          toast.success('Partial KOTs reversed! Table remains occupied (status=1)');
         }
+        await fetchTableManagement();
       }
+    }
 
-      // 🔥 PRINT PREVIEW (like Orders.tsx)
-      setReverseSnapshot(reverseItemsFromModal.map(item => ({
+    // ✅ Set snapshot with the actual reverse KOT number (overwrites modal's 0)
+    setReverseSnapshot(
+      reverseItemsFromModal.map(item => ({
         ...item,
         name: item.itemName || "",
         price: item.rate,
-        revKotNo: item.revKotNo,  // ✅ IMPORTANT
+        revKotNo: reverseKotNo,   // 🔥 backend-generated number
         isReverse: true,
         revQty: item.cancelQty
-      })));
-      setShowReverseKotPrintModal(true);
-      setReversePrintTrigger(prev => prev + 1);
+      }))
+    );
 
-      await loadBillDetails();
-      await fetchTableManagement();
+    setShowReverseKotPrintModal(true);
+    setReversePrintTrigger(prev => prev + 1);
 
-      // 🔥 Navigate moved to ReverseKotPrint onHide
+    await loadBillDetails();
+    await fetchTableManagement();
 
-    } catch (err: any) {
-      // console.error(err);
-      toast.error(err?.message || 'Reverse failed');
-    }
-  };
+  } catch (err: any) {
+    toast.error(err?.message || 'Reverse failed');
+  }
+};
 
   const printKOT = async (kotNo: number) => {
     try {
@@ -2358,6 +2410,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
     }
 
     // 2️⃣ Save Bill No in state
+    setIsTransactionBilled(true);
     setOrderNo(txnNo);
 
     // ✅ 3️⃣ OPEN BILL PRINT MODAL
@@ -2410,6 +2463,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
     }
 
     // 2️⃣ Set TxnNo and open BillPreviewPrint modal (like Orders.tsx)
+    setIsTransactionBilled(true);
     setOrderNo(txnNo);
     setPrintThenSettleFlow(true);
     setShowBillPrintModal(true);
@@ -2437,6 +2491,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
     setCustomerNo('');
     setCustomerName('');
     calculateTotals([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '' }]);
+    setIsTransactionBilled(false);
   };
 
   const fetchTableManagement = async () => {
@@ -2734,10 +2789,10 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   // 🔘 BUTTON ENABLE FLAGS
   const disableAll = !hasItems;
 
-  const disableSettle = disableAll || hasNewItems || (isTakeaway ? !isBillPrintedState : (!isBillPrintedState && !isTakeaway));
+  const disableSettle = disableAll || hasNewItems || !isTransactionBilled;
   const disablePrintSettle = !hasOnlyExistingItems || hasNewItems;
 
-  const disableSettlement = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway) || isTableOccupied;
+  const disableSettlement = disableAll || hasNewItems || !isTransactionBilled || isTableOccupied;
 
   const isPrintDisabled = !hasOnlyExistingItems;
 
@@ -2779,11 +2834,41 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
             setShowDiscountModal(true);
             return;
 
+          case 'F4': // Focus Special Instructions input (SpecialInst)
+            event.preventDefault();
+            {
+              const specialColIndex = 4; // SpecialInst column index in inputRefs
+              const activeEl = document.activeElement;
+
+              let activeRowIndex: number | null = null;
+              for (let r = 0; r < inputRefs.current.length; r++) {
+                const rowRefs = inputRefs.current[r] || [];
+                if (rowRefs.includes(activeEl as any)) {
+                  activeRowIndex = r;
+                  break;
+                }
+              }
+
+              const fallbackRowIndex = isGrouped
+                ? (displayedItems.length ? displayedItems.length - 1 : 0)
+                : (billItems.length ? billItems.length - 1 : 0);
+
+              const targetRow = activeRowIndex ?? fallbackRowIndex;
+              const targetInput = inputRefs.current[targetRow]?.[specialColIndex];
+
+              if (targetInput) {
+                targetInput.focus();
+                targetInput.select();
+              }
+            }
+            return;
+
           case 'F5': // 🔒 Reverse Bill (only if isBilled = 1)
             event.preventDefault();
             if (disableReverseBill) return;
             setShowReverseBillModal(true);
             return;
+
 
           case 'F6':
             event.preventDefault();
@@ -3797,6 +3882,10 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
                             <td>
                               <Form.Control
+                                ref={(el) => {
+                                  if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                                  inputRefs.current[index][4] = el;
+                                }}
                                 type="text"
                                 value={item.SpecialInst}
                                 disabled={!item.isEditable}
@@ -4108,7 +4197,12 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       <ReverseKotModal
         show={showReverseKot}
         revKotNo={revKotNo}
-        kotItems={billItems}
+        kotItems={billItems.map((item: any) => ({
+          ...item,
+          existingReason: reversalReasonMap.get(item.txnDetailId ?? item.TxnDetailId ?? item.TXnDetailID) || '',
+          // also cover common keys used in this screen
+          existingReason2: reversalReasonMap.get(item.TXnDetailID) || '',
+        }))}
         tableNo={tableNo}
         waiter={waiter}
         pax={pax}
@@ -4145,7 +4239,8 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
             item_no: item.item_no || 0,
             kotNo: currentKotNoForPrint || undefined,
             txnDetailId: item.txnDetailId,
-            isNew: true
+            isNew: true,
+            specialInst: item.SpecialInst   // ✅ Add this
           }))
         }
 
@@ -4162,12 +4257,17 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
           txnDetailId: item.txnDetailId,
           revQty: item.reversedQty || 0,
           kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined,
-          isNew: !item.mkotNo
+          isNew: !item.mkotNo,
+          specialInst: item.SpecialInst   // ✅ Add this
         } as any))}
 
         currentKOTNo={currentKotNoForPrint}
-        selectedTable={activeTab === 'Dine-in' ? tableNo : activeTab}
-        activeTab={activeTab}
+         // ✅ FORCE activeTab for takeaway orders
+  activeTab={isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : activeTab}
+  
+  // ✅ FORCE selectedTable for takeaway
+  selectedTable={isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : (activeTab === 'Dine-in' ? tableNo : activeTab)}
+    orderNo={orderNo}
         customerName={customerName}
         mobileNumber={customerNo}
         user={user}
@@ -4189,6 +4289,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         pax={pax}
         restaurantName={restaurantName}
         outletName={outletName}
+        departmentName={departmentName}
       />
 
      <BillPreviewPrint
@@ -4217,8 +4318,10 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   currentKOTNos={currentKOTNos}
   selectedWaiter={waiter}
   orderNo={orderNo ?? undefined}
+   
   selectedTable={tableNo}
-  activeTab={isTakeaway ? "Takeaway" : "Dine-in"}
+    activeTab={activeTab}  // ✅ FIXED: Direct activeTab bhejo
+     
   customerName={customerName}
   mobileNumber={customerNo ?? undefined}
   currentTxnId={txnId?.toString()}
@@ -4242,6 +4345,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   selectedOutletId={selectedOutletId}
   restaurantName={restaurantName}
   outletName={outletName}
+  departmentName={departmentName}
   
   // ✅ AFTER SUCCESS PRINT
   onPrint={async () => {
