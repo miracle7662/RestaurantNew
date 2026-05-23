@@ -415,33 +415,31 @@ const EditSettlementPage: React.FC = () => {
       billNo: group.OrderNo,
       outletId: selectedOutletId || Number(currentUser?.outletid) || 1
     });
+    console.log("Duplicate Bill API", response.data);
 
     if (response.success && response.data) {
       const billData = response.data;
-      const rawTaxCalc = billData.taxCalc;
 
       // Convert taxCalc fields to numbers
-      const numericTaxCalc = {
-        taxableValue: Number(rawTaxCalc.taxableValue) || 0,
-        TaxableValue: Number(rawTaxCalc.taxableValue) || 0,
-        subtotal: Number(rawTaxCalc.subtotal) || 0,
-        cgstAmt: Number(rawTaxCalc.cgstAmt) || 0,
-        sgstAmt: Number(rawTaxCalc.sgstAmt) || 0,
-        igstAmt: Number(rawTaxCalc.igstAmt) || 0,
-        grandTotal: Number(rawTaxCalc.grandTotal) || 0,
-      };
+  const rawTaxCalc = billData.taxCalc;
 
-      // ✅ Compute tax rates from stored amounts and taxable value
-      const taxable = numericTaxCalc.taxableValue;
-      const cgstAmt = numericTaxCalc.cgstAmt;
-      const sgstAmt = numericTaxCalc.sgstAmt;
-      const igstAmt = numericTaxCalc.igstAmt;
+// ✅ Convert taxCalc fields to numbers
+const numericTaxCalc = {
+  taxableValue: Number(rawTaxCalc.taxableValue) || 0,
+  TaxableValue: Number(rawTaxCalc.taxableValue) || 0,
+  subtotal: Number(rawTaxCalc.subtotal) || 0,
+  cgstAmt: Number(rawTaxCalc.cgstAmt) || 0,
+  sgstAmt: Number(rawTaxCalc.sgstAmt) || 0,
+  igstAmt: Number(rawTaxCalc.igstAmt) || 0,
+  grandTotal: Number(rawTaxCalc.grandTotal) || 0,
+};
 
-      const computedTaxRates = {
-        cgst: taxable > 0 ? (cgstAmt / taxable) * 100 : 0,
-        sgst: taxable > 0 ? (sgstAmt / taxable) * 100 : 0,
-        igst: taxable > 0 ? (igstAmt / taxable) * 100 : 0,
-      };
+// ✅ Use backend rounded tax rates directly
+const computedTaxRates = {
+  cgst: Number(billData?.taxRates?.cgst || 0),
+  sgst: Number(billData?.taxRates?.sgst || 0),
+  igst: Number(billData?.taxRates?.igst || 0),
+};
 
       // ✅ Directly use billData for outlet/hotel details (no extra fetch)
       const billDataForPrintObj = {

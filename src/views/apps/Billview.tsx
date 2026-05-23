@@ -4293,13 +4293,13 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       />
 
      <BillPreviewPrint
-  show={showBillPrintModal}
-  autoPrint={true}  // 👈 Direct print (no modal)
-  onHide={() => setShowBillPrintModal(false)}
-  billData={billData}  // ✅ ADD THIS LINE - Pass bill data to component
-  formData={formData}
-  user={user}
-  items={billItems.filter(i => i.itemId > 0).map((item) => ({
+    show={showBillPrintModal}
+    autoPrint={true}  // 👈 Direct print (no modal)
+    onHide={() => setShowBillPrintModal(false)}
+    billData={billData}  // ✅ ADD THIS LINE - Pass bill data to component
+    formData={formData}
+    user={user}
+    items={billItems.filter(i => i.itemId > 0).map((item) => ({
     id: item.itemId,
     name: item.itemName,
     price: item.rate,

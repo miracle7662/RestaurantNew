@@ -268,15 +268,26 @@ const getReportData = async (req, res) => {
 const getDuplicateBill = async (req, res) => {
   try {
     const { billNo, outletId } = req.query;
+
     console.log('=== DUPLICATE BILL DEBUG START ===');
     console.log('billNo:', billNo, 'outletId:', outletId);
 
     if (!billNo || !outletId) {
-      return res.status(400).json({ success: false, message: 'billNo and outletId required' });
+      return res.status(400).json({
+        success: false,
+        message: 'billNo and outletId required'
+      });
     }
 
-    let whereClause = `t.outletid = ? AND t.isCancelled = 0 AND t.isBilled = 1 AND (t.TxnNo = ? OR t.orderNo = ?)`;
+    let whereClause = `
+      t.outletid = ?
+      AND t.isCancelled = 0
+      AND t.isBilled = 1
+      AND (t.TxnNo = ? OR t.orderNo = ?)
+    `;
+
     const params = [outletId, billNo, billNo];
+
     if (req.query.billDate) {
       whereClause += ` AND DATE(t.TxnDatetime) = ?`;
       params.push(req.query.billDate);
@@ -284,156 +295,178 @@ const getDuplicateBill = async (req, res) => {
 
     // ✅ BILL HEADER QUERY
     const billQuery = `
-      SELECT 
-        t.TxnID, t.TxnNo, t.orderNo, t.TableID,
-        t.CustomerName, t.MobileNo AS mobileNumber,
-        t.Discount, t.DiscPer,
+      SELECT
+        t.TxnID,
+        t.TxnNo,
+        t.orderNo,
+        t.TableID,
+
+        t.CustomerName,
+        t.MobileNo AS mobileNumber,
+
+        t.Discount,
+        t.DiscPer,
+
         t.RoundOFF AS roundOffValue,
         t.isSetteled,
-        t.CGST, t.SGST, t.IGST,
-        t.GrossAmt, t.Amount,
-        t.TxnDatetime, t.BilledDate,
-        t.Steward AS selectedWaiter,
+
+        t.CGST,
+        t.SGST,
+        t.IGST,
+
+        t.GrossAmt,
+        t.Amount,
         t.TaxableValue,
+
+        t.TxnDatetime,
+        t.BilledDate,
+
+        t.Steward AS selectedWaiter,
+
         mt.table_name AS selectedTable,
+
         h.hotel_name AS restaurantName,
+        h.address,
+        h.trn_gstno,
+        h.fssai_no,
+        h.phone,
+
         mo.outlet_name,
+
         u.username
+
       FROM TAxnTrnbill t
-      LEFT JOIN msttablemanagement mt ON t.TableID = mt.tableid
-      LEFT JOIN mst_outlets mo ON t.outletid = mo.outletid
-      LEFT JOIN msthotelmasters h ON mo.hotelid = h.hotelid
-      LEFT JOIN mst_users u ON t.UserId = u.userid
+
+      LEFT JOIN msttablemanagement mt
+        ON t.TableID = mt.tableid
+
+      LEFT JOIN mst_outlets mo
+        ON t.outletid = mo.outletid
+
+      LEFT JOIN msthotelmasters h
+        ON mo.hotelid = h.hotelid
+
+      LEFT JOIN mst_users u
+        ON t.UserId = u.userid
+
       WHERE ${whereClause}
-      ORDER BY t.TxnID DESC LIMIT 1
+
+      ORDER BY t.TxnID DESC
+      LIMIT 1
     `;
 
     console.log('Executing bill query');
+
     const [billRows] = await db.execute(billQuery, params);
+
     const bill = billRows?.[0];
 
     if (!bill) {
-      console.log('❌ Bill not found');
-      return res.status(404).json({ success: false, message: 'Bill not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Bill not found'
+      });
     }
 
-    console.log('✅ Bill found:', {
-      TxnID: bill.TxnID,
-      TxnNo: bill.TxnNo,
-      Amount: bill.Amount,
-      TaxableValue: bill.TaxableValue,
-      CGST: bill.CGST,
-      SGST: bill.SGST,
-      GrossAmt: bill.GrossAmt,
-      Discount: bill.Discount
-    });
+    // ✅ Convert numeric values
+    const taxableValueFromDB = parseFloat(bill.TaxableValue) || 0;
+    const cgstAmt = parseFloat(bill.CGST) || 0;
+    const sgstAmt = parseFloat(bill.SGST) || 0;
+    const igstAmt = parseFloat(bill.IGST) || 0;
+    const grandTotal = parseFloat(bill.Amount) || 0;
+    const discount = parseFloat(bill.Discount) || 0;
+    const grossAmt = parseFloat(bill.GrossAmt) || 0;
 
-    // ✅ Convert to numbers
-    const taxableValueFromDB = parseFloat(bill.TaxableValue);
-    const cgstAmt = parseFloat(bill.CGST);
-    const sgstAmt = parseFloat(bill.SGST);
-    const igstAmt = parseFloat(bill.IGST);
-    const grandTotal = parseFloat(bill.Amount);
-    const discount = parseFloat(bill.Discount);
-    const grossAmt = parseFloat(bill.GrossAmt);
     const subtotal = grossAmt - discount;
 
-    console.log('Parsed numbers:', {
-      taxableValueFromDB,
-      cgstAmt,
-      sgstAmt,
-      igstAmt,
-      grandTotal,
-      discount,
-      grossAmt,
-      subtotal
-    });
-
-    // ✅ Use stored taxable value directly
-    const taxableValue = taxableValueFromDB > 0 ? taxableValueFromDB : subtotal;
-
-    console.log('Final taxableValue used:', taxableValue);
+    const taxableValue =
+      taxableValueFromDB > 0
+        ? taxableValueFromDB
+        : subtotal;
 
     // ✅ Compute tax rates
-    let cgstRate = 0, sgstRate = 0, igstRate = 0;
+    let cgstRate = 0;
+    let sgstRate = 0;
+    let igstRate = 0;
+
     if (taxableValue > 0) {
       cgstRate = (cgstAmt / taxableValue) * 100;
       sgstRate = (sgstAmt / taxableValue) * 100;
       igstRate = (igstAmt / taxableValue) * 100;
-      console.log(`Computed rates: CGST=${cgstRate}%, SGST=${sgstRate}%, IGST=${igstRate}%`);
     }
 
-    // ✅ ITEMS QUERY (FULL)
+    // ✅ ITEMS QUERY
     const itemsQuery = `
-    SELECT
-    d.ItemID AS id,
-    m.item_name AS name,
-    d.Qty AS qty,
-    d.RuntimeRate AS price,
-    d.KOTNo AS kotNo,
-    d.isNCKOT,
-    t.NCName,
-    t.NCPurpose,
-    d.SpecialInst AS note,
-    d.VariantName AS modifier,
+      SELECT
+        d.ItemID AS id,
+        m.item_name AS name,
+        d.Qty AS qty,
+        d.RuntimeRate AS price,
+        d.KOTNo AS kotNo,
 
-    h.hotel_name,
-    h.address,
-    h.trn_gstno,
-    h.fssai_no,
-    h.phone,
+        d.isNCKOT,
 
-    o.outlet_name
+        t.NCName,
+        t.NCPurpose,
 
-FROM TAxnTrnbilldetails d
+        d.SpecialInst AS note,
+        d.VariantName AS modifier
 
-LEFT JOIN mstrestmenu m
-    ON d.ItemID = m.restitemid
+      FROM TAxnTrnbilldetails d
 
-LEFT JOIN TAxnTrnbill t
-    ON d.TxnID = t.TxnID
+      LEFT JOIN mstrestmenu m
+        ON d.ItemID = m.restitemid
 
-LEFT JOIN msthotelmasters h
-    ON t.hotelid = h.hotelid
+      LEFT JOIN TAxnTrnbill t
+        ON d.TxnID = t.TxnID
 
-LEFT JOIN mst_outlets o
-    ON t.outletid = o.outletid
+      WHERE d.TxnID = ?
+      AND d.Qty > 0
 
-WHERE d.TxnID = ?
-AND d.Qty > 0
-
-ORDER BY d.TXnDetailID;
+      ORDER BY d.TXnDetailID
     `;
 
     console.log('Executing items query for TxnID:', bill.TxnID);
-    const [items] = await db.execute(itemsQuery, [bill.TxnID]);
-    console.log(`Fetched ${items.length} items`);
 
-    // ✅ PAYMENT QUERY (FULL)
+    const [items] = await db.execute(itemsQuery, [bill.TxnID]);
+
+    // ✅ PAYMENT QUERY
     const paymentQuery = `
       SELECT PaymentType
       FROM TrnSettlement
-      WHERE (OrderNo = ? OR TxnNo = ?) AND isSettled = 1
+      WHERE (OrderNo = ? OR TxnNo = ?)
+      AND isSettled = 1
     `;
 
-    console.log('Executing payment query for TxnNo:', bill.TxnNo);
-    const [payments] = await db.execute(paymentQuery, [bill.TxnNo, bill.TxnNo]);
-    console.log('Payment modes:', payments.map(p => p.PaymentType));
+    const [payments] = await db.execute(paymentQuery, [
+      bill.TxnNo,
+      bill.TxnNo
+    ]);
 
     const roundOffValue = parseFloat(bill.roundOffValue) || 0;
-    const roundOffEnabled = Math.abs(roundOffValue) > 0.01;
 
-    // ✅ RESPONSE
+    const roundOffEnabled =
+      Math.abs(roundOffValue) > 0.01;
+
+    // ✅ FINAL RESPONSE
     const responseData = {
       success: true,
+
       data: {
         items,
+
         orderNo: bill.orderNo,
+
         selectedTable: bill.selectedTable,
+
         selectedWaiter: bill.selectedWaiter,
+
         customerName: bill.CustomerName,
+
         mobileNumber: bill.mobileNumber,
+
         currentTxnId: bill.TxnID.toString(),
+
         taxCalc: {
           taxableValue: Number(taxableValue.toFixed(2)),
           subtotal: Number(subtotal.toFixed(2)),
@@ -442,30 +475,74 @@ ORDER BY d.TXnDetailID;
           igstAmt: Number(igstAmt.toFixed(2)),
           grandTotal: Number(grandTotal.toFixed(2))
         },
+
         taxRates: {
           cgst: Number(cgstRate.toFixed(2)),
           sgst: Number(sgstRate.toFixed(2)),
           igst: Number(igstRate.toFixed(2))
         },
+
         discount: Number(discount.toFixed(2)),
-        reason: bill.DiscPer ? `${bill.DiscPer}%` : 'Fixed',
+
+        reason: bill.DiscPer
+          ? `${bill.DiscPer}%`
+          : 'Fixed',
+
         roundOffEnabled,
+
         roundOffValue: Number(roundOffValue.toFixed(2)),
-        selectedPaymentModes: payments.map(p => p.PaymentType),
-        restaurantName: bill.restaurantName || bill.outlet_name,
-        outletName: bill.outlet_name,
-        billDate: bill.TxnDatetime
+
+        selectedPaymentModes: payments.map(
+          p => p.PaymentType
+        ),
+
+        // ✅ Hotel Details
+        restaurantName:
+          bill.restaurantName || '',
+
+        outletName:
+          bill.outlet_name || '',
+
+        address:
+          bill.address || '',
+
+        gstNo:
+          bill.trn_gstno || '',
+
+        fssaiNo:
+          bill.fssai_no || '',
+
+        phone:
+          bill.phone || '',
+
+        billDate:
+          bill.TxnDatetime
       }
     };
 
-    console.log('📤 Sending response taxCalc:', responseData.data.taxCalc);
-    console.log('📤 Sending response taxRates:', responseData.data.taxRates);
-    console.log('=== DUPLICATE BILL DEBUG END ===');
+    console.log(
+      '📤 Sending response:',
+      responseData
+    );
+
+    console.log(
+      '=== DUPLICATE BILL DEBUG END ==='
+    );
 
     res.json(responseData);
+
   } catch (error) {
-    console.error('🔥 ERROR in getDuplicateBill:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch bill data', error: error.message });
+
+    console.error(
+      '🔥 ERROR in getDuplicateBill:',
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch bill data',
+      error: error.message
+    });
   }
 };
 module.exports = { getReportData, getDuplicateBill };
