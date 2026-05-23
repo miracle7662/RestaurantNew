@@ -2411,7 +2411,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
     // 2️⃣ Save Bill No in state
     setIsTransactionBilled(true);
-    setOrderNo(txnNo);
+    setOrderNo(orderNo);
 
     // ✅ 3️⃣ OPEN BILL PRINT MODAL
     setShowBillPrintModal(true);

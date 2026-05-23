@@ -436,7 +436,9 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
   <div style="display:flex;justify-content:space-between;gap:8px;font-weight:bold;font-size:12pt;margin-bottom:5px;">
     <div style="text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%;">
-      ${departmentName ? ` ${departmentName}` : ''}
+     ${activeTab === 'Pickup' || activeTab === 'Delivery'
+        ? ` ${(orderNo || '').toString().replace(/^DIN-/, '')}`
+        : (departmentName ? ` ${departmentName}` : '')}
     </div>
     <div style="text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;">
       ${activeTab === 'Dine-in'    && (showAll || localFormData.bill_title_dine_in)   ? 'Dine-In Bill'  : ''}
