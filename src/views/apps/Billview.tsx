@@ -4258,8 +4258,12 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         } as any))}
 
         currentKOTNo={currentKotNoForPrint}
-        selectedTable={activeTab === 'Dine-in' ? tableNo : activeTab}
-        activeTab={activeTab}
+         // ✅ FORCE activeTab for takeaway orders
+  activeTab={isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : activeTab}
+  
+  // ✅ FORCE selectedTable for takeaway
+  selectedTable={isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : (activeTab === 'Dine-in' ? tableNo : activeTab)}
+    orderNo={orderNo}
         customerName={customerName}
         mobileNumber={customerNo}
         user={user}
@@ -4308,9 +4312,10 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   } as any))}
   currentKOTNos={currentKOTNos}
   selectedWaiter={waiter}
-  orderNo={orderNo ?? undefined}
+   
   selectedTable={tableNo}
-  activeTab={isTakeaway ? "Takeaway" : "Dine-in"}
+    activeTab={activeTab}  // ✅ FIXED: Direct activeTab bhejo
+     
   customerName={customerName}
   mobileNumber={customerNo ?? undefined}
   currentTxnId={txnId?.toString()}

@@ -386,6 +386,9 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     };
     const tabKey = tabKeyMap[activeTab] || "dine_in";
 
+      const isTakeaway = activeTab === "Pickup" || activeTab === "Delivery";
+
+
     const orderTag = (() => {
       if (activeTab === "Dine-in" && selectedTable && tableStatus !== null) {
         if (tableStatus === 0 && localFormData.show_new_order_tag)
@@ -434,7 +437,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     const showRateColumn             = localFormData.show_item_price;
     const showAmountColumn           = localFormData.hide_item_Amt_column;
-    const showOrderTypeSymbol        = localFormData.show_order_type_symbol;
+    //const showOrderTypeSymbol        = localFormData.show_order_type_symbol;
     const showKotNote                = localFormData.show_kot_note;
     const showOnlineOrderOtp         = localFormData.show_online_order_otp;
     const showOrderIdQuickBill       = localFormData.show_order_id_quick_bill && activeTab === "Quick Bill";
@@ -462,8 +465,18 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     </div>
     <hr class="dashed" />` : ""}
 
-    <div style="text-align:center;margin-bottom:6px;word-wrap:break-word;">
-      <div><strong>${showOrderTypeSymbol ? "🔸 " : ""}Order Type:</strong> ${activeTab}${orderTag ? ` - ${orderTag}` : ""}</div>
+    <div style="text-align:center;margin-bottom:0px;word-wrap:break-word;">
+     ${isTakeaway && orderNo ? `
+  <div style="margin-top:1px; text-align:center;">
+    <strong style="font-size:11pt;">Order No: ${orderNo}</strong>
+  </div>` : ""}
+  <div>
+    <strong "font-size:11pt;">Order Type:</strong>
+    ${activeTab}${orderTag ? ` - ${orderTag}` : ""}
+  </div>
+
+ 
+</div>
       ${showCustomerName   ? `<div style="font-size:9pt;margin-top:3px;"><strong>Customer:</strong> ${customerName}</div>` : ""}
       ${showCustomerMobile ? `<div style="font-size:9pt;"><strong>Mobile:</strong> ${mobileNumber}</div>` : ""}
     </div>
@@ -472,19 +485,20 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     <div class="basic-details">
       <div class="table-box">${showTable ? selectedTable : activeTab}</div>
-      <div style="display:flex;justify-content:flex-end;align-items:flex-start;">
-        <div class="details-grid">
-          ${activeTab !== "Quick Bill" || showKotNoQuickBill
-            ? `<div><strong>KOT No:</strong></div><div>${displayKOTNo}</div>`
-            : ""}
-          <div><strong>Date:</strong></div>
-          <div style="font-size:8pt;white-space:nowrap;">${dateTime}</div>
-          ${showWaiter ? `
-            <div><strong>Waiter:</strong></div>
-            <div style="word-wrap:break-word;max-width:80px;">${selectedWaiter || user?.name || "N/A"}</div>` : ""}
-        </div>
-      </div>
+     <div class="details-grid">
+  ${activeTab !== "Quick Bill" || showKotNoQuickBill
+    ? `<div><strong style="font-size:11pt;">KOT No:</strong></div>
+       <div style="font-weight:bold;font-size:14pt;">${displayKOTNo}</div>`
+    : ""}
+  <div><strong>Date:</strong></div>
+  <div style="font-size:8pt;white-space:nowrap;">${dateTime}</div>
+  ${showWaiter ? `
+    <div><strong>Waiter:</strong></div>
+    <div style="word-wrap:break-word;max-width:80px;">${selectedWaiter || user?.name || "N/A"}</div>` : ""}
+</div>
     </div>
+
+   
 
     ${showUsername         ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>Username:</strong> ${user.username}</div>`            : ""}
     ${showTerminalUsername ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>Terminal:</strong> ${user.terminal_username}</div>`   : ""}
