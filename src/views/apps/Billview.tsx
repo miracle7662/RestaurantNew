@@ -4318,6 +4318,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   currentKOTNos={currentKOTNos}
   selectedWaiter={waiter}
    orderNo={orderNo ?? undefined}
+   txnNo={billData?.txnNo}
     // ✅ "0037" (Order Number from billData)
 
 

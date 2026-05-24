@@ -286,6 +286,9 @@ exports.getBillById = async (req, res) => {
         fssaiNo: bill.fssai_no,
         phone: bill.phone,
         outletName: bill.outlet_name,
+
+        txnNo: bill.TxnNo,
+        orderNo: bill.orderNo,
         
         // Bill header
         header: { 

@@ -234,7 +234,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         const cfg = JSON.parse(savedConfig)
         return `http://${cfg.serverIP || 'localhost'}:${cfg.port || 3001}/api`
       }
-    } catch {}
+    } catch { }
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL
     if (window.location.protocol === 'file:') return 'http://localhost:3001/api'
     return `${window.location.protocol}//${window.location.hostname}:3001/api`
@@ -248,7 +248,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         const cfg = JSON.parse(savedConfig)
         return `http://${cfg.serverIP || 'localhost'}:${cfg.port || 3001}`
       }
-    } catch {}
+    } catch { }
 
     const viteApiUrl = import.meta.env.VITE_API_URL as string | undefined
     if (viteApiUrl) {
@@ -356,9 +356,9 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   const generateBillContent = (isPreview = false) => {
 
     // In generateBillContent function, add this near the top:
-console.log('🖨️ BillPrint - departmentName prop:', departmentName);
-console.log('🖨️ BillPrint - activeTab:', activeTab);
-console.log('🖨️ BillPrint - selectedTable:', selectedTable);
+    console.log('🖨️ BillPrint - departmentName prop:', departmentName);
+    console.log('🖨️ BillPrint - activeTab:', activeTab);
+    console.log('🖨️ BillPrint - selectedTable:', selectedTable);
     const safePrice = (p: any): number => Number(p) || 0
     const showAll = isPreview
     const showLogo = localFormData.show_logo_bill !== false && !!hotelLogoUrl
@@ -413,7 +413,10 @@ console.log('🖨️ BillPrint - selectedTable:', selectedTable);
 
   <!-- BILL INFO -->
   <div style="display:flex;gap:8px;margin-bottom:5px;font-size:9pt;">
- <div style="flex:1;"><strong>BillNo</strong><br />${(orderNo || '').toString().replace(/^DIN-/, '')}</div>
+<div style="flex:1;">
+  <strong>BillNo</strong><br />
+  ${(billData?.txnNo || '').toString()}
+</div>
     <div style="flex:1;"><strong>Date</strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : (businessCurrDate ? new Date(businessCurrDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'))}</div>
     <div style="flex:1;white-space:nowrap;"><strong>Time</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
   </div>
@@ -435,23 +438,23 @@ console.log('🖨️ BillPrint - selectedTable:', selectedTable);
   </div>` : ''}
 
   ${(showAll || (
-    (activeTab === 'Dine-in'    && localFormData.order_type_dine_in)  ||
-    (activeTab === 'Pickup'     && localFormData.order_type_pickup)    ||
-    (activeTab === 'Delivery'   && localFormData.order_type_delivery)  ||
-    (activeTab === 'Quick Bill' && localFormData.order_type_quick_bill)
-  )) ? `
+        (activeTab === 'Dine-in' && localFormData.order_type_dine_in) ||
+        (activeTab === 'Pickup' && localFormData.order_type_pickup) ||
+        (activeTab === 'Delivery' && localFormData.order_type_delivery) ||
+        (activeTab === 'Quick Bill' && localFormData.order_type_quick_bill)
+      )) ? `
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
   <div style="display:flex;justify-content:space-between;gap:8px;font-weight:bold;font-size:12pt;margin-bottom:5px;">
     <div style="text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%;">
-     ${activeTab === 'Pickup' || activeTab === 'Delivery'
-        ? ` ${(orderNo || '').toString().replace(/^DIN-/, '')}`
+  ${activeTab === 'Pickup' || activeTab === 'Delivery'
+        ? ` ${(billData?.orderNo || '').toString().replace(/^DIN-/, '')}`
         : (departmentName ? ` ${departmentName}` : '')}
-    </div>
+</div>
     <div style="text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;">
-      ${activeTab === 'Dine-in'    && (showAll || localFormData.bill_title_dine_in)   ? 'Dine-In Bill'  : ''}
-      ${activeTab === 'Pickup'     && (showAll || localFormData.bill_title_pickup)     ? 'Pickup Bill'   : ''}
-      ${activeTab === 'Delivery'   && (showAll || localFormData.bill_title_delivery)   ? 'Delivery Bill' : ''}
-      ${activeTab === 'Quick Bill' && (showAll || localFormData.bill_title_quick_bill) ? 'Quick Bill'    : ''}
+      ${activeTab === 'Dine-in' && (showAll || localFormData.bill_title_dine_in) ? 'Dine-In Bill' : ''}
+      ${activeTab === 'Pickup' && (showAll || localFormData.bill_title_pickup) ? 'Pickup Bill' : ''}
+      ${activeTab === 'Delivery' && (showAll || localFormData.bill_title_delivery) ? 'Delivery Bill' : ''}
+      ${activeTab === 'Quick Bill' && (showAll || localFormData.bill_title_quick_bill) ? 'Quick Bill' : ''}
     </div>
   </div>` : ''}
 
@@ -463,32 +466,32 @@ console.log('🖨️ BillPrint - selectedTable:', selectedTable);
       grid-template-columns:
         ${(showAll || localFormData.print_bill_both_languages) ? '3fr' : '2fr'}
         ${(showAll || !localFormData.hide_item_quantity_column) ? '30px' : ''}
-        ${(showAll || !localFormData.hide_item_rate_column)     ? '40px' : ''}
-        ${(showAll || !localFormData.hide_item_total_column)    ? '50px' : ''};
+        ${(showAll || !localFormData.hide_item_rate_column) ? '40px' : ''}
+        ${(showAll || !localFormData.hide_item_total_column) ? '50px' : ''};
       gap:5px;font-weight:bold;border-bottom:1px solid #000;
       padding-bottom:2px;margin-bottom:5px;font-size:9pt;">
       <div>${(showAll || (localFormData.show_alt_item_title_bill && localFormData.print_bill_both_languages)) ? 'Item' : 'Description'}</div>
-      ${(showAll || !localFormData.hide_item_quantity_column) ? '<div style="text-align:right;">Qty</div>'    : ''}
-      ${(showAll || !localFormData.hide_item_rate_column)     ? '<div style="text-align:right;">Rate</div>'   : ''}
-      ${(showAll || !localFormData.hide_item_total_column)    ? '<div style="text-align:right;">Amount</div>' : ''}
+      ${(showAll || !localFormData.hide_item_quantity_column) ? '<div style="text-align:right;">Qty</div>' : ''}
+      ${(showAll || !localFormData.hide_item_rate_column) ? '<div style="text-align:right;">Rate</div>' : ''}
+      ${(showAll || !localFormData.hide_item_total_column) ? '<div style="text-align:right;">Amount</div>' : ''}
     </div>
 
     ${(Object.values(
-      items.filter((i) => i.qty > 0).reduce((acc: any, item: any) => {
-        const key = (showAll || localFormData.show_items_sequence_bill)
-          ? `${item.id}-${item.variantId || 0}-${item.price}`
-          : `${item.id}-${item.variantId || 0}`
-        if (!acc[key]) acc[key] = { ...item, qty: 0 }
-        acc[key].qty += item.qty
-        return acc
-      }, {}),
-    ) as any[]).map((item) => `
+          items.filter((i) => i.qty > 0).reduce((acc: any, item: any) => {
+            const key = (showAll || localFormData.show_items_sequence_bill)
+              ? `${item.id}-${item.variantId || 0}-${item.price}`
+              : `${item.id}-${item.variantId || 0}`
+            if (!acc[key]) acc[key] = { ...item, qty: 0 }
+            acc[key].qty += item.qty
+            return acc
+          }, {}),
+        ) as any[]).map((item) => `
       <div style="display:grid;
         grid-template-columns:
           ${(showAll || localFormData.print_bill_both_languages) ? '3fr' : '2fr'}
           ${(showAll || !localFormData.hide_item_quantity_column) ? '30px' : ''}
-          ${(showAll || !localFormData.hide_item_rate_column)     ? '40px' : ''}
-          ${(showAll || !localFormData.hide_item_total_column)    ? '50px' : ''};
+          ${(showAll || !localFormData.hide_item_rate_column) ? '40px' : ''}
+          ${(showAll || !localFormData.hide_item_total_column) ? '50px' : ''};
         gap:5px;padding:2px 0;font-size:9pt;">
         <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
           ${item.name}
@@ -568,17 +571,17 @@ console.log('🖨️ BillPrint - selectedTable:', selectedTable);
   ${(showAll || (localFormData.show_order_note_bill && localFormData.note)) ? `<div style="text-align:center;font-size:8pt;margin-top:5px;">${localFormData.note || 'N/A'}</div>` : ''}
 
   ${(showAll || ((
-    (activeTab === 'Dine-in'    && localFormData.payment_mode_dine_in)   ||
-    (activeTab === 'Pickup'     && localFormData.payment_mode_pickup)     ||
-    (activeTab === 'Delivery'   && localFormData.payment_mode_delivery)   ||
-    (activeTab === 'Quick Bill' && localFormData.payment_mode_quick_bill)
-  ) && localFormData.show_default_payment)) ? `
+        (activeTab === 'Dine-in' && localFormData.payment_mode_dine_in) ||
+        (activeTab === 'Pickup' && localFormData.payment_mode_pickup) ||
+        (activeTab === 'Delivery' && localFormData.payment_mode_delivery) ||
+        (activeTab === 'Quick Bill' && localFormData.payment_mode_quick_bill)
+      ) && localFormData.show_default_payment)) ? `
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
   <div style="text-align:center;font-size:9pt;">Payment Mode: ${selectedPaymentModes.join(', ') || 'Cash'}</div>` : ''}
 
-  ${(showAll || localFormData.show_custom_qr_codes_bill)  ? '<div>{/* Custom QR Code */}</div>'  : ''}
-  ${(showAll || localFormData.show_ebill_invoice_qrcode)  ? '<div>{/* E-bill QR Code */}</div>'  : ''}
-  ${(showAll || localFormData.show_zatca_invoice_qr)      ? '<div>{/* ZATCA QR Code */}</div>'   : ''}
+  ${(showAll || localFormData.show_custom_qr_codes_bill) ? '<div>{/* Custom QR Code */}</div>' : ''}
+  ${(showAll || localFormData.show_ebill_invoice_qrcode) ? '<div>{/* E-bill QR Code */}</div>' : ''}
+  ${(showAll || localFormData.show_zatca_invoice_qr) ? '<div>{/* ZATCA QR Code */}</div>' : ''}
 
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
   <div style="text-align:center;font-size:8pt;margin-top:10px;">
