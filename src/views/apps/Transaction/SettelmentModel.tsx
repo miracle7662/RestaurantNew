@@ -222,6 +222,20 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
         });
       } else if (e.key === 'Enter') {
         e.preventDefault();
+
+        // If bill is ready for settlement, Enter should settle (for faster flow)
+        const hasCredit = selectedPaymentModes.some(mode => mode.toLowerCase() === 'credit');
+        const settlePossible =
+          selectedPaymentModes.length > 0 &&
+          balanceDue <= 0 &&
+          (!hasCredit || !!customerId);
+
+        if (settlePossible) {
+          handleSettle();
+          return;
+        }
+
+        // Otherwise keep existing behavior: Enter selects/toggles the active payment mode
         if (outletPaymentModes[activePaymentIndex]) {
           togglePaymentMode(outletPaymentModes[activePaymentIndex]);
         }

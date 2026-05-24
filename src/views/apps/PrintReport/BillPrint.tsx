@@ -354,13 +354,13 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 </html>`
 
   const generateBillContent = (isPreview = false) => {
-
-    // In generateBillContent function, add this near the top:
-    console.log('🖨️ BillPrint - departmentName prop:', departmentName);
-    console.log('🖨️ BillPrint - activeTab:', activeTab);
-    console.log('🖨️ BillPrint - selectedTable:', selectedTable);
     const safePrice = (p: any): number => Number(p) || 0
-    const showAll = isPreview
+
+    // IMPORTANT:
+    // When rendering PREVIEW, we should respect only preview-enabled sections,
+    // not force-show everything using `showAll`.
+    const showAll = false
+
     const showLogo = localFormData.show_logo_bill !== false && !!hotelLogoUrl
 
     const formatAmount = (val: number) => {
