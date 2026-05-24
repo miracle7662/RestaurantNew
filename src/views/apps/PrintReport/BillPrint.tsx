@@ -413,9 +413,9 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
   <!-- BILL INFO -->
   <div style="display:flex;gap:8px;margin-bottom:5px;font-size:9pt;">
-<div style="flex:1;">
+  <div style="flex:1;">
   <strong>BillNo</strong><br />
-  ${(billData?.txnNo || '').toString()}
+  ${((billData?.txnNo || txnNo || orderNo || '') as any).toString()}
 </div>
     <div style="flex:1;"><strong>Date</strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : (businessCurrDate ? new Date(businessCurrDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'))}</div>
     <div style="flex:1;white-space:nowrap;"><strong>Time</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>

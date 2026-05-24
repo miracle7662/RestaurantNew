@@ -294,66 +294,48 @@ const getDuplicateBill = async (req, res) => {
     }
 
     // ✅ BILL HEADER QUERY
-    const billQuery = `
-      SELECT
-        t.TxnID,
-        t.TxnNo,
-        t.orderNo,
-        t.TableID,
-
-        t.CustomerName,
-        t.MobileNo AS mobileNumber,
-
-        t.Discount,
-        t.DiscPer,
-
-        t.RoundOFF AS roundOffValue,
-        t.isSetteled,
-
-        t.CGST,
-        t.SGST,
-        t.IGST,
-
-        t.GrossAmt,
-        t.Amount,
-        t.TaxableValue,
-
-        t.TxnDatetime,
-        t.BilledDate,
-
-        t.Steward AS selectedWaiter,
-
-        mt.table_name AS selectedTable,
-
-        h.hotel_name AS restaurantName,
-        h.address,
-        h.trn_gstno,
-        h.fssai_no,
-        h.phone,
-
-        mo.outlet_name,
-
-        u.username
-
-      FROM TAxnTrnbill t
-
-      LEFT JOIN msttablemanagement mt
-        ON t.TableID = mt.tableid
-
-      LEFT JOIN mst_outlets mo
-        ON t.outletid = mo.outletid
-
-      LEFT JOIN msthotelmasters h
-        ON mo.hotelid = h.hotelid
-
-      LEFT JOIN mst_users u
-        ON t.UserId = u.userid
-
-      WHERE ${whereClause}
-
-      ORDER BY t.TxnID DESC
-      LIMIT 1
-    `;
+   const billQuery = `
+  SELECT
+    t.TxnID,
+    t.TxnNo,
+    t.orderNo,
+    t.TableID,
+    t.Order_Type,  -- ✅ ADD THIS
+    t.DeptID,      -- ✅ ADD THIS
+    t.CustomerName,
+    t.MobileNo AS mobileNumber,
+    t.Discount,
+    t.DiscPer,
+    t.RoundOFF AS roundOffValue,
+    t.isSetteled,
+    t.CGST,
+    t.SGST,
+    t.IGST,
+    t.GrossAmt,
+    t.Amount,
+    t.TaxableValue,
+    t.TxnDatetime,
+    t.BilledDate,
+    t.Steward AS selectedWaiter,
+    mt.table_name AS selectedTable,
+    h.hotel_name AS restaurantName,
+    h.address,
+    h.trn_gstno,
+    h.fssai_no,
+    h.phone,
+    mo.outlet_name,
+    u.username,
+    d.department_name  -- ✅ ADD THIS - join with department table
+  FROM TAxnTrnbill t
+  LEFT JOIN msttablemanagement mt ON t.TableID = mt.tableid
+  LEFT JOIN mst_outlets mo ON t.outletid = mo.outletid
+  LEFT JOIN msthotelmasters h ON mo.hotelid = h.hotelid
+  LEFT JOIN mst_users u ON t.UserId = u.userid
+  LEFT JOIN msttable_department d ON t.DeptID = d.departmentid  -- ✅ ADD THIS JOIN
+  WHERE ${whereClause}
+  ORDER BY t.TxnID DESC
+  LIMIT 1
+`;
 
     console.log('Executing bill query');
 
@@ -449,76 +431,54 @@ const getDuplicateBill = async (req, res) => {
       Math.abs(roundOffValue) > 0.01;
 
     // ✅ FINAL RESPONSE
-    const responseData = {
-      success: true,
-
-      data: {
-        items,
-
-        orderNo: bill.orderNo,
-
-        selectedTable: bill.selectedTable,
-
-        selectedWaiter: bill.selectedWaiter,
-
-        customerName: bill.CustomerName,
-
-        mobileNumber: bill.mobileNumber,
-
-        currentTxnId: bill.TxnID.toString(),
-
-        taxCalc: {
-          taxableValue: Number(taxableValue.toFixed(2)),
-          subtotal: Number(subtotal.toFixed(2)),
-          cgstAmt: Number(cgstAmt.toFixed(2)),
-          sgstAmt: Number(sgstAmt.toFixed(2)),
-          igstAmt: Number(igstAmt.toFixed(2)),
-          grandTotal: Number(grandTotal.toFixed(2))
-        },
-
-        taxRates: {
-          cgst: Number(cgstRate.toFixed(2)),
-          sgst: Number(sgstRate.toFixed(2)),
-          igst: Number(igstRate.toFixed(2))
-        },
-
-        discount: Number(discount.toFixed(2)),
-
-        reason: bill.DiscPer
-          ? `${bill.DiscPer}%`
-          : 'Fixed',
-
-        roundOffEnabled,
-
-        roundOffValue: Number(roundOffValue.toFixed(2)),
-
-        selectedPaymentModes: payments.map(
-          p => p.PaymentType
-        ),
-
-        // ✅ Hotel Details
-        restaurantName:
-          bill.restaurantName || '',
-
-        outletName:
-          bill.outlet_name || '',
-
-        address:
-          bill.address || '',
-
-        gstNo:
-          bill.trn_gstno || '',
-
-        fssaiNo:
-          bill.fssai_no || '',
-
-        phone:
-          bill.phone || '',
-
-        billDate:
-          bill.TxnDatetime
-      }
-    };
+   const responseData = {
+  success: true,
+  data: {
+    items,
+    orderNo: bill.orderNo,
+    txnNo: bill.TxnNo,  // ✅ ADD THIS - Bill number
+    selectedTable: bill.selectedTable,
+    selectedWaiter: bill.selectedWaiter,
+    customerName: bill.CustomerName,
+    mobileNumber: bill.mobileNumber,
+    currentTxnId: bill.TxnID.toString(),
+    
+    // ✅ ADD THESE FIELDS
+    orderType: bill.Order_Type || 'Dine-in',  // 'Dine-in', 'Pickup', 'Delivery'
+    departmentName: bill.department_name || '',  // Department name for dine-in
+    activeTab: bill.Order_Type || 'Dine-in',  // For compatibility
+    
+    taxCalc: {
+      taxableValue: Number(taxableValue.toFixed(2)),
+      subtotal: Number(subtotal.toFixed(2)),
+      cgstAmt: Number(cgstAmt.toFixed(2)),
+      sgstAmt: Number(sgstAmt.toFixed(2)),
+      igstAmt: Number(igstAmt.toFixed(2)),
+      grandTotal: Number(grandTotal.toFixed(2))
+    },
+    
+    taxRates: {
+      cgst: Number(cgstRate.toFixed(2)),
+      sgst: Number(sgstRate.toFixed(2)),
+      igst: Number(igstRate.toFixed(2))
+    },
+    
+    discount: Number(discount.toFixed(2)),
+    reason: bill.DiscPer ? `${bill.DiscPer}%` : 'Fixed',
+    roundOffEnabled: roundOffEnabled,
+    roundOffValue: Number(roundOffValue.toFixed(2)),
+    selectedPaymentModes: payments.map(p => p.PaymentType),
+    
+    // Hotel Details
+    restaurantName: bill.restaurantName || '',
+    outletName: bill.outlet_name || '',
+    address: bill.address || '',
+    gstNo: bill.trn_gstno || '',
+    fssaiNo: bill.fssai_no || '',
+    phone: bill.phone || '',
+    billDate: bill.TxnDatetime
+  }
+};
 
     console.log(
       '📤 Sending response:',

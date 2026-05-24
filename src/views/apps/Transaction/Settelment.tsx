@@ -22,11 +22,18 @@ import F8PasswordModal from '@/components/F8PasswordModal';
 interface DuplicateBillData {
   items: BillItem[];
   orderNo: string;
+  txnNo?: string;  // ✅ ADD THIS - Bill number
   selectedTable: string;
   selectedWaiter: string;
   customerName: string;
   mobileNumber: string;
   currentTxnId: string;
+  
+  // ✅ ADD THESE FIELDS
+  orderType: string;  // 'Dine-in', 'Pickup', or 'Delivery'
+  activeTab?: string;  // For compatibility
+  departmentName?: string;  // For dine-in bills
+  
   taxCalc: {
     taxableValue: number;
     subtotal: number;
@@ -48,6 +55,12 @@ interface DuplicateBillData {
   restaurantName: string;
   outletName: string;
   billDate: string;
+  
+  // Hotel details
+  address?: string;
+  gstNo?: string;
+  fssaiNo?: string;
+  phone?: string;
 }
 
 interface BillItem {
@@ -406,7 +419,8 @@ const EditSettlementPage: React.FC = () => {
   };
 
   // ✅ REWRITTEN fetchAndPrintBill with correct tax values and outlet details
- const fetchAndPrintBill = async (group: Settlement) => {
+// ✅ REWRITTEN fetchAndPrintBill with correct tax values and outlet details
+const fetchAndPrintBill = async (group: Settlement) => {
   setBillLoading(true);
   setSelectedBillData(group);
 
@@ -421,40 +435,43 @@ const EditSettlementPage: React.FC = () => {
       const billData = response.data;
 
       // Convert taxCalc fields to numbers
-  const rawTaxCalc = billData.taxCalc;
+      const rawTaxCalc = billData.taxCalc;
 
-// ✅ Convert taxCalc fields to numbers
-const numericTaxCalc = {
-  taxableValue: Number(rawTaxCalc.taxableValue) || 0,
-  TaxableValue: Number(rawTaxCalc.taxableValue) || 0,
-  subtotal: Number(rawTaxCalc.subtotal) || 0,
-  cgstAmt: Number(rawTaxCalc.cgstAmt) || 0,
-  sgstAmt: Number(rawTaxCalc.sgstAmt) || 0,
-  igstAmt: Number(rawTaxCalc.igstAmt) || 0,
-  grandTotal: Number(rawTaxCalc.grandTotal) || 0,
-};
+      // ✅ Convert taxCalc fields to numbers
+      const numericTaxCalc = {
+        taxableValue: Number(rawTaxCalc.taxableValue) || 0,
+        TaxableValue: Number(rawTaxCalc.taxableValue) || 0,
+        subtotal: Number(rawTaxCalc.subtotal) || 0,
+        cgstAmt: Number(rawTaxCalc.cgstAmt) || 0,
+        sgstAmt: Number(rawTaxCalc.sgstAmt) || 0,
+        igstAmt: Number(rawTaxCalc.igstAmt) || 0,
+        grandTotal: Number(rawTaxCalc.grandTotal) || 0,
+      };
 
-// ✅ Use backend rounded tax rates directly
-const computedTaxRates = {
-  cgst: Number(billData?.taxRates?.cgst || 0),
-  sgst: Number(billData?.taxRates?.sgst || 0),
-  igst: Number(billData?.taxRates?.igst || 0),
-};
+      // ✅ Use backend rounded tax rates directly
+      const computedTaxRates = {
+        cgst: Number(billData?.taxRates?.cgst || 0),
+        sgst: Number(billData?.taxRates?.sgst || 0),
+        igst: Number(billData?.taxRates?.igst || 0),
+      };
 
-      // ✅ Directly use billData for outlet/hotel details (no extra fetch)
-      const billDataForPrintObj = {
+      // ✅ Directly use billData for outlet/hotel details
+const billDataForPrintObj = {
         hotelName: billData.restaurantName || user?.hotel_name || '',
         outletName: billData.outletName || user?.outlet_name || '',
         address: billData.address || '',
         gstNo: billData.gstNo || '',
         phone: billData.phone || '',
         fssaiNo: billData.fssaiNo || '',
+        // ✅ ensure BillPrint always has bill/order no available for header display
+        orderNo: billData.orderNo || billData.txnNo || group.OrderNo,
+        txnNo: billData.txnNo || billData.orderNo || group.OrderNo,
       };
 
       const completeBillData = {
         ...billData,
         taxCalc: numericTaxCalc,
-        taxRates: computedTaxRates,  // ab sahi percentage milega
+        taxRates: computedTaxRates,
       };
 
       setDuplicateBillData(completeBillData);
@@ -699,42 +716,45 @@ const computedTaxRates = {
       />
 
       {/* Bill Preview Print Modal */}
-      {showBillPreview && duplicateBillData && selectedBillData && (
-        <BillPreviewPrint
-          key={duplicateBillData.currentTxnId} // force re-render on new bill
-          show={showBillPreview}
-          onHide={() => {
-            setShowBillPreview(false);
-            setSelectedBillData(null);
-            setDuplicateBillData(null);
-            setBillDataForPrint(null);
-          }}
-          formData={user?.outletSettings || {}}
-          user={user}
-          items={formatItemsForPrint(duplicateBillData.items)}
-          selectedWaiter={duplicateBillData.selectedWaiter || user?.name}
-          currentKOTNos={getKOTNumbers(duplicateBillData.items)}
-          currentKOTNo={getKOTNumbers(duplicateBillData.items)[0] || null}
-          orderNo={duplicateBillData.orderNo}
-          selectedTable={duplicateBillData.selectedTable || selectedBillData.table_name}
-          activeTab="Dine-in"
-          customerName={duplicateBillData.customerName || selectedBillData.CustomerName}
-          mobileNumber={duplicateBillData.mobileNumber || selectedBillData.MobileNo}
-          currentTxnId={duplicateBillData.currentTxnId}
-          taxCalc={duplicateBillData.taxCalc}
-          taxRates={duplicateBillData.taxRates}
-          discount={duplicateBillData.discount}
-          reason={duplicateBillData.reason}
-          roundOffEnabled={duplicateBillData.roundOffEnabled}
-          roundOffValue={duplicateBillData.roundOffValue}
-          selectedPaymentModes={duplicateBillData.selectedPaymentModes || selectedBillData.PaymentTypes || []}
-          selectedOutletId={selectedOutletId}
-          restaurantName={duplicateBillData.restaurantName || user?.hotel_name}
-          outletName={duplicateBillData.outletName || user?.outlet_name}
-          billDate={duplicateBillData.billDate || selectedBillData.InsertDate}
-          billData={billDataForPrint}  // ✅ pass outlet details for header
-        />
-      )}
+     {/* Bill Preview Print Modal */}
+{showBillPreview && duplicateBillData && selectedBillData && (
+  <BillPreviewPrint
+    key={duplicateBillData.currentTxnId} // force re-render on new bill
+    show={showBillPreview}
+    onHide={() => {
+      setShowBillPreview(false);
+      setSelectedBillData(null);
+      setDuplicateBillData(null);
+      setBillDataForPrint(null);
+    }}
+    formData={user?.outletSettings || {}}
+    user={user}
+    items={formatItemsForPrint(duplicateBillData.items)}
+    selectedWaiter={duplicateBillData.selectedWaiter || user?.name}
+    currentKOTNos={getKOTNumbers(duplicateBillData.items)}
+    currentKOTNo={getKOTNumbers(duplicateBillData.items)[0] || null}
+    orderNo={duplicateBillData.orderNo}
+    txnNo={duplicateBillData.txnNo || duplicateBillData.orderNo}  // ✅ ADD THIS LINE - pass bill number
+    selectedTable={duplicateBillData.selectedTable || selectedBillData.table_name}
+    activeTab={duplicateBillData.orderType || duplicateBillData.activeTab || "Dine-in"}  // ✅ FIXED - use actual order type
+    customerName={duplicateBillData.customerName || selectedBillData.CustomerName}
+    mobileNumber={duplicateBillData.mobileNumber || selectedBillData.MobileNo}
+    currentTxnId={duplicateBillData.currentTxnId}
+    taxCalc={duplicateBillData.taxCalc}
+    taxRates={duplicateBillData.taxRates}
+    discount={duplicateBillData.discount}
+    reason={duplicateBillData.reason}
+    roundOffEnabled={duplicateBillData.roundOffEnabled}
+    roundOffValue={duplicateBillData.roundOffValue}
+    selectedPaymentModes={duplicateBillData.selectedPaymentModes || selectedBillData.PaymentTypes || []}
+    selectedOutletId={selectedOutletId}
+    restaurantName={duplicateBillData.restaurantName || user?.hotel_name}
+    outletName={duplicateBillData.outletName || user?.outlet_name}
+    billDate={duplicateBillData.billDate || selectedBillData.InsertDate}
+    billData={billDataForPrint}
+    departmentName={duplicateBillData.departmentName}  // ✅ ADD THIS - pass department name
+  />
+)}
     </div>
   );
 };
