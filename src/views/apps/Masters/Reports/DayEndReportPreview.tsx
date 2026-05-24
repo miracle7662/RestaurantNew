@@ -186,7 +186,7 @@ const SolidHr = () => <hr className="rc-hr-solid" />;
 
 // Bill Details — 8-column grid with consistent widths
 // Columns: Bill(52) | Tbl(20) | Disc(32) | Gross(44) | GST(28) | Tip(28) | Net(44) | Mode(auto)
-const BILL_COLS = '52px 20px 32px 44px 28px 28px 44px auto';
+const BILL_COLS = '52px 20px 18px 44px 28px 28px 50px auto';
 
 const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
   if (!data?.length) return null;
@@ -214,7 +214,7 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
         <span style={{ textAlign: 'right' }}>{gst.toFixed(0)}</span>
         <span style={{ textAlign: 'right' }}>{fmt(b.tipAmount)}</span>
         <span style={{ textAlign: 'right' }}>{fmt(b.netAmount)}</span>
-        <span style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>
+        <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', paddingLeft: '5px' }}>
           {(b.paymentMode || 'Cash').substring(0, 2)  .toUpperCase()}
         </span>
       </div>
@@ -232,7 +232,7 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
         <span style={{ textAlign: 'right' }}>GST</span>
         <span style={{ textAlign: 'right' }}>Tip</span>
         <span style={{ textAlign: 'right' }}>Net</span>
-        <span>Mode</span>
+        <span style={{ paddingLeft: '5px' }}>Mode</span>
       </div>
       {rows}
       <div className="rc-row-bold">
@@ -534,15 +534,15 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   // Bill Details Section
   if (data.billDetails?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:5px 0;">BILL DETAILS</div>`;
-    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
             <span style="width:20%">Bill</span>
             <span style="width:12%">Tbl</span>
-            <span style="width:13%;text-align:right">Disc</span>
+            <span style="width:10%;text-align:right">Disc</span>
             <span style="width:18%;text-align:right">Gross</span>
             <span style="width:10%;text-align:right">GST</span>
             <span style="width:10%;text-align:right">Tip</span>
             <span style="width:15%;text-align:right">Net</span>
-            <span style="width:10%">Mode</span>
+            <span style="width:10%;padding-left:10px">Mode</span>
           </div>`;
     let tDisc = 0, tGross = 0, tGST = 0, tTip = 0, tNet = 0;
     data.billDetails.forEach(row => {
@@ -550,17 +550,17 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
       tDisc += Number(row.Discount || 0);
       tGross += Number(row.grossAmount || 0);
       tGST += gst;
-      tTip += Number(row.tipAmount || 0);
+      tTip += Number(row.tipAmount || 0); 
       tNet += Number(row.netAmount || 0);
       b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
               <span style="width:20%;overflow:hidden;white-space:nowrap">${String(row.TxnNo).slice(-6)}</span>
               <span style="width:12%;overflow:hidden;white-space:nowrap">${(row.table_name || '').substring(0, 4)}</span>
-              <span style="width:13%;text-align:right">${f(row.Discount)}</span>
+              <span style="width:10%;text-align:right">${f(row.Discount)}</span>
               <span style="width:18%;text-align:right">${f(row.grossAmount)}</span>
               <span style="width:10%;text-align:right">${gst.toFixed(0)}</span>
               <span style="width:10%;text-align:right">${f(row.tipAmount)}</span>
               <span style="width:15%;text-align:right">${f(row.netAmount)}</span>
-              <span style="width:10%;overflow:hidden;white-space:nowrap">${(row.paymentMode || 'Cash').substring(0, 2).toUpperCase() }</span>
+              <span style="width:10%;overflow:hidden;white-space:nowrap;padding-left:10px">${(row.paymentMode || 'Cash').substring(0, 2).toUpperCase() }</span>
             </div>`;
     });
     b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;

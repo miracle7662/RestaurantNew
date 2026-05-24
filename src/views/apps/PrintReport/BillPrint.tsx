@@ -360,7 +360,6 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     // When rendering PREVIEW, we should respect only preview-enabled sections,
     // not force-show everything using `showAll`.
     const showAll = false
-
     const showLogo = localFormData.show_logo_bill !== false && !!hotelLogoUrl
 
     const formatAmount = (val: number) => {
