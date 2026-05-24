@@ -1419,36 +1419,18 @@ exports.createReverseKOT = async (req, res) => {
       let totalReverseAmount = 0
 
       for (const item of reversedItems) {
-        // Normalize identifiers/qty because frontend may send different key casing:
-        // txnDetailId vs TXnDetailID, qty vs cancelQty, etc.
-        const txnDetailId =
-          item.txnDetailId ??
-          item.TXnDetailID ??
-          item.TxnDetailID ??
-          item.TXNDetailID ??
-          null
-
-        const qtyRaw =
-          item.qty ??
-          item.cancelQty ??
-          item.ReversedQty ??
-          item.RevQty ??
-          0
-
-        const qty = Number(qtyRaw) || 0
-
-        if (!txnDetailId || qty <= 0) continue
+        if (!item.txnDetailId || !item.qty) continue
 
         const [detailRows] = await db.query(
           'SELECT d.*, m.item_name as itemName FROM TAxnTrnbilldetails d LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid WHERE d.TXnDetailID = ?',
-          [txnDetailId]
+          [item.txnDetailId]
         )
         const detail = detailRows[0]
         if (detail) {
-          const newRevQty = (detail.RevQty || 0) + qty
+          const newRevQty = (detail.RevQty || 0) + item.qty
           await db.query(
             'UPDATE TAxnTrnbilldetails SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?, KOTUsedDate = ? WHERE TXnDetailID = ?',
-            [qty, newRevKOTNo, kotDate, txnDetailId]
+            [item.qty, newRevKOTNo, kotDate, item.txnDetailId]
           )
 
           const itemReason = item.reason || reversalReason || 'Item Reversed';
@@ -1460,14 +1442,14 @@ exports.createReverseKOT = async (req, res) => {
               IsBeforeBill, IsAfterBill, ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason, ReversalDate
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `, [
-            txnDetailId,
+            item.txnDetailId,
             detail.TxnID,
             detail.KOTNo,
             newRevKOTNo, // RevKOTNo
             detail.ItemID,
             detail.itemName || 'Unknown Item', // ItemName
             detail.Qty, // ActualQty
-            qty, // ReversedQty
+            item.qty, // ReversedQty
             remainingQty, // RemainingQty
             detail.isBilled ? 0 : 1, // IsBeforeBill
             detail.isBilled ? 1 : 0, // IsAfterBill
@@ -1478,7 +1460,7 @@ exports.createReverseKOT = async (req, res) => {
             ReversalDate || null, // ReversalDate
           ])
 
-          totalReverseAmount += (Number(detail.RuntimeRate) || 0) * qty
+          totalReverseAmount += (Number(detail.RuntimeRate) || 0) * item.qty
         }
       }
 
@@ -1620,21 +1602,8 @@ exports.createReverseKOT = async (req, res) => {
       )
 
       // ---- Reverse KOT FULL-REVERSE VALIDATION (Business Rule)
-      // CASE 1: KOT running only (isBilled=0) -> full reverse allowed
-      // CASE 2: Bill already printed (isBilled=1) -> full reverse NOT allowed
-
-
-      const [billStatusRows] = await db.query(
-        `
-          SELECT isBilled, BillNo
-          FROM TAxnTrnbill
-          WHERE TxnID = ?
-        `,
-        [txnId]
-      )
-      const billStatus = billStatusRows?.[0] || {}
-
-      // Remaining net qty after applying RevQty updates above
+      // If Reverse KOT results in full reverse (no remaining qty), block the operation.
+      // Reverse Bill (F5) is the only flow allowed to fully cancel the bill.
       const [remainingItemsCheckRows] = await db.query(
         `
           SELECT SUM(Qty - COALESCE(RevQty, 0)) as netQty
@@ -1644,30 +1613,21 @@ exports.createReverseKOT = async (req, res) => {
         `,
         [txnId]
       )
-      const remainingItemsCheck = remainingItemsCheckRows?.[0]
+      const remainingItemsCheck = remainingItemsCheckRows[0]
       const remainingNetQty = Number(remainingItemsCheck?.netQty ?? 0)
 
-      const shouldBlockFullReverse =
-        Number(billStatus?.isBilled) === 1 &&
-        remainingItemsCheck &&
-        remainingNetQty <= 0
+      if (remainingItemsCheck && remainingNetQty <= 0) {
+        await db.query('ROLLBACK')
 
-      if (shouldBlockFullReverse) {
-        // NOTE: createReverseKOT is expected to either do its own COMMIT/ROLLBACK.
-        // Here we are short-circuiting with validation error, so do not attempt ROLLBACK
-        // unless you are inside an open DB transaction in a safe way.
-        // We also return without changing any data further.
         return res.status(400).json({
           success: false,
           message:
-            'Full reverse is not allowed after bill print. Use Reverse Bill option.'
+            'Full reverse is not allowed from Reverse KOT. Use Reverse Bill option.',
         })
       }
 
-
-      // Proceed as PARTIAL reverse (or full reverse allowed only when isBilled=0)
+      // After applying reversals above, we should always end up here as PARTIAL reverse.
       // ================= PARTIAL REVERSE =================
-
 
       isFullReverse = false
 
