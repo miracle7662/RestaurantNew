@@ -185,59 +185,132 @@ exports.getAllBills = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.getBillById = async (req, res) => {
   try {
-    const { id } = req.params
-    const [billRows] = await db.query(`SELECT * FROM TAxnTrnbill WHERE TxnID = ?`, [Number(id)])
-    const bill = billRows[0]
-    if (!bill)
-      return res.status(404).json({ success: false, message: 'Bill not found', data: null })
+    const { id } = req.params;
+    const txnId = Number(id);
+    
+    if (!txnId || Number.isNaN(txnId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Valid TxnID is required', 
+        data: null 
+      });
+    }
+    
+    // ✅ FIX: JOIN with msthotelmasters and mst_outlets
+    const [billRows] = await db.query(
+      `
+      SELECT 
+        t.*,
+        h.hotel_name,
+        h.address,
+        h.trn_gstno,
+        h.fssai_no,
+        h.phone,
+        o.outlet_name
+      FROM TAxnTrnbill t
+      LEFT JOIN msthotelmasters h ON t.HotelID = h.hotelid
+      LEFT JOIN mst_outlets o ON t.outletid = o.outletid
+      WHERE t.TxnID = ?
+      `,
+      [txnId]
+    );
+    
+    const bill = billRows[0];
+    
+    if (!bill) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Bill not found', 
+        data: null 
+      });
+    }
 
     const [detailsRows] = await db.query(
       `
-      SELECT d.*, m.item_name as ItemName
+      SELECT d.*, m.item_name as ItemName, m.item_no, m.item_group_id
       FROM TAxnTrnbilldetails d
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE d.TxnID = ? AND d.isCancelled = 0
       ORDER BY d.TXnDetailID ASC
-    `, [Number(id)])
-    const details = detailsRows
+      `,
+      [txnId]
+    );
+    
+    const details = detailsRows;
 
     const [settlementsRows] = await db.query(
       `
       SELECT * FROM TrnSettlement
       WHERE OrderNo = ? AND HotelID = ?
       ORDER BY SettlementID
-    `, [bill.orderNo || null, bill.HotelID || null])
-    const settlements = settlementsRows
+      `,
+      [bill.orderNo || null, bill.HotelID || null]
+    );
+    
+    const settlements = settlementsRows;
 
     // Fetch reversal logs with reasons
     const [reversalLogsRows] = await db.query(
       `
-        SELECT TxnDetailID, ReversedQty, RevKOTNo, ReversalReason, ReversalDate
-        FROM TAxnTrnReversalLog
-        WHERE TxnID = ?
-        ORDER BY ReversalID DESC
-      `, [Number(id)]
-    )
-    const reversalLogs = reversalLogsRows
-
+      SELECT TxnDetailID, ReversedQty, RevKOTNo, ReversalReason, ReversalDate
+      FROM TAxnTrnReversalLog
+      WHERE TxnID = ?
+      ORDER BY ReversalID DESC
+      `,
+      [txnId]
+    );
+    
+    const reversalLogs = reversalLogsRows;
 
     const [kotResultRows] = await db.query(
       `
       SELECT MAX(KOTNo) as maxKOT
       FROM TAxnTrnbilldetails
       WHERE TxnID = ?
-    `, [Number(id)])
-    const kotResult = kotResultRows[0]
+      `,
+      [txnId]
+    );
+    
+    const kotResult = kotResultRows[0];
+    const kotNo = kotResult?.maxKOT || bill.orderNo || null;
 
-    const kotNo = kotResult?.maxKOT || bill.orderNo || null
-
-    res.json(ok('Fetched bill', { header: { ...bill, customerid: bill.customerid }, details, settlement: settlements, kotNo, reversalLogs }))
+    // ✅ Send response with hotel data at root level
+    res.json({
+      success: true,
+      message: 'Fetched bill',
+      data: {
+        // Hotel data (for takeaway prints)
+        hotelName: bill.hotel_name,
+        address: bill.address,
+        gstNo: bill.trn_gstno,
+        fssaiNo: bill.fssai_no,
+        phone: bill.phone,
+        outletName: bill.outlet_name,
+        
+        // Bill header
+        header: { 
+          ...bill, 
+          customerid: bill.customerid 
+        },
+        
+        // Other data
+        details,
+        settlement: settlements,
+        kotNo,
+        reversalLogs
+      }
+    });
+    
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: 'Failed to fetch bill', data: null, error: error.message })
+    console.error('Error in getBillById:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch bill', 
+      data: null, 
+      error: error.message 
+    });
   }
-}
+};
 
 /* -------------------------------------------------------------------------- */
 /* 3) createBill → insert new bill + details                                  */

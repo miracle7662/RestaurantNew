@@ -160,14 +160,14 @@ const ModernBill = () => {
 
 
 
-  // console.log('Table ID:', tableId);
-  // console.log('Table Name:', tableName);
-  // console.log('ORDER MODE', {
-  //   isTakeaway,
-  //   tableId,
-  //   selectedOutletId: outletIdFromState || user?.outletid || null,
-  //   departmentIdFromState
-  // });
+  console.log('Table ID:', tableId);
+  console.log('Table Name:', tableName);
+  console.log('ORDER MODE', {
+    isTakeaway,
+    tableId,
+    selectedOutletId: outletIdFromState || user?.outletid || null,
+    departmentIdFromState
+  });
 
   const [defaultWaiterId, setDefaultWaiterId] = useState<number | null>(null);
   const [waiter, setWaiter] = useState('');

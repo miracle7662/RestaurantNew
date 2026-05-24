@@ -51,7 +51,7 @@ exports.getSettlements = async (req, res) => {
       SELECT 
         s.SettlementID,
         s.OrderNo,
-        tm.table_name,
+        s.table_name,
         s.PaymentType,
         s.Amount,
         s.TipAmount,
@@ -71,7 +71,6 @@ exports.getSettlements = async (req, res) => {
         mo.outlet_name
       FROM TrnSettlement s
       LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.OrderNo OR s.TxnNo = b.TxnNo
-      LEFT JOIN msttablemanagement tm ON tm.tableid = b.TableID
       left join msttable_department tb on tb.departmentid=b.DeptID
       left join mst_outlets mo on mo.outletid=b.outletid
       ${whereSql}
