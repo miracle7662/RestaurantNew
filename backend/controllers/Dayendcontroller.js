@@ -1178,6 +1178,7 @@ const getReverseBillsData = async (businessDate, dayEndEmpID) => {
       t.TxnNo as billNo,
       t.table_name,
       t.RevKOT as reversedAmount,
+      t.BilledDate,
       t.TxnDatetime
     FROM TAxnTrnbill t
     WHERE t.isDayEnd = 1 

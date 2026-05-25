@@ -2402,36 +2402,52 @@ const printBill = async () => {
     // ✅ Set TxnNo (Bill Number)
     setTxnNo(generatedTxnNo);
     
-    // ✅ orderNo already exists from loadTakeawayOrder (e.g., "0037")
-    // Don't overwrite it!
-
-    // Fetch latest bill data
     let updatedBillData = null;
-    try {
-      const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
-      updatedBillData = updatedBillRes.data || updatedBillRes;
-      if (updatedBillData && updatedBillData.details) {
-        setBillData(updatedBillData);
+    
+    // ✅ For dine-in only, try to fetch billed bill by table
+    if (!isTakeaway && tableId) {
+      try {
+        const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
+        updatedBillData = updatedBillRes.data || updatedBillRes;
+      } catch (billFetchError) {
+        console.error('Failed to fetch updated bill data:', billFetchError);
       }
-    } catch (billFetchError) {
-      console.error('Failed to fetch updated bill data:', billFetchError);
     }
-
-    // Create manual billData if needed
-    if (!updatedBillData && generatedTxnNo) {
-      const manualBillData = {
-        TxnNo: generatedTxnNo,
-        orderNo: orderNo,  // Keep existing orderNo
-        details: billItems.filter(i => i.itemId > 0),
-        header: {
+    
+    // ✅ For takeaway OR if fetch failed, preserve existing billData with phone/FSSAI
+    if (isTakeaway || !updatedBillData) {
+      // ✅ Use existing billData from loadTakeawayOrder which already has phone/FSSAI
+      if (billData) {
+        updatedBillData = {
+          ...billData,
           TxnNo: generatedTxnNo,
+          txnNo: generatedTxnNo,
+        };
+      } else {
+        // Create manual billData with ALL required fields
+        updatedBillData = {
+          TxnNo: generatedTxnNo,
+          txnNo: generatedTxnNo,
           orderNo: orderNo,
-          Order_Type: activeTab,
-        }
-      };
-      setBillData(manualBillData);
+          details: billItems.filter(i => i.itemId > 0),
+          header: {
+            TxnNo: generatedTxnNo,
+            orderNo: orderNo,
+            Order_Type: activeTab,
+          },
+          // ✅ CRITICAL: Add phone and FSSAI from state
+         
+          hotelName: restaurantName,
+          outletName: outletName,
+          address: user?.address || '',
+          gstNo: user?.trn_gstno || '',
+        };
+      }
     }
-
+    
+  
+    
+    setBillData(updatedBillData);
     setIsTransactionBilled(true);
     setShowBillPrintModal(true);
 
@@ -2481,31 +2497,63 @@ const PrintAndSettle = async () => {
     setOrderNo(generatedTxnNo);  // Order Number (for display)
     setTxnNo(generatedTxnNo);    // Bill Number/TxnNo (for BillNo field)
 
-    // Fetch latest billed data
+    // ✅ FIX: For takeaway, don't call getBilledBillByTable (no table exists)
     let updatedBillData = null;
-    try {
-      const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
-      updatedBillData = updatedBillRes?.data || updatedBillRes || null;
-      if (updatedBillData) {
-        setBillData(updatedBillData);
-      }
-    } catch (billFetchError) {
-      console.error('Failed to fetch updated bill data:', billFetchError);
-    }
-
-    // ✅ Create fallback billData if API fails
-    if (!updatedBillData && generatedTxnNo) {
-      const manualBillData = {
-        TxnNo: generatedTxnNo,
-        orderNo: orderNo,
-        details: billItems.filter(i => i.itemId > 0),
-        header: {
-          TxnNo: generatedTxnNo,
-          orderNo: orderNo,
-          Order_Type: activeTab,
+    
+    if (!isTakeaway && tableId) {
+      try {
+        const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
+        updatedBillData = updatedBillRes?.data || updatedBillRes || null;
+        if (updatedBillData) {
+          setBillData(updatedBillData);
         }
-      };
-      setBillData(manualBillData);
+      } catch (billFetchError) {
+        console.error('Failed to fetch updated bill data:', billFetchError);
+      }
+    }
+    
+    // ✅ For takeaway OR if fetch failed, preserve existing billData with phone/FSSAI
+    if (isTakeaway || !updatedBillData) {
+      // Use existing billData from loadTakeawayOrder which already has phone/FSSAI
+      if (billData) {
+        updatedBillData = {
+          ...billData,
+          TxnNo: generatedTxnNo,
+          txnNo: generatedTxnNo,
+        };
+      } else {
+        // Create manual billData with ALL required fields including phone/FSSAI
+        updatedBillData = {
+          TxnNo: generatedTxnNo,
+          txnNo: generatedTxnNo,
+          orderNo: orderNo,
+          details: billItems.filter(i => i.itemId > 0),
+          header: {
+            TxnNo: generatedTxnNo,
+            orderNo: orderNo,
+            Order_Type: activeTab,
+          },
+          // ✅ CRITICAL: Add phone and FSSAI from state
+       
+          hotelName: restaurantName,
+          outletName: outletName,
+          address: user?.address || '',
+          gstNo: user?.trn_gstno || '',
+        };
+      }
+    }
+    
+    // ✅ Ensure phone and FSSAI are preserved in billData
+    if (updatedBillData) {
+      
+      
+      if (!updatedBillData.hotelName && restaurantName) {
+        updatedBillData.hotelName = restaurantName;
+      }
+      if (!updatedBillData.outletName && outletName) {
+        updatedBillData.outletName = outletName;
+      }
+      setBillData(updatedBillData);
     }
 
     // Set billed state
@@ -2531,7 +2579,6 @@ const PrintAndSettle = async () => {
     setLoading(false);
   }
 };
-
   const resetBillState = () => {
     setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '', isFetched: false }]);
     setTxnId(null);
