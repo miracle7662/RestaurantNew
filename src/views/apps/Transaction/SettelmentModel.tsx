@@ -208,10 +208,18 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setActivePaymentIndex(prev => (prev + 1) % outletPaymentModes.length);
+        setActivePaymentIndex(prev => {
+          const next = (prev + 1) % outletPaymentModes.length;
+          togglePaymentMode(outletPaymentModes[next]);
+          return next;
+        });
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setActivePaymentIndex(prev => (prev - 1 + outletPaymentModes.length) % outletPaymentModes.length);
+        setActivePaymentIndex(prev => {
+          const next = (prev - 1 + outletPaymentModes.length) % outletPaymentModes.length;
+          togglePaymentMode(outletPaymentModes[next]);
+          return next;
+        });
       } else if (e.key === 'Enter') {
         e.preventDefault();
         if (outletPaymentModes[activePaymentIndex]) {
