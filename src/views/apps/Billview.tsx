@@ -2943,6 +2943,12 @@ const PrintAndSettle = async () => {
             if (disableSettlement) return;
             setShowSettlementModal(true);
             return;
+
+          case 'F12':
+            event.preventDefault();
+            if (disablePrintSettle) return;
+            PrintAndSettle();
+            return;
         }
       }
 
@@ -2974,8 +2980,14 @@ const PrintAndSettle = async () => {
     hasItems,
     hasNewItems,
     isBillPrintedState,
-
-
+    PrintAndSettle,
+    printBill,
+    disablePrintSettle,
+    disableSettlement,
+    isPrintDisabled,
+    disableKOT,
+    disableReverseBill,
+    handleF8Action
   ]);
 
   return (
