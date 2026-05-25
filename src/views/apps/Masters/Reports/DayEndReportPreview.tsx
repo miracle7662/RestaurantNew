@@ -25,8 +25,8 @@ interface BillDetail {
 interface PaymentSummary  { PaymentType: string; totalAmount: number; billCount: number; }
 interface CreditSummary   { customerName: string; creditAmount: number; billCount: number; }
 interface DiscountSummary { TxnNo: string; table_name: string; Discount: number; reason: string; }
-interface ReverseKOT      { kotNo: string; table_name: string; item_name: string; RevQty: number; amount: number; TxnDatetime: string; }
-interface ReverseBill     { billNo: string; table_name: string; reversedAmount: number; TxnDatetime: string; }
+interface ReverseKOT      { kotNo: string; table_name: string; item_name: string; RevQty: number; amount: number; TxnDatetime: string; billedDate?: string; BilledDate?: string;  }
+interface ReverseBill     { billNo: string; table_name: string; reversedAmount: number; TxnDatetime: string; BilledDate?: string; }
 interface NCKOTSummary    { ncName: string; purpose: string; quantity: number; amount: number; TxnDatetime: string; kotNo: string; }
 
 interface ReportData {
@@ -137,8 +137,23 @@ const STYLES = `
 // HELPERS
 // ─────────────────────────────────────────────
 const fmt = (n: number) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
-const timeStr = (dt: string) => dt ? new Date(dt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-
+const timeStr = (dt: string) => {
+  if (!dt) return '--:--';
+  try {
+    // Format: "2026-05-15 14:44:47" se time extract karo
+    const timeMatch = dt.match(/(\d{2}):(\d{2}):(\d{2})/);
+    if (timeMatch) {
+      let hours = parseInt(timeMatch[1]);  // 14
+      const minutes = timeMatch[2];         // 44
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;             // 14%12 = 2
+      return `${hours}:${minutes} ${ampm}`; // "2:44 PM"
+    }
+    return '--:--';
+  } catch (error) {
+    return '--:--';
+  }
+};
 const parseSettlementBreakdown = (breakdown: string | undefined): Record<string, number> => {
   const result: Record<string, number> = {};
   if (!breakdown) return result;
@@ -406,7 +421,7 @@ const DiscountSummarySection: React.FC<{ data: DiscountSummary[] }> = ({ data })
 };
 
 // Columns: KOT(32) | Table(32) | Item(1fr) | Qty(24) | Amt(44) | Time(38)
-const RKOT_COLS = '32px 32px 1fr 24px 44px 38px';
+const RKOT_COLS = '32px 32px 1fr 20px 40px 30px';
 
 const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
   if (!data?.length) return null;
@@ -421,27 +436,33 @@ const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
         <span>Tbl</span>
         <span>Item</span>
         <span style={{ textAlign: 'right' }}>Qty</span>
-        <span style={{ textAlign: 'right' }}>Amt</span>
+        <span style={{ textAlign: 'right', marginRight: '8px' }}>Amt</span>
         <span>Time</span>
       </div>
-      {data.map((k, i) => (
-        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: RKOT_COLS, columnGap: '3px', alignItems: 'center' }}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {String(k.kotNo).substring(0, 5)}
-          </span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {(k.table_name || '').substring(0, 5)}
-          </span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {k.item_name}
-          </span>
-          <span style={{ textAlign: 'right' }}>{k.RevQty}</span>
-          <span style={{ textAlign: 'right' }}>{fmt(k.amount)}</span>
-          <span style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>
-            {timeStr(k.TxnDatetime).toLowerCase().replace(' ', '')}
-          </span>
-        </div>
-      ))}
+      {data.map((k, i) => {
+        // Use BilledDate from the data
+        const billedDateTime = (k as any).BilledDate || (k as any).billedDate || k.TxnDatetime;
+        const displayTime = timeStr(billedDateTime);
+        
+        return (
+          <div key={i} className="rc-col-row" style={{ gridTemplateColumns: RKOT_COLS, columnGap: '3px', alignItems: 'center' }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {String(k.kotNo).substring(0, 5)}
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {(k.table_name || '').substring(0, 5)}
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {k.item_name}
+            </span>
+            <span style={{ textAlign: 'right' }}>{k.RevQty}</span>
+             <span style={{ textAlign: 'right', marginRight: '8px' }}>{fmt(k.amount)}</span>
+            <span style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>
+              {displayTime}
+            </span>
+          </div>
+        );
+      })}
       <div className="rc-total">
         <span>TOTAL</span>
         <span>{totalQty} | {fmt(totalAmt)}</span>
@@ -449,7 +470,6 @@ const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
     </>
   );
 };
-
 // Columns: Bill(56) | Table(56) | Amount(1fr) | Time(42)
 const RBILL_COLS = '56px 56px 1fr 42px';
 
@@ -465,23 +485,28 @@ const ReverseBillSection: React.FC<{ data: ReverseBill[] }> = ({ data }) => {
         <span style={{ textAlign: 'right' }}>Amount</span>
         <span>Time</span>
       </div>
-      {data.map((b, i) => (
-        <div key={i} className="rc-col-row" style={{ gridTemplateColumns: RBILL_COLS, columnGap: '4px' }}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {String(b.billNo).substring(0, 7)}
-          </span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {(b.table_name || '').substring(0, 7)}
-          </span>
-          <span style={{ textAlign: 'right' }}>{fmt(b.reversedAmount)}</span>
-          <span style={{ whiteSpace: 'nowrap' }}>{timeStr(b.TxnDatetime)}</span>
-        </div>
-      ))}
+      {data.map((b, i) => {
+        // Use BilledDate from the data
+        const billedDateTime = (b as any).BilledDate || (b as any).billedDate || b.TxnDatetime;
+        const displayTime = timeStr(billedDateTime);
+        
+        return (
+          <div key={i} className="rc-col-row" style={{ gridTemplateColumns: RBILL_COLS, columnGap: '4px' }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {String(b.billNo).substring(0, 7)}
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {(b.table_name || '').substring(0, 7)}
+            </span>
+            <span style={{ textAlign: 'right' }}>{fmt(b.reversedAmount)}</span>
+            <span style={{ whiteSpace: 'nowrap' }}>{displayTime}</span>
+          </div>
+        );
+      })}
       <div className="rc-total"><span>TOTAL</span><span>{fmt(total)}</span></div>
     </>
   );
 };
-
 // Columns: Name(70) | Purpose(1fr) | Qty(28) | Amount(58)
 const NCKOT_COLS = '70px 1fr 28px 58px';
 
@@ -720,31 +745,49 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
 
   // Reverse KOT Section
   if (data.reverseKOTs?.length) {
-    b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">REVERSE KOT SUMMARY</div>`;
-    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
-            <span style="width:12%">KOT</span>
-            <span style="width:12%">Tbl</span>
-            <span style="width:44%">Item</span>
-            <span style="width:10%;text-align:right">Qty</span>
-            <span style="width:12%;text-align:right">Amt</span>
-            <span style="width:10%">Time</span>
+  b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">REVERSE KOT SUMMARY</div>`;
+
+  b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+          <span style="width:12%">KOT</span>
+          <span style="width:12%">Tbl</span>
+          <span style="width:38%">Item</span>
+          <span style="width:10%;text-align:right">Qty</span>
+          <span style="width:18%;text-align:right;padding-right:7px;">Amt</span>
+          <span style="width:10%;padding-left:4px;">Time</span>
+        </div>`;
+
+  let tQty = 0, tAmt = 0;
+
+  data.reverseKOTs.forEach(k => {
+    tQty += Number(k.RevQty || 0);
+    tAmt += Number(k.amount || 0);
+
+    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+            <span style="width:12%;overflow:hidden;white-space:nowrap">${String(k.kotNo).substring(0, 5)}</span>
+
+            <span style="width:12%;overflow:hidden;white-space:nowrap">${(k.table_name || '').substring(0, 5)}</span>
+
+            <span style="width:38%;overflow:hidden;white-space:nowrap">${(k.item_name || '').substring(0, 20)}</span>
+
+            <span style="width:10%;text-align:right">${k.RevQty}</span>
+
+            <span style="width:18%;text-align:right;padding-right:8px;">
+              ${f(k.amount)}
+            </span>
+
+            <span style="width:10%;padding-left:4px;white-space:nowrap">
+              ${t((k as any).BilledDate || (k as any).billedDate || k.TxnDatetime)}
+            </span>
           </div>`;
-    let tQty = 0, tAmt = 0;
-    data.reverseKOTs.forEach(k => {
-      tQty += Number(k.RevQty || 0);
-      tAmt += Number(k.amount || 0);
-      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
-              <span style="width:12%;overflow:hidden;white-space:nowrap">${String(k.kotNo).substring(0, 5)}</span>
-              <span style="width:12%;overflow:hidden;white-space:nowrap">${(k.table_name || '').substring(0, 5)}</span>
-              <span style="width:44%;overflow:hidden;white-space:nowrap">${(k.item_name || '').substring(0, 20)}</span>
-              <span style="width:10%;text-align:right">${k.RevQty}</span>
-              <span style="width:12%;text-align:right">${f(k.amount)}</span>
-              <span style="width:10%;font-size:9px;white-space:nowrap">${t(k.TxnDatetime)}</span>
-            </div>`;
-    });
-    b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
-    b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>TOTAL</span><span>${tQty} | ${f(tAmt)}</span></div>`;
-  }
+  });
+
+  b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
+
+  b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;">
+          <span>TOTAL</span>
+          <span>${tQty} | ${f(tAmt)}</span>
+        </div>`;
+}
 
   // Reverse Bill Section
   if (data.reverseBills?.length) {
@@ -760,8 +803,9 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
       b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
               <span style="width:28%;overflow:hidden;white-space:nowrap">${String(bill.billNo).substring(0, 7)}</span>
               <span style="width:28%;overflow:hidden;white-space:nowrap">${(bill.table_name || '').substring(0, 7)}</span>
-              <span style="width:25%;text-align:right">${f(bill.reversedAmount)}</span>
-              <span style="width:19%;white-space:nowrap">${t(bill.TxnDatetime)}</span>
+              <span style="width:30%;text-align:right">${f(bill.reversedAmount)}</span>
+             
+<span style="width:19%;white-space:nowrap">${t((bill as any).BilledDate || (bill as any).billedDate || bill.TxnDatetime)}</span>
             </div>`;
       total += Number(bill.reversedAmount || 0);
     });

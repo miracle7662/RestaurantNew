@@ -1155,7 +1155,8 @@ const getReverseKOTsData = async (businessDate, dayEndEmpID) => {
     m.item_name,
     td.RevQty ,
     td.RevQty * td.Runtimerate AS amount,
-    t.TxnDatetime
+    t.TxnDatetime,
+    t.BilledDate
 FROM TAxnTrnBillDetails td
 JOIN TAxnTrnBill t 
     ON td.TxnID = t.TxnID

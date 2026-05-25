@@ -377,7 +377,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <img 
     src="${hotelLogoUrl}" 
     alt="Hotel Logo" 
-    style="max-width:70px;max-height:40px;object-fit:contain;display:inline-block;" 
+    style="max-width:100px;max-height:100px;object-fit:contain;display:inline-block;" 
     onerror="this.style.display='none'" 
   />
   </div>
