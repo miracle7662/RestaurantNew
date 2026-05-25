@@ -1,5 +1,5 @@
 // SettlementModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchCustomerByMobile } from '@/utils/commonfunction';
 import Customers from './Customers';
 
@@ -65,6 +65,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   selectedOutletId,
 }) => {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const settleButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleCustomerModalToggle = () => {
     setShowCustomerModal(prev => !prev);
@@ -201,38 +202,60 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     }
   };
 
-  // Keyboard navigation
+  // Keyboard navigation - Updated to settle on Enter after selection
   useEffect(() => {
     if (!show || !Array.isArray(outletPaymentModes) || outletPaymentModes.length === 0) return;
 
     const handler = (e: KeyboardEvent) => {
+      // Handle Escape key
+      if (e.key === 'Escape') {
+        onHide();
+        return;
+      }
+
+      // Handle Arrow navigation
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setActivePaymentIndex(prev => {
           const next = (prev + 1) % outletPaymentModes.length;
-          togglePaymentMode(outletPaymentModes[next]);
           return next;
         });
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setActivePaymentIndex(prev => {
           const next = (prev - 1 + outletPaymentModes.length) % outletPaymentModes.length;
-          togglePaymentMode(outletPaymentModes[next]);
           return next;
         });
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (outletPaymentModes[activePaymentIndex]) {
-          togglePaymentMode(outletPaymentModes[activePaymentIndex]);
+        
+        // First check if we have a selected payment mode
+        if (selectedPaymentModes.length === 0) {
+          // No payment mode selected yet - select the highlighted one
+          if (outletPaymentModes[activePaymentIndex]) {
+            togglePaymentMode(outletPaymentModes[activePaymentIndex]);
+          }
+        } else if (selectedPaymentModes.length > 0 && balanceDue === 0) {
+          // Payment mode is selected and no balance due - proceed with settlement
+          handleSettle();
+        } else if (selectedPaymentModes.length > 0 && balanceDue > 0) {
+          // Payment mode selected but balance due exists
+          toast.error(`Please complete payment: ₹${balanceDue.toFixed(2)} remaining`);
         }
-      } else if (e.key === 'Escape') {
-        onHide();
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [show, outletPaymentModes, activePaymentIndex, isMixedPayment, grandTotal, onHide]);
+  }, [show, outletPaymentModes, activePaymentIndex, selectedPaymentModes, balanceDue, onHide]);
+
+  // Focus management for settle button
+  useEffect(() => {
+    if (show && selectedPaymentModes.length > 0 && balanceDue === 0) {
+      // Optional: Auto-focus settle button when ready
+      // settleButtonRef.current?.focus();
+    }
+  }, [show, selectedPaymentModes, balanceDue]);
 
   // Reset form when modal closes
   useEffect(() => {
@@ -274,8 +297,6 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       toast.error('Customer details required for Credit payment');
       return;
     }
-
-
 
     // Validate: Received amount must be >= Bill amount (including tip)
     if (cashReceived > 0 && cashReceived < grandTotal) {
@@ -378,6 +399,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
                               ? 'bg-primary-subtle border-primary'
                               : 'border hover-bg-light'}
                         `}
+                        style={{ cursor: 'pointer' }}
                       >
                         {mode.mode_name}
                       </div>
@@ -649,6 +671,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
           Back
         </Button>
         <Button
+          ref={settleButtonRef}
           variant="success"
           size="lg"
           onClick={handleSettle}
@@ -661,7 +684,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
               Processing...
             </>
           ) : (
-            'Settle & Print'
+            'Settle'
           )}
         </Button>
       </Modal.Footer>
