@@ -395,12 +395,14 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     </div>
 
     <div style="font-size:8pt;">
-      GST No: ${billData?.gstNo || user?.trn_gstno || 'N/A'}
+      Phone: ${billData?.phone || 'N/A'}
     </div>
 
     <div style="font-size:8pt;">
-      Phone: ${billData?.phone || 'N/A'}
+      GST No: ${billData?.gstNo || user?.trn_gstno || 'N/A'}
     </div>
+
+    
 
     <div style="font-size:8pt;">
       FSSAI: ${billData?.fssaiNo || 'N/A'}
@@ -566,7 +568,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     ${(showAll || localFormData.field3) ? `<div style="font-size:8pt;">${localFormData.field3 || 'N/A'}</div>` : ''}
     ${(showAll || localFormData.field4) ? `<div style="font-size:8pt;">${localFormData.field4 || 'N/A'}</div>` : ''}
 
-    <div style="font-weight:bold;font-size:10pt;border-top:1px solid #000;padding-top:5px;">
+    <div style="font-weight:bold;font-size:12pt;border-top:1px solid #000;padding-top:5px;">
       GRAND TOTAL: ₹${taxCalc.grandTotal.toFixed(2)}
     </div>
   </div>
@@ -589,8 +591,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   ${(showAll || localFormData.show_ebill_invoice_qrcode) ? '<div>{/* E-bill QR Code */}</div>' : ''}
   ${(showAll || localFormData.show_zatca_invoice_qr) ? '<div>{/* ZATCA QR Code */}</div>' : ''}
 
-  <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
-  <div style="text-align:center;font-size:8pt;margin-top:10px;">
+  <hr style="border:none;border-top:1px solid #000;#000;margin:5px 0;" />
+  <div style="text-align:center;font-size:8pt;margin-top:10px; ">
     ${localFormData.footer_note || 'STAY SAFE, STAY HEALTHY'}
   </div>
 </div>
