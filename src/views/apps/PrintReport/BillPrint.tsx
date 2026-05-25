@@ -141,6 +141,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   const [localRestaurantName, setLocalRestaurantName] = React.useState('')
   const [localOutletName, setLocalOutletName] = React.useState('')
   const [hotelLogoUrl, setHotelLogoUrl] = React.useState<string | null>(null)   // ✅ Logo state
+  const [logoReady, setLogoReady] = React.useState(false)                        // ✅ Logo fetch gate
 
   // ─── FormData with bill settings ───────────────────────────────────────────
   const [localFormData, setLocalFormData] = React.useState<OutletSettings>(() =>
@@ -291,11 +292,14 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
 
   // ─── Fetch hotel logo when modal opens ─────────────────────────────────────
+  // ✅ FIX: logoReady gates auto-print so it never fires before logo fetch completes
   React.useEffect(() => {
     const fetchHotelLogo = async () => {
+      setLogoReady(false)  // reset on every open
       const hotelid = (user as any)?.hotelid ?? (user as any)?.hotelId
       if (!hotelid || isNaN(Number(hotelid))) {
         setHotelLogoUrl(null)
+        setLogoReady(true)   // no logo, but done waiting
         return
       }
       try {
@@ -307,18 +311,25 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       } catch (err) {
         console.error('Failed to fetch hotel logo:', err)
         setHotelLogoUrl(null)
+      } finally {
+        setLogoReady(true)   // always mark done, success or fail
       }
     }
-    if (show) fetchHotelLogo()
+    if (show) {
+      fetchHotelLogo()
+    } else {
+      setLogoReady(false)  // reset when modal closes
+    }
   }, [show, user, normalizeLogoUrl])
 
   // ─── Auto-print logic ──────────────────────────────────────────────────────
+  // ✅ FIX: logoReady added as gate — print only after logo fetch completes
   React.useEffect(() => {
-    if (autoPrint && show && !loading && !hasPrinted && printerName) {
+    if (autoPrint && show && !loading && !hasPrinted && printerName && logoReady) {
       setHasPrinted(true)
       handlePrintBill()
     }
-  }, [autoPrint, show, loading, hasPrinted, printerName])
+  }, [autoPrint, show, loading, hasPrinted, printerName, logoReady])
 
   // ─── HTML generation ───────────────────────────────────────────────────────
   const generateBillHTML = () => `<!DOCTYPE html>
