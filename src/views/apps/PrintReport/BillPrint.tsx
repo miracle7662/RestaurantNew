@@ -360,7 +360,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     // When rendering PREVIEW, we should respect only preview-enabled sections,
     // not force-show everything using `showAll`.
     const showAll = false
-    const showLogo = localFormData.show_logo_bill !== false && !!hotelLogoUrl
+    // const showLogo = localFormData.show_logo_bill !== false && !!hotelLogoUrl
 
     const formatAmount = (val: number) => {
       return Number.isInteger(val) ? val.toString() : val.toFixed(2).replace(/\.00$/, '')
@@ -373,10 +373,14 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <!-- HEADER -->
   <div style="text-align:center;margin-bottom:10px;">
 
-    ${showLogo ? `
-    <div style="text-align:center;margin-bottom:4px;">
-      <img src="${hotelLogoUrl}" alt="Hotel Logo" style="max-width:70px;max-height:40px;object-fit:contain;display:inline-block;" onerror="this.style.display='none'" />
-    </div>` : ''}
+   <div style="text-align:center;margin-bottom:4px;">
+  <img 
+    src="${hotelLogoUrl}" 
+    alt="Hotel Logo" 
+    style="max-width:70px;max-height:40px;object-fit:contain;display:inline-block;" 
+    onerror="this.style.display='none'" 
+  />
+  </div>
 
     <div style="font-weight:bold;font-size:14pt;margin-bottom:2px;">
       ${billData?.hotelName || displayRestaurantName || ''}

@@ -2450,14 +2450,16 @@ const PrintAndSettle = async () => {
     return;
   }
 
-  // ✅ Safety check for takeaway orders
+  // Safety check for takeaway orders
   if (isTakeaway && !txnId) {
     toast.error('Transaction not loaded. Please reopen order.');
     return;
   }
 
   try {
-    // ✅ Mark bill as billed & generate Bill No / TxnNo
+    setLoading(true);
+    
+    // Mark bill as billed & generate Bill No / TxnNo
     const response = await OrderService.markBillAsBilled(txnId, {
       outletId: selectedOutletId || Number(user?.outletid),
       customerName: customerName || null,
@@ -2467,28 +2469,23 @@ const PrintAndSettle = async () => {
 
     console.log('MarkBill Response:', response);
 
-    // ✅ Get generated bill number
-    const generatedTxnNo =
-      response?.data?.TxnNo ||
-     
-      '';
+    // Get generated bill number
+    const generatedTxnNo = response?.data?.TxnNo || '';
 
     if (!generatedTxnNo) {
       toast.error('Bill No not generated');
       return;
     }
 
-    // ✅ IMPORTANT:
-    // Set bill no BEFORE opening print modal
-    setOrderNo(generatedTxnNo);
+    // ✅ CRITICAL FIX: Set BOTH orderNo AND txnNo
+    setOrderNo(generatedTxnNo);  // Order Number (for display)
+    setTxnNo(generatedTxnNo);    // Bill Number/TxnNo (for BillNo field)
 
-    // ✅ Fetch latest billed data
+    // Fetch latest billed data
+    let updatedBillData = null;
     try {
       const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
-
-      const updatedBillData =
-        updatedBillRes?.data || updatedBillRes || null;
-
+      updatedBillData = updatedBillRes?.data || updatedBillRes || null;
       if (updatedBillData) {
         setBillData(updatedBillData);
       }
@@ -2496,16 +2493,31 @@ const PrintAndSettle = async () => {
       console.error('Failed to fetch updated bill data:', billFetchError);
     }
 
-    // ✅ Set billed state
+    // ✅ Create fallback billData if API fails
+    if (!updatedBillData && generatedTxnNo) {
+      const manualBillData = {
+        TxnNo: generatedTxnNo,
+        orderNo: orderNo,
+        details: billItems.filter(i => i.itemId > 0),
+        header: {
+          TxnNo: generatedTxnNo,
+          orderNo: orderNo,
+          Order_Type: activeTab,
+        }
+      };
+      setBillData(manualBillData);
+    }
+
+    // Set billed state
     setIsTransactionBilled(true);
 
-    // ✅ Open print modal AFTER bill no set
+    // Open print modal AFTER bill no set
     setPrintThenSettleFlow(true);
     setShowBillPrintModal(true);
 
     toast.success('Bill marked as printed and ready for settlement!');
 
-    // ✅ Update table status only for dine-in
+    // Update table status only for dine-in
     if (!isTakeaway && tableId) {
       await OrderService.updateTableStatus(tableId, {
         status: 2,
@@ -2515,6 +2527,8 @@ const PrintAndSettle = async () => {
   } catch (error) {
     console.error('PrintAndSettle Error:', error);
     toast.error('Error printing bill');
+  } finally {
+    setLoading(false);
   }
 };
 
