@@ -2957,7 +2957,7 @@ const PrintAndSettle = async () => {
 
         if (event.key === 'F9') {
           event.preventDefault();
-          if (!hasItems) return;
+          if (disableNCKOT || !hasItems) return;
           setShowNCKOTModal(true);
           return;
         }
@@ -2987,7 +2987,8 @@ const PrintAndSettle = async () => {
     isPrintDisabled,
     disableKOT,
     disableReverseBill,
-    handleF8Action
+    handleF8Action,
+    disableNCKOT
   ]);
 
   return (
