@@ -222,9 +222,8 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
         });
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (outletPaymentModes[activePaymentIndex]) {
-          togglePaymentMode(outletPaymentModes[activePaymentIndex]);
-        }
+        // Enter = Settle
+        handleSettle();
       } else if (e.key === 'Escape') {
         onHide();
       }
