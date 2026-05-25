@@ -438,6 +438,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   const [tip, setTip] = useState<number>(0);
   const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([]);
   const [taxCalc, setTaxCalc] = useState({ grandTotal: 0, subtotal: 0, taxableValue: 0 });
+  const [, setTxnNo] = useState<string | null>(null);
 
   const totalReceived = Object.values(paymentAmounts).reduce(
     (acc, val) => acc + (parseFloat(val) || 0),
@@ -1003,7 +1004,8 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       // console.log('Takeaway API Response Header:', data.header);
       if (data.header) {
         setTxnId(data.header.TxnID);
-       setOrderNo(data.header.TxnNo ?? data.header.orderNo);
+       setOrderNo(data.header.orderNo!);  // ✅ "0037"
+       setTxnNo(data.header.TxnNo);  
         setWaiter(data.header.waiter || '');
         setPax(data.header.pax || data.header.PAX || 1);
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
@@ -2372,7 +2374,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
     }
   };
 
-  const printBill = async () => {
+const printBill = async () => {
   if (!txnId) return;
 
   if (isTakeaway && !txnId) {
@@ -2381,7 +2383,9 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   }
 
   try {
-    // 1️⃣ Generate TxnNo (Bill No) using common API service
+    setLoading(true);
+    
+    // 1️⃣ Generate TxnNo (Bill No)
     const response = await OrderService.markBillAsBilled(txnId, {
       outletId: selectedOutletId || Number(user?.outletid),
       customerName: customerName || null,
@@ -2389,36 +2393,53 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
       customerid: customerId || null,
     });
 
-    const txnNo = response.data?.TxnNo;
-    if (!txnNo) {
+    const generatedTxnNo = response.data?.TxnNo;
+    if (!generatedTxnNo) {
       toast.error('TxnNo not generated');
       return;
     }
 
-    // ✅ ADD THIS: Fetch the latest bill data after marking as billed
+    // ✅ Set TxnNo (Bill Number)
+    setTxnNo(generatedTxnNo);
+    
+    // ✅ orderNo already exists from loadTakeawayOrder (e.g., "0037")
+    // Don't overwrite it!
+
+    // Fetch latest bill data
+    let updatedBillData = null;
     try {
       const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
-      const updatedBillData = updatedBillRes.data || updatedBillRes;
+      updatedBillData = updatedBillRes.data || updatedBillRes;
       if (updatedBillData && updatedBillData.details) {
-        setBillData(updatedBillData);
-      } else if (updatedBillData) {
         setBillData(updatedBillData);
       }
     } catch (billFetchError) {
       console.error('Failed to fetch updated bill data:', billFetchError);
-      // Don't block the flow if bill fetch fails
     }
 
-    // 2️⃣ Save Bill No in state
-    setIsTransactionBilled(true);
-    setOrderNo(orderNo);
+    // Create manual billData if needed
+    if (!updatedBillData && generatedTxnNo) {
+      const manualBillData = {
+        TxnNo: generatedTxnNo,
+        orderNo: orderNo,  // Keep existing orderNo
+        details: billItems.filter(i => i.itemId > 0),
+        header: {
+          TxnNo: generatedTxnNo,
+          orderNo: orderNo,
+          Order_Type: activeTab,
+        }
+      };
+      setBillData(manualBillData);
+    }
 
-    // ✅ 3️⃣ OPEN BILL PRINT MODAL
+    setIsTransactionBilled(true);
     setShowBillPrintModal(true);
 
   } catch (error) {
-    // console.error('Error printing bill:', error);
+    console.error('Error printing bill:', error);
     toast.error('Error printing bill');
+  } finally {
+    setLoading(false);
   }
 };
 

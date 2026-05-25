@@ -413,8 +413,9 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <!-- BILL INFO -->
   <div style="display:flex;gap:8px;margin-bottom:5px;font-size:9pt;">
 <div style="flex:1;">
-  <strong>BillNo</strong><br />
-  ${(billData?.txnNo || '').toString()}
+  <strong>BillNo</strong>
+  <br />
+  ${(txnNo || billData?.TxnNo || '').toString().replace(/^DIN-/, '')}
 </div>
     <div style="flex:1;"><strong>Date</strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : (businessCurrDate ? new Date(businessCurrDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'))}</div>
     <div style="flex:1;white-space:nowrap;"><strong>Time</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
@@ -522,11 +523,13 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     </div>
     ${(showAll || (localFormData.show_discount_reason_bill && reason)) ? `<div style="font-size:8pt;">(${reason || 'N/A'})</div>` : ''}` : ''}
 
-    <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
-      <span><strong>Taxable Value</strong></span>
-      <span style="text-align:center;">:</span>
-      <span style="text-align:right;">₹${(billData?.TaxableValue ?? taxCalc.TaxableValue ?? (taxCalc.subtotal - discount)).toFixed(2)}</span>
-    </div>
+   ${(taxCalc.cgstAmt > 0 || taxCalc.sgstAmt > 0 || taxCalc.igstAmt > 0) ? `
+<div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
+  <span><strong>Taxable Value</strong></span>
+  <span style="text-align:center;">:</span>
+  <span style="text-align:right;">₹${(billData?.TaxableValue ?? taxCalc.TaxableValue ?? (taxCalc.subtotal - discount)).toFixed(2)}</span>
+</div>
+` : ''}
 
     ${taxCalc.cgstAmt > 0 ? `
     <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
