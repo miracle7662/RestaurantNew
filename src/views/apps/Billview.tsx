@@ -2922,7 +2922,7 @@ const PrintAndSettle = async () => {
 
           case 'F2':
             event.preventDefault();
-            if (!hasItems || isBillPrintedState) return;
+            if (isTakeaway || disableKOTTransfer) return;
             setTransferSource('kot');
             setShowKotTransferModal(true);
             return;
@@ -2971,19 +2971,20 @@ const PrintAndSettle = async () => {
 
           case 'F6':
             event.preventDefault();
+            if (disableNewBill) return;
             resetBillState();
             return;
 
           case 'F7':
             event.preventDefault();
-            if (!hasItems || isBillPrintedState) return;
+            if (isTakeaway || disableTableTransfer) return;
             setTransferSource('table');
             setShowKotTransferModal(true);
             return;
 
           case 'F8': // ✅ Reverse KOT (password if billed)
             event.preventDefault();
-            if (!hasItems) return;
+            if (disableRevKOT) return;
             handleF8Action();
             return;
 
@@ -3048,7 +3049,7 @@ const PrintAndSettle = async () => {
     isPrintDisabled,
     disableKOT,
     disableReverseBill,
-    handleF8Action,
+    disableRevKOT,
     disableNCKOT
   ]);
 

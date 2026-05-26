@@ -40,9 +40,9 @@ const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onC
       case 'printed': return 'bg-danger';
       case 'paid': return 'bg-white';
       case 'running-kot': return 'bg-warning-orange';
-      case 'occupied': return 'bg-primary'; // Map 'occupied' to 'running' style
-      case 'available': return 'bg-white'; // Map 'available' to 'blank' style
-      case 'reserved': return 'bg-warning'; // Add handling for 'reserved' if needed
+      case 'occupied': return 'bg-primary';
+      case 'available': return 'bg-white';
+      case 'reserved': return 'bg-warning';
       default: return 'bg-white';
     }
   };
@@ -108,7 +108,13 @@ export default function App() {
   const [allTables, setAllTables] = useState<Table[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tableInput, setTableInput] = useState('');
+  
+  // ✅ PERSIST TABLE INPUT USING SESSION STORAGE
+  const [tableInput, setTableInput] = useState(() => {
+    const saved = sessionStorage.getItem('lastTableInput');
+    return saved || '';
+  });
+  
   const [showModal, setShowModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [focusedButton, setFocusedButton] = useState<'yes' | 'no'>('yes');
@@ -127,7 +133,25 @@ export default function App() {
   const location = useLocation();
   const tableInputRef = useRef<HTMLInputElement>(null);
 
+  // ✅ Save table input to session storage whenever it changes
+  useEffect(() => {
+    if (tableInput) {
+      sessionStorage.setItem('lastTableInput', tableInput);
+    } else {
+      sessionStorage.removeItem('lastTableInput');
+    }
+  }, [tableInput]);
 
+  // ✅ Clear saved table input when navigating away (optional - only if you want to clear on certain conditions)
+  // You can remove this if you want it to persist indefinitely
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Optional: Clear on page refresh - remove this if you want to keep after refresh
+      // sessionStorage.removeItem('lastTableInput');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   useEffect(() => {
     const fetchTables = async () => {
@@ -140,7 +164,6 @@ export default function App() {
           return;
         }
         const response = await TableManagementService.list();
-        // console.log('TableManagement API response:', response);
         if (response.success && Array.isArray(response.data)) {
           const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
           if (filteredData.length > 0) {
@@ -148,10 +171,8 @@ export default function App() {
               filteredData.map(async (item: any) => {
                 let status = Number(item.status);
 
-                // Fetch bill status for each table from backend using OrderService
                 const response = await OrderService.getBillStatus(item.tableid);
                 const data = response;
-
 
                 let txnId: number | null = null;
                 let billNo: string | null = null;
@@ -165,9 +186,7 @@ export default function App() {
                   billAmount = Amount || null;
                   if (BilledDate) {
                     const date = new Date(BilledDate);
-
                     billPrintedDate = date;
-
                     billPrintedTime = date.toLocaleTimeString('en-IN', {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -175,8 +194,8 @@ export default function App() {
                     });
                   }
 
-                  if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
-                  if (isSetteled === 1) status = 0; // ⚪ vacant when settled
+                  if (isBilled === 1 && isSetteled !== 1) status = 2;
+                  if (isSetteled === 1) status = 0;
                 }
 
                 let statusString: TableStatus;
@@ -189,12 +208,11 @@ export default function App() {
                   default: statusString = 'available'; break;
                 }
 
-                // Check if printed bill is 10+ minutes old, change to pending
                 if (statusString === 'printed' && billPrintedDate) {
                   const now = new Date();
                   const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
                   if (diffMinutes >= 10) {
-                    statusString = 'running-kot'; // Mark as pending
+                    statusString = 'running-kot';
                   }
                 }
 
@@ -225,7 +243,6 @@ export default function App() {
           setAllTables([]);
         }
       } catch (err) {
-        // console.error('Table fetch error:', err);
         setError('Failed to fetch tables. Please check the API endpoint.');
         setAllTables([]);
       } finally {
@@ -255,7 +272,6 @@ export default function App() {
 
     fetchData();
 
-    // Add event listener for Escape key
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         navigate('/');
@@ -264,13 +280,11 @@ export default function App() {
 
     document.addEventListener('keydown', handleEscapeKey);
 
-    // Cleanup event listener on unmount
     return () => {
       document.removeEventListener('keydown', handleEscapeKey);
     };
   }, [user, navigate]);
 
-  // Periodically update table statuses based on bill printed time
   useEffect(() => {
     const updateTableStatuses = () => {
       setAllTables(prevTables =>
@@ -288,19 +302,19 @@ export default function App() {
     };
 
     updateTableStatuses();
-    const interval = setInterval(updateTableStatuses, 60000); // 60 seconds
+    const interval = setInterval(updateTableStatuses, 60000);
 
     return () => clearInterval(interval);
   }, []);
 
-  // Focus the table input field when the component mounts
   useEffect(() => {
     if (tableInputRef.current) {
       tableInputRef.current.focus();
+      // ✅ Select all text when focused
+      tableInputRef.current.select();
     }
   }, []);
 
-  // Handle keyboard events for modal
   useEffect(() => {
     if (!showModal || !selectedTable) return;
 
@@ -308,15 +322,11 @@ export default function App() {
       if (event.key === 'ArrowLeft') {
         setFocusedButton('yes');
         yesButtonRef.current?.focus();
-
       } else if (event.key === 'ArrowRight') {
         setFocusedButton('no');
         noButtonRef.current?.focus();
-
       } else if (event.key === 'Enter') {
-
         if (focusedButton === 'yes') {
-
           navigate('/apps/Billview', {
             state: {
               tableId: selectedTable.id,
@@ -328,9 +338,7 @@ export default function App() {
               txnId: selectedTable.txnId
             }
           });
-
         } else {
-
           navigate('/apps/Billview', {
             state: {
               tableId: selectedTable.id,
@@ -341,13 +349,9 @@ export default function App() {
               txnId: selectedTable.txnId
             }
           });
-
         }
-
         setShowModal(false);
-
       } else if (event.key === 'n' || event.key === 'N') {
-
         navigate('/apps/Billview', {
           state: {
             tableId: selectedTable.id,
@@ -358,7 +362,6 @@ export default function App() {
             txnId: selectedTable.txnId
           }
         });
-
         setShowModal(false);
       }
     };
@@ -370,14 +373,12 @@ export default function App() {
     };
   }, [showModal, selectedTable, navigate, focusedButton]);
 
-  // Focus the yes button when modal opens
   useEffect(() => {
     if (showModal && yesButtonRef.current) {
       yesButtonRef.current.focus();
     }
   }, [showModal]);
 
-  // Handle Ctrl + number keys for department selection
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey) {
@@ -400,7 +401,6 @@ export default function App() {
     };
   }, [departments]);
 
-  // Filter tables to only show specified statuses - memoized to prevent infinite loops
   const filteredTables = useMemo(() =>
     allTables.filter(table =>
       table.status === 'available' || table.status === 'running' || table.status === 'printed' || table.status === 'running-kot'
@@ -408,7 +408,6 @@ export default function App() {
     [allTables]
   );
 
-  // Compute status counts - memoized to prevent infinite loops
   const computedStatusCounts = useMemo(() => {
     return filteredTables.reduce((acc, table) => {
       if (table.status === 'available') acc.vacant++;
@@ -419,12 +418,10 @@ export default function App() {
     }, { vacant: 0, occupied: 0, printed: 0, pending: 0 });
   }, [filteredTables]);
 
-  // Sync computed status counts to state
   useEffect(() => {
     setStatusCounts(computedStatusCounts);
   }, [computedStatusCounts]);
 
-  // Group tables by their departmentid
   const tablesByDepartment = filteredTables.reduce((acc, table) => {
     if (table.departmentid) {
       if (!acc[table.departmentid]) {
@@ -435,7 +432,6 @@ export default function App() {
     return acc;
   }, {} as Record<number, Table[]>);
 
-  // Filter departments to show based on dropdown selection
   const displayedDepartments = selectedDepartmentId === 'all' ? departments : departments.filter(d => d.departmentid === selectedDepartmentId);
 
   const handleRefresh = () => {
@@ -444,7 +440,6 @@ export default function App() {
 
   const handleTakeAwayClick = () => {
     const outletId = user?.outletid || allTables[0]?.outletid || null;
-    // If 'all' departments selected, use the first department as default for takeaway
     const departmentId = selectedDepartmentId !== 'all' ? selectedDepartmentId : (departments.length > 0 ? departments[0].departmentid : null);
 
     navigate('/apps/Billview', {
@@ -480,17 +475,15 @@ export default function App() {
   const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      e.stopPropagation();   // 🔥 IMPORTANT
+      e.stopPropagation();
 
       const input = tableInput.trim().toLowerCase();
       if (input) {
-        // Search across ALL tables regardless of department filter for robust lookup
         const table = allTables.find(t => t.name.toLowerCase() === input);
 
         if (table) {
           if (table.status === 'printed' ||
             (table.status === 'running-kot' && table.billNo)) {
-
             setSelectedTable({
               ...table,
               departmentid: table.departmentid,
@@ -510,25 +503,19 @@ export default function App() {
           }
         }
       }
-      setTableInput('');
+      // ✅ DO NOT clear the input - it stays visible
     }
   };
 
-
   const fetchTakeawayOrders = async () => {
     try {
-      // console.log('Fetching takeaway orders for outletId:', user?.outletid);
       const response = await OrderService.getPendingOrders('takeaway', user?.outletid);
-      // console.log('Takeaway orders response:', response);
       if (response.success) {
-        // console.log('Setting takeaway orders:', response.data);
         setTakeawayOrders(response.data || []);
       } else {
-        // console.error('API returned success=false:', response.message);
         setTakeawayOrders([]);
       }
     } catch (error) {
-      // console.error('Error fetching takeaway orders:', error);
       setTakeawayOrders([]);
     }
   };
@@ -580,12 +567,11 @@ export default function App() {
           border-bottom: 1px solid #dee2e6;
         }
         .full-screen-toolbar {
-        height: 50px;
-        padding: 0 15px;
-        background: #fff;
-        border-bottom: 1px solid #dee2e6;
+          height: 50px;
+          padding: 0 15px;
+          background: #fff;
+          border-bottom: 1px solid #dee2e6;
         }
-
         .full-screen-content {
           top: 120px;
           left: 0;
@@ -606,11 +592,8 @@ export default function App() {
           margin-bottom: 10px;
           justify-content: start;
         }
-
-        
-          
       `}</style>
-      {/* Toolbar */}
+      
       {/* Toolbar */}
       <div className="full-screen-toolbar">
         <div className="container-fluid">
@@ -648,7 +631,6 @@ export default function App() {
 
             <div className="col d-flex justify-content-end align-items-center gap-2">
               <Legend statusCounts={statusCounts} />
-
               <button className="btn btn-outline-secondary btn-sm" onClick={handleRefresh}>
                 <RefreshCw size={16} />
               </button>
@@ -660,7 +642,6 @@ export default function App() {
           </div>
         </div>
       </div>
-
 
       {/* Main Content */}
       <div className="full-screen-content ">
@@ -690,41 +671,30 @@ export default function App() {
           </div>
         )}
 
-
-
         {/* Takeaway Orders Cards */}
         {takeawayOrders.length > 0 && (
           <div className="mt-1 p-1 ms-3 ">
-            {/* POS-style Header */}
             <div className="d-flex align-items-center gap-3 mb-3">
               <h6 className="mb-0 fw-semibold">Takeaway Orders</h6>
-
               <div className="d-flex gap-2">
                 <button
                   className={`btn btn-sm px-3 d-flex align-items-center gap-1 custom-hover
-    ${activeFilter === 'All'
-                      ? 'btn-danger'
-                      : 'btn-outline-danger'}`}
+                    ${activeFilter === 'All' ? 'btn-danger' : 'btn-outline-danger'}`}
                   onClick={() => setActiveFilter('All')}
                 >
                   <i className="fi fi-rr-apps"></i>
                 </button>
                 <button
                   className={`btn btn-sm px-3 d-flex align-items-center gap-1 custom-hover
-    ${activeFilter === 'Pickup'
-                      ? 'btn-primary'
-                      : 'btn-outline-danger'}`}
+                    ${activeFilter === 'Pickup' ? 'btn-primary' : 'btn-outline-danger'}`}
                   onClick={() => setActiveFilter('Pickup')}
                 >
                   <i className="fi fi-rr-shopping-bag"></i>
                   Pickup
                 </button>
-
                 <button
                   className={`btn btn-sm px-3 d-flex align-items-center gap-1 custom-hover
-    ${activeFilter === 'Delivery'
-                      ? 'btn-primary'
-                      : 'btn-outline-danger'}`}
+                    ${activeFilter === 'Delivery' ? 'btn-primary' : 'btn-outline-danger'}`}
                   onClick={() => setActiveFilter('Delivery')}
                 >
                   <i className="fi fi-rr-truck-moving"></i>
@@ -740,14 +710,9 @@ export default function App() {
                   return activeFilter === 'All' || orderType === activeFilter;
                 })
                 .map(order => {
-                  // Calculate KOT number from order details
                   const kotNumbers = order.details ? order.details.map((item: any) => parseInt(item.KOTNo || item.kotNo || 0)).filter((k: number) => k > 0) : [];
                   const maxKot = kotNumbers.length > 0 ? Math.max(...kotNumbers) : null;
-
-                  // Determine order type for icon and navigation
                   const orderType = order.type === 'Pickup' ? 'Pickup' : order.type === 'Delivery' ? 'Delivery' : 'TAKEAWAY';
-
-
 
                   return (
                     <div
@@ -768,23 +733,17 @@ export default function App() {
                             tableName: 'TAKE AWAY'
                           }
                         })
-
                       }
                     >
                       <div className="d-flex align-items-center justify-content-between mb-1">
-                        {/* Order No - Left */}
-                        <div className="fw-bold text-danger">
-                          {order.orderNo}
-                        </div>
-
-                        {/* Order Type Icon - Right in Rectangle */}
+                        <div className="fw-bold text-danger">{order.orderNo}</div>
                         {(orderType === 'Pickup' || orderType === 'Delivery') && (
                           <div
                             className="d-flex align-items-center justify-content-center rounded"
                             style={{
                               width: '30px',
                               height: '26px',
-                              backgroundColor: orderType === 'Pickup' ? '#0d6efd' : '#fd7e14', // dark bg
+                              backgroundColor: orderType === 'Pickup' ? '#0d6efd' : '#fd7e14',
                             }}
                             title={orderType}
                           >
@@ -797,18 +756,9 @@ export default function App() {
                           </div>
                         )}
                       </div>
-
-                      <div className="small text-muted">
-                        {order.customer?.name || 'N/A'}
-                      </div>
-                      <div className="fw-semibold">
-                        ₹{Math.round(order.total)}
-                      </div>
-                      {maxKot && (
-                        <div className="small text-primary">
-                          KOT: {maxKot}
-                        </div>
-                      )}
+                      <div className="small text-muted">{order.customer?.name || 'N/A'}</div>
+                      <div className="fw-semibold">₹{Math.round(order.total)}</div>
+                      {maxKot && <div className="small text-primary">KOT: {maxKot}</div>}
                     </div>
                   );
                 })}
@@ -816,36 +766,25 @@ export default function App() {
           </div>
         )}
       </div>
+      
       {/* Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="sm">
-        <Modal.Header
-          closeButton
-          className="py-2 px-3"   // 👈 padding kam
-        >
-          <Modal.Title className="fs-6 mb-0">
-            Next Process
-          </Modal.Title>
+        <Modal.Header closeButton className="py-2 px-3">
+          <Modal.Title className="fs-6 mb-0">Next Process</Modal.Title>
         </Modal.Header>
-
         <Modal.Body className="d-flex justify-content-center align-items-center text-center" style={{ minHeight: '120px' }}>
           <div>
-
             <div className="mb-3">
               <div className="fs-5">Do you want to settle the bill?</div>
               <div className="fw-bold fs-5 mt-1">Yes</div>
             </div>
-
             <div>
               <div className="fs-5">Do you want to Modify the bill?</div>
               <div className="fw-bold fs-5 mt-1">No</div>
             </div>
-
           </div>
         </Modal.Body>
-
-
         <Modal.Footer>
-
           <Button ref={yesButtonRef} variant="primary" onClick={() => {
             if (selectedTable) {
               navigate('/apps/Billview', {
@@ -862,7 +801,7 @@ export default function App() {
             }
             setShowModal(false);
           }}>
-            Yes -
+            Yes
           </Button>
           <Button ref={noButtonRef} variant="secondary" onClick={() => {
             if (selectedTable) {
@@ -886,4 +825,3 @@ export default function App() {
     </div>
   );
 }
-

@@ -22,6 +22,9 @@ const getRowColor = (kotNo: string | number | null | undefined) => {
     return KOT_COLORS[num % KOT_COLORS.length];
 };
 
+// Default reason options
+const DEFAULT_REASONS = ['Cancelled by Guest', 'Wrong Item', 'Item Not Available', 'Quality Issue', 'Delay in Service'];
+
 interface ReverseKotModalProps {
     show: boolean;
     onClose: () => void;
@@ -55,23 +58,107 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
 }) => {
     const [items, setItems] = useState<any[]>([]);
     const [nextRevKotNo, setNextRevKotNo] = useState<number>((revKotNo ?? 0) + 1);
+    const [reasonOptions, setReasonOptions] = useState<string[]>(DEFAULT_REASONS);
+    const [customReasonInput, setCustomReasonInput] = useState<{ [key: number]: string }>({});
 
     // Refs for navigation
     const cancelRefs = useRef<(HTMLInputElement | null)[]>([]);
     const reasonRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+    // Load saved reasons from localStorage
+    useEffect(() => {
+        const savedReasons = localStorage.getItem('reverseKotReasons');
+        if (savedReasons) {
+            try {
+                const parsed = JSON.parse(savedReasons);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setReasonOptions(parsed);
+                }
+            } catch (e) {
+                console.error('Failed to parse saved reasons', e);
+            }
+        }
+    }, []);
+
+    // Save reasons to localStorage whenever they change
+    const saveReasonsToLocalStorage = (reasons: string[]) => {
+        localStorage.setItem('reverseKotReasons', JSON.stringify(reasons));
+    };
+
+    // Add new reason to dropdown options
+    const addNewReason = (newReason: string, idx: number) => {
+        if (!newReason || newReason.trim() === '') return false;
+        
+        const trimmedReason = newReason.trim();
+        
+        // Check if reason already exists (case-insensitive)
+        const exists = reasonOptions.some(
+            r => r.toLowerCase() === trimmedReason.toLowerCase()
+        );
+        
+        if (!exists) {
+            const updatedReasons = [trimmedReason, ...reasonOptions];
+            setReasonOptions(updatedReasons);
+            saveReasonsToLocalStorage(updatedReasons);
+            toast.success(`New reason "${trimmedReason}" added to list`);
+            return true;
+        }
+        return false;
+    };
+
+    // Handle custom reason input change (for editable dropdown)
+    const handleReasonInputChange = (idx: number, value: string) => {
+        setCustomReasonInput(prev => ({ ...prev, [idx]: value }));
+        
+        // Update the item's reason with the custom value
+        const updated = [...items];
+        updated[idx].reason = value;
+        setItems(updated);
+    };
+
+    // Set default reason when cancel quantity is entered via Enter key
+    const setDefaultReasonOnEnter = (idx: number) => {
+        const updated = [...items];
+        // Only set default reason if cancelQty > 0 and reason is empty
+        if (updated[idx].cancelQty > 0 && (!updated[idx].reason || updated[idx].reason.trim() === '')) {
+            const defaultReason = 'Cancelled by Guest';
+            updated[idx].reason = defaultReason;
+            setCustomReasonInput(prev => ({ ...prev, [idx]: defaultReason }));
+            setItems(updated);
+        }
+    };
+
+    // Handle Enter key on reason input (editable dropdown)
+    const handleReasonKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const currentValue = customReasonInput[idx] || items[idx].reason || '';
+            
+            if (currentValue.trim()) {
+                // Add the typed reason to dropdown list
+                addNewReason(currentValue, idx);
+            }
+            
+            // Move to next row or save
+            if (idx === items.length - 1) {
+                handleReverseKotSave();
+            } else {
+                focusNextCancel(idx);
+            }
+        }
+    };
+
     // Fetch next reverse KOT number when modal opens
     useEffect(() => {
         const fetchNextRevKot = async () => {
             if (show && outletid) {
-                // console.log('Fetching next reverse KOT for outlet:', outletid);
                 try {
                     const response = await OrderService.fetchGlobalReverseKOTNumber(outletid, currDate);
                     if (response.data?.nextRevKOT) {
                         setNextRevKotNo(response.data.nextRevKOT);
                     }
                 } catch (error) {
-                    // console.error('Error fetching global reverse KOT number:', error);
+                    console.error('Error fetching global reverse KOT number:', error);
                     toast.error('Failed to fetch reverse KOT number');
                 }
             }
@@ -92,24 +179,25 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
             const itemId = item.itemId ?? item.ItemID ?? null;
 
             return {
-                
                 ...item,
-                originalQty: originalQty,           // ✅ Original quantity before any reversal
-                txnDetailId: txnDetailId,           // ✅ For Dine-in
-                TXnDetailID: txnDetailId,           // ✅ For backend (uppercase)
-                itemId: itemId,                     // ✅ For Takeaway fallback
-                ItemID: itemId,                     // ✅ For backend fallback
+                originalQty: originalQty,
+                txnDetailId: txnDetailId,
+                TXnDetailID: txnDetailId,
+                itemId: itemId,
+                ItemID: itemId,
                 kotNo: item.kotNo ?? item.mkotNo ?? null,
-                reversedQty: rev,                   // Already reversed quantity
-                cancelQty: 0,                       // User will enter new reversal quantity
-                reason: (item.existingReason as string) || '',
+                reversedQty: rev,
+                cancelQty: 0,
+                reason: '', // Start with empty reason
                 rate: rate,
-                amount: rev * rate,                 // Amount for already reversed items
+                amount: rev * rate,
                 revKotNo: item.revKotNo || item.RevKOTNo || 0
             };
-            
         });
         setItems(initialized);
+        
+        // Reset custom reason inputs
+        setCustomReasonInput({});
     }, [kotItems]);
 
     useEffect(() => {
@@ -127,7 +215,14 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         if (field === 'cancelQty') {
             // Limit cancel quantity to remaining available quantity
             const maxCancelQty = (updated[idx].originalQty || updated[idx].qty) - (updated[idx].reversedQty || 0);
-            updated[idx][field] = Math.min(Number(value), maxCancelQty);
+            const newCancelQty = Math.min(Number(value), maxCancelQty);
+            updated[idx][field] = newCancelQty;
+            
+            // Clear reason if cancelQty becomes 0
+            if (newCancelQty === 0) {
+                updated[idx].reason = '';
+                setCustomReasonInput(prev => ({ ...prev, [idx]: '' }));
+            }
         } else {
             updated[idx][field] = Number(value);
         }
@@ -153,31 +248,21 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         }
     };
 
-    const handleCancelKeyDown = (idx: number, e: React.KeyboardEvent<HTMLElement>) => {
+    const handleCancelKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             
             // Get current cancel quantity value
             const currentCancelQty = items[idx].cancelQty || 0;
             
-            // If quantity is greater than 0, go to Reason field
+            // If quantity is greater than 0, set default reason and go to Reason field
             if (currentCancelQty > 0) {
+                // Set default reason when Enter is pressed on Cancel field
+                setDefaultReasonOnEnter(idx);
                 reasonRefs.current[idx]?.focus();
                 reasonRefs.current[idx]?.select();
             } else {
                 // If no quantity typed, move to next row's Cancel field (or save if last row)
-                focusNextCancel(idx);
-            }
-        }
-    };
-
-    const handleReasonKeyDown = (idx: number, e: React.KeyboardEvent<HTMLElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (idx === items.length - 1) {
-                // Last row: trigger save
-                handleReverseKotSave();
-            } else {
                 focusNextCancel(idx);
             }
         }
@@ -190,7 +275,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
 
     const handleReverseKotSave = () => {
         const filteredItems = items.filter(
-            i => Number(i.cancelQty) > 0  // Only items with cancel quantity
+            i => Number(i.cancelQty) > 0
         );
 
         if (filteredItems.length === 0) {
@@ -198,26 +283,26 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
             return;
         }
 
-        // console.log('Modal sending:', filteredItems);
+        // Validate reasons for all items with cancelQty > 0
+        const missingReasonItems = filteredItems.filter(i => !i.reason || i.reason.trim() === '');
+        if (missingReasonItems.length > 0) {
+            toast.error('Please select/enter reason for all cancelled items');
+            return;
+        }
 
         // Prepare data with all required fields for backend
         const reversalData = filteredItems.map(item => ({
-            // For Dine-in orders (has txnDetailId)
             txnDetailId: item.txnDetailId ?? null,
             TXnDetailID: item.TXnDetailID ?? item.txnDetailId ?? null,
-            // For Takeaway orders (fallback)
             itemId: item.itemId ?? item.ItemID ?? null,
             ItemID: item.ItemID ?? item.itemId ?? null,
-            // Identification fields
             kotNo: item.kotNo ?? null,
             item_no: item.item_no,
             itemName: item.itemName,
-            // Quantity and rate
             qty: item.cancelQty,
             cancelQty: item.cancelQty,
             rate: item.rate,
             price: item.rate,
-            // Reversal info
             revKotNo: item.revKotNo,
             reason: item.reason || ''
         }));
@@ -247,11 +332,11 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                 {/* ===== INFO ===== */}
                 <Row className="g-2 mb-3 text-center">
                     {[
-                        { label: '', value: tableNo, highlight: true },
-                        { label: 'REV KOT NO', value: nextRevKotNo },
-                        { label: 'WAITER', value: waiter },
-                        { label: 'PAX', value: pax },
-                        { label: 'DATE', value: currDate || date }
+                        { label: 'TABLE', value: tableNo, highlight: true },
+                        { label: 'REV KOT NO', value: nextRevKotNo, highlight: false },
+                        { label: 'WAITER', value: waiter, highlight: false },
+                        { label: 'PAX', value: pax, highlight: false },
+                        { label: 'DATE', value: currDate || date, highlight: false }
                     ].map((info, idx) => (
                         <Col key={idx}>
                             <Card
@@ -297,12 +382,13 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                             {items.map((row, idx) => {
                                 // Calculate maximum cancel quantity (original - already reversed)
                                 const maxCancelQty = (row.originalQty || row.qty) - (row.reversedQty || 0);
+                                const isCancelled = row.cancelQty > 0;
                                 
                                 return (
                                     <tr key={idx} style={{ backgroundColor: getRowColor(row.mkotNo) }}>
                                         <td>{row.itemName}</td>
                                         
-                                        {/* ✅ ACTUAL - Original quantity before any reversal */}
+                                        {/* ACTUAL - Original quantity before any reversal */}
                                         <td>{row.originalQty || row.qty}</td>
 
                                         {/* REVERSED - Already reversed quantity (read-only) */}
@@ -328,9 +414,9 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                                                 min={0}
                                                 max={maxCancelQty}
                                                 value={row.cancelQty}
-                                                onChange={e => updateQty(idx, 'cancelQty', +e.target.value)}
-                                                onKeyDown={e => handleCancelKeyDown(idx, e)}
-                                                ref={el => { cancelRefs.current[idx] = el; }}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateQty(idx, 'cancelQty', +e.target.value)}
+                                                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleCancelKeyDown(idx, e)}
+                                                ref={(el: HTMLInputElement | null) => { cancelRefs.current[idx] = el; }}
                                             />
                                         </td>
 
@@ -351,19 +437,37 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                                             ) : null}
                                         </td>
 
-                                        <tr>
+                                        <td style={{ minWidth: '250px' }}>
+                                            {/* Editable combobox - type directly in dropdown */}
                                             <Form.Control
+                                                as="input"
+                                                list={`reason-list-${idx}`}
+                                                type="text"
                                                 size="sm"
-                                                value={row.reason}
-                                                onChange={e => {
-                                                    const updated = [...items];
-                                                    updated[idx].reason = e.target.value;
-                                                    setItems(updated);
+                                               placeholder={isCancelled ? "Type or select reason..." : ''}
+                                                value={customReasonInput[idx] !== undefined ? customReasonInput[idx] : (row.reason || '')}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleReasonInputChange(idx, e.target.value)}
+                                                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleReasonKeyDown(idx, e)}
+                                                disabled={!isCancelled}
+                                                style={{ 
+                                                    backgroundColor: !isCancelled ?'#fff' : '#fff'
                                                 }}
-                                                onKeyDown={e => handleReasonKeyDown(idx, e)}
-                                                ref={el => { reasonRefs.current[idx] = el; }}
+                                                ref={(el: HTMLInputElement | null) => { reasonRefs.current[idx] = el; }}
                                             />
-                                        </tr>
+                                            
+                                            {/* Datalist for dropdown options */}
+                                            <datalist id={`reason-list-${idx}`}>
+                                                {reasonOptions.map((reason, ridx) => (
+                                                    <option key={ridx} value={reason} />
+                                                ))}
+                                            </datalist>
+                                            
+                                            {isCancelled && (
+                                                <div className="text-muted small mt-1">
+                                                    💡 Type reason & press Enter to add to list
+                                                </div>
+                                            )}
+                                        </td>
                                     </tr>
                                 );
                             })}
