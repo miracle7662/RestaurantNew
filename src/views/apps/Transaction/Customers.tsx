@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { useAuthContext } from "@/common";
 import CustomerService, { Customer } from "../../../common/api/customers";
@@ -53,9 +53,10 @@ interface FieldProps {
   required?: boolean;
   disabled?: boolean;
   children?: React.ReactNode;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => void;
 }
 
-const Field: React.FC<FieldProps> = ({ label, name, type = "text", value, onChange, placeholder, required = false, disabled = false, children }) => (
+const Field: React.FC<FieldProps> = ({ label, name, type = "text", value, onChange, placeholder, required = false, disabled = false, children, onKeyDown }) => (
   <div className="d-flex align-items-center mb-3">
     <Label required={required}>{label}</Label>
     {children ? (
@@ -65,6 +66,7 @@ const Field: React.FC<FieldProps> = ({ label, name, type = "text", value, onChan
         value={value}
         onChange={onChange}
         disabled={disabled}
+        onKeyDown={onKeyDown}
         style={{ marginLeft: "10px", flex: "1" }}
       >
         {children}
@@ -78,6 +80,7 @@ const Field: React.FC<FieldProps> = ({ label, name, type = "text", value, onChan
         onChange={onChange}
         placeholder={placeholder}
         disabled={disabled}
+        onKeyDown={onKeyDown}
         style={{ marginLeft: "10px", flex: "1" }}
       />
     )}
@@ -99,9 +102,10 @@ interface PairedFieldsProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   customOnChanges?: Partial<Record<keyof CustomerFormData, (e: React.ChangeEvent<HTMLInputElement>) => void>>;
   disabled?: boolean;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
-const PairedFields: React.FC<PairedFieldsProps> = ({ fields, formData, onChange, customOnChanges, disabled = false }) => (
+const PairedFields: React.FC<PairedFieldsProps> = ({ fields, formData, onChange, customOnChanges, disabled = false, onKeyDown }) => (
   <div className="d-flex mb-3">
     {fields.map((field, index) => {
       const fieldOnChange = customOnChanges?.[field.name] || onChange;
@@ -117,6 +121,7 @@ const PairedFields: React.FC<PairedFieldsProps> = ({ fields, formData, onChange,
             placeholder={field.placeholder}
             max={field.max}
             disabled={disabled}
+            onKeyDown={onKeyDown}
             style={{ marginLeft: "10px", flex: "1" }}
           />
           {index === 0 && <div style={{ width: "20px" }}></div>}
@@ -158,6 +163,10 @@ const [cityid, setCityId] = useState<number | null>(null);
   const [mobileFetchTimeout, setMobileFetchTimeout] = useState<NodeJS.Timeout | null>(null);
   const { user } = useAuthContext();
   const todayStr = new Date().toISOString().split('T')[0];
+  
+  // Refs for focus management
+  const formRef = useRef<HTMLFormElement>(null);
+  const submitButtonRef = useRef<HTMLButtonElement>(null);
 
   // Fetch customer data (READ)
  const fetchCustomers = async () => {
@@ -504,6 +513,31 @@ const [cityid, setCityId] = useState<number | null>(null);
     panNo: handlePanChange,
   };
 
+  // Handle Enter key to move to next field
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    // F4 key (key code 115) for submit
+    if (e.key === 'F4') {
+      e.preventDefault();
+      if (submitButtonRef.current) {
+        submitButtonRef.current.click();
+      }
+    }
+    
+    // Enter key to move to next focusable element
+    if (e.key === 'Enter' && !(e.target instanceof HTMLTextAreaElement)) {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const focusableElements = form.querySelectorAll<HTMLElement>(
+        'input:not([disabled]):not([readonly]), select:not([disabled]), button:not([disabled])'
+      );
+      const currentIndex = Array.from(focusableElements).indexOf(e.target as HTMLElement);
+      const nextElement = focusableElements[currentIndex + 1];
+      if (nextElement) {
+        nextElement.focus();
+      }
+    }
+  };
+
   return (
     <div
       className="container py-1"
@@ -520,7 +554,7 @@ const [cityid, setCityId] = useState<number | null>(null);
           </h5>
         </div>
         <div className="card-body">
-          <form onSubmit={handleSubmit}>
+          <form ref={formRef} onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
             <div className="row">
               {/* Left Column */}
               <div className="col-md-6">
@@ -540,6 +574,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     required
                     disabled={loading || !!selectedCustomerId || checkingMobile}
                     style={{ borderLeft: "none" }}
+                    onKeyDown={handleKeyDown}
                   />
                   {checkingMobile && <div className="small text-warning mt-1">Checking...</div>}
                 </div>
@@ -552,6 +587,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                         placeholder="Enter mobile number 2"
                         disabled={loading}
                         style={{ flex: "1", marginLeft: "5px" }}
+                        onKeyDown={handleKeyDown}
                       />
                     </div>
                   </div>
@@ -563,6 +599,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     placeholder="Enter name"
                     required
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   />
                   <Field
                     label="Address 1"
@@ -571,6 +608,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     onChange={handleInputChange}
                     placeholder="Enter address"
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   />
                   <Field
                     label="State"
@@ -583,6 +621,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                       setCityId(null);
                     }}
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   >
                     <option value="">Select State</option>
                     {Array.isArray(states) && states.map(state => (
@@ -599,6 +638,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                       setFormData(prev => ({ ...prev, city: e.target.value }));
                     }}
                     disabled={loading || !stateid}
+                    onKeyDown={handleKeyDown}
                   >
                     <option value="">Select City</option>
                     {Array.isArray(cities) && cities.map(city => (
@@ -612,6 +652,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     onChange={customOnChanges.pincode}
                     placeholder="Pincode"
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   />
 
                   <PairedFields
@@ -622,6 +663,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     formData={formData}
                     onChange={handleInputChange}
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   />
 
                   <Field
@@ -631,6 +673,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     onChange={handleInputChange}
                     placeholder="Enter GSTIN"
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   />
                 </div>
               </div>
@@ -645,6 +688,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     onChange={handleInputChange}
                     placeholder="Enter email"
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   />
                   <Field
                     label="Address 2"
@@ -653,6 +697,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     onChange={handleInputChange}
                     placeholder="Enter address"
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   />
                   <Field
                     label="Aadhar No"
@@ -661,6 +706,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     onChange={handleInputChange}
                     placeholder="Enter Aadhar No"
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   />
                   <Field
                     label="FSSAI"
@@ -669,6 +715,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     onChange={handleInputChange}
                     placeholder="Enter FSSAI No"
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   />
 
                   <Field
@@ -678,6 +725,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     onChange={handleInputChange}
                     placeholder="Enter PAN No"
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   />
                   <Field
                     label="Customer Type"
@@ -685,6 +733,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     value={formData.customerType}
                     onChange={handleInputChange}
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   >
                     <option value="">Select Type</option>
                     <option value="Customer">Customer</option>
@@ -697,6 +746,7 @@ const [cityid, setCityId] = useState<number | null>(null);
                     value={formData.status}
                     onChange={handleInputChange}
                     disabled={loading}
+                    onKeyDown={handleKeyDown}
                   >
                     <option value="">Select Status</option>
                     <option value="Active">Active</option>
@@ -715,7 +765,12 @@ const [cityid, setCityId] = useState<number | null>(null);
               >
                 Clear
               </button>
-              <button type="submit" className="btn btn-primary btn-sm" disabled={loading}>
+              <button 
+                ref={submitButtonRef}
+                type="submit" 
+                className="btn btn-primary btn-sm" 
+                disabled={loading}
+              >
                 {loading
                   ? selectedCustomerId
                     ? 'Updating...'
@@ -743,6 +798,14 @@ const [cityid, setCityId] = useState<number | null>(null);
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ width: "250px" }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  // Focus on first editable field when Enter is pressed in search
+                  const firstInput = document.querySelector('form input:not([disabled])') as HTMLElement;
+                  if (firstInput) firstInput.focus();
+                }
+              }}
             />
           </div>
         </div>
