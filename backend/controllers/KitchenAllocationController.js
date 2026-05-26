@@ -51,22 +51,25 @@ const getKitchenAllocation = async (req, res) => {
 
     // ✅ FINAL QUERY (FIXED)
     const query = `
-      SELECT
+     SELECT
         i.itemgroupname AS item_group,
         COALESCE(m.item_no, d.item_no) AS item_no,
         d.item_name,
-        SUM(d.Qty) AS TotalQty,
-        SUM(d.Qty * d.RuntimeRate) AS Amount
+        SUM(d.Qty-d.RevQty) AS TotalQty,
+        d.RuntimeRate,
+        sum(d.RevQty) as RevQty,
+        SUM((d.Qty -d.RevQty) * d.RuntimeRate) AS Amount
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
       LEFT JOIN mstrestmenu m ON m.restitemid = d.ItemID
       LEFT JOIN mst_Item_Group i ON i.item_groupid = m.item_group_id
-      ${where}
+   ${where}
       GROUP BY
         i.itemgroupname,
         COALESCE(m.item_no, d.item_no),
         d.item_name,
-        t.outletid
+        t.outletid,
+        d.RuntimeRate
       ORDER BY
             COALESCE(m.item_no, d.item_no) ASC;
     `;

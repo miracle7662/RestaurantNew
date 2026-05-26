@@ -5,26 +5,32 @@ import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import KitchenAllocationService, { KitchenAllocationData, ItemDetailData } from '@/common/api/kitchenallocation';
+import KitchenAllocationService, {  ItemDetailData } from '@/common/api/kitchenallocation';
 import ItemGroupService from '@/common/api/itemgroup';
 import KitchenMainGroupService from '@/common/api/kitchenmaingroup';
 import TableDepartmentService from '@/common/api/tabledepartment';
 import OutletUserService from '@/common/api/outletUser';
 import SettingsService from '@/common/api/settings';
-// import { Eye } from 'react-feather';
 
 const formatAmount = (value: any) => {
   const num = typeof value === 'number' ? value : Number(value);
   if (Number.isNaN(num)) return value ?? '-';
-  // Remove trailing .00 for display
   if (Number.isInteger(num)) return String(num);
   const fixed = num.toFixed(2);
   return fixed.endsWith('.00') ? String(num.toFixed(0)) : fixed;
 };
 
-
 interface FilterOption {
   [key: string]: any;
+}
+
+// Updated interface to include RevQty
+interface KitchenAllocationDataWithRev {
+  item_no: string;
+  item_name: string;
+  TotalQty: number;
+  RevQty: number;
+  Amount: number;
 }
 
 const KitchenAllocation: React.FC = () => {
@@ -34,7 +40,7 @@ const KitchenAllocation: React.FC = () => {
     (user as any)?.hotelName ||
     (user as any)?.hotel_name ||
     '';
-  const [data, setData] = useState<KitchenAllocationData[]>([]);
+  const [data, setData] = useState<KitchenAllocationDataWithRev[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [printerName, setPrinterName] = useState<string | null>(null);
@@ -42,7 +48,7 @@ const KitchenAllocation: React.FC = () => {
 
   // Filters
   const [selectedUser, setSelectedUser] = useState('');
-   const [departments, setDepartments] = useState<FilterOption[]>([]);
+  const [departments, setDepartments] = useState<FilterOption[]>([]);
   const [users, setUsers] = useState<FilterOption[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [fromDate, setFromDate] = useState(new Date().toISOString().split('T')[0]);
@@ -65,7 +71,6 @@ const KitchenAllocation: React.FC = () => {
   useEffect(() => {
     const fetchFilterOptions = async () => {
       try {
-        // Using common API services instead of direct fetch calls
         const userParams = {
           currentUserId: user?.id,
           roleLevel: user?.role,
@@ -84,13 +89,11 @@ const KitchenAllocation: React.FC = () => {
           KitchenMainGroupService.list()
         ]);
 
-        // Handle different response formats from API services
         setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
         setItemGroups(Array.isArray(itemGroupsRes.data) ? itemGroupsRes.data : []);
         setDepartments(Array.isArray(departmentsRes.data) ? departmentsRes.data : []);
         setKitchenMainGroups(Array.isArray(kitchenMainGroupsRes.data) ? kitchenMainGroupsRes.data : []);
       } catch (err) {
-        // console.error('Error fetching filter options:', err);
         setError('Failed to load filter options. Please check your connection.');
       }
     };
@@ -106,28 +109,21 @@ const KitchenAllocation: React.FC = () => {
   }, [user]);
 
   // Fetch printer settings and outlet details
- useEffect(() => {
-  const fetchPrinterAndOutlet = async () => {
-    const outletIdToUse = user?.outletid || user?.hotelid;
-
-    if (!outletIdToUse) return;
-
-    setOutletId(Number(outletIdToUse));
-
-    try {
-      const res = await SettingsService.getReportPrinterById(Number(outletIdToUse));
-
-      setPrinterName(res?.[0]?.printer_name || null);
-
-    } catch (err) {
-      // console.error('Error fetching printer:', err);
-      toast.error('Failed to load printer settings.');
-      setPrinterName(null);
-    }
-  };
-
-  fetchPrinterAndOutlet();
-}, [user]);
+  useEffect(() => {
+    const fetchPrinterAndOutlet = async () => {
+      const outletIdToUse = user?.outletid || user?.hotelid;
+      if (!outletIdToUse) return;
+      setOutletId(Number(outletIdToUse));
+      try {
+        const res = await SettingsService.getReportPrinterById(Number(outletIdToUse));
+        setPrinterName(res?.[0]?.printer_name || null);
+      } catch (err) {
+        toast.error('Failed to load printer settings.');
+        setPrinterName(null);
+      }
+    };
+    fetchPrinterAndOutlet();
+  }, [user]);
 
   // Fetch data using KitchenAllocationService
   const fetchData = async () => {
@@ -147,26 +143,23 @@ const KitchenAllocation: React.FC = () => {
       let filterType = '';
       let filterId = '';
 
-
       if (selectedUser) {
         filterType = 'user';
         filterId = selectedUser;
       } else if (selectedItemGroup) {
         filterType = 'item-group';
         filterId = selectedItemGroup;
-        } else if (selectedDepartment) {
+      } else if (selectedDepartment) {
         filterType = 'department';
         filterId = selectedDepartment;
-      }  else if (selectedKitchenMainGroup) {
+      } else if (selectedKitchenMainGroup) {
         filterType = 'kitchen-category';
         filterId = selectedKitchenMainGroup;
       }
 
-      // Ensure fromDate is before toDate
       const startDate = fromDate < toDate ? fromDate : toDate;
       const endDate = fromDate < toDate ? toDate : fromDate;
 
-      // Using KitchenAllocationService instead of direct fetch
       const result = await KitchenAllocationService.getAllocationData({
         fromDate: startDate,
         toDate: endDate,
@@ -176,23 +169,24 @@ const KitchenAllocation: React.FC = () => {
         filterId
       });
 
-      // console.log('KitchenAllocation data received:', result.data.slice(0, 5)); // Log first 5 items to check item_no
-      // console.log('Sample item_no values:', result.data.slice(0, 5).map(item => ({item_no: item.item_no, item_name: item.item_name})));
-
       if (result.success) {
-        setData(result.data);
+        // Process data to calculate net quantity (TotalQty - RevQty)
+        const processedData = result.data.map((item: any) => ({
+          ...item,
+          TotalQty: (item.TotalQty || 0) - (item.RevQty || 0), // Net quantity after reversal
+          Amount: item.Amount || 0 // Amount already should be net amount from backend
+        }));
+        setData(processedData);
       } else {
         setError(result.message || 'Failed to fetch data');
       }
     } catch (err: any) {
       setError(err.message || 'Error fetching data');
-      // console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handler functions for buttons
   const handlePDF = () => {
     const doc = new jsPDF();
     let y = 10;
@@ -201,24 +195,27 @@ const KitchenAllocation: React.FC = () => {
       y += 6;
     }
     doc.text('Kitchen Allocation Report', 20, y);
-    const tableColumn = ['Item No', 'Item Name', 'Total Qty', 'Amount'];
+    const tableColumn = ['Item No', 'Item Name', 'Rev Qty', 'Total Qty', 'Amount'];
     const tableRows = filteredData.map((item) => [
       item.item_no,
       item.item_name,
+      item.RevQty?.toString?.() ?? String(item.RevQty ?? '-'),
       item.TotalQty?.toString?.() ?? String(item.TotalQty ?? '-'),
-      item.Amount
+      formatAmount(item.Amount)
     ]);
 
-    // Add totals row (Qty & Amount)
+    const totalRevQty = filteredData.reduce((sum, item) => sum + Number(item.RevQty ?? 0), 0);
     const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty ?? 0), 0);
     const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount ?? 0), 0);
 
     tableRows.push([
       '',
       'Total',
+      totalRevQty.toString(),
       totalQty.toString(),
-      totalAmount
+      formatAmount(totalAmount)
     ]);
+    
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
@@ -228,6 +225,7 @@ const KitchenAllocation: React.FC = () => {
   };
 
   const handleExcel = () => {
+    const totalRevQty = filteredData.reduce((sum, item) => sum + Number(item.RevQty ?? 0), 0);
     const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty ?? 0), 0);
     const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount ?? 0), 0);
 
@@ -236,6 +234,7 @@ const KitchenAllocation: React.FC = () => {
       {
         item_no: '',
         item_name: 'Total',
+        RevQty: totalRevQty,
         TotalQty: totalQty,
         Amount: totalAmount,
       },
@@ -250,14 +249,11 @@ const KitchenAllocation: React.FC = () => {
   const handlePrint = async () => {
     try {
       setLoading(true);
-
-      // Get system printers via Electron API (asynchronous)
       const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
       const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
-      // console.log("System Printers:", systemPrinters);
 
       if (systemPrinters.length === 0) {
-        toast.error("No printers detected on this system. Please check printer connections and drivers.");
+        toast.error("No printers detected on this system.");
         return;
       }
 
@@ -267,199 +263,153 @@ const KitchenAllocation: React.FC = () => {
       let finalPrinterName: string | null = null;
       let usedFallback = false;
 
-      // Try to match the configured printer (case-insensitive, partial match)
       if (printerName) {
         const matchedPrinter = systemPrinters.find((p: any) =>
           normalize(p.name).includes(normalize(printerName)) ||
           normalize(p.displayName || "").includes(normalize(printerName))
         );
-
         if (matchedPrinter) {
           finalPrinterName = matchedPrinter.name;
         }
       }
 
-      // If no configured printer or not found, use default printer or first available
       if (!finalPrinterName) {
         const defaultPrinter = systemPrinters.find((p: any) => p.isDefault);
         const fallbackPrinter = defaultPrinter || systemPrinters[0];
-
         if (fallbackPrinter) {
           finalPrinterName = fallbackPrinter.name;
           usedFallback = true;
           if (printerName) {
-            // console.warn(`Configured printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
             toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
           }
         } else {
-          toast.error("No suitable printer found, including fallbacks.");
+          toast.error("No suitable printer found.");
           return;
         }
       }
 
-      if (!finalPrinterName) {
-        toast.error("Failed to determine printer name.");
-        return;
-      }
-      if (usedFallback) {
-        // console.log("Fallback printer used");
-      }
+      const totalRevQty = filteredData.reduce((sum, item) => sum + Number(item.RevQty ?? 0), 0);
+      const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty ?? 0), 0);
+      const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount ?? 0), 0);
 
-      // console.log(`Printing to printer: ${finalPrinterName}`);
+      const reportHTML = `
+      <html>
+      <head>
+        <style>
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+          @media print {
+            html, body { overflow: visible !important; }
+            thead { display: table-header-group !important; }
+            tr { page-break-inside: avoid; }
+            table { page-break-inside: avoid; }
+          }
+          body {
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.3;
+            width: 72mm;
+            margin-left: 3mm;
+            margin-right: 2mm;
+            padding: 0;
+          }
+          .sub-header {
+            text-align: center;
+            font-size: 13px;
+            margin-bottom: 5px;
+            font-weight: bold;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+          }
+          th, td {
+            border-bottom: 1px dashed #000;
+            padding: 2px;
+            font-size: 13px;
+          }
+          th {
+            text-align: left;
+          }
+          .col-no   { width: 12%; }
+          .col-name { width: 38%; }
+          .col-revqty { width: 15%; text-align: right; }
+          .col-qty  { width: 15%; text-align: right; }
+          .col-amt  { width: 20%; text-align: right; }
+          td {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+          .totals-block {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-top: 6px;
+            font-weight: bold;
+            border-top: 1px solid #000;
+          }
+          .totals-left {
+            width: 30%;
+            text-align: left;
+          }
+          .totals-right {
+            width: 70%;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+          }
+          .totals-revqty, .totals-qty, .totals-amt {
+            text-align: right;
+          }
+          .totals-revqty { width: 20%; }
+          .totals-qty { width: 20%; }
+          .totals-amt { width: 25%; }
+        </style>
+      </head>
+      <body>
+        <div class="sub-header">
+          <p>${hotelName || ''}</p>
+          <p>Kitchen Allocation Report</p>
+          <p>From: ${fromDate} To: ${toDate}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="col-no">No</th>
+              <th class="col-name">Item</th>
+              <th class="col-revqty">Rev Qty</th>
+              <th class="col-qty">Qty</th>
+              <th class="col-amt">Amt</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredData.map(item => `
+              <tr>
+                <td class="col-no">${item.item_no ?? '-'}</td>
+                <td class="col-name">${item.item_name}</td>
+                <td class="col-revqty">${item.RevQty ?? 0}</td>
+                <td class="col-qty">${item.TotalQty}</td>
+                <td class="col-amt">${formatAmount(item.Amount)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div class="totals-block">
+          <div class="totals-left">Total</div>
+          <div class="totals-right">
+            <div class="totals-revqty">${formatAmount(totalRevQty)}</div>
+            <div class="totals-qty">${formatAmount(totalQty)}</div>
+            <div class="totals-amt">${formatAmount(totalAmount)}</div>
+          </div>
+        </div>
+      </body>
+      </html>
+      `;
 
- const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty), 0);
-const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount), 0);
-
-const reportHTML = `
-<html>
-<head>
-  <style>
-    @page {
-      size: 80mm auto;
-      margin: 0;
-    }
-
-    @media print {
-      html, body { overflow: visible !important; }
-
-      /* Prevent table header duplication on thermal printers / some print engines */
-      thead { display: table-header-group !important; }
-      tr { page-break-inside: avoid; }
-      table { page-break-inside: avoid; }
-    }
-
-
-    body {
-      font-family: monospace;
-      font-size: 14px;
-      line-height: 1.3;
-
-
-      width: 72mm;              /* SAFE printable width */
-      margin-left: 3mm;         /* 🔥 IMPORTANT: left gap */
-      margin-right: 2mm;
-      padding: 0;
-    }
-
-   .sub-header {
-  text-align: center;
-  font-size: 13px;
-  margin-bottom:5px;
-  font-weight: bold;
-}
-
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-
-    th, td {
-      border-bottom: 1px dashed #000;
-      padding: 2px;
-      font-size: 13px;
-    }
-
-    th {
-
-      text-align: left;
-    }
-
-    /* Adjusted widths */
-    .col-no   { width: 14%; }
-    .col-name { width: 46%; }
-    .col-qty  { width: 20%; text-align: right; }
-    .col-amt  { width: 20%; text-align: right; }
-
-    td {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-
-    th, td {
-      font-weight: bold;
-    }
-
-    .totals-block {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      padding-top: 6px;
-      font-weight: bold;
-      border-top: 1px solid #000;
-    }
-
-    .totals-left {
-      width: 40%;
-      text-align: left;
-    }
-
-    .totals-right {
-      width: 60%;
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-
-    .totals-qty {
-      width: 40%;
-      text-align: right;
-    }
-
-    .totals-amt {
-      width: 60%;
-      text-align: right;
-    }
-
-  </style>
-</head>
-
-<body>
-  <div class="sub-header">
-    <p>${hotelName || ''}</p>
-    <p>Kitchen Allocation Report</p>
-    <p>From: ${fromDate} To: ${toDate}</p>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th class="col-no">No</th>
-        <th class="col-name">Item</th>
-        <th class="col-qty">Qty</th>
-        <th class="col-amt">Amt</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      ${filteredData.map(item => `
-        <tr>
-          <td class="col-no">${item.item_no ?? '-'}</td>
-          <td class="col-name">${item.item_name}</td>
-          <td class="col-qty">${item.TotalQty}</td>
-          <td class="col-amt">${formatAmount(item.Amount)}</td>
-        </tr>
-      `).join('')}
-
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="totals-block">
-    <div class="totals-left">Total</div>
-    <div class="totals-right">
-      <div class="totals-qty">${formatAmount(totalQty)}</div>
-      <div class="totals-amt">${formatAmount(totalAmount)}</div>
-    </div>
-  </div>
-</body>
-</html>
-`;
-
-
-      // Print using Electron API
       if ((window as any).electronAPI?.directPrint) {
         await (window as any).electronAPI.directPrint(reportHTML, finalPrinterName);
         toast.success("Kitchen Allocation Report Printed Successfully!");
@@ -467,14 +417,12 @@ const reportHTML = `
         toast.error("Electron print API not available.");
       }
     } catch (err) {
-      // console.error("Print error:", err);
       toast.error("Failed to print Kitchen Allocation Report.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Filtered data based on search term
   const filteredData = useMemo(() => {
     if (!searchTerm) return data;
     return data.filter(item =>
@@ -482,8 +430,7 @@ const reportHTML = `
     );
   }, [data, searchTerm]);
 
-  // Handle eye icon click using KitchenAllocationService
-  const handleEyeClick = async (item: KitchenAllocationData) => {
+  const handleEyeClick = async (item: KitchenAllocationDataWithRev) => {
     setSelectedItem(item.item_name);
     setShowModal(true);
     setModalLoading(true);
@@ -492,7 +439,6 @@ const reportHTML = `
       const startDate = fromDate <= toDate ? fromDate : toDate;
       const endDate = fromDate <= toDate ? toDate : fromDate;
 
-      // Using KitchenAllocationService instead of direct fetch
       const result = await KitchenAllocationService.getItemDetails(item.item_no, {
         fromDate: startDate,
         toDate: endDate,
@@ -506,9 +452,7 @@ const reportHTML = `
         setModalData([]);
         toast.error(result?.message || 'No item details found');
       }
-
     } catch (error: any) {
-      // console.error('Error fetching item details:', error);
       setModalData([]);
       toast.error(error.message || 'Failed to fetch item details');
     } finally {
@@ -516,12 +460,11 @@ const reportHTML = `
     }
   };
 
-
   return (
     <div>
       <style>
         {`
-    .kitchen-allocation-table th,
+          .kitchen-allocation-table th,
           .kitchen-allocation-table td {
             font-weight: bold !important;
             font-size: 13px !important;
@@ -560,7 +503,7 @@ const reportHTML = `
                   />
                 </Form.Group>
               </Col>
-               <Col md={3}>
+              <Col md={3}>
                 <Form.Group>
                   <Form.Label>User</Form.Label>
                   <Form.Select value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
@@ -582,7 +525,7 @@ const reportHTML = `
                   </Form.Select>
                 </Form.Group>
               </Col>
-                </Row>
+            </Row>
             <Row className="mt-3">
               <Col md={3}>
                 <Form.Group>
@@ -622,12 +565,8 @@ const reportHTML = `
                   {loading ? 'Loading...' : 'Generate Report'}
                 </Button>
               </Col>
- 
             </Row>
-            
           </Form>
-
-          
 
           {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
 
@@ -636,6 +575,7 @@ const reportHTML = `
               <tr>
                 <th>Item No</th>
                 <th>Item Name</th>
+                <th>Rev Qty</th>
                 <th>Total Qty</th>
                 <th>Amount</th>
                 <th>Action</th>
@@ -646,10 +586,10 @@ const reportHTML = `
                 <tr key={index}>
                   <td>{item.item_no}</td>
                   <td>{item.item_name}</td>
+                  <td>{item.RevQty ?? 0}</td>
                   <td>{item.TotalQty}</td>
                   <td>{formatAmount(item.Amount)}</td>
                   <td>
-
                     <Button
                       variant="link"
                       size="sm"
@@ -664,7 +604,6 @@ const reportHTML = `
             </tbody>
           </Table>
 
-          {/* Modal for Item Details */}
           <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
             <Modal.Header closeButton>
               <Modal.Title>Item Details - {selectedItem}</Modal.Title>
