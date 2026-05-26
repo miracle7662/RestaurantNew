@@ -450,6 +450,12 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
     0
   ) + (tip || 0);
 
+  // IMPORTANT: Cash received for SettlementModal should come from paymentAmounts cash entry
+  // Otherwise on mobile/keyboard interaction, cash received resets to 0 causing Amount=0 issue.
+  const cashModeName = outletPaymentModes?.find(m => String(m.mode_name).toLowerCase() === 'cash')?.mode_name;
+  const initialCashReceived = cashModeName ? Number(paymentAmounts[cashModeName] || 0) : 0;
+
+
   const refundAmount =
     totalReceived > taxCalc.grandTotal
       ? totalReceived - taxCalc.grandTotal
@@ -4222,11 +4228,13 @@ const PrintAndSettle = async () => {
         initialPaymentAmounts={paymentAmounts}
         initialIsMixed={isMixedPayment}
         initialTip={tip}
+        initialCashReceived={initialCashReceived}
         table_name={tableName || tableNo || null}
         initialCustomerName={customerName}
         initialMobile={customerNo}
         initialCustomerId={customerId}
       />
+
       {/* KOT Transfer Modal */}
       <Modal show={showKotTransferModal} onHide={() => setShowKotTransferModal(false)} size="xl" centered>
         <Modal.Header closeButton>

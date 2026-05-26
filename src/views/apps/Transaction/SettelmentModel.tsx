@@ -1,5 +1,5 @@
 // SettlementModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchCustomerByMobile } from '@/utils/commonfunction';
 import Customers from './Customers';
 
@@ -117,14 +117,11 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     }
   }, [show]);
 
-  // Single mode → keep only first payment method
-  useEffect(() => {
-    if (!isMixedPayment && selectedPaymentModes.length > 1) {
-      const first = selectedPaymentModes[0];
-      setSelectedPaymentModes([first]);
-      setPaymentAmounts({ [first]: grandTotal.toFixed(2) });
-    }
-  }, [isMixedPayment, grandTotal]);
+  // NOTE:
+  // Removed the previous “single mode normalization” effect.
+  // It was overwriting payment modes/amounts while using ArrowUp/ArrowDown.
+
+
 
   const totalReceived = Object.values(paymentAmounts).reduce((sum, v) => sum + (Number(v) || 0), 0) + (tip || 0);
   const balance = grandTotal - totalReceived;
@@ -201,28 +198,35 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     }
   };
 
-  // Keyboard navigation
+  // Keyboard navigation (ArrowUp/Down should work ONLY inside modal payment panel)
   useEffect(() => {
     if (!show || !Array.isArray(outletPaymentModes) || outletPaymentModes.length === 0) return;
 
     const handler = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      const inPaymentPanel = !!activeEl?.closest?.('[data-payment-panel="1"]');
+      const allowArrows = inPaymentPanel || !activeEl; // fallback
+
       if (e.key === 'ArrowDown') {
+        if (!allowArrows) return;
         e.preventDefault();
         setActivePaymentIndex(prev => {
           const next = (prev + 1) % outletPaymentModes.length;
-          togglePaymentMode(outletPaymentModes[next]);
+          const selectedMode = outletPaymentModes[next];
+          if (selectedMode) togglePaymentMode(selectedMode);
           return next;
         });
       } else if (e.key === 'ArrowUp') {
+        if (!allowArrows) return;
         e.preventDefault();
         setActivePaymentIndex(prev => {
           const next = (prev - 1 + outletPaymentModes.length) % outletPaymentModes.length;
-          togglePaymentMode(outletPaymentModes[next]);
+          const selectedMode = outletPaymentModes[next];
+          if (selectedMode) togglePaymentMode(selectedMode);
           return next;
         });
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        // Enter = Settle
         handleSettle();
       } else if (e.key === 'Escape') {
         onHide();
@@ -231,7 +235,9 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [show, outletPaymentModes, activePaymentIndex, isMixedPayment, grandTotal, onHide]);
+  }, [show, outletPaymentModes, onHide, isMixedPayment, selectedPaymentModes, paymentAmounts, tip, customerId, customerMobile, customerName, cashReceived, grandTotal, loading]);
+
+
 
   // Reset form when modal closes
   useEffect(() => {
@@ -245,24 +251,38 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     }
   }, [show]);
 
-  // Update states when modal opens with initial props and auto-select Cash if needed
-  useEffect(() => {
-    if (show) {
-      setIsMixedPayment(initialIsMixed);
-      setSelectedPaymentModes(initialSelectedModes);
-      setPaymentAmounts(initialPaymentAmounts);
-      setTip(initialTip);
+  const didInitRef = useRef(false);
 
-      // Auto-select Cash if no initial payment modes and not mixed
-      if (!initialIsMixed && initialSelectedModes.length === 0) {
-        const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash') : null;
-        if (cashMode) {
-          setSelectedPaymentModes([cashMode.mode_name]);
-          setPaymentAmounts({ [cashMode.mode_name]: grandTotal.toFixed(2) });
-        }
+  // Update states when modal opens with initial props and auto-select Cash if needed
+  // Run only once per open to prevent keyboard navigation from re-triggering init.
+  useEffect(() => {
+    if (!show) {
+      didInitRef.current = false;
+      return;
+    }
+
+    if (didInitRef.current) return;
+    didInitRef.current = true;
+
+    setIsMixedPayment(initialIsMixed);
+    setSelectedPaymentModes(initialSelectedModes);
+    setPaymentAmounts(initialPaymentAmounts);
+    setTip(initialTip);
+
+    // Auto-select Cash if user hasn't selected anything (DEFAULT CASH always)
+    if (initialSelectedModes.length === 0) {
+      const cashMode = Array.isArray(outletPaymentModes)
+        ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash')
+        : null;
+
+      if (cashMode) {
+        setSelectedPaymentModes([cashMode.mode_name]);
+        setPaymentAmounts({ [cashMode.mode_name]: grandTotal.toFixed(2) });
       }
     }
   }, [show, initialIsMixed, initialSelectedModes, initialPaymentAmounts, initialTip, outletPaymentModes, grandTotal]);
+
+
 
   const handleSettle = async () => {
     if (loading) return;
@@ -356,8 +376,9 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
                 Payment Methods
               </h6>
 
-              <div style={{ overflowY: 'auto' }}>
+              <div style={{ overflowY: 'auto' }} data-payment-panel="1">
                 {Array.isArray(outletPaymentModes) && outletPaymentModes.length > 0 ? (
+
                   outletPaymentModes.map((mode, index) => {
                     const isSelected = selectedPaymentModes.includes(mode.mode_name);
                     const isActive = index === activePaymentIndex;

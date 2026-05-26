@@ -261,7 +261,8 @@ const KitchenAllocation: React.FC = () => {
         s.toLowerCase().replace(/\s+/g, "").trim();
 
       let finalPrinterName: string | null = null;
-      let usedFallback = false;
+      // let usedFallback = false; // (unused variable removed to fix TS6133)
+
 
       if (printerName) {
         const matchedPrinter = systemPrinters.find((p: any) =>
