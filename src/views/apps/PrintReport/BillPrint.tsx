@@ -83,6 +83,7 @@ interface BillPreviewPrintProps {
   autoPrint?: boolean
   billData?: any
   departmentName?: string
+  isBilled?: boolean   // ✅ NEW: shows DUPLICATE BILL banner when true
 }
 
 
@@ -122,6 +123,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   autoPrint,
   billData,
   departmentName,
+  isBilled = false,   // ✅ NEW
 }) => {
   // ─── Auth context ──────────────────────────────────────────────────────────
   const {
@@ -418,6 +420,11 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     <div style="font-size:8pt;">
       FSSAI: ${billData?.fssaiNo || 'N/A'}
     </div>
+
+    ${isBilled ? `
+    <div style="text-align:center;font-weight:bold;font-size:12pt;letter-spacing:2px;border-top:1px dashed #000;border-bottom:1px dashed #000;padding:4px 0;margin:6px 0;">
+      *** DUPLICATE BILL ***
+    </div>` : ''}
 
     ${(showAll || localFormData.email) ? `<div style="font-size:8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
     ${(showAll || localFormData.website) ? `<div style="font-size:8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}

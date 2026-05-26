@@ -202,6 +202,11 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   const [billData, setBillData] = useState<any>(null);
   const [reversalReasonMap, setReversalReasonMap] = useState<Map<number, string>>(new Map());
 
+  // Existing state hai:
+
+// ✅ NEW: Alag state — sirf tab true jab bill PEHLE SE billed tha (duplicate case)
+const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
+
 
   // NEW: Filtered menu for current department only
   const [deptFilteredMenuItems, setDeptFilteredMenuItems] = useState<MenuItem[]>([]);
@@ -870,6 +875,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
           calculateTotals(mappedItems);
           setOriginalTableStatus(2); // Set to billed status for order_tag logic
           setIsTransactionBilled(true);
+          setWasAlreadyBilled(true); 
           setLoading(false);
           return;
 
@@ -1049,6 +1055,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         setCess?.(data.header.CESS || data.header.CESS || 0);
         setRoundOff?.(data.header.RoundOFF || data.header.RoundOFF || 0);
         setIsTransactionBilled(data.header.isBilled === 1 || data.header.isBilled === 1);
+        setWasAlreadyBilled(data.header.isBilled === 1); 
       }
 
       // Compute max RevKOTNo from details for unbilled orders
@@ -2591,6 +2598,7 @@ const PrintAndSettle = async () => {
     setCustomerName('');
     calculateTotals([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '' }]);
     setIsTransactionBilled(false);
+    setWasAlreadyBilled(false);
   };
 
   const fetchTableManagement = async () => {
@@ -4412,6 +4420,7 @@ const PrintAndSettle = async () => {
     billData={billData}  // ✅ ADD THIS LINE - Pass bill data to component
     formData={formData}
     user={user}
+    isBilled={wasAlreadyBilled} 
     items={billItems.filter(i => i.itemId > 0).map((item) => ({
     id: item.itemId,
     name: item.itemName,
