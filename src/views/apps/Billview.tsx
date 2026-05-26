@@ -3660,7 +3660,7 @@ const PrintAndSettle = async () => {
                   </Col>
 
                   {/* Date (business date) */}
-                 <Col style={{ flex: "0 0 140px", maxWidth: "130px" }}>
+                 <Col style={{ flex: "0 0 160px", maxWidth: "130px" }}>
                     <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
                       <div className="text-uppercase small fw-semibold text-secondary mb-1">
                         <i className="fi fi-rr-calendar"></i> Date

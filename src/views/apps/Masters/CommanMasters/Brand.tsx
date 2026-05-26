@@ -52,6 +52,9 @@ interface HotelMastersItem {
    Logo?: string | null;
 }
 
+// 1. Define your backend base URL. Change this to match your actual backend port/host.
+const API_BASE_URL = 'http://localhost:3001';
+
 // Register User Modal Component
 interface RegisterUserModalProps {
   show: boolean;
@@ -366,7 +369,10 @@ const BrandList: React.FC = () => {
   header: 'Logo',
   size: 80,
   cell: (info) => {
-    const logoUrl = info.getValue<string>();
+    const rawUrl = info.getValue<string>();
+    // Construct full URL for the table view
+    const logoUrl = rawUrl && !rawUrl.startsWith('http') ? `${API_BASE_URL}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}` : rawUrl;
+    
     return logoUrl ? (
       <img
         src={logoUrl}
