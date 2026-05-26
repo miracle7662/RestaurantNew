@@ -147,15 +147,27 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         if (nextIdx < items.length) {
             cancelRefs.current[nextIdx]?.focus();
             cancelRefs.current[nextIdx]?.select();
+        } else {
+            // Last row: trigger save when Enter pressed on Cancel field
+            handleReverseKotSave();
         }
-        // Last row → do nothing (you can add Save focus here later if wanted)
     };
 
     const handleCancelKeyDown = (idx: number, e: React.KeyboardEvent<HTMLElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            reasonRefs.current[idx]?.focus();
-            reasonRefs.current[idx]?.select();
+            
+            // Get current cancel quantity value
+            const currentCancelQty = items[idx].cancelQty || 0;
+            
+            // If quantity is greater than 0, go to Reason field
+            if (currentCancelQty > 0) {
+                reasonRefs.current[idx]?.focus();
+                reasonRefs.current[idx]?.select();
+            } else {
+                // If no quantity typed, move to next row's Cancel field (or save if last row)
+                focusNextCancel(idx);
+            }
         }
     };
 
@@ -339,7 +351,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                                             ) : null}
                                         </td>
 
-                                        <td>
+                                        <tr>
                                             <Form.Control
                                                 size="sm"
                                                 value={row.reason}
@@ -351,7 +363,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                                                 onKeyDown={e => handleReasonKeyDown(idx, e)}
                                                 ref={el => { reasonRefs.current[idx] = el; }}
                                             />
-                                        </td>
+                                        </tr>
                                     </tr>
                                 );
                             })}

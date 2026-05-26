@@ -2291,7 +2291,7 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
         reason: item.reason || '',
       })),
       userId: user?.id,
-      reversalReason: 'Reverse from Billview',
+      reversalReason: 'Reverse ',
       curr_date: user?.currDate,
     });
 

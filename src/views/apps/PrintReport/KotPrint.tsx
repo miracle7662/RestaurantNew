@@ -275,8 +275,8 @@ const kotBusinessDateTime =
     .header-rate { text-align: right; }  .header-amt  { text-align: right; }
     .kot-variant { font-size: 9pt; color: #0066cc; font-weight: bold; }
     .totals-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt; padding: 2px 0; }
-    .basic-details { display: grid; grid-template-columns: auto 1fr; gap: 8px; margin-bottom: 10px; font-size: 9pt; width: 100%; }
-    .table-box { border: 1px solid #696868; min-width: 60px; min-height: 50px; display: flex; align-items: center; justify-content: center; font-size: 14pt; font-weight: bold; padding: 4px; }
+    .basic-details { display: grid; grid-template-columns: auto 1fr; gap: 8px; margin-bottom: 10px; font-size: 9pt; padding-left:3px; width: 100%; }
+    .table-box { border: 1px solid #696868; min-width: 60px; min-height: 50px; display: flex;   margin-left: 3px;align-items: center; justify-content: center; font-size: 14pt; font-weight: bold; padding: 4px; }
     .details-grid { display: grid; grid-template-columns: auto auto; gap: 1px 6px; text-align: left; justify-content: end; }
     hr.dashed { border: none; border-top: 1px dashed #000; margin: 6px 0; width: 100%; }
   </style>
