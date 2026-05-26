@@ -3,20 +3,35 @@ const { formatMySQLDate } = require('../utils/dateUtils');
 const upload = require('../config/multer');
 const path = require('path');   // <-- add this
 const fs = require('fs');       // <-- add this
+const os = require('os');
 
+
+const uploadBasePath = path.join(
+  os.homedir(),
+  'POS-Uploads'
+);
 
 const deleteOldLogo = (logoPath) => {
-  if (logoPath) {
-    // Remove leading slash if present
-    const cleanPath = logoPath.startsWith('/') ? logoPath.slice(1) : logoPath;
-    // Construct full filesystem path: project_root/public/uploads/brands/...
-    const fullPath = path.join(__dirname, '../public', cleanPath);
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-      console.log(`Deleted old logo: ${fullPath}`);
-    } else {
-      console.log(`Logo file not found: ${fullPath}`);
+  try {
+    if (logoPath) {
+
+      // remove "/uploads/"
+      const cleanPath = logoPath.replace('/uploads/', '');
+
+      // final path
+      const fullPath = path.join(uploadBasePath, cleanPath);
+
+      console.log('Deleting old logo:', fullPath);
+
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+        console.log(`✅ Deleted old logo`);
+      } else {
+        console.log(`⚠ File not found`);
+      }
     }
+  } catch (err) {
+    console.error('Delete logo error:', err);
   }
 };
 

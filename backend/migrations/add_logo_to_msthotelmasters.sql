@@ -1,3 +1,0 @@
-ALTER TABLE msthotelmasters
-ADD COLUMN logo VARCHAR(255) NULL;
-

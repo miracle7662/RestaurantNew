@@ -139,7 +139,12 @@ app.get("/get-server-ip", (req, res) => {
 });
 
 
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+const uploadBasePath = path.join(
+  os.homedir(),
+  'POS-Uploads'
+);
+
+app.use('/uploads', express.static(uploadBasePath));
 
 // ✅ Add a health check endpoint
 app.get('/api/health', (req, res) => {

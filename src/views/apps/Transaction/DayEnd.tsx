@@ -1285,7 +1285,8 @@ console.log('Loaded Report Data:', reportData);
           show={showPasswordModal}
           onVerify={handlePasswordVerify}
           onSuccess={() => setShowPasswordModal(false)}
-          onCancel={() => navigate('/apps/Orders')}
+          // onCancel={() => navigate('/apps/Orders')}
+          onCancel={() => navigate('/')}
         />
       )}
     </div>

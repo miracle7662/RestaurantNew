@@ -3,9 +3,16 @@ console.log('🔵 MULTER CONFIG FILE IS LOADED');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+
 
 // Get absolute path – assuming this file is in backend/routes or backend/config
-const uploadDir = path.resolve(__dirname, '../public/uploads/brands');
+const uploadDir = path.join(
+  os.homedir(),
+  'POS-Uploads',
+  'brands'
+);
+
 
 // Create directory recursively with error handling
 try {
