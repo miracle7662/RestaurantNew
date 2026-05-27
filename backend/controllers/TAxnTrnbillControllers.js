@@ -4672,7 +4672,7 @@ exports.transferTable = async (req, res) => {
 
     res.json({ success: true, message: 'Table transfer completed successfully' })
   } catch (err) {
-    // console.error('Table Transfer Error:', err)
+     console.error('Table Transfer Error:', err)
     res.status(500).json({
       success: false,
       message: 'Table transfer failed',
