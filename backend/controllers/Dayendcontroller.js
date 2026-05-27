@@ -1024,6 +1024,7 @@ const getBillDetailsData = async (businessDate, dayEndEmpID) => {
         t.table_name,
         t.Amount AS netAmount,
         t.GrossAmt AS grossAmount,
+        t.TaxableValue,
         IFNULL(t.Discount,0) AS Discount,
         IFNULL(t.CGST,0) AS CGST,
         IFNULL(t.SGST,0) AS SGST,
@@ -1239,12 +1240,12 @@ const generateBillDetailsText = (data) => {
   text += '='.repeat(48) + '\n';
 
   // Header
-  text += 'Bill  Tbl  Disc Gross GST Tip  Net   Mode\n';
+  text += 'Bill  Tbl  Disc Tax GST Tip  Net   Mode\n';
   text += '-'.repeat(48) + '\n';
 
   let totals = {
     disc: 0,
-    gross: 0,
+    tax: 0,
     gst: 0,
     tip: 0,
     net: 0,
@@ -1264,7 +1265,7 @@ const generateBillDetailsText = (data) => {
       .toFixed(0)
       .padStart(4);
 
-    const gross = Number(bill.grossAmount || 0)
+    const tax = Number(bill.TaxableValue || 0)
       .toFixed(0)
       .padStart(5);
 
@@ -1289,10 +1290,10 @@ const mode = (bill.paymentMode || 'Cash')
   .toUpperCase()
   .padEnd(2);
 
-    text += `${billNo} ${table} ${disc} ${gross} ${gst} ${tip} ${net} ${mode}\n`;
+    text += `${billNo} ${table} ${disc} ${tax} ${gst} ${tip} ${net} ${mode}\n`;
 
     totals.disc += Number(bill.discountAmount || 0);
-    totals.gross += Number(bill.grossAmount || 0);
+    totals.tax += Number(bill.TaxableValue || 0);
     totals.gst +=
       Number(bill.CGST || 0) +
       Number(bill.SGST || 0);
