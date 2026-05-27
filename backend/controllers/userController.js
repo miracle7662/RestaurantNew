@@ -184,13 +184,13 @@ exports.createUser = async (req, res) => {
             }
         }
 
-        // ✅ INSERT
+        // ✅ INSERT - FIXED: Added outletid column
         // MySQL: Changed datetime('now') to NOW() for MySQL
         const [result] = await connection.query(`
             INSERT INTO mst_users (
                 username, email, password, full_name, phone, role_level,
-                parent_user_id, hotelid, brand_id, created_by_id, created_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                parent_user_id, hotelid, brand_id, outletid, created_by_id, created_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `, [
             username,
             email,
@@ -201,6 +201,7 @@ exports.createUser = async (req, res) => {
             parent_user_id,
             finalHotelId,
             finalBrandId,
+            finalHotelId,  // outletid - using hotelid as value
             finalCreatedById
         ]);
 

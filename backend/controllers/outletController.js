@@ -426,8 +426,9 @@ exports.addOutlet = async (req, res) => {
         show_store_name,
         show_terminal_username,
         show_username,
-        show_waiter
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        show_waiter,
+        hide_item_Amt_column
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       outletId,
         0, // customer_on_kot_dine_in
@@ -461,7 +462,8 @@ exports.addOutlet = async (req, res) => {
       1, // show_store_name
       0, // show_terminal_username
       0, // show_username
-      1 // show_waiter
+      1, // show_waiter
+      0 // hide_item_Amt_column
     ]);
 
     // Insert default settings into mstbill_print_settings
@@ -589,7 +591,7 @@ exports.addOutlet = async (req, res) => {
     ]);
 
     // Insert default settings into mstgeneral_settings
-    await db.query(`
+await db.query(`
     INSERT INTO mstgeneral_settings (
     outletid,
     customize_url_links,
@@ -649,15 +651,75 @@ exports.addOutlet = async (req, res) => {
     show_real_time_kot_bill_notifications,
     created_at,
     updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?)
-
-    `, [
-      outletId,
-      JSON.stringify([]),
-      0, 0, 1, 0, JSON.stringify({ dineIn: true, pickup: false, delivery: false, quickBill: false }), 0, 0, 0,0 , 0, 1, JSON.stringify({ dineIn: true, pickup: false, delivery: false, quickBill: false }), 0, 0, 0, 0, 1, '', 0, JSON.stringify({ media: [] }), JSON.stringify({ dineIn: true, pickup: true, delivery: true, quickBill: false }), 1, 0, '', 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, JSON.stringify({ autoSyncInterval: '300', syncBatchPacketSize: '100' }), 0, 0, 0, 0, 1, 1, 0, 0, 1, JSON.stringify({
-        salesSummary: true, orderTypeSummary: true, paymentTypeSummary: true, discountSummary: true, expenseSummary: true, billSummary: true, deliveryBoySummary: true, waiterSummary: true, kitchenDepartmentSummary: true, categorySummary: true, soldItemsSummary: true, cancelItemsSummary: true, walletSummary: true, duePaymentReceivedSummary: true, duePaymentReceivableSummary: true, paymentVarianceSummary: true, currencyDenominationsSummary: true
-      }), 0, 0, 'END_OF_DAY', 0, 1, 0, 1, new Date().toISOString(), new Date().toISOString()
-    ]);
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`, [
+  outletId,
+  JSON.stringify([]), // customize_url_links
+  0, // allow_charges_after_bill_print
+  0, // allow_discount_after_bill_print
+  1, // allow_discount_before_save
+  0, // allow_pre_order_tahd
+  JSON.stringify({ dineIn: true, pickup: false, delivery: false, quickBill: false }), // ask_covers
+  0, // ask_covers_captain
+  0, // ask_custom_order_id_quick_bill
+  0, // ask_custom_order_type_quick_bill
+  0, // ask_payment_mode_on_save_bill
+  0, // ask_waiter
+  1, // ask_otp_change_order_status_order_window
+  0, // ask_otp_change_order_status_receipt_section
+  0, // auto_accept_remote_kot
+  0, // auto_out_of_stock
+  0, // auto_sync
+  0, // category_time_for_pos
+  1, // count_sales_after_midnight
+  0, // customer_display
+  0, // customer_mandatory
+  0, // default_ebill_check
+ 0 ,// default_send_delivery_boy_check 
+ 1, // edit_customize_order_number
+  0, // enable_backup_notification_service
+  0, // enable_customer_display_access
+  0, // filter_items_by_order_type
+  0, // generate_reports_start_close_dates
+  0, // hide_clear_data_check_logout
+  0, // hide_item_price_options
+  1, // hide_load_menu_button
+  1, // make_cancel_delete_reason_compulsory
+  1, // make_discount_reason_mandatory
+  0, // make_free_cancel_bill_reason_mandatory
+  0, // make_payment_ref_number_mandatory
+  0, // mandatory_delivery_boy_selection
+  0, // mark_order_as_transfer_order
+  0, // online_payment_auto_settle (ADDED - this was missing!)
+  JSON.stringify({ autoSyncInterval: '300', syncBatchPacketSize: '100' }), // order_sync_settings
+  0, // separate_billing_by_section
+  0, // set_entered_amount_as_opening
+  0, // show_alternative_item_report_print
+  0, // show_clear_sales_report_logout
+  1, // show_order_no_label_pos
+  1, // show_payment_history_button
+  0, // show_remote_kot_option
+  0, // show_send_payment_link
+  1, // stock_availability_display
+  JSON.stringify({
+    salesSummary: true, orderTypeSummary: true, paymentTypeSummary: true,
+    discountSummary: true, expenseSummary: true, billSummary: true,
+    deliveryBoySummary: true, waiterSummary: true, kitchenDepartmentSummary: true,
+    categorySummary: true, soldItemsSummary: true, cancelItemsSummary: true,
+    walletSummary: true, duePaymentReceivedSummary: true,
+    duePaymentReceivableSummary: true, paymentVarianceSummary: true,
+    currencyDenominationsSummary: true
+  }), // todays_report
+  0, // upi_payment_sound_notification
+  0, // use_separate_bill_numbers_online
+  'END_OF_DAY', // when_send_todays_report
+  0, // enable_currency_conversion
+  1, // enable_user_login_validation
+  0, // allow_closing_shift_despite_bills
+  1, // show_real_time_kot_bill_notifications
+  new Date(), // created_at
+  new Date() // updated_at
+]);
 
     // Insert default settings into mstonline_orders_settings
     await db.query(`
