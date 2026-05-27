@@ -29,6 +29,34 @@ interface KotTransferProps {
   mode?: "table" | "kot";
 }
 
+interface Item {
+  id: number;
+  txnDetailId: number;
+  media: string;
+  kotNo?: number;
+  kot: number;
+  item: string;
+  qty: number;
+  price: number;
+  selected?: boolean;
+}
+
+interface Department {
+  departmentid: number;
+  department_name: string;
+}
+
+interface TableData {
+  id: string;
+  name: string;
+  status: 'Occupied' | 'printed' | 'paid' | 'running-kot' | 'available';
+  department: string;
+  pax?: number;
+  isbilled?: number;
+  outletid?: number;
+  outlet_name?: string;
+}
+
 const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTableId, mode }: KotTransferProps) => {
   const { user } = useAuthContext();
   const proposedTableRef = useRef<HTMLSelectElement>(null);
@@ -37,34 +65,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const saveButtonRef = useRef<HTMLButtonElement>(null);
   const modalYesButtonRef = useRef<HTMLButtonElement>(null);
   const modalNoButtonRef = useRef<HTMLButtonElement>(null);
-
-  interface Item {
-    id: number;
-    txnDetailId: number;
-    media: string;
-    kotNo?: number;
-    kot: number;
-    item: string;
-    qty: number;
-    price: number;
-    selected?: boolean;
-  }
-
-  interface Department {
-    departmentid: number;
-    department_name: string;
-  }
-
-  interface TableData {
-    id: string;
-    name: string;
-    status: 'Occupied' | 'printed' | 'paid' | 'running-kot' | 'available';
-    department: string;
-    pax?: number;
-    isbilled?: number;
-    outletid?: number;
-    outlet_name?: string;
-  }
 
   const [, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -81,25 +81,20 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const [selectedKOT, setSelectedKOT] = useState<number | null>(null);
   const [latestKOT, setLatestKOT] = useState<number | null>(null);
   const [allItems, setAllItems] = useState<Item[]>([]);
-  const [waitingForEnter, setWaitingForEnter] = useState(false);
 
   const effectiveSource = mode || transferSource;
   const [transferMode, setTransferMode] = useState<"table" | "kot" | "ORDER">(effectiveSource);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedOption, setSelectedOption] = useState<'no' | 'yes'>('no');
-  const [transferDone, setTransferDone] = useState(false);
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
   const [proposedPax, setProposedPax] = useState<number>(1);
   const [currentFocus, setCurrentFocus] = useState<'table' | 'kot' | 'f7' | 'save' | 'modal'>('table');
-  const [pendingFocus, setPendingFocus] = useState<'table' | 'kot' | 'f7' | null>(null);
-  
+  const [isProcessingEnter, setIsProcessingEnter] = useState(false);
 
-  // Focus management function
   const setFocusWithDelay = (element: HTMLElement | null, delay: number = 100) => {
     setTimeout(() => {
       if (element) {
         element.focus();
-        // Add visual feedback
         element.style.outline = '2px solid #007bff';
         element.style.outlineOffset = '2px';
         setTimeout(() => {
@@ -157,6 +152,35 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     }
   };
 
+  const fetchItemsForTable = async (tableId: number, type: 'selected' | 'proposed') => {
+    try {
+      const response = await OrderService.getUnbilledItemsByTable(tableId);
+      const mappedItems: Item[] = response.data.items.map((item: any, index: number) => ({
+        id: item.id || index,
+        txnDetailId: item.txnDetailId || item.id || index,
+        media: item.tableName || 'Unknown',
+        kot: item.kotNo || 0,
+        item: item.itemName,
+        qty: item.netQty,
+        price: item.price,
+        selected: false
+      }));
+
+      if (type === 'selected') {
+        setAllItems(mappedItems);
+        const uniqueKOTs = [...new Set(mappedItems.map(item => item.kot))].sort((a, b) => a - b);
+        setAvailableKOTs(uniqueKOTs);
+        const latest = uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null;
+        setLatestKOT(latest);
+        setSelectedKOT(latest);
+      } else {
+        setProposedItems(mappedItems);
+      }
+    } catch (error) {
+      console.error(`Error fetching items for table ${tableId}:`, error);
+    }
+  };
+
   useEffect(() => {
     const fetchInitialData = async () => {
       if (!user) return;
@@ -206,7 +230,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     fetchInitialData();
   }, [user, sourceTableId]);
 
-  // Focus management effects
   useEffect(() => {
     if (tables.length > 0 && proposedTableRef.current) {
       setFocusWithDelay(proposedTableRef.current, 100);
@@ -225,75 +248,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       setFocusWithDelay(saveButtonRef.current, 50);
     }
   }, [currentFocus]);
-
-  useEffect(() => {
-    if (!showConfirmModal && pendingFocus) {
-      setCurrentFocus(pendingFocus);
-      setPendingFocus(null);
-    }
-  }, [showConfirmModal, pendingFocus]);
-
-  // Focus management for modal buttons when it opens
-  useEffect(() => {
-    if (showConfirmModal) {
-      setTimeout(() => {
-        if (selectedOption === 'yes' && modalYesButtonRef.current) {
-          modalYesButtonRef.current.focus();
-        } else if (selectedOption === 'no' && modalNoButtonRef.current) {
-          modalNoButtonRef.current.focus();
-        }
-      }, 150);
-    }
-  }, [showConfirmModal]);
-
-  useEffect(() => {
-    if (transferDone) {
-      setWaitingForEnter(true);
-      setTransferDone(false);
-    }
-  }, [transferDone]);
-
-  useEffect(() => {
-    if (!waitingForEnter) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        setShowConfirmModal(true);
-        setWaitingForEnter(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [waitingForEnter]);
-
-  const fetchItemsForTable = async (tableId: number, type: 'selected' | 'proposed') => {
-    try {
-      const response = await OrderService.getUnbilledItemsByTable(tableId);
-      const mappedItems: Item[] = response.data.items.map((item: any, index: number) => ({
-        id: item.id || index,
-        txnDetailId: item.txnDetailId || item.id || index,
-        media: item.tableName || 'Unknown',
-        kot: item.kotNo || 0,
-        item: item.itemName,
-        qty: item.netQty,
-        price: item.price,
-        selected: false
-      }));
-
-      if (type === 'selected') {
-        setAllItems(mappedItems);
-        const uniqueKOTs = [...new Set(mappedItems.map(item => item.kot))].sort((a, b) => a - b);
-        setAvailableKOTs(uniqueKOTs);
-        const latest = uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null;
-        setLatestKOT(latest);
-        setSelectedKOT(latest);
-      } else {
-        setProposedItems(mappedItems);
-      }
-    } catch (error) {
-      console.error(`Error fetching items for table ${tableId}:`, error);
-    }
-  };
 
   const updateSelectedItems = () => {
     if (transferMode === "table" || transferMode === "ORDER") {
@@ -373,7 +327,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   const handleTransfer = () => {
     if (selectedItems.length === 0) {
-      toast.error("No items available to transfer!");
+      
       return;
     }
     let kotsRemaining = 0;
@@ -419,12 +373,11 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       })
     );
 
-    // Always show modal for table transfer
+    // Show modal immediately for table transfer
     if (transferMode === "table" || transferMode === "ORDER") {
       setSelectedOption('yes');
       setShowConfirmModal(true);
     } else {
-      // For KOT mode
       if (kotsRemaining === 0) {
         setTimeout(() => {
           setCurrentFocus('save');
@@ -514,21 +467,29 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     if (!showConfirmModal) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Prevent event bubbling
+      event.stopPropagation();
+      
       if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault();
         setSelectedOption('no');
         if (modalNoButtonRef.current) {
           modalNoButtonRef.current.focus();
         }
       } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        event.preventDefault();
         setSelectedOption('yes');
         if (modalYesButtonRef.current) {
           modalYesButtonRef.current.focus();
         }
       } else if (event.key === 'Enter') {
         event.preventDefault();
+        
+        if (isProcessingEnter) return;
+        setIsProcessingEnter(true);
+        
         if (selectedOption === 'no') {
           setShowConfirmModal(false);
-          // For table mode: focus on table dropdown, for KOT mode: focus on save button
           setTimeout(() => {
             if (transferMode === "table" || transferMode === "ORDER") {
               setCurrentFocus('table');
@@ -541,36 +502,31 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                 setFocusWithDelay(saveButtonRef.current, 50);
               }
             }
+            setIsProcessingEnter(false);
           }, 100);
         } else if (selectedOption === 'yes') {
           setShowConfirmModal(false);
-          // For table mode: focus on save button
-          if (transferMode === "table" || transferMode === "ORDER") {
-            setTimeout(() => {
-              setCurrentFocus('save');
-              if (saveButtonRef.current) {
-                setFocusWithDelay(saveButtonRef.current, 50);
-              }
-            }, 100);
-          } else {
-            // For KOT mode
-            if (availableKOTs.length > 0) {
-              setTimeout(() => {
+          
+          setTimeout(() => {
+            if (transferMode === "table" || transferMode === "ORDER") {
+              // Directly call handleSave for table transfers
+              handleSave();
+            } else {
+              if (availableKOTs.length > 0) {
                 setCurrentFocus('kot');
                 if (kotSelectRef.current) {
                   setFocusWithDelay(kotSelectRef.current, 50);
                 }
-              }, 150);
-            } else {
-              setTimeout(() => {
+              } else {
                 handleSave();
-              }, 100);
+              }
             }
-          }
+            setIsProcessingEnter(false);
+          }, 100);
         }
       } else if (event.key === 'Escape') {
+        event.preventDefault();
         setShowConfirmModal(false);
-        // Return focus to previous element based on mode
         setTimeout(() => {
           if (transferMode === "table" || transferMode === "ORDER") {
             setCurrentFocus('table');
@@ -588,8 +544,11 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showConfirmModal, selectedOption, availableKOTs, transferMode]);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      setIsProcessingEnter(false);
+    };
+  }, [showConfirmModal, selectedOption, availableKOTs, transferMode, isProcessingEnter]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -1015,7 +974,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         <Modal.Body>
           <p>
             {transferMode === "table" || transferMode === "ORDER"
-              ? "Do you want to save transfer?"
+              ? "Do you want to save the table transfer?"
               : "Do you want to transfer another KOT?"}
           </p>
         </Modal.Body>
@@ -1026,15 +985,10 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
             onClick={() => {
               setShowConfirmModal(false);
               if (transferMode === "table" || transferMode === "ORDER") {
-                // Table mode: Yes clicked - focus on Save button
                 setTimeout(() => {
-                  setCurrentFocus('save');
-                  if (saveButtonRef.current) {
-                    setFocusWithDelay(saveButtonRef.current, 50);
-                  }
+                  handleSave();
                 }, 100);
               } else {
-                // KOT mode: Yes clicked
                 if (availableKOTs.length > 0) {
                   setTimeout(() => {
                     setCurrentFocus('kot');
