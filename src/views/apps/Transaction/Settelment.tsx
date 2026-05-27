@@ -752,6 +752,7 @@ const billDataForPrintObj = {
     outletName={duplicateBillData.outletName || user?.outlet_name}
     billDate={duplicateBillData.billDate || selectedBillData.InsertDate}
     billData={billDataForPrint}
+    isBilled={true}
     departmentName={duplicateBillData.departmentName}  // ✅ ADD THIS - pass department name
   />
 )}
