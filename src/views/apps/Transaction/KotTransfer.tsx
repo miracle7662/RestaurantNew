@@ -975,35 +975,43 @@ const [proposedPax, setProposedPax] = useState<number>(1);
       </Card.Body>
 
       <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Save Transfer?</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p>Do you want to transfer another KOT ?</p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant={selectedOption === 'yes' ? 'primary' : 'secondary'}
-            onClick={() => {
-              setShowConfirmModal(false);
-              // Yes button - just closes modal without saving
-            }}
-            autoFocus={selectedOption === 'yes'}
-          >
-            Yes
-          </Button>
-          <Button
-            variant={selectedOption === 'no' ? 'primary' : 'secondary'}
-            onClick={() => {
-              setShowConfirmModal(false);
-              // No button - just closes modal without saving
-              // User should click Save (F9) button to save the transfer
-            }}
-          >
-            No
-          </Button>
-        </Modal.Footer>
-      </Modal>
+  <Modal.Header closeButton>
+    <Modal.Title>
+      {transferMode === "table" || transferMode === "ORDER"
+        ? "Save Transfer?"
+        : "Transfer Another KOT?"}
+    </Modal.Title>
+  </Modal.Header>
+
+  <Modal.Body>
+    <p>
+      {transferMode === "table" || transferMode === "ORDER"
+        ? "Do you want to save transfer?"
+        : "Do you want to transfer another KOT ?"}
+    </p>
+  </Modal.Body>
+
+  <Modal.Footer>
+    <Button
+      variant={selectedOption === 'yes' ? 'primary' : 'secondary'}
+      onClick={() => {
+        setShowConfirmModal(false);
+      }}
+      autoFocus={selectedOption === 'yes'}
+    >
+      Yes
+    </Button>
+
+    <Button
+      variant={selectedOption === 'no' ? 'primary' : 'secondary'}
+      onClick={() => {
+        setShowConfirmModal(false);
+      }}
+    >
+      No
+    </Button>
+  </Modal.Footer>
+</Modal>
     </Card>
   );
 };
