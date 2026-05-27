@@ -968,7 +968,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
           <Modal.Title>Save Transfer?</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Do you want to save the transfer?</p>
+          <p>Do you want to transfer another KOT ?</p>
         </Modal.Body>
         <Modal.Footer>
           <Button
