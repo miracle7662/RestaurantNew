@@ -150,9 +150,11 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
 
   const handleAmountFocus = (mode: string) => {
     if (!isMixedPayment) return;
-    if (Number(paymentAmounts[mode] || 0) > 0) return;
+    const current = Number(paymentAmounts[mode] || 0);
+    if (current > 0) return;
 
     const remaining = getRemainingExcluding(mode);
+    // Never force 0 into amount; only initialize when remaining > 0.
     if (remaining > 0) {
       setPaymentAmounts(prev => ({ ...prev, [mode]: remaining.toFixed(2) }));
     }
@@ -171,119 +173,26 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     });
   };
 
-  const togglePaymentMode = (mode: PaymentMode) => {
-    const name = mode.mode_name;
-    const isAlreadySelected = selectedPaymentModes.includes(name);
+  const ensureAmountForMode = (modeName: string, computedAmount: number) => {
+    setPaymentAmounts(prev => {
+      const currentRaw = prev[modeName];
+      const currentNum = Number(currentRaw || 0);
 
-    if (!isMixedPayment) {
-      // Single payment mode
-      if (isAlreadySelected) {
-        setSelectedPaymentModes([]);
-        setPaymentAmounts({});
-      } else {
-        setSelectedPaymentModes([name]);
-        setPaymentAmounts({ [name]: grandTotal.toFixed(2) });
+      // Amount must NEVER reset to 0 during navigation.
+      // If there's already a positive value, keep it.
+      if (currentNum > 0) return prev;
+
+      // Only initialize when computedAmount is > 0.
+      if (computedAmount > 0) {
+        return { ...prev, [modeName]: computedAmount.toFixed(2) };
       }
-    } else {
-      // Mixed payment mode
-      if (isAlreadySelected) {
-        removePaymentMode(name);
-      } else {
-        setSelectedPaymentModes(prev => [...prev, name]);
-        const remaining = getRemainingExcluding(name);
-        if (remaining > 0) {
-          setPaymentAmounts(prev => ({ ...prev, [name]: remaining.toFixed(2) }));
-        }
-      }
-    }
+
+      // Keep amount as-is (avoid writing 0).
+      return prev;
+    });
   };
 
-  // Keyboard navigation (ArrowUp/Down should work ONLY inside modal payment panel)
-  useEffect(() => {
-    if (!show || !Array.isArray(outletPaymentModes) || outletPaymentModes.length === 0) return;
-
-    const handler = (e: KeyboardEvent) => {
-      const activeEl = document.activeElement as HTMLElement | null;
-      const inPaymentPanel = !!activeEl?.closest?.('[data-payment-panel="1"]');
-      const allowArrows = inPaymentPanel || !activeEl; // fallback
-
-      if (e.key === 'ArrowDown') {
-        if (!allowArrows) return;
-        e.preventDefault();
-        setActivePaymentIndex(prev => {
-          const next = (prev + 1) % outletPaymentModes.length;
-          const selectedMode = outletPaymentModes[next];
-          if (selectedMode) togglePaymentMode(selectedMode);
-          return next;
-        });
-      } else if (e.key === 'ArrowUp') {
-        if (!allowArrows) return;
-        e.preventDefault();
-        setActivePaymentIndex(prev => {
-          const next = (prev - 1 + outletPaymentModes.length) % outletPaymentModes.length;
-          const selectedMode = outletPaymentModes[next];
-          if (selectedMode) togglePaymentMode(selectedMode);
-          return next;
-        });
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        handleSettle();
-      } else if (e.key === 'Escape') {
-        onHide();
-      }
-    };
-
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [show, outletPaymentModes, onHide, isMixedPayment, selectedPaymentModes, paymentAmounts, tip, customerId, customerMobile, customerName, cashReceived, grandTotal, loading]);
-
-
-
-  // Reset form when modal closes
-  useEffect(() => {
-    if (!show) {
-      setIsMixedPayment(false);
-      setSelectedPaymentModes([]);
-      setPaymentAmounts({});
-      setTip(0);
-      setCashReceived(0);
-      setActivePaymentIndex(0);
-    }
-  }, [show]);
-
-  const didInitRef = useRef(false);
-
-  // Update states when modal opens with initial props and auto-select Cash if needed
-  // Run only once per open to prevent keyboard navigation from re-triggering init.
-  useEffect(() => {
-    if (!show) {
-      didInitRef.current = false;
-      return;
-    }
-
-    if (didInitRef.current) return;
-    didInitRef.current = true;
-
-    setIsMixedPayment(initialIsMixed);
-    setSelectedPaymentModes(initialSelectedModes);
-    setPaymentAmounts(initialPaymentAmounts);
-    setTip(initialTip);
-
-    // Auto-select Cash if user hasn't selected anything (DEFAULT CASH always)
-    if (initialSelectedModes.length === 0) {
-      const cashMode = Array.isArray(outletPaymentModes)
-        ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash')
-        : null;
-
-      if (cashMode) {
-        setSelectedPaymentModes([cashMode.mode_name]);
-        setPaymentAmounts({ [cashMode.mode_name]: grandTotal.toFixed(2) });
-      }
-    }
-  }, [show, initialIsMixed, initialSelectedModes, initialPaymentAmounts, initialTip, outletPaymentModes, grandTotal]);
-
-
-
+  // Stable settle handler (declared before keyboard effect to avoid TDZ)
   const handleSettle = async () => {
     if (loading) return;
 
@@ -293,8 +202,6 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       toast.error('Customer details required for Credit payment');
       return;
     }
-
-
 
     // Validate: Received amount must be >= Bill amount (including tip)
     if (cashReceived > 0 && cashReceived < grandTotal) {
@@ -333,10 +240,217 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     try {
       await onSettle(settlements, tip);
     } catch (err) {
-      // console.error(err);
       toast.error('Settlement failed');
     }
   };
+
+  // Shared selection function for both mouse click and keyboard.
+  const selectPaymentMode = (mode: PaymentMode) => {
+
+    const name = mode.mode_name;
+    const isAlreadySelected = selectedPaymentModes.includes(name);
+
+    if (!isMixedPayment) {
+      // Single payment mode: selecting a new method should not zero-out amounts.
+      if (isAlreadySelected) {
+        // Toggle off only if user explicitly clicks a selected item.
+        // Keyboard navigation expects continuous selection, so we keep it simple and toggle off.
+        setSelectedPaymentModes([]);
+        setPaymentAmounts({});
+        return;
+      }
+
+      setSelectedPaymentModes([name]);
+      // Initialize amount safely; only write when grandTotal > 0.
+      if (grandTotal > 0) {
+        setPaymentAmounts({ [name]: grandTotal.toFixed(2) });
+      } else {
+        setPaymentAmounts({});
+      }
+      return;
+    }
+
+    // Mixed payment mode
+    if (isAlreadySelected) {
+      removePaymentMode(name);
+      return;
+    }
+
+    setSelectedPaymentModes(prev => [...prev, name]);
+    const remaining = getRemainingExcluding(name);
+    ensureAmountForMode(name, remaining);
+  };
+
+  const paymentModesRef = useRef<PaymentMode[]>([]);
+  const selectedModesRef = useRef<string[]>([]);
+  const isMixedRef = useRef<boolean>(false);
+  const grandTotalRef = useRef<number>(grandTotal);
+  const activeIndexRef = useRef<number>(0);
+  const showRef = useRef<boolean>(show);
+  const paymentPanelFocusRef = useRef<HTMLDivElement | null>(null);
+  const modalRootRef = useRef<HTMLDivElement | null>(null);
+  const modalBodyRef = useRef<HTMLDivElement | null>(null);
+
+
+  useEffect(() => {
+
+
+    paymentModesRef.current = outletPaymentModes;
+  }, [outletPaymentModes]);
+
+  useEffect(() => {
+    selectedModesRef.current = selectedPaymentModes;
+  }, [selectedPaymentModes]);
+
+  useEffect(() => {
+    isMixedRef.current = isMixedPayment;
+  }, [isMixedPayment]);
+
+  useEffect(() => {
+    grandTotalRef.current = grandTotal;
+  }, [grandTotal]);
+
+  useEffect(() => {
+    activeIndexRef.current = activePaymentIndex;
+  }, [activePaymentIndex]);
+
+  useEffect(() => {
+    showRef.current = show;
+  }, [show]);
+
+  // Stable keyboard navigation (ArrowUp/ArrowDown only within payment panel)
+  useEffect(() => {
+    if (!show) return;
+
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as Node | null;
+      const insideModal = !!(target && modalRootRef.current?.contains(target));
+      if (!insideModal) return;
+
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+
+        const modes = paymentModesRef.current;
+        if (!Array.isArray(modes) || modes.length === 0) return;
+
+        const len = modes.length;
+        const current = activeIndexRef.current;
+        const next = e.key === 'ArrowDown' ? (current + 1) % len : (current - 1 + len) % len;
+        activeIndexRef.current = next;
+        setActivePaymentIndex(next);
+
+        const mode = modes[next];
+        if (!mode) return;
+
+        // Use the same selection logic as mouse.
+        selectPaymentMode(mode);
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSettle();
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onHide();
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [show, onHide, handleSettle]);
+
+
+
+
+  // Reset form when modal closes (keep this, but do NOT re-init payment on open except the Cash default logic)
+  useEffect(() => {
+    if (!show) {
+      setIsMixedPayment(false);
+      setSelectedPaymentModes([]);
+      setPaymentAmounts({});
+      setTip(0);
+      setCashReceived(0);
+      setActivePaymentIndex(0);
+    }
+  }, [show]);
+
+  const didInitRef = useRef(false);
+
+  // Initialize ONLY on modal open.
+  // IMPORTANT: do NOT reset paymentData while opening (this breaks keyboard + focus state).
+  useEffect(() => {
+    if (!show) {
+      didInitRef.current = false;
+      return;
+    }
+    if (didInitRef.current) return;
+    didInitRef.current = true;
+
+    // Focus payment panel so ArrowUp/ArrowDown stays inside the modal.
+    // Use rAF to ensure DOM is mounted.
+    requestAnimationFrame(() => {
+      paymentPanelFocusRef.current?.focus?.();
+    });
+
+    // Set mixed + tip from props (safe)
+    setIsMixedPayment(initialIsMixed);
+    setTip(initialTip);
+
+    const cashMode = Array.isArray(outletPaymentModes)
+      ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash')
+      : null;
+    const firstMode = Array.isArray(outletPaymentModes) && outletPaymentModes.length > 0 ? outletPaymentModes[0] : null;
+
+    // If caller provides selected modes, keep them.
+    const modesFromProps = initialSelectedModes && initialSelectedModes.length > 0 ? initialSelectedModes : [];
+    const shouldDefaultCash = modesFromProps.length === 0;
+
+    const effectiveSelected = shouldDefaultCash
+      ? (cashMode ? [cashMode.mode_name] : firstMode ? [firstMode.mode_name] : [])
+      : modesFromProps;
+
+    setSelectedPaymentModes(effectiveSelected);
+
+    // Amount initialization: use remainingAmount concept for mixed; never force 0.
+    setPaymentAmounts(prev => {
+      const next = { ...(prev || {}) };
+
+      // Pre-seed with initialPaymentAmounts if provided (do not wipe)
+      if (initialPaymentAmounts && Object.keys(initialPaymentAmounts).length > 0) {
+        Object.assign(next, initialPaymentAmounts);
+      }
+
+      const initModeNames = effectiveSelected;
+      initModeNames.forEach(modeName => {
+        const already = Number(next[modeName] || 0);
+        if (already > 0) return;
+
+        const computed = initialIsMixed
+          ? (() => {
+              // remaining excluding others based on current init list
+              const otherPaid = initModeNames
+                .filter(m => m !== modeName)
+                .reduce((sum, m) => sum + (Number(next[m] || 0) || 0), 0);
+              return Math.max(0, grandTotal - otherPaid);
+            })()
+          : grandTotal;
+
+        if (computed > 0) {
+          next[modeName] = computed.toFixed(2);
+        }
+      });
+
+      return next;
+    });
+  }, [show, initialIsMixed, initialSelectedModes, initialPaymentAmounts, initialTip, outletPaymentModes, grandTotal]);
+
+
+
+
+
 
   return (
     <Modal
@@ -352,7 +466,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
         </Modal.Title>
       </Modal.Header>
 
-      <Modal.Body className="p-0">
+      <Modal.Body className="p-0" ref={(el) => { modalBodyRef.current = el; modalRootRef.current = el; }}>
         <Row className="g-0 h-100">
           {/* LEFT – Payment Methods */}
           <Col md={4} className="bg-white border-end">
@@ -376,7 +490,14 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
                 Payment Methods
               </h6>
 
-              <div style={{ overflowY: 'auto' }} data-payment-panel="1">
+              <div
+                style={{ overflowY: 'auto', outline: 'none' }}
+                data-payment-panel="1"
+                tabIndex={-1}
+                ref={(el) => {
+                  paymentPanelFocusRef.current = el;
+                }}
+              >
                 {Array.isArray(outletPaymentModes) && outletPaymentModes.length > 0 ? (
 
                   outletPaymentModes.map((mode, index) => {
@@ -388,7 +509,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
                         key={mode.id}
                         onClick={() => {
                           setActivePaymentIndex(index);
-                          togglePaymentMode(mode);
+                          selectPaymentMode(mode);
                         }}
                         className={`
                           p-2 mb-2 rounded border cursor-pointer transition-all
