@@ -38,6 +38,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const proposedTableRef = useRef<HTMLSelectElement>(null);
   const kotSelectRef = useRef<HTMLSelectElement>(null);
   const f7ButtonRef = useRef<HTMLButtonElement>(null);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
 
   interface Item {
     id: number;
@@ -415,9 +416,12 @@ const [proposedPax, setProposedPax] = useState<number>(1);
       if (event.key === 'F7') {
         event.preventDefault();
         handleTransfer();
-      } if (event.key === 'F8' && event.ctrlKey) {
+      } else if (event.key === 'F8' && event.ctrlKey) {
         event.preventDefault();
         handleReverseTransfer();
+      } else if (event.key === 'F9') {
+        event.preventDefault();
+        handleSave();
       }
     };
 
@@ -426,7 +430,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedItems, proposedItems, isTableMode, selectedCount]);
+  }, [selectedItems, proposedItems, isTableMode, selectedCount, selectedTableId, proposedTableId, proposedItems, transferMode, proposedPax, user, billDate, proposedTable]);
 
   const handleSave = async () => {
     if (!selectedTableId || !proposedTableId) {
@@ -954,7 +958,14 @@ const [proposedPax, setProposedPax] = useState<number>(1);
         </Row>
 
         <div className="d-flex justify-content-end gap-3 mt-2">
-          <Button variant="success" size="lg" className="px-4 fw-bold" onClick={handleSave} style={{ fontSize: "1rem", padding: "10px 30px" }}>
+          <Button 
+            ref={saveButtonRef}
+            variant="success" 
+            size="lg" 
+            className="px-4 fw-bold" 
+            onClick={handleSave} 
+            style={{ fontSize: "1rem", padding: "10px 30px" }}
+          >
             💾 Save (F9)
           </Button>
           <Button variant="danger" size="lg" className="px-4 fw-bold" onClick={onCancel} style={{ fontSize: "1rem", padding: "10px 30px" }}>
