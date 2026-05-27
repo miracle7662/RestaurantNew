@@ -1,16 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { Card, Row, Col, Form, Button, Table, Badge,  Modal } from "react-bootstrap";
+import { Card, Row, Col, Form, Button, Table, Badge, Modal } from "react-bootstrap";
 import OrderService, { TransferTablePayload, TransferKOTPayload } from "@/common/api/order";
 import { useAuthContext } from "@/common";
 import { toast } from 'react-hot-toast';
 import TableDepartmentService from '@/common/api/tabledepartment';
 import TableManagementService from '@/common/api/tablemanagement';
 
-
-
 const KOT_COLORS = [
   '#E8F5E9', // Green 50
-  '#FFF3E0', // Orange 50a
+  '#FFF3E0', // Orange 50
 ];
 
 const getRowColor = (kotNo: string | number | null | undefined) => {
@@ -18,19 +16,45 @@ const getRowColor = (kotNo: string | number | null | undefined) => {
   const s = String(kotNo);
   const firstKot = s.split('|')[0];
   const num = parseInt(firstKot.replace(/\D/g, ''), 10);
-
   if (isNaN(num) || num === 0) return '#ffffff';
-
   return KOT_COLORS[num % KOT_COLORS.length];
 };
 
 interface KotTransferProps {
   onCancel?: () => void;
   onSuccess?: () => void;
-  transferSource?: "table" | "kot" 
+  transferSource?: "table" | "kot";
   sourceTableId?: number | null;
   pax?: number;
   mode?: "table" | "kot";
+}
+
+interface Item {
+  id: number;
+  txnDetailId: number;
+  media: string;
+  kotNo?: number;
+  kot: number;
+  item: string;
+  qty: number;
+  price: number;
+  selected?: boolean;
+}
+
+interface Department {
+  departmentid: number;
+  department_name: string;
+}
+
+interface TableData {
+  id: string;
+  name: string;
+  status: 'Occupied' | 'printed' | 'paid' | 'running-kot' | 'available';
+  department: string;
+  pax?: number;
+  isbilled?: number;
+  outletid?: number;
+  outlet_name?: string;
 }
 
 const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTableId, mode }: KotTransferProps) => {
@@ -38,34 +62,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const proposedTableRef = useRef<HTMLSelectElement>(null);
   const kotSelectRef = useRef<HTMLSelectElement>(null);
   const f7ButtonRef = useRef<HTMLButtonElement>(null);
-
-  interface Item {
-    id: number;
-    txnDetailId: number;
-    media: string;
-    kotNo?: number;
-    kot: number;
-    item: string;
-    qty: number;
-    price: number;
-    selected?: boolean;
-  }
-
-  interface Department {
-    departmentid: number;
-    department_name: string;
-  }
-
-  interface TableData {
-    id: string;
-    name: string;
-    status: 'Occupied' | 'printed' | 'paid' | 'running-kot' | 'available';
-    department: string;
-    pax?: number;
-    isbilled?: number;
-    outletid?: number;
-    outlet_name?: string;
-  }
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
+  const modalYesButtonRef = useRef<HTMLButtonElement>(null);
+  const modalNoButtonRef = useRef<HTMLButtonElement>(null);
 
   const [, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -82,21 +81,34 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const [selectedKOT, setSelectedKOT] = useState<number | null>(null);
   const [latestKOT, setLatestKOT] = useState<number | null>(null);
   const [allItems, setAllItems] = useState<Item[]>([]);
-  const [waitingForEnter, setWaitingForEnter] = useState(false);
 
   const effectiveSource = mode || transferSource;
   const [transferMode, setTransferMode] = useState<"table" | "kot" | "ORDER">(effectiveSource);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedOption, setSelectedOption] = useState<'no' | 'yes'>('no');
-  const [transferDone, setTransferDone] = useState(false);
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
-const [proposedPax, setProposedPax] = useState<number>(1);
-  const [currentFocus, setCurrentFocus] = useState<'table' | 'kot' | 'f7' | 'modal'>('table');
-  const [pendingFocus, setPendingFocus] = useState<'table' | 'kot' | 'f7' | null>(null);
+  const [proposedPax, setProposedPax] = useState<number>(1);
+  const [currentFocus, setCurrentFocus] = useState<'table' | 'kot' | 'f7' | 'save' | 'modal'>('table');
+  const [isProcessingEnter, setIsProcessingEnter] = useState(false);
+
+  const setFocusWithDelay = (element: HTMLElement | null, delay: number = 100) => {
+    setTimeout(() => {
+      if (element) {
+        element.focus();
+        element.style.outline = '2px solid #007bff';
+        element.style.outlineOffset = '2px';
+        setTimeout(() => {
+          if (element) {
+            element.style.outline = '';
+          }
+        }, 500);
+      }
+    }, delay);
+  };
 
   useEffect(() => {
     setTransferMode(effectiveSource);
-    if (effectiveSource === "table" ) {
+    if (effectiveSource === "table") {
       setSelectedKOT(-1);
     } else if (effectiveSource === "kot") {
       setSelectedKOT(latestKOT);
@@ -112,11 +124,9 @@ const [proposedPax, setProposedPax] = useState<number>(1);
       const data = await TableDepartmentService.list(params);
       if (data.success) {
         setDepartments(data.data);
-      } else {
-        // console.error('Failed to fetch departments');
       }
     } catch (error) {
-      // console.error('Error fetching departments:', error);
+      console.error('Error fetching departments:', error);
     }
   };
 
@@ -138,14 +148,42 @@ const [proposedPax, setProposedPax] = useState<number>(1);
         setTables(mappedTables);
       }
     } catch (error) {
-      // console.error('Error fetching tables:', error);
+      console.error('Error fetching tables:', error);
+    }
+  };
+
+  const fetchItemsForTable = async (tableId: number, type: 'selected' | 'proposed') => {
+    try {
+      const response = await OrderService.getUnbilledItemsByTable(tableId);
+      const mappedItems: Item[] = response.data.items.map((item: any, index: number) => ({
+        id: item.id || index,
+        txnDetailId: item.txnDetailId || item.id || index,
+        media: item.tableName || 'Unknown',
+        kot: item.kotNo || 0,
+        item: item.itemName,
+        qty: item.netQty,
+        price: item.price,
+        selected: false
+      }));
+
+      if (type === 'selected') {
+        setAllItems(mappedItems);
+        const uniqueKOTs = [...new Set(mappedItems.map(item => item.kot))].sort((a, b) => a - b);
+        setAvailableKOTs(uniqueKOTs);
+        const latest = uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null;
+        setLatestKOT(latest);
+        setSelectedKOT(latest);
+      } else {
+        setProposedItems(mappedItems);
+      }
+    } catch (error) {
+      console.error(`Error fetching items for table ${tableId}:`, error);
     }
   };
 
   useEffect(() => {
     const fetchInitialData = async () => {
       if (!user) return;
-
       try {
         const hotelId = user?.hotelid;
         const tablesResponse = await TableManagementService.list({ hotelid: hotelId });
@@ -171,10 +209,8 @@ const [proposedPax, setProposedPax] = useState<number>(1);
           setSelectedTable(defaultTable.name);
           setSelectedDepartment(defaultTable.department);
           
-          // Fetch departments based on the source table's outlet ID
           const sourceOutletId = defaultTable.outletid || user?.outletid;
           await fetchDepartments(sourceOutletId);
-          
           await fetchItemsForTable(Number(defaultTable.id), 'selected');
         }
 
@@ -185,101 +221,46 @@ const [proposedPax, setProposedPax] = useState<number>(1);
           setProposedDepartment(availableTable.department_name || '');
           await fetchItemsForTable(Number(availableTable.tableid), 'proposed');
         }
-
       } catch (error) {
-        // console.error('Error fetching initial data:', error);
+        console.error('Error fetching initial data:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchInitialData();
   }, [user, sourceTableId]);
 
   useEffect(() => {
     if (tables.length > 0 && proposedTableRef.current) {
-      proposedTableRef.current.focus();
+      setFocusWithDelay(proposedTableRef.current, 100);
       setCurrentFocus('table');
     }
   }, [tables]);
 
   useEffect(() => {
     if (currentFocus === 'table' && proposedTableRef.current) {
-      proposedTableRef.current.focus();
+      setFocusWithDelay(proposedTableRef.current, 50);
     } else if (currentFocus === 'kot' && kotSelectRef.current) {
-      kotSelectRef.current.focus();
+      setFocusWithDelay(kotSelectRef.current, 50);
     } else if (currentFocus === 'f7' && f7ButtonRef.current) {
-      f7ButtonRef.current.focus();
+      setFocusWithDelay(f7ButtonRef.current, 50);
+    } else if (currentFocus === 'save' && saveButtonRef.current) {
+      setFocusWithDelay(saveButtonRef.current, 50);
     }
   }, [currentFocus]);
-
-  useEffect(() => {
-    if (!showConfirmModal && pendingFocus) {
-      setCurrentFocus(pendingFocus);
-      setPendingFocus(null);
-    }
-  }, [showConfirmModal, pendingFocus]);
-
-  useEffect(() => {
-    if (transferDone) {
-      setWaitingForEnter(true);
-      setTransferDone(false);
-    }
-  }, [transferDone]);
-
-  useEffect(() => {
-    if (!waitingForEnter) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        setShowConfirmModal(true);
-        setWaitingForEnter(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [waitingForEnter]);
-
-  const fetchItemsForTable = async (tableId: number, type: 'selected' | 'proposed') => {
-    try {
-     const response = await OrderService.getUnbilledItemsByTable(tableId);
-      const mappedItems: Item[] = response.data.items.map((item: any, index: number) => ({
-        id: item.id || index,
-        txnDetailId: item.txnDetailId || item.id || index,
-        media: item.tableName || 'Unknown',
-        kot: item.kotNo || 0,
-        item: item.itemName,
-        qty: item.netQty,
-        price: item.price,
-        selected: false
-      }));
-
-      if (type === 'selected') {
-        setAllItems(mappedItems);
-        const uniqueKOTs = [...new Set(mappedItems.map(item => item.kot))].sort((a, b) => a - b);
-        setAvailableKOTs(uniqueKOTs);
-        const latest = uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null;
-        setLatestKOT(latest);
-        setSelectedKOT(latest);
-      } else {
-        setProposedItems(mappedItems);
-      }
-    } catch (error) {
-      // console.error(`Error fetching items for table ${tableId}:`, error);
-    }
-  };
 
   const updateSelectedItems = () => {
     if (transferMode === "table" || transferMode === "ORDER") {
       setSelectedItems(allItems.map(item => ({ ...item, selected: true })));
     } else {
-      // In KOT mode, show ALL KOTs in the left table (not filtered by selected KOT)
-      setSelectedItems(allItems.map(item => ({ ...item, selected: true })));
+      if (selectedKOT === -1) {
+        setSelectedItems(allItems.map(item => ({ ...item, selected: true })));
+      } else {
+        setSelectedItems(allItems.map(item => ({ 
+          ...item, 
+          selected: item.kot === selectedKOT 
+        })));
+      }
     }
   };
 
@@ -289,7 +270,6 @@ const [proposedPax, setProposedPax] = useState<number>(1);
 
   const sourceTable = tables.find(t => t.id === selectedTableId?.toString());
   const sourcePax = sourceTable?.pax || 0;
- 
 
   const totalSelectedAmount = selectedItems
     .filter(item => item.selected)
@@ -313,9 +293,9 @@ const [proposedPax, setProposedPax] = useState<number>(1);
     setSelectedItems(updated);
   };
 
-  const handleTransferTypeChange = (type: "table" | "kot" ) => {
+  const handleTransferTypeChange = (type: "table" | "kot") => {
     setTransferMode(type);
-    if (type === "table"  ) {
+    if (type === "table") {
       setSelectedKOT(-1);
       const updated = selectedItems.map(item => ({ ...item, selected: true }));
       setSelectedItems(updated);
@@ -325,24 +305,19 @@ const [proposedPax, setProposedPax] = useState<number>(1);
   };
 
   const handleSelectedTableChange = async (tableId: string) => {
-    // console.log('Selected Table ID:', handleSelectedTableChange);
     const numericTableId = Number(tableId);
     setSelectedTableId(numericTableId);
     const srcTable = tables.find(t => t.id === tableId);
     setSelectedTable(srcTable?.name || '');
     setSelectedDepartment(srcTable?.department || '');
-    
-    // Refetch departments based on the new source table's outlet ID
     const sourceOutletId = srcTable?.outletid || user?.outletid;
     await fetchDepartments(sourceOutletId);
-    
     await fetchItemsForTable(numericTableId, 'selected');
   };
 
   const handleProposedTableChange = async (tableId: string) => {
     const numericTableId = Number(tableId);
     setProposedTableId(numericTableId);
-
     const destTable = tables.find(t => t.id === tableId);
     setProposedTable(destTable?.name || '');
     setProposedDepartment(destTable?.department || '');
@@ -352,24 +327,18 @@ const [proposedPax, setProposedPax] = useState<number>(1);
 
   const handleTransfer = () => {
     if (selectedItems.length === 0) {
-      toast.error("No items available to transfer!");
+      
       return;
     }
+    let kotsRemaining = 0;
 
-    // In KOT mode, only transfer items from the selected KOT
-    // In Table mode, transfer all items
     let itemsToTransfer;
     if (transferMode === "table" || transferMode === "ORDER") {
       itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
-  } else {
-      // In KOT mode, transfer items based on selectedKOT
-      // If "All KOTs" is selected (selectedKOT === -1), transfer ALL items
-      // Otherwise, transfer only items from the selected KOT
+    } else {
       if (selectedKOT === -1) {
-        // Transfer all items from all KOTs
         itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
       } else {
-        // Transfer only items from the selected KOT
         itemsToTransfer = selectedItems
           .filter(item => item.kot === selectedKOT)
           .map(item => ({ ...item, selected: false, media: proposedTable }));
@@ -383,14 +352,16 @@ const [proposedPax, setProposedPax] = useState<number>(1);
       setAllItems([]);
       setAvailableKOTs([]);
       setLatestKOT(null);
+      kotsRemaining = 0;
     } else {
-      // In KOT mode, remove only the transferred KOT from allItems
       const kotToRemove = selectedKOT === -1 ? itemsToTransfer[0]?.kot : selectedKOT;
       setAllItems(prev => prev.filter(item => item.kot !== kotToRemove));
       const updatedAllItems = allItems.filter(item => item.kot !== kotToRemove);
       const uniqueKOTs = [...new Set(updatedAllItems.map(item => item.kot))].sort((a, b) => a - b);
       setAvailableKOTs(uniqueKOTs);
       setLatestKOT(uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null);
+      setSelectedKOT(uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null);
+      kotsRemaining = uniqueKOTs.length;
     }
 
     setTables(prevTables =>
@@ -402,31 +373,26 @@ const [proposedPax, setProposedPax] = useState<number>(1);
       })
     );
 
-    setShowConfirmModal(true);
+    // Show modal immediately for table transfer
+    if (transferMode === "table" || transferMode === "ORDER") {
+      setSelectedOption('yes');
+      setShowConfirmModal(true);
+    } else {
+      if (kotsRemaining === 0) {
+        setTimeout(() => {
+          setCurrentFocus('save');
+        }, 100);
+      } else {
+        setSelectedOption('no');
+        setShowConfirmModal(true);
+      }
+    }
   };
 
   const handleReverseTransfer = () => {
     setSelectedItems([...selectedItems, ...proposedItems]);
     setProposedItems([]);
   };
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'F7') {
-        event.preventDefault();
-        handleTransfer();
-      } if (event.key === 'F8' && event.ctrlKey) {
-        event.preventDefault();
-        handleReverseTransfer();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [selectedItems, proposedItems, isTableMode, selectedCount]);
 
   const handleSave = async () => {
     if (!selectedTableId || !proposedTableId) {
@@ -442,7 +408,6 @@ const [proposedPax, setProposedPax] = useState<number>(1);
     try {
       const proposedTableData = tables.find(t => t.id === proposedTableId?.toString());
       const tableOutletId = proposedTableData?.outletid;
-
       let result;
 
       if (transferMode === "table" || transferMode === "ORDER") {
@@ -455,7 +420,6 @@ const [proposedPax, setProposedPax] = useState<number>(1);
           TxnDatetime: user?.currDate,
           curr_date: user?.currDate
         };
-        // console.log('SAVE PAYLOAD:', payload);
         result = await OrderService.transferTable(payload);
       } else {
         const payload: TransferKOTPayload = {
@@ -475,7 +439,6 @@ const [proposedPax, setProposedPax] = useState<number>(1);
           TxnDatetime: user?.currDate,
           curr_date: user?.currDate
         };
-        // console.log('SAVE PAYLOAD:', payload);
         result = await OrderService.transferKOT(payload);
       }
 
@@ -492,54 +455,124 @@ const [proposedPax, setProposedPax] = useState<number>(1);
 
       setSelectedItems([]);
       setProposedItems([]);
-
       onSuccess?.();
-
     } catch (error) {
-      // console.error('Error saving transfer:', error);
-      alert('An error occurred while saving the transfer.');
+      console.error('Error saving transfer:', error);
+      toast.error('An error occurred while saving the transfer.');
     }
   };
 
-  // Updated keyboard navigation for modal
+  // Modal keyboard navigation
   useEffect(() => {
     if (!showConfirmModal) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Prevent event bubbling
+      event.stopPropagation();
+      
       if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault();
         setSelectedOption('no');
+        if (modalNoButtonRef.current) {
+          modalNoButtonRef.current.focus();
+        }
       } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        event.preventDefault();
         setSelectedOption('yes');
+        if (modalYesButtonRef.current) {
+          modalYesButtonRef.current.focus();
+        }
       } else if (event.key === 'Enter') {
         event.preventDefault();
+        
+        if (isProcessingEnter) return;
+        setIsProcessingEnter(true);
+        
         if (selectedOption === 'no') {
-          // No selected: Close modal
           setShowConfirmModal(false);
+          setTimeout(() => {
+            if (transferMode === "table" || transferMode === "ORDER") {
+              setCurrentFocus('table');
+              if (proposedTableRef.current) {
+                setFocusWithDelay(proposedTableRef.current, 50);
+              }
+            } else {
+              setCurrentFocus('save');
+              if (saveButtonRef.current) {
+                setFocusWithDelay(saveButtonRef.current, 50);
+              }
+            }
+            setIsProcessingEnter(false);
+          }, 100);
         } else if (selectedOption === 'yes') {
-          // Yes selected: Close modal, check for remaining KOTs
           setShowConfirmModal(false);
-          if (availableKOTs.length > 0) {
-            setTimeout(() => {
-              setCurrentFocus('kot');
-            }, 100);
-          } else {
-            // No remaining KOTs, save immediately
-            setTimeout(() => {
+          
+          setTimeout(() => {
+            if (transferMode === "table" || transferMode === "ORDER") {
+              // Directly call handleSave for table transfers
               handleSave();
-            }, 100);
-          }
+            } else {
+              if (availableKOTs.length > 0) {
+                setCurrentFocus('kot');
+                if (kotSelectRef.current) {
+                  setFocusWithDelay(kotSelectRef.current, 50);
+                }
+              } else {
+                handleSave();
+              }
+            }
+            setIsProcessingEnter(false);
+          }, 100);
         }
       } else if (event.key === 'Escape') {
+        event.preventDefault();
         setShowConfirmModal(false);
+        setTimeout(() => {
+          if (transferMode === "table" || transferMode === "ORDER") {
+            setCurrentFocus('table');
+            if (proposedTableRef.current) {
+              setFocusWithDelay(proposedTableRef.current, 50);
+            }
+          } else {
+            setCurrentFocus('kot');
+            if (kotSelectRef.current) {
+              setFocusWithDelay(kotSelectRef.current, 50);
+            }
+          }
+        }, 100);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      setIsProcessingEnter(false);
     };
-  }, [showConfirmModal, selectedOption, availableKOTs]);
+  }, [showConfirmModal, selectedOption, availableKOTs, transferMode, isProcessingEnter]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (showConfirmModal) return;
+      
+      if (event.key === 'F7') {
+        event.preventDefault();
+        handleTransfer();
+      } else if (event.key === 'F8' && event.ctrlKey) {
+        event.preventDefault();
+        handleReverseTransfer();
+      } else if (event.key === 'F9') {
+        event.preventDefault();
+        handleSave();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        onCancel?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedItems, proposedItems, isTableMode, selectedCount, selectedTableId, proposedTableId, proposedItems, transferMode, proposedPax, user, billDate, proposedTable, showConfirmModal]);
 
   const getTableStatusBadge = (status: string) => {
     const variants = {
@@ -554,7 +587,6 @@ const [proposedPax, setProposedPax] = useState<number>(1);
   };
 
   const destTable = tables.find(t => t.id === proposedTableId?.toString());
-  
   const destStatus = destTable?.status || "available";
   const destKOT = proposedItems.length > 0 ? proposedItems[0].kot : 0;
 
@@ -591,7 +623,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
         <Row className="p-1 justify">
           <Col md={5} className="d-flex justify-content-center col md-6 col-md-5">
             <Card className="border-0 shadow" style={{ backgroundColor: "#f8f9fa", height: "550px", border: currentFocus === 'kot' ? "3px solid #007bff" : "none" }}>
-              <Card.Body className="p-2 d-flex flex-column" style={{ height: "100%"}}>
+              <Card.Body className="p-2 d-flex flex-column" style={{ height: "100%" }}>
                 <Row className="mb-2 g-2">
                   <Col xs={6}>
                     <Form.Group>
@@ -600,9 +632,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
                         value={selectedTableId || ''}
                         onChange={(e) => handleSelectedTableChange(e.target.value)}
                         className="fw-bold"
-                        style={{
-                          fontSize: "0.9rem",
-                        }}
+                        style={{ fontSize: "0.9rem" }}
                       >
                         {tables.map(t => (
                           <option key={t.id} value={t.id}>
@@ -637,8 +667,18 @@ const [proposedPax, setProposedPax] = useState<number>(1);
                             setSelectedKOT(Number(value));
                           }
                         }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setCurrentFocus('f7'); } }}
-                        style={{ fontSize: "0.9rem" }}
+                        onKeyDown={(e) => { 
+                          if (e.key === 'Enter') { 
+                            e.preventDefault(); 
+                            setCurrentFocus('f7'); 
+                          } 
+                        }}
+                        tabIndex={0}
+                        style={{
+                          fontSize: "0.9rem",
+                          border: currentFocus === 'kot' ? "2px solid #007bff" : undefined,
+                          boxShadow: currentFocus === 'kot' ? "0 0 0 0.25rem rgba(13, 110, 253, 0.25)" : undefined,
+                        }}
                       >
                         <option value="all">All KOTs</option>
                         {availableKOTs.map(kot => (
@@ -661,102 +701,46 @@ const [proposedPax, setProposedPax] = useState<number>(1);
                   </Col>
                 </Row>
 
-                {!isTableMode ? (
-                  <>
-                    <div
-                      className="table-responsive"
-                      style={{
-                        height: "300px",
-                        border: "2px solid #e9ecef",
-                        borderRadius: "8px",
-                        overflowY: "auto",
-                      }}
-                    >
-                      <Table
-                        bordered
-                        hover
-                        size="sm"
-                        className="mb-0"
-                        style={{ tableLayout: "fixed", width: "100%" }}
-                      >
-                        <thead
-                          className="table-light text-center sticky-top"
-                          style={{ fontSize: "0.85rem" }}
+                <div
+                  className="table-responsive"
+                  style={{
+                    height: isTableMode ? "400px" : "300px",
+                    border: "2px solid #e9ecef",
+                    borderRadius: "8px",
+                    overflowY: "auto",
+                  }}
+                >
+                  <Table bordered hover size="sm" className="mb-0" style={{ tableLayout: "fixed", width: "100%" }}>
+                    <thead className="table-light text-center sticky-top" style={{ fontSize: "0.85rem" }}>
+                      <tr>
+                        <th style={{ width: "70px" }}>Table</th>
+                        <th style={{ width: "90px" }}>KOT No.</th>
+                        <th style={{ width: "130px" }}>Item</th>
+                        <th style={{ width: "60px" }}>Qty</th>
+                        <th style={{ width: "80px" }}>Price</th>
+                      </tr>
+                    </thead>
+                    <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
+                      {selectedItems.map((row, i) => (
+                        <tr
+                          key={row.id}
+                          style={{ 
+                            cursor: !isTableMode ? "pointer" : "default", 
+                            backgroundColor: getRowColor(row.kot), 
+                            fontWeight: row.selected ? 'bold' : 'normal' 
+                          }}
+                          onClick={() => !isTableMode && handleCheck(i)}
                         >
-                          <tr>
-                            <th style={{ width: "70px" }}>Table</th>
-                            <th style={{ width: "90px" }}>KOT No.</th>
-                            <th style={{ width: "130px" }}>Item</th>
-                            <th style={{ width: "60px" }}>Qty</th>
-                            <th style={{ width: "80px" }}>Price</th>
-                          </tr>
-                        </thead>
-                        <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
-                          {selectedItems.map((row, i) => (
-                            <tr
-                              key={row.id}
-                              style={{ cursor: "pointer", backgroundColor: getRowColor(row.kot), fontWeight: row.selected ? 'bold' : 'normal' }}
-                              onClick={() => handleCheck(i)}
-                            >
-                              <td>{row.media}</td>
-                              <td>{row.kot}</td>
-                              <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
-                              <td className="text-center">{row.qty}</td>
-                              <td className="text-end">₹{row.price?.toFixed(2)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </Table>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div
-                      className="table-responsive"
-                      style={{
-                        height: "400px",
-                        border: "2px solid #e9ecef",
-                        borderRadius: "8px",
-                        overflowY: "auto",
-                      }}
-                    >
-                      <Table
-                        bordered
-                        hover
-                        size="sm"
-                        className="mb-0"
-                        style={{ tableLayout: "fixed", width: "100%" }}
-                      >
-                        <thead
-                          className="table-light text-center sticky-top"
-                          style={{ fontSize: "0.85rem" }}
-                        >
-                          <tr>
-                            <th style={{ width: "50px" }}>Table</th>
-                            <th style={{ width: "50px" }}>KOT</th>
-                            <th style={{ width: "150px" }}>Item</th>
-                            <th style={{ width: "60px" }}>Qty</th>
-                            <th style={{ width: "80px" }}>Price</th>
-                          </tr>
-                        </thead>
-                        <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
-                          {selectedItems.map((row, i) => (
-                            <tr
-                              key={row.id}
-                              style={{ backgroundColor: getRowColor(row.kot) }}
-                            >
-                              <td>{row.media}</td>
-                              <td>{row.kot}</td>
-                              <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
-                              <td className="text-center">{row.qty}</td>
-                              <td className="text-end">₹{row.price?.toFixed(2)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </Table>
-                    </div>
-                  </>
-                )}
+                          <td>{row.media}</td>
+                          <td>{row.kot}</td>
+                          <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
+                          <td className="text-center">{row.qty}</td>
+                          <td className="text-end">₹{row.price?.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
 
                 <div style={{ height: "20px" }}></div>
 
@@ -834,12 +818,7 @@ const [proposedPax, setProposedPax] = useState<number>(1);
                 <Row className="mb-2 g-2">
                   <Col xs={6}>
                     <Form.Group>
-                      <Form.Label
-                        className="fw-semibold"
-                        style={{ fontSize: "0.9rem", marginBottom: "4px" }}
-                      >
-                        Department
-                      </Form.Label>
+                      <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Department</Form.Label>
                       <Form.Select
                         value={proposedDepartment}
                         onChange={(e) => setProposedDepartment(e.target.value)}
@@ -865,9 +844,18 @@ const [proposedPax, setProposedPax] = useState<number>(1);
                           ref={proposedTableRef}
                           value={proposedTableId || ''}
                           onChange={(e) => handleProposedTableChange(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setCurrentFocus('kot'); } }}
+                          onKeyDown={(e) => { 
+                            if (e.key === 'Enter') { 
+                              e.preventDefault(); 
+                              setCurrentFocus('kot'); 
+                            } 
+                          }}
                           className="fw-bold me-2"
-                          style={{ fontSize: "0.9rem" }}
+                          style={{ 
+                            fontSize: "0.9rem",
+                            border: currentFocus === 'table' ? "2px solid #007bff" : undefined,
+                            boxShadow: currentFocus === 'table' ? "0 0 0 0.25rem rgba(13, 110, 253, 0.25)" : undefined,
+                          }}
                         >
                           {tables
                             .filter(t => t.status !== 'printed' && t.isbilled !== 1)
@@ -954,7 +942,19 @@ const [proposedPax, setProposedPax] = useState<number>(1);
         </Row>
 
         <div className="d-flex justify-content-end gap-3 mt-2">
-          <Button variant="success" size="lg" className="px-4 fw-bold" onClick={handleSave} style={{ fontSize: "1rem", padding: "10px 30px" }}>
+          <Button 
+            ref={saveButtonRef}
+            variant="success" 
+            size="lg" 
+            className="px-4 fw-bold" 
+            onClick={handleSave} 
+            style={{ 
+              fontSize: "1rem", 
+              padding: "10px 30px",
+              border: currentFocus === 'save' ? "3px solid #007bff" : undefined,
+              boxShadow: currentFocus === 'save' ? "0 0 0 0.25rem rgba(13, 110, 253, 0.25)" : undefined,
+            }}
+          >
             💾 Save (F9)
           </Button>
           <Button variant="danger" size="lg" className="px-4 fw-bold" onClick={onCancel} style={{ fontSize: "1rem", padding: "10px 30px" }}>
@@ -963,31 +963,70 @@ const [proposedPax, setProposedPax] = useState<number>(1);
         </div>
       </Card.Body>
 
-      <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
+      <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered restoreFocus={false}>
         <Modal.Header closeButton>
-          <Modal.Title>Save Transfer?</Modal.Title>
+          <Modal.Title>
+            {transferMode === "table" || transferMode === "ORDER"
+              ? "Save Transfer?"
+              : "Transfer Another KOT?"}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Do you want to save the transfer?</p>
+          <p>
+            {transferMode === "table" || transferMode === "ORDER"
+              ? "Do you want to save the table transfer?"
+              : "Do you want to transfer another KOT?"}
+          </p>
         </Modal.Body>
         <Modal.Footer>
           <Button
+            ref={modalYesButtonRef}
             variant={selectedOption === 'yes' ? 'primary' : 'secondary'}
             onClick={() => {
               setShowConfirmModal(false);
-              // Yes button - just closes modal without saving
+              if (transferMode === "table" || transferMode === "ORDER") {
+                setTimeout(() => {
+                  handleSave();
+                }, 100);
+              } else {
+                if (availableKOTs.length > 0) {
+                  setTimeout(() => {
+                    setCurrentFocus('kot');
+                    if (kotSelectRef.current) {
+                      setFocusWithDelay(kotSelectRef.current, 50);
+                    }
+                  }, 150);
+                } else {
+                  setTimeout(() => {
+                    handleSave();
+                  }, 100);
+                }
+              }
             }}
             autoFocus={selectedOption === 'yes'}
           >
             Yes
           </Button>
           <Button
+            ref={modalNoButtonRef}
             variant={selectedOption === 'no' ? 'primary' : 'secondary'}
             onClick={() => {
               setShowConfirmModal(false);
-              // No button - just closes modal without saving
-              // User should click Save (F9) button to save the transfer
+              setTimeout(() => {
+                if (transferMode === "table" || transferMode === "ORDER") {
+                  setCurrentFocus('table');
+                  if (proposedTableRef.current) {
+                    setFocusWithDelay(proposedTableRef.current, 50);
+                  }
+                } else {
+                  setCurrentFocus('save');
+                  if (saveButtonRef.current) {
+                    setFocusWithDelay(saveButtonRef.current, 50);
+                  }
+                }
+              }, 100);
             }}
+            autoFocus={selectedOption === 'no'}
           >
             No
           </Button>
