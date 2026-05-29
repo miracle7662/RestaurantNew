@@ -72,6 +72,10 @@ interface MenuItem {
   consume_raw_materials_on_bill?: number;
   consume_raw_materials_on_kot?: number;
   store_name?: number | null;
+
+  // For department-wise rates
+   department_details?: any[];
+  
 }
 
 interface CardItem {
@@ -374,35 +378,27 @@ const Menu: React.FC = () => {
   onClick={async () => {
     try {
       const response = await MenuService.exportMenu(user?.hotelid, user?.outletid);
-      
       // Handle both cases: response is the blob directly OR response contains the blob
       let blob: Blob;
-      
+
       if (response instanceof Blob) {
-        // Response is directly the blob
         blob = response;
       } else if (response?.data instanceof Blob) {
-        // Response has a data property that is blob
         blob = response.data;
       } else if (response?.config?.responseType === 'blob' && response?.data) {
-        // Axios full response with blob data
         blob = response.data;
       } else {
-        // Fallback: try to create blob from response
-        blob = new Blob([response], { 
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        blob = new Blob([response], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         });
       }
-      
-      // Validate blob
+
       if (!blob || blob.size === 0) {
-        // Try to read as text to see error message
         const text = await blob?.text();
         console.error('Empty blob, text content:', text);
         throw new Error('Generated file is empty');
       }
-      
-      // Create download link
+
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -411,7 +407,7 @@ const Menu: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       toast.success(`Exported ${blob.size} bytes successfully`);
     } catch (err: any) {
       console.error('Export error:', err);
@@ -424,9 +420,55 @@ const Menu: React.FC = () => {
   Export
 </Button>
 
+<Button
+  variant="outline-primary"
+  size="sm"
+  onClick={() => {
+    const hotelName = user?.hotel_name || '';
+    const outletName = user?.outlet_name || '';
+
+    // Include department details for each item
+    const items = data.map((d) => ({
+      restitemid: d.restitemid,
+      item_no: d.item_no,
+      item_name: d.item_name,
+      print_name: d.print_name,
+      short_name: d.short_name,
+      kitchen_category_id: d.kitchen_category_id,
+      kitchen_sub_category_id: d.kitchen_sub_category_id,
+      kitchen_main_group_id: d.kitchen_main_group_id,
+      item_group_id: d.item_group_id,
+      item_main_group_id: d.item_main_group_id,
+      price: d.price,
+      status: d.status,
+      groupname: d.groupname,
+      // Include department details for department-wise rates
+      department_details: d.department_details || []
+    }));
+
+    sessionStorage.setItem('menuPrintItems', JSON.stringify(items));
+    sessionStorage.setItem('menuPrintHotelName', JSON.stringify(hotelName));
+    sessionStorage.setItem('menuPrintOutletName', JSON.stringify(outletName));
+    sessionStorage.setItem('menuPrintDate', new Date().toLocaleDateString('en-IN'));
+
+    window.location.hash = '#/apps/Masters/RestaurantMasters/MenuPrintPreview';
+  }}
+  title="Print Menu"
+  style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'8px 18px', borderRadius:'10px', background:'linear-gradient(135deg,#1a73e8,#1557b0)', border:'none', color:'#fff', fontSize:'14px', fontWeight:'500', boxShadow:'0 2px 8px rgba(26,115,232,0.35)', cursor:'pointer' }}
+>
+  <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:'26px', height:'26px', borderRadius:'6px', background:'rgba(255,255,255,0.18)' }}>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+    </svg>
+  </span>
+  
+</Button>
+
           </div>
         </div>
       </Navbar>
+
+
 
       <div className="d-flex flex-column flex-lg-row">
         <Offcanvas
