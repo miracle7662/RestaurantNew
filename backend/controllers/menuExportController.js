@@ -87,9 +87,10 @@ exports.exportMenuItems = async (req, res) => {
     // Add outlet filter with smart logic
     if (outletid) {
       const outletIdNum = parseInt(outletid);
-      const outlet = db.query(`
+      const [outletRows] = await db.query(`
         SELECT hotelid FROM mst_outlets WHERE outletid = ?
-      `, [outletIdNum])[0];
+      `, [outletIdNum]);
+      const outlet = outletRows[0];
 
       if (outlet) {
         query += ' AND (m.outletid = ? OR (m.hotelid = ? AND m.outletid IS NULL))';
@@ -104,7 +105,7 @@ exports.exportMenuItems = async (req, res) => {
 
     // Execute query
     console.log('🔍 Executing query with params:', params);
-    const menuItems = db.query(query, params);
+    const [menuItems] = await db.query(query, params);
     console.log(`✅ Found ${menuItems.length} menu items`);
 
     // Check if data exists
@@ -225,7 +226,6 @@ exports.importMenuItems = async (req, res) => {
     console.log('=== IMPORT START ===');
     console.log('File:', req.file.originalname, 'Size:', req.file.size);
 
-    const XLSX = require('xlsx');
     const buffer = req.file.buffer;
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
@@ -253,7 +253,8 @@ exports.importMenuItems = async (req, res) => {
     const parsedCreatedById = created_by_id ? parseInt(created_by_id) : 2;
 
     // Validate hotel
-    const hotel = db.query('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?', [parsedHotelId])[0];
+    const [hotelRows] = await db.query('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?', [parsedHotelId]);
+    const hotel = hotelRows[0];
     if (!hotel) {
       return res.status(400).json({ success: false, message: `Invalid hotelid: ${hotelid}` });
     }
@@ -262,7 +263,7 @@ exports.importMenuItems = async (req, res) => {
     
     // 1. Load Item Groups with their IDs
     const itemGroupsMap = new Map();
-    const itemGroupsList = db.query(`
+    const [itemGroupsList] = await db.query(`
       SELECT item_groupid, itemgroupname 
       FROM mst_Item_Group 
       WHERE status IN (0,1)
@@ -278,7 +279,7 @@ exports.importMenuItems = async (req, res) => {
 
     // 2. Load Kitchen Categories with their IDs
     const kitchenCategoriesMap = new Map();
-    const kitchenCategoriesList = db.query(`
+    const [kitchenCategoriesList] = await db.query(`
       SELECT kitchencategoryid, Kitchen_Category 
       FROM mstkitchencategory 
       WHERE status IN (0,1)
@@ -294,7 +295,7 @@ exports.importMenuItems = async (req, res) => {
 
     // 3. Load Kitchen Main Groups with their IDs
     const kitchenMainGroupsMap = new Map();
-    const kitchenMainGroupsList = db.query(`
+    const [kitchenMainGroupsList] = await db.query(`
       SELECT kitchenmaingroupid, Kitchen_main_Group 
       FROM mstkitchenmaingroup 
       WHERE status IN (0,1)
@@ -310,7 +311,7 @@ exports.importMenuItems = async (req, res) => {
 
     // 4. Load Tax Groups with their IDs
     const taxGroupsMap = new Map();
-    const taxGroupsList = db.query(`
+    const [taxGroupsList] = await db.query(`
       SELECT taxgroupid, taxgroup_name 
       FROM msttaxgroup 
       WHERE status IN (0,1)
@@ -331,7 +332,7 @@ exports.importMenuItems = async (req, res) => {
       deptQuery += ' AND outletid = ?';
       deptParams.push(parsedOutletId);
     }
-    const departments = db.query(deptQuery, deptParams);
+    const [departments] = await db.query(deptQuery, deptParams);
     console.log('Departments found:', departments.length);
 
     if (departments.length === 0) {
@@ -519,7 +520,7 @@ exports.importMenuItems = async (req, res) => {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
 
-        const result = db.query(insertStmt, [
+        const [result] = await db.query(insertStmt, [
           parsedHotelId,
           parsedOutletId,
           itemNo ? safeString(itemNo) : null,
@@ -557,7 +558,7 @@ exports.importMenuItems = async (req, res) => {
         `;
 
         for (const dept of departments) {
-          db.query(detailStmt, [restitemid, dept.departmentid, price, parsedHotelId]);
+          await db.query(detailStmt, [restitemid, dept.departmentid, price, parsedHotelId]);
         }
 
         importedItems.push({ 
@@ -607,7 +608,7 @@ exports.importMenuItems = async (req, res) => {
 // =========================
 // 🔽 3. DOWNLOAD TEMPLATE (FIXED - ALL COLUMNS)
 // =========================
-exports.downloadSampleTemplate = (req, res) => {
+exports.downloadSampleTemplate = async (req, res) => {
   try {
     // Load real data for dropdown suggestions with error handling
     let itemGroups = [];
@@ -616,7 +617,7 @@ exports.downloadSampleTemplate = (req, res) => {
     let taxGroups = [];
     
     try {
-      itemGroups = db.query(`
+      const [rows] = await db.query(`
         SELECT itemgroupname 
         FROM mst_Item_Group 
         WHERE status IN (0,1) AND itemgroupname IS NOT NULL 
@@ -627,7 +628,7 @@ exports.downloadSampleTemplate = (req, res) => {
     }
     
     try {
-      kitchenCategories = db.query(`
+      const [rows] = await db.query(`
         SELECT Kitchen_Category 
         FROM mstkitchencategory 
         WHERE status IN (0,1) AND Kitchen_Category IS NOT NULL 
@@ -638,7 +639,7 @@ exports.downloadSampleTemplate = (req, res) => {
     }
     
     try {
-      kitchenMainGroups = db.query(`
+      const [rows] = await db.query(`
         SELECT Kitchen_main_Group 
         FROM mstkitchenmaingroup 
         WHERE status IN (0,1) AND Kitchen_main_Group IS NOT NULL 
@@ -649,7 +650,7 @@ exports.downloadSampleTemplate = (req, res) => {
     }
     
     try {
-      taxGroups = db.query(`
+      const [rows] = await db.query(`
         SELECT taxgroup_name 
         FROM msttaxgroup 
         WHERE status IN (0,1) AND taxgroup_name IS NOT NULL 
@@ -895,4 +896,3 @@ exports.downloadSampleTemplate = (req, res) => {
     }
   }
 };
-
