@@ -391,9 +391,9 @@ const MenuPrintPreview: React.FC = () => {
   // Build print HTML for 80mm thermal printer - SHOWS ALL ITEMS
   const buildPrintHTML = () => {
     const deptCount = departments.length;
-    const codeWidth = deptCount > 2 ? '14%' : '12%';
-    const nameWidth = deptCount > 2 ? '30%' : '25%';
-    const deptWidth = deptCount > 2 ? `${Math.floor(56 / deptCount)}%` : `${Math.floor(63 / deptCount)}%`;
+    const codeWidth = deptCount > 2 ? '12%' : '10%';
+    const nameWidth = deptCount > 2 ? '38%' : '40%';
+    const deptWidth = `${Math.floor(50 / deptCount)}%`;
     
     let html = `
       <!DOCTYPE html>
@@ -519,7 +519,7 @@ const MenuPrintPreview: React.FC = () => {
 
       // SHOW ALL ITEMS - NO LIMIT
       sortedItems.forEach(item => {
-        const itemName = truncate(item.item_name, deptCount > 2 ? 18 : 25);
+        const itemName = truncate(item.item_name, deptCount > 2 ? 22 : 30);
         html += `
           <tr>
             <td class="item-code">${item.item_no || '-'}</td>
@@ -648,10 +648,10 @@ const MenuPrintPreview: React.FC = () => {
                     <table className="thermal-table">
                       <thead>
                         <tr>
-                          <th style={{ width: departments.length > 2 ? '14%' : '12%' }}>Code</th>
-                          <th style={{ width: departments.length > 2 ? '30%' : '25%' }}>Item</th>
+                          <th style={{ width: departments.length > 2 ? '12%' : '10%' }}>Code</th>
+                          <th style={{ width: departments.length > 2 ? '38%' : '40%' }}>Item</th>
                           {departments.map(dept => (
-                            <th key={dept.id} style={{ width: departments.length > 2 ? `${Math.floor(56 / departments.length)}%` : `${Math.floor(63 / departments.length)}%` }}>
+                            <th key={dept.id} style={{ width: `${Math.floor(50 / departments.length)}%` }}>
                               {dept.name}
                             </th>
                           ))}
@@ -663,7 +663,7 @@ const MenuPrintPreview: React.FC = () => {
                           <tr key={item.restitemid}>
                             <td className="item-code">{item.item_no || '-'}</td>
                             <td className="item-name-cell">
-                              {truncate(item.item_name, departments.length > 2 ? 18 : 22)}
+                              {truncate(item.item_name, departments.length > 2 ? 22 : 30)}
                               {item.short_name && (
                                 <div className="short-name-text">({truncate(item.short_name, 12)})</div>
                               )}

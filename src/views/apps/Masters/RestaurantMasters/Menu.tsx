@@ -74,6 +74,7 @@ interface MenuItem {
   store_name?: number | null;
 
   // For department-wise rates
+   department_details?: any[];
   
 }
 
@@ -452,10 +453,15 @@ const Menu: React.FC = () => {
 
     window.location.hash = '#/apps/Masters/RestaurantMasters/MenuPrintPreview';
   }}
-  style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500' }}
   title="Print Menu"
+  style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'8px 18px', borderRadius:'10px', background:'linear-gradient(135deg,#1a73e8,#1557b0)', border:'none', color:'#fff', fontSize:'14px', fontWeight:'500', boxShadow:'0 2px 8px rgba(26,115,232,0.35)', cursor:'pointer' }}
 >
-  🖨️ Print
+  <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:'26px', height:'26px', borderRadius:'6px', background:'rgba(255,255,255,0.18)' }}>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+    </svg>
+  </span>
+  
 </Button>
 
           </div>
