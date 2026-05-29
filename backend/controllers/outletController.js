@@ -675,8 +675,8 @@ await db.query(`
   0, // customer_display
   0, // customer_mandatory
   0, // default_ebill_check
- 0 ,// default_send_delivery_boy_check 
- 1, // edit_customize_order_number
+  0 ,// default_send_delivery_boy_check 
+  1, // edit_customize_order_number
   0, // enable_backup_notification_service
   0, // enable_customer_display_access
   0, // filter_items_by_order_type

@@ -44,8 +44,10 @@ const OpeningBalancePage = React.lazy(() => import('../views/apps/OpeningBalance
 // Update the path below to the correct location and casing of your Orders component file
 const Orders = React.lazy(() => import('../views/apps/Transaction/Orders')) // Updated to use <Orders /> compone
 const Menu = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/Menu')) // Updated to use <Menu /> component
+const MenuPrintPreview = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/MenuPrintPreview'))
 //const Billing = React.lazy(() => import('./../views/apps/Billing')) // Updated to use <Billing /> component
 const Country = React.lazy(() => import('../views/apps/Masters/CommanMasters/Country')) // Updated to use <Country /> component
+
 const States = React.lazy(() => import('../views/apps/Masters/CommanMasters/States')) // Updated to use <States /> component
 const City = React.lazy(() => import('../views/apps/Masters/CommanMasters/City')) // Updated to use <City /> component
 // const MessageMaster = React.lazy(() => import('../views/apps/Masters/CommanMasters/MessageMaster'))
@@ -342,6 +344,13 @@ const appsRoutes: RoutesProps = {
       element: <Menu />, // Updated to use <Menu /> component
       route: PrivateRoute,
     },
+    {
+      path: '/apps/Masters/RestaurantMasters/MenuPrintPreview',
+      name: 'MenuPrintPreview',
+      element: <MenuPrintPreview />,
+      route: PrivateRoute,
+    },
+
 
     {
       path: '/apps/Customers',
