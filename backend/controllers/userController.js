@@ -122,7 +122,7 @@ exports.createUser = async (req, res) => {
 
         // ✅ Parent user
         const [parentRows] = await connection.query(
-            'SELECT role_level, brand_id, hotelid FROM mst_users WHERE userid = ?',
+            'SELECT role_level, brand_id, hotelid, outletid FROM mst_users WHERE userid = ?',
             [parent_user_id]
         );
 
@@ -134,6 +134,14 @@ exports.createUser = async (req, res) => {
         }
 
         const finalCreatedById = parent_user_id;
+        const finalOutletId = req.body.outletid ?? parentUser.outletid;
+        if (!finalOutletId) {
+            await connection.rollback();
+            return res.status(400).json({ message: 'outletid is required but missing for this user creation flow' });
+        }
+
+
+
 
         // ✅ Role hierarchy
         const canCreateRole = validateRoleHierarchy(parentUser.role_level, role_level);
@@ -189,8 +197,8 @@ exports.createUser = async (req, res) => {
         const [result] = await connection.query(`
             INSERT INTO mst_users (
                 username, email, password, full_name, phone, role_level,
-                parent_user_id, hotelid, brand_id, created_by_id, created_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                parent_user_id, outletid, hotelid, brand_id, created_by_id, created_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `, [
             username,
             email,
@@ -199,6 +207,7 @@ exports.createUser = async (req, res) => {
             phone,
             role_level,
             parent_user_id,
+            finalOutletId,
             finalHotelId,
             finalBrandId,
             finalCreatedById

@@ -129,6 +129,17 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
       return;
     }
 
+    // Backend required fields validation for /api/users
+    if (!hotelInfo.email) {
+      toast.error('Hotel email is missing (cannot create user)');
+      return;
+    }
+
+    if (!hotelInfo.hotel_name) {
+      toast.error('Hotel name is missing (cannot create user)');
+      return;
+    }
+
     setLoading(true);
     try {
       // Ensure we have valid integer IDs for foreign key constraints
@@ -160,9 +171,9 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
       setPassword('');
       onSuccess();
       onHide();
-    } catch (err) {
-      //console.error('Error creating user:', err);
-      toast.error('Something went wrong');
+    } catch (err: any) {
+      const msg = err?.message || err?.response?.data?.message;
+      toast.error(msg || 'Something went wrong');
     } finally {
       setLoading(false);
     }
