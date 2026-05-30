@@ -63,6 +63,9 @@ exports.getAllTables = async (req, res) => {
       sql += ` WHERE ${conditions.join(' AND ')}`;
     }
 
+     // ✅ Add ORDER BY - table_name wise sorting
+    sql += ` ORDER BY CAST(t.table_name AS UNSIGNED) ASC, t.table_name ASC`;
+
     const [rows] = await db.query(sql, params);
 
     res.json({
