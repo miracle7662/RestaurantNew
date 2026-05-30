@@ -1,5 +1,0 @@
-- [ ] Step 1: Implement ref-based focus + keyboard scoping fix in SettelmentModel.tsx
-- [ ] Step 2: Verify ArrowUp/ArrowDown/Enter work immediately after modal opens
-- [ ] Step 3: Ensure mouse click behavior remains intact
-- [ ] Step 4: Ensure amount never resets to 0 during navigation
-- [ ] Step 5: Cleanup: confirm no keyboard freeze after re-render

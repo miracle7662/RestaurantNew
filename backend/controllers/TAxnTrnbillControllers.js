@@ -1839,8 +1839,52 @@ exports.createReverseKOT = async (req, res) => {
         )
       }
       
-      await db.query('COMMIT')
       
+      // ✅ SOCKET EMIT for Reverse KOT (partial reverse only)
+      try {
+        const io = req.app.get('io')
+        if (io) {
+          const room = `outlet_${outletid}`
+
+          // Build reversed item payload from incoming reversedItems
+          const printedItems = (reversedItems || [])
+            .filter((it) => it && it.txnDetailId)
+            .map((it) => ({
+              TXnDetailID: it.txnDetailId,
+              TxnDetailID: it.txnDetailId,
+              ItemID: it.itemId ?? null,
+              ItemName: it.itemName ?? it.name ?? 'Unknown Item',
+              RuntimeRate: it.price ?? it.RuntimeRate ?? 0,
+              qty: Number(it.qty) || 0,
+              Qty: Number(it.qty) || 0,
+              KOTNo: null,
+              RevKOTNo: newRevKOTNo,
+              reason: it.reason || reversalReason || 'Item Reversed',
+              order_tag: it.order_tag ?? '',
+              VariantID: it.VariantID ?? it.variantId ?? null,
+              VariantName: it.VariantName ?? it.variantName ?? null,
+              isNCKOT: it.isNCKOT ?? 0,
+              item_no: it.item_no ?? null,
+            }))
+            .filter((x) => x.qty > 0)
+
+          io.to(room).emit('reverse_kot', {
+            txnId,
+            outletid,
+            tableId: tableId ?? null,
+            revKotNo: newRevKOTNo,
+            items: printedItems,
+            reason: reversalReason ?? null,
+            reversalDate: ReversalDate ?? null,
+          })
+          console.log(`📡 REVERSE KOT EMIT → RevKOTNo #${newRevKOTNo} | Outlet: ${room}`)
+        }
+      } catch (socketErr) {
+        console.warn('Socket reverse_kot emit failed (non-critical):', socketErr.message)
+      }
+
+      await db.query('COMMIT')
+
       res.json({
         success: true,
         message: isFullReverse
