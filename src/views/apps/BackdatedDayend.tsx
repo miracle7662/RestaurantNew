@@ -435,10 +435,10 @@ const exportOrdersToExcel = () => {
     }
     
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Backdated Orders");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "DAILY SALES SUMMARY");
 
     const fileDate = selectedDate || todayStr;
-    XLSX.writeFile(workbook, `backdated-orders-${fileDate}.xlsx`);
+    XLSX.writeFile(workbook, `DAILY SALES SUMMARY-${fileDate}.xlsx`);
     toast.success("Export successful!");
   } catch (e) {
     console.error("Export failed:", e);

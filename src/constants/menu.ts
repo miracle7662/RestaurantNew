@@ -120,7 +120,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
 
    {
     key: 'BackdatedDayend',
-    label: 'BackdatedDayend',
+    label: 'Dayend Report',
     url: '/apps/BackdatedDayend',
     icon: 'fi fi-rr-settings',
     parentKey: 'apps',

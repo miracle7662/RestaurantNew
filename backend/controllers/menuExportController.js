@@ -101,7 +101,7 @@ exports.exportMenuItems = async (req, res) => {
       }
     }
 
-    query += ' ORDER BY m.item_name ASC';
+    query += ' ORDER BY m.item_no ASC';
 
     // Execute query
     console.log('🔍 Executing query with params:', params);
