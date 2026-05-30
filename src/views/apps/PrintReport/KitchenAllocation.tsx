@@ -262,6 +262,7 @@ const KitchenAllocation: React.FC = () => {
 
       let finalPrinterName: string | null = null;
       let usedFallback = false;
+      console.log("System Printers:", usedFallback);
 
       if (printerName) {
         const matchedPrinter = systemPrinters.find((p: any) =>
