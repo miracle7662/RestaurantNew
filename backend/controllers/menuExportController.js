@@ -25,7 +25,7 @@ const XLSX = require('xlsx');
 exports.exportMenuItems = async (req, res) => {
   try {
     const { hotelid, outletid } = req.query;
-
+    
     console.log('📤 Export started:', { hotelid, outletid });
 
     // Build the query
@@ -75,7 +75,7 @@ exports.exportMenuItems = async (req, res) => {
       LEFT JOIN msttaxgroup tg ON m.taxgroupid = tg.taxgroupid
       WHERE m.status IN (0, 1)
     `;
-
+    
     const params = [];
 
     // Add hotel filter
@@ -87,10 +87,10 @@ exports.exportMenuItems = async (req, res) => {
     // Add outlet filter with smart logic
     if (outletid) {
       const outletIdNum = parseInt(outletid);
-      const outlet = db.query(
-        `SELECT hotelid FROM mst_outlets WHERE outletid = ?`,
-        [outletIdNum]
-      )[0];
+      const [outletRows] = await db.query(`
+        SELECT hotelid FROM mst_outlets WHERE outletid = ?
+      `, [outletIdNum]);
+      const outlet = outletRows[0];
 
       if (outlet) {
         query += ' AND (m.outletid = ? OR (m.hotelid = ? AND m.outletid IS NULL))';
@@ -105,141 +105,55 @@ exports.exportMenuItems = async (req, res) => {
 
     // Execute query
     console.log('🔍 Executing query with params:', params);
-    const menuItems = db.query(query, params);
+    const [menuItems] = await db.query(query, params);
     console.log(`✅ Found ${menuItems.length} menu items`);
 
+    // Check if data exists
     if (!menuItems || menuItems.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'No menu items found for the selected criteria',
-        data: null,
+        data: null
       });
     }
 
-    // === Department list (for dynamic department-wise columns) ===
-    // We will export department-wise item_rate from mstrestmenudetails.
-    // Department names come from msttable_department.
-    let deptQuery = `
-      SELECT departmentid, department_name
-      FROM msttable_department
-      WHERE status IN (0,1)
-    `;
-    const deptParams = [];
-
-    if (outletid) {
-      const outletIdNum = parseInt(outletid);
-      // department tables are outlet-specific in most cases
-      deptQuery += ' AND outletid = ?';
-      deptParams.push(outletIdNum);
-    } else if (hotelid) {
-      const hotelIdNum = parseInt(hotelid);
-      // fallback: if department table has hotel scope, keep it broad
-      // (most installations use outletid, but we keep safe fallback)
-      // NOTE: this filter can be incorrect if schema differs.
-      // We only apply if schema supports it.
-      // deptQuery += ' AND hotelid = ?';
-      // deptParams.push(hotelIdNum);
-    }
-
-    const departments = db.query(deptQuery, deptParams);
-    const deptArray = Array.isArray(departments) ? departments : (departments && Array.isArray(departments[0]) ? departments[0] : []);
-    const deptIds = deptArray.map((d) => d.departmentid);
-
-
-
-    // === Build department-wise rates map ===
-    // Guard: avoid generating SQL like `IN ()` when restitemid is missing/empty.
-    const restItemIds = (menuItems || [])
-      .map((m) => m?.restitemid)
-      .filter((id) => id !== null && id !== undefined);
-
-    // Pull all rates for these items (and departments if we have them)
-    let rateMap = new Map();
-    let detailsRows = [];
-
-    if (restItemIds.length > 0) {
-      const itemPlaceholders = restItemIds.map(() => '?').join(',');
-
-      let detailQuery = `
-        SELECT
-          md.restitemid,
-          md.departmentid,
-          md.item_rate,
-          md.variant_value_id,
-          md.value_name
-        FROM mstrestmenudetails md
-        WHERE md.restitemid IN (${itemPlaceholders})
-      `;
-      const detailParams = [...restItemIds];
-
-      if (deptIds.length > 0) {
-        detailQuery += ` AND md.departmentid IN (${deptIds.map(() => '?').join(',')}) `;
-        detailParams.push(...deptIds);
-      }
-
-      detailsRows = db.query(detailQuery, detailParams) || [];
-
-      // restitemid -> departmentid -> rate
-      rateMap = new Map();
-      for (const row of detailsRows) {
-        if (!row) continue;
-        if (!rateMap.has(row.restitemid)) rateMap.set(row.restitemid, new Map());
-        rateMap.get(row.restitemid).set(row.departmentid, row.item_rate || 0);
-      }
-    } else {
-      console.warn('⚠️ Export: menuItems has no valid restitemid; skipping mstrestmenudetails export join');
-    }
-
-
-    // === Transform data for export (main fields + dept-wise prices) ===
-    const exportData = menuItems.map((item, index) => {
-      const base = {
-        'Sr.No': index + 1,
-        'Item No': item.item_no || '',
-        'Item Name': item.item_name || '',
-        'Print Name': item.print_name || '',
-        'Short Name': item.short_name || '',
-        'Price': item.price || 0,
-        'Description': item.item_description || '',
-        'HSN Code': item.item_hsncode || '',
-        'Status': item.status === 1 ? 'Active' : 'Inactive',
-        'Hotel': item.hotel_name || '',
-        'Outlet': item.outlet_name || '',
-        'Item Group': item.groupname || '',
-        'Kitchen Main Group': item.kitchen_main_group_name || '',
-        'Kitchen Category': item.kitchen_category_name || '',
-        'Kitchen Sub Category': item.kitchen_sub_category_name || '',
-        'Tax Group': item.taxgroup_name || '',
-        'Runtime Rates': item.is_runtime_rates === 1 ? 'Yes' : 'No',
-        'Common to All Departments': item.is_common_to_all_departments === 1 ? 'Yes' : 'No',
-        'Is Ingredients Required': item.is_ingredients_required === 1 ? 'Yes' : 'No',
-        'Consume on Bill': item.consume_on_bill === 1 ? 'Yes' : 'No',
-        'Reverse Stock Cancel KOT': item.reverse_stock_cancel_kot === 1 ? 'Yes' : 'No',
-        'Allow Negative Stock': item.allow_negative_stock === 1 ? 'Yes' : 'No',
-        'Opening Stock Qty': item.opening_stock_quantity || 0,
-        'Consume Raw on Bill': item.consume_raw_materials_on_bill === 1 ? 'Yes' : 'No',
-        'Consume Raw on KOT': item.consume_raw_materials_on_kot === 1 ? 'Yes' : 'No',
-        'Store Name': item.store_name || '',
-      };
-
-      // Department-wise price columns: "Dept: <name>"
-      const deptRates = rateMap.get(item.restitemid) || new Map();
-      for (const dept of departments) {
-        const colName = `Dept: ${dept.department_name}`;
-        base[colName] = deptRates.get(dept.departmentid) ?? 0;
-      }
-
-      return base;
-    });
+    // Transform data for export
+    const exportData = menuItems.map((item, index) => ({
+      'Sr.No': index + 1,
+      'Item No': item.item_no || '',
+      'Item Name': item.item_name || '',
+      'Print Name': item.print_name || '',
+      'Short Name': item.short_name || '',
+      'Price': item.price || 0,
+      'Description': item.item_description || '',
+      'HSN Code': item.item_hsncode || '',
+      'Status': item.status === 1 ? 'Active' : 'Inactive',
+      'Hotel': item.hotel_name || '',
+      'Outlet': item.outlet_name || '',
+      'Item Group': item.groupname || '',
+      'Kitchen Main Group': item.kitchen_main_group_name || '',
+      'Kitchen Category': item.kitchen_category_name || '',
+      'Kitchen Sub Category': item.kitchen_sub_category_name || '',
+      'Tax Group': item.taxgroup_name || '',
+      'Runtime Rates': item.is_runtime_rates === 1 ? 'Yes' : 'No',
+      'Common to All Departments': item.is_common_to_all_departments === 1 ? 'Yes' : 'No',
+      'Is Ingredients Required': item.is_ingredients_required === 1 ? 'Yes' : 'No',
+      'Consume on Bill': item.consume_on_bill === 1 ? 'Yes' : 'No',
+      'Reverse Stock Cancel KOT': item.reverse_stock_cancel_kot === 1 ? 'Yes' : 'No',
+      'Allow Negative Stock': item.allow_negative_stock === 1 ? 'Yes' : 'No',
+      'Opening Stock Qty': item.opening_stock_quantity || 0,
+      'Consume Raw on Bill': item.consume_raw_materials_on_bill === 1 ? 'Yes' : 'No',
+      'Consume Raw on KOT': item.consume_raw_materials_on_kot === 1 ? 'Yes' : 'No',
+      'Store Name': item.store_name || '',
+    }));
 
     // Create Excel file
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(exportData);
 
-    // Set column widths (static part). NOTE: dept-wise dynamic columns will use default width.
+    // Set column widths
     worksheet['!cols'] = [
       { wch: 6 },   // Sr.No
-
       { wch: 12 },  // Item No
       { wch: 30 },  // Item Name
       { wch: 25 },  // Print Name
@@ -288,8 +202,7 @@ exports.exportMenuItems = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to export menu items',
-      error: error?.message,
-      stack: error?.stack || null,
+      error: error.message,
       data: null
     });
   }
@@ -313,7 +226,6 @@ exports.importMenuItems = async (req, res) => {
     console.log('=== IMPORT START ===');
     console.log('File:', req.file.originalname, 'Size:', req.file.size);
 
-    const XLSX = require('xlsx');
     const buffer = req.file.buffer;
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
@@ -341,7 +253,8 @@ exports.importMenuItems = async (req, res) => {
     const parsedCreatedById = created_by_id ? parseInt(created_by_id) : 2;
 
     // Validate hotel
-    const hotel = db.query('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?', [parsedHotelId])[0];
+    const [hotelRows] = await db.query('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?', [parsedHotelId]);
+    const hotel = hotelRows[0];
     if (!hotel) {
       return res.status(400).json({ success: false, message: `Invalid hotelid: ${hotelid}` });
     }
@@ -350,7 +263,7 @@ exports.importMenuItems = async (req, res) => {
     
     // 1. Load Item Groups with their IDs
     const itemGroupsMap = new Map();
-    const itemGroupsList = db.query(`
+    const [itemGroupsList] = await db.query(`
       SELECT item_groupid, itemgroupname 
       FROM mst_Item_Group 
       WHERE status IN (0,1)
@@ -366,7 +279,7 @@ exports.importMenuItems = async (req, res) => {
 
     // 2. Load Kitchen Categories with their IDs
     const kitchenCategoriesMap = new Map();
-    const kitchenCategoriesList = db.query(`
+    const [kitchenCategoriesList] = await db.query(`
       SELECT kitchencategoryid, Kitchen_Category 
       FROM mstkitchencategory 
       WHERE status IN (0,1)
@@ -382,7 +295,7 @@ exports.importMenuItems = async (req, res) => {
 
     // 3. Load Kitchen Main Groups with their IDs
     const kitchenMainGroupsMap = new Map();
-    const kitchenMainGroupsList = db.query(`
+    const [kitchenMainGroupsList] = await db.query(`
       SELECT kitchenmaingroupid, Kitchen_main_Group 
       FROM mstkitchenmaingroup 
       WHERE status IN (0,1)
@@ -398,7 +311,7 @@ exports.importMenuItems = async (req, res) => {
 
     // 4. Load Tax Groups with their IDs
     const taxGroupsMap = new Map();
-    const taxGroupsList = db.query(`
+    const [taxGroupsList] = await db.query(`
       SELECT taxgroupid, taxgroup_name 
       FROM msttaxgroup 
       WHERE status IN (0,1)
@@ -419,7 +332,7 @@ exports.importMenuItems = async (req, res) => {
       deptQuery += ' AND outletid = ?';
       deptParams.push(parsedOutletId);
     }
-    const departments = db.query(deptQuery, deptParams);
+    const [departments] = await db.query(deptQuery, deptParams);
     console.log('Departments found:', departments.length);
 
     if (departments.length === 0) {
@@ -607,7 +520,7 @@ exports.importMenuItems = async (req, res) => {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
 
-        const result = db.query(insertStmt, [
+        const [result] = await db.query(insertStmt, [
           parsedHotelId,
           parsedOutletId,
           itemNo ? safeString(itemNo) : null,
@@ -645,7 +558,7 @@ exports.importMenuItems = async (req, res) => {
         `;
 
         for (const dept of departments) {
-          db.query(detailStmt, [restitemid, dept.departmentid, price, parsedHotelId]);
+          await db.query(detailStmt, [restitemid, dept.departmentid, price, parsedHotelId]);
         }
 
         importedItems.push({ 
@@ -695,7 +608,7 @@ exports.importMenuItems = async (req, res) => {
 // =========================
 // 🔽 3. DOWNLOAD TEMPLATE (FIXED - ALL COLUMNS)
 // =========================
-exports.downloadSampleTemplate = (req, res) => {
+exports.downloadSampleTemplate = async (req, res) => {
   try {
     // Load real data for dropdown suggestions with error handling
     let itemGroups = [];
@@ -704,7 +617,7 @@ exports.downloadSampleTemplate = (req, res) => {
     let taxGroups = [];
     
     try {
-      itemGroups = db.query(`
+      const [rows] = await db.query(`
         SELECT itemgroupname 
         FROM mst_Item_Group 
         WHERE status IN (0,1) AND itemgroupname IS NOT NULL 
@@ -715,7 +628,7 @@ exports.downloadSampleTemplate = (req, res) => {
     }
     
     try {
-      kitchenCategories = db.query(`
+      const [rows] = await db.query(`
         SELECT Kitchen_Category 
         FROM mstkitchencategory 
         WHERE status IN (0,1) AND Kitchen_Category IS NOT NULL 
@@ -726,7 +639,7 @@ exports.downloadSampleTemplate = (req, res) => {
     }
     
     try {
-      kitchenMainGroups = db.query(`
+      const [rows] = await db.query(`
         SELECT Kitchen_main_Group 
         FROM mstkitchenmaingroup 
         WHERE status IN (0,1) AND Kitchen_main_Group IS NOT NULL 
@@ -737,7 +650,7 @@ exports.downloadSampleTemplate = (req, res) => {
     }
     
     try {
-      taxGroups = db.query(`
+      const [rows] = await db.query(`
         SELECT taxgroup_name 
         FROM msttaxgroup 
         WHERE status IN (0,1) AND taxgroup_name IS NOT NULL 
@@ -750,7 +663,7 @@ exports.downloadSampleTemplate = (req, res) => {
     // Sample data with real values from database
     const sampleData = [
       {
-        'Item No': 'ITEM001',
+        'Item No': '',
         'Item Name': 'Butter Chicken',
         'Print Name': 'Butter Chicken',
         'Short Name': 'Btr Chkn',
@@ -758,11 +671,11 @@ exports.downloadSampleTemplate = (req, res) => {
         'Description': 'Creamy tomato based chicken curry',
         'HSN Code': '21069099',
         'Status': 'Active',
-        'Item Group': itemGroups.length > 0 && itemGroups[0].itemgroupname ? itemGroups[0].itemgroupname : 'Non-Veg',
-        'Kitchen Main Group': kitchenMainGroups.length > 0 && kitchenMainGroups[0].Kitchen_main_Group ? kitchenMainGroups[0].Kitchen_main_Group : 'Main Course',
-        'Kitchen Category': kitchenCategories.length > 0 && kitchenCategories[0].Kitchen_Category ? kitchenCategories[0].Kitchen_Category : 'Non-Veg',
+'Item Group': itemGroups.length > 0 && itemGroups[0].itemgroupname ? itemGroups[0].itemgroupname : '',
+        'Kitchen Main Group': kitchenMainGroups.length > 0 && kitchenMainGroups[0].Kitchen_main_Group ? kitchenMainGroups[0].Kitchen_main_Group : '',
+        'Kitchen Category': kitchenCategories.length > 0 && kitchenCategories[0].Kitchen_Category ? kitchenCategories[0].Kitchen_Category : '',
         'Kitchen Sub Category': '',
-        'Tax Group': taxGroups.length > 0 && taxGroups[0].taxgroup_name ? taxGroups[0].taxgroup_name : 'GST 18%',
+        'Tax Group': taxGroups.length > 0 && taxGroups[0].taxgroup_name ? taxGroups[0].taxgroup_name : '',
         'Runtime Rates': 'No',
         'Common to All Departments': 'Yes',
         'Is Ingredients Required': 'No',
@@ -775,7 +688,7 @@ exports.downloadSampleTemplate = (req, res) => {
         'Store Name': 'Main Store'
       },
       {
-        'Item No': 'ITEM002',
+        'Item No': '' ,
         'Item Name': 'Dal Makhani',
         'Print Name': 'Dal Makhani',
         'Short Name': 'Dal Mak',
@@ -783,11 +696,11 @@ exports.downloadSampleTemplate = (req, res) => {
         'Description': 'Black lentils cooked overnight',
         'HSN Code': '21069099',
         'Status': 'Active',
-        'Item Group': itemGroups.length > 1 && itemGroups[1].itemgroupname ? itemGroups[1].itemgroupname : (itemGroups.length > 0 ? itemGroups[0].itemgroupname : 'Veg'),
-        'Kitchen Main Group': kitchenMainGroups.length > 1 && kitchenMainGroups[1].Kitchen_main_Group ? kitchenMainGroups[1].Kitchen_main_Group : (kitchenMainGroups.length > 0 ? kitchenMainGroups[0].Kitchen_main_Group : 'Main Course'),
-        'Kitchen Category': kitchenCategories.length > 1 && kitchenCategories[1].Kitchen_Category ? kitchenCategories[1].Kitchen_Category : (kitchenCategories.length > 0 ? kitchenCategories[0].Kitchen_Category : 'Veg'),
+'Item Group': itemGroups.length > 1 && itemGroups[1].itemgroupname ? itemGroups[1].itemgroupname : (itemGroups.length > 0 ? itemGroups[0].itemgroupname : ''),
+        'Kitchen Main Group': kitchenMainGroups.length > 1 && kitchenMainGroups[1].Kitchen_main_Group ? kitchenMainGroups[1].Kitchen_main_Group : (kitchenMainGroups.length > 0 ? kitchenMainGroups[0].Kitchen_main_Group : ''),
+        'Kitchen Category': kitchenCategories.length > 1 && kitchenCategories[1].Kitchen_Category ? kitchenCategories[1].Kitchen_Category : (kitchenCategories.length > 0 ? kitchenCategories[0].Kitchen_Category : ''),
         'Kitchen Sub Category': '',
-        'Tax Group': taxGroups.length > 1 && taxGroups[1].taxgroup_name ? taxGroups[1].taxgroup_name : (taxGroups.length > 0 ? taxGroups[0].taxgroup_name : 'GST 5%'),
+        'Tax Group': taxGroups.length > 1 && taxGroups[1].taxgroup_name ? taxGroups[1].taxgroup_name : (taxGroups.length > 0 ? taxGroups[0].taxgroup_name : ''),
         'Runtime Rates': 'No',
         'Common to All Departments': 'Yes',
         'Is Ingredients Required': 'No',
@@ -848,7 +761,7 @@ exports.downloadSampleTemplate = (req, res) => {
       { 'Column Name': 'Status', 'Required': 'No', 'Data Type': 'Text', 'Description': 'Active or Inactive', 'Example': 'Active', 'Default': 'Active' },
       { 'Column Name': 'Item Group', 'Required': 'No', 'Data Type': 'Text', 'Description': 'Must match existing Item Group in database', 'Example': itemGroups.length > 0 ? itemGroups[0].itemgroupname : 'Non-Veg' },
       { 'Column Name': 'Kitchen Main Group', 'Required': 'No', 'Data Type': 'Text', 'Description': 'Must match existing Kitchen Main Group in database', 'Example': kitchenMainGroups.length > 0 ? kitchenMainGroups[0].Kitchen_main_Group : 'Main Course' },
-      { 'Column Name': 'Kitchen Category', 'Required': 'No', 'Data Type': 'Text', 'Description': 'Must match existing Kitchen Category in database', 'Example': kitchenCategories.length > 0 ? kitchenCategories[0].Kitchen_Category : 'Non-Veg' },
+{ 'Column Name': 'Kitchen Category', 'Required': 'No', 'Data Type': 'Text', 'Description': 'Must match existing Kitchen Category in database', 'Example': kitchenCategories.length > 0 ? kitchenCategories[0].Kitchen_Category : '' },
       { 'Column Name': 'Kitchen Sub Category', 'Required': 'No', 'Data Type': 'Text', 'Description': 'Must match existing Kitchen Sub Category in database', 'Example': '' },
       { 'Column Name': 'Tax Group', 'Required': 'No', 'Data Type': 'Text', 'Description': 'Must match existing Tax Group in database', 'Example': taxGroups.length > 0 ? taxGroups[0].taxgroup_name : 'GST 18%' },
       { 'Column Name': 'Runtime Rates', 'Required': 'No', 'Data Type': 'Text', 'Description': 'Yes/No - Allow runtime rate changes', 'Example': 'No', 'Default': 'No' },
@@ -983,4 +896,3 @@ exports.downloadSampleTemplate = (req, res) => {
     }
   }
 };
-
