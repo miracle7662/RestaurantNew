@@ -244,7 +244,7 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
         <span>Bill</span>
         <span>Tbl</span>
         <span style={{ textAlign: 'right' }}>Disc</span>
-        <span style={{ textAlign: 'right' }}>Tax</span>
+        <span style={{ textAlign: 'right' }}>T.AMT</span>
         <span style={{ textAlign: 'right' }}>GST</span>
         <span style={{ textAlign: 'right' }}>Tip</span>
         <span style={{ textAlign: 'right' }}>Net</span>
@@ -564,7 +564,7 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
             <span style="width:20%">Bill</span>
             <span style="width:12%">Tbl</span>
             <span style="width:10%;text-align:right">Disc</span>
-            <span style="width:18%;text-align:right">Tax</span>
+            <span style="width:18%;text-align:right">T.AMT</span>
             <span style="width:10%;text-align:right">GST</span>
             <span style="width:10%;text-align:right">Tip</span>
             <span style="width:15%;text-align:right">Net</span>
