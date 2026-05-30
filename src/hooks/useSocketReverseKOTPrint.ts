@@ -45,11 +45,26 @@ export function useSocketReverseKOTPrint(outletId: number | null | undefined) {
 
         socketRef.current = socket;
 
+        console.log('[useSocketReverseKOTPrint] connecting socket:', {
+          outletId,
+          socketUrl,
+        });
+
         socket.on('connect', () => {
+          console.log('[useSocketReverseKOTPrint] socket connected, joining outlet:', outletId);
           socket.emit('join_outlet', outletId);
         });
 
         socket.on('reverse_kot', (data: SocketReverseKOTPayload) => {
+          console.log('[useSocketReverseKOTPrint] reverse_kot event received:', {
+            txnId: data?.txnId,
+            outletid: data?.outletid,
+            tableId: data?.tableId,
+            revKotNo: data?.revKotNo,
+            itemsLen: data?.items?.length ?? 0,
+            reason: data?.reason,
+          });
+
           setPendingReverseKOTs((prev) => {
             const exists = prev.some(
               (o) => o.txnId === data.txnId && (o.revKotNo === data.revKotNo || o.revKotNo === undefined),

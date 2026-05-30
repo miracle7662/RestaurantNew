@@ -4,6 +4,7 @@ import ReverseKotPrint from '@/views/apps/PrintReport/ReverseKotPrint';
 import { useSocketReverseKOTPrint } from '@/hooks/useSocketReverseKOTPrint';
 
 const SocketReverseKOTPrinter: React.FC = () => {
+  console.log('[SocketReverseKOTPrinter] render/mount');
   const { user } = useAuthContext();
   const outletId = user?.outletid ?? null;
 
@@ -23,10 +24,20 @@ const SocketReverseKOTPrinter: React.FC = () => {
           reason: item.reason ?? kot.reason ?? '',
         }));
 
+        console.log('[SocketReverseKOTPrinter] reverse_kot received:', {
+          txnId: kot.txnId,
+          revKotNo: kot.revKotNo,
+          tableId: kot.tableId,
+          itemsRawLen: kot.items?.length ?? 0,
+          itemsMappedLen: items.length,
+          itemsMapped: items.map(i => ({ name: i.name, qty: i.qty, reason: i.reason })).slice(0, 10),
+        });
+
         if (items.length === 0) {
           removeReverseKOT(kot.txnId, kot.revKotNo);
           return null;
         }
+        
 
         return (
           <ReverseKotPrint

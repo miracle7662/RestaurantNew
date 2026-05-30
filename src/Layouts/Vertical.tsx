@@ -2,6 +2,7 @@ import { Preloader, PreloaderFull } from '@/components/Misc/Preloader'
 import React, { Suspense, useEffect } from 'react'
 import SocketKOTPrinter from '@/components/SocketKOTPrinter.tsx'
 import SocketBillPrinter from '@/components/SocketBillPrinter.tsx'
+import SocketReverseKOTPrinter from '@/components/SocketReverseKOTPrinter.tsx'
 //import { Button, Stack } from 'react-bootstrap'
 import { ThemeSettings, useThemeContext } from '../common/context'
 //import { useViewport } from '../hooks'
@@ -67,6 +68,7 @@ const VerticalLayout = ({ children }: VerticalLayoutProps) => {
             }`}>
 <SocketKOTPrinter />
             <SocketBillPrinter />
+            <SocketReverseKOTPrinter />
             <Suspense fallback={<Preloader />}> {children}</Suspense>
           </div>
         </main>
