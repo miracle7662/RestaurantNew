@@ -25,7 +25,7 @@ const XLSX = require('xlsx');
 exports.exportMenuItems = async (req, res) => {
   try {
     const { hotelid, outletid } = req.query;
-    
+
     console.log('📤 Export started:', { hotelid, outletid });
 
     // Build the query
@@ -75,7 +75,7 @@ exports.exportMenuItems = async (req, res) => {
       LEFT JOIN msttaxgroup tg ON m.taxgroupid = tg.taxgroupid
       WHERE m.status IN (0, 1)
     `;
-    
+
     const params = [];
 
     // Add hotel filter
@@ -87,9 +87,10 @@ exports.exportMenuItems = async (req, res) => {
     // Add outlet filter with smart logic
     if (outletid) {
       const outletIdNum = parseInt(outletid);
-      const outlet = db.query(`
-        SELECT hotelid FROM mst_outlets WHERE outletid = ?
-      `, [outletIdNum])[0];
+      const outlet = db.query(
+        `SELECT hotelid FROM mst_outlets WHERE outletid = ?`,
+        [outletIdNum]
+      )[0];
 
       if (outlet) {
         query += ' AND (m.outletid = ? OR (m.hotelid = ? AND m.outletid IS NULL))';
@@ -107,52 +108,138 @@ exports.exportMenuItems = async (req, res) => {
     const menuItems = db.query(query, params);
     console.log(`✅ Found ${menuItems.length} menu items`);
 
-    // Check if data exists
     if (!menuItems || menuItems.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'No menu items found for the selected criteria',
-        data: null
+        data: null,
       });
     }
 
-    // Transform data for export
-    const exportData = menuItems.map((item, index) => ({
-      'Sr.No': index + 1,
-      'Item No': item.item_no || '',
-      'Item Name': item.item_name || '',
-      'Print Name': item.print_name || '',
-      'Short Name': item.short_name || '',
-      'Price': item.price || 0,
-      'Description': item.item_description || '',
-      'HSN Code': item.item_hsncode || '',
-      'Status': item.status === 1 ? 'Active' : 'Inactive',
-      'Hotel': item.hotel_name || '',
-      'Outlet': item.outlet_name || '',
-      'Item Group': item.groupname || '',
-      'Kitchen Main Group': item.kitchen_main_group_name || '',
-      'Kitchen Category': item.kitchen_category_name || '',
-      'Kitchen Sub Category': item.kitchen_sub_category_name || '',
-      'Tax Group': item.taxgroup_name || '',
-      'Runtime Rates': item.is_runtime_rates === 1 ? 'Yes' : 'No',
-      'Common to All Departments': item.is_common_to_all_departments === 1 ? 'Yes' : 'No',
-      'Is Ingredients Required': item.is_ingredients_required === 1 ? 'Yes' : 'No',
-      'Consume on Bill': item.consume_on_bill === 1 ? 'Yes' : 'No',
-      'Reverse Stock Cancel KOT': item.reverse_stock_cancel_kot === 1 ? 'Yes' : 'No',
-      'Allow Negative Stock': item.allow_negative_stock === 1 ? 'Yes' : 'No',
-      'Opening Stock Qty': item.opening_stock_quantity || 0,
-      'Consume Raw on Bill': item.consume_raw_materials_on_bill === 1 ? 'Yes' : 'No',
-      'Consume Raw on KOT': item.consume_raw_materials_on_kot === 1 ? 'Yes' : 'No',
-      'Store Name': item.store_name || '',
-    }));
+    // === Department list (for dynamic department-wise columns) ===
+    // We will export department-wise item_rate from mstrestmenudetails.
+    // Department names come from msttable_department.
+    let deptQuery = `
+      SELECT departmentid, department_name
+      FROM msttable_department
+      WHERE status IN (0,1)
+    `;
+    const deptParams = [];
+
+    if (outletid) {
+      const outletIdNum = parseInt(outletid);
+      // department tables are outlet-specific in most cases
+      deptQuery += ' AND outletid = ?';
+      deptParams.push(outletIdNum);
+    } else if (hotelid) {
+      const hotelIdNum = parseInt(hotelid);
+      // fallback: if department table has hotel scope, keep it broad
+      // (most installations use outletid, but we keep safe fallback)
+      // NOTE: this filter can be incorrect if schema differs.
+      // We only apply if schema supports it.
+      // deptQuery += ' AND hotelid = ?';
+      // deptParams.push(hotelIdNum);
+    }
+
+    const departments = db.query(deptQuery, deptParams);
+    const deptArray = Array.isArray(departments) ? departments : (departments && Array.isArray(departments[0]) ? departments[0] : []);
+    const deptIds = deptArray.map((d) => d.departmentid);
+
+
+
+    // === Build department-wise rates map ===
+    // Guard: avoid generating SQL like `IN ()` when restitemid is missing/empty.
+    const restItemIds = (menuItems || [])
+      .map((m) => m?.restitemid)
+      .filter((id) => id !== null && id !== undefined);
+
+    // Pull all rates for these items (and departments if we have them)
+    let rateMap = new Map();
+    let detailsRows = [];
+
+    if (restItemIds.length > 0) {
+      const itemPlaceholders = restItemIds.map(() => '?').join(',');
+
+      let detailQuery = `
+        SELECT
+          md.restitemid,
+          md.departmentid,
+          md.item_rate,
+          md.variant_value_id,
+          md.value_name
+        FROM mstrestmenudetails md
+        WHERE md.restitemid IN (${itemPlaceholders})
+      `;
+      const detailParams = [...restItemIds];
+
+      if (deptIds.length > 0) {
+        detailQuery += ` AND md.departmentid IN (${deptIds.map(() => '?').join(',')}) `;
+        detailParams.push(...deptIds);
+      }
+
+      detailsRows = db.query(detailQuery, detailParams) || [];
+
+      // restitemid -> departmentid -> rate
+      rateMap = new Map();
+      for (const row of detailsRows) {
+        if (!row) continue;
+        if (!rateMap.has(row.restitemid)) rateMap.set(row.restitemid, new Map());
+        rateMap.get(row.restitemid).set(row.departmentid, row.item_rate || 0);
+      }
+    } else {
+      console.warn('⚠️ Export: menuItems has no valid restitemid; skipping mstrestmenudetails export join');
+    }
+
+
+    // === Transform data for export (main fields + dept-wise prices) ===
+    const exportData = menuItems.map((item, index) => {
+      const base = {
+        'Sr.No': index + 1,
+        'Item No': item.item_no || '',
+        'Item Name': item.item_name || '',
+        'Print Name': item.print_name || '',
+        'Short Name': item.short_name || '',
+        'Price': item.price || 0,
+        'Description': item.item_description || '',
+        'HSN Code': item.item_hsncode || '',
+        'Status': item.status === 1 ? 'Active' : 'Inactive',
+        'Hotel': item.hotel_name || '',
+        'Outlet': item.outlet_name || '',
+        'Item Group': item.groupname || '',
+        'Kitchen Main Group': item.kitchen_main_group_name || '',
+        'Kitchen Category': item.kitchen_category_name || '',
+        'Kitchen Sub Category': item.kitchen_sub_category_name || '',
+        'Tax Group': item.taxgroup_name || '',
+        'Runtime Rates': item.is_runtime_rates === 1 ? 'Yes' : 'No',
+        'Common to All Departments': item.is_common_to_all_departments === 1 ? 'Yes' : 'No',
+        'Is Ingredients Required': item.is_ingredients_required === 1 ? 'Yes' : 'No',
+        'Consume on Bill': item.consume_on_bill === 1 ? 'Yes' : 'No',
+        'Reverse Stock Cancel KOT': item.reverse_stock_cancel_kot === 1 ? 'Yes' : 'No',
+        'Allow Negative Stock': item.allow_negative_stock === 1 ? 'Yes' : 'No',
+        'Opening Stock Qty': item.opening_stock_quantity || 0,
+        'Consume Raw on Bill': item.consume_raw_materials_on_bill === 1 ? 'Yes' : 'No',
+        'Consume Raw on KOT': item.consume_raw_materials_on_kot === 1 ? 'Yes' : 'No',
+        'Store Name': item.store_name || '',
+      };
+
+      // Department-wise price columns: "Dept: <name>"
+      const deptRates = rateMap.get(item.restitemid) || new Map();
+      for (const dept of departments) {
+        const colName = `Dept: ${dept.department_name}`;
+        base[colName] = deptRates.get(dept.departmentid) ?? 0;
+      }
+
+      return base;
+    });
 
     // Create Excel file
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(exportData);
 
-    // Set column widths
+    // Set column widths (static part). NOTE: dept-wise dynamic columns will use default width.
     worksheet['!cols'] = [
       { wch: 6 },   // Sr.No
+
       { wch: 12 },  // Item No
       { wch: 30 },  // Item Name
       { wch: 25 },  // Print Name
@@ -201,7 +288,8 @@ exports.exportMenuItems = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to export menu items',
-      error: error.message,
+      error: error?.message,
+      stack: error?.stack || null,
       data: null
     });
   }
