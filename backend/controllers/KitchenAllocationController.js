@@ -1,7 +1,7 @@
 const db = require('../config/db');
 
 /**
- * ✅ GET KITCHEN ALLOCATION
+ * ✅ GET KITCHEN ALLOCATION (Filtered by KOTUsedDate with time)
  */
 const getKitchenAllocation = async (req, res) => {
   try {
@@ -13,23 +13,65 @@ const getKitchenAllocation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'hotelId is required' });
     }
 
-    // ✅ Date handling
-    const formatDate = (date) => {
-      if (!date) return new Date().toISOString().split('T')[0];
-      const parsed = new Date(date);
-      if (isNaN(parsed.getTime())) throw new Error('Invalid date format');
-      return parsed.toISOString().split('T')[0];
+    // ✅ Date time handling - Support both date and datetime
+    const formatDateTime = (dateTime) => {
+      if (!dateTime) {
+        // Default to start of today
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        return now.toISOString().slice(0, 19).replace('T', ' ');
+      }
+      
+      // If already has time component (contains space or T with time)
+      if (dateTime.includes(' ') || (dateTime.includes('T') && dateTime.split('T')[1].length > 0)) {
+        // Replace T with space if needed
+        let formatted = dateTime.replace('T', ' ');
+        // Ensure time is present
+        if (formatted.split(' ').length === 1) {
+          formatted += ' 00:00:00';
+        } else if (formatted.split(' ')[1].split(':').length === 2) {
+          // Add seconds if missing
+          formatted += ':00';
+        }
+        return formatted;
+      }
+      
+      // Only date provided, add time
+      return `${dateTime} 00:00:00`;
     };
 
-    const startDate = formatDate(fromDate);
-    const endDate = formatDate(toDate);
+    const formatEndDateTime = (dateTime) => {
+      if (!dateTime) {
+        // Default to end of today
+        const now = new Date();
+        now.setHours(23, 59, 59, 999);
+        return now.toISOString().slice(0, 19).replace('T', ' ');
+      }
+      
+      // If already has time component
+      if (dateTime.includes(' ') || (dateTime.includes('T') && dateTime.split('T')[1].length > 0)) {
+        let formatted = dateTime.replace('T', ' ');
+        if (formatted.split(' ').length === 1) {
+          formatted += ' 23:59:59';
+        } else if (formatted.split(' ')[1].split(':').length === 2) {
+          formatted += ':59';
+        }
+        return formatted;
+      }
+      
+      // Only date provided, add end of day time
+      return `${dateTime} 23:59:59`;
+    };
+
+    const startDateTime = formatDateTime(fromDate);
+    const endDateTime = formatEndDateTime(toDate);
 
     // ✅ Params
-    const params = [startDate, endDate, hotelId];
+    const params = [startDateTime, endDateTime, hotelId];
 
-    // ✅ WHERE conditions (IMPORTANT FIX)
+    // ✅ WHERE conditions - Using KOTUsedDate with time
     let where = `
-      WHERE DATE(t.TxnDatetime) BETWEEN ? AND ?
+      WHERE d.KOTUsedDate BETWEEN ? AND ?
       AND t.HotelID = ?
       AND d.isCancelled = 0
     `;
@@ -49,16 +91,16 @@ const getKitchenAllocation = async (req, res) => {
       }
     }
 
-    // ✅ FINAL QUERY (FIXED)
+    // ✅ FINAL QUERY (Using KOTUsedDate with time)
     const query = `
      SELECT
         i.itemgroupname AS item_group,
         COALESCE(m.item_no, d.item_no) AS item_no,
         d.item_name,
-        SUM(d.Qty-d.RevQty) AS TotalQty,
+        SUM(d.Qty - d.RevQty) AS TotalQty,
         d.RuntimeRate,
-        sum(d.RevQty) as RevQty,
-        SUM((d.Qty -d.RevQty) * d.RuntimeRate) AS Amount
+        SUM(d.RevQty) as RevQty,
+        SUM((d.Qty - d.RevQty) * d.RuntimeRate) AS Amount
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
       LEFT JOIN mstrestmenu m ON m.restitemid = d.ItemID
@@ -96,7 +138,7 @@ const getKitchenAllocation = async (req, res) => {
 
 
 /**
- * ✅ GET ITEM DETAILS (EYE CLICK FIXED)
+ * ✅ GET ITEM DETAILS (Filtered by KOTUsedDate with time)
  */
 const getItemDetails = async (req, res) => {
   try {
@@ -112,19 +154,52 @@ const getItemDetails = async (req, res) => {
       });
     }
 
-    // ✅ Date handling
-    const formatDate = (date) => {
-      if (!date) return new Date().toISOString().split('T')[0];
-      const parsed = new Date(date);
-      if (isNaN(parsed.getTime())) throw new Error('Invalid date format');
-      return parsed.toISOString().split('T')[0];
+    // ✅ Date time handling
+    const formatDateTime = (dateTime) => {
+      if (!dateTime) {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        return now.toISOString().slice(0, 19).replace('T', ' ');
+      }
+      
+      if (dateTime.includes(' ') || (dateTime.includes('T') && dateTime.split('T')[1].length > 0)) {
+        let formatted = dateTime.replace('T', ' ');
+        if (formatted.split(' ').length === 1) {
+          formatted += ' 00:00:00';
+        } else if (formatted.split(' ')[1].split(':').length === 2) {
+          formatted += ':00';
+        }
+        return formatted;
+      }
+      
+      return `${dateTime} 00:00:00`;
     };
 
-    const startDate = formatDate(fromDate);
-    const endDate = formatDate(toDate);
+    const formatEndDateTime = (dateTime) => {
+      if (!dateTime) {
+        const now = new Date();
+        now.setHours(23, 59, 59, 999);
+        return now.toISOString().slice(0, 19).replace('T', ' ');
+      }
+      
+      if (dateTime.includes(' ') || (dateTime.includes('T') && dateTime.split('T')[1].length > 0)) {
+        let formatted = dateTime.replace('T', ' ');
+        if (formatted.split(' ').length === 1) {
+          formatted += ' 23:59:59';
+        } else if (formatted.split(' ')[1].split(':').length === 2) {
+          formatted += ':59';
+        }
+        return formatted;
+      }
+      
+      return `${dateTime} 23:59:59`;
+    };
 
-    // ✅ CRITICAL FIX (2 item_no params)
-    const params = [item_no, item_no, startDate, endDate, hotelId];
+    const startDateTime = formatDateTime(fromDate);
+    const endDateTime = formatEndDateTime(toDate);
+
+    // ✅ Params with datetime
+    const params = [item_no, item_no, startDateTime, endDateTime, hotelId];
 
     let query = `
       SELECT
@@ -133,14 +208,14 @@ const getItemDetails = async (req, res) => {
         d.Qty,
         (d.Qty * d.RuntimeRate) AS Amount,
         d.KOTNo,
-        t.TxnDatetime,
+        d.KOTUsedDate AS TxnDatetime,
         t.table_name,
         t.TableID
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE (m.item_no = ? OR d.item_no = ?)
-        AND DATE(t.TxnDatetime) BETWEEN ? AND ?
+        AND d.KOTUsedDate BETWEEN ? AND ?
         AND t.HotelID = ?
         AND (d.isCancelled = 0 OR d.isCancelled IS NULL)
     `;
@@ -150,7 +225,7 @@ const getItemDetails = async (req, res) => {
       params.push(outletId);
     }
 
-    query += ' ORDER BY t.TxnDatetime DESC';
+    query += ' ORDER BY d.KOTUsedDate DESC';
 
     console.log('📊 SQL Query:', query);
     console.log('🔧 Params:', params);

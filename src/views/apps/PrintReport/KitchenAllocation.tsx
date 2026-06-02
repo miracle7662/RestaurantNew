@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import KitchenAllocationService, {  ItemDetailData } from '@/common/api/kitchenallocation';
+import KitchenAllocationService, { ItemDetailData } from '@/common/api/kitchenallocation';
 import ItemGroupService from '@/common/api/itemgroup';
 import KitchenMainGroupService from '@/common/api/kitchenmaingroup';
 import TableDepartmentService from '@/common/api/tabledepartment';
@@ -24,7 +24,6 @@ interface FilterOption {
   [key: string]: any;
 }
 
-// Updated interface to include RevQty
 interface KitchenAllocationDataWithRev {
   item_no: string;
   item_name: string;
@@ -32,6 +31,29 @@ interface KitchenAllocationDataWithRev {
   RevQty: number;
   Amount: number;
 }
+
+// Get current datetime in local format for datetime-local input
+const getCurrentDateTimeLocal = () => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const getEndDateTimeLocal = () => {
+  const now = new Date();
+  now.setHours(23, 59, 59);
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 const KitchenAllocation: React.FC = () => {
   const { user } = useAuthContext();
@@ -46,13 +68,13 @@ const KitchenAllocation: React.FC = () => {
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [, setOutletId] = useState<number | null>(null);
 
-  // Filters
+  // Filters - Using datetime-local inputs
   const [selectedUser, setSelectedUser] = useState('');
   const [departments, setDepartments] = useState<FilterOption[]>([]);
   const [users, setUsers] = useState<FilterOption[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
-  const [fromDate, setFromDate] = useState(new Date().toISOString().split('T')[0]);
-  const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
+  const [fromDateTime, setFromDateTime] = useState(getCurrentDateTimeLocal());
+  const [toDateTime, setToDateTime] = useState(getEndDateTimeLocal());
   const [selectedItemGroup, setSelectedItemGroup] = useState('');
   const [selectedKitchenMainGroup, setSelectedKitchenMainGroup] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -101,7 +123,7 @@ const KitchenAllocation: React.FC = () => {
     fetchFilterOptions();
   }, [user]);
 
-  // Fetch data on component mount with current date
+  // Fetch data on component mount with current datetime
   useEffect(() => {
     if (user?.hotelid) {
       fetchData();
@@ -127,8 +149,8 @@ const KitchenAllocation: React.FC = () => {
 
   // Fetch data using KitchenAllocationService
   const fetchData = async () => {
-    if (!fromDate || !toDate) {
-      setError('Please select both From Date and To Date.');
+    if (!fromDateTime || !toDateTime) {
+      setError('Please select both From Date/Time and To Date/Time.');
       return;
     }
     if (!user?.hotelid) {
@@ -157,12 +179,13 @@ const KitchenAllocation: React.FC = () => {
         filterId = selectedKitchenMainGroup;
       }
 
-      const startDate = fromDate < toDate ? fromDate : toDate;
-      const endDate = fromDate < toDate ? toDate : fromDate;
+      // Compare datetimes
+      const startDateTime = fromDateTime < toDateTime ? fromDateTime : toDateTime;
+      const endDateTime = fromDateTime < toDateTime ? toDateTime : fromDateTime;
 
       const result = await KitchenAllocationService.getAllocationData({
-        fromDate: startDate,
-        toDate: endDate,
+        fromDate: startDateTime,
+        toDate: endDateTime,
         hotelId: user.hotelid.toString(),
         outletId: user.outletid?.toString(),
         filterType,
@@ -170,11 +193,10 @@ const KitchenAllocation: React.FC = () => {
       });
 
       if (result.success) {
-        // Process data to calculate net quantity (TotalQty - RevQty)
         const processedData = result.data.map((item: any) => ({
           ...item,
-          TotalQty: (item.TotalQty || 0) - (item.RevQty || 0), // Net quantity after reversal
-          Amount: item.Amount || 0 // Amount already should be net amount from backend
+          TotalQty: (item.TotalQty || 0) - (item.RevQty || 0),
+          Amount: item.Amount || 0
         }));
         setData(processedData);
       } else {
@@ -195,6 +217,10 @@ const KitchenAllocation: React.FC = () => {
       y += 6;
     }
     doc.text('Kitchen Allocation Report', 20, y);
+    y += 6;
+    doc.text(`From: ${fromDateTime} To: ${toDateTime}`, 20, y);
+    y += 6;
+    
     const tableColumn = ['Item No', 'Item Name', 'Rev Qty', 'Total Qty', 'Amount'];
     const tableRows = filteredData.map((item) => [
       item.item_no,
@@ -219,7 +245,7 @@ const KitchenAllocation: React.FC = () => {
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 20
+      startY: y
     });
     doc.save('kitchen_allocation_report.pdf');
   };
@@ -292,6 +318,11 @@ const KitchenAllocation: React.FC = () => {
       const totalRevQty = filteredData.reduce((sum, item) => sum + Number(item.RevQty ?? 0), 0);
       const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty ?? 0), 0);
       const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount ?? 0), 0);
+
+      // Format datetime for display
+      const formatDisplayDateTime = (dateTimeStr: string) => {
+        return dateTimeStr.replace('T', ' ');
+      };
 
       const reportHTML = `
       <html>
@@ -375,7 +406,7 @@ const KitchenAllocation: React.FC = () => {
         <div class="sub-header">
           <p>${hotelName || ''}</p>
           <p>Kitchen Allocation Report</p>
-          <p>From: ${fromDate} To: ${toDate}</p>
+          <p>From: ${formatDisplayDateTime(fromDateTime)} To: ${formatDisplayDateTime(toDateTime)}</p>
         </div>
         <table>
           <thead>
@@ -437,12 +468,12 @@ const KitchenAllocation: React.FC = () => {
     setModalLoading(true);
 
     try {
-      const startDate = fromDate <= toDate ? fromDate : toDate;
-      const endDate = fromDate <= toDate ? toDate : fromDate;
+      const startDateTime = fromDateTime <= toDateTime ? fromDateTime : toDateTime;
+      const endDateTime = fromDateTime <= toDateTime ? toDateTime : fromDateTime;
 
       const result = await KitchenAllocationService.getItemDetails(item.item_no, {
-        fromDate: startDate,
-        toDate: endDate,
+        fromDate: startDateTime,
+        toDate: endDateTime,
         hotelId: String(user?.hotelid),
         outletId: user?.outletid?.toString()
       });
@@ -459,6 +490,20 @@ const KitchenAllocation: React.FC = () => {
     } finally {
       setModalLoading(false);
     }
+  };
+
+  // Format datetime for display in modal
+  const formatDateTimeDisplay = (dateTimeStr: string) => {
+    if (!dateTimeStr) return 'N/A';
+    const date = new Date(dateTimeStr);
+    return date.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
   };
 
   return (
@@ -486,21 +531,21 @@ const KitchenAllocation: React.FC = () => {
             <Row>
               <Col md={3}>
                 <Form.Group>
-                  <Form.Label>From Date</Form.Label>
+                  <Form.Label>From Date & Time</Form.Label>
                   <Form.Control
-                    type="date"
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
+                    type="datetime-local"
+                    value={fromDateTime}
+                    onChange={(e) => setFromDateTime(e.target.value)}
                   />
                 </Form.Group>
               </Col>
               <Col md={3}>
                 <Form.Group>
-                  <Form.Label>To Date</Form.Label>
+                  <Form.Label>To Date & Time</Form.Label>
                   <Form.Control
-                    type="date"
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
+                    type="datetime-local"
+                    value={toDateTime}
+                    onChange={(e) => setToDateTime(e.target.value)}
                   />
                 </Form.Group>
               </Col>
@@ -625,7 +670,7 @@ const KitchenAllocation: React.FC = () => {
                       <th>Qty</th>
                       <th>Amount</th>
                       <th>KOT No</th>
-                      <th>Txn Date & Time</th>
+                      <th>KOT Used Date & Time</th>
                       <th>Table Name / Table ID</th>
                     </tr>
                   </thead>
@@ -636,7 +681,7 @@ const KitchenAllocation: React.FC = () => {
                         <td>{detail.Qty}</td>
                         <td>{formatAmount(detail.Amount)}</td>
                         <td>{detail.KOTNo || 'N/A'}</td>
-                        <td>{new Date(detail.TxnDatetime).toLocaleDateString('en-GB')}</td>
+                        <td>{formatDateTimeDisplay(detail.TxnDatetime)}</td>
                         <td>{detail.table_name || `Table ${detail.TableID}`}</td>
                       </tr>
                     ))}
