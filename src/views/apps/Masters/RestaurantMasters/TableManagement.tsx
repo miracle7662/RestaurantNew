@@ -93,6 +93,13 @@ const TableModal: React.FC<TableModalProps> = ({
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [departmentid, setDepartmentId] = useState<number | null>(null);
 
+  // Refs for focus management
+  const tableNameRef = useRef<HTMLInputElement>(null);
+  const hotelNameRef = useRef<HTMLSelectElement>(null);
+  const outletNameRef = useRef<HTMLSelectElement>(null);
+  const departmentNameRef = useRef<HTMLSelectElement>(null);
+  const statusRef = useRef<HTMLSelectElement>(null);
+
   // Track whether modal just opened in edit mode
   const prevTableItemId = useRef<string | null>(null);
 
@@ -128,11 +135,43 @@ const TableModal: React.FC<TableModalProps> = ({
         // Add mode: sirf table_name clear karo, baaki fields jaise hain
         setTableName('');
         prevTableItemId.current = null;
+        // Auto focus on table name when modal opens in add mode
+        setTimeout(() => {
+          tableNameRef.current?.focus();
+        }, 100);
       }
     }
   }, [show, tableItem]);
 
   const filteredDepartments = departments.filter(d => Number(d.outletid) === outletid);
+
+  // Handle Enter key press - move to next field or save on last field
+  const handleKeyPress = (e: React.KeyboardEvent, currentField: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      switch (currentField) {
+        case 'table_name':
+          hotelNameRef.current?.focus();
+          break;
+        case 'hotel_name':
+          outletNameRef.current?.focus();
+          break;
+        case 'outlet_name':
+          departmentNameRef.current?.focus();
+          break;
+        case 'department_name':
+          statusRef.current?.focus();
+          break;
+        case 'status':
+          // Last field - save the form
+          handleSave();
+          break;
+        default:
+          break;
+      }
+    }
+  };
 
   const handleSave = async () => {
     if (!table_name || !selectedBrand || !outletid || !departmentid) {
@@ -187,6 +226,10 @@ const TableModal: React.FC<TableModalProps> = ({
         } else {
           // Add mode: sirf Table Name clear karo, baaki fields rahein
           setTableName('');
+          // Focus back on table name field for next entry
+          setTimeout(() => {
+            tableNameRef.current?.focus();
+          }, 100);
         }
       } catch (err: any) {
         toast.error(err.response?.data?.message || `Failed to ${tableItem ? 'update' : 'add'} table`);
@@ -213,6 +256,9 @@ const TableModal: React.FC<TableModalProps> = ({
         bottom: 0,
         zIndex: 1050,
       }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onHide();
+      }}
     >
       <div
         className="modal-content"
@@ -231,10 +277,12 @@ const TableModal: React.FC<TableModalProps> = ({
         <div className="mb-3">
           <label className="form-label">Table Name <span style={{ color: 'red' }}>*</span></label>
           <input
+            ref={tableNameRef}
             type="text"
             className="form-control"
             value={table_name}
             onChange={(e) => setTableName(e.target.value)}
+            onKeyPress={(e) => handleKeyPress(e, 'table_name')}
             placeholder="e.g., Conference, 106, R15"
             disabled={loading}
           />
@@ -242,9 +290,11 @@ const TableModal: React.FC<TableModalProps> = ({
         <div className="mb-3">
           <label className="form-label">Hotel Name <span style={{ color: 'red' }}>*</span></label>
           <select
+            ref={hotelNameRef}
             className="form-control"
             value={selectedBrand || ''}
             onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
+            onKeyPress={(e) => handleKeyPress(e, 'hotel_name')}
             disabled={loading}
           >
             <option value="">Select Hotel</option>
@@ -258,9 +308,11 @@ const TableModal: React.FC<TableModalProps> = ({
         <div className="mb-3">
           <label className="form-label">Outlet Name <span style={{ color: 'red' }}>*</span></label>
           <select
+            ref={outletNameRef}
             className="form-control"
             value={outletid || ''}
             onChange={(e) => setOutletId(e.target.value ? Number(e.target.value) : null)}
+            onKeyPress={(e) => handleKeyPress(e, 'outlet_name')}
             disabled={loading}
           >
             <option value="">Select Outlet</option>
@@ -274,9 +326,11 @@ const TableModal: React.FC<TableModalProps> = ({
         <div className="mb-3">
           <label className="form-label">Department Name <span style={{ color: 'red' }}>*</span></label>
           <select
+            ref={departmentNameRef}
             className="form-control"
             value={departmentid || ''}
             onChange={(e) => setDepartmentId(e.target.value ? Number(e.target.value) : null)}
+            onKeyPress={(e) => handleKeyPress(e, 'department_name')}
             disabled={loading || !outletid}
           >
             <option value="">Select Department</option>
@@ -290,9 +344,11 @@ const TableModal: React.FC<TableModalProps> = ({
         <div className="mb-3">
           <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
           <select
+            ref={statusRef}
             className="form-control"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
+            onKeyPress={(e) => handleKeyPress(e, 'status')}
           >
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
