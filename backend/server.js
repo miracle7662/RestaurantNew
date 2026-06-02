@@ -64,6 +64,10 @@ const AccountTypeRoutes = require('./routes/AccountTypeRoutes');  // New import
 const KitchenAllocationRoutes = require('./routes/KitchenAllocationRoutes');
 const outletMenuRoutes = require('./routes/outletMenuRoutes');
 
+// billing transfer routes
+const billingTransferRoutes = require('./routes/billingTransferRoutes');
+
+
 
 
 
@@ -120,6 +124,10 @@ app.use('/api/accountnature', authenticateToken, AccountNatureRoutes);
 app.use('/api/accounttype', authenticateToken, AccountTypeRoutes);  // New route registration
 
 app.use('/api/outletmenu', outletMenuRoutes);
+
+// Register billing transfer routes
+app.use('/api/billing-transfer', billingTransferRoutes);
+
 app.use('/api/setup', require('./routes/create-superadmin-mysql'));
 
 app.get("/get-server-ip", (req, res) => {
