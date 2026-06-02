@@ -339,35 +339,35 @@ const HotelReservation = () => {
             FragmentService.list(),
           ]);
 
-        let countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || [];
+        const countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || [];
         setCountries(
           countriesData
             .map((c: any) => ({ id: c.id || c.countryid, name: String(c.name || c.country_name) }))
             .filter((c: any) => c.id && c.name)
         );
 
-        let statesData = Array.isArray(statesRes) ? statesRes : statesRes?.data || [];
+        const statesData = Array.isArray(statesRes) ? statesRes : statesRes?.data || [];
         setStates(
           statesData
             .map((s: any) => ({ id: s.id || s.stateid, name: String(s.name || s.state_name) }))
             .filter((s: any) => s.id && s.name)
         );
 
-        let citiesData = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || [];
+        const citiesData = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || [];
         setCities(
           citiesData
             .map((c: any) => ({ id: c.id || c.cityid, name: String(c.name || c.city_name) }))
             .filter((c: any) => c.id && c.name)
         );
 
-        let guestTypesData = Array.isArray(guestTypesRes) ? guestTypesRes : guestTypesRes?.data || [];
+        const guestTypesData = Array.isArray(guestTypesRes) ? guestTypesRes : guestTypesRes?.data || [];
         setGuestTypes(
           guestTypesData
             .map((g: any) => ({ id: g.id || g.guest_type_id, name: String(g.name || g.guest_type_name) }))
             .filter((g: any) => g.id && g.name)
         );
 
-        let categoriesData = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || [];
+        const categoriesData = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || [];
         setRoomCategories(
           categoriesData.map((c: any) => ({
             room_category_id: c.room_category_id || c.id,
@@ -376,10 +376,10 @@ const HotelReservation = () => {
           }))
         );
 
-        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || [];
+        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || [];
         setTaxList(taxData);
 
-        let fragmentsData = Array.isArray(fragmentsRes) ? fragmentsRes : fragmentsRes?.data || [];
+        const fragmentsData = Array.isArray(fragmentsRes) ? fragmentsRes : fragmentsRes?.data || [];
         setFragments(
           fragmentsData
             .map((f: any) => ({

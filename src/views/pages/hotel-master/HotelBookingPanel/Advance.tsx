@@ -214,7 +214,7 @@ const Advance = ({
     setIsLoadingData(true)
     try {
       const pmRes = await PaymentMethodService.list({ status: 1 })
-      let pmData = Array.isArray(pmRes) ? pmRes : pmRes?.data || []
+      const pmData = Array.isArray(pmRes) ? pmRes : pmRes?.data || []
       const mapped = pmData.map((pm: any) => ({
         id: pm.id || pm.payment_method_id,
         name: pm.name || pm.payment_method_name,

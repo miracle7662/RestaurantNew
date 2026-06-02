@@ -84,7 +84,7 @@ const ReceiptAgainstBillsModal = ({
     // Load Department master data
     // (department table mapped by backend)
     // Reuses same API approach as PostChargesModal.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+     
     import('@/common/hotel').then(({ departmentApi }) => {
       return departmentApi.list({ mst_hotelid: hotelId })
     })
