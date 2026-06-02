@@ -393,6 +393,7 @@ const TableManagement: React.FC = () => {
             onUpdateSelectedTable(updatedTable);
           } else {
             await TableManagementService.create(payload);
+            // IMPORTANT: do not close modal after save (add)
           }
           toast.success(`Table ${tableItem ? 'updated' : 'added'} successfully`);
           setTableName('');
@@ -401,7 +402,10 @@ const TableManagement: React.FC = () => {
           setSelectedBrand(null);
           setDepartmentId(null);
           onSuccess();
-          onHide();
+          // IMPORTANT: do not close modal after save
+          if (tableItem) {
+            onHide();
+          }
         } catch (err: any) {
           toast.error(err.response?.data?.message || `Failed to ${tableItem ? 'update' : 'add'} table`);
         }

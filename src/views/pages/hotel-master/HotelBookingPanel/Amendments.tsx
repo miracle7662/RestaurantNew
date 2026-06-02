@@ -68,7 +68,7 @@ const updateRoomChargeFolio = async (
     const folioRes = await GuestFolioService.list({ checkin_id: checkinId })
     const folioEntries = folioRes.data || []
 
-    let roomChargeEntry = folioEntries.find(
+    const roomChargeEntry = folioEntries.find(
       (entry: any) => entry.detail_id === detailId && entry.transaction_type === 'Room Charge',
     )
 
@@ -246,7 +246,7 @@ const Amendments = () => {
     const fetchCountries = async () => {
       try {
         const res = await CountryService.list()
-        let countriesData = Array.isArray(res) ? res : res?.data || []
+        const countriesData = Array.isArray(res) ? res : res?.data || []
         setCountries(
           countriesData
             .map((c: any) => ({ id: c.id || c.countryid, name: String(c.name || c.country_name) }))
@@ -264,7 +264,7 @@ const Amendments = () => {
       if (!hotelId) return
       try {
         const res = await RoomCategoryService.list({ hotelid: hotelId })
-        let data = Array.isArray(res) ? res : res?.data || []
+        const data = Array.isArray(res) ? res : res?.data || []
         setRoomCategories(
           data.map((c: any) => ({
             room_category_id: c.room_category_id || c.id,
@@ -1338,7 +1338,7 @@ const PaxChangeComponent = ({
         setModeCharges(catData.mode_charges || [])
 
         const taxRes = await taxApi.list()
-        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
+        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
         const map = new Map<number, number>()
         taxData.forEach((tax: any) => {
           const percent = tax.hotel_tax_value ?? tax.hotel_cgst + tax.hotel_sgst
@@ -1858,7 +1858,7 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
         setStayModeCharges(catData.mode_charges || [])
 
         const taxRes = await taxApi.list()
-        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
+        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
         const map = new Map<number, number>()
         taxData.forEach((tax: any) => {
           const percent = tax.hotel_tax_value ?? tax.hotel_cgst + tax.hotel_sgst
@@ -1970,7 +1970,7 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
     if (!currentCheckinDate) return null
     const checkinDate = new Date(currentCheckinDate)
     const checkoutDate = new Date(currentCheckoutDate)
-    let newCheckoutDate = new Date(checkoutDate)
+    const newCheckoutDate = new Date(checkoutDate)
     if (mode === 'extend') {
       newCheckoutDate.setDate(newCheckoutDate.getDate() + days)
     } else {
@@ -4658,7 +4658,7 @@ const ChangePayModeComponent = ({
       setLoading(true)
       try {
         const pmRes = await PaymentMethodService.list({ status: 1 })
-        let pmData = Array.isArray(pmRes) ? pmRes : pmRes?.data || []
+        const pmData = Array.isArray(pmRes) ? pmRes : pmRes?.data || []
         const mapped = pmData.map((pm: any) => ({
           id: pm.id || pm.payment_method_id,
           name: pm.name || pm.payment_method_name,

@@ -2664,7 +2664,7 @@ const fetchCheckoutData = async () => {
       wrapper.appendChild(headerDiv)
       const tableClone = table.cloneNode(true) as HTMLElement
       tableClone.querySelectorAll('thead tr, tfoot tr').forEach((el) => {
-        ;(el as HTMLElement).style.position = 'static'
+        (el as HTMLElement).style.position = 'static'
       })
       wrapper.appendChild(tableClone)
       document.body.appendChild(wrapper)
@@ -4210,11 +4210,11 @@ const fetchCheckoutData = async () => {
                 transition: 'box-shadow 0.18s, transform 0.12s',
               }}
               onMouseEnter={(e) => {
-                ;(e.currentTarget as HTMLElement).style.boxShadow = '0 6px 22px rgba(0,0,0,0.16)'
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 22px rgba(0,0,0,0.16)'
                 ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
               }}
               onMouseLeave={(e) => {
-                ;(e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.10)'
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.10)'
                 ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
               }}>
               {/* Card header - SHOW INVOICE NO instead of room number */}
