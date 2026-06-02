@@ -93,6 +93,46 @@ const AccountLedger = React.lazy(() => import('../views/apps/Masters/RestaurantM
 
 
 
+/* ================================
+   🏨 HOTEL BOOKING SECTION
+================================ */
+
+
+
+
+// Master Setting
+const CountryMaster = React.lazy(() => import('../views/pages/master-setting/country'))
+const StateMaster = React.lazy(() => import('../views/pages/master-setting/States'))
+const CityMaster = React.lazy(() => import('../views/pages/master-setting/City'))
+const ZoneMaster = React.lazy(() => import('../views/pages/master-setting/Zone'))
+const HotelTypeMaster = React.lazy(() => import('../views/pages/master-setting/HotelType'))
+const HotelCategoryMaster = React.lazy(() => import('../views/pages/master-setting/HotelCategory'))
+const TaxMaster = React.lazy(() => import('../views/pages/master-setting/Tax'))
+const PackageMaster = React.lazy(() => import('../views/pages/master-setting/Package'))
+const RegistrationHotelsUsers = React.lazy(
+  () => import('../views/pages/master-setting/RegistrationHotelUsers'),
+)
+const NationalityMaster = React.lazy(() => import('../views/pages/master-setting/Nationality'))
+const FeatureMaster = React.lazy(() => import('../views/pages/master-setting/Feature'))
+const FragmentMaster = React.lazy(() => import('../views/pages/master-setting/Fragment'))
+const TravelAgentMaster = React.lazy(() => import('../views/pages/master-setting/TravelAgent'))
+
+//Hotel Master
+const FloorMaster = React.lazy(() => import('../views/pages/hotel-master/Floor'))
+const BlockMaster = React.lazy(() => import('../views/pages/hotel-master/Block'))
+const CategoryMaster = React.lazy(() => import('../views/pages/hotel-master/Category'))
+const BillSettingMaster = React.lazy(() => import('../views/pages/hotel-master/BillSetting'))
+const InventoryMaster = React.lazy(() => import('../views/pages/hotel-master/InventoryMaster'))
+const RoomMaster = React.lazy(() => import('../views/pages/hotel-master/Room'))
+const CompanyMaster = React.lazy(() => import('../views/pages/hotel-master/Company'))
+const GuestMaster = React.lazy(() => import('../views/pages/hotel-master/Guest'))
+const ComplimentaryMaster = React.lazy(() => import('../views/pages/hotel-master/Complimentary'))
+const HotelBookingPanel = React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel'))
+const HotelReservation = React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/HotelReservation'))
+const ReservationSummary = React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/ReservationSummary'))
+const CheckInForm = React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/CheckInForm'))
+const RoomDetailSummary = React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/RoomDetailSummary'))
+const Amendments =  React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/Amendments'))
 
 
 
@@ -661,7 +701,206 @@ const appsRoutes: RoutesProps = {
         //   route: PrivateRoute,
         // },
       ],
-    }
+    },
+
+
+
+
+    /* ================================================================
+                  🏨 HOTEL BOOKING SECTION
+================================================================ */
+
+
+ 
+    {
+      path: '/pages/master-setting',
+      name: 'Master Setting',
+      children: [
+        {
+          path: '/master-setting/country-master',
+          name: 'Country Master',
+          element: <CountryMaster />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/master-setting/state-master',
+          name: 'State Master',
+          element: <StateMaster />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/master-setting/city-master',
+          name: 'City Master',
+          element: <CityMaster />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/master-setting/zone-master',
+          name: 'Zone Master',
+          element: <ZoneMaster />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/master-setting/hotel-type-master',
+          name: 'Hotel Type Master',
+          element: <HotelTypeMaster />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/master-setting/hotel-category-master',
+          name: 'Hotel Category Master',
+          element: <HotelCategoryMaster />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/master-setting/tax-master',
+          name: 'Tax Master',
+          element: <TaxMaster />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/master-setting/package-master',
+          name: 'Package Master',
+          element: <PackageMaster />,
+          route: PrivateRoute,
+        },
+            {
+          path: '/master-setting/Nationality-master',
+          name: 'Nationality Master',
+          element: <NationalityMaster />,
+          route: PrivateRoute,
+        },
+         {
+          path: '/master-setting/Feature-master',
+          name: 'Feature Master',
+          element: <FeatureMaster />,
+          route: PrivateRoute,
+        },
+          {
+          path: '/master-setting/Fragment-master',
+          name: 'Fragment Master',
+          element: <FragmentMaster />,
+          route: PrivateRoute,
+        },
+         {
+          path: '/master-setting/Travel-Agent-master',
+          name: 'Travel Agent Master',
+          element: <TravelAgentMaster />,
+          route: PrivateRoute,
+        },
+      ],
+    },
+    {
+      path: '/pages/hotel-master',
+      name: 'Hotel Master',
+      children: [
+        {
+          path: '/hotel-master/Floor-master',
+          name: 'Floor Master',
+          element: <FloorMaster />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/hotel-master/Block-master',
+          name: 'Block Master',
+          element: <BlockMaster />,
+          route: PrivateRoute,
+        },
+         {
+          path: '/hotel-master/Category-master',
+          name: 'Category Master',
+          element: <CategoryMaster />,
+          route: PrivateRoute,
+        },
+         {
+          path: '/hotel-master/BillSetting',
+          name: 'Bill Setting Master',
+          element: <BillSettingMaster />,
+          route: PrivateRoute,
+        },
+
+         {
+          path: '/hotel-master/Inventorymaster',
+          name: 'Inventory Master',
+          element: <InventoryMaster/>,
+          route: PrivateRoute,
+        },
+      
+          {
+          path: '/hotel-master/Room-master',
+          name: 'Room Master',
+          element: <RoomMaster />,
+          route: PrivateRoute,
+        },
+          {
+          path: '/hotel-master/Company-master',
+          name: 'Company Master',
+          element: <CompanyMaster />,
+          route: PrivateRoute,
+        },
+          {
+          path: '/hotel-master/Guest-master',
+          name: 'Guest Master',
+          element: <GuestMaster />,
+          route: PrivateRoute,
+        },
+           {
+          path: '/hotel-master/Complimentary-master',
+          name: 'Complimentary Master',
+          element: <ComplimentaryMaster />,
+          route: PrivateRoute,
+        },
+{
+          path: '/hotel-master/HotelBookingPanel',
+          name: 'HotelBookingPanel',
+          element: <HotelBookingPanel />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/hotel/reservation',
+          name: 'Hotel Reservation',
+          element: <HotelReservation />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/hotel/reservation-summary',
+          name: 'ReservationSummary',
+          element: <ReservationSummary />,
+          route: PrivateRoute,
+        },
+         {
+          path: '/hotel/checkin',
+          name: 'CheckInForm',
+          element: <CheckInForm />,
+          route: PrivateRoute,
+        },
+         {
+          path: '/hotel/room-detail',
+          name: 'RoomDetailSummary',
+          element: < RoomDetailSummary/>,
+          route: PrivateRoute,
+        },
+         {
+          path: '/hotel/amendments',
+          name: 'Amendments',
+          element: < Amendments/>,
+          route: PrivateRoute,
+        }
+
+      ],
+    },
+    {
+      path: '/registration',
+      name: 'Registration',
+      children: [
+        {
+          path: '/registration/hotels-users',
+          name: 'Registration Hotels/Users',
+          element: <RegistrationHotelsUsers />,
+          route: PrivateRoute,
+        },
+      ],
+    },
 
   ],
 }

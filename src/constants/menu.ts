@@ -442,6 +442,189 @@ const MENU_ITEMS: MenuItemTypes[] = [
     ],
   },
 
+  /* ================================================================
+                  🏨 HOTEL BOOKING SECTION
+================================================================ */
+
+
+
+
+  {
+    key: 'master-setting',
+    label: 'Master Setting',
+    isTitle: false,
+    icon: 'fi fi-rr-settings-sliders',
+    children: [
+      {
+        key: 'master-role',
+        label: 'Role Master',
+        url: '#!',
+        parentKey: 'master-setting',
+      },
+      {
+        key: 'master-country',
+        label: 'Country Master',
+        url: '/master-setting/country-master',
+        parentKey: 'master-setting',
+      },
+      {
+        key: 'master-state',
+        label: 'State Master',
+        url: '/master-setting/state-master',
+        parentKey: 'master-setting',
+      },
+      {
+        key: 'master-city',
+        label: 'City Master',
+        url: '/master-setting/city-master',
+        parentKey: 'master-setting',
+      },
+      {
+        key: 'master-zone',
+        label: 'Zone Master',
+        url: '/master-setting/zone-master',
+        parentKey: 'master-setting',
+      },
+      {
+        key: 'master-hotel-type',
+        label: 'Hotel Type Master',
+        url: '/master-setting/hotel-type-master',
+        parentKey: 'master-setting',
+      },
+      {
+        key: 'master-hotel-category',
+        label: 'Hotel Category Master',
+        url: '/master-setting/hotel-category-master',
+        parentKey: 'master-setting',
+      },
+      {
+        key: 'master-tax',
+        label: 'Tax Master',
+        url: '/master-setting/tax-master',
+        parentKey: 'master-setting',
+      },
+      {
+        key: 'master-package',
+        label: 'Package Master',
+        url: '/master-setting/package-master',
+        parentKey: 'master-setting',
+      },
+       {
+        key: 'Nationality-master',
+        label: 'Nationality Master',
+        url: '/master-setting/Nationality-master',
+        parentKey: 'master-setting',
+      },
+       {
+        key: 'feature-master',
+        label: 'Feature Master',
+        url: '/master-setting/Feature-master',
+        parentKey: 'hotel-master',
+      },
+        {
+        key: 'fragment-master',
+        label: 'Fragment Master',
+        url: '/master-setting/Fragment-master',
+        parentKey: 'hotel-master',
+      },
+        {
+        key: 'travel-agent-master',
+        label: 'Travel Agent Master',
+        url: '/master-setting/Travel-Agent-master',
+        parentKey: 'hotel-master',
+      },
+      
+    ],
+  },
+
+   {
+    key: 'hotel-master',
+    label: 'Hotel Master',
+    isTitle: false,
+    icon: 'fi fi-rr-settings-sliders',
+    children: [
+      {
+        key: 'hotel-master',
+        label: 'Floor Master',
+        url: '/hotel-master/Floor-master',
+        parentKey: 'hotel-master',
+      },
+       {
+        key: 'block-master',
+        label: 'Block Master',
+        url: '/hotel-master/Block-master',
+        parentKey: 'hotel-master',
+      },
+       {
+        key: 'category-master',
+        label: 'Category Master',
+        url: '/hotel-master/Category-master',
+        parentKey: 'hotel-master',
+      },
+
+      {
+        key: 'BillSetting',
+        label: 'Bill Setting Master',
+        url: '/hotel-master/BillSetting',
+        parentKey: 'hotel-master',
+      },
+     
+       {
+        key: 'InventoryMaster',
+        label: 'InventoryMaster',
+        url: '/hotel-master/Inventorymaster',
+        parentKey: 'hotel-master',
+      },
+       {
+        key: 'room-master',
+        label: 'Room Master',
+        url: '/hotel-master/Room-master',
+        parentKey: 'hotel-master',
+      },
+       {
+        key: 'company-master',
+        label: 'Company Master',
+        url: '/hotel-master/Company-master',
+        parentKey: 'hotel-master',
+      },
+        {
+        key: 'Guest-master',
+        label: 'Guest Master',
+        url: '/hotel-master/Guest-master',
+        parentKey: 'hotel-master',
+      },
+         {
+        key: 'Complimentary-master',
+        label: 'Complimentary Master',
+        url: '/hotel-master/Complimentary-master',
+        parentKey: 'hotel-master',
+      },
+          {
+        key: 'HotelBookingPanel',
+        label: 'HotelBooking Panel',
+        url: '/hotel-master/HotelBookingPanel',
+        parentKey: 'hotel-master',
+      }
+
+      
+    ],
+  },
+
+  {
+    key: 'registration',
+    label: 'Registration Hotels/Users',
+    isTitle: false,
+    icon: 'fi fi-rr-building',
+    children: [
+      {
+        key: 'registration-hotels-users',
+        label: 'Registration Hotels/Users',
+        url: '/registration/hotels-users',
+        parentKey: 'registration',
+      },
+    ],
+  },
+
   
   // {
   //   key: 'OrderDetails',
