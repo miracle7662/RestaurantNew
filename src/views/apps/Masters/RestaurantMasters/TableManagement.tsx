@@ -27,7 +27,7 @@ interface TableItem {
   outletid: number | string;
   hotelid: number | string;
   marketid: string;
-  status: number; // Changed to number to match backend expectation
+  status: number; // Changed to number to match backend expectation (0 = Active, 11 = Inactive)
   created_by_id: string;
   created_date: string;
   updated_by_id: string;
@@ -56,9 +56,9 @@ interface DepartmentItem {
   // Other fields as needed
 }
 
-// Status badge for table
+// Status badge for table (0 = Active, 11 = Inactive)
 const getStatusBadge = (status: number) => {
-  return status === 1 ? (
+  return status === 0 ? (
     <span className="badge bg-success">Active</span>
   ) : (
     <span className="badge bg-danger">Inactive</span>
@@ -333,7 +333,7 @@ const TableManagement: React.FC = () => {
       if (tableItem) {
         setTableName(tableItem.table_name);
         setOutletId(tableItem.outletid ? Number(tableItem.outletid) : null);
-        setStatus(tableItem.status === 1 ? 'Active' : 'Inactive');
+        setStatus(tableItem.status === 0 ? 'Active' : 'Inactive'); // Changed: 0 = Active
         setSelectedBrand(tableItem.hotelid ? Number(tableItem.hotelid) : null);
         setDepartmentId(tableItem.departmentid ? Number(tableItem.departmentid) : null);
       } else {
@@ -357,7 +357,7 @@ const TableManagement: React.FC = () => {
 
       setLoading(true);
       try {
-        const statusValue = status === 'Active' ? 1 : 11;
+        const statusValue = status === 'Active' ? 0 : 11; // Changed: Active = 0, Inactive = 11
         const payload = {
           table_name,
           outletid: outletid.toString(),
@@ -393,19 +393,21 @@ const TableManagement: React.FC = () => {
             onUpdateSelectedTable(updatedTable);
           } else {
             await TableManagementService.create(payload);
-            // IMPORTANT: do not close modal after save (add)
           }
           toast.success(`Table ${tableItem ? 'updated' : 'added'} successfully`);
+          // Reset form fields
           setTableName('');
           setOutletId(null);
           setStatus('Active');
           setSelectedBrand(null);
           setDepartmentId(null);
+          // Refresh data and close modal
           onSuccess();
           // IMPORTANT: do not close modal after save
           if (tableItem) {
             onHide();
           }
+          onHide(); // Close modal after successful save
         } catch (err: any) {
           toast.error(err.response?.data?.message || `Failed to ${tableItem ? 'update' : 'add'} table`);
         }
