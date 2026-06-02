@@ -69,7 +69,6 @@ const billingTransferRoutes = require('./routes/billingTransferRoutes');
 
 /* ───────── Hotel Booking Routes Import (MODULAR) ───────── */
 
-const healthRoutes = require('./modules/hotelbooking/routes/healthRoutes');
 
 const subscriptionPlanRoutes = require('./modules/hotelbooking/routes/subscriptionPlanRoutes');
 const taxRoutes = require('./modules/hotelbooking/routes/taxRoutes');
@@ -214,7 +213,6 @@ app.use('/api/post-charges', postChargesRoutes);
 app.use('/api/advance-transactions', advanceTransactionRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/guest-history', guestHistoryRoutes);
-app.use('/api', healthRoutes);
 
 app.get("/get-server-ip", (req, res) => {
   const interfaces = os.networkInterfaces();
