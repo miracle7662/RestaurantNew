@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
@@ -7,7 +7,7 @@ import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '@/common';
 import {
   useReactTable,
-  getCoreRowModel,          
+  getCoreRowModel,
   getFilteredRowModel,
   ColumnDef,
   flexRender,
@@ -27,7 +27,7 @@ interface TableItem {
   outletid: number | string;
   hotelid: number | string;
   marketid: string;
-  status: number; // Changed to number to match backend expectation (0 = Active, 11 = Inactive)
+  status: number;
   created_by_id: string;
   created_date: string;
   updated_by_id: string;
@@ -35,8 +35,8 @@ interface TableItem {
   hotel_details?: string;
   outlet_details?: string;
   market_details?: string;
-  departmentid?: number | string; // Added for department
-  department_name?: string; // Added for department name
+  departmentid?: number | string;
+  department_name?: string;
 }
 
 // TableModal Props
@@ -46,6 +46,7 @@ interface TableModalProps {
   tableItem: TableItem | null;
   onSuccess: () => void;
   onUpdateSelectedTable: (tableItem: TableItem) => void;
+  user: any;
 }
 
 // DepartmentItem interface
@@ -53,7 +54,6 @@ interface DepartmentItem {
   departmentid: number;
   department_name: string;
   outletid: number;
-  // Other fields as needed
 }
 
 // Status badge for table (0 = Active, 11 = Inactive)
@@ -74,7 +74,252 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
   };
 };
 
-// Main TableManagement Component
+// ─── TableModal defined OUTSIDE parent to prevent state reset on re-render ───
+const TableModal: React.FC<TableModalProps> = ({
+  show,
+  onHide,
+  tableItem,
+  onSuccess,
+  onUpdateSelectedTable,
+  user,
+}) => {
+  const [table_name, setTableName] = useState<string>('');
+  const [outletid, setOutletId] = useState<number | null>(null);
+  const [status, setStatus] = useState<string>('Active');
+  const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [outlets, setOutlets] = useState<OutletData[]>([]);
+  const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
+  const [departments, setDepartments] = useState<DepartmentItem[]>([]);
+  const [departmentid, setDepartmentId] = useState<number | null>(null);
+
+  // Track whether modal just opened in edit mode
+  const prevTableItemId = useRef<string | null>(null);
+
+  const fetchDepartments = async () => {
+    try {
+      const data = await TableDepartmentService.list();
+      setDepartments(data.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to fetch departments');
+    }
+  };
+
+  useEffect(() => {
+    fetchDepartments();
+    fetchOutletsForDropdown(user, setOutlets, setLoading);
+    fetchBrands(user, setBrands);
+  }, [user]);
+
+  // Jab modal khule tab hi fields set karo
+  useEffect(() => {
+    if (show) {
+      if (tableItem) {
+        // Edit mode: tableItem ki values set karo (sirf jab tableItem badla ho)
+        if (prevTableItemId.current !== tableItem.tableid) {
+          setTableName(tableItem.table_name);
+          setOutletId(tableItem.outletid ? Number(tableItem.outletid) : null);
+          setStatus(tableItem.status === 0 ? 'Active' : 'Inactive');
+          setSelectedBrand(tableItem.hotelid ? Number(tableItem.hotelid) : null);
+          setDepartmentId(tableItem.departmentid ? Number(tableItem.departmentid) : null);
+          prevTableItemId.current = tableItem.tableid;
+        }
+      } else {
+        // Add mode: sirf table_name clear karo, baaki fields jaise hain
+        setTableName('');
+        prevTableItemId.current = null;
+      }
+    }
+  }, [show, tableItem]);
+
+  const filteredDepartments = departments.filter(d => Number(d.outletid) === outletid);
+
+  const handleSave = async () => {
+    if (!table_name || !selectedBrand || !outletid || !departmentid) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const statusValue = status === 'Active' ? 0 : 11;
+      const payload = {
+        table_name,
+        outletid: outletid.toString(),
+        hotelid: selectedBrand.toString(),
+        departmentid: departmentid.toString(),
+        marketid: tableItem?.marketid || '1',
+        status: statusValue,
+        ...(tableItem
+          ? {
+              updated_by_id: user?.id || '2',
+              updated_date: new Date().toISOString(),
+            }
+          : {
+              created_by_id: user?.id || '1',
+              created_date: new Date().toISOString(),
+            }),
+      };
+
+      try {
+        if (tableItem) {
+          await TableManagementService.update(Number(tableItem.tableid), payload);
+          const updatedTable: TableItem = {
+            ...tableItem,
+            table_name,
+            outletid: outletid.toString(),
+            hotelid: selectedBrand.toString(),
+            departmentid: departmentid.toString(),
+            status: statusValue,
+            updated_by_id: user?.id || '2',
+            updated_date: new Date().toISOString(),
+            marketid: tableItem.marketid || '1',
+          };
+          onUpdateSelectedTable(updatedTable);
+        } else {
+          await TableManagementService.create(payload);
+        }
+        toast.success(`Table ${tableItem ? 'updated' : 'added'} successfully`);
+        onSuccess();
+        if (tableItem) {
+          // Edit mode: modal band karo
+          onHide();
+        } else {
+          // Add mode: sirf Table Name clear karo, baaki fields rahein
+          setTableName('');
+        }
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || `Failed to ${tableItem ? 'update' : 'add'} table`);
+      }
+    } catch (err) {
+      toast.error('Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!show) return null;
+
+  return (
+    <div
+      className="modal"
+      style={{
+        display: 'block',
+        background: 'rgba(0,0,0,0.5)',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 1050,
+      }}
+    >
+      <div
+        className="modal-content"
+        style={{
+          background: 'white',
+          padding: '20px',
+          maxWidth: '500px',
+          margin: '100px auto',
+          borderRadius: '8px',
+        }}
+      >
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h3 className="mb-0">{tableItem ? 'Edit Table' : 'Add New Table'}</h3>
+          <button className="btn btn-sm btn-close" onClick={onHide}></button>
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Table Name <span style={{ color: 'red' }}>*</span></label>
+          <input
+            type="text"
+            className="form-control"
+            value={table_name}
+            onChange={(e) => setTableName(e.target.value)}
+            placeholder="e.g., Conference, 106, R15"
+            disabled={loading}
+          />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Hotel Name <span style={{ color: 'red' }}>*</span></label>
+          <select
+            className="form-control"
+            value={selectedBrand || ''}
+            onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
+            disabled={loading}
+          >
+            <option value="">Select Hotel</option>
+            {brands.map((brand) => (
+              <option key={brand.hotelid} value={brand.hotelid}>
+                {brand.hotel_name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Outlet Name <span style={{ color: 'red' }}>*</span></label>
+          <select
+            className="form-control"
+            value={outletid || ''}
+            onChange={(e) => setOutletId(e.target.value ? Number(e.target.value) : null)}
+            disabled={loading}
+          >
+            <option value="">Select Outlet</option>
+            {outlets.map((outlet) => (
+              <option key={outlet.outletid} value={outlet.outletid}>
+                {outlet.outlet_name} ({outlet.outlet_code})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Department Name <span style={{ color: 'red' }}>*</span></label>
+          <select
+            className="form-control"
+            value={departmentid || ''}
+            onChange={(e) => setDepartmentId(e.target.value ? Number(e.target.value) : null)}
+            disabled={loading || !outletid}
+          >
+            <option value="">Select Department</option>
+            {filteredDepartments.map((department) => (
+              <option key={department.departmentid} value={department.departmentid}>
+                {department.department_name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
+          <select
+            className="form-control"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+        <div className="d-flex justify-content-end">
+          <button
+            className="btn btn-outline-secondary me-2"
+            onClick={onHide}
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleSave}
+            disabled={loading}
+          >
+            {loading ? 'Saving...' : tableItem ? 'Save' : 'Add'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main TableManagement Component ───
 const TableManagement: React.FC = () => {
   const [tableItems, setTableItems] = useState<TableItem[]>([]);
   const [filteredTableItems, setFilteredTableItems] = useState<TableItem[]>([]);
@@ -102,7 +347,7 @@ const TableManagement: React.FC = () => {
   const fetchTableManagement = async (search: string = '', hotelId?: number, outletId?: number) => {
     setLoading(true);
     try {
-      const data = await TableManagementService.list({ 
+      const data = await TableManagementService.list({
         search,
         hotelid: hotelId,
         outletid: outletId
@@ -110,7 +355,7 @@ const TableManagement: React.FC = () => {
       const formattedData = data.data.map((item: any) => ({
         ...item,
         status: Number(item.status),
-        department_name: item.department_name || '', // Ensure department_name is included
+        department_name: item.department_name || '',
       }));
       setTableItems(formattedData);
       setFilteredTableItems(formattedData);
@@ -129,7 +374,7 @@ const TableManagement: React.FC = () => {
     }
     fetchBrands(user, setBrands);
     fetchOutletsForDropdown(user, setOutlets, setLoading);
-    fetchDepartments(); // Fetch departments on component mount
+    fetchDepartments();
   }, [user]);
 
   // Define table columns
@@ -228,7 +473,6 @@ const TableManagement: React.FC = () => {
       },
     ],
     [outlets, brands, departments]
-    
   );
 
   // Initialize react-table
@@ -254,12 +498,10 @@ const TableManagement: React.FC = () => {
     setSelectedOutletId(outletId);
     let filtered = [...tableItems];
 
-    // Apply outlet filter
     if (outletId !== null && outletId !== undefined) {
       filtered = filtered.filter((item) => Number(item.outletid) === outletId);
     }
 
-    // Apply search term filter if any
     if (searchTerm) {
       filtered = filtered.filter((item) =>
         (item.table_name && item.table_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -272,13 +514,13 @@ const TableManagement: React.FC = () => {
   };
 
   // Handle edit button click
-  const handleEditClick = (table: TableItem) => {
-    setSelectedTable(table);
+  const handleEditClick = (tableRow: TableItem) => {
+    setSelectedTable(tableRow);
     setShowTableModal(true);
   };
 
   // Handle delete operation
-  const handleDeleteTable = async (table: TableItem) => {
+  const handleDeleteTable = async (tableRow: TableItem) => {
     const res = await Swal.fire({
       title: 'Are you sure?',
       text: 'This will delete the table permanently!',
@@ -290,7 +532,7 @@ const TableManagement: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await TableManagementService.remove(Number(table.tableid));
+        await TableManagementService.remove(Number(tableRow.tableid));
         toast.success('Table deleted successfully');
         fetchTableManagement(searchTerm, user?.hotelid ? Number(user.hotelid) : undefined);
         setSelectedTable(null);
@@ -298,244 +540,6 @@ const TableManagement: React.FC = () => {
         toast.error(err.response?.data?.message || 'Failed to delete table');
       }
     }
-  };
-
-  // TableModal Component (Combined Add/Edit Modal)
-  const TableModal: React.FC<TableModalProps> = ({
-    show,
-    onHide,
-    tableItem,
-    onSuccess,
-    onUpdateSelectedTable,
-  }) => {
-    const [table_name, setTableName] = useState<string>('');
-    const [outletid, setOutletId] = useState<number | null>(null);
-    const [status, setStatus] = useState<string>('Active');
-    const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
-    const [outlets, setOutlets] = useState<OutletData[]>([]);
-    const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
-    const [departments, setDepartments] = useState<DepartmentItem[]>([]);
-    const [departmentid, setDepartmentId] = useState<number | null>(null);
-    const { user } = useAuthContext();
-
-    const fetchDepartments = async () => {
-      try {
-        const data = await TableDepartmentService.list();
-        setDepartments(data.data);
-      } catch (err: any) {
-        toast.error(err.response?.data?.message || 'Failed to fetch departments');
-      }
-    };
-
-    useEffect(() => {
-      fetchDepartments();
-      if (tableItem) {
-        setTableName(tableItem.table_name);
-        setOutletId(tableItem.outletid ? Number(tableItem.outletid) : null);
-        setStatus(tableItem.status === 0 ? 'Active' : 'Inactive'); // Changed: 0 = Active
-        setSelectedBrand(tableItem.hotelid ? Number(tableItem.hotelid) : null);
-        setDepartmentId(tableItem.departmentid ? Number(tableItem.departmentid) : null);
-      } else {
-        setTableName('');
-        setOutletId(null);
-        setStatus('Active');
-        setSelectedBrand(null);
-        setDepartmentId(null);
-      }
-      fetchOutletsForDropdown(user, setOutlets, setLoading);
-      fetchBrands(user, setBrands);
-    }, [tableItem, user]);
-
-    const filteredDepartments = departments.filter(d => Number(d.outletid) === outletid);
-
-    const handleSave = async () => {
-      if (!table_name || !selectedBrand || !outletid || !departmentid) {
-        toast.error('Please fill all required fields');
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const statusValue = status === 'Active' ? 0 : 11; // Changed: Active = 0, Inactive = 11
-        const payload = {
-          table_name,
-          outletid: outletid.toString(),
-          hotelid: selectedBrand.toString(),
-          departmentid: departmentid.toString(),
-          marketid: tableItem?.marketid || '1',
-          status: statusValue,
-          ...(tableItem
-            ? {
-                updated_by_id: user?.id || '2',
-                updated_date: new Date().toISOString(),
-              }
-            : {
-                created_by_id: user?.id || '1',
-                created_date: new Date().toISOString(),
-              }),
-        };
-
-        try {
-          if (tableItem) {
-            await TableManagementService.update(Number(tableItem.tableid), payload);
-            const updatedTable: TableItem = {
-              ...tableItem,
-              table_name,
-              outletid: outletid.toString(),
-              hotelid: selectedBrand.toString(),
-              departmentid: departmentid.toString(),
-              status: statusValue,
-              updated_by_id: user?.id || '2',
-              updated_date: new Date().toISOString(),
-              marketid: tableItem.marketid || '1',
-            };
-            onUpdateSelectedTable(updatedTable);
-          } else {
-            await TableManagementService.create(payload);
-          }
-          toast.success(`Table ${tableItem ? 'updated' : 'added'} successfully`);
-          // Reset form fields
-          setTableName('');
-          setOutletId(null);
-          setStatus('Active');
-          setSelectedBrand(null);
-          setDepartmentId(null);
-          // Refresh data and close modal
-          onSuccess();
-          // IMPORTANT: do not close modal after save
-          if (tableItem) {
-            onHide();
-          }
-        } catch (err: any) {
-          toast.error(err.response?.data?.message || `Failed to ${tableItem ? 'update' : 'add'} table`);
-        }
-      } catch (err) {
-        toast.error('Something went wrong');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (!show) return null;
-
-    return (
-      <div
-        className="modal"
-        style={{
-          display: 'block',
-          background: 'rgba(0,0,0,0.5)',
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 1050,
-        }}
-      >
-        <div
-          className="modal-content"
-          style={{
-            background: 'white',
-            padding: '20px',
-            maxWidth: '500px',
-            margin: '100px auto',
-            borderRadius: '8px',
-          }}
-        >
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h3 className="mb-0">{tableItem ? 'Edit Table' : 'Add New Table'}</h3>
-            <button className="btn btn-sm btn-close" onClick={onHide}></button>
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Table Name <span style={{ color: 'red' }}>*</span></label>
-            <input
-              type="text"
-              className="form-control"
-              value={table_name}
-              onChange={(e) => setTableName(e.target.value)}
-              placeholder="e.g., Conference, 106, R15"
-              disabled={loading}
-            />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Hotel Name <span style={{ color: 'red' }}>*</span></label>
-            <select
-              className="form-control"
-              value={selectedBrand || ''}
-              onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
-              disabled={loading}
-            >
-              <option value="">Select Hotel</option>
-              {brands.map((brand) => (
-                <option key={brand.hotelid} value={brand.hotelid}>
-                  {brand.hotel_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Outlet Name <span style={{ color: 'red' }}>*</span></label>
-            <select
-              className="form-control"
-              value={outletid || ''}
-              onChange={(e) => setOutletId(e.target.value ? Number(e.target.value) : null)}
-              disabled={loading}
-            >
-              <option value="">Select Outlet</option>
-              {outlets.map((outlet) => (
-                <option key={outlet.outletid} value={outlet.outletid}>
-                  {outlet.outlet_name} ({outlet.outlet_code})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Department Name <span style={{ color: 'red' }}>*</span></label>
-            <select
-              className="form-control"
-              value={departmentid || ''}
-              onChange={(e) => setDepartmentId(e.target.value ? Number(e.target.value) : null)}
-              disabled={loading || !outletid}
-            >
-              <option value="">Select Department</option>
-              {filteredDepartments.map((department) => (
-                <option key={department.departmentid} value={department.departmentid}>
-                  {department.department_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-            <select
-              className="form-control"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
-          <div className="d-flex justify-content-end">
-            <button
-              className="btn btn-outline-secondary me-2"
-              onClick={onHide}
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={handleSave}
-              disabled={loading}
-            >
-              {loading ? 'Saving...' : tableItem ? 'Save' : 'Add'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -588,7 +592,7 @@ const TableManagement: React.FC = () => {
                 <Preloader />
               </Stack>
             ) : (
-              <div style={{  overflowY: 'auto', width: '100%' }}>
+              <div style={{ overflowY: 'auto', width: '100%' }}>
                 <Table responsive className="mb-0" style={{ tableLayout: 'auto', width: '100%' }}>
                   <thead>
                     {table.getHeaderGroups().map((headerGroup) => (
@@ -647,6 +651,7 @@ const TableManagement: React.FC = () => {
         tableItem={selectedTable}
         onSuccess={() => fetchTableManagement(searchTerm, user?.hotelid ? Number(user.hotelid) : undefined)}
         onUpdateSelectedTable={setSelectedTable}
+        user={user}
       />
     </>
   );
