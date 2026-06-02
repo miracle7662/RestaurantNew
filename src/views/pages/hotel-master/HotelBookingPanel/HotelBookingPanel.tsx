@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Row, Col, Form, Button, Modal, Offcanvas, Dropdown, Tab, Tabs } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
-import  TitleHelmet  from '@/components/Common/TitleHelmet'
+import TitleHelmet from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
 import RoomService from '@/common/hotel/room'
 import RoomCategoryService from '@/common/hotel/roomCategoryService'
@@ -28,7 +28,7 @@ import ReceiptAgainstBillsModal from './ReceiptAgainstBillsModal'
 import Advance from './Advance'
 import RoomStatusModal from './RoomStatusModal'
 import RoomStatusLogService, { RoomStatusLog } from '@/common/hotel/roomStatusLog'
-import ReturnItemsModal from './ReturnItemsModal'
+
 
 // Extend HotelUiSettings to include all color fields
 type ExtendedHotelSettings = HotelUiSettings & {
@@ -394,11 +394,12 @@ const calculateDayExtensionPriceForItem = (
   }
 }
 
+
 // ==================== MAIN COMPONENT ====================
 const HotelBookingPanel = () => {
   const navigate = useNavigate()
   const { user } = useAuthContext()
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
 
   const [rooms, setRooms] = useState<any[]>([])
   const [categories, setCategories] = useState<ApiCategory[]>([])
@@ -420,7 +421,7 @@ const HotelBookingPanel = () => {
   const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([])
 
   const [uiSettings, setUiSettings] = useState<ExtendedHotelSettings>({
-    hotel_id: hotelId || 0,
+    hotelid: hotelId || 0,
     show_left_category: true,
     show_room_text: true,
     room_box_size: 2,
@@ -459,8 +460,7 @@ const HotelBookingPanel = () => {
   const [loadingCheckoutAlert, setLoadingCheckoutAlert] = useState(false)
   const [errorCheckoutAlert, setErrorCheckoutAlert] = useState<string | null>(null)
 
-  // Settlement sub-tab: 'checkin' = occupied room cards | 'checkedout' = checkout records cards
-  const [settlementSubTab, setSettlementSubTab] = useState<'checkin' | 'checkedout'>('checkin')
+
   const [checkoutData, setCheckoutData] = useState<CheckoutMaster[]>([])
   const [loadingCheckoutData, setLoadingCheckoutData] = useState(false)
   const [checkoutPaymentMap, setCheckoutPaymentMap] = useState<Map<number, string>>(new Map())
@@ -539,14 +539,6 @@ const HotelBookingPanel = () => {
   const [showAdvanceModal, setShowAdvanceModal] = useState(false)
   const [selectedOccupiedItem, setSelectedOccupiedItem] = useState<OccupiedRoomItem | null>(null)
 
-  // ==================== RETURN ITEMS MODAL STATE ====================
-  const [showReturnModal, setShowReturnModal] = useState(false)
-  const [selectedCheckinForReturn, setSelectedCheckinForReturn] = useState<{
-    checkin_id: number
-    room_id: number
-    room_no: string
-    guest_name: string
-  } | null>(null)
 
   // ==================== ROOM STATUS MODAL STATE ====================
   const [showRoomStatusModal, setShowRoomStatusModal] = useState(false)
@@ -574,10 +566,7 @@ const HotelBookingPanel = () => {
   const blockScrollRef = useRef<HTMLDivElement | null>(null)
   const maintScrollRef = useRef<HTMLDivElement | null>(null)
 
-  // Fixed scroll function with proper type checking
-  const scrollHKSection = (ref: React.RefObject<HTMLDivElement | null>, dir: 'left' | 'right') => {
-    if (ref.current) ref.current.scrollBy({ left: dir === 'left' ? -280 : 280, behavior: 'smooth' })
-  }
+
 
   // Context menu options
   const contextMenuOptions: ContextMenuOption[] = [
@@ -586,7 +575,6 @@ const HotelBookingPanel = () => {
     { label: 'Post Charges', icon: 'fi fi-rr-credit-card' },
     { label: 'Allowances', icon: 'fi fi-rr-gift' },
     { label: 'Receipt Against Posted Bills', icon: 'fi fi-rr-document' },
-    { label: 'Return Items', icon: 'fi fi-rr-receipt' },
   ]
 
   // ==================== DYNAMIC COLOR HELPER FUNCTIONS ====================
@@ -868,8 +856,10 @@ const HotelBookingPanel = () => {
                   if (t.status === 'active') globalCredits += Number(t.credit_amount) || 0
                 } else if (
                   t.transaction_type === 'Advance Posting' ||
-                  t.transaction_type === 'Advance Refund' ||
-                  t.transaction_type === 'Advance Cancel'
+                  t.transaction_type === 'Advance Refund'
+                  // NOTE: 'Advance Cancel' excluded — original receipt is already
+                  // status='cancelled' so its credit is not counted. Adding cancel
+                  // debit here would double-penalise the balance.
                 ) {
                   if (t.status === 'active') globalDebits += Number(t.debit_amount) || 0
                 }
@@ -888,8 +878,8 @@ const HotelBookingPanel = () => {
                 }
               } else if (
                 t.transaction_type === 'Advance Posting' ||
-                t.transaction_type === 'Advance Refund' ||
-                t.transaction_type === 'Advance Cancel'
+                t.transaction_type === 'Advance Refund'
+                // NOTE: 'Advance Cancel' excluded — same reason as above
               ) {
                 if (t.status === 'active') {
                   roomDebits.set(
@@ -1245,10 +1235,12 @@ const HotelBookingPanel = () => {
               const isCredit =
                 t.transaction_type === 'Booking Receipt' ||
                 t.transaction_type === 'Advance Addition'
+              // NOTE: 'Advance Cancel' excluded — cancelled receipts are already
+              // status='cancelled' so their credit is not counted. Adding cancel
+              // debit here would double-penalise the balance.
               const isDebit =
                 t.transaction_type === 'Advance Posting' ||
-                t.transaction_type === 'Advance Refund' ||
-                t.transaction_type === 'Advance Cancel'
+                t.transaction_type === 'Advance Refund'
               if (t.status !== 'active') return
               if (!rid) {
                 if (isCredit) globalCredits += Number(t.credit_amount) || 0
@@ -1523,7 +1515,7 @@ const HotelBookingPanel = () => {
 
     await GuestFolioService.create({
       checkin_id: item.checkin_id,
-      hotel_id: hotelIdVal,
+      hotelid: hotelIdVal,
       detail_id: newDetailId,
       transaction_type: 'Room Charge',
       transaction_datetime: nowStr,
@@ -1963,7 +1955,7 @@ const HotelBookingPanel = () => {
     setSavingSettings(true)
     try {
       const payload = {
-        hotel_id: hotelId,
+        hotelid: hotelId,
         show_left_category: uiSettings.show_left_category,
         show_room_text: uiSettings.show_room_text,
         room_box_size: uiSettings.room_box_size,
@@ -2269,43 +2261,49 @@ const HotelBookingPanel = () => {
     }
   }
 
-  const fetchCheckoutData = async () => {
-    if (!hotelId) return
-    setLoadingCheckoutData(true)
-    try {
-      const res = await CheckoutService.list({ hotelid: hotelId })
-      const data: CheckoutMaster[] = res.data || []
-      // Sort newest checkout first
-      data.sort((a: CheckoutMaster, b: CheckoutMaster) =>
-        new Date(b.checkout_date || b.checkout_datetime || 0).getTime() -
-        new Date(a.checkout_date || a.checkout_datetime || 0).getTime()
-      )
-      setCheckoutData(data)
+const fetchCheckoutData = async () => {
+  if (!hotelId) return
+  setLoadingCheckoutData(true)
+  try {
+    const res = await CheckoutService.list({ hotelid: hotelId })
+    const data: CheckoutMaster[] = res.data || []
+    // Sort newest checkout first
+    data.sort((a: CheckoutMaster, b: CheckoutMaster) =>
+      new Date(b.checkout_date || b.checkout_datetime || 0).getTime() -
+      new Date(a.checkout_date || a.checkout_datetime || 0).getTime()
+    )
+    setCheckoutData(data)
 
-      // Fetch payment_method for each checkout from Checkout_Payment_Master
-      const payMap = new Map<number, string>()
-      await Promise.all(
-        data.map(async (co) => {
-          try {
-            const payRes = await CheckoutPaymentService.getByCheckoutId(co.checkout_id)
-            const payments = payRes.data || []
-            if (Array.isArray(payments) && payments.length > 0) {
-              payMap.set(co.checkout_id, payments[0].payment_method || 'Cash')
-            } else if (payments && !Array.isArray(payments)) {
-              payMap.set(co.checkout_id, (payments as any).payment_method || 'Cash')
-            }
-          } catch {
-            // payment fetch failed for this checkout — leave as undefined
+    // Fetch payment_method AND invoice_no for each checkout from Checkout_Payment_Master
+    const payMap = new Map<number, string>() // store "payment_method|invoice_no"
+    await Promise.all(
+      data.map(async (co) => {
+        try {
+          const payRes = await CheckoutPaymentService.getByCheckoutId(co.checkout_id)
+          const payments = payRes.data || []
+          if (Array.isArray(payments) && payments.length > 0) {
+            const payment = payments[0]
+            const paymentMethod = payment.payment_method || 'Cash'
+            const invoiceNo = payment.invoice_no || '-'
+            payMap.set(co.checkout_id, `${paymentMethod}|${invoiceNo}`)
+          } else if (payments && !Array.isArray(payments)) {
+            const payment = payments as any
+            const paymentMethod = payment.payment_method || 'Cash'
+            const invoiceNo = payment.invoice_no || '-'
+            payMap.set(co.checkout_id, `${paymentMethod}|${invoiceNo}`)
           }
-        })
-      )
-      setCheckoutPaymentMap(new Map(payMap))
-    } catch (err) {
-      console.error('Failed to fetch checkout data', err)
-    } finally {
-      setLoadingCheckoutData(false)
-    }
+        } catch {
+          // payment fetch failed for this checkout — leave as undefined
+        }
+      })
+    )
+    setCheckoutPaymentMap(new Map(payMap))
+  } catch (err) {
+    console.error('Failed to fetch checkout data', err)
+  } finally {
+    setLoadingCheckoutData(false)
   }
+}
 
   const handleReservSectionClick = () => {
     if (showReservSection) {
@@ -2666,7 +2664,7 @@ const HotelBookingPanel = () => {
       wrapper.appendChild(headerDiv)
       const tableClone = table.cloneNode(true) as HTMLElement
       tableClone.querySelectorAll('thead tr, tfoot tr').forEach((el) => {
-        (el as HTMLElement).style.position = 'static'
+        ;(el as HTMLElement).style.position = 'static'
       })
       wrapper.appendChild(tableClone)
       document.body.appendChild(wrapper)
@@ -4160,225 +4158,214 @@ const HotelBookingPanel = () => {
             ) : showSettlementSection ? (
               /* ==================== SETTLEMENT SECTION — CHECKED OUT CARDS ONLY ==================== */
               <div key="settlement-section" className="d-flex flex-column h-100" style={{ padding: '0px 8px', width: '100%' }}>
+  {/* ---- CHECKED OUT CARDS ---- */}
+  <>
+    {loadingCheckoutData ? (
+      <div className="d-flex justify-content-center py-5">
+        <div className="spinner-border text-success" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    ) : checkoutData.length === 0 ? (
+      <div className="text-center py-5">
+        <i className="fi fi-rr-sign-out-alt text-muted fs-4 mb-3 d-block"></i>
+        <p className="text-muted mb-0">No checkout records found.</p>
+      </div>
+    ) : (
+      <div
+        className="flex-grow-1"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+          gap: '6px',
+          alignContent: 'start',
+          overflowY: 'auto',
+        }}>
+        {checkoutData.map((co) => {
+          const totalAmt = Number(co.total_amount) || 0
+          const checkoutDateDisplay = co.checkout_datetime
+            ? formatDateTime(co.checkout_datetime)
+            : co.checkout_date
+              ? formatDateTime(co.checkout_date)
+              : '-'
+          const headerBg = '#198754' // green for checked-out
+          const isPartial = co.is_partial_checkout === 1
+          
+          // Get payment_method from Checkout_Payment_Master via checkoutPaymentMap
+          // Format: "payment_method|invoice_no"
+          const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
+          const payType = paymentData.split('|')[0] || 'Cash'
+          const invoiceNo = paymentData.split('|')[1] || '-'
 
-                {/* ---- CHECKED OUT CARDS ---- */}
-                <>
-                  {loadingCheckoutData ? (
-                    <div className="d-flex justify-content-center py-5">
-                      <div className="spinner-border text-success" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                      </div>
-                    </div>
-                  ) : checkoutData.length === 0 ? (
-                    <div className="text-center py-5">
-                      <i className="fi fi-rr-sign-out-alt text-muted fs-4 mb-3 d-block"></i>
-                      <p className="text-muted mb-0">No checkout records found.</p>
-                    </div>
-                  ) : (
-                    <div
-                      className="flex-grow-1"
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                        gap: '6px',
-                        alignContent: 'start',
-                        overflowY: 'auto',
-                      }}>
-                      {checkoutData.map((co) => {
-                        const totalAmt = Number(co.total_amount) || 0
-                        // ✅ Fix 2: Show planned checkout_datetime, not the audit checkout_date timestamp
-                        const checkoutDateDisplay = co.checkout_datetime
-                          ? formatDateTime(co.checkout_datetime)
-                          : co.checkout_date
-                            ? formatDateTime(co.checkout_date)
-                            : '-'
-                        const headerBg = '#198754' // green for checked-out
-                        const isPartial = co.is_partial_checkout === 1
-                        // ✅ Fix 1: Get payment_method from Checkout_Payment_Master via checkoutPaymentMap
-                        const payType =
-                          checkoutPaymentMap.get(co.checkout_id) ||
-                          (co as any).payment_method ||
-                          (co as any).payment_mode ||
-                          (co as any).pay_type ||
-                          '-'
-
-                          return (
-                            <div
-                              key={co.checkout_id}
-                              style={{
-                                borderRadius: 0,
-                                overflow: 'hidden',
-                                boxShadow: '0 2px 10px rgba(0,0,0,0.10)',
-                                border: `1.5px solid ${headerBg}30`,
-                                background: '#fff',
-                                cursor: 'default',
-                                transition: 'box-shadow 0.18s, transform 0.12s',
-                              }}
-                              onMouseEnter={(e) => {
-                                (e.currentTarget as HTMLElement).style.boxShadow =
-                                  '0 6px 22px rgba(0,0,0,0.16)'
-                                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-                              }}
-                              onMouseLeave={(e) => {
-                                (e.currentTarget as HTMLElement).style.boxShadow =
-                                  '0 2px 10px rgba(0,0,0,0.10)'
-                                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
-                              }}>
-                              {/* Card header */}
-                              <div
-                                style={{
-                                  background: headerBg,
-                                  padding: '1px 2px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                }}>
-                                <span
-                                  style={{
-                                    color: '#fff',
-                                    fontWeight: 700,
-                                    fontSize: '0.75rem',
-                                    letterSpacing: 0.5,
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                  }}>
-                                  Room {co.room_no}
-                                  {isPartial && (
-                                    <span style={{ fontSize: '0.6rem', marginLeft: 4, opacity: 0.85 }}>
-                                      (Partial)
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-
-                              {/* Card body */}
-                              <div
-                                style={{
-                                  padding: '8px 10px 10px',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: 5,
-                                }}>
-                                {/* Guest Name */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                  <span
-                                    style={{
-                                      width: 18,
-                                      height: 18,
-                                      borderRadius: '50%',
-                                      background: `${headerBg}18`,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      flexShrink: 0,
-                                    }}>
-                                    <i
-                                      className="fi fi-rr-user"
-                                      style={{ fontSize: '0.6rem', color: headerBg }}></i>
-                                  </span>
-                                  <div
-                                    style={{
-                                      fontWeight: 600,
-                                      fontSize: '0.68rem',
-                                      color: '#222',
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      minWidth: 0,
-                                    }}>
-                                    {co.guest_name || '-'}
-                                  </div>
-                                </div>
-
-                                <div style={{ height: 1, background: '#f0f0f0' }} />
-
-                                {/* Checkout Date */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                  <span
-                                    style={{
-                                      width: 18,
-                                      height: 18,
-                                      borderRadius: '50%',
-                                      background: '#f3f4f6',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      flexShrink: 0,
-                                    }}>
-                                    <i
-                                      className="fi fi-rr-sign-out-alt"
-                                      style={{ fontSize: '0.6rem', color: '#555' }}></i>
-                                  </span>
-                                  <div
-                                    style={{ fontWeight: 500, fontSize: '0.65rem', color: '#333', minWidth: 0 }}>
-                                    {checkoutDateDisplay}
-                                  </div>
-                                </div>
-
-                                {/* Pay Type + Total Amount */}
-                                <div
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: 8,
-                                    borderTop: '1px solid #f0f0f0',
-                                    paddingTop: 4,
-                                  }}>
-                                  <div
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 4,
-                                      minWidth: 0,
-                                    }}>
-                                    <span
-                                      style={{
-                                        width: 18,
-                                        height: 18,
-                                        borderRadius: '50%',
-                                        background: '#f3f4f6',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        flexShrink: 0,
-                                      }}>
-                                      <i
-                                        className="fi fi-rr-credit-card"
-                                        style={{ fontSize: '0.6rem', color: '#555' }}></i>
-                                    </span>
-                                    <div
-                                      style={{
-                                        fontWeight: 500,
-                                        fontSize: '0.68rem',
-                                        color: '#333',
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                      }}>
-                                      {payType}
-                                    </div>
-                                  </div>
-                                  <span
-                                    style={{
-                                      fontWeight: 700,
-                                      fontSize: '0.72rem',
-                                      color: '#198754',
-                                      letterSpacing: 0.2,
-                                      flexShrink: 0,
-                                    }}>
-                                    {formatAmount(totalAmt)}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </>
+          return (
+            <div
+              key={co.checkout_id}
+              style={{
+                borderRadius: 0,
+                overflow: 'hidden',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.10)',
+                border: `1.5px solid ${headerBg}30`,
+                background: '#fff',
+                cursor: 'default',
+                transition: 'box-shadow 0.18s, transform 0.12s',
+              }}
+              onMouseEnter={(e) => {
+                ;(e.currentTarget as HTMLElement).style.boxShadow = '0 6px 22px rgba(0,0,0,0.16)'
+                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
+              }}
+              onMouseLeave={(e) => {
+                ;(e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.10)'
+                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
+              }}>
+              {/* Card header - SHOW INVOICE NO instead of room number */}
+              <div
+                style={{
+                  background: headerBg,
+                  padding: '1px 2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                <span
+                  style={{
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    letterSpacing: 0.5,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
+                  Invoice No: {invoiceNo}
+                  {isPartial && (
+                    <span style={{ fontSize: '0.6rem', marginLeft: 4, opacity: 0.85 }}>
+                      (Partial)
+                    </span>
+                  )}
+                </span>
               </div>
+
+              {/* Card body - EXACT SAME as before, no changes */}
+              <div
+                style={{
+                  padding: '8px 10px 10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 5,
+                }}>
+                {/* Guest Name */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      background: `${headerBg}18`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                    <i className="fi fi-rr-user" style={{ fontSize: '0.6rem', color: headerBg }}></i>
+                  </span>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      fontSize: '0.68rem',
+                      color: '#222',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      minWidth: 0,
+                    }}>
+                    {co.guest_name || '-'}
+                  </div>
+                </div>
+
+                <div style={{ height: 1, background: '#f0f0f0' }} />
+
+                {/* Checkout Date */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      background: '#f3f4f6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                    <i className="fi fi-rr-sign-out-alt" style={{ fontSize: '0.6rem', color: '#555' }}></i>
+                  </span>
+                  <div
+                    style={{ fontWeight: 500, fontSize: '0.65rem', color: '#333', minWidth: 0 }}>
+                    {checkoutDateDisplay}
+                  </div>
+                </div>
+
+                {/* Pay Type + Total Amount */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    borderTop: '1px solid #f0f0f0',
+                    paddingTop: 4,
+                  }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      minWidth: 0,
+                    }}>
+                    <span
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: '50%',
+                        background: '#f3f4f6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                      <i className="fi fi-rr-credit-card" style={{ fontSize: '0.6rem', color: '#555' }}></i>
+                    </span>
+                    <div
+                      style={{
+                        fontWeight: 500,
+                        fontSize: '0.68rem',
+                        color: '#333',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                      {payType}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.72rem',
+                      color: '#198754',
+                      letterSpacing: 0.2,
+                      flexShrink: 0,
+                    }}>
+                    {formatAmount(totalAmt)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )}
+  </>
+</div>
             ) : showReservSection ? (
               /* ==================== RESERV SECTION ==================== */
               <div key="reserv-section" className="checkout-table-container d-flex flex-column h-100" style={{ width: '100%' }}>
@@ -5717,16 +5704,6 @@ const HotelBookingPanel = () => {
                   } else if (option.label === 'Receipt Against Posted Bills') {
                     setSelectedOccupiedItem(contextMenuItem)
                     setShowReceiptModal(true)
-                  } else if (option.label === 'Return Items') {
-                    if (contextMenuItem) {
-                      setSelectedCheckinForReturn({
-                        checkin_id: contextMenuItem.checkin_id,
-                        room_id: contextMenuItem.room_id || 0,
-                        room_no: contextMenuItem.room_no,
-                        guest_name: contextMenuItem.guest_name,
-                      })
-                      setShowReturnModal(true)
-                    }
                   }
                   closeContextMenu()
                 }}>
@@ -5803,28 +5780,6 @@ const HotelBookingPanel = () => {
             userId={user?.id}
             roomId={selectedOccupiedItem.room_id}
             onSuccess={() => {
-              fetchOccupiedRooms()
-              if (showAtGlanceTable) fetchAtGlanceData()
-            }}
-          />
-        )}
-
-        {/* Return Items Modal */}
-        {selectedCheckinForReturn && (
-          <ReturnItemsModal
-            show={showReturnModal}
-            onHide={() => {
-              setShowReturnModal(false)
-              setSelectedCheckinForReturn(null)
-            }}
-            checkinId={selectedCheckinForReturn.checkin_id}
-            roomId={selectedCheckinForReturn.room_id}
-            roomNo={selectedCheckinForReturn.room_no}
-            guestName={selectedCheckinForReturn.guest_name}
-            hotelId={hotelId || 0}
-            userId={user?.id}
-            onReturnComplete={(damageCharge) => {
-              toast.success(`Damage charge: ₹${damageCharge.toFixed(2)} added to bill`)
               fetchOccupiedRooms()
               if (showAtGlanceTable) fetchAtGlanceData()
             }}

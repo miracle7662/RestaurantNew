@@ -22,7 +22,7 @@ export interface GuestFolio {
 
 export interface GuestFolioPayload {
   checkin_id?: number;
-  hotel_id?: number;
+  hotelid?: number;
   detail_id?: number | null;
   transaction_type?: string;
   transaction_datetime?: string;

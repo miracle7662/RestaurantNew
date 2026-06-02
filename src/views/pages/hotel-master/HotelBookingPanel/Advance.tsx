@@ -214,7 +214,7 @@ const Advance = ({
     setIsLoadingData(true)
     try {
       const pmRes = await PaymentMethodService.list({ status: 1 })
-      const pmData = Array.isArray(pmRes) ? pmRes : pmRes?.data || []
+      let pmData = Array.isArray(pmRes) ? pmRes : pmRes?.data || []
       const mapped = pmData.map((pm: any) => ({
         id: pm.id || pm.payment_method_id,
         name: pm.name || pm.payment_method_name,
@@ -749,7 +749,7 @@ const Advance = ({
     setSaving(true)
     try {
       const payload = {
-        hotel_id: hotelId,
+        hotelid: hotelId,
         checkin_id: checkinId,
         detail_id: detailId || null,
         room_id: roomId || null,
@@ -851,7 +851,7 @@ const Advance = ({
     setSaving(true)
     try {
       const payload = {
-        hotel_id: hotelId,
+        hotelid: hotelId,
         checkin_id: checkinId,
         detail_id: detailId || null,
         room_id: roomId || null,
@@ -920,7 +920,7 @@ const Advance = ({
     setSaving(true)
     try {
       const payload = {
-        hotel_id: hotelId,
+        hotelid: hotelId,
         checkin_id: checkinId,
         detail_id: detailId || null,
         room_id: roomId || null,
@@ -977,7 +977,7 @@ const Advance = ({
     setSaving(true)
     try {
       const payload = {
-        hotel_id: hotelId,
+        hotelid: hotelId,
         checkin_id: checkinId,
         detail_id: detailId || null,
         room_id: roomId || null,
@@ -1078,7 +1078,7 @@ const Advance = ({
       }))
 
       const payload = {
-        hotel_id: hotelId,
+        hotelid: hotelId,
         checkin_id: checkinId,
         detail_id: detailId || null,
         room_id: roomId || null,

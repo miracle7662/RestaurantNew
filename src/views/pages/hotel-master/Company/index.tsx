@@ -69,7 +69,7 @@ const defaultForm: CompanyFormData = {
 
 const CompanyMaster = () => {
   const { user } = useAuthContext()
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
 
   const [companies, setCompanies] = useState<Company[]>([])
   const [search, setSearch] = useState('')

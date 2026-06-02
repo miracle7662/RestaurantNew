@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Row, Col, Button, Card, Tabs, Tab, Form, Nav, Modal } from 'react-bootstrap'
-import TitleHelmet  from '@/components/Common/TitleHelmet'
+import TitleHelmet from '@/components/Common/TitleHelmet'
 import toast from 'react-hot-toast'
 import { useAuthContext } from '@/common/context/useAuthContext'
 
@@ -15,6 +15,7 @@ import DetailService, { Detail } from '@/common/hotel/detail'
 import GuestFolioService, { GuestFolio } from '@/common/hotel/guestFolio'
 import GuestRoomChargesService, { GuestRoomCharge } from '@/common/hotel/guestRoomCharges'
 import CheckoutService from '@/common/hotel/checkout'
+import CheckoutPaymentService from '@/common/hotel/checkoutPayment'   // ← NEW: invoice_no support
 import BrandService from '@/common/hotel/brand'
 import RoomService from '@/common/hotel/room'
 import AdvanceTransactionService, { AdvanceTransaction } from '@/common/hotel/advanceTransaction'
@@ -48,12 +49,12 @@ interface ExtendedGuestRoomCharge extends GuestRoomCharge {
   cess_amount?: number
   service_charge_amount?: number
   tax_percent?: number
-  ex_pax_tax_percent: number
-  child_tax_percent: number
-  driver_tax_percent: number
-  ex_pax_tax: number // Fixed: Changed from number | undefined to number
-  child_tax: number // Fixed: Changed from number | undefined to number
-  driver_tax: number // Fixed: Changed from number | undefined to number
+  ex_pax_tax_percent: number | null
+  child_tax_percent: number | null
+  driver_tax_percent: number | null
+  ex_pax_tax: number | null
+  child_tax: number | null
+  driver_tax: number | null
   isPostCharge?: boolean
   postChargeDescription?: string
   postChargeParticulars?: string
@@ -323,7 +324,7 @@ const RoomDetailSummary = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuthContext()
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
 
   const [displayRows, setDisplayRows] = useState<DisplayDetailRow[]>([])
   const [combinedSummary, setCombinedSummary] = useState<CombinedGuestSummary | null>(null)
@@ -372,8 +373,7 @@ const RoomDetailSummary = () => {
   const [, setRoomNumberMap] = useState<Map<number, string>>(new Map())
   const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set())
   // transferredRooms is used for displaying transfer icons (commented out usage but kept for potential future use)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [transferredRooms, setTransferredRooms] = useState<Set<string>>(new Set())
+  const [, setTransferredRooms] = useState<Set<string>>(new Set())
 
   const { occupiedItem } = (location.state as any) || {}
   const checkinIdFromState = occupiedItem?.checkin_id
@@ -760,12 +760,7 @@ const RoomDetailSummary = () => {
               ? toNumber(charge.ex_pax_tax)
               : roundToTwo((exPaxPrice * exPaxTaxPercent) / 100)
             : 0
-        const exPaxTotal =
-          exPaxCount > 0
-            ? charge.ex_pax_total != null && charge.ex_pax_total !== undefined
-              ? toNumber(charge.ex_pax_total)
-              : roundToTwo(exPaxPrice + exPaxTax)
-            : 0
+        // exPaxTotal removed (unused variable)
 
         const childPaidCount = toNumber(charge.child_count) || 0
         const childUnpaidCount = toNumber(associatedDetail.child_unpaid) || 0
@@ -781,12 +776,7 @@ const RoomDetailSummary = () => {
               ? toNumber(charge.child_tax)
               : roundToTwo((childPrice * childTaxPercent) / 100)
             : 0
-        const childTotal =
-          childPaidCount > 0
-            ? charge.child_total != null && charge.child_total !== undefined
-              ? toNumber(charge.child_total)
-              : roundToTwo(childPrice + childTax)
-            : 0
+        // childTotal removed (unused variable)
 
         const driverCount = toNumber(charge.driver_count) || toNumber(associatedDetail.driver) || 0
         const driverPrice =
@@ -799,16 +789,9 @@ const RoomDetailSummary = () => {
               ? toNumber(charge.driver_tax)
               : roundToTwo((driverPrice * driverTaxPercent) / 100)
             : 0
-        const driverTotal =
-          driverCount > 0
-            ? charge.driver_total != null && charge.driver_total !== undefined
-              ? toNumber(charge.driver_total)
-              : roundToTwo(driverPrice + driverTax)
-            : 0
+        // driverTotal removed (unused variable)
 
-        const totalAmount =
-          toNumber(charge.total_amount) ||
-          roundToTwo(roomTariffAfterDiscount + paxTaxFromDB + exPaxTotal + childTotal + driverTotal)
+        // _totalAmount removed (unused variable)
 
         const billDateFormatted = charge.checkin_datetime
           ? formatBillDate(charge.checkin_datetime)
@@ -1037,6 +1020,8 @@ const RoomDetailSummary = () => {
 
         // Build advance rows for 'Advance Addition' and 'Booking Receipt' (credits)
         const advanceDisplayRows: DisplayDetailRow[] = []
+        // Only fetch active credit transactions — cancelled receipts already have
+        // status='cancelled' so they are naturally excluded by this filter.
         const advanceAdditions = advTransactions.filter(
           (t: AdvanceTransaction) =>
             (t.transaction_type === 'Advance Addition' ||
@@ -1044,25 +1029,11 @@ const RoomDetailSummary = () => {
             t.status === 'active' &&
             t.credit_amount > 0,
         )
-        const advanceCancels = advTransactions.filter(
-          (t: AdvanceTransaction) =>
-            t.transaction_type === 'Advance Cancel' && t.status === 'active' && t.debit_amount > 0,
-        )
-
-        // Map cancelled receipt nos to amounts
-        const cancelledMap = new Map<string, number>()
-        advanceCancels.forEach((ac: AdvanceTransaction) => {
-          if (ac.reference_no) {
-            ac.reference_no.split(',').forEach((rno: string) => {
-              cancelledMap.set(rno.trim(), (cancelledMap.get(rno.trim()) || 0) + ac.debit_amount)
-            })
-          }
-        })
 
         for (const adv of advanceAdditions) {
-          const cancelled = cancelledMap.get(adv.receipt_no) || 0
-          const netAmount = adv.credit_amount - cancelled
-          if (netAmount <= 0) continue // fully cancelled, don't show
+          // No need for a cancelledMap: if a receipt was cancelled, its status is
+          // 'cancelled' and it won't appear in advanceAdditions above.
+          const netAmount = adv.credit_amount
 
           const billDateFormatted = adv.transaction_datetime
             ? formatBillDate(adv.transaction_datetime)
@@ -1348,13 +1319,10 @@ const RoomDetailSummary = () => {
 
       setCombinedSummary(combinedSummaryData)
 
-      const date = new Date()
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const random = Math.floor(Math.random() * 10000)
-        .toString()
-        .padStart(4, '0')
-      setGeneratedBillNumber(`INV/${year}/${month}/${random}`)
+      // NOTE: Invoice number is now fetched from the server at checkout time
+      // (inside handleConfirmCheckout). We reset it here so the bill modal
+      // always shows the freshly-fetched sequential value.
+      setGeneratedBillNumber('')
 
       setPaymentTransactionId(`TXN${Date.now().toString().slice(-12)}`)
       setPaymentDate(formatBillDate(new Date().toISOString()))
@@ -1561,6 +1529,20 @@ const RoomDetailSummary = () => {
     try {
       const finalTotalAmount = grandTotal || combinedSummary.total_amount
 
+      // ── STEP 1: Fetch the next sequential invoice number from the server ──
+      // We do this BEFORE the checkout so we can show the correct invoice number
+      // in the bill modal and store the same value in Checkout_Payment_Master.
+      let invoiceNo = ''
+      try {
+        const invoiceRes = await CheckoutPaymentService.getNextInvoiceNo()
+        if (invoiceRes.success && invoiceRes.data?.invoice_no) {
+          invoiceNo = invoiceRes.data.invoice_no
+        }
+      } catch (invoiceErr) {
+        console.warn('Could not fetch invoice number; a number will be auto-assigned by server', invoiceErr)
+      }
+
+      // ── STEP 2: Perform the main checkout ──
       const response = await CheckoutService.performCheckout({
         checkin_id: combinedSummary.checkin_id,
         checkout_reason: checkoutReason || 'Regular checkout',
@@ -1572,6 +1554,28 @@ const RoomDetailSummary = () => {
       })
 
       if (response.success) {
+        // ── STEP 3: Record the payment with the pre-fetched invoice_no ──
+        // Pass invoice_no so the DB stores the same number that the bill modal displays.
+        try {
+          await CheckoutPaymentService.create({
+            checkout_id: response.data?.checkout_id || 0,
+            checkin_id: combinedSummary.checkin_id,
+            total_amount: finalTotalAmount,
+            payment_method: combinedSummary.payment_method || 'Cash',
+            round_off_amount: 0,
+            net_payable: finalTotalAmount,
+            invoice_no: invoiceNo,  // ← stores "0001", "0002", … in the DB
+          })
+        } catch (payErr) {
+          // Non-fatal: checkout already succeeded, just log the payment recording failure
+          console.warn('Failed to record checkout payment:', payErr)
+        }
+
+        // ── STEP 4: Update the bill number state so the modal shows it ──
+        if (invoiceNo) {
+          setGeneratedBillNumber(invoiceNo)
+        }
+
         toast.success(`Checkout completed successfully for selected rooms`)
         setShowCheckoutModal(false)
         setCheckoutReason('')

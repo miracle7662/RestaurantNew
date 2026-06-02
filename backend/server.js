@@ -70,7 +70,6 @@ const billingTransferRoutes = require('./routes/billingTransferRoutes');
 /* ───────── Hotel Booking Routes Import (MODULAR) ───────── */
 
 const healthRoutes = require('./modules/hotelbooking/routes/healthRoutes');
-const hotelCategoryRoutes = require('./modules/hotelbooking/routes/hotelCategoryRoutes');
 
 const subscriptionPlanRoutes = require('./modules/hotelbooking/routes/subscriptionPlanRoutes');
 const taxRoutes = require('./modules/hotelbooking/routes/taxRoutes');
@@ -176,11 +175,9 @@ app.use('/api/setup', require('./routes/create-superadmin-mysql'));
 app.use('/api/zones', zoneRoutes);
 app.use('/api/fragments', fragmentRoutes);
 app.use('/api/features', featureRoutes);
-app.use('/api/hoteltypes', hoteltypeRoutes);
 app.use('/api/hotel-tax', taxRoutes);
 app.use('/api/subscription-plans', subscriptionPlanRoutes);
 app.use('/api/nationalities', nationalityRoutes);
-app.use('/api/hotel-categories', hotelCategoryRoutes);
 app.use('/api/floors', floorRoutes);
 app.use('/api/blocks', blockRoutes);
 app.use('/api/room-categories', roomCategoryRoutes);

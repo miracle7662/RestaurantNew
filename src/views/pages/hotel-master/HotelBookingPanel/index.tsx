@@ -1,4 +1,4 @@
-import  TitleHelmet  from '@/components/Common/TitleHelmet';
+import TitleHelmet  from '@/components/Common/TitleHelmet';
 import HotelBookingPanel from './HotelBookingPanel';
 
 const HotelBookingManagement = () => {

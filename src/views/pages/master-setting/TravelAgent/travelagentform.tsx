@@ -5,9 +5,9 @@ import * as Yup from 'yup'
 import { toast } from 'react-hot-toast'
 import FormikTextInput from '@/components/Common/FormikTextInput'
 import FormikSelect from '@/components/Common/FormikSelect'
-import countryApi from '@/common/hotel/countries'
-import stateApi from '@/common/hotel/states'
-import cityApi from '@/common/hotel/cities'
+import countryApi from '@/common/api/countries'
+import stateApi from '@/common/api/states'
+import CityService from '@/common/api/cities';
 import hotelTaxApi from '@/common/hotel/taxes'
 
 type TravelAgent = {
@@ -172,7 +172,7 @@ const TravelAgentForm = forwardRef<any, TravelAgentFormProps>(({ selectedItem, o
       return
     }
     try {
-      const response = await cityApi.list({ stateId: stateId })
+      const response = await CityService.list({ stateId: stateId })
       if (response.success && Array.isArray(response.data)) {
         const options = response.data.map((c: any) => ({
           label: c.city_name,

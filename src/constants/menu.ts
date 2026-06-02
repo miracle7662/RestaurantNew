@@ -461,36 +461,15 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '#!',
         parentKey: 'master-setting',
       },
-      {
-        key: 'master-country',
-        label: 'Country Master',
-        url: '/master-setting/country-master',
-        parentKey: 'master-setting',
-      },
-      {
-        key: 'master-state',
-        label: 'State Master',
-        url: '/master-setting/state-master',
-        parentKey: 'master-setting',
-      },
-      {
-        key: 'master-city',
-        label: 'City Master',
-        url: '/master-setting/city-master',
-        parentKey: 'master-setting',
-      },
+    
+     
       {
         key: 'master-zone',
         label: 'Zone Master',
         url: '/master-setting/zone-master',
         parentKey: 'master-setting',
       },
-      {
-        key: 'master-hotel-type',
-        label: 'Hotel Type Master',
-        url: '/master-setting/hotel-type-master',
-        parentKey: 'master-setting',
-      },
+    
       {
         key: 'master-hotel-category',
         label: 'Hotel Category Master',
@@ -555,12 +534,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/hotel-master/Block-master',
         parentKey: 'hotel-master',
       },
-       {
-        key: 'category-master',
-        label: 'Category Master',
-        url: '/hotel-master/Category-master',
-        parentKey: 'hotel-master',
-      },
+      
 
       {
         key: 'BillSetting',

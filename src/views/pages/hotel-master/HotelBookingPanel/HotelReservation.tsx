@@ -12,9 +12,9 @@ import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common/context/useAuthContext';
 
 // API Services
-import CountryService from '@/common/hotel/countries';
-import StateService from '@/common/hotel/states';
-import CityService from '@/common/hotel/cities';
+import CountryService from '@/common/api/countries';
+import StateService from '@/common/api/states';
+import CityService from '@/common/api/cities';
 import GuestService from '@/common/hotel/guest';
 import RoomCategoryService from '@/common/hotel/roomCategoryService';
 import taxApi from '@/common/hotel/taxes';
@@ -187,7 +187,7 @@ const HotelReservation = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuthContext();
-  const hotelId = user?.hotel_id;
+  const hotelId = user?.hotelid;
   const isEditing = Boolean(id);
 
   // ---------- State Declarations ----------
@@ -228,11 +228,11 @@ const HotelReservation = () => {
 
   const [submitting, setSubmitting] = useState(false);
 
-  const bookedByFormRef = useRef<any>();
-
+const bookedByFormRef = useRef<any>(null);
   // ---------- Keyboard Shortcuts: ESC = Cancel, F9 = Submit ----------
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+
       // Don't trigger shortcuts when a modal is open
       if (showGuestModal || showBookedByModal) return;
 
@@ -334,40 +334,40 @@ const HotelReservation = () => {
             StateService.list(),
             CityService.list(),
             GuestTypeService.list(),
-            RoomCategoryService.list({ hotelid: Number(hotelId) }),
+            RoomCategoryService.list({ hotelid: hotelId }),
             taxApi.list(),
             FragmentService.list(),
           ]);
 
-        const countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || [];
+        let countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || [];
         setCountries(
           countriesData
             .map((c: any) => ({ id: c.id || c.countryid, name: String(c.name || c.country_name) }))
             .filter((c: any) => c.id && c.name)
         );
 
-        const statesData = Array.isArray(statesRes) ? statesRes : statesRes?.data || [];
+        let statesData = Array.isArray(statesRes) ? statesRes : statesRes?.data || [];
         setStates(
           statesData
             .map((s: any) => ({ id: s.id || s.stateid, name: String(s.name || s.state_name) }))
             .filter((s: any) => s.id && s.name)
         );
 
-        const citiesData = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || [];
+        let citiesData = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || [];
         setCities(
           citiesData
             .map((c: any) => ({ id: c.id || c.cityid, name: String(c.name || c.city_name) }))
             .filter((c: any) => c.id && c.name)
         );
 
-        const guestTypesData = Array.isArray(guestTypesRes) ? guestTypesRes : guestTypesRes?.data || [];
+        let guestTypesData = Array.isArray(guestTypesRes) ? guestTypesRes : guestTypesRes?.data || [];
         setGuestTypes(
           guestTypesData
             .map((g: any) => ({ id: g.id || g.guest_type_id, name: String(g.name || g.guest_type_name) }))
             .filter((g: any) => g.id && g.name)
         );
 
-        const categoriesData = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || [];
+        let categoriesData = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || [];
         setRoomCategories(
           categoriesData.map((c: any) => ({
             room_category_id: c.room_category_id || c.id,
@@ -376,10 +376,10 @@ const HotelReservation = () => {
           }))
         );
 
-        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || [];
+        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || [];
         setTaxList(taxData);
 
-        const fragmentsData = Array.isArray(fragmentsRes) ? fragmentsRes : fragmentsRes?.data || [];
+        let fragmentsData = Array.isArray(fragmentsRes) ? fragmentsRes : fragmentsRes?.data || [];
         setFragments(
           fragmentsData
             .map((f: any) => ({

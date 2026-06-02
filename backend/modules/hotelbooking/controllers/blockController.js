@@ -9,7 +9,7 @@ const getCurrentUserId = (req) => {
 
 // Helper to get current user's hotel ID
 const getCurrentUserHotelId = (req) => {
-    return req.user?.hotel_id || null;
+    return req.user?.hotelid || null;
 };
 
 // Helper to convert MySQL datetime to ISO string

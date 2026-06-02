@@ -64,6 +64,12 @@ interface ReservationPayload {
   created_by_id?: number
 }
 
+interface ReservationUpdatePayload {
+  room_no?: string
+  status?: string
+  updated_by_id?: number
+}
+
 // Define the exact type expected by the API
 interface ApiRoomStatusLogPayload {
   room_id: number
@@ -289,12 +295,13 @@ const RoomStatusModal = ({
         // Handle reservation logic
         if (statusType === 'reservation') {
           if (reservationId) {
-            // Update existing reservation - FIXED: removed 'room_id' which was causing the first error
-            await ReservationService.update(Number(reservationId), {
+            // Update existing reservation
+            const updatePayload: ReservationUpdatePayload = {
               room_no: targetRoom.number,
               status: 'assigned',
               updated_by_id: userId,
-            })
+            }
+            await ReservationService.update(Number(reservationId), updatePayload)
             const selectedReservation = reservations.find(
               (r) => r.reservation_id === Number(reservationId),
             )

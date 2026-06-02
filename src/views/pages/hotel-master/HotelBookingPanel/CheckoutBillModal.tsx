@@ -189,9 +189,40 @@ const formatDateLong = (isoString: string): string => {
 }
 
 const numberToWords = (num: number): string => {
-  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
-    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
-  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+  const ones = [
+    '',
+    'One',
+    'Two',
+    'Three',
+    'Four',
+    'Five',
+    'Six',
+    'Seven',
+    'Eight',
+    'Nine',
+    'Ten',
+    'Eleven',
+    'Twelve',
+    'Thirteen',
+    'Fourteen',
+    'Fifteen',
+    'Sixteen',
+    'Seventeen',
+    'Eighteen',
+    'Nineteen',
+  ]
+  const tens = [
+    '',
+    '',
+    'Twenty',
+    'Thirty',
+    'Forty',
+    'Fifty',
+    'Sixty',
+    'Seventy',
+    'Eighty',
+    'Ninety',
+  ]
 
   const convertHundreds = (n: number): string => {
     if (n >= 100) {
@@ -278,13 +309,15 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     if (show) fetchSettings()
   }, [hotelId, show])
 
-  const selectedRows = displayRows.filter(r => r.selected)
+  const selectedRows = displayRows.filter((r) => r.selected)
 
-  const roomCharges = selectedRows.filter(r => !r.isPostCharge)
-  const postCharges = selectedRows.filter(r => r.isPostCharge && r.total_amount > 0)
-  const allowances = selectedRows.filter(r => r.isPostCharge && r.total_amount < 0)
+  const roomCharges = selectedRows.filter((r) => !r.isPostCharge)
+  const postCharges = selectedRows.filter((r) => r.isPostCharge && r.total_amount > 0)
+  const allowances = selectedRows.filter((r) => r.isPostCharge && r.total_amount < 0)
 
-  const totalRoomTariff = roundToTwo(roomCharges.reduce((s, r) => s + (r.room_tariff_per_day || 0), 0))
+  const totalRoomTariff = roundToTwo(
+    roomCharges.reduce((s, r) => s + (r.room_tariff_per_day || 0), 0),
+  )
   const totalExPax = roundToTwo(roomCharges.reduce((s, r) => s + (r.ex_pax_total || 0), 0))
   const totalChild = roundToTwo(roomCharges.reduce((s, r) => s + (r.child_total || 0), 0))
   const totalDriver = roundToTwo(roomCharges.reduce((s, r) => s + (r.driver_total || 0), 0))
@@ -293,21 +326,24 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const totalSGST = roundToTwo(selectedRows.reduce((s, r) => s + (r.sgst_amount || 0), 0))
   const totalIGST = roundToTwo(selectedRows.reduce((s, r) => s + (r.igst_amount || 0), 0))
   const totalCess = roundToTwo(selectedRows.reduce((s, r) => s + (r.cess_amount || 0), 0))
-  const totalServiceCharge = roundToTwo(selectedRows.reduce((s, r) => s + (r.service_charge_amount || 0), 0))
+  const totalServiceCharge = roundToTwo(
+    selectedRows.reduce((s, r) => s + (r.service_charge_amount || 0), 0),
+  )
   const discountAmount = roundToTwo(roomCharges.reduce((s, r) => s + (r.discount_amount || 0), 0))
-  
+
   const totalPostCharges = roundToTwo(postCharges.reduce((s, r) => s + Math.abs(r.total_amount), 0))
   const totalAllowances = roundToTwo(allowances.reduce((s, r) => s + Math.abs(r.total_amount), 0))
 
-  const grossTotal = totalRoomTariff + totalExPax + totalChild + totalDriver + totalPostCharges - totalAllowances
+  const grossTotal =
+    totalRoomTariff + totalExPax + totalChild + totalDriver + totalPostCharges - totalAllowances
   const taxableAmount = roundToTwo(grossTotal - discountAmount)
-  
+
   let cgstPercent = 0
   let sgstPercent = 0
   let igstPercent = 0
   let cessPercent = 0
   let serviceChargePercent = 0
-  
+
   if (taxableAmount > 0) {
     if (totalIGST > 0) {
       igstPercent = roundToTwo((totalIGST / taxableAmount) * 100)
@@ -315,53 +351,68 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       cgstPercent = roundToTwo((totalCGST / taxableAmount) * 100)
       sgstPercent = roundToTwo((totalSGST / taxableAmount) * 100)
     }
-    
+
     if (totalCess > 0) {
       cessPercent = roundToTwo((totalCess / taxableAmount) * 100)
     }
-    
+
     if (totalServiceCharge > 0) {
       serviceChargePercent = roundToTwo((totalServiceCharge / taxableAmount) * 100)
     }
   }
-  
-  const avgTaxPercent = roomCharges.length > 0
-    ? roundToTwo(roomCharges.reduce((s, r) => s + (r.tax_percent || 0), 0) / roomCharges.length)
-    : (taxableAmount > 0 ? roundToTwo((totalTax / taxableAmount) * 100) : 0)
-  
+
+  const avgTaxPercent =
+    roomCharges.length > 0
+      ? roundToTwo(roomCharges.reduce((s, r) => s + (r.tax_percent || 0), 0) / roomCharges.length)
+      : taxableAmount > 0
+        ? roundToTwo((totalTax / taxableAmount) * 100)
+        : 0
+
   const netTotal = grandTotal
 
-  const displayCheckedOutRooms = checkedOutRooms && checkedOutRooms.length > 0 
-    ? checkedOutRooms 
-    : (combinedSummary?.checked_out_rooms || combinedSummary?.room_numbers || [])
-  
-  const checkedOutRoomsStr = displayCheckedOutRooms.join(', ') || combinedSummary?.room_numbers_str || ''
+  const displayCheckedOutRooms =
+    checkedOutRooms && checkedOutRooms.length > 0
+      ? checkedOutRooms
+      : combinedSummary?.checked_out_rooms || combinedSummary?.room_numbers || []
+
+  const checkedOutRoomsStr =
+    displayCheckedOutRooms.join(', ') || combinedSummary?.room_numbers_str || ''
 
   const checkinDateDisplay = combinedSummary?.original_checkin_datetime
-    ? formatDateLong(combinedSummary.original_checkin_datetime) : '-'
+    ? formatDateLong(combinedSummary.original_checkin_datetime)
+    : '-'
   const checkoutDateDisplay = combinedSummary?.final_checkout_datetime
-    ? formatDateLong(combinedSummary.final_checkout_datetime) : '-'
+    ? formatDateLong(combinedSummary.final_checkout_datetime)
+    : '-'
   const checkinTimeDisplay = combinedSummary?.original_checkin_datetime
-    ? new Date(combinedSummary.original_checkin_datetime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    ? new Date(combinedSummary.original_checkin_datetime).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
     : '14:00'
   const checkoutTimeDisplay = '11:00'
   const invoiceDate = formatDate(new Date().toISOString())
-  const generatedBillNo = billNumber || `INV/${new Date().getFullYear()}/${String(combinedSummary?.checkin_id || '0').padStart(4, '0')}`
+  const generatedBillNo =
+    billNumber ||
+    `INV/${new Date().getFullYear()}/${String(combinedSummary?.checkin_id || '0').padStart(4, '0')}`
   const bookingId = combinedSummary?.reg_no || `BKD${combinedSummary?.checkin_id || '0000'}`
   const paymentStatus = 'Paid'
   const paymentMode = combinedSummary?.payment_method || 'Credit Card'
 
   const headerBg = printSettings?.table_header_bg_color || '#1a2744'
   const headerText = printSettings?.table_header_text_color || '#ffffff'
-  
+
   const showTopHeaderSection = printSettings?.show_top_header_section !== 0
   const topMarginWhenHeaderHidden = printSettings?.top_margin_when_header_hidden || 30
 
   const getFontSize = () => {
     switch (printSettings?.table_font_size) {
-      case 'small': return '8pt'
-      case 'large': return '11pt'
-      default: return '9.5pt'
+      case 'small':
+        return '8pt'
+      case 'large':
+        return '11pt'
+      default:
+        return '9.5pt'
     }
   }
 
@@ -620,64 +671,17 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
   `
 
-  const getPrintStyles = () => {
-    const printSize = printSettings?.default_print_size || 'A4'
-    // When header is hidden, the spacer div in the bill content handles the top gap,
-    // so @page top margin should be 0 to avoid double spacing.
-    const effectiveTopMargin = !showTopHeaderSection
-      ? 0
-      : (printSettings?.margin_top_mm || 12)
-    
-    return `
-      @page {
-        size: ${printSize === 'A4' ? 'A4' : printSize === 'full' ? 'auto' : printSize};
-        margin: ${effectiveTopMargin}mm ${printSettings?.margin_right_mm || 10}mm ${printSettings?.margin_bottom_mm || 12}mm ${printSettings?.margin_left_mm || 10}mm;
-      }
-      @media print {
-        body { 
-          margin: 0 !important; 
-          padding: 0 !important;
-          background: white !important;
-        }
-        .bill-paper {
-          margin: 0 !important;
-          padding: 0 !important;
-          box-shadow: none !important;
-          width: 100% !important;
-        }
-        .no-print {
-          display: none !important;
-        }
-        .bill-wrap {
-          margin-top: 0 !important;
-          padding-top: 0 !important;
-        }
-      }
-      body { 
-        background: #f0f0f0; 
-        padding: 0; 
-        margin: 0; 
-      }
-      .bill-paper {
-        background: white;
-        padding: 0;
-        margin: 0 auto;
-        ${printSize === 'thermal_80mm' ? 'width:80mm;' : printSize === 'thermal_58mm' ? 'width:58mm;' : 'width:210mm;min-height:297mm;'}
-      }
-    `
-  }
+
 
   const handlePrint = () => {
     const printContents = printRef.current?.innerHTML || ''
     const printWindow = window.open('', '_blank', 'width=900,height=700')
     if (!printWindow) return
-    
+
     // When header is hidden, spacer div in printContents handles the top gap,
     // so @page top margin should be 0.
-    const effectiveTopMargin = !showTopHeaderSection
-      ? 0
-      : (printSettings?.margin_top_mm || 12)
-    
+    const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top_mm || 12
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -725,7 +729,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     `)
     printWindow.document.close()
     printWindow.focus()
-    setTimeout(() => { printWindow.print(); printWindow.close() }, 500)
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.close()
+    }, 500)
   }
 
   const handleDownloadPDF = async () => {
@@ -737,7 +744,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       // Dynamically load html2canvas and jsPDF from CDN if not already loaded
       const loadScript = (src: string): Promise<void> =>
         new Promise((resolve, reject) => {
-          if (document.querySelector(`script[src="${src}"]`)) { resolve(); return }
+          if (document.querySelector(`script[src="${src}"]`)) {
+            resolve()
+            return
+          }
           const scriptEl = document.createElement('script')
           scriptEl.src = src
           scriptEl.onload = () => resolve()
@@ -745,7 +755,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           document.head.appendChild(scriptEl)
         })
 
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+      await loadScript(
+        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+      )
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
 
       const html2canvas = (window as any).html2canvas
@@ -753,26 +765,28 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
       const printSize = printSettings?.default_print_size || 'A4'
       const isA4 = printSize !== 'thermal_80mm' && printSize !== 'thermal_58mm'
-      const pdfW = isA4 ? 210 : (printSize === 'thermal_80mm' ? 80 : 58) // mm
-      const pdfH = isA4 ? 297 : 0 // 0 = auto for thermal
+      const pdfW = isA4 ? 210 : printSize === 'thermal_80mm' ? 80 : 58 // mm
+          
 
-      // Capture the bill element at 2x scale for crisp output
       const canvas = await html2canvas(billEl, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
         width: billEl.scrollWidth,
-        height: billEl.scrollHeight,
+        height: billEl.scrollHeight, // ← FIXED: capture full bill height, not the PDF page mm value
+        windowWidth: billEl.scrollWidth,
+        windowHeight: billEl.scrollHeight,
       })
 
       const imgData = canvas.toDataURL('image/jpeg', 0.92)
-      const imgW = pdfW - (printSettings?.margin_left_mm || 10) - (printSettings?.margin_right_mm || 10)
+      const imgW =
+        pdfW - (printSettings?.margin_left_mm || 10) - (printSettings?.margin_right_mm || 10)
       const imgH = (canvas.height / canvas.width) * imgW
 
       const topMargin = !showTopHeaderSection
-        ? (printSettings?.top_margin_when_header_hidden || 30)
-        : (printSettings?.margin_top_mm || 12)
+        ? printSettings?.top_margin_when_header_hidden || 30
+        : printSettings?.margin_top_mm || 12
       const bottomMargin = printSettings?.margin_bottom_mm || 12
       const leftMargin = printSettings?.margin_left_mm || 10
 
@@ -780,8 +794,11 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       const pageContentH = (isA4 ? 297 : 999) - topMargin - bottomMargin
       const orientation = imgH <= pageContentH ? 'portrait' : 'portrait'
 
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: isA4 ? 'a4' : [pdfW, imgH + topMargin + bottomMargin] })
-
+      const pdf = new jsPDF({
+        orientation: orientation,
+        unit: 'mm',
+        format: isA4 ? 'a4' : [pdfW, imgH + topMargin + bottomMargin],
+      })
       if (imgH <= pageContentH) {
         // Single page
         pdf.addImage(imgData, 'JPEG', leftMargin, topMargin, imgW, imgH)
@@ -839,17 +856,18 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const contactAlign = printSettings?.hotel_contact_position || 'left'
     const logoPosition = printSettings?.hotel_logo_position || 'left'
 
-    const logoEl = printSettings?.show_hotel_logo === 1 && hotelLogo ? (
-      <img src={hotelLogo} alt="Hotel Logo" className="bill-hotel-logo" />
-    ) : null
+    const logoEl =
+      printSettings?.show_hotel_logo === 1 && hotelLogo ? (
+        <img src={hotelLogo} alt="Hotel Logo" className="bill-hotel-logo" />
+      ) : null
 
     return (
       <div className="mb-3">
-        {logoEl && (
-          <div className={`text-${logoPosition} mb-2`}>{logoEl}</div>
-        )}
+        {logoEl && <div className={`text-${logoPosition} mb-2`}>{logoEl}</div>}
         {printSettings?.show_hotel_name === 1 && (
-          <div className={`text-${nameAlign}`} style={{ fontSize: '18pt', fontWeight: 800, color: headerBg }}>
+          <div
+            className={`text-${nameAlign}`}
+            style={{ fontSize: '18pt', fontWeight: 800, color: headerBg }}>
             {hotelName}
           </div>
         )}
@@ -873,7 +891,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const titleAlign = printSettings?.bill_title_position || 'center'
     return (
       <div className={`text-${titleAlign} mb-3`}>
-        <h3 style={{ margin: 0, fontWeight: 800, letterSpacing: '1px', color: headerBg }}>HOTEL BOOKING BILL</h3>
+        <h3 style={{ margin: 0, fontWeight: 800, letterSpacing: '1px', color: headerBg }}>
+          HOTEL BOOKING BILL
+        </h3>
       </div>
     )
   }
@@ -883,23 +903,41 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       <div className="bill-info-row">
         <div>
           {printSettings?.show_invoice_no === 1 && (
-            <div><strong>Invoice No.&nbsp;:&nbsp;</strong>{generatedBillNo}</div>
+            <div>
+              <strong>Invoice No.&nbsp;:&nbsp;</strong>
+              {generatedBillNo}
+            </div>
           )}
           {printSettings?.show_invoice_date === 1 && (
-            <div><strong>Invoice Date&nbsp;:&nbsp;</strong>{invoiceDate}</div>
+            <div>
+              <strong>Invoice Date&nbsp;:&nbsp;</strong>
+              {invoiceDate}
+            </div>
           )}
           {printSettings?.show_booking_id === 1 && (
-            <div><strong>Booking ID&nbsp;:&nbsp;</strong>{bookingId}</div>
+            <div>
+              <strong>Booking ID&nbsp;:&nbsp;</strong>
+              {bookingId}
+            </div>
           )}
         </div>
         <div>
           {printSettings?.show_payment_status === 1 && (
-            <div><strong>Payment Status&nbsp;:&nbsp;</strong><span className="status-paid">{paymentStatus}</span></div>
+            <div>
+              <strong>Payment Status&nbsp;:&nbsp;</strong>
+              <span className="status-paid">{paymentStatus}</span>
+            </div>
           )}
           {printSettings?.show_payment_mode === 1 && (
-            <div><strong>Payment Mode&nbsp;:&nbsp;</strong>{paymentMode}</div>
+            <div>
+              <strong>Payment Mode&nbsp;:&nbsp;</strong>
+              {paymentMode}
+            </div>
           )}
-          <div><strong>Guest Name&nbsp;:&nbsp;</strong>{combinedSummary?.guest_name || '-'}</div>
+          <div>
+            <strong>Guest Name&nbsp;:&nbsp;</strong>
+            {combinedSummary?.guest_name || '-'}
+          </div>
         </div>
       </div>
     )
@@ -914,19 +952,39 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           <table className="bill-detail-table">
             <tbody>
               {printSettings?.show_guest_name === 1 && (
-                <tr><td className="bdt-label">Name</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_name || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Name</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{combinedSummary?.guest_name || '-'}</td>
+                </tr>
               )}
               {printSettings?.show_guest_mobile === 1 && (
-                <tr><td className="bdt-label">Phone</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_mobile || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Phone</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{combinedSummary?.guest_mobile || '-'}</td>
+                </tr>
               )}
               {printSettings?.show_guest_email === 1 && (
-                <tr><td className="bdt-label">Email</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_email || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Email</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{combinedSummary?.guest_email || '-'}</td>
+                </tr>
               )}
               {printSettings?.show_guest_address === 1 && (
-                <tr><td className="bdt-label">Address</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_address || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Address</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{combinedSummary?.guest_address || '-'}</td>
+                </tr>
               )}
               {printSettings?.show_guest_id_proof === 1 && (
-                <tr><td className="bdt-label">ID Proof</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_id_proof || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">ID Proof</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{combinedSummary?.guest_id_proof || '-'}</td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -944,29 +1002,61 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           <table className="bill-detail-table">
             <tbody>
               {printSettings?.show_checkin_date === 1 && (
-                <tr><td className="bdt-label">Check-in Date</td><td className="bdt-colon">:</td><td className="bdt-value">{checkinDateDisplay}</td></tr>
+                <tr>
+                  <td className="bdt-label">Check-in Date</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{checkinDateDisplay}</td>
+                </tr>
               )}
               {printSettings?.show_checkout_date === 1 && (
-                <tr><td className="bdt-label">Check-out Date</td><td className="bdt-colon">:</td><td className="bdt-value">{checkoutDateDisplay}</td></tr>
+                <tr>
+                  <td className="bdt-label">Check-out Date</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{checkoutDateDisplay}</td>
+                </tr>
               )}
               {printSettings?.show_nights === 1 && (
-                <tr><td className="bdt-label">No. of Nights</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.total_days || 0}</td></tr>
+                <tr>
+                  <td className="bdt-label">No. of Days</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{combinedSummary?.total_days || 0}</td>
+                </tr>
               )}
               {printSettings?.show_room_type === 1 && (
-                <tr><td className="bdt-label">Room Type</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.room_categories_str || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Room Type</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{combinedSummary?.room_categories_str || '-'}</td>
+                </tr>
               )}
               {printSettings?.show_room_numbers === 1 && (
-                <tr><td className="bdt-label">Room No(s).</td><td className="bdt-colon">:</td><td className="bdt-value">{checkedOutRoomsStr || combinedSummary?.room_numbers_str || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Room No(s).</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">
+                    {checkedOutRoomsStr || combinedSummary?.room_numbers_str || '-'}
+                  </td>
+                </tr>
               )}
               {printSettings?.show_guests_count === 1 && (
-                <tr><td className="bdt-label">Guests</td><td className="bdt-colon">:</td><td className="bdt-value">
-                  {combinedSummary?.total_adults || 0} Adults
-                  {(combinedSummary?.total_child_paid || 0) > 0 && `, ${combinedSummary?.total_child_paid} Child`}
-                  {(combinedSummary?.total_driver || 0) > 0 && `, ${combinedSummary?.total_driver} Driver`}
-                </td></tr>
+                <tr>
+                  <td className="bdt-label">Guests</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">
+                    {combinedSummary?.total_adults || 0} Adults
+                    {(combinedSummary?.total_child_paid || 0) > 0 &&
+                      `, ${combinedSummary?.total_child_paid} Child`}
+                    {(combinedSummary?.total_driver || 0) > 0 &&
+                      `, ${combinedSummary?.total_driver} Driver`}
+                  </td>
+                </tr>
               )}
               {printSettings?.show_tariff_plan === 1 && (
-                <tr><td className="bdt-label">Tariff Plan</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.plan_name || 'Room Only'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Tariff Plan</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{combinedSummary?.plan_name || 'Room Only'}</td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -978,35 +1068,37 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const renderChargesTable = () => {
     const tableRows: TableRowWithIndex[] = []
     const groupedRows: { [key: string]: DisplayDetailRow[] } = {}
-    
-    roomCharges.forEach(row => {
+
+    roomCharges.forEach((row) => {
       const key = row.room_number
       if (!groupedRows[key]) groupedRows[key] = []
       groupedRows[key].push(row)
     })
-    
+
     let rowCounter = 1
-    Object.keys(groupedRows).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).forEach(roomNumber => {
-      groupedRows[roomNumber].forEach(row => {
-        tableRows.push({ ...row, displayIndex: rowCounter++ })
+    Object.keys(groupedRows)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .forEach((roomNumber) => {
+        groupedRows[roomNumber].forEach((row) => {
+          tableRows.push({ ...row, displayIndex: rowCounter++ })
+        })
       })
-    })
-    
-    postCharges.forEach(charge => {
-      tableRows.push({ 
-        ...charge, 
+
+    postCharges.forEach((charge) => {
+      tableRows.push({
+        ...charge,
         displayIndex: rowCounter++,
         description: charge.description || 'Post Charge',
-        room_category_name: charge.room_category_name || 'Post Charge'
+        room_category_name: charge.room_category_name || 'Post Charge',
       })
     })
-    
-    allowances.forEach(allowance => {
-      tableRows.push({ 
-        ...allowance, 
+
+    allowances.forEach((allowance) => {
+      tableRows.push({
+        ...allowance,
         displayIndex: rowCounter++,
         description: allowance.description || 'Allowance',
-        room_category_name: allowance.room_category_name || 'Allowance'
+        room_category_name: allowance.room_category_name || 'Allowance',
       })
     })
 
@@ -1024,9 +1116,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           </tr>
         </thead>
         <tbody>
-          {tableRows.map(row => {
+          {tableRows.map((row) => {
             let descriptionText = ''
-            
+
             if (row.isPostCharge) {
               if (row.total_amount < 0) {
                 descriptionText = `Allowance - ${row.description || row.room_category_name}`
@@ -1036,14 +1128,19 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             } else {
               descriptionText = `${row.room_number} – ${row.is_extension ? 'Day Extension' : 'Room Charges'}`
             }
-            
+
             return (
               <tr key={row.id}>
                 {showRowNums && <td className="bct-center">{row.displayIndex}</td>}
                 <td>{descriptionText}</td>
                 <td>{row.bill_date_formatted}</td>
-                <td className="bct-right" style={{ color: row.isPostCharge && row.total_amount < 0 ? '#cc0000' : 'inherit' }}>
-                  {row.isPostCharge && row.total_amount < 0 ? '-' : ''}{formatAmtDisplay(Math.abs(row.total_amount))}
+                <td
+                  className="bct-right"
+                  style={{
+                    color: row.isPostCharge && row.total_amount < 0 ? '#cc0000' : 'inherit',
+                  }}>
+                  {row.isPostCharge && row.total_amount < 0 ? '-' : ''}
+                  {formatAmtDisplay(Math.abs(row.total_amount))}
                 </td>
               </tr>
             )
@@ -1052,82 +1149,118 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         <tfoot>
           {roomCharges.length > 0 && (
             <tr className="bct-total-row">
-              <td colSpan={colCount - 1} className="bct-total-label">ROOM CHARGES SUBTOTAL</td>
-              <td className="bct-total-value bct-right">{formatAmtDisplay(totalRoomTariff + totalExPax + totalChild + totalDriver)}</td>
+              <td colSpan={colCount - 1} className="bct-total-label">
+                ROOM CHARGES SUBTOTAL
+              </td>
+              <td className="bct-total-value bct-right">
+                {formatAmtDisplay(totalRoomTariff + totalExPax + totalChild + totalDriver)}
+              </td>
             </tr>
           )}
           {discountAmount > 0 && (
             <tr className="bct-total-row">
               <td colSpan={colCount - 1} className="bct-total-label" style={{ color: '#cc0000' }}>
-                DISCOUNT ({combinedSummary?.avg_discount_percent ? `${combinedSummary.avg_discount_percent.toFixed(2)}%` : ''})
+                DISCOUNT (
+                {combinedSummary?.avg_discount_percent
+                  ? `${combinedSummary.avg_discount_percent.toFixed(2)}%`
+                  : ''}
+                )
               </td>
-              <td className="bct-total-value bct-right" style={{ color: '#cc0000' }}>-{formatAmtDisplay(discountAmount)}</td>
+              <td className="bct-total-value bct-right" style={{ color: '#cc0000' }}>
+                -{formatAmtDisplay(discountAmount)}
+              </td>
             </tr>
           )}
           {postCharges.length > 0 && (
             <tr className="bct-postcharge-row">
-              <td colSpan={colCount - 1} className="bct-postcharge-label">POST CHARGES TOTAL</td>
-              <td className="bct-postcharge-value bct-right">{formatAmtDisplay(totalPostCharges)}</td>
+              <td colSpan={colCount - 1} className="bct-postcharge-label">
+                POST CHARGES TOTAL
+              </td>
+              <td className="bct-postcharge-value bct-right">
+                {formatAmtDisplay(totalPostCharges)}
+              </td>
             </tr>
           )}
           {allowances.length > 0 && (
             <tr className="bct-allowance-row">
-              <td colSpan={colCount - 1} className="bct-allowance-label">ALLOWANCES TOTAL</td>
-              <td className="bct-allowance-value bct-right">-{formatAmtDisplay(totalAllowances)}</td>
+              <td colSpan={colCount - 1} className="bct-allowance-label">
+                ALLOWANCES TOTAL
+              </td>
+              <td className="bct-allowance-value bct-right">
+                -{formatAmtDisplay(totalAllowances)}
+              </td>
             </tr>
           )}
           <tr className="bct-total-row">
-            <td colSpan={colCount - 1} className="bct-total-label">TAXABLE AMOUNT</td>
+            <td colSpan={colCount - 1} className="bct-total-label">
+              TAXABLE AMOUNT
+            </td>
             <td className="bct-total-value bct-right">{formatAmtDisplay(taxableAmount)}</td>
           </tr>
-          
+
           {printSettings?.show_cgst_sgst_breakdown === 1 && totalCGST > 0 && totalSGST > 0 && (
             <>
               <tr className="bct-total-row">
-                <td colSpan={colCount - 1} className="bct-total-label">CGST ({cgstPercent.toFixed(2)}%)</td>
+                <td colSpan={colCount - 1} className="bct-total-label">
+                  CGST ({cgstPercent.toFixed(2)}%)
+                </td>
                 <td className="bct-total-value bct-right">{formatAmtDisplay(totalCGST)}</td>
               </tr>
               <tr className="bct-total-row">
-                <td colSpan={colCount - 1} className="bct-total-label">SGST ({sgstPercent.toFixed(2)}%)</td>
+                <td colSpan={colCount - 1} className="bct-total-label">
+                  SGST ({sgstPercent.toFixed(2)}%)
+                </td>
                 <td className="bct-total-value bct-right">{formatAmtDisplay(totalSGST)}</td>
               </tr>
             </>
           )}
-          
+
           {printSettings?.show_cgst_sgst_breakdown === 1 && totalIGST > 0 && (
             <tr className="bct-total-row">
-              <td colSpan={colCount - 1} className="bct-total-label">IGST ({igstPercent.toFixed(2)}%)</td>
+              <td colSpan={colCount - 1} className="bct-total-label">
+                IGST ({igstPercent.toFixed(2)}%)
+              </td>
               <td className="bct-total-value bct-right">{formatAmtDisplay(totalIGST)}</td>
             </tr>
           )}
-          
+
           {printSettings?.show_cgst_sgst_breakdown === 1 && totalCess > 0 && (
             <tr className="bct-total-row">
-              <td colSpan={colCount - 1} className="bct-total-label">CESS ({cessPercent.toFixed(2)}%)</td>
+              <td colSpan={colCount - 1} className="bct-total-label">
+                CESS ({cessPercent.toFixed(2)}%)
+              </td>
               <td className="bct-total-value bct-right">{formatAmtDisplay(totalCess)}</td>
             </tr>
           )}
-          
+
           {printSettings?.show_cgst_sgst_breakdown === 1 && totalServiceCharge > 0 && (
             <tr className="bct-total-row">
-              <td colSpan={colCount - 1} className="bct-total-label">Service Charge ({serviceChargePercent.toFixed(2)}%)</td>
+              <td colSpan={colCount - 1} className="bct-total-label">
+                Service Charge ({serviceChargePercent.toFixed(2)}%)
+              </td>
               <td className="bct-total-value bct-right">{formatAmtDisplay(totalServiceCharge)}</td>
             </tr>
           )}
-          
+
           {printSettings?.show_cgst_sgst_breakdown !== 1 && totalTax > 0 && (
             <tr className="bct-total-row">
-              <td colSpan={colCount - 1} className="bct-total-label">TAX ({avgTaxPercent.toFixed(2)}%)</td>
+              <td colSpan={colCount - 1} className="bct-total-label">
+                TAX ({avgTaxPercent.toFixed(2)}%)
+              </td>
               <td className="bct-total-value bct-right">{formatAmtDisplay(totalTax)}</td>
             </tr>
           )}
-          
+
           <tr className="bct-grand-total-row">
-            <td colSpan={colCount - 1} className="bct-grand-label">GRAND TOTAL</td>
+            <td colSpan={colCount - 1} className="bct-grand-label">
+              GRAND TOTAL
+            </td>
             <td className="bct-grand-value bct-right">{formatAmtDisplay(netTotal)}</td>
           </tr>
           <tr className="bct-paid-row">
-            <td colSpan={colCount - 1} className="bct-paid-label">TOTAL PAID (INR)</td>
+            <td colSpan={colCount - 1} className="bct-paid-label">
+              TOTAL PAID (INR)
+            </td>
             <td className="bct-paid-value bct-right">{formatAmtDisplay(netTotal)}</td>
           </tr>
         </tfoot>
@@ -1151,10 +1284,28 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         <div className="bill-info-box-body">
           <table className="bill-detail-table">
             <tbody>
-              <tr><td className="bdt-label">Paid Amount</td><td className="bdt-colon">:</td><td className="bdt-value">INR {formatAmt(netTotal)}</td></tr>
-              <tr><td className="bdt-label">Transaction ID</td><td className="bdt-colon">:</td><td className="bdt-value">{paymentTransactionId || `TXN${Date.now().toString().slice(-12)}`}</td></tr>
-              <tr><td className="bdt-label">Payment Date</td><td className="bdt-colon">:</td><td className="bdt-value">{paymentDate || invoiceDate}</td></tr>
-              <tr><td className="bdt-label">Bank / Card</td><td className="bdt-colon">:</td><td className="bdt-value">{paymentBank || paymentMode}</td></tr>
+              <tr>
+                <td className="bdt-label">Paid Amount</td>
+                <td className="bdt-colon">:</td>
+                <td className="bdt-value">INR {formatAmt(netTotal)}</td>
+              </tr>
+              <tr>
+                <td className="bdt-label">Transaction ID</td>
+                <td className="bdt-colon">:</td>
+                <td className="bdt-value">
+                  {paymentTransactionId || `TXN${Date.now().toString().slice(-12)}`}
+                </td>
+              </tr>
+              <tr>
+                <td className="bdt-label">Payment Date</td>
+                <td className="bdt-colon">:</td>
+                <td className="bdt-value">{paymentDate || invoiceDate}</td>
+              </tr>
+              <tr>
+                <td className="bdt-label">Bank / Card</td>
+                <td className="bdt-colon">:</td>
+                <td className="bdt-value">{paymentBank || paymentMode}</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -1169,7 +1320,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '8pt' }}>
           <li>Check-in time: {checkinTimeDisplay}</li>
           <li>Check-out time: {checkoutTimeDisplay}</li>
-          <li>Early check-in or late check-out is subject to availability and may incur additional charges.</li>
+          <li>
+            Early check-in or late check-out is subject to availability and may incur additional
+            charges.
+          </li>
           <li>This is a computer generated invoice. No signature required.</li>
         </ul>
       </div>
@@ -1180,7 +1334,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     return (
       <div className="text-center mt-3">
         {printSettings?.show_thankyou_message === 1 && (
-          <div className="bill-thankyou">{printSettings?.thankyou_message_text || 'Thank You!'}</div>
+          <div className="bill-thankyou">
+            {printSettings?.thankyou_message_text || 'Thank You!'}
+          </div>
         )}
         {printSettings?.show_footer_note === 1 && (
           <div className="mt-2" style={{ fontSize: '9pt', color: '#555' }}>
@@ -1205,8 +1361,11 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const guestPosition = printSettings?.guest_details_position || 'left'
     const bookingPosition = printSettings?.booking_details_position || 'right'
 
-    const topBottom = guestPosition === 'top' || bookingPosition === 'top' ||
-      guestPosition === 'bottom' || bookingPosition === 'bottom'
+    const topBottom =
+      guestPosition === 'top' ||
+      bookingPosition === 'top' ||
+      guestPosition === 'bottom' ||
+      bookingPosition === 'bottom'
 
     return (
       <div>
@@ -1220,8 +1379,12 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
         {topBottom ? (
           <>
-            {guestPosition === 'top' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
-            {bookingPosition === 'top' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
+            {guestPosition === 'top' &&
+              printSettings?.show_guest_details === 1 &&
+              renderGuestDetails()}
+            {bookingPosition === 'top' &&
+              printSettings?.show_booking_details === 1 &&
+              renderBookingDetails()}
             {renderBillInfo()}
             {renderChargesTable()}
             {renderAmountInWords()}
@@ -1229,19 +1392,31 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
               {renderPaymentDetails()}
               {renderNoteBox()}
             </div>
-            {guestPosition === 'bottom' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
-            {bookingPosition === 'bottom' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
+            {guestPosition === 'bottom' &&
+              printSettings?.show_guest_details === 1 &&
+              renderGuestDetails()}
+            {bookingPosition === 'bottom' &&
+              printSettings?.show_booking_details === 1 &&
+              renderBookingDetails()}
           </>
         ) : (
           <>
             <div className="two-column-layout">
               <div>
-                {guestPosition === 'left' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
-                {bookingPosition === 'left' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
+                {guestPosition === 'left' &&
+                  printSettings?.show_guest_details === 1 &&
+                  renderGuestDetails()}
+                {bookingPosition === 'left' &&
+                  printSettings?.show_booking_details === 1 &&
+                  renderBookingDetails()}
               </div>
               <div>
-                {guestPosition === 'right' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
-                {bookingPosition === 'right' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
+                {guestPosition === 'right' &&
+                  printSettings?.show_guest_details === 1 &&
+                  renderGuestDetails()}
+                {bookingPosition === 'right' &&
+                  printSettings?.show_booking_details === 1 &&
+                  renderBookingDetails()}
               </div>
             </div>
             {renderBillInfo()}
@@ -1260,7 +1435,12 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
   if (settingsLoading) {
     return (
-      <Modal show={show} onHide={onHide} dialogClassName="bill-modal-dialog" backdrop="static" centered>
+      <Modal
+        show={show}
+        onHide={onHide}
+        dialogClassName="bill-modal-dialog"
+        backdrop="static"
+        centered>
         <Modal.Body className="text-center py-5">
           <Spinner animation="border" variant="primary" />
           <p className="mt-2">Loading bill settings...</p>
@@ -1345,12 +1525,16 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         ${getBillStyles()}
       `}</style>
 
-      <Modal show={show} onHide={onHide} dialogClassName="bill-modal-dialog" backdrop="static" centered>
+      <Modal
+        show={show}
+        onHide={onHide}
+        dialogClassName="bill-modal-dialog"
+        backdrop="static"
+        centered>
         <Modal.Header
           closeButton
           className="py-2"
-          style={{ background: headerBg, borderBottom: 'none' }}
-        >
+          style={{ background: headerBg, borderBottom: 'none' }}>
           <Modal.Title className="text-white fw-bold" style={{ fontSize: '0.9rem' }}>
             🧾 Hotel Booking Bill — {combinedSummary?.guest_name || 'Guest'}
           </Modal.Title>
@@ -1363,7 +1547,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             </Button>
             <Button className="btn-bill-pdf" onClick={handleDownloadPDF} disabled={pdfLoading}>
               {pdfLoading ? (
-                <><Spinner animation="border" size="sm" className="me-1" /> Generating PDF...</>
+                <>
+                  <Spinner animation="border" size="sm" className="me-1" /> Generating PDF...
+                </>
               ) : (
                 <>📄 Download PDF</>
               )}

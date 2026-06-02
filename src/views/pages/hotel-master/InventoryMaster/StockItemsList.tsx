@@ -31,7 +31,7 @@ interface StockItemsListProps {
 
 const StockItemsList = ({ onLowStockRefresh }: StockItemsListProps) => {
   const { user } = useAuthContext();
-  const hotelId = user?.hotel_id;
+  const hotelId = user?.hotelid;
 
   const [items, setItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(false);

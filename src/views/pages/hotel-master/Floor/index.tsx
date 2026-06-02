@@ -35,7 +35,7 @@ const defaultForm: FloorFormData = {
 
 const FloorMaster = () => {
   const { user } = useAuthContext()
-  const hotelid = user?.hotel_id  // Changed from mst_hotelid to hotelid
+  const hotelid = user?.hotelid  // Changed from mst_hotelid to hotelid
 
   const [floors, setFloors] = useState<Floor[]>([])
   const [search, setSearch] = useState('')

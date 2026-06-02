@@ -36,7 +36,7 @@ const defaultForm: BlockFormData = {
 
 const BlockMaster = () => {
     const { user } = useAuthContext()
-    const hotelId = user?.hotel_id
+    const hotelId = user?.hotelid
 
     const [blocks, setBlocks] = useState<Block[]>([])
     const [search, setSearch] = useState('')

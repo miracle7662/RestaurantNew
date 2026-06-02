@@ -13,9 +13,9 @@ import toast from 'react-hot-toast'
 import useUser from '@/hooks/useUser'
 
 // API Services
-import CountryService from '@/common/hotel/countries'
-import StateService from '@/common/hotel/states'
-import CityService from '@/common/hotel/cities'
+import CountryService from '@/common/api/countries'
+import StateService from '@/common/api/states'
+import CityService from '@/common/api/cities'
 import CompanyService from '@/common/hotel/company'
 import GuestService from '@/common/hotel/guest'
 import RoomService from '@/common/hotel/room'
@@ -589,28 +589,28 @@ const CheckInForm = () => {
           PaymentMethodService.list({ status: 1 }),
         ])
 
-        const countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || []
+        let countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || []
         setCountries(
           countriesData
             .map((c: any) => ({ id: c.id || c.countryid, name: String(c.name || c.country_name) }))
             .filter((c: any) => c.id && c.name),
         )
 
-        const statesData = Array.isArray(statesRes) ? statesRes : statesRes?.data || []
+        let statesData = Array.isArray(statesRes) ? statesRes : statesRes?.data || []
         setStates(
           statesData
             .map((s: any) => ({ id: s.id || s.stateid, name: String(s.name || s.state_name) }))
             .filter((s: any) => s.id && s.name),
         )
 
-        const citiesData = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || []
+        let citiesData = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || []
         setCities(
           citiesData
             .map((c: any) => ({ id: c.id || c.cityid, name: String(c.name || c.city_name) }))
             .filter((c: any) => c.id && c.name),
         )
 
-        const companiesData = Array.isArray(companiesRes) ? companiesRes : companiesRes?.data || []
+        let companiesData = Array.isArray(companiesRes) ? companiesRes : companiesRes?.data || []
         setCompanies(
           companiesData
             .map((c: any) => ({
@@ -629,7 +629,7 @@ const CheckInForm = () => {
           )
         }
 
-        const categoriesData = Array.isArray(categoriesRes)
+        let categoriesData = Array.isArray(categoriesRes)
           ? categoriesRes
           : categoriesRes?.data || []
         setRoomCategories(
@@ -640,10 +640,10 @@ const CheckInForm = () => {
           })),
         )
 
-        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
+        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
         setTaxList(taxData)
 
-        const fragmentsData = Array.isArray(fragmentsRes) ? fragmentsRes : fragmentsRes?.data || []
+        let fragmentsData = Array.isArray(fragmentsRes) ? fragmentsRes : fragmentsRes?.data || []
         setFragments(
           fragmentsData
             .map((f: any) => ({
@@ -653,7 +653,7 @@ const CheckInForm = () => {
             .filter((f: any) => f.fragment_id && f.name),
         )
 
-        const paymentMethodsData = Array.isArray(paymentMethodsRes)
+        let paymentMethodsData = Array.isArray(paymentMethodsRes)
           ? paymentMethodsRes
           : paymentMethodsRes?.data || []
         const mappedPaymentMethods = paymentMethodsData.map((pm: any) => ({
@@ -1371,7 +1371,7 @@ const CheckInForm = () => {
             setFieldValue('pax', pax)
             setFieldValue('exPax', exPax)
           } else {
-            const convertedTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
+            let convertedTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
             setSelectedRoomTariff(convertedTariff)
             if (!roomChargeEditable) {
               setFieldValue('roomCharges', convertedTariff)
@@ -1405,7 +1405,7 @@ const CheckInForm = () => {
             setFieldValue('pax', pax)
             setFieldValue('exPax', exPax)
           } else {
-            const originalTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
+            let originalTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
             setSelectedRoomTariff(originalTariff)
             if (!roomChargeEditable) {
               setFieldValue('roomCharges', originalTariff)
@@ -1448,7 +1448,7 @@ const CheckInForm = () => {
         setFieldValue('pax', pax)
         setFieldValue('exPax', exPax)
       } else {
-        const tariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
+        let tariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
         setSelectedRoomTariff(tariff)
         if (!roomChargeEditable) {
           setFieldValue('roomCharges', tariff)
@@ -1970,7 +1970,7 @@ onSubmit: async (values) => {
 
       const folioPayload: GuestFolioPayload = {
         checkin_id: checkinId,
-        hotel_id: hotelId,
+        hotelid: hotelId,
         detail_id: firstDetailId,          // ✅ now correctly set from bulk insert result
         transaction_type: 'Room Charges',
         transaction_datetime: nowMysql(),
@@ -1985,7 +1985,7 @@ onSubmit: async (values) => {
       if (values.receivedAmount && Number(values.receivedAmount) > 0) {
         const paymentFolioPayload: GuestFolioPayload = {
           checkin_id: checkinId,
-          hotel_id: hotelId,
+          hotelid: hotelId,
           detail_id: firstDetailId,        // ✅ now correctly set from bulk insert result
           transaction_type: 'Payment',
           transaction_datetime: nowMysql(),
@@ -2311,7 +2311,7 @@ useEffect(() => {
   }))
 
   const roomOptions = useMemo(() => {
-    const options = initialSelectedRooms
+    let options = initialSelectedRooms
       .filter((room) => !roomRows.some((row) => row.roomId === room.roomId))
       .map((r) => ({
         label: r.roomNumber,

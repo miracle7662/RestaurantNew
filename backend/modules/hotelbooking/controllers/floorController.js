@@ -7,13 +7,13 @@ const getCurrentUserId = (req) => {
 
 // Helper to get current user's hotel ID
 const getCurrentUserHotelId = (req) => {
-    return req.user?.hotel_id || null;
+    return req.user?.hotelid || null;
 };
 
 exports.getFloors = async (req, res) => {
     try {
         // Accept hotel_id from query param - fallback to user's hotel ID
-        let hotelId = req.query.hotelid || req.query.mst_hotelid;
+        let hotelId = req.query.hotelid || req.query.hotelid;
         
         if (!hotelId) {
             hotelId = getCurrentUserHotelId(req);

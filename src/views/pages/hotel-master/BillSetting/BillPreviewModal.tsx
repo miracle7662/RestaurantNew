@@ -161,7 +161,6 @@ const BillPreviewModal: React.FC<BillPreviewModalProps> = ({ show, onHide, setti
 
     const s = settings;
     const headerBg = s?.table_header_bg_color || '#1a2744';
-    const headerText = s?.table_header_text_color || '#ffffff';
     
     const showTopHeaderSection = s?.show_top_header_section !== 0;
     const topMarginWhenHeaderHidden = s?.top_margin_when_header_hidden || 30;

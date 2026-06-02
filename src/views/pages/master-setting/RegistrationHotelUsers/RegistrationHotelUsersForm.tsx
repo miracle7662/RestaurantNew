@@ -6,9 +6,9 @@ import * as Yup from 'yup';
 import FormikTextInput from '@/components/Common/FormikTextInput';
 import FormikSelect from '@/components/Common/FormikSelect';
 import FormikCheckbox from '@/components/Common/FormikCheckbox';
-import CountryService from '@/common/hotel/countries';
-import StateService from '@/common/hotel/states';
-import CityService from '@/common/hotel/cities';
+import CountryService from '@/common/api/countries';
+import StateService from '@/common/api/states';
+import CityService from '@/common/api/cities';
 import SubscriptionPlanService from '@/common/hotel/subscriptionPlans';
 
 // Base type from API (numbers for checkbox fields)

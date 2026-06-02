@@ -37,7 +37,7 @@ const defaultForm: RoomCategoryPayload = {
 
 const RoomCategoryManagement = () => {
   const { user } = useAuthContext();
-  const hotelId = user?.hotel_id;
+  const hotelId = user?.hotelid;
 
   const [categories, setCategories] = useState<RoomCategory[]>([]);
   const [search, setSearch] = useState('');

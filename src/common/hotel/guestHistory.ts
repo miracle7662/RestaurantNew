@@ -75,6 +75,7 @@ export interface GuestHistoryCheckoutPayment {
   round_off_amount: number;
   net_payable: number;
   transaction_datetime: string;
+  invoice_no: string;
 }
 
 export interface GuestHistoryCheckoutRoomCharge {

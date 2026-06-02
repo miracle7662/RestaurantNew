@@ -1,6 +1,6 @@
 // ReceiptAgainstBillsModal.tsx
 import { useState, useEffect } from 'react'
-import { Modal, Button, Form, Card, Badge } from 'react-bootstrap'
+import { Modal, Button, Form, Card } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
 
 interface ReceiptAgainstBillsModalProps {
@@ -84,7 +84,7 @@ const ReceiptAgainstBillsModal = ({
     // Load Department master data
     // (department table mapped by backend)
     // Reuses same API approach as PostChargesModal.
-     
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     import('@/common/hotel').then(({ departmentApi }) => {
       return departmentApi.list({ mst_hotelid: hotelId })
     })
@@ -492,7 +492,7 @@ const ReceiptAgainstBillsModal = ({
               </div>
             </div>
             {/* Posted Bills Section */}
-            {/* <div className="mb-3">
+            <div className="mb-3">
               <Form.Label className="fw-semibold small mb-2">Posted Bills :</Form.Label>
               <div className="table-responsive" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                 <table className="table table-sm table-bordered mb-0 small">
@@ -539,7 +539,6 @@ const ReceiptAgainstBillsModal = ({
                               type="checkbox"
                               checked={bill.isSelected}
                               onChange={() => toggleBillSelection(bill.id)}
-                              size="sm"
                             />
                           </td>
                           <td className="py-1">{bill.billDate}</td>
@@ -590,7 +589,8 @@ const ReceiptAgainstBillsModal = ({
                   </tfoot>
                 </table>
               </div>
-            </div> */}
+            </div>
+
           </Card.Body>
         </Card>
       </Modal.Body>

@@ -28,7 +28,7 @@ export interface AdvanceTransaction {
 }
 
 export interface AdvanceTransactionPayload {
-  hotel_id: number;
+  hotelid: number;
   checkin_id: number;
   detail_id?: number | null;
   room_id?: number | null;

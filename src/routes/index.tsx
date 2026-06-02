@@ -101,12 +101,9 @@ const AccountLedger = React.lazy(() => import('../views/apps/Masters/RestaurantM
 
 
 // Master Setting
-const CountryMaster = React.lazy(() => import('../views/pages/master-setting/country'))
-const StateMaster = React.lazy(() => import('../views/pages/master-setting/States'))
-const CityMaster = React.lazy(() => import('../views/pages/master-setting/City'))
+
 const ZoneMaster = React.lazy(() => import('../views/pages/master-setting/Zone'))
-const HotelTypeMaster = React.lazy(() => import('../views/pages/master-setting/HotelType'))
-const HotelCategoryMaster = React.lazy(() => import('../views/pages/master-setting/HotelCategory'))
+
 const TaxMaster = React.lazy(() => import('../views/pages/master-setting/Tax'))
 const PackageMaster = React.lazy(() => import('../views/pages/master-setting/Package'))
 const RegistrationHotelsUsers = React.lazy(
@@ -716,42 +713,14 @@ const appsRoutes: RoutesProps = {
       path: '/pages/master-setting',
       name: 'Master Setting',
       children: [
-        {
-          path: '/master-setting/country-master',
-          name: 'Country Master',
-          element: <CountryMaster />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/master-setting/state-master',
-          name: 'State Master',
-          element: <StateMaster />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/master-setting/city-master',
-          name: 'City Master',
-          element: <CityMaster />,
-          route: PrivateRoute,
-        },
+      
         {
           path: '/master-setting/zone-master',
           name: 'Zone Master',
           element: <ZoneMaster />,
           route: PrivateRoute,
         },
-        {
-          path: '/master-setting/hotel-type-master',
-          name: 'Hotel Type Master',
-          element: <HotelTypeMaster />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/master-setting/hotel-category-master',
-          name: 'Hotel Category Master',
-          element: <HotelCategoryMaster />,
-          route: PrivateRoute,
-        },
+        
         {
           path: '/master-setting/tax-master',
           name: 'Tax Master',

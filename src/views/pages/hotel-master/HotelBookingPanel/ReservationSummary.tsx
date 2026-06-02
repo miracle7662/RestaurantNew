@@ -2,35 +2,23 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Modal } from 'react-bootstrap'
-import TitleHelmet  from '@/components/Common/TitleHelmet'
+import TitleHelmet from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
 import ReservationService from '@/common/hotel/reservation'
 import ReservationRoomService from '@/common/hotel/reservationRooms'
 import RoomCategoryService from '@/common/hotel/roomCategoryService'
-import hotelService from '@/common/hotel/hotelRegistrations'
 
-// Helper functions (copied from original)
-const formatDateTime = (isoString: string): string => {
-  const d = new Date(isoString)
-  const day = d.getDate().toString().padStart(2, '0')
-  const month = d.toLocaleString('default', { month: 'short' }).replace('.', '')
-  const year = d.getFullYear()
-  const hours = d.getHours().toString().padStart(2, '0')
-  const minutes = d.getMinutes().toString().padStart(2, '0')
-  return `${day}-${month}-${year} ${hours}:${minutes}`
-}
 
 const ReservationSummaryPage = () => {
   const navigate = useNavigate()
   const { user } = useAuthContext()
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [rawReservations, setRawReservations] = useState<any[]>([])
   const [rawReservationRooms, setRawReservationRooms] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
-  const [hotelName, setHotelName] = useState<string>('')
 
   // Calendar states
   const [calendarDate, setCalendarDate] = useState(new Date())
@@ -40,23 +28,6 @@ const ReservationSummaryPage = () => {
   // Fetch categories and hotel name
   useEffect(() => {
     if (!hotelId) return
-    const fetchHotelName = async () => {
-      try {
-        if (user?.hotel_name) {
-          setHotelName(user.hotel_name)
-          return
-        }
-        const res = await hotelService.get(hotelId)
-        if (res.success && res.data?.hotel_name) {
-          setHotelName(res.data.hotel_name)
-        } else {
-          setHotelName('Hotel')
-        }
-      } catch (err) {
-        console.error('Failed to fetch hotel name:', err)
-        setHotelName('Hotel')
-      }
-    }
     const fetchCategories = async () => {
       try {
         const res = await RoomCategoryService.list({ hotelid: Number(hotelId) })
@@ -65,9 +36,8 @@ const ReservationSummaryPage = () => {
         console.error('Failed to fetch categories:', err)
       }
     }
-    fetchHotelName()
     fetchCategories()
-  }, [hotelId, user])
+  }, [hotelId])
 
   // Fetch reservation data
   const fetchReservationSummary = async () => {
@@ -100,7 +70,6 @@ const ReservationSummaryPage = () => {
   const arrivalsByDate = useMemo(() => {
     if (!rawReservations.length) return new Map<string, any[]>()
 
-    const resMap = new Map(rawReservations.map((r: any) => [r.reservation_id, r]))
     const resRoomsMap = new Map<number, any[]>()
     rawReservationRooms.forEach((room: any) => {
       if (!resRoomsMap.has(room.reservation_id)) {

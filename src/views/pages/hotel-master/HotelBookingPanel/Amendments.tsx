@@ -13,7 +13,7 @@ import CheckInService, { CheckIn } from '@/common/hotel/checkIn'
 import DetailService, { Detail } from '@/common/hotel/detail'
 import GuestService from '@/common/hotel/guest'
 import CompanyService from '@/common/hotel/company'
-import CountryService from '@/common/hotel/countries'
+import CountryService from '@/common/api/countries'
 import GuestRoomChargesService from '@/common/hotel/guestRoomCharges'
 import RoomCategoryService from '@/common/hotel/roomCategoryService'
 import PaymentMethodService from '@/common/hotel/paymentMethod'
@@ -68,7 +68,7 @@ const updateRoomChargeFolio = async (
     const folioRes = await GuestFolioService.list({ checkin_id: checkinId })
     const folioEntries = folioRes.data || []
 
-    const roomChargeEntry = folioEntries.find(
+    let roomChargeEntry = folioEntries.find(
       (entry: any) => entry.detail_id === detailId && entry.transaction_type === 'Room Charge',
     )
 
@@ -80,7 +80,7 @@ const updateRoomChargeFolio = async (
     } else {
       await GuestFolioService.create({
         checkin_id: checkinId,
-        hotel_id: hotelId,
+        hotelid: hotelId,
         detail_id: detailId,
         transaction_type: 'Room Charge',
         transaction_datetime: new Date().toISOString(),
@@ -100,7 +100,7 @@ const Amendments = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuthContext()
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
 
   const [occupiedRooms, setOccupiedRooms] = useState<OccupiedRoom[]>([])
   const [selectedRoom, setSelectedRoom] = useState<OccupiedRoom | null>(null)
@@ -246,7 +246,7 @@ const Amendments = () => {
     const fetchCountries = async () => {
       try {
         const res = await CountryService.list()
-        const countriesData = Array.isArray(res) ? res : res?.data || []
+        let countriesData = Array.isArray(res) ? res : res?.data || []
         setCountries(
           countriesData
             .map((c: any) => ({ id: c.id || c.countryid, name: String(c.name || c.country_name) }))
@@ -264,7 +264,7 @@ const Amendments = () => {
       if (!hotelId) return
       try {
         const res = await RoomCategoryService.list({ hotelid: hotelId })
-        const data = Array.isArray(res) ? res : res?.data || []
+        let data = Array.isArray(res) ? res : res?.data || []
         setRoomCategories(
           data.map((c: any) => ({
             room_category_id: c.room_category_id || c.id,
@@ -279,6 +279,18 @@ const Amendments = () => {
   }, [hotelId])
 
   useEffect(() => {
+    const keyActionMap: Record<string, string> = {
+      F2: 'Change In Pax',
+      F3: 'Change In Guest Info',
+      F4: 'Stay Amendments',
+      F5: 'Change Room Cat.',
+      F6: 'Transfer Room',
+      F7: 'Merge Room',
+      F8: 'Change In Pay Mode',
+      F9: 'Swap Room',
+      F10: 'Apply Discount',
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         // If an action panel is open, close it first; otherwise go back
@@ -289,11 +301,29 @@ const Amendments = () => {
           e.preventDefault()
           navigate(-1)
         }
+        return
+      }
+
+      // F2–F10: open corresponding action panel
+      if (e.key in keyActionMap) {
+        e.preventDefault()
+        const action = keyActionMap[e.key]
+        if (!selectedRoom) {
+          toast.error('Please select a room first')
+          return
+        }
+        // If same action is already open, pressing the key again closes it
+        if (activeAction === action) {
+          setActiveAction(null)
+        } else {
+          setActiveAction(action)
+        }
       }
     }
+
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeAction, navigate])
+  }, [activeAction, navigate, selectedRoom])
 
   const fetchBillingSummary = async (checkinId: number, roomId?: number) => {
     try {
@@ -1308,7 +1338,7 @@ const PaxChangeComponent = ({
         setModeCharges(catData.mode_charges || [])
 
         const taxRes = await taxApi.list()
-        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
+        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
         const map = new Map<number, number>()
         taxData.forEach((tax: any) => {
           const percent = tax.hotel_tax_value ?? tax.hotel_cgst + tax.hotel_sgst
@@ -1772,7 +1802,7 @@ interface StayAmendmentsProps {
 
 const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmendmentsProps) => {
   const { user } = useAuthContext()
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
 
   const [showDaysInput, setShowDaysInput] = useState(false)
   const [mode, setMode] = useState<'extend' | 'reduce'>('extend')
@@ -1828,7 +1858,7 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
         setStayModeCharges(catData.mode_charges || [])
 
         const taxRes = await taxApi.list()
-        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
+        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
         const map = new Map<number, number>()
         taxData.forEach((tax: any) => {
           const percent = tax.hotel_tax_value ?? tax.hotel_cgst + tax.hotel_sgst
@@ -1940,7 +1970,7 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
     if (!currentCheckinDate) return null
     const checkinDate = new Date(currentCheckinDate)
     const checkoutDate = new Date(currentCheckoutDate)
-    const newCheckoutDate = new Date(checkoutDate)
+    let newCheckoutDate = new Date(checkoutDate)
     if (mode === 'extend') {
       newCheckoutDate.setDate(newCheckoutDate.getDate() + days)
     } else {
@@ -2187,7 +2217,7 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
       const description = `Day extension day ${dayIndex + 1}/${extensionDays} Room ${detailData.room_number}`
       await GuestFolioService.create({
         checkin_id: checkinData.checkin_id,
-        hotel_id: userHotelId,
+        hotelid: userHotelId,
         detail_id: newDetailId,
         transaction_type: 'Room Charge',
         transaction_datetime: formatLocalDateTimeString(new Date()),
@@ -3155,7 +3185,8 @@ const ChangeRoomCategoryComponent = ({
   const currentRow = previewActive ? previewRow : originalRow
   const isCategoryChanged = previewActive && tempNewCategory !== originalCategory
   const isRateChanged = previewActive && newTariff !== null && newTariff !== originalTariff
-  const futureCount = futureRecords.details.length + futureRecords.charges.length
+
+
 
   const allHeaders: Array<{ key: string; label: string }> = [
     { key: '#', label: '#' },
@@ -3343,7 +3374,7 @@ const ChangeGuestInfoComponent = ({
   onRefresh,
 }: ChangeGuestInfoProps) => {
   const { user } = useAuthContext()
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
 
   const [deleteChecked, setDeleteChecked] = useState(false)
   const [guestName, setGuestName] = useState(selectedRoom.checkin.guest_name || '')
@@ -3867,7 +3898,7 @@ const TransferRoomComponent = ({
   onRefresh,
 }: TransferRoomProps) => {
   const { user } = useAuthContext()
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
 
   const [targetRoomNo, setTargetRoomNo] = useState<string>('')
   const [loadingUpdate, setLoadingUpdate] = useState(false)
@@ -4339,11 +4370,9 @@ const TransferRoomComponent = ({
     </tr>
   )
 
-  // Calculate counts for info banner
-  const futureDaysCount = dayRecords.details.filter((d) =>
-    isTodayOrFuture(d.checkout_datetime),
-  ).length
-  const pastDaysCount = dayRecords.details.length - futureDaysCount
+
+
+
 
   return (
     <ActionBox title="Transfer Room" onClose={onClose}>
@@ -4629,7 +4658,7 @@ const ChangePayModeComponent = ({
       setLoading(true)
       try {
         const pmRes = await PaymentMethodService.list({ status: 1 })
-        const pmData = Array.isArray(pmRes) ? pmRes : pmRes?.data || []
+        let pmData = Array.isArray(pmRes) ? pmRes : pmRes?.data || []
         const mapped = pmData.map((pm: any) => ({
           id: pm.id || pm.payment_method_id,
           name: pm.name || pm.payment_method_name,
@@ -4753,7 +4782,7 @@ const ChangePayModeComponent = ({
         } else {
           await GuestFolioService.create({
             checkin_id: selectedRoom.checkin.checkin_id,
-            hotel_id: (selectedRoom.checkin as any).hotel_id,
+            hotelid: (selectedRoom.checkin as any).hotelid,
             detail_id: selectedRoom.detail.detail_id,
             transaction_type: 'Payment Mode Change',
             transaction_datetime: new Date().toISOString(),
@@ -5512,24 +5541,6 @@ const SwapRoomComponent = ({ selectedRoom, occupiedRooms, onClose, onRefresh }: 
         </table>
       </div>
 
-      {/* Advance & Post Charges Transfer Info */}
-      {advanceTransferStatus && (advanceTransferStatus.a > 0 || advanceTransferStatus.b > 0) && (
-        <div className="alert alert-info py-1 px-2 mb-2" style={{ fontSize: '0.7rem' }}>
-          <i className="fi fi-rr-info me-1"></i>
-          This swap will transfer {advanceTransferStatus.a} advance(s) from {selectedRoom.roomNo} to{' '}
-          {targetRoom?.roomNo}, and {advanceTransferStatus.b} advance(s) from {targetRoom?.roomNo}{' '}
-          to {selectedRoom.roomNo}.
-        </div>
-      )}
-      {postChargesCounts && (postChargesCounts.a > 0 || postChargesCounts.b > 0) && (
-        <div className="alert alert-warning py-1 px-2 mb-2" style={{ fontSize: '0.7rem' }}>
-          <i className="fi fi-rr-info me-1"></i>
-          This swap will also move {postChargesCounts.a} post charge(s)/allowance(s) from{' '}
-          {selectedRoom.roomNo} to {targetRoom?.roomNo}, and {postChargesCounts.b} from{' '}
-          {targetRoom?.roomNo} to {selectedRoom.roomNo}.
-        </div>
-      )}
-
       {/* Action Buttons */}
       <div className="action-footer">
         <Button
@@ -5658,7 +5669,7 @@ const ApplyDiscountComponent = ({
         } else {
           await GuestFolioService.create({
             checkin_id: selectedRoom.checkin.checkin_id,
-            hotel_id: selectedRoom.checkin.hotelid,
+            hotelid: selectedRoom.checkin.hotelid,
             detail_id: detail.detail_id,
             transaction_type: 'Discount',
             transaction_datetime: new Date().toISOString(),

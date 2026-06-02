@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Button, Card, Stack, Pagination, Table, Modal } from 'react-bootstrap';
@@ -14,10 +13,6 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
-import { Formik, Form } from 'formik';
-import { myFormValidationSchema } from '@/common/validators';
-import FormikTextInput from '@/components/Common/FormikTextInput';
-import FormikSelect from '@/components/Common/FormikSelect';
 import CountryService from '@/common/api/countries';
 
 // Interfaces
@@ -25,7 +20,7 @@ interface CountryItem {
   countryid: number;
   country_name: string;
   country_code: string;
-  country_capital?: string; //
+  country_capital?: string;
   status: number;
   created_by_id: number;
   created_date: string;
@@ -492,46 +487,124 @@ const Country: React.FC = () => {
   );
 };
 
-// CountryModal Component
+// CountryModal Component with native HTML form elements (no Formik)
 const CountryModal: React.FC<CountryModalProps> = ({ show, onHide, onSuccess, country, onUpdateSelectedCountry }) => {
   const [loading, setLoading] = useState(false);
-  const formikRef = useRef<any>(null);
+  const [formData, setFormData] = useState({
+    country_name: '',
+    country_code: '',
+    country_capital: '',
+    status: 'Active'
+  });
+  const [errors, setErrors] = useState({
+    country_name: '',
+    country_code: '',
+    country_capital: '',
+    status: ''
+  });
 
   const isEditMode = !!country;
 
-  const initialValues = {
-    country_name: country?.country_name || '',
-    country_code: country?.country_code || '',
-    country_capital: country?.country_capital || '',
-    status: country ? (String(country.status) === '0' ? 'Active' : 'Inactive') : 'Active',
+  useEffect(() => {
+    if (country) {
+      setFormData({
+        country_name: country.country_name || '',
+        country_code: country.country_code || '',
+        country_capital: country.country_capital || '',
+        status: String(country.status) === '0' ? 'Active' : 'Inactive'
+      });
+    } else {
+      setFormData({
+        country_name: '',
+        country_code: '',
+        country_capital: '',
+        status: 'Active'
+      });
+    }
+    setErrors({
+      country_name: '',
+      country_code: '',
+      country_capital: '',
+      status: ''
+    });
+  }, [country, show]);
+
+  const validateForm = () => {
+    const newErrors = {
+      country_name: '',
+      country_code: '',
+      country_capital: '',
+      status: ''
+    };
+    let isValid = true;
+
+    if (!formData.country_name.trim()) {
+      newErrors.country_name = 'Country name is required';
+      isValid = false;
+    }
+
+    if (!formData.country_code.trim()) {
+      newErrors.country_code = 'Country code is required';
+      isValid = false;
+    } else if (formData.country_code.length > 3) {
+      newErrors.country_code = 'Country code must be at most 3 characters';
+      isValid = false;
+    }
+
+    if (!formData.country_capital.trim()) {
+      newErrors.country_capital = 'Capital city is required';
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
+    if (errors[name as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
     try {
-      const statusValue = values.status === 'Active' ? 0 : 1;
+      const statusValue = formData.status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
       const payload: any = {
-        country_name: values.country_name,
-        country_code: values.country_code,
-        country_capital: values.country_capital,
+        country_name: formData.country_name,
+        country_code: formData.country_code,
+        country_capital: formData.country_capital,
         status: statusValue,
         created_by_id: isEditMode ? Number(country!.created_by_id) : 1,
         created_date: isEditMode ? country!.created_date : currentDate,
         updated_by_id: 2,
         updated_date: currentDate,
-       ...(isEditMode ? { countryid: country!.countryid } : {}),
+        ...(isEditMode ? { countryid: country!.countryid } : {}),
       };
 
       try {
         if (isEditMode) {
-          await CountryService.update(country.countryid, payload);
+          await CountryService.update(country!.countryid, payload);
         } else {
           await CountryService.create(payload);
         }
         toast.success(`Country ${isEditMode ? 'updated' : 'added'} successfully`);
         if (isEditMode && country && onUpdateSelectedCountry) {
-          onUpdateSelectedCountry({ ...country, country_name: values.country_name, country_code: values.country_code, country_capital: values.country_capital, status: statusValue });
+          onUpdateSelectedCountry({ 
+            ...country, 
+            country_name: formData.country_name, 
+            country_code: formData.country_code, 
+            country_capital: formData.country_capital, 
+            status: statusValue 
+          });
         }
         onSuccess();
         onHide();
@@ -551,69 +624,75 @@ const CountryModal: React.FC<CountryModalProps> = ({ show, onHide, onSuccess, co
         <Modal.Title>{isEditMode ? 'Edit Country' : 'Add New Country'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Formik
-          innerRef={formikRef}
-          initialValues={initialValues}
-          validationSchema={myFormValidationSchema}
-          onSubmit={handleSubmit}
-          enableReinitialize={true}
-        >
-          {({ values, setFieldValue }) => (
-            <Form>
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <FormikTextInput
-                    name="country_name"
-                    label="Country Name"
-                    placeholder="Enter country name"
-                  />
-                </div>
-                <div className="col-md-6 mb-3">
-                  <FormikTextInput
-                    name="country_code"
-                    label="Country Code"
-                    placeholder="Enter country code"
-                    maxLength={3}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (/^[0-9]*$/.test(value)) {
-                        setFieldValue('country_code', value);
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <FormikTextInput
-                    name="country_capital"
-                    label="Capital City"
-                    placeholder="Enter capital city"
-                  />
-                </div>
-                <div className="col-md-6 mb-3">
-                  <FormikSelect
-                    name="status"
-                    label="Status"
-                    options={[
-                      { value: 'Active', label: 'Active' },
-                      { value: 'Inactive', label: 'Inactive' },
-                    ]}
-                    onChange={(e) => {
-                      setFieldValue('status', e.target.value);
-                    }}
-                  />
-                </div>
-              </div>
-            </Form>
-          )}
-        </Formik>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="country_name" className="form-label">Country Name <span className="text-danger">*</span></label>
+            <input
+              type="text"
+              id="country_name"
+              name="country_name"
+              className={`form-control ${errors.country_name ? 'is-invalid' : ''}`}
+              placeholder="Enter country name"
+              value={formData.country_name}
+              onChange={handleChange}
+            />
+            {errors.country_name && <div className="invalid-feedback">{errors.country_name}</div>}
+          </div>
+          <div className="col-md-6 mb-3">
+            <label htmlFor="country_code" className="form-label">Country Code <span className="text-danger">*</span></label>
+            <input
+              type="text"
+              id="country_code"
+              name="country_code"
+              className={`form-control ${errors.country_code ? 'is-invalid' : ''}`}
+              placeholder="Enter country code"
+              maxLength={3}
+              value={formData.country_code}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (/^[0-9]*$/.test(value)) {
+                  handleChange(e);
+                }
+              }}
+            />
+            {errors.country_code && <div className="invalid-feedback">{errors.country_code}</div>}
+          </div>
+        </div>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="country_capital" className="form-label">Capital City <span className="text-danger">*</span></label>
+            <input
+              type="text"
+              id="country_capital"
+              name="country_capital"
+              className={`form-control ${errors.country_capital ? 'is-invalid' : ''}`}
+              placeholder="Enter capital city"
+              value={formData.country_capital}
+              onChange={handleChange}
+            />
+            {errors.country_capital && <div className="invalid-feedback">{errors.country_capital}</div>}
+          </div>
+          <div className="col-md-6 mb-3">
+            <label htmlFor="status" className="form-label">Status</label>
+            <select
+              id="status"
+              name="status"
+              className={`form-select ${errors.status ? 'is-invalid' : ''}`}
+              value={formData.status}
+              onChange={handleChange}
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            {errors.status && <div className="invalid-feedback">{errors.status}</div>}
+          </div>
+        </div>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={() => formikRef.current?.submitForm()} disabled={loading}>
+        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
           {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
         </Button>
       </Modal.Footer>

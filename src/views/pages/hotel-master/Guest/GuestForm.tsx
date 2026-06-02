@@ -7,9 +7,9 @@ import * as Yup from 'yup'
 import CreatableSelect from 'react-select/creatable'
 import FormikTextInput from '@/components/Common/FormikTextInput'
 import FormSelect from '@/components/Common/FormikSelect'
-import CityService from '@/common/hotel/cities'
-import CountryService from '@/common/hotel/countries'
-import StateService from '@/common/hotel/states'
+import CountryService from '@/common/api/countries';
+import StateService from '@/common/api/states';
+import CityService from '@/common/api/cities';      
 import NationalityService from '@/common/hotel/nationalities'
 import FragmentService from '@/common/hotel/fragments'
 import CompanyService from '@/common/hotel/company'
@@ -147,7 +147,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   // Fetch all reference data
   useEffect(() => {
     const fetchData = async () => {
-      if (!selectedItem.hotelid && !authUser?.hotel_id) {
+      if (!selectedItem.hotelid && !authUser?.hotelid) {
         console.warn('No hotel ID available, skipping data fetch')
         return
       }
@@ -164,7 +164,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
       setLoadingDeparture(true)
 
       try {
-        const hotelId = selectedItem.hotelid || authUser?.hotel_id
+        const hotelId = selectedItem.hotelid || authUser?.hotelid
 
         const [
           fragmentsRes,
@@ -265,7 +265,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
     }
 
     fetchData()
-  }, [selectedItem.hotelid, authUser?.hotel_id])
+  }, [selectedItem.hotelid, authUser?.hotelid])
 
   // Fetch document types from API
   useEffect(() => {
@@ -569,15 +569,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   }
 
   // Get selected fragment value for display
-  const getSelectedFragmentValue = () => {
-    if (values.fragment_id) {
-      const selected = fragments.find(f => f.fragment_id === values.fragment_id)
-      if (selected) {
-        return { label: selected.name, value: selected.fragment_id }
-      }
-    }
-    return null
-  }
+  
 
   return (
     <FormikProvider value={formik}>

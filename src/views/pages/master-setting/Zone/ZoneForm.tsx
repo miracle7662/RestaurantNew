@@ -4,7 +4,7 @@ import { FormikProvider, useFormik } from 'formik';
 import * as Yup from 'yup';
 import FormikTextInput from '@/components/Common/FormikTextInput';
 import FormikSelect from '@/components/Common/FormikSelect';
-import cityApi from '@/common/hotel/cities'; // adjust import path
+import cityApi from '@/common/api/cities'; // adjust import path
 
 type ZoneFormData = {
   zonename: string;

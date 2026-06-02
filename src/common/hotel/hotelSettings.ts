@@ -3,7 +3,7 @@ import HttpClient from '../helpers/httpClient';
 import { ApiResponse } from '@/types/api';
 
 export interface HotelUiSettings {
-    hotel_id: number;
+    hotelid: number;
     show_left_category: boolean;
     show_room_text: boolean;
     room_box_size: number;
@@ -37,7 +37,7 @@ export interface HotelUiSettings {
 }
 
 export interface HotelSettingsPayload {
-    hotel_id: number;
+    hotelid: number;
     show_left_category?: boolean;
     show_room_text?: boolean;
     room_box_size?: number;

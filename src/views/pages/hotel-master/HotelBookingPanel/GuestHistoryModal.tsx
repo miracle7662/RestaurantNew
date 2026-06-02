@@ -1,7 +1,7 @@
 // components/CheckIn/GuestHistoryModal.tsx
 // FULL UPDATED CODE
 
-import React, { useEffect, useState } from 'react'
+import  { useEffect, useState } from 'react'
 import { Modal, Spinner, Badge, Button } from 'react-bootstrap'
 import { useAuthContext } from '@/common/context/useAuthContext'
 import GuestHistoryService, {
@@ -57,7 +57,7 @@ const GuestHistoryModal = ({
 
   const { user } = useAuthContext()
 
-  const hotelId = user?.hotel_id || user?.hotelid
+  const hotelId = user?.hotelid || user?.hotelid
 
   const [loading, setLoading] = useState(false)
 

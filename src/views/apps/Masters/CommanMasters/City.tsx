@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
@@ -17,10 +17,6 @@ import {
   Row,
   Cell,
 } from '@tanstack/react-table';
-import { Formik, Form } from 'formik';
-import { cityFormValidationSchema } from '@/common/validators';
-import FormikTextInput from '@/components/Common/FormikTextInput';
-import FormikSelect from '@/components/Common/FormikSelect';
 import CityService from '@/common/api/cities';
 import StateService from '@/common/api/states';
 
@@ -192,6 +188,7 @@ const City: React.FC = () => {
     getFilteredRowModel: getFilteredRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+  
   // Search handler
   const handleSearch = (value: string) => {
     setSearchTerm(value);
@@ -248,6 +245,7 @@ const City: React.FC = () => {
       }
     }
   };
+  
   // Update selected city index
   useEffect(() => {
     const index = filteredCities.findIndex((city) => city.cityid === selectedCity?.cityid);
@@ -469,60 +467,124 @@ const City: React.FC = () => {
   );
 };
 
-// Add City Modal
+// Add City Modal with native HTML form elements (no Formik)
 const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSuccess, city, onUpdateSelectedCity }, ref) => {
   const [loading, setLoading] = useState(false);
   const [stateItems, setStateItems] = useState<StateItem[]>([]);
-  const formikRef = useRef<any>(null);
+  const [formData, setFormData] = useState({
+    city_name: '',
+    city_code: '',
+    stateId: '',
+    status: 'Active'
+  });
+  const [errors, setErrors] = useState({
+    city_name: '',
+    city_code: '',
+    stateId: '',
+    status: ''
+  });
   const { user } = useAuthContext();
-  
 
   const isEditMode = !!city;
 
- useEffect(() => {
-  const fetchStates = async () => {
-    setLoading(true);
-    try {
-      const response = await StateService.list();
-
-      // ApiResponse check
-      if (response.success && Array.isArray(response.data)) {
-        setStateItems(response.data);
-       
-      } else {
-        toast.error(response.message || "Invalid state data format");
+  useEffect(() => {
+    const fetchStates = async () => {
+      setLoading(true);
+      try {
+        const response = await StateService.list();
+        if (response.success && Array.isArray(response.data)) {
+          setStateItems(response.data);
+        } else {
+          toast.error(response.message || "Invalid state data format");
+        }
+      } catch (error: any) {
+        toast.error('Failed to fetch states');
+      } finally {
+        setLoading(false);
       }
+    };
+    fetchStates();
+  }, []);
 
-    } catch (error: any) {
-      // console.error("Fetch States Error:", error);
-      toast.error('Failed to fetch states');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (city) {
+      setFormData({
+        city_name: city.city_name || '',
+        city_code: city.city_code || '',
+        stateId: city.stateId ? String(city.stateId) : '',
+        status: city.status === 0 ? 'Active' : 'Inactive'
+      });
+    } else {
+      setFormData({
+        city_name: '',
+        city_code: '',
+        stateId: '',
+        status: 'Active'
+      });
+    }
+    setErrors({
+      city_name: '',
+      city_code: '',
+      stateId: '',
+      status: ''
+    });
+  }, [city, show]);
+
+  const validateForm = () => {
+    const newErrors = {
+      city_name: '',
+      city_code: '',
+      stateId: '',
+      status: ''
+    };
+    let isValid = true;
+
+    if (!formData.city_name.trim()) {
+      newErrors.city_name = 'City name is required';
+      isValid = false;
+    }
+
+    if (!formData.city_code.trim()) {
+      newErrors.city_code = 'City code is required';
+      isValid = false;
+    } else if (formData.city_code.length > 4) {
+      newErrors.city_code = 'City code must be at most 4 characters';
+      isValid = false;
+    }
+
+    if (!formData.stateId) {
+      newErrors.stateId = 'Please select a state';
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
-  fetchStates();
-}, []);
-  const initialValues = {
-    city_name: city?.city_name || '',
-    city_code: city?.city_code || '',
-    stateId: city ? Number(city.stateId) : null,
-    status: city ? (city.status === 0 ? 'Active' : 'Inactive') : 'Active',
-  };
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
 
-  const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
-      const statusValue = values.status === 'Active' ? 0 : 1;
+      const statusValue = formData.status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
-       const userId = user?.id || '1';
+      const userId = user?.id || '1';
 
-      // Map frontend fields to backend expected fields
       const payload = {
-        city_name: values.city_name,
-        city_Code: values.city_code, // Fix: backend expects city_Code (capital C)
-        stateId: values.stateId,     // Fix: backend expects stateId (capital I)
-        iscoastal: 0,         // Add: backend expects iscoastal field
+        city_name: formData.city_name,
+        city_Code: formData.city_code,
+        stateId: parseInt(formData.stateId),
+        iscoastal: 0,
         status: statusValue,
         ...(isEditMode
           ? {
@@ -553,9 +615,9 @@ const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSu
         if (isEditMode && city && onUpdateSelectedCity) {
           onUpdateSelectedCity({
             ...city,
-            city_name: values.city_name,
-            city_code: values.city_code,
-            stateId: String(values.stateId),
+            city_name: formData.city_name,
+            city_code: formData.city_code,
+            stateId: formData.stateId,
             status: statusValue,
             updated_by_id: '2',
             updated_date: currentDate
@@ -576,9 +638,7 @@ const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSu
 
   useImperativeHandle(ref, () => ({
     saveData: () => {
-      if (formikRef.current) {
-        formikRef.current.submitForm();
-      }
+      handleSubmit();
     },
   }));
 
@@ -588,75 +648,80 @@ const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSu
         <Modal.Title>{isEditMode ? 'Edit City' : 'Add New City'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Formik
-          innerRef={formikRef}
-          initialValues={initialValues}
-          validationSchema={cityFormValidationSchema}
-          onSubmit={handleSubmit}
-          enableReinitialize={true}
-        >
-          {({ values, setFieldValue }) => (
-            <Form>
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <FormikTextInput
-                    name="city_name"
-                    label="City Name"
-                    placeholder="Enter city name"
-                  />
-                </div>
-                <div className="col-md-6 mb-3">
-                  <FormikTextInput
-                    name="city_code"
-                    label="City Code"
-                    placeholder="Enter city code"
-                    maxLength={4}
-                    onChange={(e) => {
-                      const value = e.target.value.toUpperCase();
-                      setFieldValue('city_code', value);
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <FormikSelect
-                    name="stateId"
-                    label="State"
-                    options={stateItems
-                      .filter((state) => String(state.status) === '0')
-                      .map((state) => ({
-                        value: String(state.stateid),
-                        label: state.state_name,
-                      }))}
-                    onChange={(e) => {
-                      setFieldValue('stateId', Number(e.target.value));
-                    }}
-                  />
-                </div>
-                <div className="col-md-6 mb-3">
-                  <FormikSelect
-                    name="status"
-                    label="Status"
-                    options={[
-                      { value: 'Active', label: 'Active' },
-                      { value: 'Inactive', label: 'Inactive' },
-                    ]}
-                    onChange={(e) => {
-                      setFieldValue('status', e.target.value);
-                    }}
-                  />
-                </div>
-              </div>
-            </Form>
-          )}
-        </Formik>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="city_name" className="form-label">City Name <span className="text-danger">*</span></label>
+            <input
+              type="text"
+              id="city_name"
+              name="city_name"
+              className={`form-control ${errors.city_name ? 'is-invalid' : ''}`}
+              placeholder="Enter city name"
+              value={formData.city_name}
+              onChange={handleChange}
+            />
+            {errors.city_name && <div className="invalid-feedback">{errors.city_name}</div>}
+          </div>
+          <div className="col-md-6 mb-3">
+            <label htmlFor="city_code" className="form-label">City Code <span className="text-danger">*</span></label>
+            <input
+              type="text"
+              id="city_code"
+              name="city_code"
+              className={`form-control ${errors.city_code ? 'is-invalid' : ''}`}
+              placeholder="Enter city code"
+              maxLength={4}
+              value={formData.city_code}
+              onChange={(e) => {
+                const value = e.target.value.toUpperCase();
+                handleChange({ ...e, target: { ...e.target, name: 'city_code', value } });
+              }}
+            />
+            {errors.city_code && <div className="invalid-feedback">{errors.city_code}</div>}
+          </div>
+        </div>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="stateId" className="form-label">State <span className="text-danger">*</span></label>
+            <select
+              id="stateId"
+              name="stateId"
+              className={`form-select ${errors.stateId ? 'is-invalid' : ''}`}
+              value={formData.stateId}
+              onChange={handleChange}
+            >
+              <option value="">Select State</option>
+              {stateItems
+                .filter((state) => String(state.status) === '0')
+                .map((state) => (
+                  <option key={state.stateid} value={String(state.stateid)}>
+                    {state.state_name}
+                  </option>
+                ))}
+            </select>
+            {errors.stateId && <div className="invalid-feedback">{errors.stateId}</div>}
+          </div>
+          <div className="col-md-6 mb-3">
+            <label htmlFor="status" className="form-label">Status</label>
+            <select
+              id="status"
+              name="status"
+              className={`form-select ${errors.status ? 'is-invalid' : ''}`}
+              value={formData.status}
+              onChange={handleChange}
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            {errors.status && <div className="invalid-feedback">{errors.status}</div>}
+          </div>
+        </div>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={() => formikRef.current?.submitForm()} disabled={loading}>
+        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
           {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
         </Button>
       </Modal.Footer>
@@ -664,6 +729,5 @@ const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSu
   );
 });
 
-CityModal.displayName = 'CityModal';
 
 export default City;

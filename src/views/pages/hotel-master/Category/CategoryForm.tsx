@@ -48,7 +48,7 @@ const defaultForm: RoomCategoryPayload = {
 
 const RoomCategoryForm = forwardRef<any, Props>(({ selectedItem, isEdit, onSave }, ref) => {
   const { user } = useAuthContext();
-  const hotelId = user?.hotel_id;
+  const hotelId = user?.hotelid;
 
   const [taxList, setTaxList] = useState<any[]>([]);
   const [modeMaster, setModeMaster] = useState<any[]>([]);

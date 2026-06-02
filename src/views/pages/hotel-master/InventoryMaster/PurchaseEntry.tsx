@@ -17,7 +17,7 @@ interface PurchaseEntryProps {
 const PurchaseEntry = ({ onPurchaseComplete }: PurchaseEntryProps) => {
   const { user } = useAuthContext()
 
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
   const userId = user?.id
 
   const [items, setItems] = useState<StockItem[]>([])

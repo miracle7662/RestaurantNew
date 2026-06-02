@@ -1,10 +1,8 @@
 export { default as authApi } from './auth'
 export { default as profileApi } from './profile'
-export { default as countryApi } from './countries'
 export { default as blockApi } from './blocks'
 export { default as floorApi } from './floors'
-export { default as hotelCategoryApi } from './hotelCategories'
-export { default as hotelTypeApi } from './hotelTypes'
+
 export { default as FeatureAPI } from './features'  
 export { default as fragmentApi } from './fragments'
 export { default as nationalityApi } from './nationalities'

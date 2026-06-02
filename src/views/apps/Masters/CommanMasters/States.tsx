@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
@@ -13,10 +13,6 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
-import { Formik, Form } from 'formik';
-import { stateFormValidationSchema } from '@/common/validators';
-import FormikTextInput from '@/components/Common/FormikTextInput';
-import FormikSelect from '@/components/Common/FormikSelect';
 import StateService from '@/common/api/states';
 import CountryService from '@/common/api/countries';
 
@@ -26,7 +22,7 @@ interface CountryItem {
   country_name: string;
   status: number;
 }
-// Interfaces
+
 interface StateItem {
   stateid: number;
   state_name: string;
@@ -63,6 +59,10 @@ interface StateModalProps {
   onUpdateSelectedState?: (state: StateItem) => void;
 }
 
+interface StateModalRef {
+  saveData: () => void;
+}
+
 // Utility Functions
 const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -97,28 +97,23 @@ const States: React.FC = () => {
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
 
   // Fetch states from API
- const fetchStates = async () => {
-  setLoading(true);
-  try {
-    const response = await StateService.list();
+  const fetchStates = async () => {
+    setLoading(true);
+    try {
+      const response = await StateService.list();
 
-    // console.log("STATE RESPONSE:", response);
-
-    if (response.success && response.data) {
-      setStateItems(response.data);
-      setFilteredStates(response.data);
-    } else {
-      toast.error(response.message || "Failed to fetch states");
+      if (response.success && response.data) {
+        setStateItems(response.data);
+        setFilteredStates(response.data);
+      } else {
+        toast.error(response.message || "Failed to fetch states");
+      }
+    } catch (error: any) {
+      toast.error('Failed to fetch states');
+    } finally {
+      setLoading(false);
     }
-
-  } catch (error: any) {
-    // console.log("FULL ERROR:", error);
-    // console.log("BACKEND ERROR:", error.response?.data);
-    toast.error('Failed to fetch states');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     fetchStates();
@@ -148,7 +143,6 @@ const States: React.FC = () => {
       size: 10,
       cell: (cell) => <h6 className="mb-1">{cell.getValue<string>()}</h6>,
     },
-
     {
       accessorKey: 'status',
       header: 'Status',
@@ -274,14 +268,14 @@ const States: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-       await StateService.remove(Number(state.stateid));
-    toast.success('State deleted successfully');
-    fetchStates();           // Refresh the list
-    setSelectedState(null);  // Clear selected
-    setContainerToggle(false);
-  } catch (err: any) {
-    toast.error(err?.response?.data?.message || 'Failed to delete state');
-  }
+        await StateService.remove(Number(state.stateid));
+        toast.success('State deleted successfully');
+        fetchStates();
+        setSelectedState(null);
+        setContainerToggle(false);
+      } catch (err: any) {
+        toast.error(err?.response?.data?.message || 'Failed to delete state');
+      }
     }
   };
 
@@ -512,56 +506,130 @@ const States: React.FC = () => {
   );
 };
 
-// Add State Modal
-interface StateModalRef {
-  saveData: () => void;
-}
-
+// State Modal with native HTML form elements (no Formik)
 const StateModal = forwardRef<StateModalRef, StateModalProps>(({ show, onHide, onSuccess, state, onUpdateSelectedState }, ref) => {
   const [loading, setLoading] = useState(false);
   const [countryItems, setCountryItems] = useState<CountryItem[]>([]);
-  const formikRef = useRef<any>(null);
+  const [formData, setFormData] = useState({
+    state_name: '',
+    state_code: '',
+    state_capital: '',
+    countryId: '',
+    status: 'Active'
+  });
+  const [errors, setErrors] = useState({
+    state_name: '',
+    state_code: '',
+    state_capital: '',
+    countryId: '',
+    status: ''
+  });
 
   const isEditMode = !!state;
 
   useEffect(() => {
-  const fetchCountries = async () => {
-    try {
-      const response = await CountryService.list();
-
-      if (response.success && response.data) {
-        setCountryItems(response.data);
-      } else {
-        toast.error(response.message || "Failed to fetch countries");
+    const fetchCountries = async () => {
+      try {
+        const response = await CountryService.list();
+        if (response.success && response.data) {
+          setCountryItems(response.data);
+        } else {
+          toast.error(response.message || "Failed to fetch countries");
+        }
+      } catch {
+        toast.error('Failed to fetch countries');
       }
+    };
+    fetchCountries();
+  }, []);
 
-    } catch {
-      toast.error('Failed to fetch countries');
+  useEffect(() => {
+    if (state) {
+      setFormData({
+        state_name: state.state_name || '',
+        state_code: state.state_code || '',
+        state_capital: state.state_capital || '',
+        countryId: state.countryid ? String(state.countryid) : '',
+        status: state.status === 0 ? 'Active' : 'Inactive'
+      });
+    } else {
+      setFormData({
+        state_name: '',
+        state_code: '',
+        state_capital: '',
+        countryId: '',
+        status: 'Active'
+      });
+    }
+    setErrors({
+      state_name: '',
+      state_code: '',
+      state_capital: '',
+      countryId: '',
+      status: ''
+    });
+  }, [state, show]);
+
+  const validateForm = () => {
+    const newErrors = {
+      state_name: '',
+      state_code: '',
+      state_capital: '',
+      countryId: '',
+      status: ''
+    };
+    let isValid = true;
+
+    if (!formData.state_name.trim()) {
+      newErrors.state_name = 'State name is required';
+      isValid = false;
+    }
+
+    if (!formData.state_code.trim()) {
+      newErrors.state_code = 'State code is required';
+      isValid = false;
+    } else if (formData.state_code.length > 4) {
+      newErrors.state_code = 'State code must be at most 4 characters';
+      isValid = false;
+    }
+
+    if (!formData.state_capital.trim()) {
+      newErrors.state_capital = 'Capital city is required';
+      isValid = false;
+    }
+
+    if (!formData.countryId) {
+      newErrors.countryId = 'Please select a country';
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
-  fetchCountries();
-}, []);
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
 
-  const initialValues = {
-    state_name: state?.state_name || '',
-    state_code: state?.state_code || '',
-    state_capital: state?.state_capital || '',
-    countryId: state ? Number(state.countryid) : null,
-    status: state ? (state.status === 0 ? 'Active' : 'Inactive') : 'Active',
-  };
-
-  const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
-      const statusValue = values.status === 'Active' ? 0 : 1;
+      const statusValue = formData.status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
 
       const payload: any = {
-        state_name: values.state_name,
-        state_code: values.state_code,
-        state_capital: values.state_capital,
-        countryid: values.countryId.toString(),
+        state_name: formData.state_name,
+        state_code: formData.state_code,
+        state_capital: formData.state_capital,
+        countryid: formData.countryId,
         status: statusValue,
         created_by_id: isEditMode ? state!.created_by_id : '1',
         created_date: isEditMode ? state!.created_date : currentDate,
@@ -580,10 +648,10 @@ const StateModal = forwardRef<StateModalRef, StateModalProps>(({ show, onHide, o
         if (isEditMode && state && onUpdateSelectedState) {
           onUpdateSelectedState({
             ...state,
-            state_name: values.state_name,
-            state_code: values.state_code,
-            state_capital: values.state_capital,
-            countryid: Number(values.countryId),
+            state_name: formData.state_name,
+            state_code: formData.state_code,
+            state_capital: formData.state_capital,
+            countryid: Number(formData.countryId),
             status: statusValue,
             updated_by_id: 2,
             updated_date: currentDate
@@ -604,9 +672,7 @@ const StateModal = forwardRef<StateModalRef, StateModalProps>(({ show, onHide, o
 
   useImperativeHandle(ref, () => ({
     saveData: () => {
-      if (formikRef.current) {
-        formikRef.current.submitForm();
-      }
+      handleSubmit();
     },
   }));
 
@@ -616,84 +682,95 @@ const StateModal = forwardRef<StateModalRef, StateModalProps>(({ show, onHide, o
         <Modal.Title>{isEditMode ? 'Edit State' : 'Add New State'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Formik
-          innerRef={formikRef}
-          initialValues={initialValues}
-          validationSchema={stateFormValidationSchema}
-          onSubmit={handleSubmit}
-          enableReinitialize={true}
-        >
-          {({ values, setFieldValue }) => (
-            <Form>
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <FormikTextInput
-                    name="state_name"
-                    label="State Name"
-                    placeholder="Enter state name"
-                  />
-                </div>
-                <div className="col-md-6 mb-3">
-                  <FormikTextInput
-                    name="state_code"
-                    label="State Code"
-                    placeholder="Enter state code"
-                    maxLength={4}
-                    onChange={(e) => {
-                      const value = e.target.value.toUpperCase();
-                      setFieldValue('state_code', value);
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <FormikTextInput
-                    name="state_capital"
-                    label="Capital City"
-                    placeholder="Enter capital city"
-                  />
-                </div>
-                <div className="col-md-6 mb-3">
-                  <FormikSelect
-                    name="countryId"
-                    label="Country"
-                    options={countryItems
-                      .filter((country) => String(country.status) === '0')
-                      .map((country) => ({
-                        value: String(country.countryid),
-                        label: country.country_name,
-                      }))}
-                    onChange={(e) => {
-                      setFieldValue('countryId', Number(e.target.value));
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <FormikSelect
-                    name="status"
-                    label="Status"
-                    options={[
-                      { value: 'Active', label: 'Active' },
-                      { value: 'Inactive', label: 'Inactive' },
-                    ]}
-                    onChange={(e) => {
-                      setFieldValue('status', e.target.value);
-                    }}
-                  />
-                </div>
-              </div>
-            </Form>
-          )}
-        </Formik>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="state_name" className="form-label">State Name <span className="text-danger">*</span></label>
+            <input
+              type="text"
+              id="state_name"
+              name="state_name"
+              className={`form-control ${errors.state_name ? 'is-invalid' : ''}`}
+              placeholder="Enter state name"
+              value={formData.state_name}
+              onChange={handleChange}
+            />
+            {errors.state_name && <div className="invalid-feedback">{errors.state_name}</div>}
+          </div>
+          <div className="col-md-6 mb-3">
+            <label htmlFor="state_code" className="form-label">State Code <span className="text-danger">*</span></label>
+            <input
+              type="text"
+              id="state_code"
+              name="state_code"
+              className={`form-control ${errors.state_code ? 'is-invalid' : ''}`}
+              placeholder="Enter state code"
+              maxLength={4}
+              value={formData.state_code}
+              onChange={(e) => {
+                const value = e.target.value.toUpperCase();
+                handleChange({ ...e, target: { ...e.target, name: 'state_code', value } });
+              }}
+            />
+            {errors.state_code && <div className="invalid-feedback">{errors.state_code}</div>}
+          </div>
+        </div>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="state_capital" className="form-label">Capital City <span className="text-danger">*</span></label>
+            <input
+              type="text"
+              id="state_capital"
+              name="state_capital"
+              className={`form-control ${errors.state_capital ? 'is-invalid' : ''}`}
+              placeholder="Enter capital city"
+              value={formData.state_capital}
+              onChange={handleChange}
+            />
+            {errors.state_capital && <div className="invalid-feedback">{errors.state_capital}</div>}
+          </div>
+          <div className="col-md-6 mb-3">
+            <label htmlFor="countryId" className="form-label">Country <span className="text-danger">*</span></label>
+            <select
+              id="countryId"
+              name="countryId"
+              className={`form-select ${errors.countryId ? 'is-invalid' : ''}`}
+              value={formData.countryId}
+              onChange={handleChange}
+            >
+              <option value="">Select Country</option>
+              {countryItems
+                .filter((country) => String(country.status) === '0')
+                .map((country) => (
+                  <option key={country.countryid} value={String(country.countryid)}>
+                    {country.country_name}
+                  </option>
+                ))}
+            </select>
+            {errors.countryId && <div className="invalid-feedback">{errors.countryId}</div>}
+          </div>
+        </div>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="status" className="form-label">Status</label>
+            <select
+              id="status"
+              name="status"
+              className={`form-select ${errors.status ? 'is-invalid' : ''}`}
+              value={formData.status}
+              onChange={handleChange}
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            {errors.status && <div className="invalid-feedback">{errors.status}</div>}
+          </div>
+        </div>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={() => formikRef.current?.submitForm()} disabled={loading}>
+        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
           {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
         </Button>
       </Modal.Footer>

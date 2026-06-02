@@ -10,7 +10,7 @@ import html2canvas from 'html2canvas'
 
 const ReportsPanel = () => {
   const { user } = useAuthContext()
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
 
   const [activeReport, setActiveReport] = useState('daily')
   const [dailyData, setDailyData] = useState<any[]>([])

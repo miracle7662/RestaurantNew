@@ -1,6 +1,6 @@
 // pages/BillPrintSetting/BillSettingForm.tsx
 import React, { useState, useEffect } from 'react';
-import { Form, Row, Col, Button, Card, Alert } from 'react-bootstrap';
+import { Form, Row, Col, Button, Card } from 'react-bootstrap';
 import { BillPrintSetting } from '@/common/hotel/billPrintSettingService';
 
 interface BillSettingFormProps {

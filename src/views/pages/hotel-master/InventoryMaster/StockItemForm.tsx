@@ -35,7 +35,7 @@ interface StockItemFormProps {
 
 const StockItemForm = forwardRef<any, StockItemFormProps>(({ selectedItem, onSave }, ref) => {
   const { user } = useAuthContext();
-  const hotelId = user?.hotel_id;
+  const hotelId = user?.hotelid;
   const userId = user?.id;
 
   const [taxList, setTaxList] = useState<any[]>([]);

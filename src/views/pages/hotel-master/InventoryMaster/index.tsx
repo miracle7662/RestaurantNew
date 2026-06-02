@@ -13,7 +13,7 @@ import ReportsPanel from './ReportsPanel';
 
 const InventoryManagement = () => {
   const { user } = useAuthContext();
-  const hotelId = user?.hotel_id;
+  const hotelId = user?.hotelid;
   
   const [activeTab, setActiveTab] = useState('items');
   const [lowStockAlerts, setLowStockAlerts] = useState<any[]>([]);

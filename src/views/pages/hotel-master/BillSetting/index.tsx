@@ -1,7 +1,6 @@
 // pages/BillPrintSetting/index.tsx
 import { useState, useEffect } from 'react';
 import { Card, Button, Tabs, Tab, Spinner } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
 import TitleHelmet  from '@/components/Common/TitleHelmet';
 import toast from 'react-hot-toast';
 import { useAuthContext } from '@/common/context/useAuthContext';
@@ -10,9 +9,9 @@ import BillSettingForm from './BillSettingForm';
 import BillPreviewModal from './BillPreviewModal';
 
 const BillPrintSettingMaster = () => {
-    const navigate = useNavigate();
+   
     const { user } = useAuthContext();
-    const hotelId = user?.hotel_id;
+    const hotelId = user?.hotelid;
 
     const [settings, setSettings] = useState<BillPrintSetting | null>(null);
     const [loading, setLoading] = useState(true);

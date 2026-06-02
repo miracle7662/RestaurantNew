@@ -72,12 +72,6 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const formatDateTimeForAPI = (dateTimeLocal: string): string => {
-  if (!dateTimeLocal) return new Date().toISOString()
-  const date = new Date(dateTimeLocal)
-  return date.toISOString()
-}
-
 const getCurrentDateTimeLocal = (): string => {
   const now = new Date()
   const year = now.getFullYear()
@@ -223,7 +217,7 @@ const PostChargesModal = ({
       // Use the stored post_datetime from API
       const postDate = c.post_datetime || new Date().toISOString()
       // Use the stored bill_date from API
-      const displayBillDate = c.bill_date?.split('T')[0] || c.post_datetime?.split('T')[0] || getCurrentDate()
+      const displayBillDate = (c as any).bill_date?.split('T')[0] || c.post_datetime?.split('T')[0] || getCurrentDate()
       return {
         id: `existing-${c.post_charge_id}-${index}`,
         post_charge_id: c.post_charge_id,
@@ -1019,6 +1013,21 @@ const PostChargesModal = ({
                       ))
                     )}
                   </tbody>
+
+                  {billItems.length > 0 && (
+                    <tfoot className="table-light">
+                      <tr>
+                        <td colSpan={7} className="py-1 text-end fw-semibold">Totals:</td>
+                        <td className="py-1 text-end fw-semibold">₹{totalAmount.toFixed(2)}</td>
+                        <td className="py-1 text-end fw-semibold">₹0.00</td>
+                        <td className="py-1 text-end fw-bold">
+                          <span className={grandTotal < 0 ? 'text-danger' : 'text-success'}>
+                            ₹{Math.abs(grandTotal).toFixed(2)}
+                          </span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </Table>
               )}
             </div>

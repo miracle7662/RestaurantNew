@@ -7,7 +7,7 @@ import { useAuthContext } from '@/common/context/useAuthContext';
 
 const StockTransactions = () => {
   const { user } = useAuthContext();
-  const hotelId = user?.hotel_id;
+  const hotelId = user?.hotelid;
 
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
   const [loading, setLoading] = useState(false);
