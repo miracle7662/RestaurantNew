@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Row, Col, Form,  Button,Modal } from 'react-bootstrap';
+import { Row, Col, Form, Button, Modal } from 'react-bootstrap';
 import TableDepartmentService from '@/common/api/tabledepartment';
 import { toast } from 'react-toastify';
 import MenuService from '@/common/api/menu';
-
 
 import {
   Settings,
@@ -17,7 +16,6 @@ import { OutletData } from '../../common/api/outlet';
 import { useAuthContext } from "@/common/context/useAuthContext";
 import SettingsService from '@/common/api/settings';
 import { useUIModeContext } from '@/common/context';
-
 
 interface KotPrinterSetting {
   id: number;
@@ -115,13 +113,8 @@ function SettingsPage() {
   const { user } = useAuthContext();
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [loading, setLoading] = useState(false);
-  // const [outletsLoaded, setOutletsLoaded] = useState(false);
-
-  // Don't render if user is not available
- 
 
   const [activeTab, setActiveTab] = useState("general");
-  // const [selectedPrinter, setSelectedPrinter] = useState("");
   const [selectedKotPrinter, setSelectedKotPrinter] = useState("");
   const [selectedBillPrinter, setSelectedBillPrinter] = useState("");
   const [kotEnablePrint, setKotEnablePrint] = useState(true);
@@ -134,10 +127,8 @@ function SettingsPage() {
   const [selectedBillOrderType, setSelectedBillOrderType] = useState("");
   const [selectedBillSize, setSelectedBillSize] = useState("");
   const [billCopies, setBillCopies] = useState("");
- 
 
   const [printers, setPrinters] = useState<Array<{ name: string; displayName: string }>>([]);
-
 
   // State for all printer settings
   const [kotPrinters, setKotPrinters] = useState<KotPrinterSetting[]>([]);
@@ -145,10 +136,10 @@ function SettingsPage() {
   const [labelPrinters, setLabelPrinters] = useState<LabelPrinterSetting[]>([]);
   const [reportPrinters, setReportPrinters] = useState<ReportPrinterSetting[]>([]);
   const [departmentPrinters, setDepartmentPrinters] = useState<DepartmentWisePrinter[]>([]);
-  const [tableWiseKot, ] = useState<TableWiseKot[]>([]);
-  const [tableWiseBill, ] = useState<TableWiseBill[]>([]);
-  const [categoryPrinters, ] = useState<CategoryWisePrinter[]>([]);
-  const [, ] = useState<KDSUser[]>([]);
+  const [tableWiseKot,] = useState<TableWiseKot[]>([]);
+  const [tableWiseBill,] = useState<TableWiseBill[]>([]);
+  const [categoryPrinters,] = useState<CategoryWisePrinter[]>([]);
+  const [,] = useState<KDSUser[]>([]);
   const [, setEditingKotId] = useState<number | null>(null);
   const [, setEditingBillId] = useState<number | null>(null);
   const [reportPrinterName, setReportPrinterName] = useState("");
@@ -160,7 +151,8 @@ function SettingsPage() {
   const [, setReportCopies] = useState("");
   const [reportEnablePrint, setReportEnablePrint] = useState(true);
   const [, setEditingReportId] = useState<number | null>(null);
-  const [selectedOutlet, setSelectedOutlet] = useState<number | null>( null);
+  const [selectedOutlet, setSelectedOutlet] = useState<number | null>(null);
+  
   // Import modal states
   const [showImportModal, setShowImportModal] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -171,13 +163,18 @@ function SettingsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [deptLoading, setDeptLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
- 
   const [saveMessage, setSaveMessage] = useState('');
 
   // UI Mode states
   const { uiMode, updateUIMode } = useUIModeContext();
-  const [uiLoading, ] = useState(false);
+  const [uiLoading,] = useState(false);
   const [uiSaveMessage, setUiSaveMessage] = useState('');
+
+  // Table Card Size state
+  const [tableCardSize, setTableCardSize] = useState(() => {
+    const saved = localStorage.getItem('tableCardWidth');
+    return saved ? parseInt(saved) : 110;
+  });
 
   const [labelPrinterName, setLabelPrinterName] = useState("");
   const [labelPaperWidth, setLabelPaperWidth] = useState("");
@@ -196,52 +193,46 @@ function SettingsPage() {
   const [selectedDeptSize, setSelectedDeptSize] = useState("");
   const [deptCopies, setDeptCopies] = useState("");
 
+  // Handle table card size change
+  const handleTableCardSizeChange = (size: number) => {
+    setTableCardSize(size);
+    localStorage.setItem('tableCardWidth', size.toString());
+    toast.success(`Table card size set to ${size}px`);
+  };
 
   useEffect(() => {
     const fetchPrinters = async () => {
       try {
         const printerList = await window.electronAPI.getInstalledPrinters();
-        // console.log('Printers fetched from system:', printerList);
         setPrinters(printerList);
       } catch (error) {
-        // console.error('Failed to fetch printers:', error);
+        console.error('Failed to fetch printers:', error);
       }
     };
     fetchPrinters();
   }, []);
 
   useEffect(() => {
-    console.log('User in Settings:', user);
     if (user) {
-      console.log('Fetching outlets for user...');
       fetchOutlets(user, setOutlets, setLoading);
     }
   }, [user]);
 
-// Fetch departments
+  // Fetch departments
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        console.log('🔍 fetchDepartments: user =', user);
         if (!user || !user.hotelid) {
-          console.warn('⚠️ fetchDepartments: No user or hotelid, skipping');
           setDepartments([]);
           return;
         }
 
         setDeptLoading(true);
         const params = { hotelid: user.hotelid };
-        console.log('📡 fetchDepartments: calling API with params =', params);
-
         const response = await TableDepartmentService.list(params);
-        console.log('📥 fetchDepartments: API response =', response);
-
         const departmentsData = response.data || response || [];
         setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
-        console.log('✅ fetchDepartments: set departments count =', departmentsData.length);
       } catch (err: any) {
-        console.error('❌ fetchDepartments ERROR:', err);
-        // Using window toast if available, fallback to state
         toast.error(err.response?.data?.message || 'Failed to fetch departments');
         setDepartments([]);
       } finally {
@@ -259,20 +250,16 @@ function SettingsPage() {
     const fetchTakeawaySetting = async () => {
       if (!user) return;
       try {
-        console.log('🔍 fetchTakeawaySetting: user =', user);
         setDeptLoading(true);
         
-        // Prefer outlet 107, fallback to user.outletid, then first outlet
-        let outletId = 107  ;
+        let outletId = 107;
         if (user.outletid && user.outletid !== 0) {
           outletId = user.outletid;
         } else if (outlets[0]?.outletid && outlets[0].outletid !== 0) {
           outletId = outlets[0].outletid;
         }
         
-        console.log('📡 fetchTakeawaySetting: using outletId =', outletId);
         const response = await SettingsService.getTakeawaySetting(outletId);
-        console.log('📥 fetchTakeawaySetting response (outletId:', outletId, '):', response);
         
         if (response && response.settingid) {
           setSettingId(response.settingid);
@@ -280,34 +267,26 @@ function SettingsPage() {
         } else if (response && response.departmentid) {
           setDepartmentId(response.departmentid.toString());
         } else {
-          console.log('No departmentid found, defaulting to 1');
           setDepartmentId('1');
         }
       } catch (err) {
-        console.error('❌ fetchTakeawaySetting ERROR:', err);
+        console.error('fetchTakeawaySetting ERROR:', err);
       } finally {
         setDeptLoading(false);
       }
     };
 
     fetchTakeawaySetting();
-  }, [user, outlets]); // Add outlets dependency
+  }, [user, outlets]);
 
-  // Fetch current UI Mode setting & auto-select outlet
- 
-  // Fetch current UI Mode setting
-  // UI Mode auto-managed by context
-
-  // Fetch report printer settings on component mount
+  // Fetch report printer settings
   useEffect(() => {
     fetchReportPrinters();
   }, []);
 
-  // Fetch functions for each data type
   const fetchKotPrinters = async () => {
     try {
-    const data = await SettingsService.listKotPrinters() as unknown as KotPrinterSetting[];
-      
+      const data = await SettingsService.listKotPrinters() as unknown as KotPrinterSetting[];
       const dataWithOutlet = data.map((item: any) => {
         const outlet = outlets.find(o => o.outletid === item.outletid);
         return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
@@ -333,8 +312,7 @@ function SettingsPage() {
 
   const fetchLabelPrinters = async () => {
     try {
-       const data = await SettingsService.listLabelPrinters() as unknown as LabelPrinterSetting[];
-      
+      const data = await SettingsService.listLabelPrinters() as unknown as LabelPrinterSetting[];
       const dataWithOutlet = data.map((item: any) => {
         const outlet = outlets.find(o => o.outletid === item.outletid);
         return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
@@ -347,9 +325,7 @@ function SettingsPage() {
 
   const fetchReportPrinters = async () => {
     try {
-      console.log('Fetching report printers...');
       const data = await SettingsService.listReportPrinters() as unknown as ReportPrinterSetting[];
-      console.log('Report printers data:', data);
       setReportPrinters(data);
     } catch (error) {
       console.error('Failed to fetch report printers:', error);
@@ -358,60 +334,16 @@ function SettingsPage() {
 
   const fetchDepartmentPrinters = async () => {
     try {
-      console.log('Fetching department printers...');
       const data = await SettingsService.listDepartmentPrinters() as unknown as DepartmentWisePrinter[];
-     
       const dataWithOutlet = data.map((item: any) => {
         const outlet = outlets.find(o => o.outletid === item.outletid);
         return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
       });
       setDepartmentPrinters(dataWithOutlet);
-      console.log('Department printers state updated');
     } catch (error) {
       console.error('Failed to fetch department printers:', error);
-      console.error('Error details:', error);
     }
   };
-
-  // const fetchTableWiseKot = async () => {
-  //   try {
-  //     const response = await SettingsService.listTableWiseKot();
-  //     const data = response.data || [];
-  //     setTableWiseKot(data);
-  //   } catch (error) {
-  //     console.error('Failed to fetch table wise KOT:', error);
-  //   }
-  // };
-
-  // const fetchTableWiseBill = async () => {
-  //   try {
-  //     const response = await SettingsService.listTableWiseBill();
-  //     const data = response.data;
-  //     setTableWiseBill(data);
-  //   } catch (error) {
-  //     console.error('Failed to fetch table wise bill:', error);
-  //   }
-  // };
-
-  // const fetchCategoryPrinters = async () => {
-  //   try {
-  //     const response = await SettingsService.listCategoryPrinters();
-  //     const data = response.data || [];
-  //     setCategoryPrinters(data);
-  //   } catch (error) {
-  //     console.error('Failed to fetch category printers:', error);
-  //   }
-  // };
-
-  // const fetchKdsUsers = async () => {
-  //   try {
-  //     const response = await SettingsService.listKdsUsers();
-  //     const data = response.data || [];
-  //     setKdsUsers(data);
-  //   } catch (error) {
-  //     console.error('Failed to fetch KDS users:', error);
-  //   }
-  // };
 
   // Load all data when printer tab is active
   useEffect(() => {
@@ -419,22 +351,17 @@ function SettingsPage() {
       fetchKotPrinters();
       fetchBillPrinters();
       fetchLabelPrinters();
--     fetchReportPrinters();
+      fetchReportPrinters();
       fetchDepartmentPrinters();
-      // fetchTableWiseKot();
-      // fetchTableWiseBill();
-      // fetchCategoryPrinters();
-      // fetchKdsUsers();
     }
   }, [activeTab]);
 
-  // Populate label printer state when data is fetched
+  // Populate label printer state
   useEffect(() => {
     if (labelPrinters && labelPrinters.length > 0) {
-      const labelSetting = labelPrinters[0]; // Assuming single setting
+      const labelSetting = labelPrinters[0];
       setLabelPrinterName(labelSetting.printer_name);
       setLabelPaperWidth(String(labelSetting.paper_width ?? ''));
-
       setLabelIsEnabled(labelSetting.is_enabled);
       setSelectedLabelOrderType(labelSetting.order_type || '');
       setSelectedLabelSize(labelSetting.size || '');
@@ -443,10 +370,10 @@ function SettingsPage() {
     }
   }, [labelPrinters]);
 
-  // Populate report printer state when data is fetched
+  // Populate report printer state
   useEffect(() => {
     if (reportPrinters && reportPrinters.length > 0) {
-      const reportSetting = reportPrinters[0]; // Assuming single setting
+      const reportSetting = reportPrinters[0];
       setReportPrinterName(reportSetting.printer_name);
       setReportPaperSize(reportSetting.paper_size);
       setReportAutoPrint(reportSetting.auto_print);
@@ -465,419 +392,12 @@ function SettingsPage() {
     { key: "formatting", label: "Formatting", icon: SlidersHorizontal },
   ];
 
-  // Printer Settings Components
   const PrinterSection = ({ title, children, style }: { title: string; children: React.ReactNode; style?: React.CSSProperties }) => (
     <div className="border rounded p-3 mb-4" style={style}>
       <h5 className="fw-bold mb-3">{title}</h5>
       {children}
     </div>
   );
-
-  const PrinterSelector = () => (
-    <select className="form-select">
-      <option>Select Printer</option>
-      {printers.map((printer, index: number) => (
-        <option key={index} value={printer.name}>
-          {printer.displayName}
-        </option>
-      ))}
-    </select>
-  );
-
-
-  // const ActionButtons = () => (
-  //   <div className="d-flex gap-1">
-  //     <button className="btn btn-sm btn-outline-primary">
-  //       <i className="bi bi-pencil"></i> Edit
-  //     </button>
-  //     <button className="btn btn-sm btn-outline-danger">
-  //       <i className="bi bi-trash"></i> Delete
-  //     </button>
-  //   </div>
-  // );
-
-  // KOT Printer handlers
-  const handleAddKotPrinter = async () => {
-    const printer = selectedKotPrinter;
-    const orderType = selectedKotOrderType;
-    const size = selectedKotSize;
-    const copies = parseInt(kotCopies || '1');
-    const enablePrint = kotEnablePrint;
-
-    if (!printer || !orderType || !size || !selectedOutlet) {
-      alert('Please fill all required fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const newSetting = {
-        printer_name: printer,
-        order_type: orderType,
-        size,
-        copies,
-        outletid: selectedOutlet,
-        enableKotPrint: enablePrint,
-        hotelid: user?.hotelid || '1'
-      };
-
-      await SettingsService.createKotPrinter(newSetting);
-
-      fetchKotPrinters();
-      clearKotForm();
-    } catch (error) {
-      console.error('Failed to add KOT printer:', error);
-      alert('Failed to add KOT printer setting');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditKotPrinter = (item: KotPrinterSetting) => {
-    setEditingKotId(item.id);
-    setKotEnablePrint(item.enableKotPrint);
-    setSelectedKotPrinter(item.printer_name);
-    setSelectedKotOrderType(item.order_type);
-    setSelectedKotSize(item.size);
-    setKotCopies(String(item.copies ?? ''));
-
-  };
-
-  const handleDeleteKotPrinter = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this KOT printer setting?')) return;
-
-    try {
-      await SettingsService.deleteKotPrinter(id);
-      fetchKotPrinters();
-    } catch (error) {
-      console.error('Failed to delete KOT printer:', error);
-      alert('Failed to delete KOT printer setting');
-    }
-  };
-
-  const clearKotForm = () => {
-    setSelectedKotPrinter('');
-    setSelectedKotSource('');
-    setSelectedKotOrderType('');
-    setSelectedKotSize('');
-    setKotCopies('');
-    setKotEnablePrint(true);
-    setEditingKotId(null);
-  };
-
-  // Report Printer handlers
-  const handleAddReportPrinter = async () => {
-    const printer = reportPrinterName;
-    // const orderType = selectedReportOrderType;
-    // const size = selectedReportSize;
-    // const copies = parseInt(reportCopies || '1');
-    const enablePrint = reportEnablePrint;
-
-    if (!printer  || !selectedOutlet) {
-      alert('Please fill all required fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const newSetting = {
-        printer_name: printer,
-
-
-        enablePrint,
-        paper_size: reportPaperSize,
-        auto_print: reportAutoPrint,
-        outletid: selectedOutlet,
-        hotelid: user?.hotelid || '1'
-      };
-
-      await SettingsService.createReportPrinter(newSetting);
-
-      fetchReportPrinters();
-      clearReportForm();
-    } catch (error) {
-      console.error('Failed to add report printer:', error);
-      alert('Failed to add report printer setting');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditReportPrinter = (item: ReportPrinterSetting) => {
-    setEditingReportId(item.id);
-    setReportEnablePrint(item.enablePrint || true);
-    setReportPrinterName(item.printer_name);
-    setSelectedReportOrderType(item.order_type || '');
-    setSelectedReportSize(item.size || '');
-    setReportCopies(String(item.copies ?? ''));
-
-    setReportPaperSize(item.paper_size);
-    setReportAutoPrint(item.auto_print);
-  };
-
-  const handleDeleteReportPrinter = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this report printer setting?')) return;
-
-    try {
-      await SettingsService.deleteReportPrinter(id);
-      fetchReportPrinters();
-    } catch (error) {
-      console.error('Failed to delete report printer:', error);
-      alert('Failed to delete report printer setting');
-    }
-  };
-
-  const clearReportForm = () => {
-    setReportPrinterName('');
-    setSelectedReportSource('');
-    setSelectedReportOrderType('');
-    setSelectedReportSize('');
-    setReportCopies('');
-    setReportEnablePrint(true);
-    setReportPaperSize('80mm');
-    setReportAutoPrint(true);
-    setEditingReportId(null);
-  };
-
-  // Label Printer handlers
-  const handleAddLabelPrinter = async () => {
-    const printer = labelPrinterName;
-    // const orderType = selectedLabelOrderType;
-    // const size = selectedLabelSize;
-    // const copies = parseInt(labelCopies || '1');
-    const enablePrint = labelEnablePrint;
-
-    if (!printer || !selectedOutlet) {
-      alert('Please fill all required fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const newSetting = {
-        printer_name: printer,
-
-
-
-        enablePrint,
-        paper_width: parseInt(labelPaperWidth),
-        is_enabled: labelIsEnabled,
-        outletid: selectedOutlet,
-        hotelid: user?.hotelid || '1'
-      };
-
-      await SettingsService.createLabelPrinter(newSetting);
-
-      fetchLabelPrinters();
-      clearLabelForm();
-    } catch (error) {
-      console.error('Failed to add label printer:', error);
-      alert('Failed to add label printer setting');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditLabelPrinter = (item: LabelPrinterSetting) => {
-    setEditingLabelId(item.id);
-    setLabelEnablePrint(item.enablePrint || true);
-    setLabelPrinterName(item.printer_name);
-    setSelectedLabelOrderType(item.order_type || '');
-    setSelectedLabelSize(item.size || '');
-    setLabelCopies(item.copies?.toString() || '');
-    setLabelPaperWidth(String(item.paper_width ?? ''));
-
-    setLabelIsEnabled(item.is_enabled);
-  };
-
-  const handleDeleteLabelPrinter = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this label printer setting?')) return;
-
-    try {
-      await SettingsService.deleteLabelPrinter(id);
-      fetchLabelPrinters();
-    } catch (error) {
-      console.error('Failed to delete label printer:', error);
-      alert('Failed to delete label printer setting');
-    }
-  };
-
-  const clearLabelForm = () => {
-    setLabelPrinterName('');
-    setSelectedLabelSource('');
-    setSelectedLabelOrderType('');
-    setSelectedLabelSize('');
-    setLabelCopies('');
-    setLabelEnablePrint(true);
-    setLabelPaperWidth('');
-    setLabelIsEnabled(true);
-    setEditingLabelId(null);
-  };
-
-  // Bill Printer handlers
-  const clearBillForm = () => {
-    setSelectedBillPrinter('');
-    setSelectedBillSource('');
-    setSelectedBillOrderType('');
-    setSelectedBillSize('');
-    setBillCopies('');
-    setBillEnablePrint(true);
-    setEditingBillId(null);
-  };
-
-  const handleAddBillPrinter = async () => {
-    const printer = selectedBillPrinter;
-    const orderType = selectedBillOrderType;
-    const size = selectedBillSize;
-    const copies = parseInt(billCopies || '1');
-    const enablePrint = billEnablePrint;
-
-    if (!printer  || !orderType || !size || !selectedOutlet) {
-      alert('Please fill all required fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const newSetting = {
-        printer_name: printer,
-        order_type: orderType,
-        size,
-        copies,
-        outletid: selectedOutlet,
-        enableBillPrint: enablePrint,
-        hotelid: user?.hotelid || '1'
-      };
-
-      await SettingsService.createBillPrinter(newSetting);
-
-      fetchBillPrinters();
-      clearBillForm();
-    } catch (error) {
-      console.error('Failed to add bill printer:', error);
-      alert('Failed to add bill printer setting');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditBillPrinter = (item: BillPrinterSetting) => {
-    setEditingBillId(item.id);
-    setBillEnablePrint(item.enableBillPrint);
-    setSelectedBillPrinter(item.printer_name);
-    setSelectedBillOrderType(item.order_type);
-    setSelectedBillSize(item.size);
-    setBillCopies(String(item.copies ?? ''));
-
-  };
-
-  const handleDeleteBillPrinter = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this bill printer setting?')) return;
-
-    try {
-      await SettingsService.deleteBillPrinter(id);
-      fetchBillPrinters();
-    } catch (error) {
-      console.error('Failed to delete bill printer:', error);
-      alert('Failed to delete bill printer setting');
-    }
-  };
-
-  // Department Wise Printer handlers
-  const handleAddDepartmentPrinter = async () => {
-    const printer = selectedDeptPrinter;
-    const orderType = selectedDeptOrderType;
-    const department = selectedDeptDepartment;
-    const size = selectedDeptSize;
-    const copies = parseInt(deptCopies || '1');
-
-    if (!printer  || !orderType || !department || !size || !selectedOutlet) {
-      alert('Please fill all required fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const newSetting = {
-        department,
-        printer_name: printer,
-        order_type: orderType,
-        size,
-        copies,
-        outletid: selectedOutlet,
-        hotelid: user?.hotelid || '1'
-      };
-
-      await SettingsService.createDepartmentPrinter(newSetting);
-
-      fetchDepartmentPrinters();
-      clearDeptForm();
-    } catch (error) {
-      console.error('Failed to add department printer:', error);
-      alert('Failed to add department printer setting');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle import menu items from Excel (copied from Menu.tsx)
-  const [importErrors, setImportErrors] = useState<any[]>([]);
-  
-  const handleImport = async (file: File) => {
-    if (!user?.hotelid) {
-      toast.error('Hotel ID is required for import');
-      return;
-    }
-    
-    setImporting(true);
-    setImportErrors([]);
-    try {
-      console.log('Starting menu import with file:', file);
-      const response = await MenuService.importMenu(
-        file, 
-        Number(user.hotelid), 
-        user.outletid ? Number(user.outletid) : undefined,
-        user.id
-      );
-      
-      if (response.success) {
-        toast.success(`Successfully imported ${response.data?.imported || 0} items`);
-        
-        // Handle errors properly
-         console.log('Import response:', response);
-        if (response.data?.errors && response.data.errors.length > 0) {
-          setImportErrors(response.data.errors);
-          
-          // Show detailed errors modal or toast
-          if (response.data.errors.length === 1) {
-            toast.warn(response.data.errors[0].message);
-          } else {
-            toast.warn(`${response.data.errors.length} rows had issues - check console/details`);
-            console.table(response.data.errors);
-          }
-        } else {
-          setShowImportModal(false);
-        }
-        
-        fetchKotPrinters(); // Refresh data
-      } else {
-        toast.error(response.message || 'Failed to import menu items');
-      }
-    } catch (err: any) {
-      console.error('Import error:', err);
-      toast.error(err.message || 'Failed to import menu items');
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const clearDeptForm = () => {
-    setSelectedDeptPrinter('');
-    setSelectedDeptOrderType('');
-    setSelectedDeptDepartment('');
-    setSelectedDeptSize('');
-    setDeptCopies('');
-  };
 
   const PrinterTable = ({
     data,
@@ -937,6 +457,360 @@ function SettingsPage() {
     </div>
   );
 
+  // KOT Printer handlers
+  const handleAddKotPrinter = async () => {
+    const printer = selectedKotPrinter;
+    const orderType = selectedKotOrderType;
+    const size = selectedKotSize;
+    const copies = parseInt(kotCopies || '1');
+    const enablePrint = kotEnablePrint;
+
+    if (!printer || !orderType || !size || !selectedOutlet) {
+      alert('Please fill all required fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const newSetting = {
+        printer_name: printer,
+        order_type: orderType,
+        size,
+        copies,
+        outletid: selectedOutlet,
+        enableKotPrint: enablePrint,
+        hotelid: user?.hotelid || '1'
+      };
+
+      await SettingsService.createKotPrinter(newSetting);
+      fetchKotPrinters();
+      clearKotForm();
+    } catch (error) {
+      console.error('Failed to add KOT printer:', error);
+      alert('Failed to add KOT printer setting');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditKotPrinter = (item: KotPrinterSetting) => {
+    setEditingKotId(item.id);
+    setKotEnablePrint(item.enableKotPrint);
+    setSelectedKotPrinter(item.printer_name);
+    setSelectedKotOrderType(item.order_type);
+    setSelectedKotSize(item.size);
+    setKotCopies(String(item.copies ?? ''));
+  };
+
+  const handleDeleteKotPrinter = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this KOT printer setting?')) return;
+    try {
+      await SettingsService.deleteKotPrinter(id);
+      fetchKotPrinters();
+    } catch (error) {
+      console.error('Failed to delete KOT printer:', error);
+      alert('Failed to delete KOT printer setting');
+    }
+  };
+
+  const clearKotForm = () => {
+    setSelectedKotPrinter('');
+    setSelectedKotSource('');
+    setSelectedKotOrderType('');
+    setSelectedKotSize('');
+    setKotCopies('');
+    setKotEnablePrint(true);
+    setEditingKotId(null);
+  };
+
+  // Report Printer handlers
+  const handleAddReportPrinter = async () => {
+    const printer = reportPrinterName;
+    const enablePrint = reportEnablePrint;
+
+    if (!printer || !selectedOutlet) {
+      alert('Please fill all required fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const newSetting = {
+        printer_name: printer,
+        enablePrint,
+        paper_size: reportPaperSize,
+        auto_print: reportAutoPrint,
+        outletid: selectedOutlet,
+        hotelid: user?.hotelid || '1'
+      };
+
+      await SettingsService.createReportPrinter(newSetting);
+      fetchReportPrinters();
+      clearReportForm();
+    } catch (error) {
+      console.error('Failed to add report printer:', error);
+      alert('Failed to add report printer setting');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditReportPrinter = (item: ReportPrinterSetting) => {
+    setEditingReportId(item.id);
+    setReportEnablePrint(item.enablePrint || true);
+    setReportPrinterName(item.printer_name);
+    setSelectedReportOrderType(item.order_type || '');
+    setSelectedReportSize(item.size || '');
+    setReportCopies(String(item.copies ?? ''));
+    setReportPaperSize(item.paper_size);
+    setReportAutoPrint(item.auto_print);
+  };
+
+  const handleDeleteReportPrinter = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this report printer setting?')) return;
+    try {
+      await SettingsService.deleteReportPrinter(id);
+      fetchReportPrinters();
+    } catch (error) {
+      console.error('Failed to delete report printer:', error);
+      alert('Failed to delete report printer setting');
+    }
+  };
+
+  const clearReportForm = () => {
+    setReportPrinterName('');
+    setSelectedReportSource('');
+    setSelectedReportOrderType('');
+    setSelectedReportSize('');
+    setReportCopies('');
+    setReportEnablePrint(true);
+    setReportPaperSize('80mm');
+    setReportAutoPrint(true);
+    setEditingReportId(null);
+  };
+
+  // Label Printer handlers
+  const handleAddLabelPrinter = async () => {
+    const printer = labelPrinterName;
+    const enablePrint = labelEnablePrint;
+
+    if (!printer || !selectedOutlet) {
+      alert('Please fill all required fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const newSetting = {
+        printer_name: printer,
+        enablePrint,
+        paper_width: parseInt(labelPaperWidth),
+        is_enabled: labelIsEnabled,
+        outletid: selectedOutlet,
+        hotelid: user?.hotelid || '1'
+      };
+
+      await SettingsService.createLabelPrinter(newSetting);
+      fetchLabelPrinters();
+      clearLabelForm();
+    } catch (error) {
+      console.error('Failed to add label printer:', error);
+      alert('Failed to add label printer setting');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditLabelPrinter = (item: LabelPrinterSetting) => {
+    setEditingLabelId(item.id);
+    setLabelEnablePrint(item.enablePrint || true);
+    setLabelPrinterName(item.printer_name);
+    setSelectedLabelOrderType(item.order_type || '');
+    setSelectedLabelSize(item.size || '');
+    setLabelCopies(item.copies?.toString() || '');
+    setLabelPaperWidth(String(item.paper_width ?? ''));
+    setLabelIsEnabled(item.is_enabled);
+  };
+
+  const handleDeleteLabelPrinter = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this label printer setting?')) return;
+    try {
+      await SettingsService.deleteLabelPrinter(id);
+      fetchLabelPrinters();
+    } catch (error) {
+      console.error('Failed to delete label printer:', error);
+      alert('Failed to delete label printer setting');
+    }
+  };
+
+  const clearLabelForm = () => {
+    setLabelPrinterName('');
+    setSelectedLabelSource('');
+    setSelectedLabelOrderType('');
+    setSelectedLabelSize('');
+    setLabelCopies('');
+    setLabelEnablePrint(true);
+    setLabelPaperWidth('');
+    setLabelIsEnabled(true);
+    setEditingLabelId(null);
+  };
+
+  // Bill Printer handlers
+  const clearBillForm = () => {
+    setSelectedBillPrinter('');
+    setSelectedBillSource('');
+    setSelectedBillOrderType('');
+    setSelectedBillSize('');
+    setBillCopies('');
+    setBillEnablePrint(true);
+    setEditingBillId(null);
+  };
+
+  const handleAddBillPrinter = async () => {
+    const printer = selectedBillPrinter;
+    const orderType = selectedBillOrderType;
+    const size = selectedBillSize;
+    const copies = parseInt(billCopies || '1');
+    const enablePrint = billEnablePrint;
+
+    if (!printer || !orderType || !size || !selectedOutlet) {
+      alert('Please fill all required fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const newSetting = {
+        printer_name: printer,
+        order_type: orderType,
+        size,
+        copies,
+        outletid: selectedOutlet,
+        enableBillPrint: enablePrint,
+        hotelid: user?.hotelid || '1'
+      };
+
+      await SettingsService.createBillPrinter(newSetting);
+      fetchBillPrinters();
+      clearBillForm();
+    } catch (error) {
+      console.error('Failed to add bill printer:', error);
+      alert('Failed to add bill printer setting');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditBillPrinter = (item: BillPrinterSetting) => {
+    setEditingBillId(item.id);
+    setBillEnablePrint(item.enableBillPrint);
+    setSelectedBillPrinter(item.printer_name);
+    setSelectedBillOrderType(item.order_type);
+    setSelectedBillSize(item.size);
+    setBillCopies(String(item.copies ?? ''));
+  };
+
+  const handleDeleteBillPrinter = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this bill printer setting?')) return;
+    try {
+      await SettingsService.deleteBillPrinter(id);
+      fetchBillPrinters();
+    } catch (error) {
+      console.error('Failed to delete bill printer:', error);
+      alert('Failed to delete bill printer setting');
+    }
+  };
+
+  // Department Wise Printer handlers
+  const handleAddDepartmentPrinter = async () => {
+    const printer = selectedDeptPrinter;
+    const orderType = selectedDeptOrderType;
+    const department = selectedDeptDepartment;
+    const size = selectedDeptSize;
+    const copies = parseInt(deptCopies || '1');
+
+    if (!printer || !orderType || !department || !size || !selectedOutlet) {
+      alert('Please fill all required fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const newSetting = {
+        department,
+        printer_name: printer,
+        order_type: orderType,
+        size,
+        copies,
+        outletid: selectedOutlet,
+        hotelid: user?.hotelid || '1'
+      };
+
+      await SettingsService.createDepartmentPrinter(newSetting);
+      fetchDepartmentPrinters();
+      clearDeptForm();
+    } catch (error) {
+      console.error('Failed to add department printer:', error);
+      alert('Failed to add department printer setting');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle import menu items from Excel
+  const [importErrors, setImportErrors] = useState<any[]>([]);
+
+  const handleImport = async (file: File) => {
+    if (!user?.hotelid) {
+      toast.error('Hotel ID is required for import');
+      return;
+    }
+
+    setImporting(true);
+    setImportErrors([]);
+    try {
+      const response = await MenuService.importMenu(
+        file,
+        Number(user.hotelid),
+        user.outletid ? Number(user.outletid) : undefined,
+        user.id
+      );
+
+      if (response.success) {
+        toast.success(`Successfully imported ${response.data?.imported || 0} items`);
+
+        if (response.data?.errors && response.data.errors.length > 0) {
+          setImportErrors(response.data.errors);
+          if (response.data.errors.length === 1) {
+            toast.warn(response.data.errors[0].message);
+          } else {
+            toast.warn(`${response.data.errors.length} rows had issues - check console/details`);
+            console.table(response.data.errors);
+          }
+        } else {
+          setShowImportModal(false);
+        }
+
+        fetchKotPrinters();
+      } else {
+        toast.error(response.message || 'Failed to import menu items');
+      }
+    } catch (err: any) {
+      console.error('Import error:', err);
+      toast.error(err.message || 'Failed to import menu items');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const clearDeptForm = () => {
+    setSelectedDeptPrinter('');
+    setSelectedDeptOrderType('');
+    setSelectedDeptDepartment('');
+    setSelectedDeptSize('');
+    setDeptCopies('');
+  };
+
   return (
     <div className="container-fluid p-4">
       {/* TABS HEADER */}
@@ -958,14 +832,13 @@ function SettingsPage() {
       <div className="card shadow-lg border-0 rounded">
         <div className="card-body" style={{ minHeight: "80vh" }}>
 
-
-          {/* PRINTER TAB */}
+          {/* GENERAL TAB */}
           {activeTab === "general" && (
             <div className="p-3">
               <Row>
                 <Col md={6}>
                   <Form.Group className="position-relative">
-                    <Form.Label> Takeaway </Form.Label>
+                    <Form.Label>Takeaway Department</Form.Label>
                     <Form.Select
                       value={departmentId}
                       onChange={async (e) => {
@@ -981,28 +854,21 @@ function SettingsPage() {
                               departmentid: parseInt(newDeptId),
                               created_by_id: user.id || 1
                             };
-                            
-                            console.log('💾 Saving takeaway:', { 
-                              settingId, 
-                              ...payload 
-                            });
-                            
+
                             if (settingId) {
-                              // UPDATE existing setting
                               await SettingsService.updateTakeawaySetting({
                                 settingid: settingId,
                                 ...payload
                               });
                               setSaveMessage('✅ Takeaway setting updated successfully!');
                             } else {
-                              // CREATE new setting (fallback)
                               await SettingsService.saveTakeawaySetting(payload);
                               setSaveMessage('✅ Takeaway setting created!');
                             }
-                            
+
                             setTimeout(() => setSaveMessage(''), 2000);
                           } catch (err) {
-                            console.error('❌ Save failed:', err);
+                            console.error('Save failed:', err);
                             setSaveMessage('❌ Save failed');
                           } finally {
                             setSaveLoading(false);
@@ -1023,19 +889,19 @@ function SettingsPage() {
                       )}
                     </Form.Select>
                     {saveMessage && (
-                      <div className={`small mt-1 ${saveMessage.includes('Saved') ? 'text-success' : 'text-danger'}`}>
+                      <div className={`small mt-1 ${saveMessage.includes('✅') ? 'text-success' : 'text-danger'}`}>
                         {saveMessage}
                       </div>
                     )}
                   </Form.Group>
                 </Col>
                 <Col md={6}>
-<Form.Group className="position-relative">
+                  <Form.Group className="position-relative">
                     <Form.Label>UI Mode</Form.Label>
                     <Form.Select
                       value={uiMode}
                       onChange={async (e) => {
-                        const newUIMode = e.target.value as 'Orders' | 'Tableview';
+                        const newUIMode = e.target.value as 'POS' | 'Tableview';
                         try {
                           await updateUIMode(newUIMode);
                           setUiSaveMessage('✅ UI Mode updated successfully!');
@@ -1048,22 +914,121 @@ function SettingsPage() {
                       }}
                       disabled={uiLoading || !user}
                     >
-                      <option value="POS"> POS </option>
-<option value="Tableview"> Orders </option>
+                      <option value="POS">POS</option>
+                      <option value="Tableview">Orders (Tableview)</option>
                     </Form.Select>
                     {uiSaveMessage && (
                       <div className={`small mt-1 ${uiSaveMessage.includes('✅') ? 'text-success' : 'text-danger'}`}>
                         {uiSaveMessage}
                       </div>
                     )}
-                   
-                    
                   </Form.Group>
                 </Col>
               </Row>
-              
+
+              {/* TABLE CARD SIZE SETTING - NEW */}
+              <Row className="mt-4">
+  <Col md={12}>
+    <div 
+      className="rounded-4 p-3"
+      style={{
+        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+        border: '1px solid rgba(0,0,0,0.05)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+      }}
+    >
+      <div className="d-flex align-items-center justify-content-between gap-4 flex-wrap">
+        {/* Left: Controls with icon */}
+        <div className="flex-grow-1" style={{ minWidth: '260px' }}>
+          <div className="d-flex align-items-center gap-3">
+            <div 
+              className="d-flex align-items-center justify-content-center rounded-circle"
+              style={{
+                width: '36px',
+                height: '36px',
+                background: 'linear-gradient(135deg, #0d6efd, #0b5ed7)',
+                boxShadow: '0 2px 6px rgba(13,110,253,0.3)'
+              }}
+            >
+              <i className="bi bi-grid-3x3-gap-fill text-white" style={{ fontSize: '1.1rem' }}></i>
+            </div>
+            <Form.Label className="fw-bold mb-0" style={{ color: '#1e2a3e', fontSize: '0.95rem' }}>
+              Table Card Size
+            </Form.Label>
+            <Form.Range
+              min="80"
+              max="200"
+              step="5"
+              value={tableCardSize}
+              onChange={(e) => handleTableCardSizeChange(parseInt(e.target.value))}
+              style={{ flex: 1, height: '5px' }}
+              className="custom-range"
+            />
+            <div className="d-flex align-items-center gap-2 bg-white rounded-3 p-1 shadow-sm">
+              <Form.Control
+                type="number"
+                min="80"
+                max="200"
+                step="5"
+                value={tableCardSize}
+                onChange={(e) => handleTableCardSizeChange(parseInt(e.target.value))}
+                style={{ 
+                  width: '70px', 
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  fontWeight: '600',
+                  textAlign: 'center',
+                  padding: '4px 0'
+                }}
+                className="form-control-sm"
+              />
+              <span className="text-secondary me-1" style={{ fontSize: '0.8rem', fontWeight: '500' }}>px</span>
+            </div>
+          </div>
+          <Form.Text className="d-block mt-2" style={{ color: '#6c757d', fontSize: '0.75rem', marginLeft: '48px' }}>
+            Adjust table card width • Default 110px • Range 80–200px
+          </Form.Text>
+        </div>
+
+        {/* Right: Live Preview with animation */}
+        <div 
+          className="d-flex flex-column align-items-center justify-content-center bg-white rounded-3 p-2"
+          style={{
+            minWidth: '130px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+            border: '1px solid rgba(0,0,0,0.05)',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <span className="small fw-semibold text-secondary mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.3px' }}>
+            LIVE PREVIEW
+          </span>
+          <div 
+            className="d-flex flex-column align-items-center justify-content-center rounded-2"
+            style={{
+              width: `${tableCardSize}px`,
+              height: `${tableCardSize * 0.71}px`,
+              background: 'linear-gradient(145deg, #ffffff, #f8f9fa)',
+              border: '1px solid #dee2e6',
+              borderRadius: '8px',
+              fontSize: `${Math.max(12, tableCardSize * 0.16)}px`,
+              fontWeight: 'bold',
+              color: '#0d6efd',
+              transition: 'all 0.15s cubic-bezier(0.2, 0.9, 0.4, 1.1)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            }}
+          >
+            <i className="bi bi-table" style={{ fontSize: `${Math.max(14, tableCardSize * 0.12)}px`, marginBottom: '2px' }}></i>
+            <span>Table</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Col>
+</Row>
+
               {/* Import Menu Button */}
-              <Row className="mt-3">
+              <Row className="mt-4">
                 <Col md={12}>
                   <Button
                     variant="outline-info"
@@ -1078,8 +1043,8 @@ function SettingsPage() {
               </Row>
             </div>
           )}
-          
-          {/* Import Modal (copied from Menu.tsx) */}
+
+          {/* Import Modal */}
           <Modal show={showImportModal} onHide={() => setShowImportModal(false)} centered>
             <Modal.Header closeButton>
               <Modal.Title>Import Menu Items</Modal.Title>
@@ -1099,10 +1064,10 @@ function SettingsPage() {
                     }}
                   />
                   <Form.Text className="text-muted">
-                    Download sample template: 
-                    <Button 
-                      variant="link" 
-                      size="sm" 
+                    Download sample template:
+                    <Button
+                      variant="link"
+                      size="sm"
                       onClick={async () => {
                         try {
                           const response: any = await MenuService.downloadSampleTemplate();
@@ -1126,7 +1091,7 @@ function SettingsPage() {
                     </Button>
                   </Form.Text>
                 </Form.Group>
-{importing && (
+                {importing && (
                   <div className="text-center my-3">
                     <div className="spinner-border text-primary" role="status">
                       <span className="visually-hidden">Loading...</span>
@@ -1142,9 +1107,9 @@ function SettingsPage() {
                         <li key={idx}>Row {err.row}: {err.message}</li>
                       ))}
                     </ul>
-                    <Button 
-                      variant="outline-warning" 
-                      size="sm" 
+                    <Button
+                      variant="outline-warning"
+                      size="sm"
                       className="mt-2"
                       onClick={() => setImportErrors([])}
                     >
@@ -1161,14 +1126,14 @@ function SettingsPage() {
             </Modal.Footer>
           </Modal>
 
+          {/* PRINTER TAB */}
           {activeTab === "printer" && (
             <div className="p-3" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
 
               {/* KOT PRINTER SETTINGS */}
-
               <PrinterSection title="KOT Printer Settings">
                 <div className="row g-3">
-                   <div className="col-md-2">
+                  <div className="col-md-2">
                     <div className="form-check form-switch">
                       <input className="form-check-input" type="checkbox" role="switch" id="kot-enable-print" checked={kotEnablePrint} onChange={(e) => setKotEnablePrint(e.target.checked)} />
                       <label className="form-check-label">KOT Enable Print</label>
@@ -1176,42 +1141,35 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
-                      <select
-                        className="form-select"
-                        id="kot-printer"
-                        value={selectedKotPrinter}
-                        onChange={(e) => setSelectedKotPrinter(e.target.value)}
-                      >
-                        <option value="">Select Printer</option>
-
-                        {printers.map((p, index: number) => (
-                          <option key={index} value={p.name}>
-                            {p.displayName}
-                          </option>
-                        ))}
-                      </select>
-
-
+                    <select
+                      className="form-select"
+                      id="kot-printer"
+                      value={selectedKotPrinter}
+                      onChange={(e) => setSelectedKotPrinter(e.target.value)}
+                    >
+                      <option value="">Select Printer</option>
+                      {printers.map((p, index: number) => (
+                        <option key={index} value={p.name}>
+                          {p.displayName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Outlet</label>
                     <select
-  value={selectedOutlet !== null ? String(selectedOutlet) : ''}
-  onChange={(e) =>
-    setSelectedOutlet(e.target.value ? Number(e.target.value) : null)
-  }
-
-  className="form-select rounded-lg"
-  required
->
-  <option value="">Select Outlet</option>
-  {outlets.map((outlet) => (
-    <option key={outlet.outletid} value={String(outlet.outletid)}>
-      {outlet.outlet_name}
-    </option>
-  ))}
-</select>
-
+                      value={selectedOutlet !== null ? String(selectedOutlet) : ''}
+                      onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
+                      className="form-select rounded-lg"
+                      required
+                    >
+                      <option value="">Select Outlet</option>
+                      {outlets.map((outlet) => (
+                        <option key={outlet.outletid} value={String(outlet.outletid)}>
+                          {outlet.outlet_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Order Type</label>
@@ -1253,12 +1211,11 @@ function SettingsPage() {
                       onChange={(e) => setKotCopies(e.target.value)}
                     />
                   </div>
-
                   <div className="col-md-9 d-flex gap-2 align-items-end">
-                    <button className="btn btn-success" onClick={() => handleAddKotPrinter()} >
+                    <button className="btn btn-success" onClick={() => handleAddKotPrinter()}>
                       {loading ? 'Adding...' : 'Add'}
                     </button>
-                    <button className="btn btn-secondary" onClick={() => clearKotForm()} >Clear</button>
+                    <button className="btn btn-secondary" onClick={() => clearKotForm()}>Clear</button>
                   </div>
                 </div>
                 <PrinterTable
@@ -1274,50 +1231,41 @@ function SettingsPage() {
                 <div className="row g-3">
                   <div className="col-md-2">
                     <div className="form-check form-switch">
-
                       <input className="form-check-input" type="checkbox" role="switch" id="bill-enable-print" checked={billEnablePrint} onChange={(e) => setBillEnablePrint(e.target.checked)} />
                       <label className="form-check-label">BILL Enable Print</label>
                     </div>
                   </div>
-                  
                   <div className="col-md-3">
-
                     <label className="form-label">Printer</label>
-                      <select
-                        className="form-select"
-                        id="bill-printer"
-                        value={selectedBillPrinter}
-                        onChange={(e) => setSelectedBillPrinter(e.target.value)}
-                       
-                      >
-                        <option value="">Select Printer</option>
-
-                        {printers.map((p, index: number) => (
-                          <option key={index} value={p.name}>
-                            {p.displayName}
-                          </option>
-                        ))}
-                      </select>
+                    <select
+                      className="form-select"
+                      id="bill-printer"
+                      value={selectedBillPrinter}
+                      onChange={(e) => setSelectedBillPrinter(e.target.value)}
+                    >
+                      <option value="">Select Printer</option>
+                      {printers.map((p, index: number) => (
+                        <option key={index} value={p.name}>
+                          {p.displayName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                 <div className="col-md-3">
+                  <div className="col-md-3">
                     <label className="form-label">Outlet</label>
                     <select
-  value={selectedOutlet !== null ? String(selectedOutlet) : ''}
-  onChange={(e) =>
-    setSelectedOutlet(e.target.value ? Number(e.target.value) : null)
-  }
-
-  className="form-select rounded-lg"
-  required
->
-  <option value="">Select Outlet</option>
-  {outlets.map((outlet) => (
-    <option key={outlet.outletid} value={String(outlet.outletid)}>
-      {outlet.outlet_name}
-    </option>
-  ))}
-</select>
-
+                      value={selectedOutlet !== null ? String(selectedOutlet) : ''}
+                      onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
+                      className="form-select rounded-lg"
+                      required
+                    >
+                      <option value="">Select Outlet</option>
+                      {outlets.map((outlet) => (
+                        <option key={outlet.outletid} value={String(outlet.outletid)}>
+                          {outlet.outlet_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Order Type</label>
@@ -1357,9 +1305,8 @@ function SettingsPage() {
                       onChange={(e) => setBillCopies(e.target.value)}
                     />
                   </div>
-
                   <div className="col-md-9 d-flex gap-2 align-items-end">
-                    <button className="btn btn-success" onClick={() => handleAddBillPrinter()} >
+                    <button className="btn btn-success" onClick={() => handleAddBillPrinter()}>
                       {loading ? 'Adding...' : 'Add'}
                     </button>
                     <button className="btn btn-secondary" onClick={() => clearBillForm()}>Clear</button>
@@ -1376,7 +1323,6 @@ function SettingsPage() {
               {/* LABEL PRINTER SETTINGS */}
               <PrinterSection title="Label Printer Settings">
                 <div className="row g-3">
-                  
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
                     <select
@@ -1395,26 +1341,19 @@ function SettingsPage() {
                   <div className="col-md-3">
                     <label className="form-label">Outlet</label>
                     <select
-  value={selectedOutlet !== null ? String(selectedOutlet) : ''}
-  onChange={(e) =>
-    setSelectedOutlet(e.target.value ? Number(e.target.value) : null)
-  }
-
-  className="form-select rounded-lg"
-  required
->
-  <option value="">Select Outlet</option>
-  {outlets.map((outlet) => (
-    <option key={outlet.outletid} value={String(outlet.outletid)}>
-      {outlet.outlet_name}
-    </option>
-  ))}
-</select>
-
+                      value={selectedOutlet !== null ? String(selectedOutlet) : ''}
+                      onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
+                      className="form-select rounded-lg"
+                      required
+                    >
+                      <option value="">Select Outlet</option>
+                      {outlets.map((outlet) => (
+                        <option key={outlet.outletid} value={String(outlet.outletid)}>
+                          {outlet.outlet_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  
-          
-                  
                   <div className="col-md-3">
                     <label className="form-label">Paper Width (mm)</label>
                     <input
@@ -1438,24 +1377,15 @@ function SettingsPage() {
                     </div>
                   </div>
                   <div className="col-md-9 d-flex gap-2 align-items-end">
-                    <button
-                      className="btn btn-success"
-                      onClick={handleAddLabelPrinter}
-                      disabled={loading}
-                    >
+                    <button className="btn btn-success" onClick={handleAddLabelPrinter} disabled={loading}>
                       {loading ? 'Adding...' : 'Add'}
                     </button>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={clearLabelForm}
-                    >
-                      Clear
-                    </button>
+                    <button className="btn btn-secondary" onClick={clearLabelForm}>Clear</button>
                   </div>
                 </div>
                 <PrinterTable
                   data={labelPrinters}
-                  columns={['Printer Name',  'Paper Width']}
+                  columns={['Printer Name', 'Paper Width']}
                   onEdit={handleEditLabelPrinter}
                   onDelete={handleDeleteLabelPrinter}
                 />
@@ -1464,7 +1394,6 @@ function SettingsPage() {
               {/* REPORTS PRINTER SETTINGS */}
               <PrinterSection title="Reports Printer Settings">
                 <div className="row g-3">
-                  
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
                     <select
@@ -1480,29 +1409,22 @@ function SettingsPage() {
                       ))}
                     </select>
                   </div>
-                 <div className="col-md-3">
+                  <div className="col-md-3">
                     <label className="form-label">Outlet</label>
                     <select
-  value={selectedOutlet !== null ? String(selectedOutlet) : ''}
-  onChange={(e) =>
-    setSelectedOutlet(e.target.value ? Number(e.target.value) : null)
-  }
-
-  className="form-select rounded-lg"
-  required
->
-  <option value="">Select Outlet</option>
-  {outlets.map((outlet) => (
-    <option key={outlet.outletid} value={String(outlet.outletid)}>
-      {outlet.outlet_name}
-    </option>
-  ))}
-</select>
-
+                      value={selectedOutlet !== null ? String(selectedOutlet) : ''}
+                      onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
+                      className="form-select rounded-lg"
+                      required
+                    >
+                      <option value="">Select Outlet</option>
+                      {outlets.map((outlet) => (
+                        <option key={outlet.outletid} value={String(outlet.outletid)}>
+                          {outlet.outlet_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  
-                  
-                  
                   <div className="col-md-3">
                     <label className="form-label">Paper Size</label>
                     <select
@@ -1528,24 +1450,15 @@ function SettingsPage() {
                     </div>
                   </div>
                   <div className="col-md-9 d-flex gap-2 align-items-end">
-                    <button
-                      className="btn btn-success"
-                      onClick={handleAddReportPrinter}
-                      disabled={loading}
-                    >
+                    <button className="btn btn-success" onClick={handleAddReportPrinter} disabled={loading}>
                       {loading ? 'Adding...' : 'Add'}
                     </button>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={clearReportForm}
-                    >
-                      Clear
-                    </button>
+                    <button className="btn btn-secondary" onClick={clearReportForm}>Clear</button>
                   </div>
                 </div>
                 <PrinterTable
                   data={reportPrinters}
-                  columns={['Printer Name',  'Paper Size']}
+                  columns={['Printer Name', 'Paper Size']}
                   onEdit={handleEditReportPrinter}
                   onDelete={handleDeleteReportPrinter}
                 />
@@ -1572,22 +1485,18 @@ function SettingsPage() {
                   <div className="col-md-3">
                     <label className="form-label">Outlet</label>
                     <select
-  value={selectedOutlet !== null ? String(selectedOutlet) : ''}
-  onChange={(e) =>
-    setSelectedOutlet(e.target.value ? Number(e.target.value) : null)
-  }
-
-  className="form-select rounded-lg"
-  required
->
-  <option value="">Select Outlet</option>
-  {outlets.map((outlet) => (
-    <option key={outlet.outletid} value={String(outlet.outletid)}>
-      {outlet.outlet_name}
-    </option>
-  ))}
-</select>
-
+                      value={selectedOutlet !== null ? String(selectedOutlet) : ''}
+                      onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
+                      className="form-select rounded-lg"
+                      required
+                    >
+                      <option value="">Select Outlet</option>
+                      {outlets.map((outlet) => (
+                        <option key={outlet.outletid} value={String(outlet.outletid)}>
+                          {outlet.outlet_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Order Type</label>
@@ -1638,19 +1547,10 @@ function SettingsPage() {
                     />
                   </div>
                   <div className="col-md-6 d-flex gap-2 align-items-end">
-                    <button
-                      className="btn btn-success"
-                      onClick={() => handleAddDepartmentPrinter()}
-                      disabled={loading}
-                    >
+                    <button className="btn btn-success" onClick={() => handleAddDepartmentPrinter()} disabled={loading}>
                       {loading ? 'Adding...' : 'Add'}
                     </button>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => clearDeptForm()}
-                    >
-                      Clear
-                    </button>
+                    <button className="btn btn-secondary" onClick={() => clearDeptForm()}>Clear</button>
                   </div>
                 </div>
                 <PrinterTable
@@ -1661,262 +1561,33 @@ function SettingsPage() {
                 />
               </PrinterSection>
 
-              {/* TABLE WISE KOT PRINTER SETTINGS */}
+              {/* HIDDEN SECTIONS */}
               <PrinterSection title="Table Wise KOT Printer Settings" style={{ display: 'none' }}>
-                <div className="row g-3">
-                  <div className="col-md-3">
-                    <label className="form-label">Printer</label>
-                    <PrinterSelector />
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Table</label>
-                    <select className="form-select">
-                      <option>Select Table</option>
-                      <option>Table 1</option>
-                      <option>Table 2</option>
-                      <option>Table 3</option>
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Source</label>
-                    <select className="form-select">
-                      <option>Select Source</option>
-                      <option>Source 1</option>
-                      <option>Source 2</option>
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Size</label>
-                    <select className="form-select">
-                      <option>Select Size</option>
-                      <option>58mm</option>
-                      <option>80mm</option>
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Copies</label>
-                    <input className="form-control" placeholder="No of Copies" type="number" min="1" />
-                  </div>
-                  <div className="col-md-9 d-flex gap-2 align-items-end">
-                    <button className="btn btn-success">Add</button>
-                    <button className="btn btn-secondary">Clear</button>
-                  </div>
-                </div>
                 <PrinterTable
                   data={tableWiseKot}
-                  columns={['Table No', 'Printer Name', 'Size', 'Source', 'Copies']}
+                  columns={['Table No', 'Printer Name', 'Size', 'Copies']}
                   onEdit={() => { }}
                   onDelete={(id) => { }}
                 />
               </PrinterSection>
 
-              {/* TABLE WISE BILL PRINTER SETTINGS */}
-              <PrinterSection title="Table Wise Bill Printer Settings " style={{ display: 'none' }}>
-                <div className="row g-3">
-                  <div className="col-md-3">
-                    <label className="form-label">Printer</label>
-                    <PrinterSelector />
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Table</label>
-                    <select className="form-select">
-                      <option>Select Table</option>
-                      <option>Table 1</option>
-                      <option>Table 2</option>
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Source</label>
-                    <select className="form-select">
-                      <option>Select Source</option>
-                      <option>Source 1</option>
-                      <option>Source 2</option>
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Size</label>
-                    <select className="form-select">
-                      <option>Select Size</option>
-                      <option>58mm</option>
-                      <option>80mm</option>
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Copies</label>
-                    <input className="form-control" placeholder="No of Copies" type="number" min="1" />
-                  </div>
-                  <div className="col-md-9 d-flex gap-2 align-items-end">
-                    <button className="btn btn-success">Add</button>
-                    <button className="btn btn-secondary">Clear</button>
-                  </div>
-                </div>
+              <PrinterSection title="Table Wise Bill Printer Settings" style={{ display: 'none' }}>
                 <PrinterTable
                   data={tableWiseBill}
-                  columns={['Table No', 'Printer Name', 'Size', 'Source', 'Copies']}
+                  columns={['Table No', 'Printer Name', 'Size', 'Copies']}
                   onEdit={() => { }}
                   onDelete={(id) => { }}
                 />
               </PrinterSection>
 
-              {/* CATEGORY WISE PRINTER SETTINGS */}
-              <PrinterSection title="Category Wise Printer Settings " style={{ display: 'none' }} >
-                <div className="row g-3">
-                  <div className="col-md-3">
-                    <label className="form-label">Printer</label>
-                    <PrinterSelector />
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Order Type</label>
-                    <select className="form-select">
-                      <option>Select Order Type</option>
-                      <option>Dine-in</option>
-                      <option>Takeaway</option>
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Source</label>
-                    <select className="form-select">
-                      <option>Select Source</option>
-                      <option>Source 1</option>
-                      <option>Source 2</option>
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Category</label>
-                    <select className="form-select">
-                      <option>Select Category</option>
-                      <option>Food</option>
-                      <option>Beverages</option>
-                      <option>Desserts</option>
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Size</label>
-                    <select className="form-select">
-                      <option>Select Size</option>
-                      <option>58mm</option>
-                      <option>80mm</option>
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Copies</label>
-                    <input className="form-control" placeholder="No of Copies" type="number" min="1" />
-                  </div>
-                  <div className="col-md-6 d-flex gap-2 align-items-end">
-                    <button className="btn btn-success">Add</button>
-                    <button className="btn btn-secondary">Clear</button>
-                  </div>
-                </div>
+              <PrinterSection title="Category Wise Printer Settings" style={{ display: 'none' }}>
                 <PrinterTable
                   data={categoryPrinters}
-                  columns={['Printer Name', 'Order Type', 'Source', 'Category', 'Size', 'Copies']}
+                  columns={['Printer Name', 'Order Type', 'Category', 'Size', 'Copies']}
                   onEdit={() => { }}
                   onDelete={(id) => { }}
                 />
               </PrinterSection>
-
-              {/* ================= KITCHEN DEPARTMENT WISE KDS (OFFLINE) ================= */}
-              <div className="border rounded p-3 mb-4"  style={{ display: 'none' }}>
-                <h5 className="fw-bold mb-3">Kitchen Department Wise KDS (Offline)</h5>
-
-                <div className="row g-3">
-                  <div className="col-md-4">
-                    <label className="form-label">Department</label>
-                    <select className="form-select">
-                      <option>Select Department</option>
-                      <option>Main Kitchen</option>
-                      <option>Bar</option>
-                      <option>Bakery</option>
-                      <option>Grill Station</option>
-                      <option>Salad Station</option>
-                    </select>
-                  </div>
-
-                  <div className="col-md-4">
-                    <label className="form-label">User</label>
-                    <select className="form-select">
-                      <option>Select User</option>
-                      <option>Chef John</option>
-                      <option>Chef Maria</option>
-                      <option>Bartender Mike</option>
-                      <option>Baker David</option>
-                    </select>
-                  </div>
-
-                  <div className="col-md-2 d-flex align-items-end">
-                    <button className="btn btn-success w-100">Add</button>
-                  </div>
-
-                  <div className="col-md-2 d-flex align-items-end">
-                    <button className="btn btn-secondary w-100">Clear</button>
-                  </div>
-                </div>
-
-                <h6 className="mt-4 mb-3">KDS Configuration List:</h6>
-                <div className="table-responsive">
-                  <table className="table table-bordered table-sm">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Department</th>
-                        <th>User</th>
-                        <th>Status</th>
-                        <th>Last Updated</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>Main Kitchen</td>
-                        <td>Chef John</td>
-                        <td><span className="badge bg-success">Active</span></td>
-                        <td>2024-01-15 10:30 AM</td>
-                        <td>
-                          <div className="d-flex gap-1">
-                            <button className="btn btn-sm btn-outline-primary">
-                              <i className="bi bi-pencil"></i> Edit
-                            </button>
-                            <button className="btn btn-sm btn-outline-danger">
-                              <i className="bi bi-trash"></i> Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>Bar</td>
-                        <td>Bartender Mike</td>
-                        <td><span className="badge bg-success">Active</span></td>
-                        <td>2024-01-14 03:45 PM</td>
-                        <td>
-                          <div className="d-flex gap-1">
-                            <button className="btn btn-sm btn-outline-primary">
-                              <i className="bi bi-pencil"></i> Edit
-                            </button>
-                            <button className="btn btn-sm btn-outline-danger">
-                              <i className="bi bi-trash"></i> Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>Bakery</td>
-                        <td>Baker David</td>
-                        <td><span className="badge bg-warning">Inactive</span></td>
-                        <td>2024-01-10 09:15 AM</td>
-                        <td>
-                          <div className="d-flex gap-1">
-                            <button className="btn btn-sm btn-outline-primary">
-                              <i className="bi bi-pencil"></i> Edit
-                            </button>
-                            <button className="btn btn-sm btn-outline-danger">
-                              <i className="bi bi-trash"></i> Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </div>
           )}
         </div>

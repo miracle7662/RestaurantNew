@@ -32,8 +32,8 @@ interface Department {
   department_name: string;
 }
 
-// Table Card Component
-const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onClick }) => {
+// Table Card Component with dynamic width
+const TableCard: React.FC<{ table: Table; onClick: () => void; width: number }> = ({ table, onClick, width }) => {
   const getStatusClass = (status: TableStatus): string => {
     switch (status) {
       case 'running': return 'bg-success';
@@ -47,12 +47,17 @@ const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onC
     }
   };
 
+  // Calculate dynamic font sizes based on card width
+  const tableNameFontSize = Math.max(12, width * 0.16);
+  const detailsFontSize = Math.max(8, width * 0.09);
+  const cardHeight = width * 0.71; // Maintain aspect ratio (110:78)
+
   return (
     <div
       className={`${getStatusClass(table.status)} cursor-pointer table-card d-flex flex-column align-items-center justify-content-center`}
       style={{
-        width: '110px',
-        height: '78px',
+        width: `${width}px`,
+        height: `${cardHeight}px`,
         borderRadius: '6px',
         cursor: 'pointer',
         border: '1px solid #ddd',
@@ -60,9 +65,9 @@ const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onC
       }}
       onClick={onClick}
     >
-      <span className="text-dark fw-bold" style={{ fontSize: '18px', lineHeight: '1.1' }}>{table.name}</span>
+      <span className="text-dark fw-bold" style={{ fontSize: `${tableNameFontSize}px`, lineHeight: '1.1' }}>{table.name}</span>
       {(table.status === 'printed' || table.status === 'running-kot') && table.billNo && table.billAmount && table.billPrintedTime && (
-        <div className="d-flex flex-column align-items-center" style={{ fontSize: '10px', lineHeight: '1', color: 'white' }}>
+        <div className="d-flex flex-column align-items-center" style={{ fontSize: `${detailsFontSize}px`, lineHeight: '1', color: 'white' }}>
           <span>{table.billNo}</span>
           <span>₹{Math.round(table.billAmount || 0)}</span>
           <span>{table.billPrintedTime}</span>
@@ -132,6 +137,24 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const tableInputRef = useRef<HTMLInputElement>(null);
+
+  // ✅ TABLE CARD SIZE - Get from localStorage with default 110px
+  const [tableCardWidth, setTableCardWidth] = useState(() => {
+    const saved = localStorage.getItem('tableCardWidth');
+    return saved ? parseInt(saved) : 110;
+  });
+
+  // ✅ Listen for storage changes (when settings are updated in another tab)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'tableCardWidth' && e.newValue) {
+        setTableCardWidth(parseInt(e.newValue));
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // ✅ Save table input to session storage whenever it changes
   useEffect(() => {
@@ -587,7 +610,7 @@ export default function App() {
         }
         .table-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, 110px);
+          grid-template-columns: repeat(auto-fill, ${tableCardWidth}px);
           gap: 12px;
           margin-bottom: 10px;
           justify-content: start;
@@ -660,7 +683,7 @@ export default function App() {
                     <div className="table-grid">
                       {tablesForDepartment.map((table) => (
                         <div key={table.id} id={`table-${table.id}-department-${department.departmentid}`} className="table-card-wrapper">
-                          <TableCard table={table} onClick={() => handleTableClick(table)} />
+                          <TableCard table={table} onClick={() => handleTableClick(table)} width={tableCardWidth} />
                         </div>
                       ))}
                     </div>
