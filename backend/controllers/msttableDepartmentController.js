@@ -31,7 +31,7 @@ exports.getAllDepartments = async (req, res) => {
       params.push(Number(outletid));
     }
 
-    query += ` ORDER BY d.department_name ASC`;
+   query += ` ORDER BY d.departmentid ASC`;
 
     // console.log("Final Query:", query);
     // console.log("Params:", params);

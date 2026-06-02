@@ -407,7 +407,6 @@ const TableManagement: React.FC = () => {
           if (tableItem) {
             onHide();
           }
-          onHide(); // Close modal after successful save
         } catch (err: any) {
           toast.error(err.response?.data?.message || `Failed to ${tableItem ? 'update' : 'add'} table`);
         }
