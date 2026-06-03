@@ -149,65 +149,53 @@ const KitchenAllocation: React.FC = () => {
 
   // Fetch data using KitchenAllocationService
   const fetchData = async () => {
-    if (!fromDateTime || !toDateTime) {
-      setError('Please select both From Date/Time and To Date/Time.');
-      return;
+  if (!fromDateTime || !toDateTime) {
+    setError('Please select both From Date/Time and To Date/Time.');
+    return;
+  }
+  if (!user?.hotelid) {
+    setError('Hotel information is not available. Please log in again.');
+    return;
+  }
+
+  setLoading(true);
+  setError(null);
+
+  try {
+    const startDateTime = fromDateTime < toDateTime ? fromDateTime : toDateTime;
+    const endDateTime = fromDateTime < toDateTime ? toDateTime : fromDateTime;
+
+    // Build params object with all selected filters
+    const params: any = {
+      fromDate: startDateTime,
+      toDate: endDateTime,
+      hotelId: user.hotelid.toString(),
+      outletId: user.outletid?.toString(),
+    };
+
+    if (selectedUser) params.userId = selectedUser;
+    if (selectedDepartment) params.departmentId = selectedDepartment;
+    if (selectedItemGroup) params.itemGroupId = selectedItemGroup;
+    if (selectedKitchenMainGroup) params.kitchenMainGroupId = selectedKitchenMainGroup;
+
+    const result = await KitchenAllocationService.getAllocationData(params);
+
+    if (result.success) {
+      const processedData = result.data.map((item: any) => ({
+        ...item,
+        TotalQty: (item.TotalQty || 0) - (item.RevQty || 0),
+        Amount: item.Amount || 0,
+      }));
+      setData(processedData);
+    } else {
+      setError(result.message || 'Failed to fetch data');
     }
-    if (!user?.hotelid) {
-      setError('Hotel information is not available. Please log in again.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      let filterType = '';
-      let filterId = '';
-
-      if (selectedUser) {
-        filterType = 'user';
-        filterId = selectedUser;
-      } else if (selectedItemGroup) {
-        filterType = 'item-group';
-        filterId = selectedItemGroup;
-      } else if (selectedDepartment) {
-        filterType = 'department';
-        filterId = selectedDepartment;
-      } else if (selectedKitchenMainGroup) {
-        filterType = 'kitchen-category';
-        filterId = selectedKitchenMainGroup;
-      }
-
-      // Compare datetimes
-      const startDateTime = fromDateTime < toDateTime ? fromDateTime : toDateTime;
-      const endDateTime = fromDateTime < toDateTime ? toDateTime : fromDateTime;
-
-      const result = await KitchenAllocationService.getAllocationData({
-        fromDate: startDateTime,
-        toDate: endDateTime,
-        hotelId: user.hotelid.toString(),
-        outletId: user.outletid?.toString(),
-        filterType,
-        filterId
-      });
-
-      if (result.success) {
-        const processedData = result.data.map((item: any) => ({
-          ...item,
-          TotalQty: (item.TotalQty || 0) - (item.RevQty || 0),
-          Amount: item.Amount || 0
-        }));
-        setData(processedData);
-      } else {
-        setError(result.message || 'Failed to fetch data');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Error fetching data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err: any) {
+    setError(err.message || 'Error fetching data');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handlePDF = () => {
     const doc = new jsPDF();

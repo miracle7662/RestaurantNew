@@ -5,9 +5,8 @@ const db = require('../config/db');
  */
 const getKitchenAllocation = async (req, res) => {
   try {
-    const { fromDate, toDate, hotelId, outletId, filterType, filterId } = req.query;
-
-    console.log('🧑‍🍳 KitchenAllocation params:', { fromDate, toDate, hotelId, outletId, filterType, filterId });
+   const { fromDate, toDate, hotelId, outletId, userId, departmentId, itemGroupId, kitchenMainGroupId } = req.query;
+    console.log('🧑‍🍳 KitchenAllocation params:', { fromDate, toDate, hotelId, outletId,   });
 
     if (!hotelId) {
       return res.status(400).json({ success: false, message: 'hotelId is required' });
@@ -81,14 +80,25 @@ const getKitchenAllocation = async (req, res) => {
       params.push(outletId);
     }
 
-    if (filterType && filterId) {
-      if (filterType === 'kitchen-category') {
-        where += ' AND m.kitchen_main_group_id = ?';
-        params.push(filterId);
-      } else if (filterType === 'item-group') {
-        where += ' AND m.item_group_id = ?';
-        params.push(filterId);
-      }
+      // User filter
+    if (userId) {
+      where += ' AND t.UserID = ?';
+      params.push(userId);
+    }
+    // Department filter
+    if (departmentId) {
+      where += ' AND t.DeptID = ?';
+      params.push(departmentId);
+    }
+    // Item Group filter
+    if (itemGroupId) {
+      where += ' AND m.item_group_id = ?';
+      params.push(itemGroupId);
+    }
+    // Kitchen Main Group filter
+    if (kitchenMainGroupId) {
+      where += ' AND m.kitchen_main_group_id = ?';
+      params.push(kitchenMainGroupId);
     }
 
     // ✅ FINAL QUERY (Using KOTUsedDate with time)
