@@ -5,6 +5,7 @@ import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Table } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '@/common';
+import * as XLSX from 'xlsx';
 import {
   useReactTable,
   getCoreRowModel,
@@ -16,7 +17,6 @@ import { fetchOutletsForDropdown, fetchBrands } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
 import TableManagementService from '@/common/api/tablemanagement';
 import TableDepartmentService from '@/common/api/tabledepartment';
-
 
 // Define TableItem interface
 interface TableItem {
@@ -389,6 +389,11 @@ const TableManagement: React.FC = () => {
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const { user } = useAuthContext();
 
+  // ---------- Import/Export state ----------
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // -----------------------------------------
+
   // Fetch department data
   const fetchDepartments = async () => {
     try {
@@ -598,6 +603,154 @@ const TableManagement: React.FC = () => {
     }
   };
 
+  // ---------- Export function (without file-saver) ----------
+  const handleExport = () => {
+    if (filteredTableItems.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    const exportData = filteredTableItems.map(item => {
+      const hotel = brands.find(b => b.hotelid === Number(item.hotelid));
+      const outlet = outlets.find(o => o.outletid === Number(item.outletid));
+      const dept = departments.find(d => d.departmentid === Number(item.departmentid));
+      return {
+        'Table Name': item.table_name,
+        'Hotel Name': hotel?.hotel_name || '',
+        'Outlet Name': outlet ? `${outlet.outlet_name} (${outlet.outlet_code})` : '',
+        'Department Name': dept?.department_name || item.department_name || '',
+        'Status': item.status === 0 ? 'Active' : 'Inactive'
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Tables');
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tables_${new Date().toISOString().slice(0,19)}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // ---------- Download template ----------
+  const downloadTemplate = () => {
+    const template = [
+      { 'Table Name': '101', 'Hotel Name': 'Grand Plaza', 'Outlet Name': 'Main Outlet', 'Department Name': 'Dining', 'Status': 'Active' },
+      { 'Table Name': '102', 'Hotel Name': 'Grand Plaza', 'Outlet Name': 'Main Outlet', 'Department Name': 'Dining', 'Status': 'Active' }
+    ];
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'table_import_template.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // ---------- Import: direct upload without preview ----------
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+
+        const mapped = rows.map(row => ({
+          table_name: row['Table Name']?.toString().trim(),
+          hotel_name: row['Hotel Name']?.toString().trim(),
+          outlet_name: row['Outlet Name']?.toString().trim(),
+          department_name: row['Department Name']?.toString().trim(),
+          status_text: row['Status']?.toString().trim()
+        })).filter(r => r.table_name && r.hotel_name && r.outlet_name && r.department_name);
+
+        if (mapped.length === 0) {
+          toast.error('No valid rows found in file');
+          setImporting(false);
+          return;
+        }
+
+        // Convert names to IDs
+        const payload = [];
+        const errors = [];
+
+        for (const item of mapped) {
+          const hotel = brands.find(b => b.hotel_name.toLowerCase() === item.hotel_name.toLowerCase());
+          if (!hotel) {
+            errors.push(`${item.table_name}: Hotel not found`);
+            continue;
+          }
+          const outlet = outlets.find(o => 
+            o.outlet_name.toLowerCase() === item.outlet_name.toLowerCase() ||
+            `${o.outlet_name} (${o.outlet_code})`.toLowerCase() === item.outlet_name.toLowerCase()
+          );
+          if (!outlet) {
+            errors.push(`${item.table_name}: Outlet not found`);
+            continue;
+          }
+          const department = departments.find(d => d.department_name.toLowerCase() === item.department_name.toLowerCase());
+          if (!department) {
+            errors.push(`${item.table_name}: Department not found`);
+            continue;
+          }
+
+          payload.push({
+            table_name: item.table_name,
+            hotelid: hotel.hotelid,
+            outletid: outlet.outletid,
+            departmentid: department.departmentid,
+            department_name: department.department_name,
+            status: item.status_text?.toLowerCase() === 'active' ? 0 : 11,
+            created_by_id: user?.id,
+            updated_by_id: user?.id,
+            marketid: 1
+          });
+        }
+
+        if (payload.length === 0) {
+          toast.error('No valid rows to import');
+          setImporting(false);
+          return;
+        }
+
+        const result = await TableManagementService.importTables(payload);
+        if (result.success) {
+          toast.success(result.message);
+          fetchTableManagement(searchTerm, user?.hotelid ? Number(user.hotelid) : undefined);
+          if (errors.length) {
+            toast(`Imported ${payload.length} rows. ${errors.length} issues:\n${errors.slice(0,5).join('\n')}${errors.length > 5 ? '...' : ''}`);
+          }
+        } else {
+          toast.error(result.message);
+        }
+      } catch (err: any) {
+        toast.error('Import failed: ' + (err.response?.data?.message || err.message));
+      } finally {
+        setImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  // ------------------------------------------------------------
+
   return (
     <>
       <TitleHelmet title="Table Management" />
@@ -606,17 +759,18 @@ const TableManagement: React.FC = () => {
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
             <h4 className="mb-0">Table Management</h4>
             <div style={{ display: 'flex', gap: '4px' }}>
-              <Button variant="success" className="me-1" onClick={() => {
-                setSelectedTable(null);
-                setShowTableModal(true);
-              }}>
+              <Button variant="success" onClick={() => { setSelectedTable(null); setShowTableModal(true); }}>
                 <i className="bi bi-plus"></i> Add New
               </Button>
-              <Button variant="primary" className="me-1">
-                <i className="bi bi-upload"></i> Upload Tables
+              <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+                <i className="bi bi-upload"></i> {importing ? 'Uploading...' : 'Upload Tables'}
               </Button>
-              <Button variant="primary">
+              <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".xlsx, .xls, .csv" onChange={handleFileUpload} />
+              <Button variant="primary" onClick={downloadTemplate}>
                 <i className="bi bi-download"></i> Download Table Format
+              </Button>
+              <Button variant="info" onClick={handleExport}>
+                <i className="bi bi-file-earmark-spreadsheet"></i> Export
               </Button>
             </div>
           </div>

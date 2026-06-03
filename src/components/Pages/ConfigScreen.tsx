@@ -78,6 +78,7 @@ const ConfigScreen: React.FC = () => {
     }
     setSaving(true);
     try {
+       console.log('Saving Config:', data);
       const saveResult = await (window as any).electronAPI.saveConfig(data);
       if (saveResult.success) {
         // Save config to localStorage for httpClient
@@ -97,9 +98,11 @@ const ConfigScreen: React.FC = () => {
         toast.success('Auto-login successful! Redirecting to dashboard...', { id: 'autologin' });
         setTimeout(() => navigate('/'), 1500);
       } else {
+        console.error('SAVE ERROR:', saveResult.error);
         toast.error(saveResult.error || 'Save failed');
       }
     } catch (error: any) {
+      console.error('SAVE ERROR:', error);
       toast.error('Config saved but auto-login failed. Login manually.', { id: 'autologin' });
       localStorage.setItem('configDone', 'true');
       setTimeout(() => navigate('/auth/minimal/login'), 1500);

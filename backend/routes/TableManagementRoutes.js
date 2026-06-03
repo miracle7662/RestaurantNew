@@ -18,4 +18,11 @@ router.get("/with-outlets", TableManagementController.getAllTablesWithOutlets);
 router.post("/sub-table", TableManagementController.createSubTable);
 
 
+// Import/Export Routes
+router.post('/import', TableManagementController.importTables);
+router.get('/export', TableManagementController.exportTables);
+
+
+
+
 module.exports = router;

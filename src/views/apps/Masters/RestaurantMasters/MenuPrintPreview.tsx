@@ -293,8 +293,15 @@ const sortByItemCode = (a: MenuPrintItem, b: MenuPrintItem) => {
   if (!isNaN(numA) && !isNaN(numB)) {
     return numA - numB;
   }
+
+  // return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
   
-  return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+  // Some backends may send non-string codes (e.g., number) or nullish values.
+  // Ensure we always call localeCompare on a real string.
+  return String(codeA).localeCompare(String(codeB), undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
 };
 
 // Truncate text for thermal printer

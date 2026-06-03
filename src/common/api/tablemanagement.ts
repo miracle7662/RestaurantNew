@@ -91,7 +91,35 @@ const TableManagementService = {
    * Create a sub-table for an existing table
    */
   createSubTable: (payload: SubTablePayload): Promise<ApiResponse<Table>> =>
-    HttpClient.post<ApiResponse<Table>>('/tablemanagement/sub-table', payload)
+    HttpClient.post<ApiResponse<Table>>('/tablemanagement/sub-table', payload),
+
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Import/Export Operations
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Import tables from Excel data (array of table objects)
+ * Backend expects: { tables: Array<{ table_name, hotelid, outletid, departmentid, status, ... }> }
+ */
+
+importTables: (tables: any[]): Promise<ApiResponse<{ 
+  success: boolean; 
+  message: string; 
+  inserted?: number; 
+  updated?: number; 
+  errors?: any[] 
+}>> => 
+  HttpClient.post<ApiResponse<any>>('/tablemanagement/import', { tables }),
+
+/**
+ * Export tables to Excel (server-side - optional)
+ * Returns blob for file download
+ */
+exportTables: (params?: { hotelid?: number; outletid?: number }): Promise<Blob> =>
+  HttpClient.get('/tablemanagement/export', { params, responseType: 'blob' }),
+
 }
 
 export default TableManagementService

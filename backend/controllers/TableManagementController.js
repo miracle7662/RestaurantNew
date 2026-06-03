@@ -303,5 +303,100 @@ exports.createSubTable = async (req, res) => {
   }
 };
 
+// Bulk import tables (upsert based on table_name + outletid + hotelid)
+exports.importTables = async (req, res) => {
+  const tables = req.body.tables; // array of table objects
+  if (!Array.isArray(tables) || tables.length === 0) {
+    return res.status(400).json({ success: false, message: "No valid table data provided" });
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    let inserted = 0;
+    let updated = 0;
+    let errors = [];
+
+    for (const item of tables) {
+      const { table_name, hotelid, outletid, departmentid, status, created_by_id, updated_by_id } = item;
+
+      if (!table_name || !hotelid || !outletid || !departmentid) {
+        errors.push({ table_name, error: "Missing required fields" });
+        continue;
+      }
+
+      // Check if table already exists (same name, outlet, hotel)
+      const [existing] = await connection.query(
+        `SELECT tableid FROM msttablemanagement 
+         WHERE table_name = ? AND outletid = ? AND hotelid = ?`,
+        [table_name, outletid, hotelid]
+      );
+
+      if (existing.length > 0) {
+        // Update existing
+        await connection.query(
+          `UPDATE msttablemanagement 
+           SET departmentid = ?, status = ?, updated_by_id = ?, updated_date = NOW()
+           WHERE tableid = ?`,
+          [departmentid, status ?? 0, updated_by_id || null, existing[0].tableid]
+        );
+        updated++;
+      } else {
+        // Insert new
+        await connection.query(
+          `INSERT INTO msttablemanagement 
+           (table_name, hotelid, outletid, marketid, departmentid, department_name, status, created_by_id, created_date)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+          [
+            table_name,
+            hotelid,
+            outletid,
+            item.marketid || 1,
+            departmentid,
+            item.department_name || null,
+            status ?? 0,
+            created_by_id || null
+          ]
+        );
+        inserted++;
+      }
+    }
+
+    await connection.commit();
+    res.json({
+      success: true,
+      message: `Import completed: ${inserted} inserted, ${updated} updated, ${errors.length} errors`,
+      errors: errors.length ? errors : undefined
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Import error:", error);
+    res.status(500).json({ success: false, message: "Import failed", error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
+exports.exportTables = async (req, res) => {
+  try {
+    const { hotelid, outletid } = req.query;
+    let sql = `SELECT t.table_name, h.hotel_name, o.outlet_name, d.department_name, t.status
+               FROM msttablemanagement t
+               LEFT JOIN msthotelmasters h ON t.hotelid = h.hotelid
+               LEFT JOIN mst_outlets o ON t.outletid = o.outletid
+               LEFT JOIN msttable_department d ON t.departmentid = d.departmentid`;
+    let params = [];
+    let conditions = [];
+    if (hotelid) { conditions.push('t.hotelid = ?'); params.push(hotelid); }
+    if (outletid) { conditions.push('t.outletid = ?'); params.push(outletid); }
+    if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
+    const [rows] = await db.query(sql, params);
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // Run migrations on module load
 runMigrations();
