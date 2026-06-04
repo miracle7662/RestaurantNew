@@ -61,14 +61,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [billSettings, setBillSettings] = useState<BillRawSettings>(null)
   const [billSettingsLoading, setBillSettingsLoading] = useState(false)
 
-  const saveSession = useCallback((user: User) => {
-    localStorage.setItem(authSessionKey, JSON.stringify(user))
-    if (user.token) {
-      localStorage.setItem('token', user.token)
-    }
-    console.log('User saved to context:', user)
-    setUser(user)
-  }, [])
+ const saveSession = useCallback(async (user: User) => {
+  localStorage.setItem(authSessionKey, JSON.stringify(user));
+
+  if (user.token) {
+    localStorage.setItem('token', user.token);
+  }
+
+  console.log('User saved to context:', user);
+
+  setUser(user);
+
+  if (user.id) {
+    const permissionData =
+      await PermissionService.getUserPermissions(user.id);
+
+    setPermissions(permissionData || []);
+  }
+}, []);
 
   const removeSession = useCallback(() => {
     localStorage.removeItem(authSessionKey)
@@ -120,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const parsedUser = JSON.parse(storedUser)
           if (parsedUser && parsedUser.token) {
             const currentUser = await getCurrentUser(parsedUser.token)
+            await loadPermissions(currentUser.id);
 
             const currDateData = await DayendService.getLatestCurrDate({
               brandId: currentUser.outletid,
@@ -151,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     fetchUser()
-  }, [saveSession, removeSession, fetchBillSettings])
+  }, [saveSession, removeSession,    loadPermissions, fetchBillSettings])
 
   return (
     <>
@@ -162,6 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           <AuthContext.Provider
             value={{
               user,
+              permissions,
+              setPermissions,
               isAuthenticated: Boolean(user),
               saveSession,
               removeSession,

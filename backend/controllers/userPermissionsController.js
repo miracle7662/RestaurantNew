@@ -5,19 +5,20 @@ exports.getUserPermissions = async (req, res) => {
         const { userid } = req.params;
 
         const [rows] = await db.query(`
-            SELECT
-                permissionid,
-                userid,
-                module_name,
-                can_view,
-                can_create,
-                can_edit,
-                can_delete,
-                hotel_type,
-                created_by_id,
-                created_date
-            FROM mst_user_permissions
-            WHERE userid = ?
+           SELECT
+                mup.permissionid,
+                mup.userid,
+                mup.module_name,
+                mup.can_view,
+                mup.can_create,
+                mup.can_edit,
+                mup.can_delete,
+                mup.hotel_type,
+                mup.created_by_id,
+                mup.created_date
+            FROM mst_user_permissions mup 
+            left join mst_users mu on mu.userid= mup.userid
+            WHERE mu.userid = ?
             ORDER BY permissionid
         `, [userid]);
 

@@ -52,6 +52,49 @@ export const getRoleBasedMenuItems = (role: string, uiMode: string): MenuItemTyp
   return getFilteredMenuItems(baseMenu, uiMode);
 };
 
+const canViewFromPermissions = (
+  permissions: any[] | undefined,
+  moduleName: string | undefined,
+): boolean => {
+  if (!moduleName) return true; // no module mapping -> keep visible
+  if (!permissions?.length) return false;
+
+  const hit = permissions.find(p => p?.module_name === moduleName);
+  return Boolean(hit && (hit.can_view === 1 || hit.can_view === '1' || hit.can_view === true));
+};
+
+export const getPermissionBasedMenuItems = (
+  items: MenuItemTypes[],
+  permissions: any[],
+): MenuItemTypes[] => {
+  const recur = (list: MenuItemTypes[]): MenuItemTypes[] => {
+    return list
+      .map(item => {
+        const filteredChildren = item.children ? recur(item.children) : undefined;
+
+        const visible = canViewFromPermissions(permissions, item.moduleName);
+        // if item has children, show it only if it's visible OR it has any visible children
+        if (item.children?.length) {
+          if (!visible && (!filteredChildren || filteredChildren.length === 0)) return null;
+          return {
+            ...item,
+            children: filteredChildren?.length ? filteredChildren : undefined,
+          };
+        }
+
+        if (!visible) return null;
+        return {
+          ...item,
+          children: filteredChildren?.length ? filteredChildren : undefined,
+        };
+      })
+      .filter(Boolean) as MenuItemTypes[];
+  };
+
+  return recur(items);
+};
+
+
 const getHorizontalMenuItems = () => {
   return HORIZONTAL_MENU_ITEMS
 }
