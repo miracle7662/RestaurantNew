@@ -470,12 +470,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         parentKey: 'master-setting',
       },
     
-      {
-        key: 'master-hotel-category',
-        label: 'Hotel Category Master',
-        url: '/master-setting/hotel-category-master',
-        parentKey: 'master-setting',
-      },
+     
       {
         key: 'master-tax',
         label: 'Tax Master',

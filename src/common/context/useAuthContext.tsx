@@ -11,6 +11,8 @@ import { Preloader, PreloaderFull } from '@/components/Misc/Preloader'
 import { getCurrentUser } from '@/common/api/auth'
 import DayendService from '@/common/api/dayend'
 import BillPrintService from '@/common/api/billPrint'
+import PermissionService from '@/common/api/permissions';
+
 
 type User = {
   id: number
@@ -95,6 +97,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBillSettingsLoading(false)
     }
   }, [])
+
+  const [permissions, setPermissions] = useState<any[]>([]);
+
+  const loadPermissions = useCallback(async (userId: number) => {
+  try {
+    const permissionData =
+      await PermissionService.getUserPermissions(userId);
+
+    setPermissions(permissionData || []);
+  } catch (error) {
+    console.error('Failed to load permissions:', error);
+    setPermissions([]);
+  }
+}, []);
 
   useEffect(() => {
     const fetchUser = async () => {
