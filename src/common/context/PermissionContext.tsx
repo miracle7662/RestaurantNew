@@ -42,6 +42,9 @@ export const PermissionProvider = ({ children }: { children: React.ReactNode }) 
 },  [user?.id])
 
   const canView = (moduleName: string): boolean => {
+      if (user?.role === 'superadmin' || user?.role_level === 'superadmin') {
+    return true
+  }
     
     const perm = permissions.find(
       (p) => p.module_name.toLowerCase() === moduleName.toLowerCase()
