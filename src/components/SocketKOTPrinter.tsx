@@ -5,12 +5,12 @@ import { useSocketPrint } from '@/hooks/useSocketPrint';
 import { OutletSettings } from '@/utils/applyOutletSettings';
 
 const SocketKOTPrinter: React.FC = () => {
-  console.log('🎯 === SOCKET KOT PRINTER MOUNTED ===');
+  // console.log('🎯 === SOCKET KOT PRINTER MOUNTED ===');
   const { user } = useAuthContext();
   const outletId = user?.outletid ?? null;
-  console.log('🏢 OUTLET ID:', outletId, 'User:', user?.username || 'No user');
+  // console.log('🏢 OUTLET ID:', outletId, 'User:', user?.username || 'No user');
 const { pendingOrders, removeOrder } = useSocketPrint(outletId);
-  console.log('📋 Pending orders count:', pendingOrders.length);
+  // console.log('📋 Pending orders count:', pendingOrders.length);
 
   const defaultFormData: OutletSettings = {} as OutletSettings;
 
@@ -19,7 +19,7 @@ const { pendingOrders, removeOrder } = useSocketPrint(outletId);
       {pendingOrders.map((order) => {
         // 🔥 FIXED: Filter ONLY NEW items from backend + respect isNewItem flag
         const newItemsOnly = order.items.filter((item: any) => item.isNewItem);
-        console.log(`🔍 SOCKET KOT #${order.kotNo}: ${order.items.length} total → ${newItemsOnly.length} NEW only`);
+        // console.log(`🔍 SOCKET KOT #${order.kotNo}: ${order.items.length} total → ${newItemsOnly.length} NEW only`);
         
         const mappedItems = newItemsOnly.map((item: any) => ({
           id: item.ItemID ?? item.itemId ?? 0,

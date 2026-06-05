@@ -18,9 +18,7 @@ export interface UserPermission {
 class PermissionService {
   async getUserPermissions(userId: number): Promise<UserPermission[]> {
     try {
-      const response = await axios.get(
-        `/api/user-permissions/user/${userId}`
-      );
+     const response = await axios.get(`/user-permissions/user/${userId}`)
 
       if (response.data.success) {
         return response.data.data;

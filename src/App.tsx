@@ -6,6 +6,8 @@ import ThemeRoutes from './routes/Routes'
 import ConfigScreen from '@/components/Pages/ConfigScreen'
 import { loadConfig } from './config'
 
+import { PermissionProvider } from '@/common/context/PermissionContext';
+
 // Flaticons
 import './../node_modules/@flaticon/flaticon-uicons/css/all/all.css'
 
@@ -57,9 +59,11 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <PermissionProvider>   
         <UIModeProvider>
           <ThemeRoutes />
         </UIModeProvider>
+        </PermissionProvider>
       </AuthProvider>
     </ThemeProvider>
   )
