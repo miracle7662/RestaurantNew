@@ -6,13 +6,8 @@ export interface MenuItemTypes {
   url?: string
   parentKey?: string
   target?: string
-  /**
-   * Maps to backend mst_user_permissions.module_name
-   */
-  moduleName?: string
   children?: MenuItemTypes[]
 }
-
 
 const MENU_ITEMS: MenuItemTypes[] = [
   //Navigation
@@ -34,7 +29,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/apps/Orders',
     icon: 'fi fi-rr-utensils',
     parentKey: 'apps',
-    moduleName: 'Orders',
   },
 
   {
@@ -43,7 +37,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/apps/Tableview',
     icon: 'fi fi-rr-grid',
     parentKey: 'apps',
-    moduleName: 'Tableview',
   },
 
 
@@ -53,7 +46,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/apps/Settlement',
     icon: 'fi fi-rr-credit-card',
     parentKey: 'apps',
-    moduleName: 'Settlement',
   },
 
     {
@@ -62,7 +54,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/apps/KitchenAllocation',
     icon: 'fi fi-rr-apps',
     parentKey: 'apps',
-    moduleName: 'KitchenAllocation',
   },
 
   {
@@ -71,7 +62,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/apps/Handover',
     icon: 'fi fi-rr-exchange',
     parentKey: 'apps',
-    moduleName: 'Handover',
   },
 
   {
@@ -80,9 +70,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/apps/DayEnd',
     icon: 'fi fi-rr-clock',
     parentKey: 'apps',
-    moduleName: 'DayEnd',
   },
-
 
   // {
   //   key: 'KotTransfer',
@@ -98,7 +86,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/apps/Customers',
     icon: 'fi fi-rr-user',
     parentKey: 'apps',
-    moduleName: 'Customers',
   },
     {
         key: 'Menu',
@@ -106,9 +93,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/apps/menu',
         icon: 'fi fi-rr-list',
         parentKey: 'apps',
-        moduleName: 'Menu',
       },
-
 
   // {
   //   key: 'Reports',
@@ -123,7 +108,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/Reports/DailySalesReport',
     icon: 'fi fi-rr-chart-histogram',
     parentKey: 'Reports',
-    moduleName: 'DailySalesReport',
   },
 
   {
@@ -132,7 +116,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/apps/settings',
     icon: 'fi fi-rr-settings',
     parentKey: 'apps',
-    moduleName: 'Settings',
   },
 
    {
@@ -141,9 +124,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/apps/BackdatedDayend',
     icon: 'fi fi-rr-settings',
     parentKey: 'apps',
-    moduleName: 'BackdatedDayend',
   },
-
 
   {
     key: 'Logout',
@@ -151,10 +132,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     url: '/auth/minimal/login',
     icon: 'fi fi-sr-sign-out-alt',
     parentKey: 'apps',
-    moduleName: undefined,
   },
-
-
 
   
 
@@ -464,7 +442,36 @@ const MENU_ITEMS: MenuItemTypes[] = [
     ],
   },
 
-  /* ================================================================
+
+
+
+  
+  // {
+  //   key: 'OrderDetails',
+  //   label: 'OrderDetails',
+  //   url: '/apps/orderDetails',
+  //   icon: 'fi fi-ss-bars-sort',
+  //   parentKey: 'apps',
+  // },
+
+  //   {
+  //   key: 'BackdatedDayEndReport',
+  //   label: 'Backdated DayEnd Report',
+  //   url: '/apps/Masters/Reports/BackdatedDayEndReport',
+  //   icon: 'fi fi-rr-print',
+  //   parentKey: 'apps',
+  // },
+
+  //  {
+  //   key: 'KotPrint',
+  //   label: 'KOT Print',
+  //   url: '/apps/KotPrint',
+  //   icon: 'fi fi-rr-file-invoice',
+  //   parentKey: 'apps',
+  // },
+
+
+   /* ================================================================
                   🏨 HOTEL BOOKING SECTION
 ================================================================ */
 
@@ -615,31 +622,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
       },
     ],
   },
-
-  
-  // {
-  //   key: 'OrderDetails',
-  //   label: 'OrderDetails',
-  //   url: '/apps/orderDetails',
-  //   icon: 'fi fi-ss-bars-sort',
-  //   parentKey: 'apps',
-  // },
-
-  //   {
-  //   key: 'BackdatedDayEndReport',
-  //   label: 'Backdated DayEnd Report',
-  //   url: '/apps/Masters/Reports/BackdatedDayEndReport',
-  //   icon: 'fi fi-rr-print',
-  //   parentKey: 'apps',
-  // },
-
-  //  {
-  //   key: 'KotPrint',
-  //   label: 'KOT Print',
-  //   url: '/apps/KotPrint',
-  //   icon: 'fi fi-rr-file-invoice',
-  //   parentKey: 'apps',
-  // },
 
     
 

@@ -1,5 +1,4 @@
-import { getRoleBasedMenuItems, getPermissionBasedMenuItems } from '@/common/menu'
-
+import { getRoleBasedMenuItems } from '@/common/menu'
 import { useUIModeContext } from '@/common/context'
 import { useAuthContext } from '@/common'
 import Logo from '@/components/Common/Logo'
@@ -10,28 +9,16 @@ import AppMenu from './Menu'
 
 const SideBarContent = () => {
   const { uiMode } = useUIModeContext();
-  const { user, permissions } = useAuthContext();
-
+  const { user } = useAuthContext();
   const role = user?.role_level || 'outlet_user';
   const filteredItems = getRoleBasedMenuItems(role, uiMode);
-
-  // Apply permission-based filtering for module items
-  const permissionFilteredItems = getPermissionBasedMenuItems(
-    filteredItems,
-    permissions || [],
-  );
-
   return (
-
     <>
       <AppMenu menuItems={filteredItems} />
       <div className="clearfix" />
     </>
   )
 }
-
-
-
 const Navigation = () => {
   return (
     <>
