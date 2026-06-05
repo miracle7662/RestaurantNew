@@ -53,8 +53,8 @@ export const MENU_PERMISSION_MAP: Record<string, string> = {
   'Guest-master'    : 'hotel-master',
   'Complimentary-master': 'hotel-master',
   'HotelBookingPanel': 'hotel-master',
-  'registration'    : 'hotel-master',
-  'registration-hotels-users': 'hotel-master',
+  'registration'    : 'registration',
+  'registration-hotels-users': 'registration',
 
   // ❌ Apps section — map mein NAHI hain
   // POS, Settlement, Customers etc. map mein nahi = hide honge
