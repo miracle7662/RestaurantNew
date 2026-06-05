@@ -558,6 +558,13 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/hotel-master/Block-master',
         parentKey: 'hotel-master',
       },
+
+       {
+        key: 'category-master',
+        label: 'Category Master',
+        url: '/hotel-master/Category-master',
+        parentKey: 'hotel-master',
+      },
       
 
       {

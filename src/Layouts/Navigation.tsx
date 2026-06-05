@@ -18,7 +18,13 @@ const SideBarContent = () => {
   const roleFiltered = getRoleBasedMenuItems(role, uiMode)
 
   // Step 2 — DB permissions ke hisaab se filter
-  const finalItems = filterMenuByPermissions(roleFiltered, canView)
+  const isSuperAdmin =
+  user?.role?.toLowerCase() === 'superadmin' ||
+  user?.role_level?.toLowerCase() === 'superadmin';
+
+const finalItems = isSuperAdmin
+  ? roleFiltered // ✅ saare menus
+  : filterMenuByPermissions(roleFiltered, canView);
 
   console.log('🔍 canView Brand:', canView('Brand'))
   console.log('🔍 canView POS:', canView('POS'))

@@ -45,6 +45,7 @@ export const MENU_PERMISSION_MAP: Record<string, string> = {
   'hotel-master'    : 'hotel-master',
   'floor-master'    : 'hotel-master',
   'block-master'    : 'hotel-master',
+  'category-master' : 'hotel-master',
   'BillSetting'     : 'hotel-master',
   'InventoryMaster' : 'hotel-master',
   'room-master'     : 'hotel-master',
