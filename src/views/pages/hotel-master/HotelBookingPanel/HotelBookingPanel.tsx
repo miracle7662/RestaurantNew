@@ -2641,8 +2641,8 @@ const handleViewChange = () => {
           body { font-family: Arial, sans-serif; margin: 20px; }
           .report-header { margin-bottom: 20px; }
           .hotel-name-row { font-size: 18px; font-weight: bold; margin-bottom: 8px; }
-          .report-subheader { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 14px; color: #555; }
-          .at-glance-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+          .report-subheader { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 14px; color: #ffefef; }
+          .at-glance-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
           .at-glance-table th, .at-glance-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
           .at-glance-table th { background-color: #f2f2f2; }
         </style>
@@ -2681,8 +2681,8 @@ const handleViewChange = () => {
           --color-reserved: ${getStatusBgColor('reserved')};
           --color-maintenance: ${getStatusBgColor('maintenance')};
         }
-        .at-glance-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
-        .at-glance-table th, .at-glance-table td { border: 1px solid #ccc; padding: 4px; text-align: left; }
+        .at-glance-table { width: 100%; border-collapse: collapse; font-size: 1rem; }
+        .at-glance-table th, .at-glance-table td { border: 1px solid #3d5eac; padding: 4px; text-align: left; }
         .at-glance-table thead tr { background-color: #dfdfdf; }
         .at-glance-table tfoot tr { background-color: #f8f9fa; }
         .report-header { margin-bottom: 20px; }
@@ -3412,7 +3412,7 @@ const handleViewChange = () => {
                     variant="outline-primary"
                     className="fw-semibold text-nowrap px-3"
                     onClick={handleAtGlanceClick}>
-                    At Glance
+                    AT GLANCE
                   </Button>
                   <Button
                     size="sm"
