@@ -4414,6 +4414,7 @@ const TransferRoomComponent = ({
               ))}
             </Form.Select>
           </div>
+          
           {vacantRooms.length === 0 && (
             <div className="text-danger small mt-1">No vacant rooms available</div>
           )}
