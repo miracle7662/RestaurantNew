@@ -1650,7 +1650,7 @@ const RoomDetailSummary = () => {
         .fs-small { font-size: 0.7rem; }
         .table-fo th, .table-fo td {
           padding: 0.3rem 0.3rem;
-          font-size: 0.7rem;
+          font-size: 0.9rem;
           white-space: nowrap;
           border: 1px solid #dee2e6;
         }
@@ -1660,8 +1660,8 @@ const RoomDetailSummary = () => {
           background: white;
         }
         .bg-fo-header {
-          background-color: #009de0 !important;
-          color: white;
+          background-color: #bfcdf0 !important;
+          color:white;
         }
         .info-box {
           border: 1px solid #dee2e6;
@@ -1673,9 +1673,9 @@ const RoomDetailSummary = () => {
           overflow: hidden;
         }
         .info-box-label {
-          font-size: 0.7rem;
+          
           font-weight: 600;
-          background: #ffffff;
+          background: #dbdbdb;
           padding: 4px 6px;
           border-bottom: 1px solid #ccc;
           border-top-left-radius: 3px;
@@ -1695,24 +1695,24 @@ const RoomDetailSummary = () => {
           min-height: 0;
         }
         .info-box-value { font-size: 0.9rem; font-weight: 600; }
-        .checkbox-label { font-size: 0.7rem; display: flex; align-items: center; gap: 4px; white-space: nowrap; margin-bottom: 2px; }
-        .nav-tabs .nav-link { font-size: 0.8rem; padding: 0.3rem 1rem; }
+        .checkbox-label { font-size: 0.9rem; display: flex; align-items: center; gap: 4px; white-space: nowrap; margin-bottom: 2px; }
+        .nav-tabs .nav-link { font-size: 0.98rem;font-weight: bold; padding: 0.3rem 1rem; }
         .scrollable-table { overflow-x: auto; overflow-y: auto; border: 1px solid #dee2e6; background: white; height: auto; max-height: 150px; }
         .scrollable-table table { min-width: 50px; margin-bottom: 0; }
         .first-table-container { height: 240px; max-height: 500px; overflow: auto; border: 1px solid #dee2e6; background: white; }
-        .first-table-container thead th { position: sticky; top: 0; background-color: #009de0; z-index: 10; }
+        .first-table-container thead th { position: sticky; top: 0; background-color: #3d5eac; z-index: 10; }
         .bill-date-table-container { max-height: 200px; overflow: auto; border: 1px solid #dee2e6; background: white; }
-        .bill-date-table-container thead th { position: sticky; top: 0; background-color: #009de0; z-index: 10; }
+        .bill-date-table-container thead th { position: sticky; top: 0; background-color: #3d5eac; z-index: 10; }
         .content-with-fixed-footer { padding-bottom: 60px; }
         .fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #dee2e6; padding: 8px 16px; z-index: 1000; }
         .checkbox-grid { display: flex; flex-wrap: wrap; gap: 8px 12px; }
-        .mini-table { width: 100%; font-size: 0.7rem; border-collapse: collapse; }
+        .mini-table { width: 100%; font-size: 0.9rem; border-collapse: collapse; }
         .mini-table th, .mini-table td { padding: 2px 4px; text-align: left; border: none; }
         .mini-table th { font-weight: 600; background: #f9f9f9; }
         .radio-group { display: flex; align-items: center; gap: 16px; }
-        .radio-label { font-size: 0.7rem; display: flex; align-items: center; gap: 4px; }
+        .radio-label {  display: flex; align-items: center; gap: 4px; }
         .refresh-btn { height: 32px; font-size: 0.8rem; padding: 2px 12px; }
-        .guest-company-row { background: #f8f9fa; padding: 6px 12px; border-bottom: 1px solid #dee2e6; font-size: 0.8rem; }
+        .guest-company-row { background: #dbdbdb; padding: 6px 12px; border-bottom: 1px solid #dee2e6;  }
         .room-list { font-size: 0.7rem; word-break: break-word; white-space: normal; overflow-y: auto; padding: 6px; }
         /* ── Row type colors ── */
         .original-row { background-color: #ffffff !important; }
@@ -1738,7 +1738,7 @@ const RoomDetailSummary = () => {
         .text-danger-bold { color: #dc3545; font-weight: bold; }
         .room-checkbox-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
         .room-checkbox-item:hover { background-color: #f0f0f0; }
-        .room-checkbox-label { font-size: 0.85rem; font-weight: 500; margin-left: 4px; cursor: pointer; }
+        .room-checkbox-label {  font-weight: bold; margin-left: 4px; cursor: pointer; }
         .select-all-room { border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 6px; }
 
         /* ── Light-gray scrollbars for all scrollable containers ── */
@@ -1789,7 +1789,7 @@ const RoomDetailSummary = () => {
         }
       `}</style>
 
-      <div className="vh-100 d-flex flex-column overflow-hidden bg-light">
+      <div className="vh-100 d-flex flex-column overflow-hidden bg-white">
         <div className="d-flex justify-content-between align-items-center bg-white border-bottom px-3">
           <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'bill')} className="mb-0">
             <Tab eventKey="bill" title="Front Office Bill" />
@@ -2103,13 +2103,13 @@ const RoomDetailSummary = () => {
               <Row className="mb-2 g-0">
                 <Col md={12} className="pe-0">
                   <Card className="shadow-sm h-100">
-                    <Card.Header className="bg-fo-header text-white py-1">
+                    <Card.Header className="bg-fo-header text-black py-1">
                       <span className="fw-bold">Room Details</span>
                     </Card.Header>
                     <Card.Body className="p-0">
                       <div className="first-table-container">
                         <table className="table-fo mb-0 w-100">
-                          <thead className="bg-fo-header text-white">
+                          <thead className="bg-fo-header ">
                             <tr>
                               <th>#</th>
                               <th>Bill Date</th>
@@ -2260,7 +2260,7 @@ const RoomDetailSummary = () => {
               </Row>
 
               <Card className="shadow-sm mb-3">
-                <Card.Header className="bg-fo-header text-white py-1">
+                <Card.Header className="bg-fo-header text-black py-1">
                   <span className="fw-bold">Room Summary - Total Charges</span>
                 </Card.Header>
                 <Card.Body className="p-0">
@@ -2268,7 +2268,7 @@ const RoomDetailSummary = () => {
                     className="scrollable-table"
                     style={{ maxHeight: '150px', overflow: 'auto' }}>
                     <table className="table-fo mb-0">
-                      <thead className="bg-fo-header text-white">
+                      <thead className="bg-fo-header text-black">
                         <tr>
                           <th>Select</th>
                           <th>Guest</th>
@@ -2407,7 +2407,7 @@ const RoomDetailSummary = () => {
                 <Col md={12} className="pe-0">
                   <Card className="shadow-sm h-100">
                     <Card.Header className="bg-fo-header text-white py-1">
-                      <span className="fw-bold">Bill Date Summary</span>
+                      <span className="fw-bold text-black">Bill Date Summary</span>
                     </Card.Header>
                     <Card.Body className="p-0">
                       <div className="bill-date-table-container">
@@ -2490,13 +2490,13 @@ const RoomDetailSummary = () => {
 
             <div className="px-3 py-2 overflow-auto" style={{ paddingBottom: '60px' }}>
               <Card className="shadow-sm mb-3">
-                <Card.Header className="bg-fo-header text-white py-1">
+                <Card.Header className="bg-fo-header text-black py-1">
                   <strong>Room Details - Selected Rooms</strong>
                 </Card.Header>
                 <Card.Body className="p-0">
                   <div className="scrollable-table" style={{ maxHeight: '240px' }}>
                     <table className="table-fo mb-0">
-                      <thead className="bg-fo-header text-white">
+                      <thead className="bg-fo-header text-black">
                         <tr>
                           <th>#</th>
                           <th>Bill Date</th>
