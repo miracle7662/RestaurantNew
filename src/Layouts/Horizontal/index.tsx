@@ -19,7 +19,12 @@ const HorizontalLayout = ({ children }: HorizontaLayoutProps) => {
   const { settings, updateSettings } = useThemeContext()
   const [showLiveChat, setShowLiveChat] = useState(false)
 
-  const fullPageRoutes = ['/fullpage', '/apps/Tableview', '/apps/Billview']
+  const fullPageRoutes = [
+    '/fullpage',
+    '/apps/Tableview',
+    '/apps/Billview',
+    '/pages/hotel-master/HotelBookingPanel',
+  ]
   const isFullPage = fullPageRoutes.includes(location.pathname)
 
   const handleSupportLiveChat = () => {

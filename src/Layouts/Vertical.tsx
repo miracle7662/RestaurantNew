@@ -22,7 +22,12 @@ const VerticalLayout = ({ children }: VerticalLayoutProps) => {
  // const { width } = useViewport()
   const { settings, updateSidebar,  } = useThemeContext()
 
-  const fullPageRoutes = ['/fullpage', '/apps/Tableview', '/apps/Billview']
+  const fullPageRoutes = [
+    '/fullpage',
+    '/apps/Tableview',
+    '/apps/Billview',
+    '/pages/hotel-master/HotelBookingPanel',
+  ]
   const isFullPage = fullPageRoutes.includes(location.pathname)
 
 

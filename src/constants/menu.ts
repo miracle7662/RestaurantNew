@@ -352,6 +352,58 @@ const MENU_ITEMS: MenuItemTypes[] = [
     ],
   },
 
+     {
+        key: 'HotelBookingPanel',
+        label: 'Front Desk',
+        url: '/hotel-master/HotelBookingPanel',
+         icon: 'fi fi-rr-book',
+        parentKey: 'hotel-master',
+      },
+
+       {
+        key: 'Guest-master',
+        label: 'Guest',
+        url: '/hotel-master/Guest-master',
+         icon: 'fi fi-rr-book',
+        parentKey: 'hotel-master',
+      },
+
+       {
+        key: 'company-master',
+        label: 'Company',
+        url: '/hotel-master/Company-master',
+         icon: 'fi fi-rr-book',
+        parentKey: 'hotel-master',
+      },
+
+       {
+        key: 'company-master',
+        label: 'Settelement',
+        url: '/hotel-master/Company-master',
+         icon: 'fi fi-rr-book',
+        parentKey: 'hotel-master',
+      },
+
+      {
+        key: 'company-master',
+        label: 'Report',
+        url: '/hotel-master/Company-master',
+         icon: 'fi fi-rr-book',
+        parentKey: 'hotel-master',
+      },
+
+       {
+        key: 'company-master',
+        label: 'Setting',
+        url: '/hotel-master/Company-master',
+         icon: 'fi fi-rr-book',
+        parentKey: 'hotel-master',
+      },
+
+
+
+
+
     {
     key: 'AccountingMasters',
     label: 'AccountingMasters ',
@@ -475,7 +527,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
                   🏨 HOTEL BOOKING SECTION
 ================================================================ */
 
-
+   
 
 
   {
@@ -586,30 +638,15 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/hotel-master/Room-master',
         parentKey: 'hotel-master',
       },
-       {
-        key: 'company-master',
-        label: 'Company Master',
-        url: '/hotel-master/Company-master',
-        parentKey: 'hotel-master',
-      },
-        {
-        key: 'Guest-master',
-        label: 'Guest Master',
-        url: '/hotel-master/Guest-master',
-        parentKey: 'hotel-master',
-      },
+      
+       
          {
         key: 'Complimentary-master',
         label: 'Complimentary Master',
         url: '/hotel-master/Complimentary-master',
         parentKey: 'hotel-master',
       },
-          {
-        key: 'HotelBookingPanel',
-        label: 'HotelBooking Panel',
-        url: '/hotel-master/HotelBookingPanel',
-        parentKey: 'hotel-master',
-      }
+         
 
       
     ],

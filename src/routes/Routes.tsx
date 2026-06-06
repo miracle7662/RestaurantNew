@@ -9,6 +9,7 @@ import HorizontalLayout from '../Layouts/Horizontal'
 
 import { authProtectedFlattenRoutes, publicProtectedFlattenRoutes } from './index'
 import { ThemeSettings, useAuthContext, useThemeContext } from '../common/context'
+
 interface IRoutesProps {}
 
 const ThemeRoutes = (props: IRoutesProps) => {
@@ -18,7 +19,19 @@ const ThemeRoutes = (props: IRoutesProps) => {
     settings.layout.type === ThemeSettings.layout.type.vertical ? VerticalLayout : HorizontalLayout
   const { isAuthenticated } = useAuthContext()
 
-  const fullPageRoutes = ['/apps/Tableview', '/apps/Billview']
+  // Combined full‑screen routes (existing + new hotel routes)
+  const fullScreenRoutes = [
+    '/apps/Tableview',
+    '/apps/Billview',
+    '/hotel-master/HotelBookingPanel',
+    '/hotel/reservation',
+    '/hotel/checkin',
+    '/hotel/room-detail',
+    '/hotel/amendments',
+    '/hotel/reservation-summary',
+    '/hotel/report',
+  ]
+
   return (
     <React.Fragment>
       <Routes>
@@ -44,7 +57,7 @@ const ThemeRoutes = (props: IRoutesProps) => {
                       search: 'next=' + route.path,
                     }}
                   />
-                ) : route.path && fullPageRoutes.includes(route.path) ? (
+                ) : route.path && fullScreenRoutes.includes(route.path) ? (
                   route.element
                 ) : (
                   <Layout {...props}>{route.element}</Layout>

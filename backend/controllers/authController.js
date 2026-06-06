@@ -165,12 +165,13 @@ exports.getCurrentUser = async (req, res) => {
             SELECT u.*, h.trn_gstno, h.address AS address,
                    b.hotel_name AS brand_name,
                    h.hotel_name AS hotel_name,
-                   h.hotel_type AS hotel_type,
+                   ht.hotel_type AS hotel_type,
                    u.outletid
             FROM mst_users u
             LEFT JOIN mst_outlets d ON u.outletid = d.outletid
             LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
             LEFT JOIN msthotelmasters b ON b.hotelid = h.hotelid
+            LEFT JOIN msthoteltype ht ON h.hoteltypeid = ht.hoteltypeid
             WHERE u.userid = ? AND u.status = 0
         `, [decoded.userid]);
 
