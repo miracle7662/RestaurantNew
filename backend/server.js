@@ -234,8 +234,8 @@ app.get("/get-server-ip", (req, res) => {
 
 
 const uploadBasePath = path.join(
-  os.homedir(),
-  'POS-Uploads'
+  path.dirname(process.execPath),
+  'uploads'
 );
 
 app.use('/uploads', express.static(uploadBasePath));

@@ -8,8 +8,8 @@ const os = require('os');
 
 // Get absolute path – assuming this file is in backend/routes or backend/config
 const uploadDir = path.join(
-  os.homedir(),
-  'POS-Uploads',
+  path.dirname(process.execPath),
+  'uploads',
   'brands'
 );
 

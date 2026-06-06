@@ -2,79 +2,128 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure upload directories exist
+// Upload folder beside installed EXE
+const BASE_UPLOAD_DIR = path.join(
+  path.dirname(process.execPath),
+  'uploads'
+);
+
+console.log('📁 Upload Base Path:', BASE_UPLOAD_DIR);
+
+// Create required directories
 const createUploadDirs = () => {
   const dirs = [
-    'uploads',
-    'uploads/guests',
-    'uploads/guests/documents',
-    'uploads/guests/documents/front',
-    'uploads/guests/documents/back'
+    BASE_UPLOAD_DIR,
+    path.join(BASE_UPLOAD_DIR, 'guests'),
+    path.join(BASE_UPLOAD_DIR, 'guests', 'documents'),
+    path.join(BASE_UPLOAD_DIR, 'guests', 'documents', 'front'),
+    path.join(BASE_UPLOAD_DIR, 'guests', 'documents', 'back'),
   ];
-  
-  dirs.forEach(dir => {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+
+  dirs.forEach((dir) => {
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log('✅ Created:', dir);
+      }
+    } catch (err) {
+      console.error('❌ Failed creating:', dir, err.message);
     }
   });
 };
 
 createUploadDirs();
 
-// Configure storage
+// Multer Storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Determine destination based on file fieldname
-    let dest = 'uploads/guests/documents/';
-    if (file.fieldname === 'front_side') {
-      dest += 'front';
-    } else if (file.fieldname === 'back_side') {
-      dest += 'back';
-    } else {
-      dest = 'uploads/guests/documents';
+    let dest;
+
+    switch (file.fieldname) {
+      case 'front_side':
+        dest = path.join(
+          BASE_UPLOAD_DIR,
+          'guests',
+          'documents',
+          'front'
+        );
+        break;
+
+      case 'back_side':
+        dest = path.join(
+          BASE_UPLOAD_DIR,
+          'guests',
+          'documents',
+          'back'
+        );
+        break;
+
+      default:
+        dest = path.join(
+          BASE_UPLOAD_DIR,
+          'guests',
+          'documents'
+        );
     }
+
     cb(null, dest);
   },
+
   filename: (req, file, cb) => {
-    // Generate unique filename: guestId_timestamp_random.ext
     const guestId = req.params.guestId || 'temp';
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
-    cb(null, `guest_${guestId}_${uniqueSuffix}${ext}`);
-  }
+
+    cb(
+      null,
+      `guest_${guestId}_${Date.now()}_${Math.floor(
+        Math.random() * 1000000
+      )}${ext}`
+    );
+  },
 });
 
-// File filter for images only
+// Image Validation
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif|webp|bmp/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
-  
-  if (mimetype && extname) {
+  const allowed = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/bmp',
+  ];
+
+  if (allowed.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed (jpeg, jpg, png, gif, webp, bmp)'), false);
+    cb(
+      new Error(
+        'Only jpeg, jpg, png, gif, webp, bmp files are allowed'
+      ),
+      false
+    );
   }
 };
 
-// Create multer instance
+// Multer Instance
 const upload = multer({
-  storage: storage,
+  storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 5 * 1024 * 1024, // 5MB
   },
-  fileFilter: fileFilter
+  fileFilter,
 });
 
-// Middleware for handling multiple file uploads
+// Upload Middlewares
 const uploadGuestDocuments = upload.fields([
   { name: 'front_side', maxCount: 1 },
-  { name: 'back_side', maxCount: 1 }
+  { name: 'back_side', maxCount: 1 },
 ]);
 
 module.exports = {
   upload,
   uploadGuestDocuments,
   singleUpload: upload.single('image'),
-  multipleUpload: upload.array('images', 10)
+  multipleUpload: upload.array('images', 10),
+  BASE_UPLOAD_DIR,
 };
