@@ -1,16 +1,9 @@
-# TODO - Dynamic Menu & User Permission System
+# TODO (Guest document images upload/fetch)
 
-- [ ] Inspect route configuration files (src/routes/Routes.tsx / src/routes/index.tsx) to identify where Protected routes can be applied.
-- [ ] Add frontend reusable permission utility (hasPermission + hotel_type aware checks).
-- [ ] Update sidebar rendering to be permission + hotel_type based (no hardcoded menu visibility).
-- [ ] Implement ProtectedPermissionRoute component (moduleName + requiredAction).
-- [ ] Add AccessDenied page (or decide redirect behavior) and wire it into ProtectedPermissionRoute.
-- [ ] Apply ProtectedPermissionRoute to all sensitive pages/routes (billing save, edit item, delete bill, reports/admin, etc.).
-- [ ] Add backend permission middleware that enforces module/action permissions using mst_user_permissions + hotel_type.
-- [ ] Attach backend middleware to sensitive API routes (create/edit/delete/view endpoints).
-- [ ] Ensure login permissions are cached (localStorage or context) for session restore.
-- [ ] Manual testing:
-  - [ ] Unauthorized direct URL access blocked
-  - [ ] Sidebar menu filtered by permissions and hotel_type
-  - [ ] API requests return 403 when permission missing
+- [x] Inspect `GuestForm.tsx` and `guestController.js` image URL expectations.
+- [x] Identify mismatch risk: multer writes using `process.execPath` while static serving also depends on it.
+- [x] Make uploads path stable: update `backend/middleware/upload.js` to store under `backend/uploads`.
+- [x] Make static serving match: update `backend/server.js` to serve `/uploads` from `backend/uploads`.
+- [ ] Test: upload a guest document, verify file exists under `backend/uploads/guests/documents/front|back`.
+- [ ] Test: open existing guest, verify UI loads `front_side_url/back_side_url` and browser requests return 200.
 

@@ -3,10 +3,8 @@ const path = require('path');
 const fs = require('fs');
 
 // Upload folder beside installed EXE
-const BASE_UPLOAD_DIR = path.join(
-  path.dirname(process.execPath),
-  'uploads'
-);
+const BASE_UPLOAD_DIR = path.join(path.dirname(process.execPath), 'uploads');
+
 
 console.log('📁 Upload Base Path:', BASE_UPLOAD_DIR);
 

@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const getCurrentUserId = (req) => req.user?.id || null;
-const getCurrentUserHotelId = (req) => req.user?.hotel_id || null;
+const getCurrentUserHotelId = (req) => req.user?.hotelid || null;
 
 // Helper function to format date for MySQL DATE column (YYYY-MM-DD)
 const formatDateOnly = (dateValue) => {
@@ -49,11 +49,34 @@ const deleteFile = (filePath) => {
 };
 
 // Helper to get full URL for file
+// IMPORTANT:
+// multer stores absolute paths on Windows (e.g. C:/.../uploads/guests/...).
+// Browser cannot resolve URL like /C:/... because the server static route is /uploads/... only.
+// So we convert any stored absolute/relative path into a URL rooted at /uploads/...
 const getFileUrl = (req, filePath) => {
-  if (!filePath) return null;
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
-  return `${baseUrl}/${filePath.replace(/\\/g, '/')}`;
+    if (!filePath) return null;
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+    // Normalize to forward slashes
+    const normalized = String(filePath).replace(/\\/g, '/');
+
+    // Extract only the part starting from /uploads/
+    const uploadsIndex = normalized.toLowerCase().indexOf('/uploads/');
+    if (uploadsIndex !== -1) {
+        const relativeFromUploads = normalized.slice(uploadsIndex + 1); // keep leading 'uploads/...'
+        return `${baseUrl}/${relativeFromUploads}`;
+    }
+
+    // Fallback: if path already looks like it starts with uploads/
+    if (normalized.toLowerCase().startsWith('uploads/')) {
+        return `${baseUrl}/${normalized}`;
+    }
+
+    // Last resort: return as-is (won't work for absolute windows paths, but keeps backward compatibility)
+    return `${baseUrl}/${normalized}`;
 };
+
 
 // ---------- Helper for Foreign Key Validation ----------
 const validateForeignKeys = async (connection, { city_id, state_id, country_id, nationality_id, company_id, fragment_id, purpose_id, arrived_id, departure_id, guest_type_id, hotelid }) => {
@@ -233,6 +256,7 @@ exports.getGuest = async (req, res) => {
 };
 
 exports.getGuests = async (req, res) => {
+    console.log('🔍 Query Params:', req.query);
     try {
         let hotelId = req.query.hotelid || req.query.mst_hotelid;
         if (!hotelId) hotelId = getCurrentUserHotelId(req);
@@ -722,6 +746,8 @@ exports.getDocument = async (req, res) => {
 };
 
 exports.addDocument = async (req, res) => {
+    console.log('📸 Files received:', req.files);
+    console.log('📝 Body:', req.body);
     const connection = await db.getConnection();
     
     try {
