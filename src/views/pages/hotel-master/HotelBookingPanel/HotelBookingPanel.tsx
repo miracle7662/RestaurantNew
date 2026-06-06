@@ -2279,6 +2279,13 @@ const HotelBookingPanel = () => {
     }
   }
 
+
+const handleViewChange = () => {
+  setViewMode((prev) =>
+    prev === 'floor' ? 'category' : 'floor'
+  );
+};
+
   // ==================== UPDATED fetchCheckoutData FUNCTION - SORT BY INVOICE NUMBER ASCENDING ====================
   const fetchCheckoutData = async () => {
     if (!hotelId) return
@@ -3402,15 +3409,17 @@ const HotelBookingPanel = () => {
                 </div>
               </div>
               <div className="d-flex gap-2 flex-wrap align-items-center">
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={() => setViewMode('floor')}
-                  title="Floor"
-                  className="same-btn">
-                  <i className="fi fi-rr-building"></i>
-                </Button>
-                <Button
+               
+                    <Button
+      size="sm"
+      variant="primary"
+      className="same-btn"
+      onClick={handleViewChange}
+    >
+      <i className="fi fi-rr-apps me-1"></i>
+      {viewMode === 'floor' ? ' ' : ''}
+    </Button>
+      <Button
                   size="sm"
                   variant="primary"
                   onClick={() => setViewMode('category')}

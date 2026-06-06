@@ -323,9 +323,9 @@ exports.addGuest = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Hotel ID not found' });
         }
         
-        if (!name || !mobile) {
+        if (!name || !phone) {
             await connection.rollback();
-            return res.status(400).json({ success: false, message: 'Name and mobile are required' });
+            return res.status(400).json({ success: false, message: 'Name and phone are required' });
         }
 
         // Format dates

@@ -1,15 +1,14 @@
 // GuestForm.tsx
-import { forwardRef, useImperativeHandle, useEffect, useState, useCallback } from 'react'
-import { toast } from 'react-hot-toast'
+import { forwardRef, useImperativeHandle, useEffect, useState, useCallback, useRef } from 'react'
 import { Row, Col, Tabs, Tab, Button, Form, Modal } from 'react-bootstrap'
 import { FormikProvider, useFormik, FieldArray } from 'formik'
 import * as Yup from 'yup'
 import CreatableSelect from 'react-select/creatable'
 import FormikTextInput from '@/components/Common/FormikTextInput'
 import FormSelect from '@/components/Common/FormikSelect'
-import CountryService from '@/common/api/countries';
-import StateService from '@/common/api/states';
-import CityService from '@/common/api/cities';      
+import CityService from '@/common/api/cities'
+import CountryService from '@/common/api/countries'
+import StateService from '@/common/api/states'
 import NationalityService from '@/common/hotel/nationalities'
 import FragmentService from '@/common/hotel/fragments'
 import CompanyService from '@/common/hotel/company'
@@ -90,7 +89,7 @@ const defaultForm: GuestFormData = {
   nationality_id: null,
   guest_type: '',
   credit_allowed: 0,
-  company_id: null,
+  company_id: 0,
   discount_percent: 0,
   status: 1,
   documents: [],
@@ -113,6 +112,8 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   const [companies, setCompanies] = useState<Array<{ company_id: number; company_name: string }>>(
     [],
   )
+  // Special sentinel value for "Self" company option (company_id = 0)
+  const SELF_COMPANY_ID = 0
   const [guestTypes, setGuestTypes] = useState<Array<{ id: number; name: string }>>([])
   const [purposes, setPurposes] = useState<Array<{ id: number; name: string }>>([])
   const [arrivedList, setArrivedList] = useState<Array<{ id: number; name: string }>>([])
@@ -124,6 +125,8 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [activeTab, setActiveTab] = useState('information')
   const [defaultsSet, setDefaultsSet] = useState(false)
+  // Track Enter key presses on address field - requires 3 presses to move to next field
+  const addressEnterCount = useRef(0)
 
   // Preview modal state
   const [showPreview, setShowPreview] = useState(false)
@@ -147,7 +150,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   // Fetch all reference data
   useEffect(() => {
     const fetchData = async () => {
-      if (!selectedItem.hotelid && !authUser?.hotelid) {
+      if (!selectedItem.hotelid && !authUser?.hotel_id) {
         console.warn('No hotel ID available, skipping data fetch')
         return
       }
@@ -164,7 +167,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
       setLoadingDeparture(true)
 
       try {
-        const hotelId = selectedItem.hotelid || authUser?.hotelid
+        const hotelId = selectedItem.hotelid || authUser?.hotel_id
 
         const [
           fragmentsRes,
@@ -265,7 +268,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
     }
 
     fetchData()
-  }, [selectedItem.hotelid, authUser?.hotelid])
+  }, [selectedItem.hotelid, authUser?.hotel_id])
 
   // Fetch document types from API
   useEffect(() => {
@@ -298,7 +301,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
       ? selectedItem.documents
       : [{ document_type: '', document_number: '', front_side: '', back_side: '' }]
 
-  // Validation schema - both phone and mobile are required
+  // Validation schema - only phone (1st phone) is required, mobile (2nd phone) is optional
   const validationSchema = Yup.object({
     name: Yup.string().required('!'),
     address: Yup.string().required('!'),
@@ -306,7 +309,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
     discount_percent: Yup.number().min(0).max(100),
     documents: Yup.array().of(
       Yup.object().shape({
-        document_type: Yup.string(),
+        document_type: Yup.string().required('!'),
         document_number: Yup.string().when('document_type', {
           is: (val: string) => !!val,
           then: (schema) => schema.required('!'),
@@ -344,6 +347,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   useEffect(() => {
     setSubmitAttempted(false)
     setDefaultsSet(false) // Reset defaults flag when selectedItem changes (modal opens)
+    addressEnterCount.current = 0
   }, [selectedItem])
 
   // Set default fragment "MR" when fragments are loaded and no fragment is selected (only for new guests)
@@ -385,6 +389,20 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
     }
   }, [countries, values.country_id, fragments, defaultsSet, setFieldValue, selectedItem.guest_id])
 
+  // Set default nationality "Indian" when nationalities are loaded (only for new guests)
+  useEffect(() => {
+    const isNewGuest = !selectedItem.guest_id
+    const noNationalitySelected = !values.nationality_id
+    if (nationalities.length > 0 && isNewGuest && noNationalitySelected) {
+      const indianNationality = nationalities.find(
+        (n) => n.nationality.toLowerCase() === 'indian'
+      )
+      if (indianNationality) {
+        setFieldValue('nationality_id', indianNationality.nationality_id)
+      }
+    }
+  }, [nationalities, values.nationality_id, selectedItem.guest_id, setFieldValue])
+
   // Helper function to validate all fields and show errors on save attempt
   const validateAndSubmit = useCallback(async () => {
     setSubmitAttempted(true)
@@ -399,7 +417,6 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
         state_id: true,
         city_id: true,
         phone: true,
-        mobile: false, // Don't show error icon on mobile field
         email: true,
       }
       
@@ -421,15 +438,6 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
     saveData: async () => {
       const isValid = await validateAndSubmit()
       if (!isValid) return
-
-      // Check if at least one complete document has been added
-      const hasValidDoc = (formik.values.documents ?? []).some(
-        (doc) => doc.document_type && doc.document_number
-      )
-      if (!hasValidDoc) {
-        toast.error('Please add at least one document before saving.')
-        return
-      }
 
       handleSubmit()
     },
@@ -568,8 +576,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
       (errors.documents[index] as any)?.[fieldName]
   }
 
-  // Get selected fragment value for display
-  
+
 
   return (
     <FormikProvider value={formik}>
@@ -696,6 +703,40 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
                             className="w-100"
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                               setFieldValue('address', toUppercaseExceptEmailWebsite('address', e.target.value))
+                            }}
+                            onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+                              if (e.key === 'Enter') {
+                                addressEnterCount.current += 1
+                                if (addressEnterCount.current >= 3) {
+                                  e.preventDefault()
+                                  addressEnterCount.current = 0
+                                  const form = (e.target as HTMLElement).closest('form')
+                                  if (form) {
+                                    const focusableSelectors = [
+                                      'input:not([disabled]):not([readonly]):not([type="hidden"])',
+                                      'select:not([disabled])',
+                                      'textarea:not([disabled]):not([readonly])',
+                                      '[tabindex]:not([tabindex="-1"]):not([disabled])',
+                                    ].join(', ')
+                                    const allFocusable = Array.from(
+                                      form.querySelectorAll<HTMLElement>(focusableSelectors),
+                                    ).filter((el) => {
+                                      const style = window.getComputedStyle(el)
+                                      return (
+                                        style.display !== 'none' &&
+                                        style.visibility !== 'hidden' &&
+                                        el.offsetParent !== null
+                                      )
+                                    })
+                                    const currentIndex = allFocusable.indexOf(e.target as HTMLElement)
+                                    if (currentIndex !== -1 && currentIndex < allFocusable.length - 1) {
+                                      allFocusable[currentIndex + 1].focus()
+                                    }
+                                  }
+                                }
+                              } else {
+                                addressEnterCount.current = 0
+                              }
                             }}
                           />
                           {showErrorIcon('address') && (
@@ -832,23 +873,20 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
                         </div>
                       </Col>
                       <Col md={4}>
-                        <div className="position-relative">
-                          <FormikTextInput 
-                            name="mobile" 
-                            placeholder="Phone no.2" 
-                            className="w-100" 
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              setFieldValue('mobile', toUppercaseExceptEmailWebsite('mobile', e.target.value))
-                            }}
-                          />
-                          {/* No error icon for mobile field - validation happens but no visual error */}
-                        </div>
+                        <FormikTextInput 
+                          name="mobile" 
+                          placeholder="Phone no.2" 
+                          className="w-100" 
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                            setFieldValue('mobile', toUppercaseExceptEmailWebsite('mobile', e.target.value))
+                          }}
+                        />
                       </Col>
                     </Row>
 
                     <Row className="align-items-center g-2 mb-1">
                       <Col md={3}>
-                        Email <span className="text-danger">*</span>
+                        Email 
                       </Col>
                       <Col md={8}>
                         <div className="position-relative">
@@ -1039,22 +1077,29 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
                       <Col md={4}>Company</Col>
                       <Col md={8}>
                         <CreatableSelect
-                          options={companies.map((c) => ({
-                            label: c.company_name,
-                            value: c.company_id,
-                          }))}
+                          options={[
+                            { label: 'Self', value: SELF_COMPANY_ID },
+                            ...companies.map((c) => ({
+                              label: c.company_name,
+                              value: c.company_id,
+                            })),
+                          ]}
                           isLoading={loadingCompanies}
                           value={
-                            companies.find((c) => c.company_id === values.company_id)
-                              ? {
-                                  label: companies.find((c) => c.company_id === values.company_id)!.company_name,
-                                  value: values.company_id,
-                                }
-                              : null
+                            values.company_id === SELF_COMPANY_ID
+                              ? { label: 'Self', value: SELF_COMPANY_ID }
+                              : values.company_id !== null && values.company_id !== undefined
+                              ? companies.find((c) => c.company_id === values.company_id)
+                                ? {
+                                    label: companies.find((c) => c.company_id === values.company_id)!.company_name,
+                                    value: values.company_id,
+                                  }
+                                : null
+                              : { label: 'Self', value: SELF_COMPANY_ID }
                           }
-                          onChange={(opt) => setFieldValue('company_id', opt?.value || null)}
+                          onChange={(opt) => setFieldValue('company_id', opt?.value ?? SELF_COMPANY_ID)}
                           placeholder="Select or search"
-                          isClearable
+                          isClearable={false}
                           isSearchable
                           menuPlacement="auto"
                         />
@@ -1260,12 +1305,36 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
                                       }}>
                                       📁 Upload
                                     </Button>
+                                    <Button
+                                      variant="outline-info"
+                                      size="sm"
+                                      onClick={() => {
+                                        const input = document.getElementById(`front-scan-${index}`)
+                                        if (input) {
+                                          input.click()
+                                        }
+                                      }}>
+                                      📷 Scan
+                                    </Button>
                                   </div>
 
                                   <input
                                     type="file"
                                     id={`front-upload-${index}`}
                                     accept="image/*"
+                                    hidden
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        handleFileChange(index, 'front', file);
+                                      }
+                                    }}
+                                  />
+                                  <input
+                                    type="file"
+                                    id={`front-scan-${index}`}
+                                    accept="image/*"
+                                    capture="environment"
                                     hidden
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
@@ -1368,12 +1437,36 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
                                       }}>
                                       📁 Upload
                                     </Button>
+                                    <Button
+                                      variant="outline-info"
+                                      size="sm"
+                                      onClick={() => {
+                                        const input = document.getElementById(`back-scan-${index}`)
+                                        if (input) {
+                                          input.click()
+                                        }
+                                      }}>
+                                      📷 Scan
+                                    </Button>
                                   </div>
 
                                   <input
                                     type="file"
                                     id={`back-upload-${index}`}
                                     accept="image/*"
+                                    hidden
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        handleFileChange(index, 'back', file);
+                                      }
+                                    }}
+                                  />
+                                  <input
+                                    type="file"
+                                    id={`back-scan-${index}`}
+                                    accept="image/*"
+                                    capture="environment"
                                     hidden
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];

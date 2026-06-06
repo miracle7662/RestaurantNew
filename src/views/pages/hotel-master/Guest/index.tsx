@@ -97,7 +97,7 @@ const defaultForm: GuestFormData = {
 
 const GuestMaster = () => {
   const { user } = useAuthContext()
-  const hotelId = user?.hotelid
+  const hotelId = user?.hotel_id
 
   const [guests, setGuests] = useState<Guest[]>([])
   const [search, setSearch] = useState('')
@@ -243,10 +243,10 @@ const GuestMaster = () => {
   }
 
   const handleSubmit = async (payload: GuestFormData) => {
-    if (!payload.name || !payload.mobile) {
-      toast.error('Name and mobile are required')
-      return
-    }
+   if (!payload.name || !payload.phone) {
+  toast.error('Name and Phone No.1 is required')
+  return
+}
     if (!hotelId) {
       toast.error('Hotel ID not found')
       return
