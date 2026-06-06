@@ -3419,14 +3419,7 @@ const handleViewChange = () => {
       <i className="fi fi-rr-apps me-1"></i>
       {viewMode === 'floor' ? ' ' : ''}
     </Button>
-      <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => setViewMode('category')}
-                  title="Category"
-                  className="same-btn">
-                  <i className="fi fi-rr-apps"></i>
-                </Button>
+    
                 <Button
                   size="sm"
                   variant="outline-success"
