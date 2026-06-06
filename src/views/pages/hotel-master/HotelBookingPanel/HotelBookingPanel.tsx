@@ -580,11 +580,11 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
 
   // Context menu options
   const contextMenuOptions: ContextMenuOption[] = [
-    { label: 'Amendments', icon: 'fi fi-rr-document' },
-    { label: 'Advance', icon: 'fi fi-rr-receipt' },
-    { label: 'Post Charges', icon: 'fi fi-rr-credit-card' },
-    { label: 'Allowances', icon: 'fi fi-rr-gift' },
-    { label: 'Receipt Against Posted Bills', icon: 'fi fi-rr-document' },
+    { label: 'AMENDMENTS', icon: 'fi fi-rr-document' },
+    { label: 'ADVANCE', icon: 'fi fi-rr-receipt' },
+    { label: 'POST CHARGES', icon: 'fi fi-rr-credit-card' },
+    { label: 'ALLOWANCCES', icon: 'fi fi-rr-gift' },
+    { label: 'RECEIPT AGAINST POSTED BILLS', icon: 'fi fi-rr-document' },
   ]
 
   // ==================== DYNAMIC COLOR HELPER FUNCTIONS ====================
@@ -3334,19 +3334,19 @@ const handleViewChange = () => {
                     variant={statusFilter === 'all' ? 'dark' : 'outline-dark'}
                     onClick={() => handleStatusFilterClick('all')}
                     className="fw-semibold px-3 same-btn">
-                    <i className="fi fi-rr-apps me-1"></i>All [{stats.total}]
+                    <i className="fi fi-rr-apps me-1"></i>ALL [{stats.total}]
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => handleStatusFilterClick('available')}
                     className={`fw-semibold px-3 same-btn ${statusFilter === 'available' ? 'btn-status-available' : 'btn-outline-status-available'}`}>
-                    <i className="fi fi-rr-bed-empty me-1"></i>Vacant [{stats.available}]
+                    <i className="fi fi-rr-bed-empty me-1"></i>VACCOUNT[{stats.available}]
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => handleStatusFilterClick('occupied')}
                     className={`fw-semibold px-3 same-btn ${statusFilter === 'occupied' ? 'btn-status-occupied' : 'btn-outline-status-occupied'}`}>
-                    <i className="fi fi-rr-user me-1"></i>Occupied [{stats.occupied}]
+                    <i className="fi fi-rr-user me-1"></i>OCCUPIED [{stats.occupied}]
                   </Button>
                   <Button
                     size="sm"
@@ -3362,7 +3362,7 @@ const handleViewChange = () => {
                       }
                     }}
                     className={`fw-semibold px-3 same-btn ${activeHousekeepingTab ? 'btn-status-cleaning' : 'btn-outline-status-cleaning'}`}>
-                    <i className="fi fi-rr-lock me-1"></i>Block
+                    <i className="fi fi-rr-lock me-1"></i>BLOCK
                   </Button>
                   <Button
                     size="sm"
@@ -3382,21 +3382,21 @@ const handleViewChange = () => {
                     }
                     onClick={handleReservSectionClick}
                     className="fw-semibold px-3 same-btn">
-                    <i className="fi fi-rr-calendar me-1"></i> Reservation
+                    <i className="fi fi-rr-calendar me-1"></i>RESERVATION
                   </Button>
                   <Button
                     size="sm"
                     variant={showArrivalSection ? 'info' : 'outline-info'}
                     onClick={handleArrivalSectionClick}
                     className="fw-semibold px-3 same-btn text-nowrap">
-                    <i className="fi fi-rr-plane-arrival me-1"></i>Arrivals
+                    <i className="fi fi-rr-plane-arrival me-1"></i>ARRIVALS
                   </Button>
                   <Button
                     size="sm"
                     variant={showSettlementSection ? 'success' : 'outline-success'}
                     className="fw-semibold px-3 same-btn"
                     onClick={handleSettlementClick}>
-                    <i className="fi fi-rr-money-check me-1"></i>Settlement
+                    <i className="fi fi-rr-money-check me-1"></i>SETTLEMENT
                   </Button>
                   <Button
                     size="sm"
@@ -5815,7 +5815,7 @@ const handleViewChange = () => {
                 style={{
                   padding: '6px 12px',
                   cursor: 'pointer',
-                  fontSize: '0.75rem',
+                  fontSize: '1rem',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
@@ -5825,20 +5825,20 @@ const handleViewChange = () => {
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 onClick={() => {
-                  if (option.label === 'Amendments')
+                  if (option.label === 'AMENDMENTS')
                     navigate('/hotel/amendments', { state: { occupiedItem: contextMenuItem } })
                   else if (option.label === 'Advance') {
                     setSelectedOccupiedItem(contextMenuItem)
                     setShowAdvanceModal(true)
-                  } else if (option.label === 'Post Charges') {
+                  } else if (option.label === 'POST CHARGES') {
                     setSelectedOccupiedItem(contextMenuItem)
                     setPostChargesMode('charge')
                     setShowPostChargesModal(true)
-                  } else if (option.label === 'Allowances') {
+                  } else if (option.label === 'ALLOWANCES') {
                     setSelectedOccupiedItem(contextMenuItem)
                     setPostChargesMode('allowance')
                     setShowPostChargesModal(true)
-                  } else if (option.label === 'Receipt Against Posted Bills') {
+                  } else if (option.label === 'RECEPIT AGAINST POSTED BILLS') {
                     setSelectedOccupiedItem(contextMenuItem)
                     setShowReceiptModal(true)
                   }

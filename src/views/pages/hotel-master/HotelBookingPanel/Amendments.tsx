@@ -539,7 +539,7 @@ const Amendments = () => {
   return (
     <FormikProvider value={formik}>
       <style>{`
-        .fs-small { font-size: 0.7rem; }
+        .fs-small { font-size: 0.9rem; }
         .fs-medium { font-size: 0.8rem; }
         .bg-danger-custom { background-color: #009de0 !important; }
         .input-24 {
@@ -550,7 +550,7 @@ const Amendments = () => {
         }
         .table-sm-compact th, .table-sm-compact td {
           padding: 0.2rem 0.3rem;
-          font-size: 0.7rem;
+          font-size: 0.9rem;
           white-space: nowrap;
           border: 1px solid #dee2e6 !important;
         }
@@ -563,7 +563,7 @@ const Amendments = () => {
           width: 100%;
           height: 34px;
           margin-bottom: 4px;
-          font-size: 0.7rem;
+          font-size: 0.9rem;
           padding: 0.2rem 0.5rem;
           text-align: left;
         }
@@ -576,17 +576,17 @@ const Amendments = () => {
           gap: 0.5rem;
         }
         .section-legend {
-          background-color: #dc3545;
-          color: #fff;
+          background-color: #dbdbdb;
+          color: #000000;
           padding: 2px 12px;
-          font-size: 13px;
+          font-size: 15px;
           font-weight: 600;
           border-radius: 3px;
           margin-bottom: 8px;
           width: 100%;
         }
         .label-top {
-          font-size: 0.65rem;
+          font-size: 0.85rem;
           margin-bottom: 2px;
           display: block;
         }
@@ -617,7 +617,7 @@ const Amendments = () => {
           overflow-y: auto;
         }
         input, select, textarea, .form-control, .form-select {
-          font-size: 0.7rem !important;
+          font-size: 0.8rem !important;
         }
         input.form-control-sm, select.form-select-sm {
           height: 28px !important;
@@ -644,9 +644,7 @@ const Amendments = () => {
         .pax-max {
           color: #666;
         }
-        .fs-small {
-          font-size: 12px;
-        }
+      
         .table-sm td,
         .table-sm th {
           padding: 3px !important;
@@ -659,14 +657,14 @@ const Amendments = () => {
           background-color: #f8f9fa;
         }
         .table-xs {
-          font-size: 0.65rem;
+          font-size: 0.85rem;
         }
         .table-xs td, .table-xs th {
           padding: 2px 4px;
         }
         .guest-info-delete {
           font-weight: bold;
-          color: #dc3545;
+          color: #dbdbdb;
         }
         .guest-info-company {
           font-weight: bold;
@@ -709,7 +707,7 @@ const Amendments = () => {
           height: 100%;
         }
         .action-box-header {
-          background-color: #dc3545 !important;
+          background-color: #dbdbdb !important;
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -720,10 +718,10 @@ const Amendments = () => {
         }
         .action-box-header,
         .action-box-header * {
-          color: #fff !important;
+          color: #000000 !important;
         }
         .action-box-title {
-          font-size: 0.85rem;
+          font-size: 1rem;
           font-weight: 600;
           margin: 0;
         }
@@ -748,7 +746,7 @@ const Amendments = () => {
         .action-table {
           width: 100%;
           margin-bottom: 0;
-          font-size: 0.7rem;
+          font-size: 0.9rem;
         }
         .action-table thead th {
           position: sticky;
@@ -792,8 +790,8 @@ const Amendments = () => {
         }
       `}</style>
 
-      <div className="vh-100 d-flex flex-column overflow-hidden bg-light">
-        <div className="border-bottom py-1 px-3 d-flex align-items-center bg-info">
+      <div className="vh-100 d-flex flex-column overflow-hidden">
+        <div className="border-bottom py-1 px-3 d-flex align-items-center " style={{backgroundColor:'#3d5eac'}}>
           <span className="fw-bold fs-small me-2 text-white" style={{ minWidth: '60px' }}>
             SELECT ROOM NO:
           </span>
@@ -1137,7 +1135,7 @@ const Amendments = () => {
           </Row>
         </div>
 
-        <div className="border-top py-1 px-3 d-flex justify-content-between align-items-center bg-info">
+        <div className="border-top py-1 px-3 d-flex justify-content-between align-items-center "style={{backgroundColor:'#3d5eac'}}>
           <div className="d-flex align-items-center gap-3 text-white fw-bold fs-small"></div>
           <Button variant="secondary" size="sm" onClick={() => navigate(-1)}>
             Exit
@@ -4405,9 +4403,9 @@ const TransferRoomComponent = ({
                 setTargetRoomNo(e.target.value)
                 setShowTestPreview(false)
               }}
-              className="fs-small"
+              className="fs-small"              
               disabled={loadingUpdate}
-              style={{ width: '150px' }}>
+              style={{ width: '200px' }}>
               <option value="">Select a vacant room</option>
               {vacantRooms.map((room) => (
                 <option key={room.room_id} value={room.room_no}>
