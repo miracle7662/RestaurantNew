@@ -383,10 +383,19 @@ const MENU_ITEMS: MenuItemTypes[] = [
          icon: 'fi fi-rr-book',
         parentKey: 'hotel-master',
       },
+      
+       {
+        key: 'HotelReport',
+        label: 'Hotel Report',
+        url: '/pages/HotelReport',
+         icon: 'fi fi-rr-book',
+        parentKey: 'pages',
+      },
+     
 
       {
         key: 'company-master',
-        label: 'Report',
+        label: 'Cashbook',
         url: '/hotel-master/Company-master',
          icon: 'fi fi-rr-book',
         parentKey: 'hotel-master',

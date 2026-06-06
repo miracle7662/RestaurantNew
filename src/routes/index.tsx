@@ -130,6 +130,10 @@ const ReservationSummary = React.lazy(() => import('../views/pages/hotel-master/
 const CheckInForm = React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/CheckInForm'))
 const RoomDetailSummary = React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/RoomDetailSummary'))
 const Amendments =  React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/Amendments'))
+const HotelReport = React.lazy(() => import('../views/pages/HotelReport'))
+
+
+
 
 
 
@@ -829,6 +833,19 @@ const appsRoutes: RoutesProps = {
           path: '/hotel/reservation',
           name: 'Hotel Reservation',
           element: <HotelReservation />,
+          route: PrivateRoute,
+        },
+
+         {
+          path: '/hotel/report',
+          name: 'HotelReport ',
+          element: <HotelReport />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/pages/HotelReport',
+          name: 'HotelReport ',
+          element: <HotelReport />,
           route: PrivateRoute,
         },
         {

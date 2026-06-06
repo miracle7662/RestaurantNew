@@ -31,6 +31,7 @@ import RoomStatusLogService, { RoomStatusLog } from '@/common/hotel/roomStatusLo
 
 
 // Extend HotelUiSettings to include all color fields
+// Extend HotelUiSettings to include all color fields
 type ExtendedHotelSettings = HotelUiSettings & {
   color_maintenance?: string
   color_reservation?: string
@@ -394,7 +395,6 @@ const calculateDayExtensionPriceForItem = (
   }
 }
 
-
 // ==================== MAIN COMPONENT ====================
 const HotelBookingPanel = () => {
   const navigate = useNavigate()
@@ -460,7 +460,6 @@ const HotelBookingPanel = () => {
   const [loadingCheckoutAlert, setLoadingCheckoutAlert] = useState(false)
   const [errorCheckoutAlert, setErrorCheckoutAlert] = useState<string | null>(null)
 
-
   const [checkoutData, setCheckoutData] = useState<CheckoutMaster[]>([])
   const [loadingCheckoutData, setLoadingCheckoutData] = useState(false)
   const [checkoutPaymentMap, setCheckoutPaymentMap] = useState<Map<number, string>>(new Map())
@@ -476,6 +475,9 @@ const HotelBookingPanel = () => {
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 })
   const [contextMenuItem, setContextMenuItem] = useState<OccupiedRoomItem | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
+  // Prevents double-fire: stores a pending single-click timer so a second
+  // rapid click (or a bubbled click from a child element) cancels the action.
+  const tileClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [_currentTime, setCurrentTime] = useState(new Date())
   const [hotelName, setHotelName] = useState<string>('')
@@ -539,7 +541,6 @@ const HotelBookingPanel = () => {
   const [showAdvanceModal, setShowAdvanceModal] = useState(false)
   const [selectedOccupiedItem, setSelectedOccupiedItem] = useState<OccupiedRoomItem | null>(null)
 
-
   // ==================== ROOM STATUS MODAL STATE ====================
   const [showRoomStatusModal, setShowRoomStatusModal] = useState(false)
   const [selectedRoomForStatus, setSelectedRoomForStatus] = useState<{
@@ -565,8 +566,6 @@ const HotelBookingPanel = () => {
   const dirtyScrollRef = useRef<HTMLDivElement | null>(null)
   const blockScrollRef = useRef<HTMLDivElement | null>(null)
   const maintScrollRef = useRef<HTMLDivElement | null>(null)
-
-
 
   // Context menu options
   const contextMenuOptions: ContextMenuOption[] = [
@@ -686,7 +685,7 @@ const HotelBookingPanel = () => {
       })
     }, 60000)
     return () => clearInterval(timer)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection])
 
   useEffect(() => {
@@ -750,6 +749,8 @@ const HotelBookingPanel = () => {
     }
     fetchData()
     fetchRoomStatusLogs()
+    // Pre-load occupied rooms so tile clicks work without switching filters
+    fetchOccupiedRooms()
   }, [hotelId])
 
   const fetchRoomStatusLogs = async () => {
@@ -857,9 +858,6 @@ const HotelBookingPanel = () => {
                 } else if (
                   t.transaction_type === 'Advance Posting' ||
                   t.transaction_type === 'Advance Refund'
-                  // NOTE: 'Advance Cancel' excluded — original receipt is already
-                  // status='cancelled' so its credit is not counted. Adding cancel
-                  // debit here would double-penalise the balance.
                 ) {
                   if (t.status === 'active') globalDebits += Number(t.debit_amount) || 0
                 }
@@ -879,7 +877,6 @@ const HotelBookingPanel = () => {
               } else if (
                 t.transaction_type === 'Advance Posting' ||
                 t.transaction_type === 'Advance Refund'
-                // NOTE: 'Advance Cancel' excluded — same reason as above
               ) {
                 if (t.status === 'active') {
                   roomDebits.set(
@@ -1235,12 +1232,8 @@ const HotelBookingPanel = () => {
               const isCredit =
                 t.transaction_type === 'Booking Receipt' ||
                 t.transaction_type === 'Advance Addition'
-              // NOTE: 'Advance Cancel' excluded — cancelled receipts are already
-              // status='cancelled' so their credit is not counted. Adding cancel
-              // debit here would double-penalise the balance.
               const isDebit =
-                t.transaction_type === 'Advance Posting' ||
-                t.transaction_type === 'Advance Refund'
+                t.transaction_type === 'Advance Posting' || t.transaction_type === 'Advance Refund'
               if (t.status !== 'active') return
               if (!rid) {
                 if (isCredit) globalCredits += Number(t.credit_amount) || 0
@@ -1867,15 +1860,22 @@ const HotelBookingPanel = () => {
   }
 
   const handleRoomTileClick = (room: Room) => {
-    if (room.status === 'occupied') {
-      const occupiedItem = occupiedRooms.find((item) => item.room_no === room.number)
-      if (occupiedItem) {
-        handleOccupiedRoomClick(occupiedItem)
-      } else {
-        setSelectedRoom(room)
-        setShowRoomDetails(true)
+    // Debounce: ignore if a click is already pending within 250ms.
+    // This prevents the modal's Close button click from bubbling up to the
+    // tile div and re-triggering navigation immediately after closing.
+    if (tileClickTimerRef.current) return
+    tileClickTimerRef.current = setTimeout(() => {
+      tileClickTimerRef.current = null
+      if (room.status === 'occupied') {
+        const occupiedItem = occupiedRooms.find((item) => item.room_no === room.number)
+        if (occupiedItem) {
+          handleOccupiedRoomClick(occupiedItem)
+        } else {
+          setSelectedRoom(room)
+          setShowRoomDetails(true)
+        }
       }
-    }
+    }, 250)
   }
 
   const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
@@ -2040,8 +2040,17 @@ const HotelBookingPanel = () => {
     }
   }
 
+  const handleArrivalSectionClick = () => {
+    if (showArrivalSection) {
+      setActiveSection(null)
+    } else {
+      setActiveSection('arrival')
+      setAtGlanceFilter('all')
+      fetchArrivalTableData(arrivalDate)
+    }
+  }
+
   // ---- helpers to close all panel sections ----
- 
 
   const fetchReservTableData = async (filterDate?: string) => {
     if (!hotelId) return
@@ -2247,6 +2256,15 @@ const HotelBookingPanel = () => {
     }
   }
 
+  const handleReservSectionClick = () => {
+    if (showReservSection) {
+      setActiveSection(null)
+    } else {
+      setActiveSection('reserv')
+      fetchReservTableData(reservDate)
+    }
+  }
+
   const handleSettlementClick = () => {
     if (showSettlementSection) {
       setActiveSection(null)
@@ -2261,69 +2279,59 @@ const HotelBookingPanel = () => {
     }
   }
 
-const fetchCheckoutData = async () => {
-  if (!hotelId) return
-  setLoadingCheckoutData(true)
-  try {
-    const res = await CheckoutService.list({ hotelid: hotelId })
-    const data: CheckoutMaster[] = res.data || []
-    // Sort newest checkout first
-    data.sort((a: CheckoutMaster, b: CheckoutMaster) =>
-      new Date(b.checkout_date || b.checkout_datetime || 0).getTime() -
-      new Date(a.checkout_date || a.checkout_datetime || 0).getTime()
-    )
-    setCheckoutData(data)
+  // ==================== UPDATED fetchCheckoutData FUNCTION - SORT BY INVOICE NUMBER ASCENDING ====================
+  const fetchCheckoutData = async () => {
+    if (!hotelId) return
+    setLoadingCheckoutData(true)
+    try {
+      const res = await CheckoutService.list({ hotelid: hotelId })
+      const data: CheckoutMaster[] = res.data || []
 
-    // Fetch payment_method AND invoice_no for each checkout from Checkout_Payment_Master
-    const payMap = new Map<number, string>() // store "payment_method|invoice_no"
-    await Promise.all(
-      data.map(async (co) => {
-        try {
-          const payRes = await CheckoutPaymentService.getByCheckoutId(co.checkout_id)
-          const payments = payRes.data || []
-          if (Array.isArray(payments) && payments.length > 0) {
-            const payment = payments[0]
-            const paymentMethod = payment.payment_method || 'Cash'
-            const invoiceNo = payment.invoice_no || '-'
-            payMap.set(co.checkout_id, `${paymentMethod}|${invoiceNo}`)
-          } else if (payments && !Array.isArray(payments)) {
-            const payment = payments as any
-            const paymentMethod = payment.payment_method || 'Cash'
-            const invoiceNo = payment.invoice_no || '-'
-            payMap.set(co.checkout_id, `${paymentMethod}|${invoiceNo}`)
+      // First fetch payment data to get invoice numbers
+      const payMap = new Map<number, string>() // store "payment_method|invoice_no"
+      const invoiceMap = new Map<number, string>() // store invoice_no for sorting
+
+      await Promise.all(
+        data.map(async (co) => {
+          try {
+            const payRes = await CheckoutPaymentService.getByCheckoutId(co.checkout_id)
+            const payments = payRes.data || []
+            if (Array.isArray(payments) && payments.length > 0) {
+              const payment = payments[0]
+              const paymentMethod = payment.payment_method || 'Cash'
+              const invoiceNo = payment.invoice_no || '-'
+              payMap.set(co.checkout_id, `${paymentMethod}|${invoiceNo}`)
+              invoiceMap.set(co.checkout_id, invoiceNo)
+            } else if (payments && !Array.isArray(payments)) {
+              const payment = payments as any
+              const paymentMethod = payment.payment_method || 'Cash'
+              const invoiceNo = payment.invoice_no || '-'
+              payMap.set(co.checkout_id, `${paymentMethod}|${invoiceNo}`)
+              invoiceMap.set(co.checkout_id, invoiceNo)
+            }
+          } catch {
+            // payment fetch failed for this checkout — leave as undefined
+            invoiceMap.set(co.checkout_id, `INV-${co.checkout_id}`)
           }
-        } catch {
-          // payment fetch failed for this checkout — leave as undefined
-        }
+        }),
+      )
+
+      // Sort by invoice number ascending (0001, 0002, 0003)
+      data.sort((a, b) => {
+        const invA = invoiceMap.get(a.checkout_id) || ''
+        const invB = invoiceMap.get(b.checkout_id) || ''
+        // Extract numeric part for proper numeric sorting
+        const numA = parseInt(invA.replace(/\D/g, '')) || 0
+        const numB = parseInt(invB.replace(/\D/g, '')) || 0
+        return numA - numB
       })
-    )
-    setCheckoutPaymentMap(new Map(payMap))
-  } catch (err) {
-    console.error('Failed to fetch checkout data', err)
-  } finally {
-    setLoadingCheckoutData(false)
-  }
-}
 
-  const handleReservSectionClick = () => {
-    if (showReservSection) {
-      setActiveSection(null)
-    } else {
-      setActiveSection('reserv')
-      setActiveHousekeepingTab(null)
-      setSelectedHousekeepingRoomIds([])
-      fetchReservTableData(reservDate)
-    }
-  }
-
-  const handleArrivalSectionClick = () => {
-    if (showArrivalSection) {
-      setActiveSection(null)
-    } else {
-      setActiveSection('arrival')
-      setActiveHousekeepingTab(null)
-      setSelectedHousekeepingRoomIds([])
-      fetchArrivalTableData(arrivalDate)
+      setCheckoutData(data)
+      setCheckoutPaymentMap(new Map(payMap))
+    } catch (err) {
+      console.error('Failed to fetch checkout data', err)
+    } finally {
+      setLoadingCheckoutData(false)
     }
   }
 
@@ -2664,7 +2672,7 @@ const fetchCheckoutData = async () => {
       wrapper.appendChild(headerDiv)
       const tableClone = table.cloneNode(true) as HTMLElement
       tableClone.querySelectorAll('thead tr, tfoot tr').forEach((el) => {
-        (el as HTMLElement).style.position = 'static'
+        ;(el as HTMLElement).style.position = 'static'
       })
       wrapper.appendChild(tableClone)
       document.body.appendChild(wrapper)
@@ -3118,6 +3126,9 @@ const fetchCheckoutData = async () => {
         <Button variant="outline-primary" onClick={() => window.location.reload()}>
           Retry
         </Button>
+        <Button variant="outline-secondary" className="mt-2" onClick={() => navigate(-1)}>
+          Go Back
+        </Button>
       </div>
     )
   }
@@ -3338,9 +3349,9 @@ const fetchCheckoutData = async () => {
                             color: getStatusTextColor('reservation'),
                           }
                     }
-                    onClick={() => handleReservSectionClick()}
+                    onClick={handleReservSectionClick}
                     className="fw-semibold px-3 same-btn">
-                    <i className="fi fi-rr-calendar me-1"></i>Reservation
+                    <i className="fi fi-rr-calendar me-1"></i> Reservation
                   </Button>
                   <Button
                     size="sm"
@@ -3361,7 +3372,7 @@ const fetchCheckoutData = async () => {
                     variant="outline-secondary"
                     className="fw-semibold px-3 same-btn"
                     onClick={() => navigate('/hotel/reservation')}>
-                    Reservation
+                    Reservation Form
                   </Button>
                 </div>
                 <div className="d-flex flex-wrap gap-2">
@@ -3478,12 +3489,18 @@ const fetchCheckoutData = async () => {
                       </div>
                       <div className="dirty-rooms-body" ref={dirtyScrollRef}>
                         {(() => {
-                          const dirtyRooms = housekeepingRoomsForTab.filter((r) => r.status === 'cleaning')
+                          const dirtyRooms = housekeepingRoomsForTab.filter(
+                            (r) => r.status === 'cleaning',
+                          )
                           if (dirtyRooms.length === 0) {
-                            return <div className="text-muted py-1 px-1" style={{ fontSize: '0.75rem' }}>No dirty rooms</div>
+                            return (
+                              <div className="text-muted py-1 px-1" style={{ fontSize: '0.75rem' }}>
+                                No dirty rooms
+                              </div>
+                            )
                           }
                           // Split into columns of 2 rows each
-                          const columns: typeof dirtyRooms[] = []
+                          const columns: (typeof dirtyRooms)[] = []
                           for (let i = 0; i < dirtyRooms.length; i += 2) {
                             columns.push(dirtyRooms.slice(i, i + 2))
                           }
@@ -3552,7 +3569,10 @@ const fetchCheckoutData = async () => {
                           </Button>
                         </div>
                       </div>
-                      <div className="housekeeping-section-body" ref={blockScrollRef} style={{ minHeight: 110, height: 110, maxHeight: 110 }}>
+                      <div
+                        className="housekeeping-section-body"
+                        ref={blockScrollRef}
+                        style={{ minHeight: 110, height: 110, maxHeight: 110 }}>
                         {housekeepingRoomsForTab
                           .filter((r) => r.status === 'reserved')
                           .map((room) => {
@@ -3724,7 +3744,11 @@ const fetchCheckoutData = async () => {
                             )
                           })}
                         {housekeepingRoomsForTab.filter((r) => r.status === 'reserved').length ===
-                          0 && <div className="text-muted py-1 px-1" style={{ fontSize: '0.75rem' }}>No blocked rooms</div>}
+                          0 && (
+                          <div className="text-muted py-1 px-1" style={{ fontSize: '0.75rem' }}>
+                            No blocked rooms
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -3766,7 +3790,10 @@ const fetchCheckoutData = async () => {
                           </Button>
                         </div>
                       </div>
-                      <div className="housekeeping-section-body" ref={maintScrollRef} style={{ minHeight: 110, height: 110, maxHeight: 110 }}>
+                      <div
+                        className="housekeeping-section-body"
+                        ref={maintScrollRef}
+                        style={{ minHeight: 110, height: 110, maxHeight: 110 }}>
                         {housekeepingRoomsForTab
                           .filter((r) => r.status === 'maintenance')
                           .map((room) => {
@@ -3939,7 +3966,9 @@ const fetchCheckoutData = async () => {
                           })}
                         {housekeepingRoomsForTab.filter((r) => r.status === 'maintenance')
                           .length === 0 && (
-                          <div className="text-muted py-1 px-1" style={{ fontSize: '0.75rem' }}>No maintenance rooms</div>
+                          <div className="text-muted py-1 px-1" style={{ fontSize: '0.75rem' }}>
+                            No maintenance rooms
+                          </div>
                         )}
                       </div>
                     </div>
@@ -3950,11 +3979,11 @@ const fetchCheckoutData = async () => {
           </div>
 
           {/* Scrollable Content Area */}
-          <div className={`${activeHousekeepingTab ? '' : 'flex-grow-1 overflow-auto'} bg-white`} style={{ width: '100%' }}>
-            {activeHousekeepingTab ? (
-              // Housekeeping panel is in the header — content area is intentionally empty
-              null
-            ) : showAtGlanceTable ? (
+          <div
+            className={`${activeHousekeepingTab ? '' : 'flex-grow-1 overflow-auto'} bg-white`}
+            style={{ width: '100%' }}>
+            {activeHousekeepingTab ? // Housekeeping panel is in the header — content area is intentionally empty
+            null : showAtGlanceTable ? (
               <div className="at-glance-container d-flex flex-column h-100">
                 <div className="mb-3">
                   <div className="d-flex justify-content-end align-items-center flex-wrap">
@@ -4157,218 +4186,238 @@ const fetchCheckoutData = async () => {
               </div>
             ) : showSettlementSection ? (
               /* ==================== SETTLEMENT SECTION — CHECKED OUT CARDS ONLY ==================== */
-              <div key="settlement-section" className="d-flex flex-column h-100" style={{ padding: '0px 8px', width: '100%' }}>
-  {/* ---- CHECKED OUT CARDS ---- */}
-  <>
-    {loadingCheckoutData ? (
-      <div className="d-flex justify-content-center py-5">
-        <div className="spinner-border text-success" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    ) : checkoutData.length === 0 ? (
-      <div className="text-center py-5">
-        <i className="fi fi-rr-sign-out-alt text-muted fs-4 mb-3 d-block"></i>
-        <p className="text-muted mb-0">No checkout records found.</p>
-      </div>
-    ) : (
-      <div
-        className="flex-grow-1"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-          gap: '6px',
-          alignContent: 'start',
-          overflowY: 'auto',
-        }}>
-        {checkoutData.map((co) => {
-          const totalAmt = Number(co.total_amount) || 0
-          const checkoutDateDisplay = co.checkout_datetime
-            ? formatDateTime(co.checkout_datetime)
-            : co.checkout_date
-              ? formatDateTime(co.checkout_date)
-              : '-'
-          const headerBg = '#198754' // green for checked-out
-          const isPartial = co.is_partial_checkout === 1
-          
-          // Get payment_method from Checkout_Payment_Master via checkoutPaymentMap
-          // Format: "payment_method|invoice_no"
-          const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
-          const payType = paymentData.split('|')[0] || 'Cash'
-          const invoiceNo = paymentData.split('|')[1] || '-'
-
-          return (
-            <div
-              key={co.checkout_id}
-              style={{
-                borderRadius: 0,
-                overflow: 'hidden',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.10)',
-                border: `1.5px solid ${headerBg}30`,
-                background: '#fff',
-                cursor: 'default',
-                transition: 'box-shadow 0.18s, transform 0.12s',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 22px rgba(0,0,0,0.16)'
-                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.10)'
-                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
-              }}>
-              {/* Card header - SHOW INVOICE NO instead of room number */}
               <div
-                style={{
-                  background: headerBg,
-                  padding: '1px 2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}>
-                <span
-                  style={{
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: '0.75rem',
-                    letterSpacing: 0.5,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}>
-                  Invoice No: {invoiceNo}
-                  {isPartial && (
-                    <span style={{ fontSize: '0.6rem', marginLeft: 4, opacity: 0.85 }}>
-                      (Partial)
-                    </span>
-                  )}
-                </span>
-              </div>
-
-              {/* Card body - EXACT SAME as before, no changes */}
-              <div
-                style={{
-                  padding: '8px 10px 10px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 5,
-                }}>
-                {/* Guest Name */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span
-                    style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: '50%',
-                      background: `${headerBg}18`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                    <i className="fi fi-rr-user" style={{ fontSize: '0.6rem', color: headerBg }}></i>
-                  </span>
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      fontSize: '0.68rem',
-                      color: '#222',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      minWidth: 0,
-                    }}>
-                    {co.guest_name || '-'}
-                  </div>
-                </div>
-
-                <div style={{ height: 1, background: '#f0f0f0' }} />
-
-                {/* Checkout Date */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span
-                    style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: '50%',
-                      background: '#f3f4f6',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                    <i className="fi fi-rr-sign-out-alt" style={{ fontSize: '0.6rem', color: '#555' }}></i>
-                  </span>
-                  <div
-                    style={{ fontWeight: 500, fontSize: '0.65rem', color: '#333', minWidth: 0 }}>
-                    {checkoutDateDisplay}
-                  </div>
-                </div>
-
-                {/* Pay Type + Total Amount */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                    borderTop: '1px solid #f0f0f0',
-                    paddingTop: 4,
-                  }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      minWidth: 0,
-                    }}>
-                    <span
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: '50%',
-                        background: '#f3f4f6',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                      <i className="fi fi-rr-credit-card" style={{ fontSize: '0.6rem', color: '#555' }}></i>
-                    </span>
-                    <div
-                      style={{
-                        fontWeight: 500,
-                        fontSize: '0.68rem',
-                        color: '#333',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}>
-                      {payType}
+                key="settlement-section"
+                className="d-flex flex-column h-100"
+                style={{ padding: '0px 8px', width: '100%' }}>
+                {/* ---- CHECKED OUT CARDS ---- */}
+                <>
+                  {loadingCheckoutData ? (
+                    <div className="d-flex justify-content-center py-5">
+                      <div className="spinner-border text-success" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
                     </div>
-                  </div>
-                  <span
-                    style={{
-                      fontWeight: 700,
-                      fontSize: '0.72rem',
-                      color: '#198754',
-                      letterSpacing: 0.2,
-                      flexShrink: 0,
-                    }}>
-                    {formatAmount(totalAmt)}
-                  </span>
-                </div>
+                  ) : checkoutData.length === 0 ? (
+                    <div className="text-center py-5">
+                      <i className="fi fi-rr-sign-out-alt text-muted fs-4 mb-3 d-block"></i>
+                      <p className="text-muted mb-0">No checkout records found.</p>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex-grow-1"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                        gap: '6px',
+                        alignContent: 'start',
+                        overflowY: 'auto',
+                      }}>
+                      {checkoutData.map((co) => {
+                        const totalAmt = Number(co.total_amount) || 0
+                        const checkoutDateDisplay = co.checkout_datetime
+                          ? formatDateTime(co.checkout_datetime)
+                          : co.checkout_date
+                            ? formatDateTime(co.checkout_date)
+                            : '-'
+                        const headerBg = '#198754' // green for checked-out
+                        const isPartial = co.is_partial_checkout === 1
+
+                        // Get payment_method from Checkout_Payment_Master via checkoutPaymentMap
+                        // Format: "payment_method|invoice_no"
+                        const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
+                        const payType = paymentData.split('|')[0] || 'Cash'
+                        const invoiceNo = paymentData.split('|')[1] || '-'
+
+                        return (
+                          <div
+                            key={co.checkout_id}
+                            style={{
+                              borderRadius: 0,
+                              overflow: 'hidden',
+                              boxShadow: '0 2px 10px rgba(0,0,0,0.10)',
+                              border: `1.5px solid ${headerBg}30`,
+                              background: '#fff',
+                              cursor: 'default',
+                              transition: 'box-shadow 0.18s, transform 0.12s',
+                            }}
+                            onMouseEnter={(e) => {
+                              ;(e.currentTarget as HTMLElement).style.boxShadow =
+                                '0 6px 22px rgba(0,0,0,0.16)'
+                              ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
+                            }}
+                            onMouseLeave={(e) => {
+                              ;(e.currentTarget as HTMLElement).style.boxShadow =
+                                '0 2px 10px rgba(0,0,0,0.10)'
+                              ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
+                            }}>
+                            {/* Card header - SHOW INVOICE NO instead of room number */}
+                            <div
+                              style={{
+                                background: headerBg,
+                                padding: '1px 2px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                              }}>
+                              <span
+                                style={{
+                                  color: '#fff',
+                                  fontWeight: 700,
+                                  fontSize: '0.75rem',
+                                  letterSpacing: 0.5,
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}>
+                                Invoice No: {invoiceNo}
+                                {isPartial && (
+                                  <span
+                                    style={{ fontSize: '0.6rem', marginLeft: 4, opacity: 0.85 }}>
+                                    (Partial)
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+
+                            {/* Card body - EXACT SAME as before, no changes */}
+                            <div
+                              style={{
+                                padding: '8px 10px 10px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 5,
+                              }}>
+                              {/* Guest Name */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <span
+                                  style={{
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: '50%',
+                                    background: `${headerBg}18`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                  }}>
+                                  <i
+                                    className="fi fi-rr-user"
+                                    style={{ fontSize: '0.6rem', color: headerBg }}></i>
+                                </span>
+                                <div
+                                  style={{
+                                    fontWeight: 600,
+                                    fontSize: '0.68rem',
+                                    color: '#222',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    minWidth: 0,
+                                  }}>
+                                  {co.guest_name || '-'}
+                                </div>
+                              </div>
+
+                              <div style={{ height: 1, background: '#f0f0f0' }} />
+
+                              {/* Checkout Date */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <span
+                                  style={{
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: '50%',
+                                    background: '#f3f4f6',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                  }}>
+                                  <i
+                                    className="fi fi-rr-sign-out-alt"
+                                    style={{ fontSize: '0.6rem', color: '#555' }}></i>
+                                </span>
+                                <div
+                                  style={{
+                                    fontWeight: 500,
+                                    fontSize: '0.65rem',
+                                    color: '#333',
+                                    minWidth: 0,
+                                  }}>
+                                  {checkoutDateDisplay}
+                                </div>
+                              </div>
+
+                              {/* Pay Type + Total Amount */}
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: 8,
+                                  borderTop: '1px solid #f0f0f0',
+                                  paddingTop: 4,
+                                }}>
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    minWidth: 0,
+                                  }}>
+                                  <span
+                                    style={{
+                                      width: 18,
+                                      height: 18,
+                                      borderRadius: '50%',
+                                      background: '#f3f4f6',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      flexShrink: 0,
+                                    }}>
+                                    <i
+                                      className="fi fi-rr-credit-card"
+                                      style={{ fontSize: '0.6rem', color: '#555' }}></i>
+                                  </span>
+                                  <div
+                                    style={{
+                                      fontWeight: 500,
+                                      fontSize: '0.68rem',
+                                      color: '#333',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                    }}>
+                                    {payType}
+                                  </div>
+                                </div>
+                                <span
+                                  style={{
+                                    fontWeight: 700,
+                                    fontSize: '0.72rem',
+                                    color: '#198754',
+                                    letterSpacing: 0.2,
+                                    flexShrink: 0,
+                                  }}>
+                                  {formatAmount(totalAmt)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
               </div>
-            </div>
-          )
-        })}
-      </div>
-    )}
-  </>
-</div>
             ) : showReservSection ? (
               /* ==================== RESERV SECTION ==================== */
-              <div key="reserv-section" className="checkout-table-container d-flex flex-column h-100" style={{ width: '100%' }}>
+              <div
+                key="reserv-section"
+                className="checkout-table-container d-flex flex-column h-100"
+                style={{ width: '100%' }}>
                 <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                   <h6 className="mb-0 fw-bold">
                     <i className="fi fi-rr-calendar me-2 text-primary"></i>
@@ -4478,7 +4527,10 @@ const fetchCheckoutData = async () => {
               </div>
             ) : showArrivalSection ? (
               /* ==================== ARRIVAL SECTION ==================== */
-              <div key="arrival-section" className="checkout-table-container d-flex flex-column h-100" style={{ width: '100%' }}>
+              <div
+                key="arrival-section"
+                className="checkout-table-container d-flex flex-column h-100"
+                style={{ width: '100%' }}>
                 <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                   <h6 className="mb-0 fw-bold">
                     <i className="fi fi-rr-plane-arrival me-2 text-info"></i>
@@ -4587,7 +4639,10 @@ const fetchCheckoutData = async () => {
                 )}
               </div>
             ) : showCheckoutAlertTable ? (
-              <div key="checkout-section" className="checkout-table-container d-flex flex-column h-100" style={{ width: '100%' }}>
+              <div
+                key="checkout-section"
+                className="checkout-table-container d-flex flex-column h-100"
+                style={{ width: '100%' }}>
                 <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                   <h6 className="mb-0 fw-bold">
                     <i className="fi fi-rr-calendar-check me-2 text-warning"></i>
@@ -4857,7 +4912,9 @@ const fetchCheckoutData = async () => {
                               fontSize: '0.65rem',
                             }}>
                             <span title="Adult : Pax : Ex-Pax : Child">
-                              <span title="Pax (total guests)">{item.original_pax ?? item.adults}</span>
+                              <span title="Pax (total guests)">
+                                {item.original_pax ?? item.adults}
+                              </span>
                               <span style={{ opacity: 0.5 }}>:</span>
                               <span title="Extra Pax">{item.ex_pax}</span>
                               <span style={{ opacity: 0.5 }}>:</span>
@@ -4915,17 +4972,21 @@ const fetchCheckoutData = async () => {
                           <div
                             key={room.id}
                             onClick={isExpiredTile ? undefined : () => handleRoomTileClick(room)}
-                            onContextMenu={isExpiredTile ? undefined : (e) => {
-                              if (room.status === 'occupied') {
-                                if (occupiedItemForTile) {
-                                  e.preventDefault()
-                                  handleContextMenu(e, occupiedItemForTile)
-                                }
-                              } else {
-                                e.preventDefault()
-                                handleRoomStatusChangeRequest(room)
-                              }
-                            }}
+                            onContextMenu={
+                              isExpiredTile
+                                ? undefined
+                                : (e) => {
+                                    if (room.status === 'occupied') {
+                                      if (occupiedItemForTile) {
+                                        e.preventDefault()
+                                        handleContextMenu(e, occupiedItemForTile)
+                                      }
+                                    } else {
+                                      e.preventDefault()
+                                      handleRoomStatusChangeRequest(room)
+                                    }
+                                  }
+                            }
                             className={`d-flex flex-column align-items-center justify-content-center p-1 shadow-sm room-tile room-tile-${boxSizeClass}${isExpiredTile ? '' : ' cursor-pointer'}`}
                             style={{
                               cursor: isExpiredTile ? 'not-allowed' : 'pointer',
@@ -4975,7 +5036,12 @@ const fetchCheckoutData = async () => {
               <Button size="sm" variant="danger" className="fw-semibold px-4">
                 Summary
               </Button>
-              <Button size="sm" variant="secondary" className="fw-semibold px-4">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="fw-semibold px-4"
+                onClick={() => navigate('/hotel/report')}>
+                <i className="fi fi-rr-chart-line me-1"></i>
                 Report
               </Button>
               <Button size="sm" variant="danger" className="fw-semibold px-4">
@@ -5184,11 +5250,16 @@ const fetchCheckoutData = async () => {
         </Modal>
 
         {/* Room Details Modal */}
-        <Modal show={showRoomDetails} onHide={() => setShowRoomDetails(false)} centered size="sm">
+        <Modal
+          show={showRoomDetails}
+          onHide={() => setShowRoomDetails(false)}
+          centered
+          size="sm"
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}>
           <Modal.Header closeButton className="border-0 pb-0">
             <Modal.Title>Room Details</Modal.Title>
           </Modal.Header>
-          <Modal.Body>
+          <Modal.Body onClick={(e: React.MouseEvent) => e.stopPropagation()}>
             {selectedRoom && (
               <div>
                 <div className="text-center mb-3">

@@ -53,6 +53,8 @@ export const MENU_PERMISSION_MAP: Record<string, string> = {
   'Guest-master'    : 'hotel-master',
   'Complimentary-master': 'hotel-master',
   'HotelBookingPanel': 'hotel-master',
+  'HotelReport'     : 'pages',
+
   'registration'    : 'registration',
   'registration-hotels-users': 'registration',
 
