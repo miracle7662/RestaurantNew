@@ -28,6 +28,11 @@ import ReceiptAgainstBillsModal from './ReceiptAgainstBillsModal'
 import Advance from './Advance'
 import RoomStatusModal from './RoomStatusModal'
 import RoomStatusLogService, { RoomStatusLog } from '@/common/hotel/roomStatusLog'
+import SettlementModal from './SettelmentModel';
+import useauthcontext from '@/common/context/useAuthContext'
+import PaymentModeService from '@/common/api/outletpaymentmode'
+// ya jo bhi aapka payment modes service path hai
+
 
 
 // Extend HotelUiSettings to include all color fields
@@ -361,6 +366,8 @@ const calculateDayExtensionPriceForItem = (
   const totalTax = roomTaxAmount + exPaxTaxAmount + childTaxAmount + driverTaxAmount
   const totalPrice = roomTotal + exPaxTotal + childTotal + driverTotal
 
+ 
+
   return {
     roomCharge: Number((roomTotal * extensionDays).toFixed(2)),
     exPaxCharge: Number((exPaxTotal * extensionDays).toFixed(2)),
@@ -557,6 +564,10 @@ const HotelBookingPanel = () => {
   // ==================== ROOM STATUS LOGS STATE ====================
   const [roomStatusLogs, setRoomStatusLogs] = useState<RoomStatusLog[]>([])
 
+  // ==================== SETTLEMENT MODAL STATE ====================
+const [selectedCheckout, setSelectedCheckout] = useState<any>(null)
+const [showSettlementModal, setShowSettlementModal] = useState(false)
+const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; mode_name: string; outletid: number}>>([])
   // ==================== DIRTY / BLOCK / MAINT SUB-PANEL STATE ====================
   type HousekeepingTab = 'all' | 'dirty' | 'block' | 'maint' | null
   const [activeHousekeepingTab, setActiveHousekeepingTab] = useState<HousekeepingTab>(null)
@@ -752,6 +763,19 @@ const HotelBookingPanel = () => {
     // Pre-load occupied rooms so tile clicks work without switching filters
     fetchOccupiedRooms()
   }, [hotelId])
+
+  useEffect(() => {
+  if (!user?.outletid) return
+  const fetchPaymentModes = async () => {
+    try {
+      const res = await PaymentModeService.list({ outletid: user.outletid })
+      setOutletPaymentModes(res.data || [])
+    } catch (err) {
+      console.error('Failed to fetch payment modes', err)
+    }
+  }
+  fetchPaymentModes()
+}, [user?.outletid])
 
   const fetchRoomStatusLogs = async () => {
     if (!hotelId) return
@@ -4187,233 +4211,273 @@ const handleViewChange = () => {
                 </div>
               </div>
             ) : showSettlementSection ? (
-              /* ==================== SETTLEMENT SECTION — CHECKED OUT CARDS ONLY ==================== */
+             /* ==================== SETTLEMENT SECTION — CHECKED OUT CARDS ONLY ==================== */
+<div
+  key="settlement-section"
+  className="d-flex flex-column h-100"
+  style={{ padding: '0px 8px', width: '100%' }}>
+
+  {/* ---- CHECKED OUT CARDS ---- */}
+  <>
+    {loadingCheckoutData ? (
+      <div className="d-flex justify-content-center py-5">
+        <div className="spinner-border text-success" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    ) : checkoutData.length === 0 ? (
+      <div className="text-center py-5">
+        <i className="fi fi-rr-sign-out-alt text-muted fs-4 mb-3 d-block"></i>
+        <p className="text-muted mb-0">No checkout records found.</p>
+      </div>
+    ) : (
+      <div
+        className="flex-grow-1"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+          gap: '6px',
+          alignContent: 'start',
+          overflowY: 'auto',
+        }}>
+
+        {checkoutData.map((co) => {
+          const totalAmt = Number(co.total_amount) || 0
+          const checkoutDateDisplay = co.checkout_datetime
+            ? formatDateTime(co.checkout_datetime)
+            : co.checkout_date
+              ? formatDateTime(co.checkout_date)
+              : '-'
+          const headerBg = '#198754'
+          const isPartial = co.is_partial_checkout === 1
+
+          const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
+          const payType = paymentData.split('|')[0] || 'Cash'
+          const invoiceNo = paymentData.split('|')[1] || '-'
+
+          return (
+            <div
+              key={co.checkout_id}
+              style={{
+                borderRadius: 0,
+                overflow: 'hidden',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.10)',
+                border: `1.5px solid ${headerBg}30`,
+                background: '#fff',
+                cursor: 'default',
+                transition: 'box-shadow 0.18s, transform 0.12s',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              onMouseEnter={(e) => {
+                ;(e.currentTarget as HTMLElement).style.boxShadow = '0 6px 22px rgba(0,0,0,0.16)'
+                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
+              }}
+              onMouseLeave={(e) => {
+                ;(e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.10)'
+                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
+              }}>
+
+              {/* ── Card Header ── */}
               <div
-                key="settlement-section"
-                className="d-flex flex-column h-100"
-                style={{ padding: '0px 8px', width: '100%' }}>
-                {/* ---- CHECKED OUT CARDS ---- */}
-                <>
-                  {loadingCheckoutData ? (
-                    <div className="d-flex justify-content-center py-5">
-                      <div className="spinner-border text-success" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                      </div>
-                    </div>
-                  ) : checkoutData.length === 0 ? (
-                    <div className="text-center py-5">
-                      <i className="fi fi-rr-sign-out-alt text-muted fs-4 mb-3 d-block"></i>
-                      <p className="text-muted mb-0">No checkout records found.</p>
-                    </div>
-                  ) : (
-                    <div
-                      className="flex-grow-1"
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                        gap: '6px',
-                        alignContent: 'start',
-                        overflowY: 'auto',
-                      }}>
-                      {checkoutData.map((co) => {
-                        const totalAmt = Number(co.total_amount) || 0
-                        const checkoutDateDisplay = co.checkout_datetime
-                          ? formatDateTime(co.checkout_datetime)
-                          : co.checkout_date
-                            ? formatDateTime(co.checkout_date)
-                            : '-'
-                        const headerBg = '#198754' // green for checked-out
-                        const isPartial = co.is_partial_checkout === 1
-
-                        // Get payment_method from Checkout_Payment_Master via checkoutPaymentMap
-                        // Format: "payment_method|invoice_no"
-                        const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
-                        const payType = paymentData.split('|')[0] || 'Cash'
-                        const invoiceNo = paymentData.split('|')[1] || '-'
-
-                        return (
-                          <div
-                            key={co.checkout_id}
-                            style={{
-                              borderRadius: 0,
-                              overflow: 'hidden',
-                              boxShadow: '0 2px 10px rgba(0,0,0,0.10)',
-                              border: `1.5px solid ${headerBg}30`,
-                              background: '#fff',
-                              cursor: 'default',
-                              transition: 'box-shadow 0.18s, transform 0.12s',
-                            }}
-                            onMouseEnter={(e) => {
-                              ;(e.currentTarget as HTMLElement).style.boxShadow =
-                                '0 6px 22px rgba(0,0,0,0.16)'
-                              ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-                            }}
-                            onMouseLeave={(e) => {
-                              ;(e.currentTarget as HTMLElement).style.boxShadow =
-                                '0 2px 10px rgba(0,0,0,0.10)'
-                              ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
-                            }}>
-                            {/* Card header - SHOW INVOICE NO instead of room number */}
-                            <div
-                              style={{
-                                background: headerBg,
-                                padding: '1px 2px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                              }}>
-                              <span
-                                style={{
-                                  color: '#fff',
-                                  fontWeight: 700,
-                                  fontSize: '0.75rem',
-                                  letterSpacing: 0.5,
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}>
-                                Invoice No: {invoiceNo}
-                                {isPartial && (
-                                  <span
-                                    style={{ fontSize: '0.6rem', marginLeft: 4, opacity: 0.85 }}>
-                                    (Partial)
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-
-                            {/* Card body - EXACT SAME as before, no changes */}
-                            <div
-                              style={{
-                                padding: '8px 10px 10px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: 5,
-                              }}>
-                              {/* Guest Name */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                <span
-                                  style={{
-                                    width: 18,
-                                    height: 18,
-                                    borderRadius: '50%',
-                                    background: `${headerBg}18`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    flexShrink: 0,
-                                  }}>
-                                  <i
-                                    className="fi fi-rr-user"
-                                    style={{ fontSize: '0.6rem', color: headerBg }}></i>
-                                </span>
-                                <div
-                                  style={{
-                                    fontWeight: 600,
-                                    fontSize: '0.68rem',
-                                    color: '#222',
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    minWidth: 0,
-                                  }}>
-                                  {co.guest_name || '-'}
-                                </div>
-                              </div>
-
-                              <div style={{ height: 1, background: '#f0f0f0' }} />
-
-                              {/* Checkout Date */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                <span
-                                  style={{
-                                    width: 18,
-                                    height: 18,
-                                    borderRadius: '50%',
-                                    background: '#f3f4f6',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    flexShrink: 0,
-                                  }}>
-                                  <i
-                                    className="fi fi-rr-sign-out-alt"
-                                    style={{ fontSize: '0.6rem', color: '#555' }}></i>
-                                </span>
-                                <div
-                                  style={{
-                                    fontWeight: 500,
-                                    fontSize: '0.65rem',
-                                    color: '#333',
-                                    minWidth: 0,
-                                  }}>
-                                  {checkoutDateDisplay}
-                                </div>
-                              </div>
-
-                              {/* Pay Type + Total Amount */}
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  gap: 8,
-                                  borderTop: '1px solid #f0f0f0',
-                                  paddingTop: 4,
-                                }}>
-                                <div
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 4,
-                                    minWidth: 0,
-                                  }}>
-                                  <span
-                                    style={{
-                                      width: 18,
-                                      height: 18,
-                                      borderRadius: '50%',
-                                      background: '#f3f4f6',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      flexShrink: 0,
-                                    }}>
-                                    <i
-                                      className="fi fi-rr-credit-card"
-                                      style={{ fontSize: '0.6rem', color: '#555' }}></i>
-                                  </span>
-                                  <div
-                                    style={{
-                                      fontWeight: 500,
-                                      fontSize: '0.68rem',
-                                      color: '#333',
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                    }}>
-                                    {payType}
-                                  </div>
-                                </div>
-                                <span
-                                  style={{
-                                    fontWeight: 700,
-                                    fontSize: '0.72rem',
-                                    color: '#198754',
-                                    letterSpacing: 0.2,
-                                    flexShrink: 0,
-                                  }}>
-                                  {formatAmount(totalAmt)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
+                style={{
+                  background: headerBg,
+                  padding: '4px 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                <span
+                  style={{
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    letterSpacing: 0.5,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
+                  Invoice: {invoiceNo}
+                  {isPartial && (
+                    <span style={{ fontSize: '0.6rem', marginLeft: 4, opacity: 0.85 }}>
+                      (Partial)
+                    </span>
                   )}
-                </>
+                </span>
               </div>
+
+              {/* ── Card Body ── */}
+              <div
+                style={{
+                  padding: '8px 10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 5,
+                  flexGrow: 1,
+                }}>
+
+                {/* Guest Name */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span
+                    style={{
+                      width: 18, height: 18, borderRadius: '50%',
+                      background: `${headerBg}18`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                    <i className="fi fi-rr-user" style={{ fontSize: '0.6rem', color: headerBg }} />
+                  </span>
+                  <div
+                    style={{
+                      fontWeight: 600, fontSize: '0.68rem', color: '#222',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      minWidth: 0,
+                    }}>
+                    {co.guest_name || '-'}
+                  </div>
+                </div>
+
+                <div style={{ height: 1, background: '#f0f0f0' }} />
+
+                {/* Checkout Date */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span
+                    style={{
+                      width: 18, height: 18, borderRadius: '50%',
+                      background: '#f3f4f6',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                    <i className="fi fi-rr-sign-out-alt" style={{ fontSize: '0.6rem', color: '#555' }} />
+                  </span>
+                  <div style={{ fontWeight: 500, fontSize: '0.65rem', color: '#333', minWidth: 0 }}>
+                    {checkoutDateDisplay}
+                  </div>
+                </div>
+
+                {/* Pay Type + Total Amount */}
+                <div
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: 8, borderTop: '1px solid #f0f0f0', paddingTop: 4,
+                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                    <span
+                      style={{
+                        width: 18, height: 18, borderRadius: '50%',
+                        background: '#f3f4f6',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                      <i className="fi fi-rr-credit-card" style={{ fontSize: '0.6rem', color: '#555' }} />
+                    </span>
+                    <div
+                      style={{
+                        fontWeight: 500, fontSize: '0.68rem', color: '#333',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>
+                      {payType}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontWeight: 700, fontSize: '0.72rem',
+                      color: '#198754', letterSpacing: 0.2, flexShrink: 0,
+                    }}>
+                    {formatAmount(totalAmt)}
+                  </span>
+                </div>
+              </div>
+
+              {/* ── Card Footer — Print & Settle ── */}
+              <div
+                style={{
+                  display: 'flex',
+                  borderTop: `1px solid ${headerBg}25`,
+                }}>
+                {/* Print Button */}
+                <button
+                  onClick={() => handlePrint()}
+                  style={{
+                    flex: 1,
+                    padding: '5px 0',
+                    border: 'none',
+                    borderRight: `1px solid ${headerBg}25`,
+                    background: '#f8f9fa',
+                    color: '#555',
+                    fontSize: '0.65rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 3,
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#e9ecef')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '#f8f9fa')}>
+                  <i className="fi fi-rr-print" style={{ fontSize: '0.6rem' }} />
+                 
+                </button>
+
+                {/* Settle Button */}
+                <button
+  onClick={() => {
+    setSelectedCheckout(co)
+    setShowSettlementModal(true)
+  }}
+  style={{
+    flex: 1,
+    padding: '5px 0',
+    border: 'none',
+    background: headerBg,
+    color: '#fff',
+    fontSize: '0.65rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  }}>
+  <i className="fi fi-rr-wallet" style={{ fontSize: '0.7rem' }} />
+  
+</button>
+              </div>
+
+            </div>
+          )
+        })}
+      </div>
+    )}
+  </>
+
+  {/* ── Settlement Modal ── */}
+{selectedCheckout && (
+  <SettlementModal
+  show={showSettlementModal}
+  onHide={() => {
+    setShowSettlementModal(false)
+    setSelectedCheckout(null)
+  }}
+  onSettle={async (settlements, tip) => {
+    console.log('Settling:', selectedCheckout.checkout_id, settlements, tip)
+    setShowSettlementModal(false)
+    setSelectedCheckout(null)
+  }}
+  grandTotal={Number(selectedCheckout.total_amount) || 0}
+  subtotal={Number(selectedCheckout.total_amount) || 0}
+  loading={false}
+  outletPaymentModes={outletPaymentModes}
+  selectedOutletId={user?.outletid}  
+  table_name={selectedCheckout.room_no || selectedCheckout.table_name || ''}
+  initialCustomerName={selectedCheckout.guest_name || ''}
+  initialMobile={selectedCheckout.mobile || ''}
+  initialCustomerId={selectedCheckout.customer_id || null}
+/>
+)}
+
+</div>
             ) : showReservSection ? (
               /* ==================== RESERV SECTION ==================== */
               <div

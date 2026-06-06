@@ -6,6 +6,7 @@ import { fetchCustomerByMobile } from '@/utils/commonfunction';
 import { Modal, Row, Col, Form, Button, Card } from 'react-bootstrap';
 import toast from 'react-hot-toast';
 
+
 interface PaymentMode {
   id: number;
   mode_name: string;
