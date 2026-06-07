@@ -53,6 +53,7 @@ const CheckoutPaymentService = {
   create: (payload: CheckoutPaymentPayload): Promise<ApiResponse<CheckoutPayment>> =>
     HttpClient.post<ApiResponse<CheckoutPayment>>('/checkout-payments', payload),
 
+
   remove: (id: number): Promise<ApiResponse<null>> =>
     HttpClient.delete<ApiResponse<null>>(`/checkout-payments/${id}`),
 };

@@ -79,7 +79,8 @@ exports.addCheckoutPayment = async (req, res) => {
       payment_method,
       round_off_amount,
       net_payable,
-      created_by_id
+      created_by_id,
+      invoice_no
     } = req.body;
 
     const userId = created_by_id || getCurrentUserId(req);
@@ -89,13 +90,16 @@ exports.addCheckoutPayment = async (req, res) => {
       INSERT INTO Checkout_Payment_Master (
         checkout_id, checkin_id, total_amount, payment_method,
         round_off_amount, net_payable,
-        transaction_datetime, created_by_id, created_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        transaction_datetime, created_by_id, created_date,
+        invoice_no
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       checkout_id, checkin_id, total_amount || 0, payment_method || 'Cash',
       round_off_amount || 0, net_payable || total_amount || 0,
-      created_date, userId, created_date
+      created_date, userId, created_date,
+      invoice_no || ''
     ]);
+
 
     res.status(201).json({
       success: true,
