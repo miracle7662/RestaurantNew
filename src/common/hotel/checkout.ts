@@ -51,14 +51,36 @@ export interface CheckoutMaster {
 }
 
 export interface PerformCheckoutPayload {
-  checkin_id: number;
-  checkout_reason?: string;
-  payment_method?: string;
-  total_amount?: number;
-  round_off_amount?: number;
-  net_payable?: number;
-  selected_rooms?: string[];  // Array of room numbers to checkout (for partial checkout)
+  checkin_id: number
+  checkout_reason?: string
+  payment_method?: string
+
+  total_amount?: number
+  round_off_amount?: number
+  net_payable?: number
+
+  selected_rooms?: string[] // Array of room numbers to checkout (for partial checkout)
+
+  // Billing breakdown fields (used by backend Checkout_Master)
+  discount?: number
+  discount_percent?: number
+  service_charge?: number
+  taxable_amt?: number
+
+  sgst_amt?: number
+  cgst_amt?: number
+  round_off?: number
+  bill_amt?: number
+  other_charges?: number
+  bill_plus_other?: number
+  received_amt?: number
+  credit_transfer?: number
+  sett_disc?: number
+  balance_amt?: number
+
+  total_amt?: number
 }
+
 
 export interface CheckoutResponse {
   checkout_id: number;

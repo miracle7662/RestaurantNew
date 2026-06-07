@@ -1523,11 +1523,40 @@ const RoomDetailSummary = () => {
     setShowCheckoutModal(true)
   }
 
-  const handleConfirmCheckout = async () => {
+const handleConfirmCheckout = async () => {
     if (!combinedSummary) return
     setCheckoutProcessing(true)
     try {
       const finalTotalAmount = grandTotal || combinedSummary.total_amount
+
+      // Billing breakdown (backend expects these fields, but this UI currently
+      // only guarantees total/tax/discount percent. Provide safe derived values.)
+      const totalDiscPct = roundToTwo(selectedRowsForCheckout.reduce((s, r) => s + r.discount_percent, 0))
+      const roomChargeCount = Math.max(
+        1,
+        selectedRowsForCheckout.filter((r) => !r.isPostCharge && r.department_name !== 'Advance').length,
+      )
+      const avgDiscPct = roundToTwo(totalDiscPct / roomChargeCount)
+      const totalDiscAmt = roundToTwo((finalTotalAmount * avgDiscPct) / 100)
+
+      // taxable_amt: treat as subtotal excluding tax
+      const totalTaxAmt = roundToTwo(selectedRowsForCheckout.reduce((s, r) => s + (r.tax_amount || 0), 0))
+      const taxableAmt = roundToTwo(finalTotalAmount - totalTaxAmt)
+
+      // split into cgst/sgst (if taxes are CGST+SGST). If only one exists, keep it.
+      const totalCgst = roundToTwo(selectedRowsForCheckout.reduce((s, r) => s + (r.cgst_amount || 0), 0))
+      const totalSgst = roundToTwo(selectedRowsForCheckout.reduce((s, r) => s + (r.sgst_amount || 0), 0))
+      const totalSvcCharge = roundToTwo(
+        selectedRowsForCheckout.reduce((s, r) => s + (r.service_charge_amount || 0), 0),
+      )
+      const roundOffAmt = 0
+      const billAmt = roundToTwo(taxableAmt)
+      const totalOtherChg = 0
+      const billPlusOther = roundToTwo(billAmt + totalOtherChg)
+      const receivedAmt = roundToTwo(finalTotalAmount)
+      const creditTransfer = 0
+      const settDisc = 0
+      const balanceAmt = roundToTwo(finalTotalAmount)
 
       // ── STEP 1: Fetch the next sequential invoice number from the server ──
       // We do this BEFORE the checkout so we can show the correct invoice number
@@ -1548,12 +1577,29 @@ const RoomDetailSummary = () => {
         checkout_reason: checkoutReason || 'Regular checkout',
         payment_method: combinedSummary.payment_method || 'Cash',
         total_amount: finalTotalAmount,
-        round_off_amount: 0,
+        round_off_amount: roundOffAmt,
         net_payable: finalTotalAmount,
         selected_rooms: Array.from(selectedRooms),
+        // ── Billing fields expected by backend Checkout_Master ──
+        discount: totalDiscAmt,
+        discount_percent: avgDiscPct,
+        service_charge: totalSvcCharge,
+        taxable_amt: taxableAmt,
+        sgst_amt: totalSgst,
+        cgst_amt: totalCgst,
+        round_off: roundOffAmt,
+        bill_amt: billAmt,
+        other_charges: totalOtherChg,
+        bill_plus_other: billPlusOther,
+        received_amt: receivedAmt,
+        credit_transfer: creditTransfer,
+        sett_disc: settDisc,
+        balance_amt: balanceAmt,
+        total_amt: finalTotalAmount,
       })
 
       if (response.success) {
+
         // ── STEP 3: Record the payment with the pre-fetched invoice_no ──
         // Pass invoice_no so the DB stores the same number that the bill modal displays.
         try {

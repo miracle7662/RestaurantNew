@@ -64,6 +64,7 @@ exports.performCheckout = async (req, res) => {
   const connection = await db.getConnection();
   
   try {
+    console.log("Checkout Payload:", req.body);
     await connection.beginTransaction();
     
     const { 
@@ -73,7 +74,23 @@ exports.performCheckout = async (req, res) => {
       total_amount,
       round_off_amount,
       net_payable,
-      selected_rooms = []
+      selected_rooms = [],
+      // ── Billing amount fields from frontend ──
+      discount          = 0,
+      discount_percent  = 0,
+      service_charge    = 0,
+      taxable_amt       = 0,
+      sgst_amt          = 0,
+      cgst_amt          = 0,
+      round_off         = 0,
+      bill_amt          = 0,
+      other_charges     = 0,
+      bill_plus_other   = 0,
+      received_amt      = 0,
+      credit_transfer   = 0,
+      sett_disc         = 0,
+      balance_amt       = 0,
+      total_amt         = 0,
     } = req.body;
     
     const userId = getCurrentUserId(req);
@@ -289,7 +306,7 @@ exports.performCheckout = async (req, res) => {
     // STEP B: INSERT INTO CHECKOUT TABLES
     // ============================================================
     
-    // Insert into Checkout_Master - using calculated sums, not concatenation
+    // Insert into Checkout_Master - using calculated sums + billing fields from frontend
     const [checkoutResult] = await connection.query(`
       INSERT INTO Checkout_Master (
         checkin_id, guest_id, guest_name, address, mobile, company_name, emailed, booking,
@@ -298,8 +315,12 @@ exports.performCheckout = async (req, res) => {
         ex_pax_charge, child_paid, child_unpaid, child_charge, driver, driver_charge,
         hotelid, id_type, id_number, department_id, department_name, created_by_id,
         created_date, updated_by_id, updated_date, status, total_nights, total_amount,
-        checkout_date, checkout_by_id, checkout_reason, is_partial_checkout, checked_out_rooms
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        checkout_date, checkout_by_id, checkout_reason, is_partial_checkout, checked_out_rooms,
+        discount, discount_percent, service_charge, taxable_amt, sgst_amt, cgst_amt,
+        round_off, bill_amt, other_charges, bill_plus_other, received_amt,
+        credit_transfer, sett_disc, balance_amt, total_amt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       checkinData.checkin_id, 
       checkinData.guest_id, 
@@ -345,7 +366,23 @@ exports.performCheckout = async (req, res) => {
       userId, 
       checkout_reason || 'Regular checkout',
       !isFullCheckout ? 1 : 0,
-      JSON.stringify(checkedOutRoomNumbers)
+      JSON.stringify(checkedOutRoomNumbers),
+      // ── Billing fields ──
+      safeDecimal(discount),
+      safeDecimal(discount_percent),
+      safeDecimal(service_charge),
+      safeDecimal(taxable_amt),
+      safeDecimal(sgst_amt),
+      safeDecimal(cgst_amt),
+      safeDecimal(round_off),
+      safeDecimal(bill_amt),
+      safeDecimal(other_charges),
+      safeDecimal(bill_plus_other),
+      safeDecimal(received_amt),
+      safeDecimal(credit_transfer),
+      safeDecimal(sett_disc),
+      safeDecimal(balance_amt),
+      safeDecimal(total_amt),
     ]);
     
     const checkoutId = checkoutResult.insertId;
