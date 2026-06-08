@@ -1759,7 +1759,9 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
     return {
       total: all.length,
       available: all.filter((r) => r.status === 'available').length,
-      occupied: all.filter((r) => r.status === 'occupied').length,
+      occupied: all.filter(
+        (r) => r.status === 'occupied' || r.status === 'bill',
+      ).length,
       cleaning: all.filter((r) => r.status === 'cleaning').length,
       reserved: all.filter((r) => r.status === 'reserved').length,
       maintenance: all.filter((r) => r.status === 'maintenance').length,
@@ -1769,8 +1771,18 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
 
   const roomsAfterStatus = useMemo(() => {
     if (statusFilter === 'all' || statusFilter === 'arrivals') return roomsAfterBasicFilters
+
+    // Special rule for OCCUPIED tab:
+    // include both 'occupied' and 'bill' rooms.
+    if (statusFilter === 'occupied') {
+      return roomsAfterBasicFilters.filter(
+        (room) => room.status === 'occupied' || room.status === 'bill',
+      )
+    }
+
     return roomsAfterBasicFilters.filter((room) => room.status === statusFilter)
   }, [roomsAfterBasicFilters, statusFilter])
+
 
   const groupedFloors: FloorGroup[] = useMemo(() => {
     const grouped = new Map<number, Room[]>()
@@ -1891,11 +1903,13 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
     if (tileClickTimerRef.current) return
     tileClickTimerRef.current = setTimeout(() => {
       tileClickTimerRef.current = null
-      if (room.status === 'occupied') {
+      if (room.status === 'occupied' || room.status === 'bill') {
         const occupiedItem = occupiedRooms.find((item) => item.room_no === room.number)
         if (occupiedItem) {
           handleOccupiedRoomClick(occupiedItem)
         } else {
+          // BILL rooms may not exist inside occupiedRooms (built from active check-ins)
+          // but should still open the room details UI.
           setSelectedRoom(room)
           setShowRoomDetails(true)
         }
