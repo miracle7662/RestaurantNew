@@ -1,9 +1,10 @@
-# TODO (Guest document images upload/fetch)
+# TODO - Hotel Booking Checkout → Room Status + Bill
 
-- [x] Inspect `GuestForm.tsx` and `guestController.js` image URL expectations.
-- [x] Identify mismatch risk: multer writes using `process.execPath` while static serving also depends on it.
-- [x] Make uploads path stable: update `backend/middleware/upload.js` to store under `backend/uploads`.
-- [x] Make static serving match: update `backend/server.js` to serve `/uploads` from `backend/uploads`.
-- [ ] Test: upload a guest document, verify file exists under `backend/uploads/guests/documents/front|back`.
-- [ ] Test: open existing guest, verify UI loads `front_side_url/back_side_url` and browser requests return 200.
+- [ ] Step 1: Add backend logging + guard in `backend/modules/hotelbooking/controllers/checkoutController.js` to confirm:
+  - payload `selected_rooms` received
+  - computed `roomsToCheckout` (room_number/room_id)
+  - that the loop updating `room_master` with `room_status='bill'` runs for the expected rooms
+- [ ] Step 2: Implement backend fixes if selection/update logic is incorrect (based on Step 1 logs)
+- [ ] Step 3: Update frontend “room tiles / RoomStatus” refresh after checkout so UI shows updated `bill` status
+- [ ] Step 4: Test checkout flow end-to-end (partial + full checkout) and verify room status + bill show
 
