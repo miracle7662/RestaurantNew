@@ -371,7 +371,6 @@ const CheckInForm = () => {
   const [showGuestDocsModal, setShowGuestDocsModal] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [pendingGuestLoad, setPendingGuestLoad] = useState<number | null>(null)
-  const [, setOutletPaymentModes] = useState<Array<{id: number; mode_name: string; outletid: number}>>([])
   
 
   // ==================== INVENTORY AUTO-ASSIGN FUNCTION ====================
@@ -588,7 +587,7 @@ const CheckInForm = () => {
           RoomCategoryService.list({ hotelid: hotelId }),
           taxApi.list(),
           FragmentService.list(),
-          PaymentModeService.list({ outletid: user?.outlet_id ? String(user.outlet_id) : undefined }),
+          PaymentModeService.list({ outletid: user?.outletid ? String(user.outletid) : undefined }),
         ])
 
         const countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || []
@@ -661,21 +660,18 @@ const CheckInForm = () => {
 
         // Backend for /payment-modes returns: { id, paymenttypeid, mode_name, ... }
         // So map mode_name -> dropdown name.
-        const mappedPaymentMethods = paymentMethodsData
+  const mappedPaymentMethods = paymentMethodsData
   .map((pm: any) => {
     const modeName = pm.mode_name || ''
-
-    const safeName = String(modeName).trim()
+    const safeName = modeName.trim()
     if (!safeName) return null
-
     return {
       id: pm.id ?? pm.paymenttypeid,
       name: safeName,
       payment_method_name: safeName,
     }
   })
-  .filter(Boolean)
-          .filter(Boolean) as Array<{ id: number; name: string; payment_method_name: string }>
+  .filter((item): item is { id: number; name: string; payment_method_name: string } => item !== null)
 
         setPaymentMethods(mappedPaymentMethods)
         const cashMethod = mappedPaymentMethods.find(
@@ -702,19 +698,7 @@ const CheckInForm = () => {
       fetchMasterData()
     }
   }, [hotelId])
-    useEffect(() => {
-    if (!user?.outletid) return
-    const fetchPaymentModes = async () => {
-      try {
-        const res = await PaymentModeService.list({ outletid: user.outletid })
-        console.log("Request Outlet:", user?.outlet_id)
-        setOutletPaymentModes(res.data || [])
-      } catch (err) {
-        console.error('Failed to fetch payment modes', err)
-      }
-    }
-    fetchPaymentModes()
-  }, [user?.outletid])
+  
 
   // Sentinel value for the "Self" option
   const SELF_AGENT_VALUE = '__SELF__'
