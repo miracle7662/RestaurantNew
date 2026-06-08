@@ -52,6 +52,7 @@ const OutletPaymentModeService = {
   list: (params?: PaymentModeListParams): Promise<ApiResponse<PaymentModeData[]>> =>
     HttpClient.get<ApiResponse<PaymentModeData[]>>('/payment-modes', { params }),
 
+ 
   /**
    * Create a new outlet payment mode
    */
