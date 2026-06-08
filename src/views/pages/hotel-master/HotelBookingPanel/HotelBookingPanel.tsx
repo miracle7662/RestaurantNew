@@ -79,7 +79,7 @@ const DEFAULT_STATUS_TEXT = {
 const DEFAULT_STATUS_BORDER = {
   available: '#9CA3AF',
   occupied: '#4ADE80',
-  cleaning: '#FACC15',
+  cleaning: '#FACC15',  
   reserved: '#38BDF8',
   maintenance: '#F87171',
   reservation: '#38BDF8',
@@ -92,7 +92,7 @@ interface ApiRoom {
   room_name: string
   display_name?: string
   room_category_id: number
-  room_status: 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
+  room_status: 'available' | 'occupied' | 'cleaning' |'bill' |'reserved' | 'maintenance' | 'reservation'
   floor_id: number
   block_id?: number
   hotelid: number
@@ -116,7 +116,7 @@ interface ApiCategory {
   service_charge?: number
 }
 
-type RoomStatus = 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
+type RoomStatus = 'available' | 'occupied' | 'cleaning'|'bill' | 'reserved' | 'maintenance' | 'reservation'
 type ViewMode = 'floor' | 'category'
 
 interface Room {
@@ -474,7 +474,7 @@ const HotelBookingPanel = () => {
   const [loadingAtGlance, setLoadingAtGlance] = useState(false)
   const [errorAtGlance, setErrorAtGlance] = useState<string | null>(null)
   const [atGlanceFilter, setAtGlanceFilter] = useState<
-    'all' | 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance'
+    'all' | 'available' | 'occupied' | 'cleaning' |'bill'| 'reserved' | 'maintenance'
   >('all')
 
   const [showContextMenu, setShowContextMenu] = useState(false)
@@ -554,7 +554,7 @@ const HotelBookingPanel = () => {
     number: string
     category: string
     floor: string
-    status: 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
+    status: 'available' | 'occupied' | 'cleaning' |'bill'| 'reserved' | 'maintenance' | 'reservation'
   } | null>(null)
 
   // ==================== MULTI-ROOM STATUS MODAL STATE ====================
@@ -1811,6 +1811,8 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
         return 'Occupied'
       case 'cleaning':
         return 'Cleaning'
+          case 'bill':
+        return 'bill'
       case 'reserved':
         return 'Reserved'
       case 'maintenance':
@@ -3344,7 +3346,7 @@ const handleViewChange = () => {
                   <Button
                     size="sm"
                     onClick={() => handleStatusFilterClick('occupied')}
-                    className={`fw-semibold px-3 same-btn ${statusFilter === 'occupied' ? 'btn-status-occupied' : 'btn-outline-status-occupied'}`}>
+                    className={`fw-semibold px-3 same-btn ${ statusFilter === 'occupied' || statusFilter === 'bill'? 'btn-status-occupied': 'btn-outline-status-occupied'}`}>
                     <i className="fi fi-rr-user me-1"></i>OCCUPIED [{stats.occupied}]
                   </Button>
                   <Button
