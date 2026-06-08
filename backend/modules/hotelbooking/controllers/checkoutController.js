@@ -576,7 +576,7 @@ exports.performCheckout = async (req, res) => {
     for (const detail of roomsToCheckout) {
       await connection.query(
         `UPDATE room_master 
-         SET room_status = 'cleaning', updated_by_id = ?, updated_date = ? 
+         SET room_status = 'bill', updated_by_id = ?, updated_date = ? 
          WHERE room_id = ?`,
         [userId, nowStr, detail.room_id]
       );
