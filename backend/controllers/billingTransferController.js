@@ -28,33 +28,101 @@ exports.getDepartments = async (req, res) => {
 };
 exports.getBills = async (req, res) => {
   try {
-
     const { date, departmentid, outletid } = req.query;
 
-    const sql = `
+    // 1. Bills list – sabhi billed & uncancelled bills (department & outlet ke hisaab se)
+    const billsSql = `
     SELECT
-        tb.TxnID,
-        tb.TxnNo,
-        tb.Amount,
-        tb.TxnDatetime
+    tb.TxnID,
+    tb.TxnNo,
+    tb.Amount,
+    tb.TxnDatetime
+
+FROM TAxnTrnBill tb
+
+WHERE DATE(tb.TxnDatetime) = ?
+    AND tb.DeptID = ?
+    AND tb.outletid = ?
+    AND tb.isBilled = 1
+    AND tb.isCancelled = 0
+
+    
+    
+    AND EXISTS (
+        SELECT 1
+        FROM trnsettlement ts1
+        WHERE ts1.TxnID = tb.TxnID
+        AND ts1.PaymentType = 'Cash'
+    )
+
+    
+    -- Cash + ICICI / mixed payment exclude
+    AND NOT EXISTS (
+        SELECT 1
+        FROM trnsettlement ts2
+        WHERE ts2.TxnID = tb.TxnID
+        AND ts2.PaymentType <> 'Cash'
+    )
+
+ORDER BY tb.TxnNo ASC;
+    `;
+    const [bills] = await db.query(billsSql, [date, departmentid, outletid]);
+
+    // 2. Totals query – cashTotal, creditTotal, billingTotal (aapki di hui)
+    const totalsSql = `
+      SELECT 
+        COALESCE(SUM(
+          CASE 
+            -- Pure Cash bills
+            WHEN EXISTS (
+              SELECT 1 FROM trnsettlement ts1
+              WHERE ts1.TxnID = tb.TxnID AND ts1.PaymentType = 'Cash'
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM trnsettlement ts2
+              WHERE ts2.TxnID = tb.TxnID AND ts2.PaymentType <> 'Cash'
+            )
+            THEN tb.Amount ELSE 0
+          END
+        ), 0) AS cashTotal,
+
+        COALESCE(SUM(
+          CASE 
+            -- Credit bills (non-Cash or no settlement)
+            WHEN EXISTS (
+              SELECT 1 FROM trnsettlement ts3
+              WHERE ts3.TxnID = tb.TxnID AND ts3.PaymentType <> 'Cash'
+            )
+            OR NOT EXISTS (
+              SELECT 1 FROM trnsettlement ts4
+              WHERE ts4.TxnID = tb.TxnID
+            )
+            THEN tb.Amount ELSE 0
+          END
+        ), 0) AS creditTotal,
+
+        COALESCE(SUM(tb.Amount), 0) AS billingTotal
+
       FROM TAxnTrnBill tb
-       left join trnsettlement ts on ts.TxnID=tb.TxnID
-      WHERE DATE(TxnDatetime) = ?
-      AND tb.DeptID = ?
-      AND tb.outletid =?
-      AND tb.isBilled = 1
-      AND tb.isCancelled = 0
-      and ts.PaymentType='Cash'
-      ORDER BY TxnNo asc
+      WHERE DATE(tb.TxnDatetime) = ?
+        AND tb.outletid = ?
+        AND tb.isBilled = 1
+        AND tb.isDayEnd = 1
+        AND (tb.isSetteled = 1 OR tb.isreversebill = 1)
     `;
 
-    const [rows] = await db.query(sql, [
-      date,
-      departmentid,
-      outletid
-    ]);
+    const [totalsRows] = await db.query(totalsSql, [date, outletid]);
+    const cashTotal = Number(totalsRows[0]?.cashTotal ?? 0);
+    const creditTotal = Number(totalsRows[0]?.creditTotal ?? 0);
+    const billingTotal = Number(totalsRows[0]?.billingTotal ?? 0);
 
-    res.json(rows);
+    // 3. Sab kuch ek saath bhejo
+    res.json({
+      bills: bills,
+      cashTotal: cashTotal,
+      creditTotal: creditTotal,
+      billingTotal: billingTotal
+    });
 
   } catch (error) {
     console.log(error);
