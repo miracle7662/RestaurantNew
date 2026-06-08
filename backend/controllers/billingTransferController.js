@@ -32,18 +32,20 @@ exports.getBills = async (req, res) => {
     const { date, departmentid, outletid } = req.query;
 
     const sql = `
-      SELECT
-        TxnID,
-        TxnNo,
-        Amount,
-        TxnDatetime
-      FROM TAxnTrnBill
+    SELECT
+        tb.TxnID,
+        tb.TxnNo,
+        tb.Amount,
+        tb.TxnDatetime
+      FROM TAxnTrnBill tb
+       left join trnsettlement ts on ts.TxnID=tb.TxnID
       WHERE DATE(TxnDatetime) = ?
-      AND DeptID = ?
-      AND outletid = ?
-      AND isBilled = 1
-      AND isCancelled = 0
-      ORDER BY TxnID DESC
+      AND tb.DeptID = ?
+      AND tb.outletid =?
+      AND tb.isBilled = 1
+      AND tb.isCancelled = 0
+      and ts.PaymentType='Cash'
+      ORDER BY TxnNo asc
     `;
 
     const [rows] = await db.query(sql, [
