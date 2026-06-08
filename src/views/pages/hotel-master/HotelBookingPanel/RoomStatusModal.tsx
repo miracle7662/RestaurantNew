@@ -17,14 +17,14 @@ interface RoomStatusModalProps {
     number: string
     category: string
     floor: string
-    status: 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
+    status: 'available' | 'occupied' | 'cleaning' | 'bill'|'reserved' | 'maintenance' | 'reservation'
   } | null
   rooms?: {
     id: number
     number: string
     category: string
     floor: string
-    status: 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
+    status: 'available' | 'occupied' | 'cleaning' | 'bill'|'reserved' | 'maintenance' | 'reservation'
   }[]
   hotelId: number
   userId?: number
