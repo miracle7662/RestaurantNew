@@ -29,7 +29,6 @@ import Advance from './Advance'
 import RoomStatusModal from './RoomStatusModal'
 import RoomStatusLogService, { RoomStatusLog } from '@/common/hotel/roomStatusLog'
 import SettlementModal from './SettelmentModel';
-import useauthcontext from '@/common/context/useAuthContext'
 import PaymentModeService from '@/common/api/outletpaymentmode'
 // ya jo bhi aapka payment modes service path hai
 
@@ -2703,7 +2702,7 @@ const handleViewChange = () => {
       wrapper.appendChild(headerDiv)
       const tableClone = table.cloneNode(true) as HTMLElement
       tableClone.querySelectorAll('thead tr, tfoot tr').forEach((el) => {
-        ;(el as HTMLElement).style.position = 'static'
+        (el as HTMLElement).style.position = 'static'
       })
       wrapper.appendChild(tableClone)
       document.body.appendChild(wrapper)
@@ -4270,11 +4269,11 @@ const handleViewChange = () => {
                 flexDirection: 'column',
               }}
               onMouseEnter={(e) => {
-                ;(e.currentTarget as HTMLElement).style.boxShadow = '0 6px 22px rgba(0,0,0,0.16)'
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 22px rgba(0,0,0,0.16)'
                 ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
               }}
               onMouseLeave={(e) => {
-                ;(e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.10)'
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.10)'
                 ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
               }}>
 

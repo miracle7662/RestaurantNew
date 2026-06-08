@@ -28,7 +28,7 @@ import CheckInService from '@/common/hotel/checkIn'
 import DetailService from '@/common/hotel/detail'
 import GuestFolioService from '@/common/hotel/guestFolio'
 import GuestRoomChargesService from '@/common/hotel/guestRoomCharges'
-import PaymentMethodService from '@/common/hotel/paymentMethod'
+import PaymentModeService from '@/common/api/outletpaymentmode'
 import travelAgentApi from '@/common/hotel/travelagent'
 import AgentRoomCheckinService from '@/common/hotel/agentRoomCheckin'
 import StockService from '@/common/hotel/stock'
@@ -371,6 +371,8 @@ const CheckInForm = () => {
   const [showGuestDocsModal, setShowGuestDocsModal] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [pendingGuestLoad, setPendingGuestLoad] = useState<number | null>(null)
+  const [, setOutletPaymentModes] = useState<Array<{id: number; mode_name: string; outletid: number}>>([])
+  
 
   // ==================== INVENTORY AUTO-ASSIGN FUNCTION ====================
   const autoAssignAmenities = async (checkinId: number, roomId: number, guestCount: number) => {
@@ -586,7 +588,7 @@ const CheckInForm = () => {
           RoomCategoryService.list({ hotelid: hotelId }),
           taxApi.list(),
           FragmentService.list(),
-          PaymentMethodService.list({ status: 1 }),
+          PaymentModeService.list({ outletid: user?.outlet_id ? String(user.outlet_id) : undefined }),
         ])
 
         const countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || []
@@ -656,11 +658,25 @@ const CheckInForm = () => {
         const paymentMethodsData = Array.isArray(paymentMethodsRes)
           ? paymentMethodsRes
           : paymentMethodsRes?.data || []
-        const mappedPaymentMethods = paymentMethodsData.map((pm: any) => ({
-          id: pm.id,
-          name: pm.payment_method_name || pm.name,
-          payment_method_name: pm.payment_method_name || pm.name,
-        }))
+
+        // Backend for /payment-modes returns: { id, paymenttypeid, mode_name, ... }
+        // So map mode_name -> dropdown name.
+        const mappedPaymentMethods = paymentMethodsData
+  .map((pm: any) => {
+    const modeName = pm.mode_name || ''
+
+    const safeName = String(modeName).trim()
+    if (!safeName) return null
+
+    return {
+      id: pm.id ?? pm.paymenttypeid,
+      name: safeName,
+      payment_method_name: safeName,
+    }
+  })
+  .filter(Boolean)
+          .filter(Boolean) as Array<{ id: number; name: string; payment_method_name: string }>
+
         setPaymentMethods(mappedPaymentMethods)
         const cashMethod = mappedPaymentMethods.find(
           (pm: any) => pm.payment_method_name?.toLowerCase() === 'cash'
@@ -686,6 +702,19 @@ const CheckInForm = () => {
       fetchMasterData()
     }
   }, [hotelId])
+    useEffect(() => {
+    if (!user?.outletid) return
+    const fetchPaymentModes = async () => {
+      try {
+        const res = await PaymentModeService.list({ outletid: user.outletid })
+        console.log("Request Outlet:", user?.outlet_id)
+        setOutletPaymentModes(res.data || [])
+      } catch (err) {
+        console.error('Failed to fetch payment modes', err)
+      }
+    }
+    fetchPaymentModes()
+  }, [user?.outletid])
 
   // Sentinel value for the "Self" option
   const SELF_AGENT_VALUE = '__SELF__'
@@ -809,10 +838,13 @@ const CheckInForm = () => {
     return [walkInOption, ...companyOpts]
   }, [companies])
 
-  const paymentMethodOptions: Option[] = useMemo(
-    () => paymentMethods.map((pm) => ({ label: pm.name, value: pm.payment_method_name })),
-    [paymentMethods],
-  )
+const paymentMethodOptions: Option[] = useMemo(
+  () => paymentMethods.map((pm) => ({
+    label: pm.name,
+    value: pm.payment_method_name,
+  })),
+  [paymentMethods],
+)
 
   const loadAllGuests = async () => {
     if (!hotelId) return
