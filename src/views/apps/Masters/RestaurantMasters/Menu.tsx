@@ -58,7 +58,7 @@ interface MenuItem {
   outletid: number | null;
   outlet_name: string | null;
   item_rate: number | null;
-  unitid:  number | null;
+  unitid: number | null;
   servingunitid: number | null;
   IsConversion: number | null;
   // 🔥 NEW STOCK FIELDS + RAW MATERIALS 🔥
@@ -74,8 +74,8 @@ interface MenuItem {
   store_name?: number | null;
 
   // For department-wise rates
-   department_details?: any[];
-  
+  department_details?: any[];
+
 }
 
 interface CardItem {
@@ -99,7 +99,7 @@ interface DepartmentRate {
   IsConversion: number;
   variant_rates: { [variant_value_id: number]: number };
   taxgroupid: number | null;
-   value_name: string | null;
+  value_name: string | null;
 }
 
 interface NewItem {
@@ -173,7 +173,7 @@ const Menu: React.FC = () => {
         hotelid: user?.hotelid,
         outletid: user?.outletid
       });
-      
+
       if (response.success) {
         const menuData = response.data || [];
         setData(menuData);
@@ -205,7 +205,7 @@ const Menu: React.FC = () => {
       setError(null);
 
       const response = await MenuService.list({ hotelid, outletid });
-      
+
       if (response.success) {
         // console.log('Fetched menu items:', response.data);
         setMenuItems(response.data || []);
@@ -284,13 +284,13 @@ const Menu: React.FC = () => {
           MenuService.updateStatus(item.restitemid, newStatus, user?.id)
         );
         const responses = await Promise.all(promises);
-        
+
         // Check if all updates were successful
         const allSuccess = responses.every(res => res.success);
         if (!allSuccess) {
           throw new Error('Failed to update some items');
         }
-        
+
         // Update local state after successful API calls
         const updatedItems = menuItems.map((item) =>
           item.item_group_id === groupId ? { ...item, status: newStatus } : item
@@ -371,98 +371,98 @@ const Menu: React.FC = () => {
             >
               Add Item
             </Button>
-            
-<Button
-  variant="outline-success"
-  size="sm"
-  onClick={async () => {
-    try {
-      const response = await MenuService.exportMenu(user?.hotelid, user?.outletid);
-      // Handle both cases: response is the blob directly OR response contains the blob
-      let blob: Blob;
 
-      if (response instanceof Blob) {
-        blob = response;
-      } else if (response?.data instanceof Blob) {
-        blob = response.data;
-      } else if (response?.config?.responseType === 'blob' && response?.data) {
-        blob = response.data;
-      } else {
-        blob = new Blob([response], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        });
-      }
+            <Button
+              variant="outline-success"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const response = await MenuService.exportMenu(user?.hotelid, user?.outletid);
+                  // Handle both cases: response is the blob directly OR response contains the blob
+                  let blob: Blob;
 
-      if (!blob || blob.size === 0) {
-        const text = await blob?.text();
-        console.error('Empty blob, text content:', text);
-        throw new Error('Generated file is empty');
-      }
+                  if (response instanceof Blob) {
+                    blob = response;
+                  } else if (response?.data instanceof Blob) {
+                    blob = response.data;
+                  } else if (response?.config?.responseType === 'blob' && response?.data) {
+                    blob = response.data;
+                  } else {
+                    blob = new Blob([response], {
+                      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    });
+                  }
 
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `menu_items_export_${Date.now()}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+                  if (!blob || blob.size === 0) {
+                    const text = await blob?.text();
+                    console.error('Empty blob, text content:', text);
+                    throw new Error('Generated file is empty');
+                  }
 
-      toast.success(`Exported ${blob.size} bytes successfully`);
-    } catch (err: any) {
-      console.error('Export error:', err);
-      toast.error(err?.message || 'Failed to export menu');
-    }
-  }}
-  style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500' }}
-  title="Export Menu"
->
-  Export
-</Button>
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.setAttribute('download', `menu_items_export_${Date.now()}.xlsx`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(url);
 
-<Button
-  variant="outline-primary"
-  size="sm"
-  onClick={() => {
-    const hotelName = user?.hotel_name || '';
-    const outletName = user?.outlet_name || '';
+                  toast.success(`Exported ${blob.size} bytes successfully`);
+                } catch (err: any) {
+                  console.error('Export error:', err);
+                  toast.error(err?.message || 'Failed to export menu');
+                }
+              }}
+              style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500' }}
+              title="Export Menu"
+            >
+              Export
+            </Button>
 
-    // Include department details for each item
-    const items = data.map((d) => ({
-      restitemid: d.restitemid,
-      item_no: d.item_no,
-      item_name: d.item_name,
-      print_name: d.print_name,
-      short_name: d.short_name,
-      kitchen_category_id: d.kitchen_category_id,
-      kitchen_sub_category_id: d.kitchen_sub_category_id,
-      kitchen_main_group_id: d.kitchen_main_group_id,
-      item_group_id: d.item_group_id,
-      item_main_group_id: d.item_main_group_id,
-      price: d.price,
-      status: d.status,
-      groupname: d.groupname,
-      // Include department details for department-wise rates
-      department_details: d.department_details || []
-    }));
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={() => {
+                const hotelName = user?.hotel_name || '';
+                const outletName = user?.outlet_name || '';
 
-    sessionStorage.setItem('menuPrintItems', JSON.stringify(items));
-    sessionStorage.setItem('menuPrintHotelName', JSON.stringify(hotelName));
-    sessionStorage.setItem('menuPrintOutletName', JSON.stringify(outletName));
-    sessionStorage.setItem('menuPrintDate', new Date().toLocaleDateString('en-IN'));
+                // Include department details for each item
+                const items = data.map((d) => ({
+                  restitemid: d.restitemid,
+                  item_no: d.item_no,
+                  item_name: d.item_name,
+                  print_name: d.print_name,
+                  short_name: d.short_name,
+                  kitchen_category_id: d.kitchen_category_id,
+                  kitchen_sub_category_id: d.kitchen_sub_category_id,
+                  kitchen_main_group_id: d.kitchen_main_group_id,
+                  item_group_id: d.item_group_id,
+                  item_main_group_id: d.item_main_group_id,
+                  price: d.price,
+                  status: d.status,
+                  groupname: d.groupname,
+                  // Include department details for department-wise rates
+                  department_details: d.department_details || []
+                }));
 
-    window.location.hash = '#/apps/Masters/RestaurantMasters/MenuPrintPreview';
-  }}
-  title="Print Menu"
-  style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'8px 18px', borderRadius:'10px', background:'linear-gradient(135deg,#1a73e8,#1557b0)', border:'none', color:'#fff', fontSize:'14px', fontWeight:'500', boxShadow:'0 2px 8px rgba(26,115,232,0.35)', cursor:'pointer' }}
->
-  <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:'26px', height:'26px', borderRadius:'6px', background:'rgba(255,255,255,0.18)' }}>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
-    </svg>
-  </span>
-  
-</Button>
+                sessionStorage.setItem('menuPrintItems', JSON.stringify(items));
+                sessionStorage.setItem('menuPrintHotelName', JSON.stringify(hotelName));
+                sessionStorage.setItem('menuPrintOutletName', JSON.stringify(outletName));
+                sessionStorage.setItem('menuPrintDate', new Date().toLocaleDateString('en-IN'));
+
+                window.location.hash = '#/apps/Masters/RestaurantMasters/MenuPrintPreview';
+              }}
+              title="Print Menu"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 18px', borderRadius: '10px', background: 'linear-gradient(135deg,#1a73e8,#1557b0)', border: 'none', color: '#fff', fontSize: '14px', fontWeight: '500', boxShadow: '0 2px 8px rgba(26,115,232,0.35)', cursor: 'pointer' }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '6px', background: 'rgba(255,255,255,0.18)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" />
+                </svg>
+              </span>
+
+            </Button>
 
           </div>
         </div>
@@ -595,80 +595,80 @@ const Menu: React.FC = () => {
                     data.find((d) => d.restitemid === Number(item.userId))?.item_group_id === selectedItemGroup
                 )
                 .map((item, index) => {
-                const menuItem = data.find((p) => p.restitemid === Number(item.userId));
-                const isActive = item.cardStatus === '✅ Available';
+                  const menuItem = data.find((p) => p.restitemid === Number(item.userId));
+                  const isActive = item.cardStatus === '✅ Available';
 
-                return (
-                  <Col key={index}>
-                    <Card
-                      className="shadow-sm border-0 h-100"
-                      style={{ borderRadius: '12px', backgroundColor: '#fff', transition: 'transform 0.2s, box-shadow 0.2s', minHeight: '120px' }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.1)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
-                      }}
-                    >
-                      <Card.Body className="d-flex align-items-center p-2 p-md-3">
-                        <div className="me-2 me-md-3">
-                          <i className="fi fi-rr-coffee" style={{ fontSize: '18px', color: '#3b82f6' }}></i>
-                        </div>
-                        <div className="flex-grow-1">
-                          <Card.Title className="mb-1 text-wrap" style={{ fontSize: '14px', fontWeight: '600', color: '#1a202c' }}>
-                            {item.ItemName} ({item.aliasName})
-                          </Card.Title>
-                          <Card.Text style={{ fontSize: '12px', color: '#6b7280' }}>
-                            {item.itemId} <br /> ₹{item.price} <br /> ({item.visits} visits)
-                          </Card.Text>
-                        </div>
-                        <div className="d-flex flex-column align-items-center gap-2">
-                          <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            onClick={() => menuItem && handleEditItem(menuItem)}
-                            title="Edit Item"
-                            style={{ border: 'none', background: 'transparent', padding: '4px', color: '#6b7280' }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
-                              <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z" />
-                              <path fillRule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z" />
-                            </svg>
-                          </Button>
-                          <Button
-                            variant="outline-success"
-                            size="sm"
-                            onClick={() => menuItem && handleToggleStatus(item.userId)}
-                            style={{
-                              borderRadius: '15px',
-                              width: '40px',
-                              height: '20px',
-                              padding: '0',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: isActive ? 'flex-end' : 'flex-start',
-                              backgroundColor: isActive ? '#28a745' : '#6c757d',
-                              border: 'none',
-                            }}
-                          >
-                            <div
+                  return (
+                    <Col key={index}>
+                      <Card
+                        className="shadow-sm border-0 h-100"
+                        style={{ borderRadius: '12px', backgroundColor: '#fff', transition: 'transform 0.2s, box-shadow 0.2s', minHeight: '120px' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-4px)';
+                          e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
+                        }}
+                      >
+                        <Card.Body className="d-flex align-items-center p-2 p-md-3">
+                          <div className="me-2 me-md-3">
+                            <i className="fi fi-rr-coffee" style={{ fontSize: '18px', color: '#3b82f6' }}></i>
+                          </div>
+                          <div className="flex-grow-1">
+                            <Card.Title className="mb-1 text-wrap" style={{ fontSize: '14px', fontWeight: '600', color: '#1a202c' }}>
+                              {item.ItemName} ({item.aliasName})
+                            </Card.Title>
+                            <Card.Text style={{ fontSize: '12px', color: '#6b7280' }}>
+                              {item.itemId} <br /> ₹{item.price} <br /> ({item.visits} visits)
+                            </Card.Text>
+                          </div>
+                          <div className="d-flex flex-column align-items-center gap-2">
+                            <Button
+                              variant="outline-secondary"
+                              size="sm"
+                              onClick={() => menuItem && handleEditItem(menuItem)}
+                              title="Edit Item"
+                              style={{ border: 'none', background: 'transparent', padding: '4px', color: '#6b7280' }}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" className="bi bi-pencil-square" viewBox="0 0 16 16">
+                                <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z" />
+                                <path fillRule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z" />
+                              </svg>
+                            </Button>
+                            <Button
+                              variant="outline-success"
+                              size="sm"
+                              onClick={() => menuItem && handleToggleStatus(item.userId)}
                               style={{
-                                width: '16px',
-                                height: '16px',
-                                backgroundColor: 'white',
-                                borderRadius: '50%',
-                                margin: '2px',
+                                borderRadius: '15px',
+                                width: '40px',
+                                height: '20px',
+                                padding: '0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: isActive ? 'flex-end' : 'flex-start',
+                                backgroundColor: isActive ? '#28a745' : '#6c757d',
+                                border: 'none',
                               }}
-                            />
-                          </Button>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                );
-              })}
+                            >
+                              <div
+                                style={{
+                                  width: '16px',
+                                  height: '16px',
+                                  backgroundColor: 'white',
+                                  borderRadius: '50%',
+                                  margin: '2px',
+                                }}
+                              />
+                            </Button>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  );
+                })}
             </Row>
           </div>
         </div>
@@ -713,7 +713,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [stockUnit, setStockUnit] = useState<number | null>(mstmenu?.stock_unit ? Number(mstmenu.stock_unit) : null);
   const [price, setPrice] = useState<string>(mstmenu?.price ? mstmenu.price.toString() : '');
   const [taxgroupid, setTaxgroupid] = useState<number | null>(mstmenu?.taxgroupid || null);
-  
+
   const [runtimeRates, setRuntimeRates] = useState(!!mstmenu?.is_runtime_rates);
   const [isCommonToAllDepartments, setIsCommonToAllDepartments] = useState(!!mstmenu?.is_common_to_all_departments);
   const [itemDescription, setItemDescription] = useState<string | null>(mstmenu?.item_description || null);
@@ -783,7 +783,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       setConsumeRawOnBill(false);
       setConsumeRawOnKot(false);
       setStoreNameId(null);
-      
+
       // Fetch max item number for auto-generation when adding new item
       if (!isEdit) {
         await fetchMaxItemNo();
@@ -877,7 +877,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [selectedVariantType, setSelectedVariantType] = useState<string>("");
   const [showVariantValueModal, setShowVariantValueModal] = useState<boolean>(false);
   const [selectedVariantValues, setSelectedVariantValues] = useState<number[]>([]);
-// 🔥 NEW STOCK FIELDS + RAW MATERIALS STATE 🔥
+  // 🔥 NEW STOCK FIELDS + RAW MATERIALS STATE 🔥
   const [isIngredientsRequired, setIsIngredientsRequired] = useState(false);
   const [consumeOnBill, setConsumeOnBill] = useState(true);
   const [reverseStockCancelKot, setReverseStockCancelKot] = useState(false);
@@ -933,19 +933,19 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           }
 
           let initialDepartmentRates: DepartmentRate[] = [];
-          
+
           // Create a map of existing department rates for quick lookup
           const existingRatesMap: { [deptId: number]: any } = {};
-          
+
           if (isEdit && mstmenu?.restitemid) {
             try {
               const itemDetailsResponse = await MenuService.getById(mstmenu.restitemid);
-              
+
               if (itemDetailsResponse.success) {
                 const itemDetails = itemDetailsResponse.data;
-                
+
                 // console.log('Item details fetched:', itemDetails);
-                
+
                 // Extract variant values from department_details
                 const existingVariantValueIds: number[] = [];
                 if (itemDetails.department_details) {
@@ -955,11 +955,11 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     }
                   });
                 }
-                
+
                 // Set selected variant values if any
                 if (existingVariantValueIds.length > 0) {
                   setSelectedVariantValues(existingVariantValueIds);
-                  
+
                   // Try to find the variant type from the variant values
                   for (const vt of variantTypes) {
                     const matchingValue = vt.values.find(v => existingVariantValueIds.includes(v.variant_value_id));
@@ -969,7 +969,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     }
                   }
                 }
-                
+
                 // Group department details by departmentid to create variant_rates
                 if (itemDetails.department_details) {
                   itemDetails.department_details.forEach((detail: any) => {
@@ -995,7 +995,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                       existingRatesMap[deptId].value_name = detail.variant_value_name;
                     } else {
                       // For simple products
-                      existingRatesMap[deptId].rate = detail.item_rate || 0;
+                      existingRatesMap[deptId].rate = (detail.item_rate !== undefined && detail.item_rate !== null) ? Number(detail.item_rate) : 0;
                     }
                   });
                 }
@@ -1013,9 +1013,9 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               return {
                 departmentid: existingRate.departmentid,
                 departmentName: existingRate.departmentName || dept.department_name,
-                rate: existingRate.rate || 0,
-                half_rate: existingRate.half_rate || 0,
-                full_rate: existingRate.full_rate || 0,
+                rate: (existingRate.rate !== undefined && existingRate.rate !== null) ? existingRate.rate : 0,
+                half_rate: (existingRate.half_rate !== undefined && existingRate.half_rate !== null) ? existingRate.half_rate : 0,
+                full_rate: (existingRate.full_rate !== undefined && existingRate.full_rate !== null) ? existingRate.full_rate : 0,
                 unitid: existingRate.unitid || null,
                 servingunitid: existingRate.servingunitid || null,
                 IsConversion: existingRate.IsConversion || 0,
@@ -1079,14 +1079,14 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
     // Determine if this is a variant product
     const isVariantProduct = selectedVariantType && selectedVariantType !== "simple" && selectedVariantValues.length > 0;
-    
+
     // Get the variant type ID
     const currentVariantType = getCurrentVariantType();
     const variantTypeId = isVariantProduct && currentVariantType ? currentVariantType.variant_type_id : null;
 
     setLoading(true);
-    
-// Build department details based on product type
+
+    // Build department details based on product type
     let departmentDetailsPayload;
     if (isVariantProduct) {
       // For variant products: send variant_rates for each department
@@ -1094,9 +1094,9 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         restitemid: isEdit && mstmenu ? mstmenu.restitemid : 0,
         departmentid,
         department_name: departments.find((d) => d.departmentid === departmentid)?.department_name || '',
-        item_rate: rate || 0, // fallback rate
+        item_rate: (rate !== undefined && rate !== null && !isNaN(rate)) ? rate : 0,
         unitid: unitid ?? stockUnit ?? 0,
-      
+
         servingunitid: servingunitid ?? 0,
         IsConversion,
         variant_rates: variant_rates || {}, // Object with variant_value_id -> rate mapping
@@ -1110,7 +1110,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         restitemid: isEdit && mstmenu ? mstmenu.restitemid : 0,
         departmentid,
         department_name: departments.find((d) => d.departmentid === departmentid)?.department_name || '',
-        item_rate: rate && rate > 0 ? rate : parseFloat(price),
+        item_rate: (rate !== undefined && rate !== null && !isNaN(rate)) ? rate : 0,  // ✅ 0 stays 0
         unitid: unitid ?? stockUnit ?? 0,
         servingunitid: servingunitid ?? 0,
         IsConversion,
@@ -1211,7 +1211,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         setPrice('');
         // Note: Item Main Group, Item Group, Kitchen Main Group, Kitchen Category, Kitchen Sub Category
         // are kept as per requirement - only reset when modal is closed
-        
+
         // Reset department rates - keep the departments but reset rates
         setNewItem((prev) => ({
           ...prev,
@@ -1224,7 +1224,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             value_name: null,
           })),
         }));
-        
+
         // Generate new item number for the next item
         await fetchMaxItemNo();
       }
@@ -1248,10 +1248,10 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           <button type="button" className="btn-close btn-close-dark" onClick={onHide} aria-label="Close"></button>
         </div>
       </div>
-      
+
       <Modal.Body className="bg-light p-2">
         <Form>
-{/* Section 1: Basic Information */}
+          {/* Section 1: Basic Information */}
           <Card className="mb-3 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#ffffff' }}>
             <Card.Body className="p-3">
               <Row className="g-3">
@@ -1331,7 +1331,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             </Card.Body>
           </Card>
 
-{/* Section 2: Item Details */}
+          {/* Section 2: Item Details */}
           <Card className="mb-3 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#ffffff' }}>
             <Card.Body className="p-3">
               <Row className="g-3">
@@ -1485,7 +1485,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             </Card.Body>
           </Card>
 
-{/* Section 3: Category & Classification */}
+          {/* Section 3: Category & Classification */}
           <Card className="mb-3 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#ffffff' }}>
             <Card.Body className="p-3">
               <Row className="g-3">
@@ -1620,7 +1620,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             </Card.Body>
           </Card>
 
-{/* Section 4: Pricing Details */}
+          {/* Section 4: Pricing Details */}
           <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#ffffff' }}>
             <Card.Body className="p-2" style={{ maxHeight: '400px', overflowX: 'auto', overflowY: 'hidden' }}>
               {/* Header removed as per request */}
@@ -1629,8 +1629,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               <div className="d-flex">
                 <Nav variant="pills" className="flex-column" style={{ minWidth: '140px', borderRight: '1px solid #dee2e6' }}>
                   <Nav.Item>
-                    <Nav.Link 
-                      eventKey="multiplePrice" 
+                    <Nav.Link
+                      eventKey="multiplePrice"
                       onClick={() => setActiveTab('multiplePrice')}
                       className={activeTab === 'multiplePrice' ? 'active' : ''}
                       style={{ cursor: 'pointer' }}
@@ -1639,8 +1639,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     </Nav.Link>
                   </Nav.Item>
                   <Nav.Item>
-                    <Nav.Link 
-                      eventKey="stock" 
+                    <Nav.Link
+                      eventKey="stock"
                       onClick={() => setActiveTab('stock')}
                       className={activeTab === 'stock' ? 'active' : ''}
                       style={{ cursor: 'pointer' }}
@@ -1649,394 +1649,398 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     </Nav.Link>
                   </Nav.Item>
                 </Nav>
-                
+
                 <Tab.Content className="flex-grow-1 ps-3">
                   <Tab.Pane eventKey="multiplePrice" active={activeTab === 'multiplePrice'}>
-              
 
-                  {/* Variant Type Selector - Using fetched variantTypes */}
-                  <div className="row mb-3 align-items-center">
-                    <div className="col-md-4">
-                      <Form.Select
-                        value={selectedVariantType}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setSelectedVariantType(value);
-                          setSelectedVariantValues([]);
 
-                          // Only open modal if real variant selected
-                          if (value && value !== "simple") {
-                            setShowVariantValueModal(true);
-                          }
-                        }}
-                        className="rounded-lg"
-                      >
-                        <option value="">Select Variant Type</option>
+                    {/* Variant Type Selector - Using fetched variantTypes */}
+                    <div className="row mb-3 align-items-center">
+                      <div className="col-md-4">
+                        <Form.Select
+                          value={selectedVariantType}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setSelectedVariantType(value);
+                            setSelectedVariantValues([]);
 
-                        {/* ✅ NEW: Simple Product Option */}
-                        <option value="simple">Simple Product </option>
+                            // Only open modal if real variant selected
+                            if (value && value !== "simple") {
+                              setShowVariantValueModal(true);
+                            }
+                          }}
+                          className="rounded-lg"
+                        >
+                          <option value="">Select Variant Type</option>
 
-                        {variantTypes.map((vt) => (
-                          <option key={vt.variant_type_id} value={vt.variant_type_name}>
-                            {vt.variant_type_name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </div>
-                    {selectedVariantValues.length > 0 && (
-                      <div className="col-md-3">
-                        <span className="text-muted small">
-                          {selectedVariantValues.length} column(s) selected
-                          <p className="text-sm text-gray-600 mb-3">
-                    Define department-wise multiple pricing
-                  </p>
-                        </span>
-                        
+                          {/* ✅ NEW: Simple Product Option */}
+                          <option value="simple">Simple Product </option>
+
+                          {variantTypes.map((vt) => (
+                            <option key={vt.variant_type_id} value={vt.variant_type_name}>
+                              {vt.variant_type_name}
+                            </option>
+                          ))}
+                        </Form.Select>
                       </div>
-                    )}
-                    <div className="col-md-5">
-                      <Row>
-                        <Col xs={6}>
-                          <label className="d-flex align-items-center gap-2 cursor-pointer p-2 rounded" style={{ backgroundColor: '#f8fafc' }}>
-                            <Form.Check type="checkbox" checked={runtimeRates} onChange={(e) => setRuntimeRates(e.target.checked)} className="mt-0" />
-                            <span className="text-dark small">Runtime Rates</span>
-                          </label>
-                        </Col>
-                        <Col xs={6}>
-                          <label className="d-flex align-items-center gap-2 cursor-pointer p-2 rounded" style={{ backgroundColor: '#f8fafc' }}>
-                            <Form.Check type="checkbox" checked={isCommonToAllDepartments} onChange={(e) => setIsCommonToAllDepartments(e.target.checked)} className="mt-0" />
-                            <span className="text-dark small">Is Common to All Departments</span>
-                          </label>
-                        </Col>
-                      </Row>
+                      {selectedVariantValues.length > 0 && (
+                        <div className="col-md-3">
+                          <span className="text-muted small">
+                            {selectedVariantValues.length} column(s) selected
+                            <p className="text-sm text-gray-600 mb-3">
+                              Define department-wise multiple pricing
+                            </p>
+                          </span>
+
+                        </div>
+                      )}
+                      <div className="col-md-5">
+                        <Row>
+                          <Col xs={6}>
+                            <label className="d-flex align-items-center gap-2 cursor-pointer p-2 rounded" style={{ backgroundColor: '#f8fafc' }}>
+                              <Form.Check type="checkbox" checked={runtimeRates} onChange={(e) => setRuntimeRates(e.target.checked)} className="mt-0" />
+                              <span className="text-dark small">Runtime Rates</span>
+                            </label>
+                          </Col>
+                          <Col xs={6}>
+                            <label className="d-flex align-items-center gap-2 cursor-pointer p-2 rounded" style={{ backgroundColor: '#f8fafc' }}>
+                              <Form.Check type="checkbox" checked={isCommonToAllDepartments} onChange={(e) => setIsCommonToAllDepartments(e.target.checked)} className="mt-0" />
+                              <span className="text-dark small">Is Common to All Departments</span>
+                            </label>
+                          </Col>
+                        </Row>
+                      </div>
                     </div>
-                  </div>
 
-                  
 
-                  <div className="table-responsive">
-                    <Table bordered hover size="sm" className="mb-0">
-                      <thead style={{ backgroundColor: '#e3f2fd' }}>
-                        <tr>
-                          <th style={{ padding: '4px 8px' }}>Department</th>
 
-                          {/* ===== SIMPLE MODE ===== */}
-                          {(!selectedVariantType || selectedVariantType === "simple") && (
-                            <th style={{ padding: '4px 8px' }}>Price</th>
-                          )}
+                    <div className="table-responsive">
+                      <Table bordered hover size="sm" className="mb-0">
+                        <thead style={{ backgroundColor: '#e3f2fd' }}>
+                          <tr>
+                            <th style={{ padding: '4px 8px' }}>Department</th>
 
-                          {/* ===== VARIANT MODE WITH SELECTED COLUMNS ===== */}
-                          {selectedVariantType &&
-                            selectedVariantType !== "simple" &&
-                            selectedVariantValues.length > 0 &&
-                            variantTypes
-                              .find((vt) => vt.variant_type_name === selectedVariantType)
-                              ?.values
-                              .filter((value) =>
-                                selectedVariantValues.includes(value.variant_value_id)
-                              )
-                              .map((value) => (
-                                <th key={value.variant_value_id} style={{ padding: '4px 8px' }}>{value.value_name}</th>
-                              ))}
-
-                          {/* ===== VARIANT MODE BUT NO VALUES SELECTED ===== */}
-                          {selectedVariantType &&
-                            selectedVariantType !== "simple" &&
-                            selectedVariantValues.length === 0 && (
-                              <th className="text-muted text-center" style={{ padding: '4px 8px' }}>
-                                Select columns to display
-                              </th>
+                            {/* ===== SIMPLE MODE ===== */}
+                            {(!selectedVariantType || selectedVariantType === "simple") && (
+                              <th style={{ padding: '4px 8px' }}>Price</th>
                             )}
 
-                         
+                            {/* ===== VARIANT MODE WITH SELECTED COLUMNS ===== */}
+                            {selectedVariantType &&
+                              selectedVariantType !== "simple" &&
+                              selectedVariantValues.length > 0 &&
+                              variantTypes
+                                .find((vt) => vt.variant_type_name === selectedVariantType)
+                                ?.values
+                                .filter((value) =>
+                                  selectedVariantValues.includes(value.variant_value_id)
+                                )
+                                .map((value) => (
+                                  <th key={value.variant_value_id} style={{ padding: '4px 8px' }}>{value.value_name}</th>
+                                ))}
 
-                        </tr>
-                      </thead>
+                            {/* ===== VARIANT MODE BUT NO VALUES SELECTED ===== */}
+                            {selectedVariantType &&
+                              selectedVariantType !== "simple" &&
+                              selectedVariantValues.length === 0 && (
+                                <th className="text-muted text-center" style={{ padding: '4px 8px' }}>
+                                  Select columns to display
+                                </th>
+                              )}
 
-                      <tbody>
-                        {newItem.departmentRates.length > 0 ? (
-                          newItem.departmentRates.map((deptRate, deptIndex) => {
 
-                            const isSimpleMode =
-                              !selectedVariantType || selectedVariantType === "simple";
 
-                            const selectedVariantObject = variantTypes.find(
-                              (vt) => vt.variant_type_name === selectedVariantType
-                            );
+                          </tr>
+                        </thead>
 
-                            const activeVariantValues =
-                              selectedVariantObject?.values.filter((value) =>
-                                selectedVariantValues.includes(value.variant_value_id)
-                              ) || [];
+                        <tbody>
+                          {newItem.departmentRates.length > 0 ? (
+                            newItem.departmentRates.map((deptRate, deptIndex) => {
 
-                            return (
-                              <tr key={`multi-${deptRate.departmentid}-${deptIndex}`}>
+                              const isSimpleMode =
+                                !selectedVariantType || selectedVariantType === "simple";
 
-                                {/* Department */}
-                                <td style={{ padding: '4px 8px' }}>{deptRate.departmentName}</td>
+                              const selectedVariantObject = variantTypes.find(
+                                (vt) => vt.variant_type_name === selectedVariantType
+                              );
 
-                                {/* ================= SIMPLE MODE ================= */}
-                                {isSimpleMode && (
-                                  <td style={{ padding: '4px 8px' }}>
-                                    <Form.Control
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      placeholder="0.00"
-                                      className="rounded-lg py-1"
-                                      value={deptRate.rate || ''}
-                                      onChange={(e) => {
-                                        const newRate = parseFloat(e.target.value) || 0;
-                                        setNewItem((prev) => ({
-                                          ...prev,
-                                          departmentRates: prev.departmentRates.map((dr) =>
-                                            dr.departmentid === deptRate.departmentid
-                                              ? { ...dr, rate: newRate }
-                                              : dr
-                                          ),
-                                        }));
-                                      }}
-                                    />
-                                  </td>
-                                )}
+                              const activeVariantValues =
+                                selectedVariantObject?.values.filter((value) =>
+                                  selectedVariantValues.includes(value.variant_value_id)
+                                ) || [];
 
-                                {/* ================= VARIANT MODE ================= */}
-                                {!isSimpleMode && activeVariantValues.length > 0 &&
-                                  activeVariantValues.map((value) => (
-                                    <td key={value.variant_value_id} style={{ padding: '4px 8px' }}>
+                              return (
+                                <tr key={`multi-${deptRate.departmentid}-${deptIndex}`}>
+
+                                  {/* Department */}
+                                  <td style={{ padding: '4px 8px' }}>{deptRate.departmentName}</td>
+
+                                  {/* ================= SIMPLE MODE ================= */}
+                                  {isSimpleMode && (
+                                    <td style={{ padding: '4px 8px' }}>
                                       <Form.Control
                                         type="number"
                                         step="0.01"
                                         min="0"
                                         placeholder="0.00"
                                         className="rounded-lg py-1"
-                                        value={deptRate.variant_rates?.[value.variant_value_id] ?? ''}
+                                        value={deptRate.rate !== undefined && deptRate.rate !== null ? deptRate.rate : ''}
                                         onChange={(e) => {
                                           const newRate = parseFloat(e.target.value) || 0;
                                           setNewItem((prev) => ({
                                             ...prev,
                                             departmentRates: prev.departmentRates.map((dr) =>
                                               dr.departmentid === deptRate.departmentid
-                                                ? { 
-                                                    ...dr, 
-                                                    variant_rates: {
-                                                      ...(dr.variant_rates || {}),
-                                                      [value.variant_value_id]: newRate
-                                                    }
-                                                  }
+                                                ? { ...dr, rate: newRate }
                                                 : dr
                                             ),
                                           }));
                                         }}
                                       />
                                     </td>
-                                  ))}
+                                  )}
 
-                                {/* If Variant Selected but No Columns Chosen */}
-                                {!isSimpleMode && activeVariantValues.length === 0 && (
-                                  <td className="text-muted text-center" style={{ padding: '4px 8px' }}>—</td>
-                                )}
+                                  {/* ================= VARIANT MODE ================= */}
+                                  {!isSimpleMode && activeVariantValues.length > 0 &&
+                                    activeVariantValues.map((value) => (
+                                      <td key={value.variant_value_id} style={{ padding: '4px 8px' }}>
+                                        <Form.Control
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          placeholder="0.00"
+                                          className="rounded-lg py-1"
+                                          value={
+                                            deptRate.variant_rates?.[value.variant_value_id] !== undefined &&
+                                              deptRate.variant_rates?.[value.variant_value_id] !== null
+                                              ? deptRate.variant_rates[value.variant_value_id]
+                                              : ''
+                                          } onChange={(e) => {
+                                            const newRate = parseFloat(e.target.value) || 0;
+                                            setNewItem((prev) => ({
+                                              ...prev,
+                                              departmentRates: prev.departmentRates.map((dr) =>
+                                                dr.departmentid === deptRate.departmentid
+                                                  ? {
+                                                    ...dr,
+                                                    variant_rates: {
+                                                      ...(dr.variant_rates || {}),
+                                                      [value.variant_value_id]: newRate
+                                                    }
+                                                  }
+                                                  : dr
+                                              ),
+                                            }));
+                                          }}
+                                        />
+                                      </td>
+                                    ))}
 
-{/* Tax Group */}
-                               
+                                  {/* If Variant Selected but No Columns Chosen */}
+                                  {!isSimpleMode && activeVariantValues.length === 0 && (
+                                    <td className="text-muted text-center" style={{ padding: '4px 8px' }}>—</td>
+                                  )}
+
+                                  {/* Tax Group */}
 
 
 
-                              </tr>
-                            );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan={6} className="text-center py-3">
-                              No departments found. Please select an outlet first.
-                            </td>
-                          </tr>
+
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="text-center py-3">
+                                No departments found. Please select an outlet first.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </Table>
+                    </div>
+
+                    {/* Small Modal for Variant Value Selection */}
+                    <Modal
+                      show={showVariantValueModal}
+                      onHide={() => setShowVariantValueModal(false)}
+                      size="sm"
+                      centered
+                    >
+                      <Modal.Header closeButton className="py-2">
+                        <Modal.Title className="fs-6">Select Variant Values</Modal.Title>
+                      </Modal.Header>
+                      <Modal.Body className="py-2">
+                        {selectedVariantType && (
+                          <div>
+                            {variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values.map((value) => (
+                              <Form.Check
+                                key={value.variant_value_id}
+                                type="checkbox"
+                                id={`variant-${value.variant_value_id}`}
+                                label={value.value_name}
+                                checked={selectedVariantValues.includes(value.variant_value_id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedVariantValues([...selectedVariantValues, value.variant_value_id]);
+                                  } else {
+                                    setSelectedVariantValues(selectedVariantValues.filter(id => id !== value.variant_value_id));
+                                  }
+                                }}
+                                className="mb-2"
+                              />
+                            ))}
+                          </div>
                         )}
-                      </tbody>
-                    </Table>
-                  </div>
-
-                  {/* Small Modal for Variant Value Selection */}
-                  <Modal
-                    show={showVariantValueModal}
-                    onHide={() => setShowVariantValueModal(false)}
-                    size="sm"
-                    centered
-                  >
-                    <Modal.Header closeButton className="py-2">
-                      <Modal.Title className="fs-6">Select Variant Values</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body className="py-2">
-                      {selectedVariantType && (
-                        <div>
-                          {variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values.map((value) => (
-                            <Form.Check
-                              key={value.variant_value_id}
-                              type="checkbox"
-                              id={`variant-${value.variant_value_id}`}
-                              label={value.value_name}
-                              checked={selectedVariantValues.includes(value.variant_value_id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedVariantValues([...selectedVariantValues, value.variant_value_id]);
-                                } else {
-                                  setSelectedVariantValues(selectedVariantValues.filter(id => id !== value.variant_value_id));
-                                }
-                              }}
-                              className="mb-2"
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </Modal.Body>
-                    <Modal.Footer className="py-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setShowVariantValueModal(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => setShowVariantValueModal(false)}
-                      >
-                        Apply
-                      </Button>
-                    </Modal.Footer>
-                  </Modal>
+                      </Modal.Body>
+                      <Modal.Footer className="py-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setShowVariantValueModal(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setShowVariantValueModal(false)}
+                        >
+                          Apply
+                        </Button>
+                      </Modal.Footer>
+                    </Modal>
                   </Tab.Pane>
 
                   <Tab.Pane eventKey="stock" active={activeTab === 'stock'}>
 
-                  {/* ================= DECIDE INGREDIENTS ================= */}
-                  <Row className="mb-3">
-                    <Col xs={12}>
-                      <Form.Check
-                        type="checkbox"
-                        checked={isIngredientsRequired}
-                        onChange={(e) => setIsIngredientsRequired(e.target.checked)}
-                        label="Decide Ingredients for This Item"
-                      />
-                    </Col>
-                  </Row>
-
-                  {/* ================= STORE NAME ================= */}
-                  <Row className="mb-3 align-items-center">
-                    <Col xs={12} md={2}>
-                      <Form.Label className="mb-0">Store Name</Form.Label>
-                    </Col>
-
-                    <Col xs={12} md={4}>
-                      <Form.Select 
-                        className="rounded-lg"
-                        value={storeNameId || ''}
-                        onChange={(e) => setStoreNameId(e.target.value ? Number(e.target.value) : null)}
-                      >
-                        <option value="">Select Store</option>
-                        {warehouses.map((warehouse) => (
-                          <option key={warehouse.warehouseid} value={warehouse.warehouseid}>
-                            {warehouse.warehouse_name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </Col>
-                  </Row>
-
-                  {/* ================= OPENING STOCK ================= */}
-                  <Row className="mb-3 align-items-center">
-
-                    <Col xs={12} md={2}>
-                      <Form.Label className="mb-0">Opening Stock</Form.Label>
-                    </Col>
-
-                  {/* Opening Quantity */}
-                  <Col xs={6} md={2}>
-                    <Form.Control
-                      type="number"
-                      placeholder="0"
-                      value={openingStockQuantity}
-                      onChange={(e) => setOpeningStockQuantity(Number(e.target.value))}
-                    />
-                  </Col>
-
-                    {/* Unit Dropdown (Fetch from DB) */}
-                    <Col xs={6} md={2}>
-                      <Form.Select
-                        value={stockUnit ?? ""}
-                        onChange={(e) =>
-                          setStockUnit(e.target.value ? Number(e.target.value) : null)
-                        }
-                      >
-                        <option value="">Select Unit</option>
-
-                        {stockUnits.map((unit) => (
-                          <option key={unit.unitid} value={unit.unitid}>
-                            {unit.unit_name}
-                          </option>
-                        ))}
-
-                      </Form.Select>
-                    </Col>
-
-                  </Row>
-
-                  {/* ================= CONSUME RAW MATERIALS BOX ================= */}
-                  <Row className="mb-3">
-                    <Col xs={12} md={6}>
-                      <fieldset className="border p-3 rounded">
-                        <legend className="float-none w-auto px-2 small">
-                          Consume Raw Materials
-                        </legend>
-
+                    {/* ================= DECIDE INGREDIENTS ================= */}
+                    <Row className="mb-3">
+                      <Col xs={12}>
                         <Form.Check
-                          type="radio"
-                          name="consumeRawType"
-                          label="Consume Raw Materials on Bill"
-                          checked={consumeRawOnBill}
-                          onChange={(e) => {
-                            setConsumeRawOnBill(e.target.checked);
-                            if (e.target.checked) setConsumeRawOnKot(false);
-                          }}
+                          type="checkbox"
+                          checked={isIngredientsRequired}
+                          onChange={(e) => setIsIngredientsRequired(e.target.checked)}
+                          label="Decide Ingredients for This Item"
+                        />
+                      </Col>
+                    </Row>
+
+                    {/* ================= STORE NAME ================= */}
+                    <Row className="mb-3 align-items-center">
+                      <Col xs={12} md={2}>
+                        <Form.Label className="mb-0">Store Name</Form.Label>
+                      </Col>
+
+                      <Col xs={12} md={4}>
+                        <Form.Select
+                          className="rounded-lg"
+                          value={storeNameId || ''}
+                          onChange={(e) => setStoreNameId(e.target.value ? Number(e.target.value) : null)}
+                        >
+                          <option value="">Select Store</option>
+                          {warehouses.map((warehouse) => (
+                            <option key={warehouse.warehouseid} value={warehouse.warehouseid}>
+                              {warehouse.warehouse_name}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Col>
+                    </Row>
+
+                    {/* ================= OPENING STOCK ================= */}
+                    <Row className="mb-3 align-items-center">
+
+                      <Col xs={12} md={2}>
+                        <Form.Label className="mb-0">Opening Stock</Form.Label>
+                      </Col>
+
+                      {/* Opening Quantity */}
+                      <Col xs={6} md={2}>
+                        <Form.Control
+                          type="number"
+                          placeholder="0"
+                          value={openingStockQuantity}
+                          onChange={(e) => setOpeningStockQuantity(Number(e.target.value))}
+                        />
+                      </Col>
+
+                      {/* Unit Dropdown (Fetch from DB) */}
+                      <Col xs={6} md={2}>
+                        <Form.Select
+                          value={stockUnit ?? ""}
+                          onChange={(e) =>
+                            setStockUnit(e.target.value ? Number(e.target.value) : null)
+                          }
+                        >
+                          <option value="">Select Unit</option>
+
+                          {stockUnits.map((unit) => (
+                            <option key={unit.unitid} value={unit.unitid}>
+                              {unit.unit_name}
+                            </option>
+                          ))}
+
+                        </Form.Select>
+                      </Col>
+
+                    </Row>
+
+                    {/* ================= CONSUME RAW MATERIALS BOX ================= */}
+                    <Row className="mb-3">
+                      <Col xs={12} md={6}>
+                        <fieldset className="border p-3 rounded">
+                          <legend className="float-none w-auto px-2 small">
+                            Consume Raw Materials
+                          </legend>
+
+                          <Form.Check
+                            type="radio"
+                            name="consumeRawType"
+                            label="Consume Raw Materials on Bill"
+                            checked={consumeRawOnBill}
+                            onChange={(e) => {
+                              setConsumeRawOnBill(e.target.checked);
+                              if (e.target.checked) setConsumeRawOnKot(false);
+                            }}
+                            className="mb-2"
+                          />
+
+                          <Form.Check
+                            type="radio"
+                            name="consumeRawType"
+                            label="Consume Raw Materials on KOT"
+                            checked={consumeRawOnKot}
+                            onChange={(e) => {
+                              setConsumeRawOnKot(e.target.checked);
+                              if (e.target.checked) setConsumeRawOnBill(false);
+                            }}
+                          />
+                        </fieldset>
+                      </Col>
+                    </Row>
+
+                    {/* ================= OTHER OPTIONS ================= */}
+                    <Row>
+                      <Col xs={12} md={6}>
+                        <Form.Check
+                          type="checkbox"
+                          checked={reverseStockCancelKot}
+                          onChange={(e) => setReverseStockCancelKot(e.target.checked)}
+                          label="Reverse Stock During Cancel KOT"
                           className="mb-2"
                         />
+                      </Col>
 
+                      <Col xs={12} md={6}>
                         <Form.Check
-                          type="radio"
-                          name="consumeRawType"
-                          label="Consume Raw Materials on KOT"
-                          checked={consumeRawOnKot}
-                          onChange={(e) => {
-                            setConsumeRawOnKot(e.target.checked);
-                            if (e.target.checked) setConsumeRawOnBill(false);
-                          }}
+                          type="checkbox"
+                          checked={allowNegativeStock}
+                          onChange={(e) => setAllowNegativeStock(e.target.checked)}
+                          label="Allow Negative Raw Material Stock"
                         />
-                      </fieldset>
-                    </Col>
-                  </Row>
-
-                  {/* ================= OTHER OPTIONS ================= */}
-                  <Row>
-                    <Col xs={12} md={6}>
-                      <Form.Check
-                        type="checkbox"
-                        checked={reverseStockCancelKot}
-                        onChange={(e) => setReverseStockCancelKot(e.target.checked)}
-                        label="Reverse Stock During Cancel KOT"
-                        className="mb-2"
-                      />
-                    </Col>
-
-                    <Col xs={12} md={6}>
-                      <Form.Check
-                        type="checkbox"
-                        checked={allowNegativeStock}
-                        onChange={(e) => setAllowNegativeStock(e.target.checked)}
-                        label="Allow Negative Raw Material Stock"
-                      />
-                    </Col>
-                  </Row>
+                      </Col>
+                    </Row>
                   </Tab.Pane>
                 </Tab.Content>
               </div>

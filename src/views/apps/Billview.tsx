@@ -180,9 +180,20 @@ const ModernBill = () => {
   const [editableKot, setEditableKot] = useState<number | null>(null); // user editable
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // KOT HARD lock (prevents duplicate KOT on rapid click / repeated F9)
+  const kotLockRef = useRef(false);
+
+  // Used to prevent duplicate KOT submissions on rapid key presses
+  const lastKotTriggerKeyRef = useRef<string | null>(null);
+  const kotProcessingRef = useRef(false);
+  const [isKotProcessing, setIsKotProcessing] = useState(false);
+
+
+
   const [txnId, setTxnId] = useState<number | null>(null);
   const [isTransactionBilled, setIsTransactionBilled] = useState(false);
-const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
+  const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
   const [waiterUsers, setWaiterUsers] = useState<any[]>([]);
   const [discount, setDiscount] = useState(0);
   const [DiscountType, setDiscountType] = useState(1);
@@ -204,8 +215,8 @@ const [selectedWaiterIndex, setSelectedWaiterIndex] = useState(-1);
 
   // Existing state hai:
 
-// ✅ NEW: Alag state — sirf tab true jab bill PEHLE SE billed tha (duplicate case)
-const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
+  // ✅ NEW: Alag state — sirf tab true jab bill PEHLE SE billed tha (duplicate case)
+  const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
 
 
   // NEW: Filtered menu for current department only
@@ -799,23 +810,23 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
             isFetched: false
           });
 
-      setBillItems(mappedItems);
+          setBillItems(mappedItems);
 
-      // Build reversal reason map (billed bill path)
-      const reasonMap = new Map<number, string>();
-      const apiReversalLogs = billedBillData?.reversalLogs || [];
-      if (Array.isArray(apiReversalLogs)) {
-        apiReversalLogs.forEach((log: any) => {
-          if (log?.TxnDetailID != null) reasonMap.set(Number(log.TxnDetailID), log.ReversalReason || '');
-        });
-      }
-      setReversalReasonMap(reasonMap);
+          // Build reversal reason map (billed bill path)
+          const reasonMap = new Map<number, string>();
+          const apiReversalLogs = billedBillData?.reversalLogs || [];
+          if (Array.isArray(apiReversalLogs)) {
+            apiReversalLogs.forEach((log: any) => {
+              if (log?.TxnDetailID != null) reasonMap.set(Number(log.TxnDetailID), log.ReversalReason || '');
+            });
+          }
+          setReversalReasonMap(reasonMap);
 
-      setTxnId((header as any).TxnID || (header as any).txnId || null);
-      setOrderNo(header.TxnNo);
-      setWaiter(header.Steward || header.waiter || '');
-      setPax(header.pax || header.PAX || 1);
-      setTableNo(header.table_name || tableName);
+          setTxnId((header as any).TxnID || (header as any).txnId || null);
+          setOrderNo(header.TxnNo);
+          setWaiter(header.Steward || header.waiter || '');
+          setPax(header.pax || header.PAX || 1);
+          setTableNo(header.table_name || tableName);
 
           if (header.RevKOTNo) {
             setRevKotNo(Number(header.RevKOTNo));
@@ -881,7 +892,7 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
           calculateTotals(mappedItems);
           setOriginalTableStatus(2); // Set to billed status for order_tag logic
           setIsTransactionBilled(true);
-          setWasAlreadyBilled(true); 
+          setWasAlreadyBilled(true);
           setLoading(false);
           return;
 
@@ -912,51 +923,51 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
       // Map items to BillItem interface
       const mappedItems: BillItem[] = (data.details || []).map((item: any) => {
 
-  const originalQty = Number(item.netQty || item.Qty || 0);
-  const revQty = Number(item.revQty || item.RevQty || 0);
+        const originalQty = Number(item.netQty || item.Qty || 0);
+        const revQty = Number(item.revQty || item.RevQty || 0);
 
-  // Show remaining qty
-  const qty = Math.max(originalQty - revQty, 0);
+        // Show remaining qty
+        const qty = Math.max(originalQty - revQty, 0);
 
-  const rate =
-    item.RuntimeRate ||
-    item.price ||
-    item.Price ||
-    item.Rate ||
-    0;
+        const rate =
+          item.RuntimeRate ||
+          item.price ||
+          item.Price ||
+          item.Rate ||
+          0;
 
-  const total = qty * rate;
+        const total = qty * rate;
 
-  return {
-    itemCode: (item.item_no || item.ItemNo || item.Item_No || '').toString(),
-    itemId: item.itemId || item.ItemID || 0,
-    itemgroupid: item.itemgroupid || 0,
-    item_no: Number(item.item_no || item.ItemNo || item.Item_No || 0),
-    itemName: item.itemName || item.ItemName || item.item_name || '',
-    qty,
-    rate,
-    total,
+        return {
+          itemCode: (item.item_no || item.ItemNo || item.Item_No || '').toString(),
+          itemId: item.itemId || item.ItemID || 0,
+          itemgroupid: item.itemgroupid || 0,
+          item_no: Number(item.item_no || item.ItemNo || item.Item_No || 0),
+          itemName: item.itemName || item.ItemName || item.item_name || '',
+          qty,
+          rate,
+          total,
 
-    cgst: item.cgst ?? 0,
-    sgst: item.sgst ?? 0,
-    igst: item.igst ?? 0,
-    cess: item.cess ?? 0,
+          cgst: item.cgst ?? 0,
+          sgst: item.sgst ?? 0,
+          igst: item.igst ?? 0,
+          cess: item.cess ?? 0,
 
-    mkotNo: item.kotNo
-      ? item.kotNo.toString()
-      : (item.KOTNo ? item.KOTNo.toString() : ''),
+          mkotNo: item.kotNo
+            ? item.kotNo.toString()
+            : (item.KOTNo ? item.KOTNo.toString() : ''),
 
-    SpecialInst: item.SpecialInst || '',
-    isBilled: 0,
-    TXnDetailID: item.TXnDetailID,
-    isFetched: true,
+          SpecialInst: item.SpecialInst || '',
+          isBilled: 0,
+          TXnDetailID: item.TXnDetailID,
+          isFetched: true,
 
-    revQty: revQty,
+          revQty: revQty,
 
-    variantId: item.variantId || item.VariantID || null,
-    variantName: item.variantName || item.VariantName || null
-  };
-});
+          variantId: item.variantId || item.VariantID || null,
+          variantName: item.variantName || item.VariantName || null
+        };
+      });
 
       // Always add a blank row at the end for new item entry
       mappedItems.push({
@@ -1016,8 +1027,8 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
       // console.log('Takeaway API Response Header:', data.header);
       if (data.header) {
         setTxnId(data.header.TxnID);
-       setOrderNo(data.header.orderNo!);  // ✅ "0037"
-       setTxnNo(data.header.TxnNo);  
+        setOrderNo(data.header.orderNo!);  // ✅ "0037"
+        setTxnNo(data.header.TxnNo);
         setWaiter(data.header.waiter || '');
         setPax(data.header.pax || data.header.PAX || 1);
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
@@ -1061,7 +1072,7 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
         setCess?.(data.header.CESS || data.header.CESS || 0);
         setRoundOff?.(data.header.RoundOFF || data.header.RoundOFF || 0);
         setIsTransactionBilled(data.header.isBilled === 1 || data.header.isBilled === 1);
-        setWasAlreadyBilled(data.header.isBilled === 1); 
+        setWasAlreadyBilled(data.header.isBilled === 1);
       }
 
       // Compute max RevKOTNo from details for unbilled orders
@@ -1572,18 +1583,16 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
     // Filter menu to current department variants only
     const filtered = menuItems
       .filter(item => {
-        // Item must have dept_details for this department
         const deptDetails = item.department_details || [];
         return deptDetails.some((d: DepartmentDetail) =>
-          d.departmentid === currDeptId && d.item_rate && d.item_rate > 0
+          d.departmentid === currDeptId && d.item_rate !== undefined && d.item_rate !== null
         );
       })
       .map(item => ({
         ...item,
-        // Filter department_details to ONLY current dept
         department_details: (item.department_details || [])
           .filter((d: DepartmentDetail) =>
-            d.departmentid === currDeptId && d.item_rate && d.item_rate > 0
+            d.departmentid === currDeptId && d.item_rate !== undefined && d.item_rate !== null
           )
       }));
 
@@ -1781,48 +1790,56 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
         found = menuItems.find(i => i.item_no.toString() === itemCodeValue);
       }
       if (found) {
-        // ✅ FIXED: Keep BASE itemName separate from variant
-        currentItem.itemName = found.item_name; // Base name only
-        currentItem.itemId = found.restitemid;
-        currentItem.item_no = Number(found.item_no);
-        currentItem.isValidCode = true;
+        // ✅ Pehle rate resolve karo
+        let resolvedRate = 0;
+        let resolvedVariantId: number | null = null;
+        let resolvedVariantName: string | null = null;
 
-        // If variant was selected, use variant-specific rate & SET SEPARATE FIELDS
         if (variantId && found.department_details) {
           const variantDetail = found.department_details.find(
             (d: any) => d.variant_value_id === variantId
           );
           if (variantDetail) {
-            currentItem.rate = variantDetail.item_rate || found.price;
-            currentItem.variantId = variantId;
-            currentItem.variantName = variantDetail.variant_value_name; // ✅ SEPARATE
-            // ✅ NO CONCATENATION - keep itemName clean
-            currentItem.itemCode = itemCodeValue;
-          } else {
-            // No specific variant found, fallback to first variant or base
-            if (found.department_details && found.department_details.length > 0) {
-              const firstVariant = found.department_details[0];
-              currentItem.rate = firstVariant.item_rate || found.price;
-              currentItem.variantId = firstVariant.variant_value_id;
-              currentItem.variantName = firstVariant.variant_value_name; // ✅ SEPARATE
-            } else {
-              currentItem.rate = found.price;
-              currentItem.variantId = null;
-              currentItem.variantName = null;
-            }
-          }
-        } else {
-          // No variant selected - default to first variant if exists, else base price
-          if (found.department_details && found.department_details.length > 0) {
+            resolvedRate = Number(variantDetail.item_rate ?? 0);
+            resolvedVariantId = variantId;
+            resolvedVariantName = variantDetail.variant_value_name ?? null;  // ✅
+          } else if (found.department_details.length > 0) {
             const firstVariant = found.department_details[0];
-            currentItem.rate = firstVariant.item_rate || found.price;
-            currentItem.variantId = firstVariant.variant_value_id;
-            currentItem.variantName = firstVariant.variant_value_name; // ✅ SEPARATE
-          } else {
-            currentItem.rate = found.price;
-            currentItem.variantId = null;
-            currentItem.variantName = null;
+            resolvedRate = Number(firstVariant.item_rate ?? 0);
+            resolvedVariantId = firstVariant.variant_value_id ?? null;       // ✅
+            resolvedVariantName = firstVariant.variant_value_name ?? null;   // ✅
           }
+        } else if (found.department_details && found.department_details.length > 0) {
+          const firstVariant = found.department_details[0];
+          resolvedRate = Number(firstVariant.item_rate ?? 0);
+          resolvedVariantId = firstVariant.variant_value_id ?? null;         // ✅
+          resolvedVariantName = firstVariant.variant_value_name ?? null;     // ✅
+        }
+
+        // ✅ Rate 0 ho toh item set mat karo
+        if (resolvedRate === 0) {
+          currentItem.itemCode = '';
+          currentItem.itemName = '';
+          currentItem.itemId = 0;
+          currentItem.item_no = 0;
+          currentItem.rate = 0;
+          currentItem.variantId = null;
+          currentItem.variantName = null;
+          currentItem.isValidCode = false;
+          toast.error(
+            `"${found.item_name}" rate is not available.`,
+            { duration: 3000 }
+          );
+        } else {
+          // ✅ Rate valid hai — item set karo
+          currentItem.itemName = found.item_name;
+          currentItem.itemId = found.restitemid;
+          currentItem.item_no = Number(found.item_no);
+          currentItem.isValidCode = true;
+          currentItem.rate = resolvedRate;
+          currentItem.variantId = resolvedVariantId;
+          currentItem.variantName = resolvedVariantName;
+          currentItem.itemCode = itemCodeValue;
         }
       } else {
         currentItem.itemName = "";
@@ -1989,12 +2006,26 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
   const { deviceName } = useDeviceName();
   console.log('Billview saveKOT device_name:', deviceName);
   const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncName?: string, ncPurpose?: string) => {
+    // KOT HARD lock (prevents duplicate KOT on rapid click / repeated F9)
+    if (kotLockRef.current) return;
+    kotLockRef.current = true;
+
+
+    const outletId = selectedOutletId;
+    const triggerKey = `${tableId ?? 'TAKEAWAY'}|${txnId ?? 'no-txn'}|${outletId ?? 'no-outlet'}|${user?.id ?? 'no-user'}|${print ? 'print' : 'nos'}`;
+    if (lastKotTriggerKeyRef.current === triggerKey && (kotProcessingRef.current || isKotProcessing)) return;
+    lastKotTriggerKeyRef.current = triggerKey;
+
+    kotProcessingRef.current = true;
+    setIsKotProcessing(true);
 
     try {
       if (!user) {
         toast.error('User not authenticated. Cannot save KOT.');
         return;
       }
+
+
 
       // ✅ outletId MUST come from department context
       const outletId = selectedOutletId; // same variable used to load departments
@@ -2081,7 +2112,7 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
         TxnDatetime: user?.currDate,
         curr_date: user?.currDate, // Pass curr_date for KOT number generation based on business date
         KOTUsedDate: getMySQLDateTime(user?.currDate),
-         // Pass curr_date for KOTUsedDate similar to TxnDatetime
+        // Pass curr_date for KOTUsedDate similar to TxnDatetime
         // Frontend calculated totals - send to backend (rounded to 2 decimal places)
         GrossAmt: Number(grossAmount.toFixed(2)),
         TaxableValue: Number(taxCalc.taxableValue.toFixed(2)),
@@ -2202,8 +2233,12 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
     } catch (error) {
       // console.error('Error saving KOT:', error);
       toast.error('Error saving KOT');
+    } finally {
+      kotProcessingRef.current = false;
+      setIsKotProcessing(false);
     }
   };
+
 
   const handleSaveNCKOT = async () => {
     if (!txnId) {
@@ -2276,101 +2311,101 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
     }
   };
   const handleReverseKotSave = async (reverseItemsFromModal: ReverseModalItem[]) => {
-  if (!txnId) {
-    toast.error('Transaction not found');
-    return;
-  }
-
-  if (!reverseItemsFromModal.length) {
-    toast.error('No items selected for reverse');
-    return;
-  }
-
-  console.log('Modal sending:', reverseItemsFromModal);
-
-  try {
-    const result = await OrderService.createReverseKOT({
-      txnId,
-      tableId,
-      kotType: 'REVERSE',
-      isReverseKot: 1,
-      reversedItems: reverseItemsFromModal.map(item => ({
-        TXnDetailID: item.TXnDetailID,
-        txnDetailId: item.TXnDetailID,
-        item_no: item.item_no,
-        name: item.itemName,
-        qty: item.cancelQty,
-        price: item.rate,
-        reason: item.reason || '',
-      })),
-      userId: user?.id,
-      reversalReason: 'Reverse ',
-      curr_date: user?.currDate,
-    });
-
-    console.log('Reverse KOT API response:', result);
-
-    if (!result?.success) {
-      toast.error('Reverse failed');
+    if (!txnId) {
+      toast.error('Transaction not found');
       return;
     }
 
-    // ✅ DEBUG: Log the full data to see what backend returns
-    console.log('Backend data:', result.data);
-
-    // ✅ Extract reverse KOT number - try common field names
-   const reverseKotNo =
-  (result.data as any)?.revKotNo ??      // ✅ exactly as returned
-  (result.data as any)?.RevKOTNo ??
-  (result.data as any)?.revKOTNo ??
-  (result.data as any)?.revkotNo ??
-  (result.data as any)?.KOTNo ??
-  null;
-
-    console.log('Reverse KOT Number extracted:', reverseKotNo);
-    toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);
-
-    // ✅ Table status update logic (unchanged)
-    if (tableId && billItems.length > 0) {
-      const tableToUpdate = tableItems.find(t => t.table_name === tableNo);
-      if (tableToUpdate) {
-        const totalRemainingQty = billItems.reduce((sum, item) => sum + (item.qty || 0), 0);
-        const allReversed = totalRemainingQty <= 0;
-        const newStatus = allReversed ? 0 : 1;
-
-        await OrderService.updateTableStatus(tableToUpdate.tablemanagementid || tableId, { status: newStatus });
-
-        if (allReversed) {
-          toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
-        } else {
-          toast.success('Partial KOTs reversed! Table remains occupied (status=1)');
-        }
-        await fetchTableManagement();
-      }
+    if (!reverseItemsFromModal.length) {
+      toast.error('No items selected for reverse');
+      return;
     }
 
-    // ✅ Set snapshot with the actual reverse KOT number (overwrites modal's 0)
-    setReverseSnapshot(
-      reverseItemsFromModal.map(item => ({
-        ...item,
-        name: item.itemName || "",
-        price: item.rate,
-        revKotNo: reverseKotNo,   // 🔥 backend-generated number
-        isReverse: true,
-        revQty: item.cancelQty
-      }))
-    );
+    console.log('Modal sending:', reverseItemsFromModal);
 
-    setShowReverseKotPrintModal(true);
-    setReversePrintTrigger(prev => prev + 1);
+    try {
+      const result = await OrderService.createReverseKOT({
+        txnId,
+        tableId,
+        kotType: 'REVERSE',
+        isReverseKot: 1,
+        reversedItems: reverseItemsFromModal.map(item => ({
+          TXnDetailID: item.TXnDetailID,
+          txnDetailId: item.TXnDetailID,
+          item_no: item.item_no,
+          name: item.itemName,
+          qty: item.cancelQty,
+          price: item.rate,
+          reason: item.reason || '',
+        })),
+        userId: user?.id,
+        reversalReason: 'Reverse ',
+        curr_date: user?.currDate,
+      });
 
-    await loadBillDetails();
-    await fetchTableManagement();
+      console.log('Reverse KOT API response:', result);
 
-  } catch (err: any) {
-    toast.error(err?.message || 'Reverse failed');
-  }
-};
+      if (!result?.success) {
+        toast.error('Reverse failed');
+        return;
+      }
+
+      // ✅ DEBUG: Log the full data to see what backend returns
+      console.log('Backend data:', result.data);
+
+      // ✅ Extract reverse KOT number - try common field names
+      const reverseKotNo =
+        (result.data as any)?.revKotNo ??      // ✅ exactly as returned
+        (result.data as any)?.RevKOTNo ??
+        (result.data as any)?.revKOTNo ??
+        (result.data as any)?.revkotNo ??
+        (result.data as any)?.KOTNo ??
+        null;
+
+      console.log('Reverse KOT Number extracted:', reverseKotNo);
+      toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);
+
+      // ✅ Table status update logic (unchanged)
+      if (tableId && billItems.length > 0) {
+        const tableToUpdate = tableItems.find(t => t.table_name === tableNo);
+        if (tableToUpdate) {
+          const totalRemainingQty = billItems.reduce((sum, item) => sum + (item.qty || 0), 0);
+          const allReversed = totalRemainingQty <= 0;
+          const newStatus = allReversed ? 0 : 1;
+
+          await OrderService.updateTableStatus(tableToUpdate.tablemanagementid || tableId, { status: newStatus });
+
+          if (allReversed) {
+            toast.success('✅ All KOTs reversed! Table status updated to 0 (Vacant)');
+          } else {
+            toast.success('Partial KOTs reversed! Table remains occupied (status=1)');
+          }
+          await fetchTableManagement();
+        }
+      }
+
+      // ✅ Set snapshot with the actual reverse KOT number (overwrites modal's 0)
+      setReverseSnapshot(
+        reverseItemsFromModal.map(item => ({
+          ...item,
+          name: item.itemName || "",
+          price: item.rate,
+          revKotNo: reverseKotNo,   // 🔥 backend-generated number
+          isReverse: true,
+          revQty: item.cancelQty
+        }))
+      );
+
+      setShowReverseKotPrintModal(true);
+      setReversePrintTrigger(prev => prev + 1);
+
+      await loadBillDetails();
+      await fetchTableManagement();
+
+    } catch (err: any) {
+      toast.error(err?.message || 'Reverse failed');
+    }
+  };
 
   const printKOT = async (kotNo: number) => {
     try {
@@ -2387,211 +2422,211 @@ const [wasAlreadyBilled, setWasAlreadyBilled] = React.useState(false);
     }
   };
 
-const printBill = async () => {
-  if (!txnId) return;
+  const printBill = async () => {
+    if (!txnId) return;
 
-  if (isTakeaway && !txnId) {
-    toast.error('Transaction not loaded. Please reopen order.');
-    return;
-  }
-
-  try {
-    setLoading(true);
-    
-    // 1️⃣ Generate TxnNo (Bill No)
-    const response = await OrderService.markBillAsBilled(txnId, {
-      outletId: selectedOutletId || Number(user?.outletid),
-      customerName: customerName || null,
-      mobileNo: customerNo || null,
-      customerid: customerId || null,
-    });
-
-    const generatedTxnNo = response.data?.TxnNo;
-    if (!generatedTxnNo) {
-      toast.error('TxnNo not generated');
+    if (isTakeaway && !txnId) {
+      toast.error('Transaction not loaded. Please reopen order.');
       return;
     }
 
-    // ✅ Set TxnNo (Bill Number)
-    setTxnNo(generatedTxnNo);
-    
-    let updatedBillData = null;
-    
-    // ✅ For dine-in only, try to fetch billed bill by table
-    if (!isTakeaway && tableId) {
-      try {
-        const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
-        updatedBillData = updatedBillRes.data || updatedBillRes;
-      } catch (billFetchError) {
-        console.error('Failed to fetch updated bill data:', billFetchError);
-      }
-    }
-    
-    // ✅ For takeaway OR if fetch failed, preserve existing billData with phone/FSSAI
-    if (isTakeaway || !updatedBillData) {
-      // ✅ Use existing billData from loadTakeawayOrder which already has phone/FSSAI
-      if (billData) {
-        updatedBillData = {
-          ...billData,
-          TxnNo: generatedTxnNo,
-          txnNo: generatedTxnNo,
-        };
-      } else {
-        // Create manual billData with ALL required fields
-        updatedBillData = {
-          TxnNo: generatedTxnNo,
-          txnNo: generatedTxnNo,
-          orderNo: orderNo,
-          details: billItems.filter(i => i.itemId > 0),
-          header: {
-            TxnNo: generatedTxnNo,
-            orderNo: orderNo,
-            Order_Type: activeTab,
-          },
-          // ✅ CRITICAL: Add phone and FSSAI from state
-         
-          hotelName: restaurantName,
-          outletName: outletName,
-          address: user?.address || '',
-          gstNo: user?.trn_gstno || '',
-        };
-      }
-    }
-    
-  
-    
-    setBillData(updatedBillData);
-    setIsTransactionBilled(true);
-    setShowBillPrintModal(true);
+    try {
+      setLoading(true);
 
-  } catch (error) {
-    console.error('Error printing bill:', error);
-    toast.error('Error printing bill');
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-const PrintAndSettle = async () => {
-  if (!txnId) {
-    toast.error('Transaction not found');
-    return;
-  }
-
-  // Safety check for takeaway orders
-  if (isTakeaway && !txnId) {
-    toast.error('Transaction not loaded. Please reopen order.');
-    return;
-  }
-
-  try {
-    setLoading(true);
-    
-    // Mark bill as billed & generate Bill No / TxnNo
-    const response = await OrderService.markBillAsBilled(txnId, {
-      outletId: selectedOutletId || Number(user?.outletid),
-      customerName: customerName || null,
-      mobileNo: customerNo || null,
-      customerid: customerId || null,
-    });
-
-    console.log('MarkBill Response:', response);
-
-    // Get generated bill number
-    const generatedTxnNo = response?.data?.TxnNo || '';
-
-    if (!generatedTxnNo) {
-      toast.error('Bill No not generated');
-      return;
-    }
-
-    // ✅ CRITICAL FIX: Set BOTH orderNo AND txnNo
-    setOrderNo(generatedTxnNo);  // Order Number (for display)
-    setTxnNo(generatedTxnNo);    // Bill Number/TxnNo (for BillNo field)
-
-    // ✅ FIX: For takeaway, don't call getBilledBillByTable (no table exists)
-    let updatedBillData = null;
-    
-    if (!isTakeaway && tableId) {
-      try {
-        const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
-        updatedBillData = updatedBillRes?.data || updatedBillRes || null;
-        if (updatedBillData) {
-          setBillData(updatedBillData);
-        }
-      } catch (billFetchError) {
-        console.error('Failed to fetch updated bill data:', billFetchError);
-      }
-    }
-    
-    // ✅ For takeaway OR if fetch failed, preserve existing billData with phone/FSSAI
-    if (isTakeaway || !updatedBillData) {
-      // Use existing billData from loadTakeawayOrder which already has phone/FSSAI
-      if (billData) {
-        updatedBillData = {
-          ...billData,
-          TxnNo: generatedTxnNo,
-          txnNo: generatedTxnNo,
-        };
-      } else {
-        // Create manual billData with ALL required fields including phone/FSSAI
-        updatedBillData = {
-          TxnNo: generatedTxnNo,
-          txnNo: generatedTxnNo,
-          orderNo: orderNo,
-          details: billItems.filter(i => i.itemId > 0),
-          header: {
-            TxnNo: generatedTxnNo,
-            orderNo: orderNo,
-            Order_Type: activeTab,
-          },
-          // ✅ CRITICAL: Add phone and FSSAI from state
-       
-          hotelName: restaurantName,
-          outletName: outletName,
-          address: user?.address || '',
-          gstNo: user?.trn_gstno || '',
-        };
-      }
-    }
-    
-    // ✅ Ensure phone and FSSAI are preserved in billData
-    if (updatedBillData) {
-      
-      
-      if (!updatedBillData.hotelName && restaurantName) {
-        updatedBillData.hotelName = restaurantName;
-      }
-      if (!updatedBillData.outletName && outletName) {
-        updatedBillData.outletName = outletName;
-      }
-      setBillData(updatedBillData);
-    }
-
-    // Set billed state
-    setIsTransactionBilled(true);
-
-    // Open print modal AFTER bill no set
-    setPrintThenSettleFlow(true);
-    setShowBillPrintModal(true);
-
-    toast.success('Bill marked as printed and ready for settlement!');
-
-    // Update table status only for dine-in
-    if (!isTakeaway && tableId) {
-      await OrderService.updateTableStatus(tableId, {
-        status: 2,
+      // 1️⃣ Generate TxnNo (Bill No)
+      const response = await OrderService.markBillAsBilled(txnId, {
+        outletId: selectedOutletId || Number(user?.outletid),
+        customerName: customerName || null,
+        mobileNo: customerNo || null,
+        customerid: customerId || null,
       });
+
+      const generatedTxnNo = response.data?.TxnNo;
+      if (!generatedTxnNo) {
+        toast.error('TxnNo not generated');
+        return;
+      }
+
+      // ✅ Set TxnNo (Bill Number)
+      setTxnNo(generatedTxnNo);
+
+      let updatedBillData = null;
+
+      // ✅ For dine-in only, try to fetch billed bill by table
+      if (!isTakeaway && tableId) {
+        try {
+          const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
+          updatedBillData = updatedBillRes.data || updatedBillRes;
+        } catch (billFetchError) {
+          console.error('Failed to fetch updated bill data:', billFetchError);
+        }
+      }
+
+      // ✅ For takeaway OR if fetch failed, preserve existing billData with phone/FSSAI
+      if (isTakeaway || !updatedBillData) {
+        // ✅ Use existing billData from loadTakeawayOrder which already has phone/FSSAI
+        if (billData) {
+          updatedBillData = {
+            ...billData,
+            TxnNo: generatedTxnNo,
+            txnNo: generatedTxnNo,
+          };
+        } else {
+          // Create manual billData with ALL required fields
+          updatedBillData = {
+            TxnNo: generatedTxnNo,
+            txnNo: generatedTxnNo,
+            orderNo: orderNo,
+            details: billItems.filter(i => i.itemId > 0),
+            header: {
+              TxnNo: generatedTxnNo,
+              orderNo: orderNo,
+              Order_Type: activeTab,
+            },
+            // ✅ CRITICAL: Add phone and FSSAI from state
+
+            hotelName: restaurantName,
+            outletName: outletName,
+            address: user?.address || '',
+            gstNo: user?.trn_gstno || '',
+          };
+        }
+      }
+
+
+
+      setBillData(updatedBillData);
+      setIsTransactionBilled(true);
+      setShowBillPrintModal(true);
+
+    } catch (error) {
+      console.error('Error printing bill:', error);
+      toast.error('Error printing bill');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const PrintAndSettle = async () => {
+    if (!txnId) {
+      toast.error('Transaction not found');
+      return;
     }
 
-  } catch (error) {
-    console.error('PrintAndSettle Error:', error);
-    toast.error('Error printing bill');
-  } finally {
-    setLoading(false);
-  }
-};
+    // Safety check for takeaway orders
+    if (isTakeaway && !txnId) {
+      toast.error('Transaction not loaded. Please reopen order.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Mark bill as billed & generate Bill No / TxnNo
+      const response = await OrderService.markBillAsBilled(txnId, {
+        outletId: selectedOutletId || Number(user?.outletid),
+        customerName: customerName || null,
+        mobileNo: customerNo || null,
+        customerid: customerId || null,
+      });
+
+      console.log('MarkBill Response:', response);
+
+      // Get generated bill number
+      const generatedTxnNo = response?.data?.TxnNo || '';
+
+      if (!generatedTxnNo) {
+        toast.error('Bill No not generated');
+        return;
+      }
+
+      // ✅ CRITICAL FIX: Set BOTH orderNo AND txnNo
+      setOrderNo(generatedTxnNo);  // Order Number (for display)
+      setTxnNo(generatedTxnNo);    // Bill Number/TxnNo (for BillNo field)
+
+      // ✅ FIX: For takeaway, don't call getBilledBillByTable (no table exists)
+      let updatedBillData = null;
+
+      if (!isTakeaway && tableId) {
+        try {
+          const updatedBillRes = await OrderService.getBilledBillByTable(tableId);
+          updatedBillData = updatedBillRes?.data || updatedBillRes || null;
+          if (updatedBillData) {
+            setBillData(updatedBillData);
+          }
+        } catch (billFetchError) {
+          console.error('Failed to fetch updated bill data:', billFetchError);
+        }
+      }
+
+      // ✅ For takeaway OR if fetch failed, preserve existing billData with phone/FSSAI
+      if (isTakeaway || !updatedBillData) {
+        // Use existing billData from loadTakeawayOrder which already has phone/FSSAI
+        if (billData) {
+          updatedBillData = {
+            ...billData,
+            TxnNo: generatedTxnNo,
+            txnNo: generatedTxnNo,
+          };
+        } else {
+          // Create manual billData with ALL required fields including phone/FSSAI
+          updatedBillData = {
+            TxnNo: generatedTxnNo,
+            txnNo: generatedTxnNo,
+            orderNo: orderNo,
+            details: billItems.filter(i => i.itemId > 0),
+            header: {
+              TxnNo: generatedTxnNo,
+              orderNo: orderNo,
+              Order_Type: activeTab,
+            },
+            // ✅ CRITICAL: Add phone and FSSAI from state
+
+            hotelName: restaurantName,
+            outletName: outletName,
+            address: user?.address || '',
+            gstNo: user?.trn_gstno || '',
+          };
+        }
+      }
+
+      // ✅ Ensure phone and FSSAI are preserved in billData
+      if (updatedBillData) {
+
+
+        if (!updatedBillData.hotelName && restaurantName) {
+          updatedBillData.hotelName = restaurantName;
+        }
+        if (!updatedBillData.outletName && outletName) {
+          updatedBillData.outletName = outletName;
+        }
+        setBillData(updatedBillData);
+      }
+
+      // Set billed state
+      setIsTransactionBilled(true);
+
+      // Open print modal AFTER bill no set
+      setPrintThenSettleFlow(true);
+      setShowBillPrintModal(true);
+
+      toast.success('Bill marked as printed and ready for settlement!');
+
+      // Update table status only for dine-in
+      if (!isTakeaway && tableId) {
+        await OrderService.updateTableStatus(tableId, {
+          status: 2,
+        });
+      }
+
+    } catch (error) {
+      console.error('PrintAndSettle Error:', error);
+      toast.error('Error printing bill');
+    } finally {
+      setLoading(false);
+    }
+  };
   const resetBillState = () => {
     setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '', isFetched: false }]);
     setTxnId(null);
@@ -3004,9 +3039,11 @@ const PrintAndSettle = async () => {
 
           case 'F9': // 🔒 KOT (only new items)
             event.preventDefault();
-            if (disableKOT) return;
+            if (event.repeat) return; // ignore key repeat
+            if (disableKOT || kotProcessingRef.current || isKotProcessing) return;
             saveKOT(false, true);
             return;
+
 
           case 'F10': // 🔒 Print
             event.preventDefault();
@@ -3473,156 +3510,156 @@ const PrintAndSettle = async () => {
                   </Col>
 
                   {/* Waiter */}
-<Col style={{ flex: '0 0 180px', maxWidth: '180px' }}>
-  <div
-    className="bg-white border rounded shadow-sm p-2"
-    ref={waiterDropdownRef as any}
-    style={{ position: 'relative' }}
-  >
-    <div className="text-uppercase small fw-semibold text-secondary mb-1">
-      <i className="fi fi-rr-user me-1"></i> Waiter
-    </div>
+                  <Col style={{ flex: '0 0 180px', maxWidth: '180px' }}>
+                    <div
+                      className="bg-white border rounded shadow-sm p-2"
+                      ref={waiterDropdownRef as any}
+                      style={{ position: 'relative' }}
+                    >
+                      <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                        <i className="fi fi-rr-user me-1"></i> Waiter
+                      </div>
 
-    <div className="position-relative">
-      <input
-        type="text"
-        value={waiterDropdownOpen ? waiterSearch : waiter || ""}
-        onChange={(e) => {
-          setWaiterSearch(e.target.value);
-          setWaiterDropdownOpen(true);
-          setSelectedWaiterIndex(-1);
-        }}
-        onFocus={() => {
-          setWaiterDropdownOpen(true);
-          setWaiterSearch(waiter || "");
-          setSelectedWaiterIndex(-1);
-        }}
-        onKeyDown={(e) => {
-          const filtered = waiterUsers
-            .filter((u: any) => {
-              const q = waiterSearch.trim().toLowerCase();
-              if (!q) return true;
-              return (
-                (u.employee_name || "").toLowerCase().includes(q) ||
-                (u.username || "").toLowerCase().includes(q)
-              );
-            })
-            .slice(0, 50);
+                      <div className="position-relative">
+                        <input
+                          type="text"
+                          value={waiterDropdownOpen ? waiterSearch : waiter || ""}
+                          onChange={(e) => {
+                            setWaiterSearch(e.target.value);
+                            setWaiterDropdownOpen(true);
+                            setSelectedWaiterIndex(-1);
+                          }}
+                          onFocus={() => {
+                            setWaiterDropdownOpen(true);
+                            setWaiterSearch(waiter || "");
+                            setSelectedWaiterIndex(-1);
+                          }}
+                          onKeyDown={(e) => {
+                            const filtered = waiterUsers
+                              .filter((u: any) => {
+                                const q = waiterSearch.trim().toLowerCase();
+                                if (!q) return true;
+                                return (
+                                  (u.employee_name || "").toLowerCase().includes(q) ||
+                                  (u.username || "").toLowerCase().includes(q)
+                                );
+                              })
+                              .slice(0, 50);
 
-          if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setSelectedWaiterIndex(prev => 
-              prev < filtered.length - 1 ? prev + 1 : prev
-            );
-          } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setSelectedWaiterIndex(prev => prev > 0 ? prev - 1 : -1);
-          } else if (e.key === 'Enter' && selectedWaiterIndex >= 0 && filtered[selectedWaiterIndex]) {
-            e.preventDefault();
-            const selected = filtered[selectedWaiterIndex];
-            const display = selected.employee_name || selected.username;
-            setWaiter(selected.username);
-            setWaiterSearch(display);
-            setWaiterDropdownOpen(false);
-            setSelectedWaiterIndex(-1);
-          } else if (e.key === 'Escape') {
-            setWaiterDropdownOpen(false);
-            setSelectedWaiterIndex(-1);
-          }
-        }}
-        placeholder="Search waiter"
-        className="form-control form-control-sm"
-      />
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setSelectedWaiterIndex(prev =>
+                                prev < filtered.length - 1 ? prev + 1 : prev
+                              );
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setSelectedWaiterIndex(prev => prev > 0 ? prev - 1 : -1);
+                            } else if (e.key === 'Enter' && selectedWaiterIndex >= 0 && filtered[selectedWaiterIndex]) {
+                              e.preventDefault();
+                              const selected = filtered[selectedWaiterIndex];
+                              const display = selected.employee_name || selected.username;
+                              setWaiter(selected.username);
+                              setWaiterSearch(display);
+                              setWaiterDropdownOpen(false);
+                              setSelectedWaiterIndex(-1);
+                            } else if (e.key === 'Escape') {
+                              setWaiterDropdownOpen(false);
+                              setSelectedWaiterIndex(-1);
+                            }
+                          }}
+                          placeholder="Search waiter"
+                          className="form-control form-control-sm"
+                        />
 
-      {waiterDropdownOpen && (
-        <div
-          className="dropdown-menu show"
-          style={{
-            position: 'fixed',
-            top: 'auto',
-            left: 'auto',
-            maxHeight: "200px",
-            minWidth: "160px",     // 👈 Minimum width set karein
-            width: "auto",          // 👈 Auto width
-            maxWidth: "180px",      // 👈 Maximum width Col ke barabar
-            overflowY: "auto",
-            zIndex: 9999,
-            boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-            borderRadius: '4px',
-            padding: '2px 0',
-            fontSize: '12px'
-          }}
-          ref={(el) => {
-            if (el && waiterDropdownRef.current) {
-              const rect = waiterDropdownRef.current.getBoundingClientRect();
-              el.style.top = `${rect.bottom + window.scrollY + 2}px`;
-              el.style.left = `${rect.left + window.scrollX}px`;
-            }
-          }}
-        >
-          {(() => {
-            const q = waiterSearch.trim().toLowerCase();
+                        {waiterDropdownOpen && (
+                          <div
+                            className="dropdown-menu show"
+                            style={{
+                              position: 'fixed',
+                              top: 'auto',
+                              left: 'auto',
+                              maxHeight: "200px",
+                              minWidth: "160px",     // 👈 Minimum width set karein
+                              width: "auto",          // 👈 Auto width
+                              maxWidth: "180px",      // 👈 Maximum width Col ke barabar
+                              overflowY: "auto",
+                              zIndex: 9999,
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                              borderRadius: '4px',
+                              padding: '2px 0',
+                              fontSize: '12px'
+                            }}
+                            ref={(el) => {
+                              if (el && waiterDropdownRef.current) {
+                                const rect = waiterDropdownRef.current.getBoundingClientRect();
+                                el.style.top = `${rect.bottom + window.scrollY + 2}px`;
+                                el.style.left = `${rect.left + window.scrollX}px`;
+                              }
+                            }}
+                          >
+                            {(() => {
+                              const q = waiterSearch.trim().toLowerCase();
 
-            const filtered = waiterUsers
-              .filter((u: any) => {
-                if (!q) return true;
-                return (
-                  (u.employee_name || "").toLowerCase().includes(q) ||
-                  (u.username || "").toLowerCase().includes(q)
-                );
-              })
-              .slice(0, 50);
+                              const filtered = waiterUsers
+                                .filter((u: any) => {
+                                  if (!q) return true;
+                                  return (
+                                    (u.employee_name || "").toLowerCase().includes(q) ||
+                                    (u.username || "").toLowerCase().includes(q)
+                                  );
+                                })
+                                .slice(0, 50);
 
-            if (filtered.length === 0) {
-              return (
-                <div className="dropdown-item text-muted" style={{ padding: '4px 10px', fontSize: '11px' }}>
-                  No matches found
-                </div>
-              );
-            }
+                              if (filtered.length === 0) {
+                                return (
+                                  <div className="dropdown-item text-muted" style={{ padding: '4px 10px', fontSize: '11px' }}>
+                                    No matches found
+                                  </div>
+                                );
+                              }
 
-            return filtered.map((u: any, idx: number) => {
-              const display = u.employee_name || u.username;
+                              return filtered.map((u: any, idx: number) => {
+                                const display = u.employee_name || u.username;
 
-              return (
-                <button
-                  type="button"
-                  key={u.userId}
-                  className="dropdown-item"
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s',
-                    border: 'none',
-                    background: selectedWaiterIndex === idx ? '#e7f1ff' : 'transparent',
-                    width: '100%',
-                    textAlign: 'left',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}
-                  title={display}
-                  onMouseEnter={() => setSelectedWaiterIndex(idx)}
-                  onMouseLeave={() => setSelectedWaiterIndex(-1)}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setWaiter(u.username);
-                    setWaiterSearch(display);
-                    setWaiterDropdownOpen(false);
-                    setSelectedWaiterIndex(-1);
-                  }}
-                >
-                  {display}
-                </button>
-              );
-            });
-          })()}
-        </div>
-      )}
-    </div>
-  </div>
-</Col>
+                                return (
+                                  <button
+                                    type="button"
+                                    key={u.userId}
+                                    className="dropdown-item"
+                                    style={{
+                                      padding: '4px 10px',
+                                      fontSize: '12px',
+                                      cursor: 'pointer',
+                                      transition: 'background-color 0.2s',
+                                      border: 'none',
+                                      background: selectedWaiterIndex === idx ? '#e7f1ff' : 'transparent',
+                                      width: '100%',
+                                      textAlign: 'left',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title={display}
+                                    onMouseEnter={() => setSelectedWaiterIndex(idx)}
+                                    onMouseLeave={() => setSelectedWaiterIndex(-1)}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setWaiter(u.username);
+                                      setWaiterSearch(display);
+                                      setWaiterDropdownOpen(false);
+                                      setSelectedWaiterIndex(-1);
+                                    }}
+                                  >
+                                    {display}
+                                  </button>
+                                );
+                              });
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Col>
 
                   {/* PAX */}
                   <Col md={1}>
@@ -3675,7 +3712,7 @@ const PrintAndSettle = async () => {
                   </Col>
 
                   {/* Date (business date) */}
-                 <Col style={{ flex: "0 0 160px", maxWidth: "130px" }}>
+                  <Col style={{ flex: "0 0 160px", maxWidth: "130px" }}>
                     <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
                       <div className="text-uppercase small fw-semibold text-secondary mb-1">
                         <i className="fi fi-rr-calendar"></i> Date
@@ -3684,8 +3721,8 @@ const PrintAndSettle = async () => {
                       <div className="fw-bold fs-5 text-dark">
                         {user?.currDate
                           ? new Date(user.currDate)
-                              .toLocaleDateString("en-GB")
-                              .replace(/\//g, "-")
+                            .toLocaleDateString("en-GB")
+                            .replace(/\//g, "-")
                           : "--"}
                       </div>
                     </div>
@@ -3785,7 +3822,7 @@ const PrintAndSettle = async () => {
                 const results = deptFilteredMenuItems.flatMap(item => {
 
                   const variants = (item.department_details || []).filter((d: any) =>
-                  d.departmentid === selectedDeptId &&
+                    d.departmentid === selectedDeptId &&
                     d.item_rate > 0 &&
                     d.variant_value_id
                   );
@@ -4089,7 +4126,8 @@ const PrintAndSettle = async () => {
                     {!isTakeaway && <Button disabled={disableTableTransfer} onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>}
                     {!isTakeaway && <Button disabled={disableNewBill} onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>}
                     <Button disabled={disableRevKOT} onClick={handleF8Action} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
-                    <Button disabled={disableKOT} onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
+                    <Button disabled={disableKOT || isKotProcessing} onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
+
                     <Button disabled={disablePrint} onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
                     <Button disabled={disableSettle} onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
                     <Button disabled={disablePrintSettle} onClick={PrintAndSettle} variant="outline-primary" size="sm" className="function-btn">Print&Settle (F12)</Button>
@@ -4391,12 +4429,12 @@ const PrintAndSettle = async () => {
         } as any))}
 
         currentKOTNo={currentKotNoForPrint}
-         // ✅ FORCE activeTab for takeaway orders
-  activeTab={isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : activeTab}
-  
-  // ✅ FORCE selectedTable for takeaway
-  selectedTable={isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : (activeTab === 'Dine-in' ? tableNo : activeTab)}
-    orderNo={orderNo}
+        // ✅ FORCE activeTab for takeaway orders
+        activeTab={isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : activeTab}
+
+        // ✅ FORCE selectedTable for takeaway
+        selectedTable={isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : (activeTab === 'Dine-in' ? tableNo : activeTab)}
+        orderNo={orderNo}
         customerName={customerName}
         mobileNumber={customerNo}
         user={user}
@@ -4421,88 +4459,88 @@ const PrintAndSettle = async () => {
         departmentName={departmentName}
       />
 
-     <BillPreviewPrint
-    show={showBillPrintModal}
-    autoPrint={true}  // 👈 Direct print (no modal)
-    onHide={() => setShowBillPrintModal(false)}
-    billData={billData}  // ✅ ADD THIS LINE - Pass bill data to component
-    formData={formData}
-    user={user}
-    isBilled={wasAlreadyBilled} 
-    items={billItems.filter(i => i.itemId > 0).map((item) => ({
-    id: item.itemId,
-    name: item.itemName,
-    price: item.rate,
-    qty: item.qty,
-    isBilled: item.isBilled || 0,
-    variantId: item.variantId ?? null,
-    variantName: item.variantName ?? '',
-    isNCKOT: 0,
-    NCName: '',
-    NCPurpose: '',
-    item_no: item.item_no.toString(),
-    txnDetailId: item.txnDetailId,
-    revQty: item.reversedQty || 0,
-    kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
-  } as any))}
-  currentKOTNos={currentKOTNos}
-  selectedWaiter={waiter}
-   orderNo={orderNo ?? undefined}
-   txnNo={billData?.txnNo}
-    // ✅ "0037" (Order Number from billData)
+      <BillPreviewPrint
+        show={showBillPrintModal}
+        autoPrint={true}  // 👈 Direct print (no modal)
+        onHide={() => setShowBillPrintModal(false)}
+        billData={billData}  // ✅ ADD THIS LINE - Pass bill data to component
+        formData={formData}
+        user={user}
+        isBilled={wasAlreadyBilled}
+        items={billItems.filter(i => i.itemId > 0).map((item) => ({
+          id: item.itemId,
+          name: item.itemName,
+          price: item.rate,
+          qty: item.qty,
+          isBilled: item.isBilled || 0,
+          variantId: item.variantId ?? null,
+          variantName: item.variantName ?? '',
+          isNCKOT: 0,
+          NCName: '',
+          NCPurpose: '',
+          item_no: item.item_no.toString(),
+          txnDetailId: item.txnDetailId,
+          revQty: item.reversedQty || 0,
+          kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
+        } as any))}
+        currentKOTNos={currentKOTNos}
+        selectedWaiter={waiter}
+        orderNo={orderNo ?? undefined}
+        txnNo={billData?.txnNo}
+        // ✅ "0037" (Order Number from billData)
 
 
-   
-  selectedTable={tableNo}
-    activeTab={activeTab}  // ✅ FIXED: Direct activeTab bhejo
-     
-  customerName={customerName}
-  mobileNumber={customerNo ?? undefined}
-  currentTxnId={txnId?.toString()}
-  taxCalc={{
-    subtotal: grossAmount,
-    cgstAmt: cgst,
-    sgstAmt: sgst,
-    igstAmt: igst,
-    grandTotal: finalAmount,
-    TaxableValue: taxCalc.taxableValue  // ✅ Also add taxableValue if available
-  }}
-  taxRates={{
-    cgst: cgstRate,
-    sgst: sgstRate,
-    igst: igstRate
-  }}
-  discount={discount}
-  roundOffEnabled={roundOffEnabled}
-  roundOffValue={roundOff}
-  selectedPaymentModes={selectedPaymentModes}
-  selectedOutletId={selectedOutletId}
-  restaurantName={restaurantName}
-  outletName={outletName}
-  departmentName={departmentName}
-  
-  // ✅ AFTER SUCCESS PRINT
-  onPrint={async () => {
-    toast.success("Bill printed successfully");
 
-    // Table status update AFTER print
-    if (tableId) {
-      await OrderService.updateTableStatus(tableId, { status: 2 });
-    }
+        selectedTable={tableNo}
+        activeTab={activeTab}  // ✅ FIXED: Direct activeTab bhejo
 
-    setShowBillPrintModal(false);
+        customerName={customerName}
+        mobileNumber={customerNo ?? undefined}
+        currentTxnId={txnId?.toString()}
+        taxCalc={{
+          subtotal: grossAmount,
+          cgstAmt: cgst,
+          sgstAmt: sgst,
+          igstAmt: igst,
+          grandTotal: finalAmount,
+          TaxableValue: taxCalc.taxableValue  // ✅ Also add taxableValue if available
+        }}
+        taxRates={{
+          cgst: cgstRate,
+          sgst: sgstRate,
+          igst: igstRate
+        }}
+        discount={discount}
+        roundOffEnabled={roundOffEnabled}
+        roundOffValue={roundOff}
+        selectedPaymentModes={selectedPaymentModes}
+        selectedOutletId={selectedOutletId}
+        restaurantName={restaurantName}
+        outletName={outletName}
+        departmentName={departmentName}
 
-    // PrintThenSettle flow: Open settlement after print
-    if (printThenSettleFlow) {
-      setPrintThenSettleFlow(false);
-      setShowSettlementModal(true);
-    } else {
-      setTimeout(() => {
-        navigate("/apps/Tableview");
-      }, 300);
-    }
-  }}
-/>
+        // ✅ AFTER SUCCESS PRINT
+        onPrint={async () => {
+          toast.success("Bill printed successfully");
+
+          // Table status update AFTER print
+          if (tableId) {
+            await OrderService.updateTableStatus(tableId, { status: 2 });
+          }
+
+          setShowBillPrintModal(false);
+
+          // PrintThenSettle flow: Open settlement after print
+          if (printThenSettleFlow) {
+            setPrintThenSettleFlow(false);
+            setShowSettlementModal(true);
+          } else {
+            setTimeout(() => {
+              navigate("/apps/Tableview");
+            }, 300);
+          }
+        }}
+      />
 
       {/* 🔥 NEW: Reverse KOT Print Modal (copy from Orders.tsx) */}
       <ReverseKotPrint

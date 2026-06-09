@@ -340,11 +340,11 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <meta charset="UTF-8" />
   <title>BILL</title>
   <style>
-    @page { size: 80mm auto; margin: 0; }
+    @page { size: 75mmauto; margin: 0; }
     @media print { html, body { overflow: visible !important; } }
     html, body {
-      width: 80mm !important;
-      min-width: 80mm !important;
+      width: 75mm!important;
+      min-width: 75mm!important;
       margin: 0; padding: 0;
       font-family: 'Courier New', monospace;
       font-size: 12pt; line-height: 1.4;
@@ -352,7 +352,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       -webkit-print-color-adjust: exact !important;
     }
     #bill-preview-content {
-      width: 80mm !important; min-width: 80mm !important;
+      width: 75mm!important; min-width: 75mm!important;
       margin: 0 auto; padding: 10px; box-sizing: border-box;
     }
     .center { text-align: center; }
@@ -445,7 +445,22 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     <div style="flex:1;white-space:nowrap;"><strong>Time</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:10px;font-size:9pt;">
-    <div style="flex:1;"><strong>Table</strong><br />${selectedTable || '—'}</div>
+   <div style="flex:1;">
+ 
+  <div
+    style="
+      border:2px solid #000;
+      padding:8px;
+      margin-top:4px;
+      text-align:center;
+      font-size:18px;
+      font-weight:700;
+      letter-spacing:1px;
+    "
+  >
+    ${selectedTable || '—'}
+  </div>
+</div>
     <div style="flex:1;"><strong>Waiter</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>
     <div style="flex:1;font-size:7pt;"><strong>Covers</strong><br />N/A</div>
     <div style="flex:1;white-space:nowrap;"><strong>KOT No</strong><br />${allKOTNos.length > 0 ? allKOTNos.join(', ') : currentKOTNo || '—'}</div>

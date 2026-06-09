@@ -89,6 +89,9 @@ const KitchenAllocation: React.FC = () => {
   const [modalData, setModalData] = useState<ItemDetailData[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
 
+const [totalDiscount, setTotalDiscount] = useState<number>(0);
+
+
   // Fetch filter options
   useEffect(() => {
     const fetchFilterOptions = async () => {
@@ -148,7 +151,7 @@ const KitchenAllocation: React.FC = () => {
   }, [user]);
 
   // Fetch data using KitchenAllocationService
-  const fetchData = async () => {
+const fetchData = async () => {
   if (!fromDateTime || !toDateTime) {
     setError('Please select both From Date/Time and To Date/Time.');
     return;
@@ -165,7 +168,6 @@ const KitchenAllocation: React.FC = () => {
     const startDateTime = fromDateTime < toDateTime ? fromDateTime : toDateTime;
     const endDateTime = fromDateTime < toDateTime ? toDateTime : fromDateTime;
 
-    // Build params object with all selected filters
     const params: any = {
       fromDate: startDateTime,
       toDate: endDateTime,
@@ -187,6 +189,8 @@ const KitchenAllocation: React.FC = () => {
         Amount: item.Amount || 0,
       }));
       setData(processedData);
+      // In fetchData, after getting result:
+setTotalDiscount((result as any).totalDiscount || 0); // <-- Add this line
     } else {
       setError(result.message || 'Failed to fetch data');
     }
@@ -260,66 +264,61 @@ const KitchenAllocation: React.FC = () => {
     XLSX.writeFile(workbook, 'kitchen_allocation_report.xlsx');
   };
 
-  const handlePrint = async () => {
-    try {
-      setLoading(true);
-      const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
-      const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
+const handlePrint = async () => {
+  try {
+    setLoading(true);
+    const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
+    const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
 
-      if (systemPrinters.length === 0) {
-        toast.error("No printers detected on this system.");
+    if (systemPrinters.length === 0) {
+      toast.error("No printers detected on this system.");
+      return;
+    }
+
+    const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, "").trim();
+    
+
+    let finalPrinterName: string | null = null;
+    let usedFallback = false;
+    console.log("System Printers:", usedFallback);
+
+    if (printerName) {
+      const matchedPrinter = systemPrinters.find((p: any) =>
+        normalize(p.name).includes(normalize(printerName)) ||
+        normalize(p.displayName || "").includes(normalize(printerName))
+      );
+      if (matchedPrinter) {
+        finalPrinterName = matchedPrinter.name;
+      }
+    }
+
+    if (!finalPrinterName) {
+      const defaultPrinter = systemPrinters.find((p: any) => p.isDefault);
+      const fallbackPrinter = defaultPrinter || systemPrinters[0];
+      if (fallbackPrinter) {
+        finalPrinterName = fallbackPrinter.name;
+        usedFallback = true;
+        if (printerName) {
+          toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
+        }
+      } else {
+        toast.error("No suitable printer found.");
         return;
       }
+    }
 
-      const normalize = (s: string) =>
-        s.toLowerCase().replace(/\s+/g, "").trim();
+    const totalRevQty = filteredData.reduce((sum, item) => sum + Number(item.RevQty ?? 0), 0);
+    const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty ?? 0), 0);
+    const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount ?? 0), 0);
+    const discountTotal = totalDiscount; // from state
 
-      let finalPrinterName: string | null = null;
-      let usedFallback = false; 
-      console.log("System Printers:", usedFallback);
+    const formatDisplayDateTime = (dateTimeStr: string) => dateTimeStr.replace('T', ' ');
 
-      if (printerName) {
-        const matchedPrinter = systemPrinters.find((p: any) =>
-          normalize(p.name).includes(normalize(printerName)) ||
-          normalize(p.displayName || "").includes(normalize(printerName))
-        );
-        if (matchedPrinter) {
-          finalPrinterName = matchedPrinter.name;
-        }
-      }
-
-      if (!finalPrinterName) {
-        const defaultPrinter = systemPrinters.find((p: any) => p.isDefault);
-        const fallbackPrinter = defaultPrinter || systemPrinters[0];
-        if (fallbackPrinter) {
-          finalPrinterName = fallbackPrinter.name;
-          usedFallback = true;
-          if (printerName) {
-            toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
-          }
-        } else {
-          toast.error("No suitable printer found.");
-          return;
-        }
-      }
-
-      const totalRevQty = filteredData.reduce((sum, item) => sum + Number(item.RevQty ?? 0), 0);
-      const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty ?? 0), 0);
-      const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount ?? 0), 0);
-
-      // Format datetime for display
-      const formatDisplayDateTime = (dateTimeStr: string) => {
-        return dateTimeStr.replace('T', ' ');
-      };
-
-      const reportHTML = `
+    const reportHTML = `
       <html>
       <head>
         <style>
-          @page {
-            size: 80mm auto;
-            margin: 0;
-          }
+          @page { size: 70mm auto; margin: 0; }
           @media print {
             html, body { overflow: visible !important; }
             thead { display: table-header-group !important; }
@@ -330,40 +329,21 @@ const KitchenAllocation: React.FC = () => {
             font-family: monospace;
             font-size: 14px;
             line-height: 1.3;
-            width: 72mm;
-            margin-left: 3mm;
-            margin-right: 2mm;
+            width: 70mm;
+            margin-left: 1mm;
+            margin-right: 1mm;
             padding: 0;
           }
-          .sub-header {
-            text-align: center;
-            font-size: 13px;
-            margin-bottom: 5px;
-            font-weight: bold;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-          }
-          th, td {
-            border-bottom: 1px dashed #000;
-            padding: 2px;
-            font-size: 13px;
-          }
-          th {
-            text-align: left;
-          }
+          .sub-header { text-align: center; font-size: 13px; margin-bottom: 5px; font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+          th, td { border-bottom: 1px dashed #000; padding: 2px; font-size: 13px; }
+          th { text-align: left; }
           .col-no   { width: 12%; }
           .col-name { width: 38%; }
           .col-revqty { width: 15%; text-align: right; }
           .col-qty  { width: 15%; text-align: right; }
           .col-amt  { width: 20%; text-align: right; }
-          td {
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-          }
+          td { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
           .totals-block {
             display: flex;
             justify-content: space-between;
@@ -372,22 +352,41 @@ const KitchenAllocation: React.FC = () => {
             font-weight: bold;
             border-top: 1px solid #000;
           }
-          .totals-left {
-            width: 30%;
-            text-align: left;
-          }
-          .totals-right {
-            width: 70%;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-          }
-          .totals-revqty, .totals-qty, .totals-amt {
-            text-align: right;
-          }
+          .totals-left { width: 30%; text-align: left; }
+          .totals-right { width: 70%; display: flex; justify-content: flex-end; gap: 10px; }
+          .totals-revqty, .totals-qty, .totals-amt { text-align: right; }
           .totals-revqty { width: 20%; }
           .totals-qty { width: 20%; }
           .totals-amt { width: 25%; }
+          .discount-line {
+            display: flex;
+            justify-content: flex-end;
+            padding-top: 4px;
+            font-size: 13px;
+            border-top: 1px dashed #000;
+            margin-top: 2px;
+          }
+          .discount-label {
+            width: 75%;
+            text-align: right;
+            font-weight: bold;
+          }
+          .discount-amount {
+            width: 25%;
+            text-align: right;
+            font-weight: bold;
+          }
+            .final-total-label {
+  width: 75%;
+  text-align: right;
+  font-weight: 700;
+}
+
+.final-total-amount {
+  width: 25%;
+  text-align: right;
+  font-weight: 700;
+}
         </style>
       </head>
       <body>
@@ -426,22 +425,34 @@ const KitchenAllocation: React.FC = () => {
             <div class="totals-amt">${formatAmount(totalAmount)}</div>
           </div>
         </div>
+        <div class="discount-line">
+          <div class="discount-label">Discount Total:</div>
+          <div class="discount-amount">${formatAmount(discountTotal)}</div>
+        </div>
+        <div class="discount-line">
+   <div class="final-total-label">Final Total:</div>
+  <div class="final-total-amount">
+    ${formatAmount(totalAmount - discountTotal)}
+  </div>
+</div>
+
+
       </body>
       </html>
-      `;
+    `;
 
-      if ((window as any).electronAPI?.directPrint) {
-        await (window as any).electronAPI.directPrint(reportHTML, finalPrinterName);
-        toast.success("Kitchen Allocation Report Printed Successfully!");
-      } else {
-        toast.error("Electron print API not available.");
-      }
-    } catch (err) {
-      toast.error("Failed to print Kitchen Allocation Report.");
-    } finally {
-      setLoading(false);
+    if ((window as any).electronAPI?.directPrint) {
+      await (window as any).electronAPI.directPrint(reportHTML, finalPrinterName);
+      toast.success("Kitchen Allocation Report Printed Successfully!");
+    } else {
+      toast.error("Electron print API not available.");
     }
-  };
+  } catch (err) {
+    toast.error("Failed to print Kitchen Allocation Report.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const filteredData = useMemo(() => {
     if (!searchTerm) return data;

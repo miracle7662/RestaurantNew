@@ -163,9 +163,9 @@ exports.getCurrentUser = async (req, res) => {
 
         const [rows] = await db.query(`
             SELECT u.*, h.trn_gstno, h.address AS address,
+                   ht.hotel_type AS hotel_type,
                    b.hotel_name AS brand_name,
                    h.hotel_name AS hotel_name,
-                   ht.hotel_type AS hotel_type,
                    u.outletid
             FROM mst_users u
             LEFT JOIN mst_outlets d ON u.outletid = d.outletid
@@ -194,8 +194,8 @@ exports.getCurrentUser = async (req, res) => {
             hotelid: user.hotelid,
             outletid: user.outletid,
             brand_name: user.brand_name,
-            hotel_name: user.hotel_name,
-            hotel_type: user.hotel_type
+            hotel_type: user.hotel_type,
+            hotel_name: user.hotel_name
         };
 
         res.json(userResponse);
@@ -243,11 +243,12 @@ exports.verifyF8Password = async (req, res) => {
         // ✅ Instead of checking logged-in user role,
         // check if entered password belongs to ANY admin
 
-        const [admins] = await db.query(`
-    SELECT password FROM mst_users
-    WHERE role_level IN ('hotel_admin', 'superadmin')
-      AND status = 0
-`);
+       const [admins] = await db.query(`
+            SELECT password FROM mst_users
+            WHERE role_level = 'hotel_admin'
+              AND hotelid = ?
+              AND status = 0
+        `, [decoded.hotelid]);
 
         let isValidPassword = false;
 
@@ -356,13 +357,13 @@ exports.verifyBillCreatorPassword = async (req, res) => {
 
         // ========== ONLY CHECK FOR ADMIN PASSWORDS ==========
         // Check if entered password belongs to ANY hotel_admin or superadmin
-        const [admins] = await db.query(`
-            SELECT userid, username, full_name, password, role_level 
-            FROM mst_users
-            WHERE role_level IN ('hotel_admin', 'superadmin')
-              AND status = 0
-        `);
-
+     const [admins] = await db.query(`
+    SELECT userid, username, full_name, password, role_level 
+    FROM mst_users
+    WHERE role_level = 'hotel_admin'
+      AND hotelid = ?
+      AND status = 0
+`, [decoded.hotelid]);
         if (admins.length === 0) {
             return res.status(500).json({ 
                 success: false, 
@@ -530,12 +531,14 @@ exports.verifyCreatorPassword = async (req, res) => {
 
         // ========== ONLY CHECK FOR ADMIN PASSWORDS ==========
         // Check if entered password belongs to ANY hotel_admin or superadmin
-        const [admins] = await db.query(`
-            SELECT userid, username, full_name, password, role_level 
-            FROM mst_users
-            WHERE role_level IN ('hotel_admin', 'superadmin')
-              AND status = 0
-        `);
+       // ✅ Naya
+const [admins] = await db.query(`
+    SELECT userid, username, full_name, password, role_level 
+    FROM mst_users
+    WHERE role_level = 'hotel_admin'
+      AND hotelid = ?
+      AND status = 0
+`, [decoded.hotelid]);
 
         if (admins.length === 0) {
             return res.status(500).json({ 
@@ -597,6 +600,97 @@ exports.verifyCreatorPassword = async (req, res) => {
 
     } catch (error) {
         console.error('Creator password verification error:', error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ success: false, message: 'Invalid token' });
+        }
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+// ✅ Sirf Day End aur Handover ke liye — own password OR hotel admin password
+exports.verifyDayendHandoverPassword = async (req, res) => {
+    try {
+        const { password } = req.body;
+        const token = req.headers.authorization?.replace('Bearer ', '');
+
+        if (!token) {
+            return res.status(401).json({ success: false, message: 'No token provided' });
+        }
+
+        if (!password) {
+            return res.status(400).json({ success: false, message: 'Password is required' });
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // Get current logged-in user
+        const [currentUserRows] = await db.query(
+            'SELECT userid, username, full_name, password, role_level FROM mst_users WHERE userid = ? AND status = 0',
+            [decoded.userid]
+        );
+
+        const currentUser = currentUserRows[0];
+
+        if (!currentUser) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        // ✅ Step 1: Logged-in user ka apna password check karo
+        const isOwnPassword = await bcrypt.compare(password, currentUser.password);
+
+        if (isOwnPassword) {
+            return res.json({
+                success: true,
+                message: 'Password verified successfully',
+                verifiedBy: {
+                    id: currentUser.userid,
+                    username: currentUser.username,
+                    name: currentUser.full_name,
+                    role: currentUser.role_level
+                }
+            });
+        }
+
+        // ✅ Step 2: Us hotel ke hotel_admin ka password check karo
+        const [admins] = await db.query(`
+            SELECT userid, username, full_name, password, role_level 
+            FROM mst_users
+            WHERE role_level = 'hotel_admin'
+              AND hotelid = ?
+              AND status = 0
+        `, [decoded.hotelid]);
+
+        let isAdminPassword = false;
+        let verifiedAdmin = null;
+
+        for (const admin of admins) {
+            const match = await bcrypt.compare(password, admin.password);
+            if (match) {
+                isAdminPassword = true;
+                verifiedAdmin = admin;
+                break;
+            }
+        }
+
+        if (!isAdminPassword) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid password. Enter your own or Hotel Admin password.'
+            });
+        }
+
+        return res.json({
+            success: true,
+            message: 'Admin password verified successfully',
+            verifiedBy: {
+                id: verifiedAdmin.userid,
+                username: verifiedAdmin.username,
+                name: verifiedAdmin.full_name,
+                role: verifiedAdmin.role_level
+            }
+        });
+
+    } catch (error) {
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({ success: false, message: 'Invalid token' });
         }

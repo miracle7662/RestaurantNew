@@ -21,5 +21,8 @@ router.post('/verify-password', authController.verifyPassword);
 router.post('/verify-creator-password', authController.verifyCreatorPassword);
 
 
+router.post('/verify-dayend-handover-password',  authController.verifyDayendHandoverPassword);
+
+
 
 module.exports = router;
