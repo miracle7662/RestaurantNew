@@ -238,7 +238,6 @@ const CheckInForm = () => {
   } | null
 
   const hotelId = state?.hotelId || loggedInUser?.hotelid
-  const outletId = user?.outletid
 
   // Escape key → go back; Enter key → move to next focusable field
   useEffect(() => {
@@ -596,7 +595,7 @@ const CheckInForm = () => {
           RoomCategoryService.list({ hotelid: hotelId }),
           taxApi.list(),
           FragmentService.list(),
-          PaymentModeService.list({ outletid: user?.outletid ? String(user.outletid) : undefined }),// Assuming outletId is available in scope; replace with actual value or state if needed
+          PaymentModeService.list({ outletid: user?.outletid ? String(user.outletid) : undefined }), // Assuming outletId is available in scope; replace with actual value or state if needed
         ])
 
         let countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || []
@@ -667,12 +666,10 @@ const CheckInForm = () => {
           ? paymentMethodsRes
           : paymentMethodsRes?.data || []
         // Filter only active types (status === 1) if status field present, else show all
-        const activePaymentMethods = paymentMethodsData.filter(
-          (pm: any) => pm.status === undefined || pm.status === 1
-        )
+        
         // ✅ FIX: pm.id is the payment_modes table PK — this is what must be stored
         // in Checkout_Master.payment_id. Never use paymenttypeid here.
-        const mappedPaymentMethods = paymentMethodsData
+         const mappedPaymentMethods = paymentMethodsData
   .map((pm: any) => {
     const modeName = pm.mode_name || ''
     const safeName = modeName.trim()

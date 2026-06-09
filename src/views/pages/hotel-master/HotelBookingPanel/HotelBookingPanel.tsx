@@ -6523,7 +6523,9 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
     subtotal={settlementPayData.totalPrice}
     loading={settlementPayLoading}
     outletPaymentModes={outletPaymentModes}
-    table_name={settlementPayData.roomNo}
+    guestName={settlementPayData.guestName}
+    roomNo={settlementPayData.roomNo}
+    totalPrice={settlementPayData.totalPrice}
     initialCustomerName={settlementPayData.guestName}
     initialMobile={settlementPayData.mobileNo}
     initialCustomerId={settlementPayData.guestid}
