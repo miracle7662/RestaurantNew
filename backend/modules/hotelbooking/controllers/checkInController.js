@@ -5,7 +5,7 @@ const db = require('../../../config/db');
 const getCurrentUserId = (req) => req.user?.id || null;
 
 // Helper to get current user's hotel ID
-const getCurrentUserHotelId = (req) => req.user?.hotelid || null;
+const getCurrentUserHotelId = (req) => req.user?.hotel_id || null;
 
 // Helper to format MySQL datetime
 const formatDateTime = (dateTimeStr) => {
@@ -28,11 +28,10 @@ const getOccupiedStatusId = async () => {
     );
     if (statuses.length > 0) return statuses[0].room_status_id;
     
-    // Try alternative names
     const [altStatuses] = await db.execute(
         "SELECT room_status_id FROM room_status WHERE LOWER(status_name) IN ('occupied', 'booked', 'in_house') LIMIT 1"
     );
-    return altStatuses.length > 0 ? altStatuses[0].room_status_id : 2; // Default to 2 if not found
+    return altStatuses.length > 0 ? altStatuses[0].room_status_id : 2;
 };
 
 // Helper to get default room status ID for 'available'
@@ -42,7 +41,6 @@ const getAvailableStatusId = async () => {
     );
     if (statuses.length > 0) return statuses[0].room_status_id;
     
-    // Try alternative names
     const [altStatuses] = await db.execute(
         "SELECT room_status_id FROM room_status WHERE LOWER(status_name) IN ('available', 'vacant', 'free') LIMIT 1"
     );
@@ -52,6 +50,8 @@ const getAvailableStatusId = async () => {
 // ----------------------------------------------------------------------
 // GET /checkins – list checkins
 // ----------------------------------------------------------------------
+// In checkInController.js - Update getCheckins function
+
 exports.getCheckins = async (req, res) => {
     try {
         let hotelId = req.query.hotelid || req.query.mst_hotelid;
@@ -109,15 +109,23 @@ exports.getCheckins = async (req, res) => {
 
         const params = [hotelId];
 
+        // ✅ Filter active checkins only for the main view
+        // But allow 'checked_out' if specifically requested via status param
+        if (!status) {
+            sql += ` AND cm.status = 'active'`;
+        } else if (status === 'checked_out') {
+            sql += ` AND cm.status = 'checked_out'`;
+        } else if (status === 'all') {
+            // Show all checkins including checked_out
+        } else {
+            sql += ` AND cm.status = ?`;
+            params.push(status);
+        }
+
         if (q) {
             sql += ` AND (cm.guest_name LIKE ? OR cm.reg_no LIKE ? OR cm.mobile LIKE ?)`;
             const like = `%${q}%`;
             params.push(like, like, like);
-        }
-
-        if (status) {
-            sql += ` AND cm.status = ?`;
-            params.push(status);
         }
 
         sql += ` ORDER BY cm.checkin_id DESC`;
@@ -142,7 +150,6 @@ exports.getCheckins = async (req, res) => {
         res.status(500).json({ success: false, message: 'Database error', error: error.message });
     }
 };
-
 // ----------------------------------------------------------------------
 // GET /checkins/:id – get single checkin by ID
 // ----------------------------------------------------------------------
@@ -452,7 +459,6 @@ exports.addCheckin = async (req, res) => {
             });
         }
 
-        // Get registration number if not provided
         let finalRegNo = reg_no;
         if (!finalRegNo) {
             const [countResult] = await connection.execute(
@@ -463,7 +469,6 @@ exports.addCheckin = async (req, res) => {
             finalRegNo = `REG${String(count).padStart(4, '0')}`;
         }
 
-        // Insert checkin record
         const [result] = await connection.execute(`
             INSERT INTO checkin_master (
                 guest_id, guest_name, address, mobile, company_name, emailed, 
@@ -515,7 +520,6 @@ exports.addCheckin = async (req, res) => {
 
         const checkinId = result.insertId;
 
-        // Update room status to occupied (using room_status_id, NOT room_status)
         if (room_ids && room_ids.length > 0) {
             const occupiedStatusId = await getOccupiedStatusId();
             
@@ -527,7 +531,6 @@ exports.addCheckin = async (req, res) => {
                 `, [occupiedStatusId, created_by_id || userId, now, roomId, hotelId]);
             }
         } else if (room_no) {
-            // If we have room number but not room_ids, try to get room_id from room_no
             const [rooms] = await connection.execute(
                 'SELECT room_id FROM room_master WHERE room_no = ? AND hotelid = ?',
                 [room_no, hotelId]
@@ -542,7 +545,6 @@ exports.addCheckin = async (req, res) => {
             }
         }
 
-        // Fetch the created checkin
         const [newCheckin] = await connection.execute(`
             SELECT 
                 checkin_id, guest_id, guest_name, address, mobile, company_name, 
@@ -635,7 +637,6 @@ exports.updateCheckin = async (req, res) => {
 
         let hotelId = req.body.hotelid || getCurrentUserHotelId(req);
 
-        // Build dynamic update query
         const updates = [];
         const params = [];
 
@@ -690,7 +691,6 @@ exports.updateCheckin = async (req, res) => {
             );
         }
 
-        // Fetch updated checkin
         const [updatedCheckin] = await db.execute(`
             SELECT 
                 checkin_id, guest_id, guest_name, address, mobile, company_name, 
@@ -733,7 +733,8 @@ exports.updateCheckin = async (req, res) => {
 };
 
 // ----------------------------------------------------------------------
-// PATCH /checkins/:id/partial – partial update for checkout_datetime, total_amount, total_nights
+// PATCH /checkins/:id/partial – PARTIAL UPDATE FOR DAY EXTENSIONS
+// CRITICAL: This method accumulates total_amount for day extensions
 // ----------------------------------------------------------------------
 exports.updatePartialCheckin = async (req, res) => {
     try {
@@ -746,23 +747,62 @@ exports.updatePartialCheckin = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid checkin ID' });
         }
 
-        const { total_amount, checkout_datetime, total_nights, status } = req.body;
+        const { total_amount, checkout_datetime, total_nights, status, additional_amount } = req.body;
+
+        // IMPORTANT: Always fetch current values when using additional_amount
+        let currentStoredAmount = 0;
+        let currentStoredNights = 0;
+        
+        // Fetch current values if we need to accumulate or if no total_amount provided
+        if (additional_amount !== undefined || total_amount === undefined) {
+            const [rows] = await db.execute(
+                'SELECT total_amount, total_nights FROM checkin_master WHERE checkin_id = ?',
+                [checkinId]
+            );
+            if (rows.length === 0) {
+                return res.status(404).json({ success: false, message: 'Checkin not found' });
+            }
+            currentStoredAmount = Number(rows[0].total_amount) || 0;
+            currentStoredNights = Number(rows[0].total_nights) || 0;
+            
+            console.log(`[DEBUG] Current checkin ${checkinId}: total_amount=${currentStoredAmount}, total_nights=${currentStoredNights}`);
+        }
 
         const updates = [];
         const params = [];
 
+        // CRITICAL FIX: Handle day extension correctly by accumulating
         if (total_amount !== undefined) {
+            // Direct set (use this for initial checkin or manual override)
             updates.push('total_amount = ?');
-            params.push(total_amount);
+            params.push(Number(total_amount));
+            console.log(`[DEBUG] Setting total_amount directly to ${total_amount}`);
+        } else if (additional_amount !== undefined) {
+            // DAY EXTENSION: Accumulate the new amount to existing total
+            // This ensures: Day1=3000, Day2=3000+3000=6000, Day3=6000+3000=9000
+            const newTotal = currentStoredAmount + Number(additional_amount);
+            updates.push('total_amount = ?');
+            params.push(newTotal);
+            console.log(`[DEBUG] DAY EXTENSION: Old total=${currentStoredAmount}, Added=${additional_amount}, NEW CUMULATIVE TOTAL=${newTotal}`);
         }
+        
         if (checkout_datetime !== undefined) {
             updates.push('checkout_datetime = ?');
             params.push(formatDateTime(checkout_datetime));
+            console.log(`[DEBUG] Updating checkout_datetime to ${checkout_datetime}`);
         }
+        
         if (total_nights !== undefined) {
             updates.push('total_nights = ?');
             params.push(total_nights);
+            console.log(`[DEBUG] Setting total_nights to ${total_nights}`);
+        } else if (additional_amount !== undefined && total_nights === undefined) {
+            // Auto-increment nights by 1 for day extension
+            updates.push('total_nights = ?');
+            params.push(currentStoredNights + 1);
+            console.log(`[DEBUG] Auto-incrementing total_nights from ${currentStoredNights} to ${currentStoredNights + 1}`);
         }
+        
         if (status !== undefined) {
             updates.push('status = ?');
             params.push(status);
@@ -778,12 +818,14 @@ exports.updatePartialCheckin = async (req, res) => {
         params.push(now);
         params.push(checkinId);
 
-        await db.execute(
+        const [updateResult] = await db.execute(
             `UPDATE checkin_master SET ${updates.join(', ')} WHERE checkin_id = ?`,
             params
         );
 
-        // Fetch updated checkin
+        console.log(`[DEBUG] Update affected rows: ${updateResult.affectedRows}`);
+
+        // Fetch updated checkin to verify and return
         const [updatedCheckin] = await db.execute(`
             SELECT 
                 checkin_id, guest_id, guest_name, address, mobile, company_name, 
@@ -801,6 +843,8 @@ exports.updatePartialCheckin = async (req, res) => {
         if (updatedCheckin.length === 0) {
             return res.status(404).json({ success: false, message: 'Checkin not found' });
         }
+
+        console.log(`[DEBUG] FINAL VALUES: total_amount=${updatedCheckin[0].total_amount}, total_nights=${updatedCheckin[0].total_nights}`);
 
         const formattedCheckin = {
             ...updatedCheckin[0],
@@ -826,7 +870,7 @@ exports.updatePartialCheckin = async (req, res) => {
 };
 
 // ----------------------------------------------------------------------
-// POST /checkins/:id/extend – extend stay
+// POST /checkins/:id/extend – EXTEND STAY (Alternative method)
 // ----------------------------------------------------------------------
 exports.extendStay = async (req, res) => {
     const connection = await db.getConnection();
@@ -850,8 +894,7 @@ exports.extendStay = async (req, res) => {
             newTotalNights,
             newTotalAmount,
             roomId,
-            detailId,
-            extensionDetails
+            detailId
         } = req.body;
 
         if (!additionalDays || !newCheckoutDatetime) {
@@ -874,19 +917,33 @@ exports.extendStay = async (req, res) => {
         }
 
         const currentCheckin = checkins[0];
+        console.log(`[EXTEND] Current checkin ${checkinId}: total_amount=${currentCheckin.total_amount}, total_nights=${currentCheckin.total_nights}`);
 
-        // If detailId provided, mark that detail as checked out
+        // Mark old detail as checked out if detailId provided
         if (detailId) {
             await connection.execute(`
                 UPDATE detail_master 
                 SET is_checkout = 1, merged = 1, updated_by_id = ?, updated_date = ?
                 WHERE detail_id = ? AND checkin_id = ?
             `, [userId, now, detailId, checkinId]);
+            console.log(`[EXTEND] Marked detail ${detailId} as checked out`);
         }
 
-        // Update checkin master
-        const finalTotalNights = newTotalNights || (currentCheckin.total_nights + additionalDays);
-        const finalTotalAmount = newTotalAmount || (currentCheckin.total_amount + additionalAmount);
+        // CRITICAL: Calculate cumulative total
+        const finalTotalNights = newTotalNights ?? (currentCheckin.total_nights + additionalDays);
+        const currentStoredTotal = Number(currentCheckin.total_amount) || 0;
+        
+        // IMPORTANT: Always accumulate - never replace
+        let finalTotalAmount;
+        if (newTotalAmount !== undefined && newTotalAmount !== null) {
+            // If frontend sends cumulative total, use it directly
+            finalTotalAmount = Number(newTotalAmount);
+            console.log(`[EXTEND] Using provided cumulative total: ${finalTotalAmount}`);
+        } else {
+            // Otherwise accumulate: current + additional
+            finalTotalAmount = currentStoredTotal + Number(additionalAmount || 0);
+            console.log(`[EXTEND] Accumulating: ${currentStoredTotal} + ${additionalAmount} = ${finalTotalAmount}`);
+        }
 
         await connection.execute(`
             UPDATE checkin_master 
@@ -913,6 +970,7 @@ exports.extendStay = async (req, res) => {
                 SET room_status_id = ?, updated_by_id = ?, updated_date = ?
                 WHERE room_id = ? AND hotelid = ?
             `, [occupiedStatusId, userId, now, roomId, currentCheckin.hotelid]);
+            console.log(`[EXTEND] Updated room ${roomId} status to occupied`);
         }
 
         await connection.commit();
@@ -931,6 +989,8 @@ exports.extendStay = async (req, res) => {
             FROM checkin_master 
             WHERE checkin_id = ?
         `, [checkinId]);
+
+        console.log(`[EXTEND] FINAL: total_amount=${updatedCheckin[0].total_amount}, total_nights=${updatedCheckin[0].total_nights}`);
 
         const formattedCheckin = {
             ...updatedCheckin[0],
@@ -988,7 +1048,7 @@ exports.deleteCheckin = async (req, res) => {
         const checkin = checkins[0];
 
         // Delete related records first (foreign key constraints)
-        await connection.execute('DELETE FROM guest_folio WHERE checkin_id = ?', [checkinId]);
+        await connection.execute('DELETE FROM guest_folio_master WHERE checkin_id = ?', [checkinId]);
         await connection.execute('DELETE FROM guest_room_charges WHERE checkin_id = ?', [checkinId]);
         await connection.execute('DELETE FROM post_charges WHERE checkin_id = ?', [checkinId]);
         await connection.execute('DELETE FROM advance_transactions WHERE checkin_id = ?', [checkinId]);

@@ -1,11 +1,8 @@
 // SettlementModal.tsx (FIXED VERSION)
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { fetchCustomerByMobile } from '@/utils/commonfunction';
-
 import { Modal, Row, Col, Form, Button, Card } from 'react-bootstrap';
 import toast from 'react-hot-toast';
-
 
 interface PaymentMode {
   id: number;
@@ -44,6 +41,10 @@ interface SettlementModalProps {
   initialTip?: number;
   initialCashReceived?: number;
   table_name?: string | null;
+  // Hotel room booking specific
+  guestName?: string;
+  roomNo?: string;
+  totalPrice?: number;
 }
 
 const SettlementModal: React.FC<SettlementModalProps> = ({
@@ -64,51 +65,15 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   initialCustomerName,
   initialCustomerId,
   selectedOutletId,
+  guestName,
+  roomNo,
+  totalPrice,
 }) => {
-
-
   const [isMixedPayment, setIsMixedPayment] = useState(initialIsMixed);
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>(initialSelectedModes);
   const [paymentAmounts, setPaymentAmounts] = useState<{ [key: string]: string }>(initialPaymentAmounts);
   const [tip, setTip] = useState<number>(initialTip);
   const [activePaymentIndex, setActivePaymentIndex] = useState(0);
-
-  // Credit mode detection
-  const hasCreditMode = selectedPaymentModes.some(mode => mode.toLowerCase() === 'credit');
-
-  // Customer states for Credit mode
-  const [customerMobile, setCustomerMobile] = useState(initialMobile || '');
-  const [customerName, setCustomerName] = useState(initialCustomerName || '');
-  const [customerId, setCustomerId] = useState<number | null>(initialCustomerId || null);
-
-  // Reset customer data when Credit deselected or modal closed
-  useEffect(() => {
-    if (!show) return;
-    if (hasCreditMode) {
-      setCustomerMobile(initialMobile || '');
-      setCustomerName(initialCustomerName || '');
-      setCustomerId(initialCustomerId || null);
-    }
-  }, [show, hasCreditMode, initialMobile, initialCustomerName, initialCustomerId]);
-
-  // Auto-fetch customer when mobile changes (min 10 digits)
-  useEffect(() => {
-    if (customerMobile.length >= 10) {
-      fetchCustomerByMobile(customerMobile, setCustomerName, setCustomerId, () => { });
-    } else {
-      setCustomerName('');
-      setCustomerId(null);
-    }
-  }, [customerMobile]);
-
-  // Reset customer on modal close
-  useEffect(() => {
-    if (!show) {
-      setCustomerMobile('');
-      setCustomerName('');
-      setCustomerId(null);
-    }
-  }, [show]);
 
   // Single mode → keep only first payment method
   useEffect(() => {
@@ -216,46 +181,19 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     const currentModes = selectedPaymentModesRef.current;
     const currentAmounts = paymentAmountsRef.current;
 
-    // Validate Credit requires customer
-    const hasCredit = currentModes.some(mode => mode.toLowerCase() === 'credit');
-    if (hasCredit && !customerId) {
-      toast.error('Customer details required for Credit payment');
-      return;
-    }
-
-    // Validate: Received amount must be >= Bill amount (including tip)
-    if (cashReceived > 0 && cashReceived < grandTotal) {
-      toast.error(`Received amount ₹${cashReceived} is less than bill ₹${grandTotal}`);
-      return;
-    }
-
     if (balanceDue > 0) {
       toast.error(`Balance due: ₹${balanceDue.toFixed(2)}`);
       return;
     }
 
-    const settlements = currentModes.map(name => {
-      const baseSettlement = {
-        table_name: table_name || '',
-        PaymentType: name,
-        Amount: Number(currentAmounts[name] || 0),
-        received_amount: receivedAmount,
-        refund_amount: refundAmount,
-        TipAmount: tip || 0,
-      };
-
-      // Add customer data to Credit payments only
-      if (name.toLowerCase() === 'credit' && customerId) {
-        return {
-          ...baseSettlement,
-          customerid: customerId,
-          mobile: customerMobile,
-          customerName: customerName,
-        };
-      }
-
-      return baseSettlement;
-    });
+    const settlements = currentModes.map(name => ({
+      table_name: table_name || '',
+      PaymentType: name,
+      Amount: Number(currentAmounts[name] || 0),
+      received_amount: cashReceived || 0,
+      refund_amount: refundAmount,
+      TipAmount: tip || 0,
+    }));
 
     try {
       await onSettle(settlements, tip);
@@ -263,9 +201,8 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       toast.error('Settlement failed');
     }
   }, [
-    loading, customerId, cashReceived, grandTotal, balanceDue,
-    tip, table_name, receivedAmount, refundAmount,
-    customerMobile, customerName, onSettle
+    loading, cashReceived, grandTotal, balanceDue,
+    tip, table_name, refundAmount, onSettle
   ]);
 
   // ✅ FIXED: Arrow keys update refs immediately (sync) + state (async)
@@ -412,9 +349,18 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       size="lg"
       backdrop="static"
     >
-      <Modal.Header closeButton className="pb-2 pt-3 border-0">
-        <Modal.Title className="fw-bold fs-4 w-100 text-center">
-          {table_name ? `Table ${table_name} | ` : ''}Payment Settlement
+      <Modal.Header closeButton className="pb-2 pt-3 border-0" style={{ background: '#1a2744' }}>
+        <Modal.Title className="fw-bold fs-5 w-100 text-white">
+          Payment Settlement
+          {(guestName || roomNo) && (
+            <div style={{ fontSize: '0.75rem', fontWeight: 400, opacity: 0.9, marginTop: 2 }}>
+              {guestName && <span className="me-3">👤 {guestName}</span>}
+              {roomNo && <span className="me-3">🚪 Room {roomNo}</span>}
+              {(totalPrice !== undefined ? totalPrice : grandTotal) > 0 && (
+                <span>💰 ₹{(totalPrice !== undefined ? totalPrice : grandTotal).toFixed(2)}</span>
+              )}
+            </div>
+          )}
         </Modal.Title>
       </Modal.Header>
 
@@ -549,60 +495,6 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
               </div>
             )}
 
-            {/* Customer Fields - ONLY when Credit selected */}
-            {hasCreditMode && (
-              <div className="mb-3 p-3 bg-info-subtle rounded border border-info">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <h6 className="fw-bold mb-0 text-info">
-                    <i className="fas fa-user me-1"></i>Customer Details
-                  </h6>
-                  <span className="badge bg-danger">Credit Required</span>
-                </div>
-
-                <div className="d-flex gap-2 align-items-center">
-                  <div style={{ flex: 1 }}>
-                    <div className="input-group input-group-sm">
-                      <span className="input-group-text bg-white border-info">+91</span>
-                      <input
-                        type="tel"
-                        className={`form-control form-control-sm ${!customerId ? 'border-danger' : 'border-success'}`}
-                        placeholder="Mobile (10 digits)"
-                        value={customerMobile}
-                        onChange={(e) => setCustomerMobile(e.target.value.replace(/\D/g, ''))}
-                        maxLength={10}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ flex: 1 }}>
-                    <input
-                      type="text"
-                      className={`form-control form-control-sm ${!customerId ? 'border-danger bg-light' : 'border-success bg-success-subtle'}`}
-                      placeholder={!customerId ? "Enter mobile to fetch..." : "Customer found ✓"}
-                      value={customerName || ''}
-                      readOnly
-                    />
-                  </div>
-
-                  
-                </div>
-
-                {!customerId && customerMobile.length >= 10 && (
-                  <div className="mt-2 p-2 bg-danger-subtle rounded small text-danger">
-                    <i className="fas fa-exclamation-triangle me-1"></i>
-                    Customer not found. Please verify mobile number.
-                  </div>
-                )}
-
-                {customerId && (
-                  <div className="mt-2 p-2 bg-success-subtle rounded small text-success">
-                    <i className="fas fa-check-circle me-1"></i>
-                    Customer verified ✓
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Footer Summary Card */}
             <div className="mt-auto">
               <Card
@@ -676,8 +568,6 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
           </Col>
         </Row>
       </Modal.Body>
-
-    
 
       <Modal.Footer className="border-0 pt-3 pb-4 px-4 d-flex gap-3 justify-content-end">
         <Button

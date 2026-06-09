@@ -69,34 +69,49 @@ export interface CheckoutMaster {
 }
 
 export interface PerformCheckoutPayload {
-  checkin_id: number
-  checkout_reason?: string
-  payment_method?: string
+  checkin_id: number;
+  checkout_reason?: string;
+  
+  /** Payment method name e.g. "Cash", "Card", "UPI" */
+  payment_method?: string;
+  
+  /**
+   * The payment_modes.id (PK) of the selected payment mode.
+   * Stored directly in Checkout_Master.payment_id as a numeric FK.
+   * Accepts number (preferred) or string for legacy compatibility.
+   */
+  payment_id?: number | string;
 
-  total_amount?: number
-  round_off_amount?: number
-  net_payable?: number
+  /**
+   * Payment mode label stored in the payment_mode column.
+   * If omitted, falls back to payment_method value.
+   */
+  payment_mode?: string;
 
-  selected_rooms?: string[] // Array of room numbers to checkout (for partial checkout)
+  total_amount?: number;
+  round_off_amount?: number;
+  net_payable?: number;
+  selected_rooms?: string[];
 
-  // Billing breakdown fields (used by backend Checkout_Master)
-  discount?: number
-  discount_percent?: number
-  service_charge?: number
-  taxable_amt?: number
+  /** Override invoice number. If omitted, backend auto-generates. */
+  invoiceNoFromBody?: string;
 
-  sgst_amt?: number
-  cgst_amt?: number
-  round_off?: number
-  bill_amt?: number
-  other_charges?: number
-  bill_plus_other?: number
-  received_amt?: number
-  credit_transfer?: number
-  sett_disc?: number
-  balance_amt?: number
+  /** 1 = settled, 0 = unsettled. Default: 1 */
+  is_settle?: number;
 
-  total_amt?: number
+  /** 1 = printed, 0 = not printed. Default: 0 */
+  is_print?: number;
+
+  // Optional pre-computed amounts (backend recalculates from DB if not provided)
+  discount_amount?: number;
+  post_changes_amt?: number;
+  allowances_amt?: number;
+  advance_amt?: number;
+  cgst_amt?: number;
+  sgst_amt?: number;
+  igst_amt?: number;
+  cess_amt?: number;
+  service_charge_amt?: number;
 }
 
 
@@ -107,6 +122,12 @@ export interface CheckoutResponse {
   is_partial?: boolean;
   checked_out_rooms?: string[];
   remaining_rooms?: string[];
+  ldg_bill_no?: string;
+}
+
+
+export interface NextInvoiceNoResponse {
+  ldg_bill_no: string;
 }
 
 const CheckoutService = {
@@ -123,7 +144,11 @@ const CheckoutService = {
     HttpClient.post<ApiResponse<CheckoutResponse>>('/checkouts/perform', payload),
 
   remove: (id: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/checkouts/${id}`)
+    HttpClient.delete<ApiResponse<null>>(`/checkouts/${id}`),
+
+    getNextInvoiceNo: (): Promise<ApiResponse<NextInvoiceNoResponse>> =>
+    HttpClient.get<ApiResponse<NextInvoiceNoResponse>>('/checkouts/next-ldg_bill_no'),
+
 };
 
 export default CheckoutService;

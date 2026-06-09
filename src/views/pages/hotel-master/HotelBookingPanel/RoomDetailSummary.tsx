@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Row, Col, Button, Card, Tabs, Tab, Form, Nav, Modal } from 'react-bootstrap'
-import TitleHelmet from '@/components/Common/TitleHelmet'
+import TitleHelmet  from '@/components/Common/TitleHelmet'
 import toast from 'react-hot-toast'
 import { useAuthContext } from '@/common/context/useAuthContext'
 
@@ -15,10 +15,10 @@ import DetailService, { Detail } from '@/common/hotel/detail'
 import GuestFolioService, { GuestFolio } from '@/common/hotel/guestFolio'
 import GuestRoomChargesService, { GuestRoomCharge } from '@/common/hotel/guestRoomCharges'
 import CheckoutService from '@/common/hotel/checkout'
-import CheckoutPaymentService from '@/common/hotel/checkoutPayment'   // ← NEW: invoice_no support
 import BrandService from '@/common/hotel/brand'
 import RoomService from '@/common/hotel/room'
 import AdvanceTransactionService, { AdvanceTransaction } from '@/common/hotel/advanceTransaction'
+import OutletPaymentModeService, { PaymentModeData } from '@/common/api/outletpaymentmode'
 
 // ==================== INTERFACES ====================
 
@@ -243,20 +243,6 @@ const getChargeTypePriority = (charge: ExtendedGuestRoomCharge): number => {
   return 0
 }
 
-// Sort charges DATE-WISE across ALL rooms:
-//   Primary  : bill_date ascending  (all rooms together per date)
-//   Secondary: charge type priority  (original=0, extension=1, postcharge=2, allowance=3, advance=4)
-//   Tertiary : room number numeric ascending
-//
-// Result example (2 rooms):
-//   18-05-26  101  Check-in      ← date 1, priority 0
-//   18-05-26  102  Check-in      ← date 1, priority 0
-//   18-05-26  101  Advance       ← date 1, priority 4
-//   18-05-26  102  Post Charge   ← date 1, priority 2
-//   19-05-26  101  Day Extend    ← date 2, priority 1
-//   19-05-26  102  Day Extend    ← date 2, priority 1
-//   19-05-26  101  Post Changes  ← date 2, priority 2
-//   19-05-26  102  Advance       ← date 2, priority 4
 const sortChargesByDateAndPriority = (
   charges: ExtendedGuestRoomCharge[],
 ): ExtendedGuestRoomCharge[] => {
@@ -324,7 +310,7 @@ const RoomDetailSummary = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuthContext()
-  const hotelId = user?.hotelid
+  const hotelId = user?.hotel_id
 
   const [displayRows, setDisplayRows] = useState<DisplayDetailRow[]>([])
   const [combinedSummary, setCombinedSummary] = useState<CombinedGuestSummary | null>(null)
@@ -370,6 +356,10 @@ const RoomDetailSummary = () => {
   const [paymentDate, setPaymentDate] = useState<string>('')
   const [paymentBank, setPaymentBank] = useState<string>('')
 
+  const [paymentModes, setPaymentModes] = useState<PaymentModeData[]>([])
+  const [selectedPaymentModeId, setSelectedPaymentModeId] = useState<number | null>(null)
+  const [selectedPaymentModeName, setSelectedPaymentModeName] = useState<string>('Cash')
+
   const [, setRoomNumberMap] = useState<Map<number, string>>(new Map())
   const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set())
   // transferredRooms is used for displaying transfer icons (commented out usage but kept for potential future use)
@@ -377,6 +367,13 @@ const RoomDetailSummary = () => {
 
   const { occupiedItem } = (location.state as any) || {}
   const checkinIdFromState = occupiedItem?.checkin_id
+
+  useEffect(() => {
+    if (!checkinIdFromState) {
+      navigate('/hotel-master/HotelBookingPanel', { replace: true })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Fetch hotel details
   useEffect(() => {
@@ -484,10 +481,10 @@ const RoomDetailSummary = () => {
       return
     }
 
-    // Guard: ensure we have a valid checkin_id from navigation state
+    // Guard: ensure we have a valid checkin_id from navigation state.
+    // If missing, the early useEffect above will redirect — just stop here.
     if (!checkinIdFromState) {
-      setError('Invalid check-in data')
-      setLoading(false)
+      navigate('/hotel-master/HotelBookingPanel', { replace: true })
       return
     }
 
@@ -516,8 +513,9 @@ const RoomDetailSummary = () => {
       }
 
       if (filteredCheckins.length === 0) {
-        setError('No check-in records found')
-        setLoading(false)
+        // The checkin record wasn't found — silently go back to the panel
+        // instead of showing a confusing error screen to the user.
+        navigate('/hotel-master/HotelBookingPanel', { replace: true })
         return
       }
 
@@ -569,9 +567,6 @@ const RoomDetailSummary = () => {
         )
       }
 
-      // Exclude any stale advance rows that may have been written to guest_room_charges
-      // by older versions of the backend. Advance data is now read exclusively from
-      // advance_transactions and rendered separately below.
       allCharges = allCharges.filter(
         (c: GuestRoomCharge) =>
           (c as any).department_name !== 'Advance Addition' &&
@@ -579,8 +574,8 @@ const RoomDetailSummary = () => {
       )
 
       if (allCharges.length === 0) {
-        setError('No room charges found for this check-in')
-        setLoading(false)
+        // No charges yet for this check-in — go back to the panel silently
+        navigate('/hotel-master/HotelBookingPanel', { replace: true })
         return
       }
 
@@ -1343,6 +1338,24 @@ const RoomDetailSummary = () => {
     }
   }
 
+
+
+  // ✅ FIX: Once both paymentModes and combinedSummary are loaded, auto-select
+  // the mode whose mode_name matches the folio's payment_method so the correct
+  // payment_modes.id is sent as payment_id during checkout.
+  useEffect(() => {
+    if (paymentModes.length === 0 || !combinedSummary) return
+    const folioMethod = (combinedSummary.payment_method || '').split(',')[0].trim()
+    const matched = paymentModes.find(
+      (m) => m.mode_name.toLowerCase() === folioMethod.toLowerCase()
+    )
+    if (matched) {
+      setSelectedPaymentModeId(matched.id)
+      setSelectedPaymentModeName(matched.mode_name)
+    }
+    // If no match, keep the default (first mode) already set above
+  }, [paymentModes, combinedSummary])
+
   useEffect(() => {
     if (hotelId) {
       fetchData()
@@ -1523,120 +1536,64 @@ const RoomDetailSummary = () => {
     setShowCheckoutModal(true)
   }
 
-const handleConfirmCheckout = async () => {
-    if (!combinedSummary) return
-    setCheckoutProcessing(true)
+  const handleConfirmCheckout = async () => {
+  if (!combinedSummary) return
+  setCheckoutProcessing(true)
+  try {
+    const finalTotalAmount = grandTotal || combinedSummary.total_amount
+
+    let invoiceNo = ''
     try {
-      const finalTotalAmount = grandTotal || combinedSummary.total_amount
-
-      // Billing breakdown (backend expects these fields, but this UI currently
-      // only guarantees total/tax/discount percent. Provide safe derived values.)
-      const totalDiscPct = roundToTwo(selectedRowsForCheckout.reduce((s, r) => s + r.discount_percent, 0))
-      const roomChargeCount = Math.max(
-        1,
-        selectedRowsForCheckout.filter((r) => !r.isPostCharge && r.department_name !== 'Advance').length,
-      )
-      const avgDiscPct = roundToTwo(totalDiscPct / roomChargeCount)
-      const totalDiscAmt = roundToTwo((finalTotalAmount * avgDiscPct) / 100)
-
-      // taxable_amt: treat as subtotal excluding tax
-      const totalTaxAmt = roundToTwo(selectedRowsForCheckout.reduce((s, r) => s + (r.tax_amount || 0), 0))
-      const taxableAmt = roundToTwo(finalTotalAmount - totalTaxAmt)
-
-      // split into cgst/sgst (if taxes are CGST+SGST). If only one exists, keep it.
-      const totalCgst = roundToTwo(selectedRowsForCheckout.reduce((s, r) => s + (r.cgst_amount || 0), 0))
-      const totalSgst = roundToTwo(selectedRowsForCheckout.reduce((s, r) => s + (r.sgst_amount || 0), 0))
-      const totalSvcCharge = roundToTwo(
-        selectedRowsForCheckout.reduce((s, r) => s + (r.service_charge_amount || 0), 0),
-      )
-      const roundOffAmt = 0
-      const billAmt = roundToTwo(taxableAmt)
-      const totalOtherChg = 0
-      const billPlusOther = roundToTwo(billAmt + totalOtherChg)
-      const receivedAmt = roundToTwo(finalTotalAmount)
-      const creditTransfer = 0
-      const settDisc = 0
-      const balanceAmt = roundToTwo(finalTotalAmount)
-
-      // ── STEP 1: Fetch the next sequential invoice number from the server ──
-      // We do this BEFORE the checkout so we can show the correct invoice number
-      // in the bill modal and store the same value in Checkout_Payment_Master.
-      let invoiceNo = ''
-      try {
-        const invoiceRes = await CheckoutPaymentService.getNextInvoiceNo()
-        if (invoiceRes.success && invoiceRes.data?.invoice_no) {
-          invoiceNo = invoiceRes.data.invoice_no
-        }
-      } catch (invoiceErr) {
-        console.warn('Could not fetch invoice number; a number will be auto-assigned by server', invoiceErr)
+      const invoiceRes = await CheckoutService.getNextInvoiceNo()
+      if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
+        invoiceNo = invoiceRes.data.ldg_bill_no
+        console.log('Fetched invoice number:', invoiceNo)
       }
-
-      // ── STEP 2: Perform the main checkout ──
-      const response = await CheckoutService.performCheckout({
-        checkin_id: combinedSummary.checkin_id,
-        checkout_reason: checkoutReason || 'Regular checkout',
-        payment_method: combinedSummary.payment_method || 'Cash',
-        total_amount: finalTotalAmount,
-        round_off_amount: roundOffAmt,
-        net_payable: finalTotalAmount,
-        selected_rooms: Array.from(selectedRooms),
-        // ── Billing fields expected by backend Checkout_Master ──
-        discount: totalDiscAmt,
-        discount_percent: avgDiscPct,
-        service_charge: totalSvcCharge,
-        taxable_amt: taxableAmt,
-        sgst_amt: totalSgst,
-        cgst_amt: totalCgst,
-        round_off: roundOffAmt,
-        bill_amt: billAmt,
-        other_charges: totalOtherChg,
-        bill_plus_other: billPlusOther,
-        received_amt: receivedAmt,
-        credit_transfer: creditTransfer,
-        sett_disc: settDisc,
-        balance_amt: balanceAmt,
-        total_amt: finalTotalAmount,
-      })
-
-      if (response.success) {
-
-        // ── STEP 3: Record the payment with the pre-fetched invoice_no ──
-        // Pass invoice_no so the DB stores the same number that the bill modal displays.
-        try {
-          await CheckoutPaymentService.create({
-            checkout_id: response.data?.checkout_id || 0,
-            checkin_id: combinedSummary.checkin_id,
-            total_amount: finalTotalAmount,
-            payment_method: combinedSummary.payment_method || 'Cash',
-            round_off_amount: 0,
-            net_payable: finalTotalAmount,
-            invoice_no: invoiceNo,  // ← stores "0001", "0002", … in the DB
-          })
-        } catch (payErr) {
-          // Non-fatal: checkout already succeeded, just log the payment recording failure
-          console.warn('Failed to record checkout payment:', payErr)
-        }
-
-        // ── STEP 4: Update the bill number state so the modal shows it ──
-        if (invoiceNo) {
-          setGeneratedBillNumber(invoiceNo)
-        }
-
-        toast.success(`Checkout completed successfully for selected rooms`)
-        setShowCheckoutModal(false)
-        setCheckoutReason('')
-        setCheckoutDone(true)
-        setShowBillModal(true)
-      } else {
-        toast.error(response.message || 'Checkout failed')
-      }
-    } catch (error: any) {
-      console.error('Checkout failed:', error)
-      toast.error(error.response?.data?.message || 'Failed to process checkout')
-    } finally {
-      setCheckoutProcessing(false)
+    } catch (invoiceErr) {
+      console.warn('Could not fetch invoice number; server will auto-assign one', invoiceErr)
     }
+
+    const response = await CheckoutService.performCheckout({
+      checkin_id: combinedSummary.checkin_id,
+      checkout_reason: checkoutReason || 'Regular checkout',
+      // ✅ FIX: send the payment_modes.id (PK) as payment_id so the correct
+      // numeric ID is stored in Checkout_Master.payment_id
+      payment_id: selectedPaymentModeId ?? undefined,
+      // ✅ FIX: send the human-readable mode name as payment_mode
+      payment_mode: selectedPaymentModeName,
+      payment_method: selectedPaymentModeName,
+      total_amount: finalTotalAmount,
+      round_off_amount: 0,
+      net_payable: finalTotalAmount,
+      selected_rooms: Array.from(selectedRooms),
+      invoiceNoFromBody: invoiceNo,
+      is_settle: 1,
+      is_print: 0,
+    })
+
+    if (response.success) {
+      // Update bill number state so the modal displays it
+      if (response.data?.ldg_bill_no) {
+        setGeneratedBillNumber(response.data.ldg_bill_no)
+      } else if (invoiceNo) {
+        setGeneratedBillNumber(invoiceNo)
+      }
+
+      toast.success(`Checkout completed successfully for selected rooms`)
+      setShowCheckoutModal(false)
+      setCheckoutReason('')
+      setCheckoutDone(true)
+      setShowBillModal(true)
+    } else {
+      toast.error(response.message || 'Checkout failed')
+    }
+  } catch (error: any) {
+    console.error('Checkout failed:', error)
+    toast.error(error.response?.data?.message || 'Failed to process checkout')
+  } finally {
+    setCheckoutProcessing(false)
   }
+}
 
   const handleCancelCheckout = () => {
     setShowCheckoutModal(false)
@@ -1696,7 +1653,7 @@ const handleConfirmCheckout = async () => {
         .fs-small { font-size: 0.7rem; }
         .table-fo th, .table-fo td {
           padding: 0.3rem 0.3rem;
-          font-size: 0.9rem;
+          font-size: 0.7rem;
           white-space: nowrap;
           border: 1px solid #dee2e6;
         }
@@ -1706,8 +1663,8 @@ const handleConfirmCheckout = async () => {
           background: white;
         }
         .bg-fo-header {
-          background-color: #bfcdf0 !important;
-          color:white;
+          background-color: #009de0 !important;
+          color: white;
         }
         .info-box {
           border: 1px solid #dee2e6;
@@ -1719,9 +1676,9 @@ const handleConfirmCheckout = async () => {
           overflow: hidden;
         }
         .info-box-label {
-          
+          font-size: 0.7rem;
           font-weight: 600;
-          background: #dbdbdb;
+          background: #ffffff;
           padding: 4px 6px;
           border-bottom: 1px solid #ccc;
           border-top-left-radius: 3px;
@@ -1741,24 +1698,24 @@ const handleConfirmCheckout = async () => {
           min-height: 0;
         }
         .info-box-value { font-size: 0.9rem; font-weight: 600; }
-        .checkbox-label { font-size: 0.9rem; display: flex; align-items: center; gap: 4px; white-space: nowrap; margin-bottom: 2px; }
-        .nav-tabs .nav-link { font-size: 0.98rem;font-weight: bold; padding: 0.3rem 1rem; }
+        .checkbox-label { font-size: 0.7rem; display: flex; align-items: center; gap: 4px; white-space: nowrap; margin-bottom: 2px; }
+        .nav-tabs .nav-link { font-size: 0.8rem; padding: 0.3rem 1rem; }
         .scrollable-table { overflow-x: auto; overflow-y: auto; border: 1px solid #dee2e6; background: white; height: auto; max-height: 150px; }
         .scrollable-table table { min-width: 50px; margin-bottom: 0; }
         .first-table-container { height: 240px; max-height: 500px; overflow: auto; border: 1px solid #dee2e6; background: white; }
-        .first-table-container thead th { position: sticky; top: 0; background-color: #3d5eac; z-index: 10; }
+        .first-table-container thead th { position: sticky; top: 0; background-color: #009de0; z-index: 10; }
         .bill-date-table-container { max-height: 200px; overflow: auto; border: 1px solid #dee2e6; background: white; }
-        .bill-date-table-container thead th { position: sticky; top: 0; background-color: #3d5eac; z-index: 10; }
+        .bill-date-table-container thead th { position: sticky; top: 0; background-color: #009de0; z-index: 10; }
         .content-with-fixed-footer { padding-bottom: 60px; }
         .fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #dee2e6; padding: 8px 16px; z-index: 1000; }
         .checkbox-grid { display: flex; flex-wrap: wrap; gap: 8px 12px; }
-        .mini-table { width: 100%; font-size: 0.9rem; border-collapse: collapse; }
+        .mini-table { width: 100%; font-size: 0.7rem; border-collapse: collapse; }
         .mini-table th, .mini-table td { padding: 2px 4px; text-align: left; border: none; }
         .mini-table th { font-weight: 600; background: #f9f9f9; }
         .radio-group { display: flex; align-items: center; gap: 16px; }
-        .radio-label {  display: flex; align-items: center; gap: 4px; }
+        .radio-label { font-size: 0.7rem; display: flex; align-items: center; gap: 4px; }
         .refresh-btn { height: 32px; font-size: 0.8rem; padding: 2px 12px; }
-        .guest-company-row { background: #dbdbdb; padding: 6px 12px; border-bottom: 1px solid #dee2e6;  }
+        .guest-company-row { background: #f8f9fa; padding: 6px 12px; border-bottom: 1px solid #dee2e6; font-size: 0.8rem; }
         .room-list { font-size: 0.7rem; word-break: break-word; white-space: normal; overflow-y: auto; padding: 6px; }
         /* ── Row type colors ── */
         .original-row { background-color: #ffffff !important; }
@@ -1784,7 +1741,7 @@ const handleConfirmCheckout = async () => {
         .text-danger-bold { color: #dc3545; font-weight: bold; }
         .room-checkbox-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
         .room-checkbox-item:hover { background-color: #f0f0f0; }
-        .room-checkbox-label {  font-weight: bold; margin-left: 4px; cursor: pointer; }
+        .room-checkbox-label { font-size: 0.85rem; font-weight: 500; margin-left: 4px; cursor: pointer; }
         .select-all-room { border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 6px; }
 
         /* ── Light-gray scrollbars for all scrollable containers ── */
@@ -1835,7 +1792,7 @@ const handleConfirmCheckout = async () => {
         }
       `}</style>
 
-      <div className="vh-100 d-flex flex-column overflow-hidden bg-white">
+      <div className="vh-100 d-flex flex-column overflow-hidden bg-light">
         <div className="d-flex justify-content-between align-items-center bg-white border-bottom px-3">
           <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'bill')} className="mb-0">
             <Tab eventKey="bill" title="Front Office Bill" />
@@ -2149,13 +2106,13 @@ const handleConfirmCheckout = async () => {
               <Row className="mb-2 g-0">
                 <Col md={12} className="pe-0">
                   <Card className="shadow-sm h-100">
-                    <Card.Header className="bg-fo-header text-black py-1">
+                    <Card.Header className="bg-fo-header text-white py-1">
                       <span className="fw-bold">Room Details</span>
                     </Card.Header>
                     <Card.Body className="p-0">
                       <div className="first-table-container">
                         <table className="table-fo mb-0 w-100">
-                          <thead className="bg-fo-header ">
+                          <thead className="bg-fo-header text-white">
                             <tr>
                               <th>#</th>
                               <th>Bill Date</th>
@@ -2306,7 +2263,7 @@ const handleConfirmCheckout = async () => {
               </Row>
 
               <Card className="shadow-sm mb-3">
-                <Card.Header className="bg-fo-header text-black py-1">
+                <Card.Header className="bg-fo-header text-white py-1">
                   <span className="fw-bold">Room Summary - Total Charges</span>
                 </Card.Header>
                 <Card.Body className="p-0">
@@ -2314,7 +2271,7 @@ const handleConfirmCheckout = async () => {
                     className="scrollable-table"
                     style={{ maxHeight: '150px', overflow: 'auto' }}>
                     <table className="table-fo mb-0">
-                      <thead className="bg-fo-header text-black">
+                      <thead className="bg-fo-header text-white">
                         <tr>
                           <th>Select</th>
                           <th>Guest</th>
@@ -2453,7 +2410,7 @@ const handleConfirmCheckout = async () => {
                 <Col md={12} className="pe-0">
                   <Card className="shadow-sm h-100">
                     <Card.Header className="bg-fo-header text-white py-1">
-                      <span className="fw-bold text-black">Bill Date Summary</span>
+                      <span className="fw-bold">Bill Date Summary</span>
                     </Card.Header>
                     <Card.Body className="p-0">
                       <div className="bill-date-table-container">
@@ -2536,13 +2493,13 @@ const handleConfirmCheckout = async () => {
 
             <div className="px-3 py-2 overflow-auto" style={{ paddingBottom: '60px' }}>
               <Card className="shadow-sm mb-3">
-                <Card.Header className="bg-fo-header text-black py-1">
+                <Card.Header className="bg-fo-header text-white py-1">
                   <strong>Room Details - Selected Rooms</strong>
                 </Card.Header>
                 <Card.Body className="p-0">
                   <div className="scrollable-table" style={{ maxHeight: '240px' }}>
                     <table className="table-fo mb-0">
-                      <thead className="bg-fo-header text-black">
+                      <thead className="bg-fo-header text-white">
                         <tr>
                           <th>#</th>
                           <th>Bill Date</th>
@@ -2759,7 +2716,13 @@ const handleConfirmCheckout = async () => {
         show={checkoutDone && !showBillModal}
         onHide={() => {
           setCheckoutDone(false)
-          navigate('/hotel-master/HotelBookingPanel')
+          navigate('/hotel-master/HotelBookingPanel', {
+            state: {
+              checkoutSuccess: true,
+              checkedOutRooms: Array.from(selectedRooms),
+              checkin_id: combinedSummary?.checkin_id,
+            }
+          })
         }}
         centered
         size="sm">
@@ -2790,7 +2753,13 @@ const handleConfirmCheckout = async () => {
             size="sm"
             onClick={() => {
               setCheckoutDone(false)
-              navigate('/hotel-master/HotelBookingPanel')
+              navigate('/hotel-master/HotelBookingPanel', {
+                state: {
+                  checkoutSuccess: true,
+                  checkedOutRooms: Array.from(selectedRooms),
+                  checkin_id: combinedSummary?.checkin_id,
+                }
+              })
             }}>
             Skip
           </Button>
@@ -2802,7 +2771,13 @@ const handleConfirmCheckout = async () => {
         onHide={() => {
           setShowBillModal(false)
           setCheckoutDone(false)
-          navigate('/hotel-master/HotelBookingPanel')
+          navigate('/hotel-master/HotelBookingPanel', {
+            state: {
+              checkoutSuccess: true,
+              checkedOutRooms: Array.from(selectedRooms),
+              checkin_id: combinedSummary?.checkin_id,
+            }
+          })
         }}
         combinedSummary={combinedSummary}
         displayRows={selectedRowsForCheckout}

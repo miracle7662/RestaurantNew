@@ -1,4 +1,4 @@
-// checkoutController.js - Updated with settlement status handling
+// checkoutController.js - Updated with data preservation (NO DELETION)
 
 const db = require('../../../config/db');
 
@@ -58,7 +58,6 @@ const getSettlementStatusId = async (connection) => {
   );
   if (statuses.length > 0) return statuses[0].room_status_id;
   
-  // If 'settlement' doesn't exist, try alternative
   const [altStatuses] = await connection.query(
     "SELECT room_status_id FROM room_status WHERE LOWER(status_name) IN ('settlement', 'checkout', 'bill') LIMIT 1"
   );
@@ -176,7 +175,7 @@ exports.getNextInvoiceNo = async (req, res) => {
   }
 };
 
-// PERFORM CHECKOUT - Updated to set room status to 'settlement'
+// PERFORM CHECKOUT - UPDATED: NO DELETION, only status update and data preservation
 exports.performCheckout = async (req, res) => {
   const connection = await db.getConnection();
   
@@ -225,7 +224,7 @@ exports.performCheckout = async (req, res) => {
       [checkin_id]
     );
     
-    // Get active details
+    // Get active details (not checked out yet)
     const [activeDetailRows] = await connection.query(
       'SELECT * FROM detail_master WHERE checkin_id = ? AND is_checkout = 0',
       [checkin_id]
@@ -379,7 +378,7 @@ exports.performCheckout = async (req, res) => {
     }
 
     // ============================================================
-    // STEP A: CREATE BACKUP OF ORIGINAL DATA
+    // STEP A: CREATE BACKUP OF ORIGINAL DATA (for audit trail)
     // ============================================================
     
     if (isFullCheckout) {
@@ -702,38 +701,52 @@ exports.performCheckout = async (req, res) => {
     }
     
     // ============================================================
-    // STEP E: DELETE ORIGINAL DATA
+    // STEP E: UPDATE STATUS IN ORIGINAL TABLES (NO DELETION!)
     // ============================================================
     
     if (isFullCheckout) {
-      await connection.query('DELETE FROM guest_room_charges WHERE checkin_id = ?', [checkin_id]);
-      await connection.query('DELETE FROM guest_folio_master WHERE checkin_id = ?', [checkin_id]);
-      await connection.query('DELETE FROM detail_master WHERE checkin_id = ?', [checkin_id]);
-      await connection.query('DELETE FROM CheckIn_Master WHERE checkin_id = ?', [checkin_id]);
+      // ✅ Update status to 'checked_out' instead of deleting
+      await connection.query(`
+        UPDATE CheckIn_Master 
+        SET status = 'checked_out', 
+            updated_by_id = ?, 
+            updated_date = ?
+        WHERE checkin_id = ?
+      `, [userId, nowStr, checkin_id]);
+      
+      // Mark all details as checked out
+      await connection.query(`
+        UPDATE detail_master 
+        SET is_checkout = 1, 
+            updated_by_id = ?, 
+            updated_date = ?
+        WHERE checkin_id = ?
+      `, [userId, nowStr, checkin_id]);
+      
+      // ✅ DO NOT DELETE folio and charges - keep for historical reference
+      // ✅ DO NOT DELETE checkin_master - status updated only
+      
+      console.log(`Full checkout ${checkin_id} completed - data preserved in original tables with status='checked_out'`);
+      
     } else {
+      // Partial checkout - only update checked out rooms
       if (checkedOutRoomIds.length > 0) {
         const placeholders = checkedOutRoomIds.map(() => '?').join(',');
         
-        await connection.query(
-          `DELETE FROM guest_room_charges WHERE checkin_id = ? AND room_id IN (${placeholders})`,
-          [checkin_id, ...checkedOutRoomIds]
-        );
+        // Update detail_master for checked out rooms
+        await connection.query(`
+          UPDATE detail_master 
+          SET is_checkout = 1, 
+              updated_by_id = ?, 
+              updated_date = ?
+          WHERE checkin_id = ? AND room_id IN (${placeholders})
+        `, [userId, nowStr, checkin_id, ...checkedOutRoomIds]);
         
-        await connection.query(
-          `DELETE FROM detail_master WHERE checkin_id = ? AND room_id IN (${placeholders})`,
-          [checkin_id, ...checkedOutRoomIds]
-        );
-        
-        if (checkedOutDetailIds.length > 0) {
-          const detailPlaceholders = checkedOutDetailIds.map(() => '?').join(',');
-          await connection.query(
-            `DELETE FROM guest_folio_master WHERE checkin_id = ? AND detail_id IN (${detailPlaceholders})`,
-            [checkin_id, ...checkedOutDetailIds]
-          );
-        }
+        // Keep charges and folio data (no deletion)
+        // CheckIn_Master status remains 'active' since some rooms still active
       }
       
-      // Update CheckIn_Master with reduced totals
+      // Update CheckIn_Master with reduced totals (you already have this code)
       const remainingRooms = activeDetailRows.filter(d => !checkedOutRoomNumbers.includes(d.room_number));
       
       let newTotalAmount = 0;
@@ -812,11 +825,9 @@ exports.performCheckout = async (req, res) => {
     // STEP F: UPDATE ROOM STATUS TO 'SETTLEMENT' (LIGHT BLUE)
     // ============================================================
     
-    // Try to set status to 'settlement' first
     const settlementStatusId = await getSettlementStatusId(connection);
     
     if (settlementStatusId) {
-      // Update checked out rooms to settlement status
       for (const detail of roomsToCheckout) {
         await connection.query(
           `UPDATE room_master 
@@ -826,8 +837,6 @@ exports.performCheckout = async (req, res) => {
         );
       }
     } else {
-      // If settlement status doesn't exist, fall back to occupied status
-      // This ensures rooms show as occupied but with different visual treatment in frontend
       const occupiedStatusId = await getOccupiedStatusId(connection);
       for (const detail of roomsToCheckout) {
         await connection.query(
@@ -837,8 +846,6 @@ exports.performCheckout = async (req, res) => {
           [occupiedStatusId, userId, nowStr, detail.room_id]
         );
       }
-      
-      // Also update a custom field or log that this room is ready for settlement
       console.log(`Room ${detail.room_number} checked out - ready for settlement`);
     }
     
@@ -851,7 +858,7 @@ exports.performCheckout = async (req, res) => {
     res.status(200).json({
       success: true,
       message: isFullCheckout 
-        ? `Checkout completed successfully. Rooms are ready for settlement.`
+        ? `Checkout completed successfully. Data preserved in original tables with status='checked_out'.`
         : `${roomsToCheckout.length} room(s) checked out successfully. Remaining rooms: ${remainingRoomNumbers.length > 0 ? remainingRoomNumbers.join(', ') : 'None'}`,
       data: { 
         checkout_id: checkoutId, 
@@ -885,7 +892,7 @@ exports.performCheckout = async (req, res) => {
   }
 };
 
-// DELETE checkout record
+// DELETE checkout record (soft delete - update status only)
 exports.deleteCheckout = async (req, res) => {
   try {
     const { id } = req.params;
@@ -895,12 +902,10 @@ exports.deleteCheckout = async (req, res) => {
       return res.status(404).json({ success: false, message: "Checkout not found" });
     }
     
-    await db.query('DELETE FROM Checkout_Detail WHERE checkout_id = ?', [id]);
-    await db.query('DELETE FROM Checkout_Folio_Master WHERE checkout_id = ?', [id]);
-    await db.query('DELETE FROM Checkout_Room_Charges WHERE checkout_id = ?', [id]);
-    await db.query('DELETE FROM Checkout_Master WHERE checkout_id = ?', [id]);
+    // Soft delete - update status instead of actual delete
+    await db.query('UPDATE Checkout_Master SET status = "deleted", updated_date = NOW() WHERE checkout_id = ?', [id]);
     
-    res.status(200).json({ success: true, message: "Checkout deleted successfully", data: { checkout_id: parseInt(id) } });
+    res.status(200).json({ success: true, message: "Checkout marked as deleted successfully", data: { checkout_id: parseInt(id) } });
   } catch (error) {
     console.error("Error deleting checkout:", error);
     res.status(500).json({ success: false, message: "Failed to delete checkout", error: error.message });

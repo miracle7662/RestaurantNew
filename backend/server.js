@@ -67,7 +67,7 @@ const outletMenuRoutes = require('./routes/outletMenuRoutes');
 // billing transfer routes
 const billingTransferRoutes = require('./routes/billingTransferRoutes');
 const userPermissionsRoutes = require('./routes/userPermissionsRoutes');
-
+const ldgSettlementRoutes = require('./routes/ldgSettlementRoutes');
 /* ───────── Hotel Booking Routes Import (MODULAR) ───────── */
 
 
@@ -168,6 +168,7 @@ app.use('/api/accounttype', authenticateToken, AccountTypeRoutes);
 
 app.use('/api/outletmenu', outletMenuRoutes);
 app.use('/api/user-permissions', userPermissionsRoutes);
+app.use('/api/ldg-settlement', ldgSettlementRoutes);
 
 // Register billing transfer routes
 app.use('/api/billing-transfer', billingTransferRoutes);

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Row, Col, Form, Button, Modal, Offcanvas, Dropdown, Tab, Tabs } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
-import  TitleHelmet  from '@/components/Common/TitleHelmet'
+import TitleHelmet  from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
 import RoomService from '@/common/hotel/room'
 import RoomCategoryService from '@/common/hotel/roomCategoryService'
@@ -592,7 +592,7 @@ const HotelBookingPanel = () => {
     billNumber: string
     paymentMode: string
   } | null>(null)
-  const [, setSettlementBillLoading] = useState(false)
+  const [settlementBillLoading, setSettlementBillLoading] = useState(false)
 
   // Hotel info state (needed for bill modal)
   const [hotelAddress, setHotelAddress] = useState<string>('')
@@ -607,7 +607,6 @@ const HotelBookingPanel = () => {
   const [showSettlementPayModal, setShowSettlementPayModal] = useState(false)
   const [settlementPayData, setSettlementPayData] = useState<{
     guestName: string
-    guestid: number
     roomNo: string
     totalPrice: number
     checkoutId: number
@@ -776,22 +775,23 @@ const HotelBookingPanel = () => {
     fetchHotelName()
 
     // Fetch outlet payment modes for settlement
-    const fetchPaymentModes = async () => {
-      try {
-        const res = await OutletPaymentModeService.list({ outletid: hotelId })
-        if (res.success && res.data) {
-          setOutletPaymentModes(res.data)
-        }
-      } catch {
-        // default modes fallback
-        setOutletPaymentModes([
-          { id: 1, mode_name: 'Cash', outletid: 0 },
-          { id: 2, mode_name: 'Card', outletid: 0 },
-          { id: 3, mode_name: 'UPI', outletid: 0 },
-        ])
-      }
+    // Fetch outlet payment modes for settlement
+const fetchPaymentModes = async () => {
+  try {
+    const outletId = user?.outletid || hotelId  // ← pehle outletid, fallback hotelId
+    const res = await OutletPaymentModeService.list({ outletid: outletId })
+    if (res.success && res.data) {
+      setOutletPaymentModes(res.data)
     }
-    fetchPaymentModes()
+  } catch {
+    setOutletPaymentModes([
+      { id: 1, mode_name: 'Cash', outletid: 0 },
+      { id: 2, mode_name: 'Card', outletid: 0 },
+      { id: 3, mode_name: 'UPI', outletid: 0 },
+    ])
+  }
+}
+fetchPaymentModes()
   }, [hotelId, user])
 
   useEffect(() => {
@@ -957,7 +957,6 @@ const HotelBookingPanel = () => {
       roomNo: co.room_no || '-',
       totalPrice: Number(co.total_amount) || 0,
       checkoutId: co.checkout_id,
-      guestid: co.guest_id || 0,
     })
     // Pre-select the existing payment mode
     const matchedMode = outletPaymentModes.find(
@@ -1748,16 +1747,22 @@ const HotelBookingPanel = () => {
       payment_method: item.payment_method,
     })
 
-    const currentCheckin = await CheckInService.get(item.checkin_id)
-    const currentTotal = currentCheckin.data?.total_amount || 0
-    const newTotalAmount = currentTotal + totalPrice
-    const currentTotalNights = currentCheckin.data?.total_nights || 1
-    const newTotalNights = currentTotalNights + extensionDays
-
+    // FIXED: Use additional_amount (not total_amount) so the backend does an atomic
+    // cumulative ADD.  This eliminates the read-then-write race condition that occurs
+    // when sibling rooms are extended in sequence and all read the same stale
+    // total_amount before any write has committed.
+    //
+    // Accumulation rule (enforced by updatePartialCheckin on the server):
+    //   Day 1 create  → total_amount = 1000  (set on initial checkin)
+    //   Day 2 extend  → total_amount = 1000 + 1000 = 2000
+    //   Day 3 extend  → total_amount = 2000 + 1000 = 3000
+    //
+    // additional_nights is also sent so multi-day extensions (extensionDays > 1) are
+    // handled atomically server-side without a stale-read race on total_nights.
     await CheckInService.updatePartial(item.checkin_id, {
       checkout_datetime: formatDateTimeForMySQL(newCheckoutDate),
-      total_amount: newTotalAmount,
-      total_nights: newTotalNights,
+      additional_amount: totalPrice,        // backend: newTotal  = currentTotal  + additional_amount
+      additional_nights: extensionDays,     // backend: newNights = currentNights + additional_nights
     })
 
     return { newDetailId, totalPrice, newCheckoutDate }
@@ -4440,12 +4445,12 @@ const HotelBookingPanel = () => {
                         justifyContent: 'space-between',
                         marginBottom: 6,
                         padding: '4px 2px',
-                        borderBottom: '2px solid #ADD8E6',
+                        borderBottom: '2px solid #e6adad',
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{
-                            background: '#ADD8E6',
-                            color: '#1a4f6e',
+                            background: '#e6adad',
+                            color: '#6e1a1a',
                             fontWeight: 700,
                             fontSize: '0.75rem',
                             borderRadius: 4,
@@ -4483,11 +4488,20 @@ const HotelBookingPanel = () => {
                                 className="occupied-header"
                                 style={{ backgroundColor: '#5ba3c9', color: '#fff' }}>
                                 {item.room_no} {item.guest_name}
-                               
+                                <span style={{
+                                  fontSize: '0.55rem',
+                                  background: '#fff',
+                                  color: '#1a4f6e',
+                                  borderRadius: 2,
+                                  padding: '1px 4px',
+                                  marginLeft: 4,
+                                  fontWeight: 700,
+                                  verticalAlign: 'middle',
+                                }}>SETTLEMENT</span>
                               </div>
                               <div
                                 className="occupied-body"
-                                style={{ backgroundColor: '#ADD8E6', color: '#1a4f6e' }}>
+                                style={{ backgroundColor: '#e6adad', color: '#1a4f6e' }}>
                                 <div>IN : {formatDateTime(item.checkin_datetime)}</div>
                                 <div>OUT : {formatDateTime(item.checkout_datetime)}</div>
                                 <div style={{ fontSize: '0.6rem', fontWeight: 600, color: '#0d4f6e', marginTop: 2 }}>
@@ -4537,11 +4551,21 @@ const HotelBookingPanel = () => {
                       }}>
                       {checkoutData.map((co) => {
                         const totalAmt = Number(co.total_amount) || 0
-                        const checkoutDateDisplay = co.checkout_datetime
-                          ? formatDateTime(co.checkout_datetime)
-                          : co.checkout_date
-                            ? formatDateTime(co.checkout_date)
-                            : '-'
+
+                        // Prefer times from occupiedRooms (accurate) over checkoutData (may have 00:00)
+                        const matchedOcc = occupiedRooms.find((o) => o.room_no === co.room_no)
+                        const hasMeaningfulTime = (dt: string | undefined | null): boolean => {
+                          if (!dt) return false
+                          const d = new Date(dt)
+                          return d.getHours() !== 0 || d.getMinutes() !== 0
+                        }
+                        const bestCheckoutDt = matchedOcc?.checkout_datetime
+                          ? matchedOcc.checkout_datetime
+                          : hasMeaningfulTime(co.checkout_datetime)
+                            ? co.checkout_datetime
+                            : co.checkout_date || co.checkout_datetime || ''
+                        const checkoutDateDisplay = bestCheckoutDt ? formatDateTime(bestCheckoutDt) : '-'
+
                         const headerBg = '#198754' // green for checked-out
                         const isPartial = co.is_partial_checkout === 1
 
@@ -5209,7 +5233,7 @@ const HotelBookingPanel = () => {
                     const isExpired = minutesLeft <= 0
                     const isSettled = settledRoomNos.has(item.room_no)
                     const tileStyle = isSettled
-                      ? { backgroundColor: '#ADD8E6', color: '#1a4f6e' }
+                      ? { backgroundColor: '#e6adad', color: '#1a4f6e' }
                       : getOccupiedTileStyle(minutesLeft, isExpired)
                     const perDayPrice = item.per_day_base_price || 0
                     const roomChargesTotal = item.guest_room_charges_total || 0
@@ -5363,34 +5387,75 @@ const HotelBookingPanel = () => {
                       const payType = paymentData.split('|')[0] || 'Cash'
                       const invoiceNo = paymentData.split('|')[1] || '-'
                       const totalAmt = Number(co.total_amount) || 0
-                      const checkoutDateDisplay = co.checkout_datetime
-                        ? formatDateTime(co.checkout_datetime)
-                        : co.checkout_date
-                          ? formatDateTime(co.checkout_date)
-                          : '-'
-                      const checkinDateDisplay = co.checkin_datetime
-                        ? formatDateTime(co.checkin_datetime)
-                        : '-'
+
+                      // Prefer times from occupiedRooms (accurate) over checkoutData (may have 00:00)
+                      const matchedOccupied = occupiedRooms.find((o) => o.room_no === co.room_no)
+
+                      // Helper: check if a datetime string has a meaningful time (not 00:00:00 / T00:00)
+                      const hasMeaningfulTime = (dt: string | undefined | null): boolean => {
+                        if (!dt) return false
+                        const d = new Date(dt)
+                        return d.getHours() !== 0 || d.getMinutes() !== 0
+                      }
+
+                      // Pick best checkin datetime: occupied > co.checkin_datetime (if has time) > co.checkin_date
+                      const checkinDt = matchedOccupied?.checkin_datetime
+                        ? matchedOccupied.checkin_datetime
+                        : hasMeaningfulTime(co.checkin_datetime)
+                          ? co.checkin_datetime
+                          : co.checkin_datetime || ''
+
+                      // Pick best checkout datetime: occupied > co.checkout_datetime (if has time) > co.checkout_date
+                      const checkoutDt = matchedOccupied?.checkout_datetime
+                        ? matchedOccupied.checkout_datetime
+                        : hasMeaningfulTime(co.checkout_datetime)
+                          ? co.checkout_datetime
+                          : co.checkout_date
+                            ? co.checkout_date
+                            : co.checkout_datetime || ''
+
+                      const checkinDateDisplay = checkinDt ? formatDateTime(checkinDt) : '-'
+                      const checkoutDateDisplay = checkoutDt ? formatDateTime(checkoutDt) : '-'
+                      // Build occupied item for navigation / context menu
+                      const settledAsOccupied: OccupiedRoomItem = matchedOccupied || ({
+                        room_no: co.room_no || '',
+                        guest_name: co.guest_name || '-',
+                        checkin_datetime: checkinDt,
+                        checkout_datetime: checkoutDt,
+                        guest_type: '',
+                        original_charge: 0,
+                        folio_total: 0,
+                        total_charge: totalAmt,
+                        adults: 0,
+                        child_count: 0,
+                        driver_count: 0,
+                        ex_pax: 0,
+                        payment_method: payType,
+                        checkin_id: co.checkin_id || 0,
+                        isCheckoutNear: false,
+                        minutesLeft: 0,
+                        isExpired: false,
+                      } as OccupiedRoomItem)
+
                       return (
                         <div
                           key={`settled-occ-${co.checkout_id}`}
                           className="occupied-tile occupied-tile-settled"
-                          style={{ border: '2px solid #5ba3c9', cursor: 'default' }}
-                          title={`Checked out — Bill: ${invoiceNo}\nRoom: ${co.room_no}\nGuest: ${co.guest_name || '-'}\nPay: ${payType}\nTotal: ${formatAmount(totalAmt)}`}>
-                          {/* Header — identical structure to occupied tile header */}
+                          style={{ border: '2px solid #c95b5b', cursor: 'pointer' }}
+                          title={`Checked out — Bill: ${invoiceNo}\nRoom: ${co.room_no}\nGuest: ${co.guest_name || '-'}\nIN: ${checkinDateDisplay}\nOUT: ${checkoutDateDisplay}\nPay: ${payType}\nTotal: ${formatAmount(totalAmt)}`}
+                          onClick={() => navigate('/hotel/room-detail', { state: { occupiedItem: settledAsOccupied } })}
+                          onContextMenu={(e) => handleContextMenu(e, settledAsOccupied)}>
+                          {/* Header */}
                           <div
                             className="occupied-header"
-                            style={{ backgroundColor: '#5ba3c9', color: '#fff' }}>
+                            style={{ backgroundColor: '#c95b5b', color: '#fff' }}>
                             {co.room_no} {co.guest_name || '-'}
-                          
                           </div>
-                          {/* Body — identical structure to occupied tile body */}
+                          {/* Body */}
                           <div
                             className="occupied-body"
-                            style={{ backgroundColor: '#ADD8E6', color: '#1a4f6e' }}>
-                            {checkinDateDisplay !== '-' && (
-                              <div>IN : {checkinDateDisplay}</div>
-                            )}
+                            style={{ backgroundColor: '#e6adad', color: '#1a4f6e' }}>
+                            <div>IN&nbsp;: {checkinDateDisplay}</div>
                             <div>OUT : {checkoutDateDisplay}</div>
                             <div>✅ Checked Out</div>
                             <div className="charges-line">
@@ -5443,9 +5508,9 @@ const HotelBookingPanel = () => {
                           : false
                         // Settled (checked-out) rooms show as light blue in All tab grid
                         const isSettledTile = settledRoomNos.has(room.number) && !occupiedItemForTile
-                        const tileBg = isSettledTile ? '#ADD8E6' : getStatusBgColor(room.status)
-                        const tileColor = isSettledTile ? '#1a4f6e' : getStatusTextColor(room.status)
-                        const tileBorder = isSettledTile ? '#5ba3c9' : getStatusBorderColor(room.status)
+                        const tileBg = isSettledTile ? '#e6adad' : getStatusBgColor(room.status)
+                        const tileColor = isSettledTile ? '#6e1a1a' : getStatusTextColor(room.status)
+                        const tileBorder = isSettledTile ? '#c95b5b' : getStatusBorderColor(room.status)
 
                         return (
                           <div
@@ -6413,8 +6478,9 @@ const HotelBookingPanel = () => {
             subtotal={settlementPayData.totalPrice}
             loading={settlementPayLoading}
             outletPaymentModes={outletPaymentModes}
-           
-           
+            guestName={settlementPayData.guestName}
+            roomNo={settlementPayData.roomNo}
+            totalPrice={settlementPayData.totalPrice}
           />
         )}
       </div>
