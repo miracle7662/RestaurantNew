@@ -631,7 +631,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const totalSGSTAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.sgst, 0))
   const totalFoodAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.food, 0))
   const totalAdvanceAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.advanceTotal, 0))
-  const totalPostAllowNet = roundToTwo(tableRows.reduce((sum, row) => sum + row.postAllowNet, 0))
+
   const totalAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.total, 0))
   const netTotal = grandTotal
 

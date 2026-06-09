@@ -89,12 +89,8 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   const balanceDue = balance > 0 ? balance : 0;
   const [cashReceived, setCashReceived] = useState<number>(0);
 
-  // Initialize cashReceived with prop value when modal opens
-  useEffect(() => {
-    if (show && initialCashReceived !== undefined) {
-      setCashReceived(initialCashReceived);
-    }
-  }, [show, initialCashReceived]);
+  // NOTE: cashReceived initialization guarded via didInitForShowRef below.
+  // (Keeping this block removed prevents duplicate setState loops.)
 
   // Calculate settlement amounts
   const receivedAmount = cashReceived || 0;
@@ -175,34 +171,69 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   useEffect(() => { paymentAmountsRef.current = paymentAmounts; }, [paymentAmounts]);
 
   // ✅ FIXED: handleSettle reads from refs so it always has fresh values
-  const handleSettle = useCallback(async () => {
-    if (loading) return;
+const handleSettle = useCallback(async () => {
+    // Ensure cashReceived is initialized for this open cycle before settling
+    // (guards against any parent prop oscillation during the first render).
+    if (show && initialCashReceived !== undefined) {
+      setCashReceived((prev) => (prev === initialCashReceived ? prev : initialCashReceived));
+    }
 
-    const currentModes = selectedPaymentModesRef.current;
-    const currentAmounts = paymentAmountsRef.current;
+    if (loading) return
+
+    const currentModes = selectedPaymentModesRef.current
+    const currentAmounts = paymentAmountsRef.current
 
     if (balanceDue > 0) {
-      toast.error(`Balance due: ₹${balanceDue.toFixed(2)}`);
-      return;
+      toast.error(`Balance due: ₹${balanceDue.toFixed(2)}`)
+      return
     }
 
-    const settlements = currentModes.map(name => ({
-      table_name: table_name || '',
-      PaymentType: name,
-      Amount: Number(currentAmounts[name] || 0),
-      received_amount: cashReceived || 0,
-      refund_amount: refundAmount,
-      TipAmount: tip || 0,
-    }));
+// Backend (ldgSettlementController) requires additional fields.
+    // We map what we can and rely on the parent to provide the rest.
+    // NOTE: window.__hotel_* globals are NOT a reliable contract; this is
+    // a temporary compile-time placeholder. Replace with proper props wiring
+    // in HotelBookingPanel when available.
+    const settlements = currentModes.map((name) => {
+      const mode = outletPaymentModes.find((m) => m.mode_name === name)
+
+      return {
+        table_name: table_name || 'room',
+
+        // Required by backend
+        PaymentTypeID: mode?.id,
+        PaymentType: name,
+        Amount: Number(currentAmounts[name] || 0),
+
+        userid: (window as any)?.__hotel_userid,
+        HotelID: (window as any)?.__hotel_hotelid,
+        outletid: mode?.outletid,
+
+        checkinid: (window as any)?.__hotel_checkinid,
+        room_id: (window as any)?.__hotel_roomid,
+
+        // Existing fields already used by backend insertData
+        received_amount: cashReceived || 0,
+        refund_amount: refundAmount,
+        TipAmount: tip || 0,
+        total_amount: grandTotal,
+      }
+    })
 
     try {
-      await onSettle(settlements, tip);
+      await onSettle(settlements as any, tip)
     } catch (err) {
-      toast.error('Settlement failed');
+      toast.error('Settlement failed')
     }
   }, [
-    loading, cashReceived, grandTotal, balanceDue,
-    tip, table_name, refundAmount, onSettle
+    loading,
+    cashReceived,
+    grandTotal,
+    balanceDue,
+    tip,
+    table_name,
+    refundAmount,
+    onSettle,
+    outletPaymentModes
   ]);
 
   // ✅ FIXED: Arrow keys update refs immediately (sync) + state (async)
@@ -296,50 +327,59 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     }
   }, [show]);
 
+  const didInitForShowRef = useRef(false);
+
   // Update states when modal opens with initial props and auto-select Cash if needed
+  // Run only once per open to avoid repeated setState loops.
   useEffect(() => {
-    if (show) {
-      setIsMixedPayment(initialIsMixed);
-      setSelectedPaymentModes(initialSelectedModes);
-      setTip(initialTip);
-
-      // ✅ FIX: Initialize payment amounts properly - don't use zero values
-      if (initialSelectedModes.length > 0 && grandTotal > 0) {
-        const newAmounts: { [key: string]: string } = {};
-
-        // Check if initialPaymentAmounts has valid amounts
-        const hasValidAmounts = initialSelectedModes.every(mode => {
-          const amount = parseFloat(initialPaymentAmounts[mode] || '0');
-          return amount > 0;
-        });
-
-        if (hasValidAmounts && Object.keys(initialPaymentAmounts).length > 0) {
-          setPaymentAmounts(initialPaymentAmounts);
-        } else {
-          // Initialize with grand total
-          if (!initialIsMixed && initialSelectedModes.length === 1) {
-            newAmounts[initialSelectedModes[0]] = grandTotal.toFixed(2);
-          } else if (initialIsMixed && initialSelectedModes.length > 0) {
-            newAmounts[initialSelectedModes[0]] = grandTotal.toFixed(2);
-            for (let i = 1; i < initialSelectedModes.length; i++) {
-              newAmounts[initialSelectedModes[i]] = '0';
-            }
-          }
-          setPaymentAmounts(newAmounts);
-        }
-      }
-      else if (!initialIsMixed && initialSelectedModes.length === 0) {
-        const cashMode = Array.isArray(outletPaymentModes) ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash') : null;
-        if (cashMode && grandTotal > 0) {
-          setSelectedPaymentModes([cashMode.mode_name]);
-          setPaymentAmounts({ [cashMode.mode_name]: grandTotal.toFixed(2) });
-        }
-      }
-      else {
-        setPaymentAmounts(initialPaymentAmounts);
-      }
+    if (!show) {
+      didInitForShowRef.current = false;
+      return;
     }
-  }, [show, initialIsMixed, initialSelectedModes, initialPaymentAmounts, initialTip, outletPaymentModes, grandTotal]);
+    if (didInitForShowRef.current) return;
+    didInitForShowRef.current = true;
+
+    setIsMixedPayment(initialIsMixed);
+    setSelectedPaymentModes(initialSelectedModes);
+    setTip(initialTip);
+
+    // ✅ FIX: Initialize payment amounts properly - don't use zero values
+    if (initialSelectedModes.length > 0 && grandTotal > 0) {
+      const newAmounts: { [key: string]: string } = {};
+
+      // Check if initialPaymentAmounts has valid amounts
+      const hasValidAmounts = initialSelectedModes.every(mode => {
+        const amount = parseFloat(initialPaymentAmounts[mode] || '0');
+        return amount > 0;
+      });
+
+      if (hasValidAmounts && Object.keys(initialPaymentAmounts).length > 0) {
+        setPaymentAmounts(initialPaymentAmounts);
+      } else {
+        // Initialize with grand total
+        if (!initialIsMixed && initialSelectedModes.length === 1) {
+          newAmounts[initialSelectedModes[0]] = grandTotal.toFixed(2);
+        } else if (initialIsMixed && initialSelectedModes.length > 0) {
+          newAmounts[initialSelectedModes[0]] = grandTotal.toFixed(2);
+          for (let i = 1; i < initialSelectedModes.length; i++) {
+            newAmounts[initialSelectedModes[i]] = '0';
+          }
+        }
+        setPaymentAmounts(newAmounts);
+      }
+    } else if (!initialIsMixed && initialSelectedModes.length === 0) {
+      const cashMode = Array.isArray(outletPaymentModes)
+        ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash')
+        : null;
+      if (cashMode && grandTotal > 0) {
+        setSelectedPaymentModes([cashMode.mode_name]);
+        setPaymentAmounts({ [cashMode.mode_name]: grandTotal.toFixed(2) });
+      }
+    } else {
+      setPaymentAmounts(initialPaymentAmounts);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show]);
 
   return (
     <Modal

@@ -598,28 +598,28 @@ const CheckInForm = () => {
           PaymentModeService.list({ outletid: user?.outletid ? String(user.outletid) : undefined }), // Assuming outletId is available in scope; replace with actual value or state if needed
         ])
 
-        let countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || []
+        const countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || []
         setCountries(
           countriesData
             .map((c: any) => ({ id: c.id || c.countryid, name: String(c.name || c.country_name) }))
             .filter((c: any) => c.id && c.name),
         )
 
-        let statesData = Array.isArray(statesRes) ? statesRes : statesRes?.data || []
+        const statesData = Array.isArray(statesRes) ? statesRes : statesRes?.data || []
         setStates(
           statesData
             .map((s: any) => ({ id: s.id || s.stateid, name: String(s.name || s.state_name) }))
             .filter((s: any) => s.id && s.name),
         )
 
-        let citiesData = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || []
+        const citiesData = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || []
         setCities(
           citiesData
             .map((c: any) => ({ id: c.id || c.cityid, name: String(c.name || c.city_name) }))
             .filter((c: any) => c.id && c.name),
         )
 
-        let companiesData = Array.isArray(companiesRes) ? companiesRes : companiesRes?.data || []
+        const companiesData = Array.isArray(companiesRes) ? companiesRes : companiesRes?.data || []
         setCompanies(
           companiesData
             .map((c: any) => ({
@@ -638,7 +638,7 @@ const CheckInForm = () => {
           )
         }
 
-        let categoriesData = Array.isArray(categoriesRes)
+        const categoriesData = Array.isArray(categoriesRes)
           ? categoriesRes
           : categoriesRes?.data || []
         setRoomCategories(
@@ -649,10 +649,10 @@ const CheckInForm = () => {
           })),
         )
 
-        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
+        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
         setTaxList(taxData)
 
-        let fragmentsData = Array.isArray(fragmentsRes) ? fragmentsRes : fragmentsRes?.data || []
+        const fragmentsData = Array.isArray(fragmentsRes) ? fragmentsRes : fragmentsRes?.data || []
         setFragments(
           fragmentsData
             .map((f: any) => ({
@@ -662,7 +662,7 @@ const CheckInForm = () => {
             .filter((f: any) => f.fragment_id && f.name),
         )
 
-        let paymentMethodsData = Array.isArray(paymentMethodsRes)
+        const paymentMethodsData = Array.isArray(paymentMethodsRes)
           ? paymentMethodsRes
           : paymentMethodsRes?.data || []
         // Filter only active types (status === 1) if status field present, else show all
@@ -1392,7 +1392,7 @@ const paymentMethodOptions: Option[] = useMemo(
             setFieldValue('pax', pax)
             setFieldValue('exPax', exPax)
           } else {
-            let convertedTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
+            const convertedTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
             setSelectedRoomTariff(convertedTariff)
             if (!roomChargeEditable) {
               setFieldValue('roomCharges', convertedTariff)
@@ -1426,7 +1426,7 @@ const paymentMethodOptions: Option[] = useMemo(
             setFieldValue('pax', pax)
             setFieldValue('exPax', exPax)
           } else {
-            let originalTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
+            const originalTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
             setSelectedRoomTariff(originalTariff)
             if (!roomChargeEditable) {
               setFieldValue('roomCharges', originalTariff)
@@ -1469,7 +1469,7 @@ const paymentMethodOptions: Option[] = useMemo(
         setFieldValue('pax', pax)
         setFieldValue('exPax', exPax)
       } else {
-        let tariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
+        const tariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
         setSelectedRoomTariff(tariff)
         if (!roomChargeEditable) {
           setFieldValue('roomCharges', tariff)
@@ -2348,7 +2348,7 @@ useEffect(() => {
   }))
 
   const roomOptions = useMemo(() => {
-    let options = initialSelectedRooms
+    const options = initialSelectedRooms
       .filter((room) => !roomRows.some((row) => row.roomId === room.roomId))
       .map((r) => ({
         label: r.roomNumber,

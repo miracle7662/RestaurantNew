@@ -2929,7 +2929,7 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
       wrapper.appendChild(headerDiv)
       const tableClone = table.cloneNode(true) as HTMLElement
       tableClone.querySelectorAll('thead tr, tfoot tr').forEach((el) => {
-        ;(el as HTMLElement).style.position = 'static'
+        (el as HTMLElement).style.position = 'static'
       })
       wrapper.appendChild(tableClone)
       document.body.appendChild(wrapper)
@@ -4597,12 +4597,12 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
                               transition: 'box-shadow 0.18s, transform 0.12s',
                             }}
                             onMouseEnter={(e) => {
-                              ;(e.currentTarget as HTMLElement).style.boxShadow =
+                              (e.currentTarget as HTMLElement).style.boxShadow =
                                 '0 6px 22px rgba(0,0,0,0.16)'
                               ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
                             }}
                             onMouseLeave={(e) => {
-                              ;(e.currentTarget as HTMLElement).style.boxShadow =
+                              (e.currentTarget as HTMLElement).style.boxShadow =
                                 '0 2px 10px rgba(0,0,0,0.10)'
                               ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
                             }}>
@@ -4805,10 +4805,10 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
                                     transition: 'background 0.15s',
                                   }}
                                   onMouseEnter={(e) => {
-                                    ;(e.currentTarget as HTMLElement).style.background = '#e7f0ff'
+                                    (e.currentTarget as HTMLElement).style.background = '#e7f0ff'
                                   }}
                                   onMouseLeave={(e) => {
-                                    ;(e.currentTarget as HTMLElement).style.background = '#fff'
+                                    (e.currentTarget as HTMLElement).style.background = '#fff'
                                   }}
                                   title="Print invoice">
                                   <i className="fi fi-rr-print" style={{ fontSize: '0.65rem' }}></i>
@@ -4835,10 +4835,10 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
                                     transition: 'background 0.15s',
                                   }}
                                   onMouseEnter={(e) => {
-                                    ;(e.currentTarget as HTMLElement).style.background = '#e6f4ed'
+                                    (e.currentTarget as HTMLElement).style.background = '#e6f4ed'
                                   }}
                                   onMouseLeave={(e) => {
-                                    ;(e.currentTarget as HTMLElement).style.background = '#fff'
+                                    (e.currentTarget as HTMLElement).style.background = '#fff'
                                   }}
                                   title="Settlement">
                                   <i className="fi fi-rr-money-check" style={{ fontSize: '0.65rem' }}></i>
@@ -6496,6 +6496,8 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
             total_amount: settlementPayData.totalPrice,
             checkinid: settlementPayData.checkinId || 0,
             room_name: settlementPayData.roomNo,
+            room_id: (settlementPayData as any).roomId || 0,
+
             bill_no: settlementPayData.billNo,
             registration_no: settlementPayData.regNo,
             OrderNo: settlementPayData.orderNo,
