@@ -17,7 +17,9 @@ type Room = {
     room_category_id: number;
     category_name?: string;
     room_ext_no?: string;
-    room_status: string;
+    room_status_id: number;
+    room_status?: string;
+    status_color?: string;
     department_id?: number;
     department_name?: string;
     block_id?: number;
@@ -38,7 +40,7 @@ type RoomFormData = {
     display_name: string;
     room_category_id: string;
     room_ext_no: string;
-    room_status: string;
+    room_status_id: string;
     department_id?: string;
     block_id?: string;
     floor_id?: string;
@@ -50,7 +52,7 @@ const defaultForm: RoomFormData = {
     display_name: '',
     room_category_id: '',
     room_ext_no: '',
-    room_status: 'available',
+    room_status_id: '',
     department_id: '',
     block_id: '',
     floor_id: '',
@@ -113,6 +115,7 @@ const RoomMaster = () => {
                     room.room_name,
                     room.display_name,
                     room.category_name,
+                    room.room_status,
                     room.department_name,
                     room.block_name,
                     room.floor_name,
@@ -177,7 +180,7 @@ const RoomMaster = () => {
             display_name: room.display_name || '',
             room_category_id: room.room_category_id.toString(),
             room_ext_no: room.room_ext_no || '',
-            room_status: room.room_status,
+            room_status_id: room.room_status_id?.toString() || '',
             department_id: room.department_id?.toString() || '',
             block_id: room.block_id?.toString() || '',
             floor_id: room.floor_id?.toString() || '',
@@ -206,7 +209,7 @@ const RoomMaster = () => {
                 display_name: payload.display_name || undefined,
                 room_category_id: parseInt(payload.room_category_id),
                 room_ext_no: payload.room_ext_no || undefined,
-                room_status: payload.room_status,
+                room_status_id: payload.room_status_id ? parseInt(payload.room_status_id) : undefined,
                 department_id: payload.department_id ? parseInt(payload.department_id) : undefined,
                 block_id: payload.block_id ? parseInt(payload.block_id) : undefined,
                 floor_id: payload.floor_id ? parseInt(payload.floor_id) : undefined,
@@ -275,24 +278,23 @@ const RoomMaster = () => {
     };
 
     // Helper for status badge
-    const getStatusBadge = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'available':
-                return <Badge bg="success">Available</Badge>;
-            case 'occupied':
-                return <Badge bg="primary">Occupied</Badge>;
-            case 'maintenance':
-                return <Badge bg="warning">Maintenance</Badge>;
-            case 'cleaning':
-                return <Badge bg="info">Cleaning</Badge>;
-            case 'out_of_service':
-                return <Badge bg="secondary">Out of Service</Badge>;
-            case 'reserved':
-            case 'reservation':
-                return <Badge bg="primary">Reservation</Badge>;
-            default:
-                return <Badge bg="secondary">{status}</Badge>;
-        }
+    const getStatusBadge = (room: Room) => {
+        const status = room.room_status || 'Unknown';
+        const color = room.status_color || 'secondary';
+        
+        const getBgColor = () => {
+            switch (color.toLowerCase()) {
+                case 'success': return 'success';
+                case 'primary': return 'primary';
+                case 'warning': return 'warning';
+                case 'info': return 'info';
+                case 'danger': return 'danger';
+                case 'secondary': return 'secondary';
+                default: return 'secondary';
+            }
+        };
+        
+        return <Badge bg={getBgColor()}>{status}</Badge>;
     };
 
     return (
@@ -371,7 +373,7 @@ const RoomMaster = () => {
                                         <td>{room.display_name || '-'}</td>
                                         <td>{room.category_name || '-'}</td>
                                         <td>{room.room_ext_no || '-'}</td>
-                                        <td>{getStatusBadge(room.room_status)}</td>
+                                        <td>{getStatusBadge(room)}</td>
                                         <td>{room.department_name || '-'}</td>
                                         <td>{room.block_name || '-'}</td>
                                         <td>{room.floor_name || '-'}</td>

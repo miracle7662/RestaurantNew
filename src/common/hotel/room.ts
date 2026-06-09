@@ -20,14 +20,16 @@ export interface Room {
     room_category_id: number;
     category_name?: string;
     room_ext_no?: string;
-    room_status: string;
+    room_status_id: number;
+    room_status?: string;
+    status_color?: string;
     department_id?: number;
     department_name?: string;
     block_id?: number;
     block_name?: string;
     floor_id?: number;
     floor_name?: string;
-    hotelid: number;  // Changed from mst_hotelid to hotelid
+    hotelid: number;
     created_date?: string;
     updated_date?: string;
     created_by_id?: number;
@@ -40,13 +42,14 @@ export interface RoomPayload {
     display_name?: string;
     room_category_id: number;
     room_ext_no?: string;
-    room_status?: string;
+    room_status_id?: number;
     department_id?: number;
     block_id?: number;
     floor_id?: number;
-    hotelid?: number;  // Changed from mst_hotelid to hotelid
+    hotelid?: number;
     created_by_id?: number;
     updated_by_id?: number;
+     room_status ?: string
 }
 
 /* ----------------------------------------------------------------------

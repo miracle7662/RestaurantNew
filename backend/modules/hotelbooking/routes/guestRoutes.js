@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/guestController');
-const { uploadGuestDocuments } = require('../../../middleware/upload');
+const { uploadGuestDocuments, uploadGuestPhoto } = require('../../../middleware/upload');
 const path = require('path');
 
 // Guest routes
@@ -10,6 +10,11 @@ router.get('/:id', controller.getGuest);
 router.post('/', controller.addGuest);
 router.put('/:id', controller.updateGuest);
 router.delete('/:id', controller.deleteGuest);
+
+// Guest photo routes
+router.post('/:guestId/photo', uploadGuestPhoto, controller.uploadGuestPhoto);
+router.get('/:guestId/photo', controller.getGuestPhoto);
+router.delete('/:guestId/photo', controller.deleteGuestPhoto);
 
 // Document routes with file upload middleware
 router.get('/:guestId/documents', controller.getDocuments);

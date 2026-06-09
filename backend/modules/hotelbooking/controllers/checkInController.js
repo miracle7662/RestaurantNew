@@ -1,551 +1,1042 @@
-// checkInController.js - Updated with proper checkout_datetime update on extension
-
+// controllers/checkInController.js
 const db = require('../../../config/db');
 
+// Helper to get current user ID
 const getCurrentUserId = (req) => req.user?.id || null;
+
+// Helper to get current user's hotel ID
 const getCurrentUserHotelId = (req) => req.user?.hotelid || null;
 
-// Helper function to parse and validate decimal values
-const parseDecimal = (value, defaultValue = 0) => {
-  if (value === null || value === undefined) return defaultValue;
-  const parsed = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
-  return isNaN(parsed) ? defaultValue : parsed;
+// Helper to format MySQL datetime
+const formatDateTime = (dateTimeStr) => {
+    if (!dateTimeStr) return null;
+    const d = new Date(dateTimeStr);
+    if (isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 19).replace('T', ' ');
 };
 
-// Helper function to format datetime for MySQL
-const formatDateTime = (dateValue) => {
-  if (!dateValue) return null;
-  
-  // If it's already a Date object
-  if (dateValue instanceof Date) {
-    return dateValue.toISOString().slice(0, 19).replace('T', ' ');
-  }
-  
-  // If it's a string in ISO format
-  if (typeof dateValue === 'string' && dateValue.includes('T')) {
-    const date = new Date(dateValue);
-    if (!isNaN(date.getTime())) {
-      return date.toISOString().slice(0, 19).replace('T', ' ');
-    }
-  }
-  
-  // If it's already in correct MySQL format
-  if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateValue)) {
-    return dateValue;
-  }
-  
-  return dateValue;
-};
+// Helper to format date for MySQL
+const formatDate = (date) => date ? new Date(date).toISOString() : null;
 
-// Get next registration number
-exports.getNextRegNumber = async (req, res) => {
-  try {
-    let hotelId = req.query.hotelid;
-    if (!hotelId) hotelId = getCurrentUserHotelId(req);
-    if (!hotelId) return res.status(400).json({ success: false, message: "Hotel ID not found" });
+// Helper to get value or null
+const getValueOrNull = (value) => value !== undefined && value !== null && value !== '' ? value : null;
 
-    const [rows] = await db.query(
-      `SELECT MAX(CAST(reg_no AS UNSIGNED)) as max_num FROM CheckIn_Master WHERE hotelid = ?`,
-      [hotelId]
+// Helper to get default room status ID for 'occupied'
+const getOccupiedStatusId = async () => {
+    const [statuses] = await db.execute(
+        "SELECT room_status_id FROM room_status WHERE LOWER(status_name) = 'occupied' LIMIT 1"
     );
-    const nextNumber = (rows[0]?.max_num || 0) + 1;
-    const nextRegNo = nextNumber.toString().padStart(4, '0');
-
-    res.json({ success: true, data: { reg_no: nextRegNo } });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Database error" });
-  }
+    if (statuses.length > 0) return statuses[0].room_status_id;
+    
+    // Try alternative names
+    const [altStatuses] = await db.execute(
+        "SELECT room_status_id FROM room_status WHERE LOWER(status_name) IN ('occupied', 'booked', 'in_house') LIMIT 1"
+    );
+    return altStatuses.length > 0 ? altStatuses[0].room_status_id : 2; // Default to 2 if not found
 };
 
-// GET all check-ins
+// Helper to get default room status ID for 'available'
+const getAvailableStatusId = async () => {
+    const [statuses] = await db.execute(
+        "SELECT room_status_id FROM room_status WHERE LOWER(status_name) = 'available' LIMIT 1"
+    );
+    if (statuses.length > 0) return statuses[0].room_status_id;
+    
+    // Try alternative names
+    const [altStatuses] = await db.execute(
+        "SELECT room_status_id FROM room_status WHERE LOWER(status_name) IN ('available', 'vacant', 'free') LIMIT 1"
+    );
+    return altStatuses.length > 0 ? altStatuses[0].room_status_id : 1;
+};
+
+// ----------------------------------------------------------------------
+// GET /checkins – list checkins
+// ----------------------------------------------------------------------
 exports.getCheckins = async (req, res) => {
-  try {
-    let hotelId = req.query.hotelid;
-    if (!hotelId) hotelId = getCurrentUserHotelId(req);
-    if (!hotelId) return res.status(400).json({ success: false, message: "Hotel ID not found" });
+    try {
+        let hotelId = req.query.hotelid || req.query.mst_hotelid;
+        if (!hotelId) hotelId = getCurrentUserHotelId(req);
+        if (!hotelId) {
+            return res.status(400).json({ success: false, message: 'Hotel ID not found' });
+        }
 
-    const [checkins] = await db.query(`
-      SELECT checkin_id, guest_id, guest_name, address, mobile, company_name,
-             emailed, booking, plan_name,
-             reg_no, special_instruction, message,
-             checkin_datetime, checkout_datetime, room_no,
-             category_id, converted_category, adults, pax, pax_charges,
-             ex_pax, ex_pax_charge, child_paid, child_unpaid, child_charge,
-             driver, driver_charge, hotelid, id_type, id_number, department_id,
-             department_name, created_by_id, created_date, updated_by_id,
-             updated_date, status, total_nights, total_amount
-      FROM CheckIn_Master
-      WHERE hotelid = ?
-      ORDER BY checkin_datetime DESC
-    `, [hotelId]);
+        const { q, status } = req.query;
 
-    res.json({ success: true, message: "Data fetched successfully", data: checkins });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Database error" });
-  }
+        let sql = `
+            SELECT 
+                cm.checkin_id,
+                cm.guest_id,
+                cm.guest_name,
+                cm.address,
+                cm.mobile,
+                cm.company_name,
+                cm.emailed,
+                cm.booking,
+                cm.plan_name,
+                cm.reg_no,
+                cm.special_instruction,
+                cm.message,
+                cm.checkin_datetime,
+                cm.checkout_datetime,
+                cm.room_no,
+                cm.category_id,
+                cm.converted_category,
+                cm.adults,
+                cm.pax,
+                cm.pax_charges,
+                cm.ex_pax,
+                cm.ex_pax_charge,
+                cm.child_paid,
+                cm.child_unpaid,
+                cm.child_charge,
+                cm.driver,
+                cm.driver_charge,
+                cm.hotelid,
+                cm.id_type,
+                cm.id_number,
+                cm.department_id,
+                cm.department_name,
+                cm.status,
+                cm.total_nights,
+                cm.total_amount,
+                cm.created_by_id,
+                cm.created_date,
+                cm.updated_by_id,
+                cm.updated_date
+            FROM checkin_master cm
+            WHERE cm.hotelid = ?
+        `;
+
+        const params = [hotelId];
+
+        if (q) {
+            sql += ` AND (cm.guest_name LIKE ? OR cm.reg_no LIKE ? OR cm.mobile LIKE ?)`;
+            const like = `%${q}%`;
+            params.push(like, like, like);
+        }
+
+        if (status) {
+            sql += ` AND cm.status = ?`;
+            params.push(status);
+        }
+
+        sql += ` ORDER BY cm.checkin_id DESC`;
+
+        const [checkins] = await db.execute(sql, params);
+
+        const formattedCheckins = checkins.map(checkin => ({
+            ...checkin,
+            checkin_datetime: formatDate(checkin.checkin_datetime),
+            checkout_datetime: formatDate(checkin.checkout_datetime),
+            created_date: formatDate(checkin.created_date),
+            updated_date: formatDate(checkin.updated_date)
+        }));
+
+        res.json({
+            success: true,
+            message: 'Checkins fetched successfully',
+            data: formattedCheckins,
+        });
+    } catch (error) {
+        console.error('Error fetching checkins:', error);
+        res.status(500).json({ success: false, message: 'Database error', error: error.message });
+    }
 };
 
-// GET today's checkouts
-exports.getTodayCheckouts = async (req, res) => {
-  try {
-    let hotelId = req.query.hotelid;
-    if (!hotelId) hotelId = getCurrentUserHotelId(req);
-    if (!hotelId) return res.status(400).json({ success: false, message: "Hotel ID not found" });
+// ----------------------------------------------------------------------
+// GET /checkins/:id – get single checkin by ID
+// ----------------------------------------------------------------------
+exports.getCheckin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const checkinId = parseInt(id);
 
-    const [checkouts] = await db.query(`
-      SELECT 
-        c.checkin_id,
-        c.guest_name,
-        c.reg_no,
-        c.room_no,
-        c.booking,
-        c.plan_name,
-        c.adults,
-        c.pax,
-        c.ex_pax,
-        c.child_paid,
-        c.child_unpaid,
-        c.driver,
-        c.checkin_datetime,
-        c.checkout_datetime,
-        c.total_nights,
-        c.total_amount,
-        c.status,
-        c.converted_category,
-        rc.category_name as room_category_name
-      FROM CheckIn_Master c
-      LEFT JOIN room_category rc ON c.category_id = rc.room_category_id
-      WHERE c.hotelid = ?
-        AND c.status = 'active'
-        AND DATE(c.checkout_datetime) = CURDATE()
-      ORDER BY c.checkout_datetime ASC
-    `, [hotelId]);
+        if (isNaN(checkinId)) {
+            return res.status(400).json({ success: false, message: 'Invalid checkin ID' });
+        }
 
-    const processedCheckouts = [];
-    for (const checkout of checkouts) {
-      const [folioResult] = await db.query(`
-        SELECT SUM(debit_amount) as total_debit, SUM(credit_amount) as total_credit
-        FROM guest_folio_master
-        WHERE checkin_id = ?
-      `, [checkout.checkin_id]);
-      
-      const totalDebit = Number(folioResult[0]?.total_debit) || 0;
-      const totalCredit = Number(folioResult[0]?.total_credit) || 0;
-      const folioTotal = totalDebit - totalCredit;
-      
-      const totalChildCount = (checkout.child_paid || 0) + (checkout.child_unpaid || 0);
-      
-      processedCheckouts.push({
-        ...checkout,
-        child_count: totalChildCount,
-        folio_total: folioTotal,
-        room_category: checkout.room_category_name || checkout.converted_category || 'N/A'
-      });
+        let hotelId = req.query.hotelid || getCurrentUserHotelId(req);
+
+        let sql = `
+            SELECT 
+                cm.checkin_id,
+                cm.guest_id,
+                cm.guest_name,
+                cm.address,
+                cm.mobile,
+                cm.company_name,
+                cm.emailed,
+                cm.booking,
+                cm.plan_name,
+                cm.reg_no,
+                cm.special_instruction,
+                cm.message,
+                cm.checkin_datetime,
+                cm.checkout_datetime,
+                cm.room_no,
+                cm.category_id,
+                cm.converted_category,
+                cm.adults,
+                cm.pax,
+                cm.pax_charges,
+                cm.ex_pax,
+                cm.ex_pax_charge,
+                cm.child_paid,
+                cm.child_unpaid,
+                cm.child_charge,
+                cm.driver,
+                cm.driver_charge,
+                cm.hotelid,
+                cm.id_type,
+                cm.id_number,
+                cm.department_id,
+                cm.department_name,
+                cm.status,
+                cm.total_nights,
+                cm.total_amount,
+                cm.created_by_id,
+                cm.created_date,
+                cm.updated_by_id,
+                cm.updated_date
+            FROM checkin_master cm
+            WHERE cm.checkin_id = ?
+        `;
+
+        const params = [checkinId];
+
+        if (hotelId) {
+            sql += ` AND cm.hotelid = ?`;
+            params.push(hotelId);
+        }
+
+        const [checkins] = await db.execute(sql, params);
+
+        if (checkins.length === 0) {
+            return res.status(404).json({ success: false, message: 'Checkin not found' });
+        }
+
+        const formattedCheckin = {
+            ...checkins[0],
+            checkin_datetime: formatDate(checkins[0].checkin_datetime),
+            checkout_datetime: formatDate(checkins[0].checkout_datetime),
+            created_date: formatDate(checkins[0].created_date),
+            updated_date: formatDate(checkins[0].updated_date)
+        };
+
+        res.json({
+            success: true,
+            message: 'Checkin fetched successfully',
+            data: formattedCheckin,
+        });
+    } catch (error) {
+        console.error('Error fetching checkin:', error);
+        res.status(500).json({ success: false, message: 'Database error', error: error.message });
     }
-
-    res.json({ success: true, message: "Data fetched successfully", data: processedCheckouts });
-  } catch (error) {
-    console.error("Error fetching today's checkouts:", error);
-    res.status(500).json({ success: false, message: "Database error", error: error.message });
-  }
 };
 
-// GET single check-in by ID
-exports.getCheckinById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const [checkins] = await db.query(`
-      SELECT * FROM CheckIn_Master WHERE checkin_id = ?
-    `, [id]);
-    
-    const checkin = checkins[0];
-    if (!checkin) {
-      return res.status(404).json({ success: false, message: "Check-in not found" });
-    }
+// ----------------------------------------------------------------------
+// GET /checkins/next-reg-number – get next registration number
+// ----------------------------------------------------------------------
+exports.getNextRegNumber = async (req, res) => {
+    try {
+        let hotelId = req.query.hotelid || getCurrentUserHotelId(req);
+        if (!hotelId) {
+            return res.status(400).json({ success: false, message: 'Hotel ID not found' });
+        }
 
-    res.json({ success: true, message: "Data fetched successfully", data: checkin });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Database error" });
-  }
-};
-
-// CREATE check-in
-exports.addCheckin = async (req, res) => {
-  try {
-    let {
-      guest_id, guest_name, address, mobile, company_name, emailed, booking,
-      plan_name, reg_no, special_instruction, message,
-      checkin_datetime, checkout_datetime, room_no, category_id, converted_category,
-      adults, pax, pax_charges, ex_pax, ex_pax_charge, child_paid, child_unpaid, child_charge,
-      driver, driver_charge, hotelid, id_type, id_number, department_id,
-      department_name, status = 'active', created_by_id, room_ids, total_nights,
-      total_amount
-    } = req.body;
-
-    pax_charges = parseDecimal(pax_charges);
-    ex_pax_charge = parseDecimal(ex_pax_charge);
-    child_charge = parseDecimal(child_charge);
-    driver_charge = parseDecimal(driver_charge);
-    total_amount = parseDecimal(total_amount);
-
-    const authUserId = getCurrentUserId(req);
-    const userId = created_by_id || authUserId;
-    let finalHotelId = hotelid || getCurrentUserHotelId(req);
-    const created_date = new Date();
-
-    if (!finalHotelId) {
-      return res.status(400).json({ success: false, message: "Hotel ID not found" });
-    }
-
-    let finalRegNo = reg_no;
-    if (!finalRegNo) {
-      const [rows] = await db.query(
-        `SELECT MAX(CAST(reg_no AS UNSIGNED)) as max_num FROM CheckIn_Master WHERE hotelid = ?`,
-        [finalHotelId]
-      );
-      const nextNumber = (rows[0]?.max_num || 0) + 1;
-      finalRegNo = nextNumber.toString().padStart(4, '0');
-    }
-
-    const finalTotalAmount = total_amount || (pax_charges + ex_pax_charge + child_charge + driver_charge);
-    const finalTotalNights = total_nights || 1;
-
-    const [result] = await db.query(`
-      INSERT INTO CheckIn_Master (
-        guest_id, guest_name, address, mobile, company_name, emailed, booking,
-        total_amount,
-        plan_name, reg_no, special_instruction, message,
-        checkin_datetime, checkout_datetime, room_no, category_id, converted_category,
-        adults, pax, pax_charges, ex_pax, ex_pax_charge, child_paid, child_unpaid, child_charge,
-        driver, driver_charge, hotelid, id_type, id_number, department_id,
-        department_name, created_by_id, created_date, status, total_nights
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      guest_id, guest_name, address, mobile, company_name, emailed, booking,
-      finalTotalAmount,
-      plan_name, finalRegNo, special_instruction, message,
-      formatDateTime(checkin_datetime), formatDateTime(checkout_datetime), room_no, category_id, converted_category,
-      adults, pax, pax_charges, ex_pax, ex_pax_charge, child_paid, child_unpaid, child_charge,
-      driver, driver_charge, finalHotelId, id_type, id_number, department_id,
-      department_name, userId, created_date, status, finalTotalNights
-    ]);
-
-    const checkinId = result.insertId;
-
-    if (room_ids && Array.isArray(room_ids) && room_ids.length > 0) {
-      const updated_date = new Date();
-      for (const roomId of room_ids) {
-        await db.query(
-          `UPDATE room_master 
-           SET room_status = 'occupied', updated_by_id = ?, updated_date = ? 
-           WHERE room_id = ? AND hotelid = ?`,
-          [userId, updated_date, roomId, finalHotelId]
+        const [result] = await db.execute(
+            `SELECT COUNT(*) as count FROM checkin_master WHERE hotelid = ? AND reg_no IS NOT NULL`,
+            [hotelId]
         );
-      }
-    }
 
-    res.status(200).json({
-      success: true,
-      message: "Check-in added successfully",
-      data: { checkin_id: checkinId, reg_no: finalRegNo, total_amount: finalTotalAmount, ...req.body, hotelid: finalHotelId, created_by_id: userId }
-    });
-  } catch (error) {
-    console.error("Error adding check-in:", error);
-    res.status(500).json({ success: false, message: "Failed to add check-in", error: error.message });
-  }
+        const count = result[0].count + 1;
+        const regNo = `REG${String(count).padStart(4, '0')}`;
+
+        res.json({
+            success: true,
+            data: { reg_no: regNo },
+        });
+    } catch (error) {
+        console.error('Error generating reg number:', error);
+        res.status(500).json({ success: false, message: 'Database error', error: error.message });
+    }
 };
 
-// UPDATE check-in (full update)
-exports.updateCheckin = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-    const userId = getCurrentUserId(req);
-    const updated_date = new Date();
-
-    const [existing] = await db.query('SELECT hotelid FROM CheckIn_Master WHERE checkin_id = ?', [id]);
-    if (!existing[0]) {
-      return res.status(404).json({ success: false, message: "Check-in not found" });
-    }
-
-    const allowedFields = [
-      'guest_id', 'guest_name', 'address', 'mobile', 'company_name', 'emailed',
-      'booking', 'plan_name', 'reg_no', 'special_instruction', 'message',
-      'checkin_datetime', 'checkout_datetime', 'room_no', 'category_id',
-      'converted_category', 'adults', 'pax', 'pax_charges', 'ex_pax', 'ex_pax_charge',
-      'child_paid', 'child_unpaid', 'child_charge', 'driver', 'driver_charge', 
-      'id_type', 'id_number', 'department_id', 'department_name', 'status', 'total_nights',
-      'total_amount'
-    ];
-
-    const updates = [];
-    const values = [];
-    allowedFields.forEach(field => {
-      if (updateData[field] !== undefined) {
-        let value = updateData[field];
-        
-        if (['pax_charges', 'ex_pax_charge', 'child_charge', 'driver_charge', 'total_amount'].includes(field)) {
-          value = parseDecimal(value);
-        }
-        
-        if (field === 'checkin_datetime' || field === 'checkout_datetime') {
-          value = formatDateTime(value);
-        }
-        
-        updates.push(`${field} = ?`);
-        values.push(value);
-      }
-    });
-
-    updates.push('updated_by_id = ?', 'updated_date = ?');
-    values.push(userId, updated_date, id);
-
-    const query = `UPDATE CheckIn_Master SET ${updates.join(', ')} WHERE checkin_id = ?`;
-    const [result] = await db.query(query, values);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Check-in not found or no changes" });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Check-in updated successfully",
-      data: { checkin_id: parseInt(id), ...updateData }
-    });
-  } catch (error) {
-    console.error("Error updating check-in:", error);
-    res.status(500).json({ success: false, message: "Failed to update check-in", error: error.message });
-  }
-};
-
-// PARTIAL UPDATE - Only updates checkout_datetime and total_amount for day extension
-exports.updateCheckinPartial = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-    const userId = getCurrentUserId(req);
-    const updated_date = new Date();
-
-    const [existing] = await db.query('SELECT checkin_id, total_amount, checkout_datetime FROM CheckIn_Master WHERE checkin_id = ?', [id]);
-    if (!existing[0]) {
-      return res.status(404).json({ success: false, message: "Check-in not found" });
-    }
-
-    const allowedFields = ['total_amount', 'total_nights', 'checkout_datetime', 'status'];
-    
-    const updates = [];
-    const values = [];
-    
-    allowedFields.forEach(field => {
-      if (updateData[field] !== undefined) {
-        let value = updateData[field];
-        
-        if (field === 'total_amount') {
-          const parsedValue = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
-          if (isNaN(parsedValue)) {
-            return res.status(400).json({ 
-              success: false, 
-              message: `Invalid value for ${field}: ${value} is not a valid number` 
-            });
-          }
-          value = Math.round(parsedValue * 100) / 100;
-        }
-        
-        if (field === 'total_nights') {
-          value = parseInt(value);
-          if (isNaN(value)) value = 1;
-        }
-        
-        if (field === 'checkout_datetime') {
-          value = formatDateTime(value);
-        }
-        
-        updates.push(`${field} = ?`);
-        values.push(value);
-      }
-    });
-
-    if (updates.length === 0) {
-      return res.status(400).json({ success: false, message: "No valid fields to update" });
-    }
-
-    updates.push('updated_by_id = ?', 'updated_date = ?');
-    values.push(userId, updated_date, id);
-
-    const query = `UPDATE CheckIn_Master SET ${updates.join(', ')} WHERE checkin_id = ?`;
-    const [result] = await db.query(query, values);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Check-in not found or no changes" });
-    }
-
-    const [updated] = await db.query('SELECT * FROM CheckIn_Master WHERE checkin_id = ?', [id]);
-
-    res.status(200).json({
-      success: true,
-      message: "Check-in updated partially successfully",
-      data: updated[0]
-    });
-  } catch (error) {
-    console.error("Error in partial update:", error);
-    res.status(500).json({ success: false, message: "Failed to update check-in", error: error.message });
-  }
-};
-
-// EXTEND check-in stay - UPDATED to update checkout_datetime in CheckIn_Master
-exports.extendCheckinStay = async (req, res) => {
-  try {
-    const { id } = req.params;
-    let { 
-      additionalDays, 
-      newCheckoutDatetime, 
-      additionalAmount, 
-      newTotalNights, 
-      newTotalAmount,
-      roomId,
-      detailId,
-      extensionDetails 
-    } = req.body;
-    
-    const userId = getCurrentUserId(req);
-    const updated_date = new Date();
-
-    additionalDays = parseInt(additionalDays) || 0;
-    additionalAmount = parseDecimal(additionalAmount);
-    newTotalNights = newTotalNights ? parseInt(newTotalNights) : null;
-    newTotalAmount = newTotalAmount ? parseDecimal(newTotalAmount) : null;
-
-    const [existing] = await db.query(
-      'SELECT total_nights, total_amount, checkout_datetime, checkin_datetime FROM CheckIn_Master WHERE checkin_id = ?', 
-      [id]
-    );
-    
-    if (!existing[0]) {
-      return res.status(404).json({ success: false, message: "Check-in not found" });
-    }
-
-    const currentTotalNights = parseFloat(existing[0].total_nights) || 1;
-    const currentTotalAmount = parseDecimal(existing[0].total_amount);
-    let currentCheckout = existing[0].checkout_datetime;
-
-    let updatedTotalNights = newTotalNights || (currentTotalNights + additionalDays);
-    let updatedTotalAmount = newTotalAmount || (currentTotalAmount + additionalAmount);
-    updatedTotalAmount = Math.round(updatedTotalAmount * 100) / 100;
-
-    let finalNewCheckoutDatetime = newCheckoutDatetime;
-    if (!finalNewCheckoutDatetime && additionalDays > 0) {
-      const currentCheckoutDate = new Date(currentCheckout);
-      const newDate = new Date(currentCheckoutDate);
-      newDate.setDate(currentCheckoutDate.getDate() + additionalDays);
-      finalNewCheckoutDatetime = formatDateTime(newDate);
-    }
-
-    const query = `
-      UPDATE CheckIn_Master 
-      SET total_nights = ?, 
-          total_amount = ?, 
-          checkout_datetime = ?,
-          updated_by_id = ?, 
-          updated_date = ? 
-      WHERE checkin_id = ?
-    `;
-    
-    const [result] = await db.query(query, [
-      updatedTotalNights, 
-      updatedTotalAmount, 
-      finalNewCheckoutDatetime || currentCheckout, 
-      userId, 
-      updated_date, 
-      id
-    ]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Check-in not found" });
-    }
-
-    if (detailId) {
-      await db.query(`
-        UPDATE detail_master 
-        SET is_checkout = 1, merged = 1, updated_date = ?
-        WHERE detail_id = ?
-      `, [updated_date, detailId]);
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Stay extended by ${additionalDays} day(s) successfully`,
-      data: { 
-        checkin_id: parseInt(id), 
-        total_nights: updatedTotalNights, 
-        total_amount: updatedTotalAmount,
-        checkout_datetime: finalNewCheckoutDatetime || currentCheckout
-      }
-    });
-  } catch (error) {
-    console.error("Error extending check-in stay:", error);
-    res.status(500).json({ success: false, message: "Failed to extend stay", error: error.message });
-  }
-};
-
-// DELETE check-in
-exports.deleteCheckin = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const [existing] = await db.query('SELECT hotelid FROM CheckIn_Master WHERE checkin_id = ?', [id]);
-    if (!existing[0]) {
-      return res.status(404).json({ success: false, message: "Check-in not found" });
-    }
-
-    const [result] = await db.query('DELETE FROM CheckIn_Master WHERE checkin_id = ?', [id]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Check-in not found" });
-    }
-
-    res.status(200).json({ success: true, message: "Check-in deleted successfully", data: { checkin_id: parseInt(id) } });
-  } catch (error) {
-    console.error("Error deleting check-in:", error);
-    res.status(500).json({ success: false, message: "Failed to delete check-in", error: error.message });
-  }
-};
-
-// GET check-in by ID for extension
-exports.getCheckinByIdForExtension = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const [checkins] = await db.query(`
-      SELECT * FROM CheckIn_Master WHERE checkin_id = ?
-    `, [id]);
-    
-    const checkin = checkins[0];
-    if (!checkin) {
-      return res.status(404).json({ success: false, message: "Check-in not found" });
-    }
-
-    res.json({ success: true, message: "Data fetched successfully", data: checkin });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Database error" });
-  }
-};
-
-// GET details by checkin_id
+// ----------------------------------------------------------------------
+// GET /checkins/details/:checkinId – get details by checkin ID
+// ----------------------------------------------------------------------
 exports.getDetailsByCheckinId = async (req, res) => {
-  try {
-    const { checkin_id } = req.params;
-    const [details] = await db.query(`
-      SELECT * FROM detail_master 
-      WHERE checkin_id = ? AND is_checkout = 0
-      ORDER BY detail_id DESC
-    `, [checkin_id]);
-    
-    res.json({ success: true, message: "Data fetched successfully", data: details });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Database error" });
-  }
+    try {
+        const { checkinId } = req.params;
+        const id = parseInt(checkinId);
+
+        if (isNaN(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid checkin ID' });
+        }
+
+        const [details] = await db.execute(`
+            SELECT 
+                detail_id,
+                checkin_id,
+                room_id,
+                room_number,
+                room_category_id,
+                room_category_name,
+                converted_category_id,
+                converted_category_name,
+                checkin_datetime,
+                checkout_datetime,
+                no_of_days,
+                adults,
+                pax,
+                ex_pax,
+                child_unpaid,
+                driver,
+                room_tariff,
+                ex_pax_charge,
+                child_paid_amount,
+                driver_charge,
+                discount_percent,
+                discount_amount,
+                cgst_percent,
+                cgst_amount,
+                sgst_percent,
+                sgst_amount,
+                igst_percent,
+                igst_amount,
+                cess_percent,
+                cess_amount,
+                service_charge,
+                service_charge_amount,
+                parent_detail_id,
+                is_checkout,
+                merged,
+                tax
+            FROM detail_master
+            WHERE checkin_id = ?
+            ORDER BY detail_id ASC
+        `, [id]);
+
+        const formattedDetails = details.map(detail => ({
+            ...detail,
+            checkin_datetime: formatDate(detail.checkin_datetime),
+            checkout_datetime: formatDate(detail.checkout_datetime)
+        }));
+
+        res.json({
+            success: true,
+            message: 'Details fetched successfully',
+            data: formattedDetails,
+        });
+    } catch (error) {
+        console.error('Error fetching details:', error);
+        res.status(500).json({ success: false, message: 'Database error', error: error.message });
+    }
+};
+
+// ----------------------------------------------------------------------
+// GET /checkins/today-checkouts – get today's checkouts
+// ----------------------------------------------------------------------
+exports.getTodayCheckouts = async (req, res) => {
+    try {
+        let hotelId = req.query.hotelid || getCurrentUserHotelId(req);
+        if (!hotelId) {
+            return res.status(400).json({ success: false, message: 'Hotel ID not found' });
+        }
+
+        const today = new Date().toISOString().slice(0, 10);
+
+        const [checkouts] = await db.execute(`
+            SELECT 
+                cm.checkin_id,
+                cm.guest_name,
+                cm.reg_no,
+                cm.room_no,
+                cm.booking,
+                cm.plan_name,
+                cm.adults,
+                cm.pax,
+                cm.ex_pax,
+                cm.child_paid,
+                cm.child_unpaid,
+                (cm.child_paid + cm.child_unpaid) as child_count,
+                cm.driver,
+                cm.checkin_datetime,
+                cm.checkout_datetime,
+                cm.total_nights,
+                cm.total_amount,
+                cm.folio_total,
+                cm.status,
+                cm.converted_category,
+                rc.category_name as room_category
+            FROM checkin_master cm
+            LEFT JOIN room_category rc ON cm.category_id = rc.room_category_id
+            WHERE cm.hotelid = ? 
+                AND DATE(cm.checkout_datetime) = ?
+                AND cm.status = 'active'
+            ORDER BY cm.checkout_datetime ASC
+        `, [hotelId, today]);
+
+        res.json({
+            success: true,
+            message: 'Today\'s checkouts fetched successfully',
+            data: checkouts,
+        });
+    } catch (error) {
+        console.error('Error fetching today\'s checkouts:', error);
+        res.status(500).json({ success: false, message: 'Database error', error: error.message });
+    }
+};
+
+// ----------------------------------------------------------------------
+// POST /checkins – create a new checkin
+// ----------------------------------------------------------------------
+exports.addCheckin = async (req, res) => {
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        const {
+            guest_id,
+            guest_name,
+            address,
+            mobile,
+            company_name,
+            emailed,
+            booking,
+            plan_name,
+            reg_no,
+            special_instruction,
+            message,
+            checkin_datetime,
+            checkout_datetime,
+            room_no,
+            category_id,
+            converted_category,
+            adults,
+            pax,
+            pax_charges,
+            ex_pax,
+            ex_pax_charge,
+            child_paid,
+            child_unpaid,
+            child_charge,
+            driver,
+            driver_charge,
+            hotelid,
+            id_type,
+            id_number,
+            department_id,
+            department_name,
+            status,
+            created_by_id,
+            room_ids,
+            total_nights,
+            total_amount
+        } = req.body;
+
+        const userId = getCurrentUserId(req);
+        let hotelId = hotelid || getCurrentUserHotelId(req);
+        const now = new Date();
+
+        if (!hotelId) {
+            await connection.rollback();
+            return res.status(400).json({ success: false, message: 'Hotel ID not found' });
+        }
+
+        if (!guest_name || !checkin_datetime || !checkout_datetime) {
+            await connection.rollback();
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Guest name, checkin datetime, and checkout datetime are required' 
+            });
+        }
+
+        // Get registration number if not provided
+        let finalRegNo = reg_no;
+        if (!finalRegNo) {
+            const [countResult] = await connection.execute(
+                `SELECT COUNT(*) as count FROM checkin_master WHERE hotelid = ?`,
+                [hotelId]
+            );
+            const count = countResult[0].count + 1;
+            finalRegNo = `REG${String(count).padStart(4, '0')}`;
+        }
+
+        // Insert checkin record
+        const [result] = await connection.execute(`
+            INSERT INTO checkin_master (
+                guest_id, guest_name, address, mobile, company_name, emailed, 
+                booking, plan_name, reg_no, special_instruction, message,
+                checkin_datetime, checkout_datetime, room_no, category_id, 
+                converted_category, adults, pax, pax_charges, ex_pax, ex_pax_charge,
+                child_paid, child_unpaid, child_charge, driver, driver_charge,
+                hotelid, id_type, id_number, department_id, department_name,
+                status, total_nights, total_amount, created_by_id, created_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            getValueOrNull(guest_id),
+            guest_name,
+            getValueOrNull(address),
+            getValueOrNull(mobile),
+            getValueOrNull(company_name),
+            getValueOrNull(emailed),
+            booking || 'WALK-IN-GUEST',
+            plan_name || 'EP',
+            finalRegNo,
+            getValueOrNull(special_instruction),
+            getValueOrNull(message),
+            formatDateTime(checkin_datetime),
+            formatDateTime(checkout_datetime),
+            room_no,
+            getValueOrNull(category_id),
+            getValueOrNull(converted_category),
+            adults || 1,
+            pax || 0,
+            pax_charges || 0,
+            ex_pax || 0,
+            ex_pax_charge || 0,
+            child_paid || 0,
+            child_unpaid || 0,
+            child_charge || 0,
+            driver || 0,
+            driver_charge || 0,
+            hotelId,
+            getValueOrNull(id_type),
+            getValueOrNull(id_number),
+            getValueOrNull(department_id),
+            getValueOrNull(department_name),
+            status || 'active',
+            total_nights || 1,
+            total_amount || 0,
+            created_by_id || userId,
+            now
+        ]);
+
+        const checkinId = result.insertId;
+
+        // Update room status to occupied (using room_status_id, NOT room_status)
+        if (room_ids && room_ids.length > 0) {
+            const occupiedStatusId = await getOccupiedStatusId();
+            
+            for (const roomId of room_ids) {
+                await connection.execute(`
+                    UPDATE room_master 
+                    SET room_status_id = ?, updated_by_id = ?, updated_date = ? 
+                    WHERE room_id = ? AND hotelid = ?
+                `, [occupiedStatusId, created_by_id || userId, now, roomId, hotelId]);
+            }
+        } else if (room_no) {
+            // If we have room number but not room_ids, try to get room_id from room_no
+            const [rooms] = await connection.execute(
+                'SELECT room_id FROM room_master WHERE room_no = ? AND hotelid = ?',
+                [room_no, hotelId]
+            );
+            if (rooms.length > 0) {
+                const occupiedStatusId = await getOccupiedStatusId();
+                await connection.execute(`
+                    UPDATE room_master 
+                    SET room_status_id = ?, updated_by_id = ?, updated_date = ? 
+                    WHERE room_id = ? AND hotelid = ?
+                `, [occupiedStatusId, created_by_id || userId, now, rooms[0].room_id, hotelId]);
+            }
+        }
+
+        // Fetch the created checkin
+        const [newCheckin] = await connection.execute(`
+            SELECT 
+                checkin_id, guest_id, guest_name, address, mobile, company_name, 
+                emailed, booking, plan_name, reg_no, special_instruction, message,
+                checkin_datetime, checkout_datetime, room_no, category_id, 
+                converted_category, adults, pax, pax_charges, ex_pax, ex_pax_charge,
+                child_paid, child_unpaid, child_charge, driver, driver_charge,
+                hotelid, id_type, id_number, department_id, department_name,
+                status, total_nights, total_amount, created_by_id, created_date,
+                updated_by_id, updated_date
+            FROM checkin_master 
+            WHERE checkin_id = ?
+        `, [checkinId]);
+
+        await connection.commit();
+
+        const formattedCheckin = {
+            ...newCheckin[0],
+            checkin_datetime: formatDate(newCheckin[0].checkin_datetime),
+            checkout_datetime: formatDate(newCheckin[0].checkout_datetime),
+            created_date: formatDate(newCheckin[0].created_date),
+            updated_date: formatDate(newCheckin[0].updated_date)
+        };
+
+        res.status(201).json({
+            success: true,
+            message: 'Checkin created successfully',
+            data: formattedCheckin,
+        });
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error creating checkin:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to create checkin', 
+            error: error.message 
+        });
+    } finally {
+        connection.release();
+    }
+};
+
+// ----------------------------------------------------------------------
+// PUT /checkins/:id – update checkin
+// ----------------------------------------------------------------------
+exports.updateCheckin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const checkinId = parseInt(id);
+        const userId = getCurrentUserId(req);
+        const now = new Date();
+
+        if (isNaN(checkinId)) {
+            return res.status(400).json({ success: false, message: 'Invalid checkin ID' });
+        }
+
+        const {
+            guest_name,
+            address,
+            mobile,
+            company_name,
+            emailed,
+            booking,
+            plan_name,
+            special_instruction,
+            message,
+            checkin_datetime,
+            checkout_datetime,
+            room_no,
+            category_id,
+            converted_category,
+            adults,
+            pax,
+            pax_charges,
+            ex_pax,
+            ex_pax_charge,
+            child_paid,
+            child_unpaid,
+            child_charge,
+            driver,
+            driver_charge,
+            id_type,
+            id_number,
+            department_id,
+            department_name,
+            status,
+            total_nights,
+            total_amount
+        } = req.body;
+
+        let hotelId = req.body.hotelid || getCurrentUserHotelId(req);
+
+        // Build dynamic update query
+        const updates = [];
+        const params = [];
+
+        if (guest_name !== undefined) { updates.push('guest_name = ?'); params.push(guest_name); }
+        if (address !== undefined) { updates.push('address = ?'); params.push(address); }
+        if (mobile !== undefined) { updates.push('mobile = ?'); params.push(mobile); }
+        if (company_name !== undefined) { updates.push('company_name = ?'); params.push(company_name); }
+        if (emailed !== undefined) { updates.push('emailed = ?'); params.push(emailed); }
+        if (booking !== undefined) { updates.push('booking = ?'); params.push(booking); }
+        if (plan_name !== undefined) { updates.push('plan_name = ?'); params.push(plan_name); }
+        if (special_instruction !== undefined) { updates.push('special_instruction = ?'); params.push(special_instruction); }
+        if (message !== undefined) { updates.push('message = ?'); params.push(message); }
+        if (checkin_datetime !== undefined) { updates.push('checkin_datetime = ?'); params.push(formatDateTime(checkin_datetime)); }
+        if (checkout_datetime !== undefined) { updates.push('checkout_datetime = ?'); params.push(formatDateTime(checkout_datetime)); }
+        if (room_no !== undefined) { updates.push('room_no = ?'); params.push(room_no); }
+        if (category_id !== undefined) { updates.push('category_id = ?'); params.push(category_id); }
+        if (converted_category !== undefined) { updates.push('converted_category = ?'); params.push(converted_category); }
+        if (adults !== undefined) { updates.push('adults = ?'); params.push(adults); }
+        if (pax !== undefined) { updates.push('pax = ?'); params.push(pax); }
+        if (pax_charges !== undefined) { updates.push('pax_charges = ?'); params.push(pax_charges); }
+        if (ex_pax !== undefined) { updates.push('ex_pax = ?'); params.push(ex_pax); }
+        if (ex_pax_charge !== undefined) { updates.push('ex_pax_charge = ?'); params.push(ex_pax_charge); }
+        if (child_paid !== undefined) { updates.push('child_paid = ?'); params.push(child_paid); }
+        if (child_unpaid !== undefined) { updates.push('child_unpaid = ?'); params.push(child_unpaid); }
+        if (child_charge !== undefined) { updates.push('child_charge = ?'); params.push(child_charge); }
+        if (driver !== undefined) { updates.push('driver = ?'); params.push(driver); }
+        if (driver_charge !== undefined) { updates.push('driver_charge = ?'); params.push(driver_charge); }
+        if (id_type !== undefined) { updates.push('id_type = ?'); params.push(id_type); }
+        if (id_number !== undefined) { updates.push('id_number = ?'); params.push(id_number); }
+        if (department_id !== undefined) { updates.push('department_id = ?'); params.push(department_id); }
+        if (department_name !== undefined) { updates.push('department_name = ?'); params.push(department_name); }
+        if (status !== undefined) { updates.push('status = ?'); params.push(status); }
+        if (total_nights !== undefined) { updates.push('total_nights = ?'); params.push(total_nights); }
+        if (total_amount !== undefined) { updates.push('total_amount = ?'); params.push(total_amount); }
+
+        updates.push('updated_by_id = ?');
+        params.push(userId);
+        updates.push('updated_date = ?');
+        params.push(now);
+        params.push(checkinId);
+
+        if (hotelId) {
+            params.push(hotelId);
+            await db.execute(
+                `UPDATE checkin_master SET ${updates.join(', ')} WHERE checkin_id = ? AND hotelid = ?`,
+                params
+            );
+        } else {
+            await db.execute(
+                `UPDATE checkin_master SET ${updates.join(', ')} WHERE checkin_id = ?`,
+                params
+            );
+        }
+
+        // Fetch updated checkin
+        const [updatedCheckin] = await db.execute(`
+            SELECT 
+                checkin_id, guest_id, guest_name, address, mobile, company_name, 
+                emailed, booking, plan_name, reg_no, special_instruction, message,
+                checkin_datetime, checkout_datetime, room_no, category_id, 
+                converted_category, adults, pax, pax_charges, ex_pax, ex_pax_charge,
+                child_paid, child_unpaid, child_charge, driver, driver_charge,
+                hotelid, id_type, id_number, department_id, department_name,
+                status, total_nights, total_amount, created_by_id, created_date,
+                updated_by_id, updated_date
+            FROM checkin_master 
+            WHERE checkin_id = ?
+        `, [checkinId]);
+
+        if (updatedCheckin.length === 0) {
+            return res.status(404).json({ success: false, message: 'Checkin not found' });
+        }
+
+        const formattedCheckin = {
+            ...updatedCheckin[0],
+            checkin_datetime: formatDate(updatedCheckin[0].checkin_datetime),
+            checkout_datetime: formatDate(updatedCheckin[0].checkout_datetime),
+            created_date: formatDate(updatedCheckin[0].created_date),
+            updated_date: formatDate(updatedCheckin[0].updated_date)
+        };
+
+        res.json({
+            success: true,
+            message: 'Checkin updated successfully',
+            data: formattedCheckin,
+        });
+    } catch (error) {
+        console.error('Error updating checkin:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to update checkin', 
+            error: error.message 
+        });
+    }
+};
+
+// ----------------------------------------------------------------------
+// PATCH /checkins/:id/partial – partial update for checkout_datetime, total_amount, total_nights
+// ----------------------------------------------------------------------
+exports.updatePartialCheckin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const checkinId = parseInt(id);
+        const userId = getCurrentUserId(req);
+        const now = new Date();
+
+        if (isNaN(checkinId)) {
+            return res.status(400).json({ success: false, message: 'Invalid checkin ID' });
+        }
+
+        const { total_amount, checkout_datetime, total_nights, status } = req.body;
+
+        const updates = [];
+        const params = [];
+
+        if (total_amount !== undefined) {
+            updates.push('total_amount = ?');
+            params.push(total_amount);
+        }
+        if (checkout_datetime !== undefined) {
+            updates.push('checkout_datetime = ?');
+            params.push(formatDateTime(checkout_datetime));
+        }
+        if (total_nights !== undefined) {
+            updates.push('total_nights = ?');
+            params.push(total_nights);
+        }
+        if (status !== undefined) {
+            updates.push('status = ?');
+            params.push(status);
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({ success: false, message: 'No fields to update' });
+        }
+
+        updates.push('updated_by_id = ?');
+        params.push(userId);
+        updates.push('updated_date = ?');
+        params.push(now);
+        params.push(checkinId);
+
+        await db.execute(
+            `UPDATE checkin_master SET ${updates.join(', ')} WHERE checkin_id = ?`,
+            params
+        );
+
+        // Fetch updated checkin
+        const [updatedCheckin] = await db.execute(`
+            SELECT 
+                checkin_id, guest_id, guest_name, address, mobile, company_name, 
+                emailed, booking, plan_name, reg_no, special_instruction, message,
+                checkin_datetime, checkout_datetime, room_no, category_id, 
+                converted_category, adults, pax, pax_charges, ex_pax, ex_pax_charge,
+                child_paid, child_unpaid, child_charge, driver, driver_charge,
+                hotelid, id_type, id_number, department_id, department_name,
+                status, total_nights, total_amount, created_by_id, created_date,
+                updated_by_id, updated_date
+            FROM checkin_master 
+            WHERE checkin_id = ?
+        `, [checkinId]);
+
+        if (updatedCheckin.length === 0) {
+            return res.status(404).json({ success: false, message: 'Checkin not found' });
+        }
+
+        const formattedCheckin = {
+            ...updatedCheckin[0],
+            checkin_datetime: formatDate(updatedCheckin[0].checkin_datetime),
+            checkout_datetime: formatDate(updatedCheckin[0].checkout_datetime),
+            created_date: formatDate(updatedCheckin[0].created_date),
+            updated_date: formatDate(updatedCheckin[0].updated_date)
+        };
+
+        res.json({
+            success: true,
+            message: 'Checkin updated successfully',
+            data: formattedCheckin,
+        });
+    } catch (error) {
+        console.error('Error updating checkin:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to update checkin', 
+            error: error.message 
+        });
+    }
+};
+
+// ----------------------------------------------------------------------
+// POST /checkins/:id/extend – extend stay
+// ----------------------------------------------------------------------
+exports.extendStay = async (req, res) => {
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        const { id } = req.params;
+        const checkinId = parseInt(id);
+        const userId = getCurrentUserId(req);
+        const now = new Date();
+
+        if (isNaN(checkinId)) {
+            await connection.rollback();
+            return res.status(400).json({ success: false, message: 'Invalid checkin ID' });
+        }
+
+        const {
+            additionalDays,
+            newCheckoutDatetime,
+            additionalAmount,
+            newTotalNights,
+            newTotalAmount,
+            roomId,
+            detailId,
+            extensionDetails
+        } = req.body;
+
+        if (!additionalDays || !newCheckoutDatetime) {
+            await connection.rollback();
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Additional days and new checkout datetime are required' 
+            });
+        }
+
+        // Get current checkin
+        const [checkins] = await connection.execute(
+            'SELECT * FROM checkin_master WHERE checkin_id = ?',
+            [checkinId]
+        );
+
+        if (checkins.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'Checkin not found' });
+        }
+
+        const currentCheckin = checkins[0];
+
+        // If detailId provided, mark that detail as checked out
+        if (detailId) {
+            await connection.execute(`
+                UPDATE detail_master 
+                SET is_checkout = 1, merged = 1, updated_by_id = ?, updated_date = ?
+                WHERE detail_id = ? AND checkin_id = ?
+            `, [userId, now, detailId, checkinId]);
+        }
+
+        // Update checkin master
+        const finalTotalNights = newTotalNights || (currentCheckin.total_nights + additionalDays);
+        const finalTotalAmount = newTotalAmount || (currentCheckin.total_amount + additionalAmount);
+
+        await connection.execute(`
+            UPDATE checkin_master 
+            SET checkout_datetime = ?, 
+                total_nights = ?, 
+                total_amount = ?,
+                updated_by_id = ?, 
+                updated_date = ?
+            WHERE checkin_id = ?
+        `, [
+            formatDateTime(newCheckoutDatetime),
+            finalTotalNights,
+            finalTotalAmount,
+            userId,
+            now,
+            checkinId
+        ]);
+
+        // Update room status if roomId provided
+        if (roomId) {
+            const occupiedStatusId = await getOccupiedStatusId();
+            await connection.execute(`
+                UPDATE room_master 
+                SET room_status_id = ?, updated_by_id = ?, updated_date = ?
+                WHERE room_id = ? AND hotelid = ?
+            `, [occupiedStatusId, userId, now, roomId, currentCheckin.hotelid]);
+        }
+
+        await connection.commit();
+
+        // Fetch updated checkin
+        const [updatedCheckin] = await connection.execute(`
+            SELECT 
+                checkin_id, guest_id, guest_name, address, mobile, company_name, 
+                emailed, booking, plan_name, reg_no, special_instruction, message,
+                checkin_datetime, checkout_datetime, room_no, category_id, 
+                converted_category, adults, pax, pax_charges, ex_pax, ex_pax_charge,
+                child_paid, child_unpaid, child_charge, driver, driver_charge,
+                hotelid, id_type, id_number, department_id, department_name,
+                status, total_nights, total_amount, created_by_id, created_date,
+                updated_by_id, updated_date
+            FROM checkin_master 
+            WHERE checkin_id = ?
+        `, [checkinId]);
+
+        const formattedCheckin = {
+            ...updatedCheckin[0],
+            checkin_datetime: formatDate(updatedCheckin[0].checkin_datetime),
+            checkout_datetime: formatDate(updatedCheckin[0].checkout_datetime),
+            created_date: formatDate(updatedCheckin[0].created_date),
+            updated_date: formatDate(updatedCheckin[0].updated_date)
+        };
+
+        res.json({
+            success: true,
+            message: 'Stay extended successfully',
+            data: formattedCheckin,
+        });
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error extending stay:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to extend stay', 
+            error: error.message 
+        });
+    } finally {
+        connection.release();
+    }
+};
+
+// ----------------------------------------------------------------------
+// DELETE /checkins/:id – delete checkin
+// ----------------------------------------------------------------------
+exports.deleteCheckin = async (req, res) => {
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        const { id } = req.params;
+        const checkinId = parseInt(id);
+
+        if (isNaN(checkinId)) {
+            await connection.rollback();
+            return res.status(400).json({ success: false, message: 'Invalid checkin ID' });
+        }
+
+        // Get checkin details to know which rooms to update
+        const [checkins] = await connection.execute(
+            'SELECT hotelid, room_no FROM checkin_master WHERE checkin_id = ?',
+            [checkinId]
+        );
+
+        if (checkins.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'Checkin not found' });
+        }
+
+        const checkin = checkins[0];
+
+        // Delete related records first (foreign key constraints)
+        await connection.execute('DELETE FROM guest_folio WHERE checkin_id = ?', [checkinId]);
+        await connection.execute('DELETE FROM guest_room_charges WHERE checkin_id = ?', [checkinId]);
+        await connection.execute('DELETE FROM post_charges WHERE checkin_id = ?', [checkinId]);
+        await connection.execute('DELETE FROM advance_transactions WHERE checkin_id = ?', [checkinId]);
+        await connection.execute('DELETE FROM detail_master WHERE checkin_id = ?', [checkinId]);
+
+        // Delete the checkin
+        const [result] = await connection.execute(
+            'DELETE FROM checkin_master WHERE checkin_id = ?',
+            [checkinId]
+        );
+
+        if (result.affectedRows === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'Checkin not found' });
+        }
+
+        // Update room status back to available
+        if (checkin.room_no) {
+            const [rooms] = await connection.execute(
+                'SELECT room_id FROM room_master WHERE room_no = ? AND hotelid = ?',
+                [checkin.room_no, checkin.hotelid]
+            );
+            if (rooms.length > 0) {
+                const availableStatusId = await getAvailableStatusId();
+                await connection.execute(`
+                    UPDATE room_master 
+                    SET room_status_id = ?, updated_date = ?
+                    WHERE room_id = ?
+                `, [availableStatusId, new Date(), rooms[0].room_id]);
+            }
+        }
+
+        await connection.commit();
+
+        res.json({
+            success: true,
+            message: 'Checkin deleted successfully',
+            data: { checkin_id: checkinId },
+        });
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error deleting checkin:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to delete checkin', 
+            error: error.message 
+        });
+    } finally {
+        connection.release();
+    }
 };

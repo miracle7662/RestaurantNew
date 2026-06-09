@@ -176,7 +176,27 @@ create: (payload: GuestPayload): Promise<ApiResponse<Guest>> => {
   },
 
   deleteDocument: (guestId: number, documentId: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/guests/${guestId}/documents/${documentId}`)
+    HttpClient.delete<ApiResponse<null>>(`/guests/${guestId}/documents/${documentId}`),
+
+  // Guest photo endpoints (stored in uploads/guests/guest_photo/)
+  uploadGuestPhoto: (guestId: number, imageDataUrl: string): Promise<ApiResponse<GuestDocument>> => {
+    return fetch(imageDataUrl)
+      .then(r => r.blob())
+      .then(blob => {
+        const file = new File([blob], `guest_photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        const formData = new FormData();
+        formData.append('guest_photo', file);
+        return HttpClient.post<ApiResponse<GuestDocument>>(`/guests/${guestId}/photo`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      });
+  },
+
+  getGuestPhoto: (guestId: number): Promise<ApiResponse<{ guest_photo: string; guest_photo_url: string }>> =>
+    HttpClient.get<ApiResponse<{ guest_photo: string; guest_photo_url: string }>>(`/guests/${guestId}/photo`),
+
+  deleteGuestPhoto: (guestId: number): Promise<ApiResponse<null>> =>
+    HttpClient.delete<ApiResponse<null>>(`/guests/${guestId}/photo`)
 };
 
 export default GuestService;

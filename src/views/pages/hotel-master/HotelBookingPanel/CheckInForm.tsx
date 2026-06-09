@@ -28,7 +28,7 @@ import CheckInService from '@/common/hotel/checkIn'
 import DetailService from '@/common/hotel/detail'
 import GuestFolioService from '@/common/hotel/guestFolio'
 import GuestRoomChargesService from '@/common/hotel/guestRoomCharges'
-import PaymentModeService from '@/common/api/outletpaymentmode'
+import OutletPaymentModeServiceoutlet from '@/common/api/outletpaymentmode'
 import travelAgentApi from '@/common/hotel/travelagent'
 import AgentRoomCheckinService from '@/common/hotel/agentRoomCheckin'
 import StockService from '@/common/hotel/stock'
@@ -207,6 +207,10 @@ interface GuestDocument {
   document_no: string
   front_side: string | null
   back_side: string | null
+  front_side_url?: string | null
+  back_side_url?: string | null
+  guest_photo?: string | null
+  guest_photo_url?: string | null
 }
 
 const defaultCompanyForm = {
@@ -233,7 +237,7 @@ const CheckInForm = () => {
     hotelId?: number
   } | null
 
-  const hotelId = state?.hotelId || loggedInUser?.hotel_id
+  const hotelId = state?.hotelId || loggedInUser?.hotelid
 
   // Escape key → go back; Enter key → move to next focusable field
   useEffect(() => {
@@ -246,6 +250,8 @@ const CheckInForm = () => {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Discard unsaved temp photo on escape/back
+        setTempGuestPhoto(null)
         navigate(-1)
         return
       }
@@ -369,9 +375,11 @@ const CheckInForm = () => {
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [showDocScanModal, setShowDocScanModal] = useState(false)
   const [showGuestDocsModal, setShowGuestDocsModal] = useState(false)
-  const [uploadingDoc, setUploadingDoc] = useState(false)
   const [pendingGuestLoad, setPendingGuestLoad] = useState<number | null>(null)
-  
+
+  // Temporary guest photo — stored in memory only until F9 (Check In) is confirmed.
+  // Never written to DB or uploads folder until onSubmit succeeds.
+  const [tempGuestPhoto, setTempGuestPhoto] = useState<string | null>(null)
 
   // ==================== INVENTORY AUTO-ASSIGN FUNCTION ====================
   const autoAssignAmenities = async (checkinId: number, roomId: number, guestCount: number) => {
@@ -587,31 +595,31 @@ const CheckInForm = () => {
           RoomCategoryService.list({ hotelid: hotelId }),
           taxApi.list(),
           FragmentService.list(),
-          PaymentModeService.list({ outletid: user?.outletid ? String(user.outletid) : undefined }),
+          OutletPaymentModeServiceoutlet.list({ outletid: hotelId }), // Assuming outletId is available in scope; replace with actual value or state if needed
         ])
 
-        const countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || []
+        let countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || []
         setCountries(
           countriesData
             .map((c: any) => ({ id: c.id || c.countryid, name: String(c.name || c.country_name) }))
             .filter((c: any) => c.id && c.name),
         )
 
-        const statesData = Array.isArray(statesRes) ? statesRes : statesRes?.data || []
+        let statesData = Array.isArray(statesRes) ? statesRes : statesRes?.data || []
         setStates(
           statesData
             .map((s: any) => ({ id: s.id || s.stateid, name: String(s.name || s.state_name) }))
             .filter((s: any) => s.id && s.name),
         )
 
-        const citiesData = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || []
+        let citiesData = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || []
         setCities(
           citiesData
             .map((c: any) => ({ id: c.id || c.cityid, name: String(c.name || c.city_name) }))
             .filter((c: any) => c.id && c.name),
         )
 
-        const companiesData = Array.isArray(companiesRes) ? companiesRes : companiesRes?.data || []
+        let companiesData = Array.isArray(companiesRes) ? companiesRes : companiesRes?.data || []
         setCompanies(
           companiesData
             .map((c: any) => ({
@@ -630,7 +638,7 @@ const CheckInForm = () => {
           )
         }
 
-        const categoriesData = Array.isArray(categoriesRes)
+        let categoriesData = Array.isArray(categoriesRes)
           ? categoriesRes
           : categoriesRes?.data || []
         setRoomCategories(
@@ -641,10 +649,10 @@ const CheckInForm = () => {
           })),
         )
 
-        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
+        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
         setTaxList(taxData)
 
-        const fragmentsData = Array.isArray(fragmentsRes) ? fragmentsRes : fragmentsRes?.data || []
+        let fragmentsData = Array.isArray(fragmentsRes) ? fragmentsRes : fragmentsRes?.data || []
         setFragments(
           fragmentsData
             .map((f: any) => ({
@@ -654,31 +662,30 @@ const CheckInForm = () => {
             .filter((f: any) => f.fragment_id && f.name),
         )
 
-        const paymentMethodsData = Array.isArray(paymentMethodsRes)
+        let paymentMethodsData = Array.isArray(paymentMethodsRes)
           ? paymentMethodsRes
           : paymentMethodsRes?.data || []
-
-        // Backend for /payment-modes returns: { id, paymenttypeid, mode_name, ... }
-        // So map mode_name -> dropdown name.
-  const mappedPaymentMethods = paymentMethodsData
-  .map((pm: any) => {
-    const modeName = pm.mode_name || ''
-    const safeName = modeName.trim()
-    if (!safeName) return null
-    return {
-      id: pm.id ?? pm.paymenttypeid,
-      name: safeName,
-      payment_method_name: safeName,
-    }
-  })
-  .filter((item): item is { id: number; name: string; payment_method_name: string } => item !== null)
-
+        // Filter only active types (status === 1) if status field present, else show all
+        const activePaymentMethods = paymentMethodsData.filter(
+          (pm: any) => pm.status === undefined || pm.status === 1
+        )
+        // ✅ FIX: pm.id is the payment_modes table PK — this is what must be stored
+        // in Checkout_Master.payment_id. Never use paymenttypeid here.
+        const mappedPaymentMethods = activePaymentMethods.map((pm: any) => ({
+          id: pm.id,                                        // payment_modes.id (PK) ✅
+          name: pm.payment_mode_name ?? pm.mode_name,
+          payment_method_name: pm.payment_mode_name ?? pm.mode_name,
+        }))
         setPaymentMethods(mappedPaymentMethods)
+        // Pre-select Cash as default; also pre-set the numeric id
         const cashMethod = mappedPaymentMethods.find(
           (pm: any) => pm.payment_method_name?.toLowerCase() === 'cash'
         )
         if (cashMethod) {
           formik.setFieldValue('paymentMethod', cashMethod.payment_method_name)
+        } else if (mappedPaymentMethods.length > 0) {
+          // Fall back to first available mode
+          formik.setFieldValue('paymentMethod', mappedPaymentMethods[0].payment_method_name)
         }
       } catch (error) {
         console.error('Failed to load master data:', error)
@@ -698,7 +705,6 @@ const CheckInForm = () => {
       fetchMasterData()
     }
   }, [hotelId])
-  
 
   // Sentinel value for the "Self" option
   const SELF_AGENT_VALUE = '__SELF__'
@@ -774,6 +780,9 @@ const CheckInForm = () => {
       setFieldValue('travelAgent', '')
       setFieldValue('agentAmount', 0)
       setFieldValue('agentAmountPer', 0)
+      // Clear booking ID and date when agent is cleared
+      setFieldValue('bookingId', '')
+      setFieldValue('bookingDate', '')
       return
     }
 
@@ -801,6 +810,20 @@ const CheckInForm = () => {
 
         const commissionValue = selectedAgent.commission_value || 0
         setFieldValue('agentAmountPer', commissionValue)
+
+        // Auto-set Booking Date to today (YYYY-MM-DD)
+        const todayStr = new Date().toISOString().split('T')[0]
+        setFieldValue('bookingDate', todayStr)
+
+        // Auto-generate next Booking ID (AG001, AG002, ...)
+        // try {
+        //   const bookingIdRes = await AgentRoomCheckinService.getNextBookingId()
+        //   if (bookingIdRes?.success && bookingIdRes?.data?.booking_id) {
+        //     setFieldValue('bookingId', bookingIdRes.data.booking_id)
+        //   }
+        // } catch (bookingIdError) {
+        //   console.error('Failed to fetch next booking ID:', bookingIdError)
+        // }
       }
     } catch (error) {
       console.error('Failed to load agent details', error)
@@ -822,13 +845,10 @@ const CheckInForm = () => {
     return [walkInOption, ...companyOpts]
   }, [companies])
 
-const paymentMethodOptions: Option[] = useMemo(
-  () => paymentMethods.map((pm) => ({
-    label: pm.name,
-    value: pm.payment_method_name,
-  })),
-  [paymentMethods],
-)
+  const paymentMethodOptions: Option[] = useMemo(
+    () => paymentMethods.map((pm) => ({ label: pm.name, value: pm.payment_method_name })),
+    [paymentMethods],
+  )
 
   const loadAllGuests = async () => {
     if (!hotelId) return
@@ -956,8 +976,8 @@ const paymentMethodOptions: Option[] = useMemo(
         formik.setFieldValue('fragment_id', guest.fragment_id || null)
         formik.setFieldValue('firstName', firstName)
         formik.setFieldValue('lastName', lastName)
-        formik.setFieldValue('phone1', guest.mobile ? String(guest.mobile) : '')
-        formik.setFieldValue('phone2', guest.phone ? String(guest.phone) : '')
+        formik.setFieldValue('phone1', guest.phone ? String(guest.phone) : '')
+        formik.setFieldValue('phone2', guest.mobile ? String(guest.mobile) : '')
         formik.setFieldValue('email', guest.email ? String(guest.email) : '')
         formik.setFieldValue('address', guest.address ? String(guest.address) : '')
         formik.setFieldValue(
@@ -1043,49 +1063,26 @@ const paymentMethodOptions: Option[] = useMemo(
     }
   }
 
-  const handleGuestPhotoCapture = async (imageDataUrl: string) => {
+  /**
+   * handleGuestPhotoCapture — TEMPORARY storage only.
+   *
+   * The captured image is kept in React state (tempGuestPhoto) and is never
+   * written to the database or the uploads folder at this point.
+   * The actual upload happens inside onSubmit only after a successful F9 Check-In.
+   * If the user closes the popup, navigates back, or cancels without saving,
+   * the tempGuestPhoto state is simply discarded — nothing is persisted.
+   */
+  const handleGuestPhotoCapture = (imageDataUrl: string) => {
     if (!values.guestId) {
       toast.error('No guest selected')
       return
     }
-    setUploadingDoc(true)
-    try {
-      const blob = await fetch(imageDataUrl).then(res => res.blob())
-      const file = new File([blob], `guest_photo_${Date.now()}.jpg`, { type: 'image/jpeg' })
-      
-      const existingPhotoDoc = guestDocuments.find((doc) => doc.document_type === 'Guest Photo')
-      
-      if (existingPhotoDoc) {
-        await GuestService.updateDocument(values.guestId, existingPhotoDoc.document_id, {
-          document_type: 'Guest Photo',
-          document_no: new Date().toISOString().slice(0, 19).replace(/:/g, '-'),
-          front_side: file,
-          back_side: null,
-        })
-        console.log('Guest photo updated successfully')
-      } else {
-        await GuestService.createDocument(values.guestId, {
-          document_type: 'Guest Photo',
-          document_no: new Date().toISOString().slice(0, 19).replace(/:/g, '-'),
-          front_side: file,
-          back_side: null,
-        })
-        console.log('Guest photo created successfully')
-      }
-      
-      toast.success('Guest photo uploaded successfully')
-      setShowDocScanModal(false)
-      
-      setTimeout(async () => {
-        await loadGuestDocuments(values.guestId!, true)
-      }, 500)
-    } catch (error) {
-      console.error('Failed to upload guest photo:', error)
-      toast.error('Photo upload failed')
-    } finally {
-      setUploadingDoc(false)
-    }
+    // Store photo in temporary state — no DB/disk write yet
+    setTempGuestPhoto(imageDataUrl)
+    toast.success('Photo captured — will be saved after Check-In (F9)')
+    setShowDocScanModal(false)
   }
+
 
   const handleGuestSave = async (guestData: any) => {
     setSavingGuest(true)
@@ -1387,7 +1384,7 @@ const paymentMethodOptions: Option[] = useMemo(
             setFieldValue('pax', pax)
             setFieldValue('exPax', exPax)
           } else {
-            const convertedTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
+            let convertedTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
             setSelectedRoomTariff(convertedTariff)
             if (!roomChargeEditable) {
               setFieldValue('roomCharges', convertedTariff)
@@ -1421,7 +1418,7 @@ const paymentMethodOptions: Option[] = useMemo(
             setFieldValue('pax', pax)
             setFieldValue('exPax', exPax)
           } else {
-            const originalTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
+            let originalTariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
             setSelectedRoomTariff(originalTariff)
             if (!roomChargeEditable) {
               setFieldValue('roomCharges', originalTariff)
@@ -1464,7 +1461,7 @@ const paymentMethodOptions: Option[] = useMemo(
         setFieldValue('pax', pax)
         setFieldValue('exPax', exPax)
       } else {
-        const tariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
+        let tariff = tariffs.length > 0 ? Number(tariffs[0].room_tariff) || 0 : 0
         setSelectedRoomTariff(tariff)
         if (!roomChargeEditable) {
           setFieldValue('roomCharges', tariff)
@@ -2061,6 +2058,22 @@ onSubmit: async (values) => {
       }
     }
 
+    // -- PERMANENT GUEST PHOTO UPLOAD -----------------------------------------
+    // Now that Check-In has succeeded, persist the temporary photo (if any).
+    // This is the ONLY place where the photo is written to DB/uploads.
+    const primaryGuestId = roomRows[0]?.guestId ?? values.guestId
+    if (tempGuestPhoto && primaryGuestId) {
+      try {
+        await GuestService.uploadGuestPhoto(primaryGuestId, tempGuestPhoto)
+        console.log('Guest photo permanently saved after successful check-in')
+        setTempGuestPhoto(null)
+      } catch (photoErr) {
+        console.error('Guest photo upload failed after check-in:', photoErr)
+        toast.error('Check-in saved, but guest photo could not be uploaded. Please re-capture from Documents.')
+      }
+    }
+    // -- END PERMANENT GUEST PHOTO UPLOAD --------------------------------------
+
     toast.success(`Checked in ${roomRows.length} room(s) for ${roomRows[0]?.nights || 1} day(s) successfully`)
     navigate(-1)
   } catch (error: any) {
@@ -2327,7 +2340,7 @@ useEffect(() => {
   }))
 
   const roomOptions = useMemo(() => {
-    const options = initialSelectedRooms
+    let options = initialSelectedRooms
       .filter((room) => !roomRows.some((row) => row.roomId === room.roomId))
       .map((r) => ({
         label: r.roomNumber,
@@ -2840,6 +2853,8 @@ useEffect(() => {
                               setFieldValue('companyId', null)
                               setFieldValue('gst', '')
                               setGuestDocuments([])
+                              // Discard any unsaved temp photo when guest is cleared
+                              setTempGuestPhoto(null)
                             }
                           }}
                           onInputChange={(inputValue, { action }) => {
@@ -3808,7 +3823,10 @@ useEffect(() => {
                                   size="sm"
                                   className="w-100 fs-small"
                                   isLoading={loadingPaymentMethods}
-                                  onChange={(v) => setFieldValue('paymentMethod', v)}
+                                  onChange={(v) => {
+                                    // v is the mode_name string (used in folio)
+                                    setFieldValue('paymentMethod', v)
+                                  }}
                                 />
                               </Col>
 
@@ -3872,19 +3890,6 @@ useEffect(() => {
 
                         <Row className="align-items-center row-compact pt-1">
                           <Col md={4} className="fs-small">
-                            Booking ID
-                          </Col>
-                          <Col md={8}>
-                            <FormikTextInput
-                              name="bookingId"
-                              type="number"
-                              size="sm"
-                              className="w-100 fs-small input-24"
-                            />
-                          </Col>
-                        </Row>
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={4} className="fs-small">
                             Booking Date
                           </Col>
                           <Col md={8}>
@@ -3893,9 +3898,24 @@ useEffect(() => {
                               type="date"
                               size="sm"
                               className="w-100 fs-small input-24"
+                              readOnly
                             />
                           </Col>
                         </Row>
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={4} className="fs-small">
+                              Booking ID
+                            </Col>
+                            <Col md={8}>
+                              <FormikTextInput
+                                name="bookingId"
+                                type="text"
+                                size="sm"
+                                className="w-100 fs-small input-24"
+                                readOnly
+                              />
+                            </Col>
+                          </Row>
                         <Row className="align-items-center row-compact pt-1">
                           <Col md={4} className="fs-small">
                             Commission
@@ -4212,7 +4232,7 @@ useEffect(() => {
             </div>
 
             <div className="d-flex gap-2">
-              <Button variant="secondary" size="sm" onClick={() => navigate(-1)}>
+              <Button variant="secondary" size="sm" onClick={() => { setTempGuestPhoto(null); navigate(-1) }}>
                 Cancel
               </Button>
 
@@ -4268,7 +4288,7 @@ useEffect(() => {
         show={showDocScanModal}
         onHide={() => setShowDocScanModal(false)}
         onCapture={handleGuestPhotoCapture}
-        uploading={uploadingDoc}
+        uploading={false}
         guestName={getGuestName()}
       />
 
@@ -4277,6 +4297,10 @@ useEffect(() => {
         onHide={() => setShowGuestDocsModal(false)}
         documents={guestDocuments}
         guestName={getGuestName()}
+        guestId={values.guestId}
+        onDocumentsChange={() => values.guestId && loadGuestDocuments(values.guestId, false)}
+        // Pass the in-memory temp photo so the modal can preview it before F9 save
+        tempGuestPhoto={tempGuestPhoto}
       />
     </FormikProvider>
   )

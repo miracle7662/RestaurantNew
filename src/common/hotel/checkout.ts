@@ -6,6 +6,8 @@ export interface CheckoutMaster {
   checkout_id: number;
   checkin_id: number;
   guest_id: number;
+  reg_no: string;
+  ldg_bill_no: string;             
   guest_name: string;
   address: string;
   mobile: string;
@@ -13,9 +15,6 @@ export interface CheckoutMaster {
   emailed: string;
   booking: string;
   plan_name: string;
-  reg_no: string;
-  special_instruction: string;
-  message: string;
   checkin_datetime: string;
   checkout_datetime: string;
   room_no: string;
@@ -36,6 +35,25 @@ export interface CheckoutMaster {
   id_number: string;
   department_id: number;
   department_name: string;
+  special_instruction: string;
+  message: string;
+  payment_id: string;
+  payment_mode: string;
+  is_settle: number;
+  is_print: number;
+  discount_amount: number;
+  post_changes_amt: number;
+  allowances_amt: number;
+  advance_amt: number;
+  cgst_amt: number;
+  sgst_amt: number;
+  igst_amt: number;
+  cess_amt: number;
+  service_charge_amt: number;
+  net_payable: number;
+  round_off_amount: number;
+  
+  // AUDIT FIELDS
   created_by_id: number;
   created_date: string;
   updated_by_id: number;

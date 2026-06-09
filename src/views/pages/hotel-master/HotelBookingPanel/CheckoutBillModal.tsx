@@ -142,8 +142,37 @@ interface CheckoutBillModalProps {
   checkedOutRooms?: string[]
 }
 
-interface TableRowWithIndex extends DisplayDetailRow {
+interface TableRowWithIndex {
+  id: string
   displayIndex: number
+  date: string
+  roomTariff: number
+  exPax: number
+  cgst: number
+  sgst: number
+  food: number
+  total: number
+  advanceTotal: number
+  postTotal: number
+  allowanceTotal: number
+  postAllowNet: number
+  postCharges: Array<{ description: string; amount: number; id: string }>
+  allowances: Array<{ description: string; amount: number; id: string }>
+  advances: Array<{ description: string; amount: number; id: string }>
+  foodCharges: Array<{ description: string; amount: number; id: string }>
+  sacCode?: string
+}
+
+interface GroupedChargeItem {
+  date: string
+  roomChargeAmount: number
+  exPaxAmount: number
+  postCharges: Array<{ description: string; amount: number; id: string }>
+  allowances: Array<{ description: string; amount: number; id: string }>
+  advances: Array<{ description: string; amount: number; id: string }>
+  foodCharges: Array<{ description: string; amount: number; id: string }>
+  cgstAmount: number
+  sgstAmount: number
 }
 
 // ==================== HELPERS ====================
@@ -174,9 +203,9 @@ const formatDate = (isoString: string): string => {
   if (!isoString) return '-'
   const d = new Date(isoString)
   const day = d.getDate().toString().padStart(2, '0')
-  const month = d.toLocaleString('default', { month: 'short' })
-  const year = d.getFullYear()
-  return `${day} ${month} ${year}`
+  const month = (d.getMonth() + 1).toString().padStart(2, '0')
+  const year = d.getFullYear().toString().slice(-2)
+  return `${day}/${month}/${year}`
 }
 
 const formatDateLong = (isoString: string): string => {
@@ -311,64 +340,41 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
   const selectedRows = displayRows.filter((r) => r.selected)
 
+  // Separate charges
   const roomCharges = selectedRows.filter((r) => !r.isPostCharge)
   const postCharges = selectedRows.filter((r) => r.isPostCharge && r.total_amount > 0)
   const allowances = selectedRows.filter((r) => r.isPostCharge && r.total_amount < 0)
+  
+  // Food charges from post charges
+  const foodCharges = postCharges.filter((r) => {
+    const desc = (r.description || r.particulars || '').toLowerCase()
+    return desc.includes('food') || desc.includes('restaurant') || desc.includes('meal') || 
+           desc.includes('breakfast') || desc.includes('lunch') || desc.includes('dinner') ||
+           desc.includes('coffee') || desc.includes('bar') || desc.includes('snack') ||
+           desc.includes('restro')
+  })
+  
+  const nonFoodPostCharges = postCharges.filter((r) => {
+    const desc = (r.description || r.particulars || '').toLowerCase()
+    return !(desc.includes('food') || desc.includes('restaurant') || desc.includes('meal') || 
+             desc.includes('breakfast') || desc.includes('lunch') || desc.includes('dinner') ||
+             desc.includes('coffee') || desc.includes('bar') || desc.includes('snack') ||
+             desc.includes('restro'))
+  })
 
-  const totalRoomTariff = roundToTwo(
-    roomCharges.reduce((s, r) => s + (r.room_tariff_per_day || 0), 0),
-  )
-  const totalExPax = roundToTwo(roomCharges.reduce((s, r) => s + (r.ex_pax_total || 0), 0))
-  const totalChild = roundToTwo(roomCharges.reduce((s, r) => s + (r.child_total || 0), 0))
-  const totalDriver = roundToTwo(roomCharges.reduce((s, r) => s + (r.driver_total || 0), 0))
-  const totalTax = roundToTwo(selectedRows.reduce((s, r) => s + (r.tax_amount || 0), 0))
-  const totalCGST = roundToTwo(selectedRows.reduce((s, r) => s + (r.cgst_amount || 0), 0))
-  const totalSGST = roundToTwo(selectedRows.reduce((s, r) => s + (r.sgst_amount || 0), 0))
-  const totalIGST = roundToTwo(selectedRows.reduce((s, r) => s + (r.igst_amount || 0), 0))
-  const totalCess = roundToTwo(selectedRows.reduce((s, r) => s + (r.cess_amount || 0), 0))
-  const totalServiceCharge = roundToTwo(
-    selectedRows.reduce((s, r) => s + (r.service_charge_amount || 0), 0),
-  )
+  // Advances (negative amounts that are allowances)
+  const advances = allowances.filter((r) => {
+    const desc = (r.description || r.particulars || '').toLowerCase()
+    return desc.includes('advance') || desc.includes('deposit') || desc.includes('prepaid')
+  })
+  
+  const otherAllowances = allowances.filter((r) => {
+    const desc = (r.description || r.particulars || '').toLowerCase()
+    return !(desc.includes('advance') || desc.includes('deposit') || desc.includes('prepaid'))
+  })
+
+  // Calculate discount amount
   const discountAmount = roundToTwo(roomCharges.reduce((s, r) => s + (r.discount_amount || 0), 0))
-
-  const totalPostCharges = roundToTwo(postCharges.reduce((s, r) => s + Math.abs(r.total_amount), 0))
-  const totalAllowances = roundToTwo(allowances.reduce((s, r) => s + Math.abs(r.total_amount), 0))
-
-  const grossTotal =
-    totalRoomTariff + totalExPax + totalChild + totalDriver + totalPostCharges - totalAllowances
-  const taxableAmount = roundToTwo(grossTotal - discountAmount)
-
-  let cgstPercent = 0
-  let sgstPercent = 0
-  let igstPercent = 0
-  let cessPercent = 0
-  let serviceChargePercent = 0
-
-  if (taxableAmount > 0) {
-    if (totalIGST > 0) {
-      igstPercent = roundToTwo((totalIGST / taxableAmount) * 100)
-    } else if (totalCGST > 0 && totalSGST > 0) {
-      cgstPercent = roundToTwo((totalCGST / taxableAmount) * 100)
-      sgstPercent = roundToTwo((totalSGST / taxableAmount) * 100)
-    }
-
-    if (totalCess > 0) {
-      cessPercent = roundToTwo((totalCess / taxableAmount) * 100)
-    }
-
-    if (totalServiceCharge > 0) {
-      serviceChargePercent = roundToTwo((totalServiceCharge / taxableAmount) * 100)
-    }
-  }
-
-  const avgTaxPercent =
-    roomCharges.length > 0
-      ? roundToTwo(roomCharges.reduce((s, r) => s + (r.tax_percent || 0), 0) / roomCharges.length)
-      : taxableAmount > 0
-        ? roundToTwo((totalTax / taxableAmount) * 100)
-        : 0
-
-  const netTotal = grandTotal
 
   const displayCheckedOutRooms =
     checkedOutRooms && checkedOutRooms.length > 0
@@ -408,13 +414,230 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const getFontSize = () => {
     switch (printSettings?.table_font_size) {
       case 'small':
-        return '8pt'
+        return '7pt'
       case 'large':
-        return '11pt'
+        return '9pt'
       default:
-        return '9.5pt'
+        return '8pt'
     }
   }
+
+  /**
+   * Group charges by date
+   */
+  const groupChargesByDate = (): Map<string, GroupedChargeItem> => {
+    const grouped = new Map<string, GroupedChargeItem>()
+
+    // Process room charges by date
+    roomCharges.forEach((charge) => {
+      const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
+      
+      if (!grouped.has(dateKey)) {
+        grouped.set(dateKey, {
+          date: dateKey,
+          roomChargeAmount: 0,
+          exPaxAmount: 0,
+          postCharges: [],
+          allowances: [],
+          advances: [],
+          foodCharges: [],
+          cgstAmount: 0,
+          sgstAmount: 0
+        })
+      }
+      
+      const item = grouped.get(dateKey)!
+      item.roomChargeAmount += charge.room_tariff_per_day || 0
+      item.exPaxAmount += (charge.ex_pax_total || 0) + (charge.child_total || 0) + (charge.driver_total || 0)
+      item.cgstAmount += charge.cgst_amount || 0
+      item.sgstAmount += charge.sgst_amount || 0
+    })
+
+    // Process food charges by date
+    foodCharges.forEach((charge) => {
+      const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
+      const amount = Math.abs(charge.total_amount)
+      
+      if (!grouped.has(dateKey)) {
+        grouped.set(dateKey, {
+          date: dateKey,
+          roomChargeAmount: 0,
+          exPaxAmount: 0,
+          postCharges: [],
+          allowances: [],
+          advances: [],
+          foodCharges: [],
+          cgstAmount: 0,
+          sgstAmount: 0
+        })
+      }
+      
+      const item = grouped.get(dateKey)!
+      item.foodCharges.push({ 
+        description: charge.description || charge.particulars || 'Food', 
+        amount, 
+        id: charge.id 
+      })
+      item.cgstAmount += charge.cgst_amount || 0
+      item.sgstAmount += charge.sgst_amount || 0
+    })
+
+    // Process other post charges by date
+    nonFoodPostCharges.forEach((charge) => {
+      const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
+      const amount = Math.abs(charge.total_amount)
+      
+      if (!grouped.has(dateKey)) {
+        grouped.set(dateKey, {
+          date: dateKey,
+          roomChargeAmount: 0,
+          exPaxAmount: 0,
+          postCharges: [],
+          allowances: [],
+          advances: [],
+          foodCharges: [],
+          cgstAmount: 0,
+          sgstAmount: 0
+        })
+      }
+      
+      const item = grouped.get(dateKey)!
+      item.postCharges.push({ 
+        description: charge.description || charge.particulars || 'Post Charge', 
+        amount, 
+        id: charge.id 
+      })
+      item.cgstAmount += charge.cgst_amount || 0
+      item.sgstAmount += charge.sgst_amount || 0
+    })
+
+    // Process advances by date
+    advances.forEach((charge) => {
+      const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
+      const amount = Math.abs(charge.total_amount)
+      
+      if (!grouped.has(dateKey)) {
+        grouped.set(dateKey, {
+          date: dateKey,
+          roomChargeAmount: 0,
+          exPaxAmount: 0,
+          postCharges: [],
+          allowances: [],
+          advances: [],
+          foodCharges: [],
+          cgstAmount: 0,
+          sgstAmount: 0
+        })
+      }
+      
+      const item = grouped.get(dateKey)!
+      item.advances.push({ 
+        description: charge.description || charge.particulars || 'Advance', 
+        amount, 
+        id: charge.id 
+      })
+    })
+
+    // Process other allowances by date
+    otherAllowances.forEach((charge) => {
+      const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
+      const amount = Math.abs(charge.total_amount)
+      
+      if (!grouped.has(dateKey)) {
+        grouped.set(dateKey, {
+          date: dateKey,
+          roomChargeAmount: 0,
+          exPaxAmount: 0,
+          postCharges: [],
+          allowances: [],
+          advances: [],
+          foodCharges: [],
+          cgstAmount: 0,
+          sgstAmount: 0
+        })
+      }
+      
+      const item = grouped.get(dateKey)!
+      item.allowances.push({ 
+        description: charge.description || charge.particulars || 'Allowance', 
+        amount, 
+        id: charge.id 
+      })
+    })
+
+    return grouped
+  }
+
+  /**
+   * Generate table rows from grouped data by date
+   */
+  const generateTableRows = (): TableRowWithIndex[] => {
+    const rows: TableRowWithIndex[] = []
+    const grouped = groupChargesByDate()
+    let index = 1
+
+    const sortedDates = Array.from(grouped.keys()).sort((a, b) => {
+      const dateA = a.split('/').reverse().join('-')
+      const dateB = b.split('/').reverse().join('-')
+      return new Date(dateA).getTime() - new Date(dateB).getTime()
+    })
+
+    for (const date of sortedDates) {
+      const item = grouped.get(date)!
+      
+      // Calculate totals for the day
+      const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
+      const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
+      const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
+      const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
+      
+      // POST/ALLOW = postCharges minus allowances (positive means net charge, negative means net allowance)
+      const postAllowNet = postTotal - allowanceTotal
+      
+      // Total for the day = Room + EX.PAX + POST/ALLOW + FOOD + CGST + SGST - ADVANCE
+      const total = item.roomChargeAmount + item.exPaxAmount + postAllowNet + foodTotal + item.cgstAmount + item.sgstAmount - advanceTotal
+      
+      rows.push({
+        id: `row-${date}`,
+        displayIndex: index++,
+        date: date,
+        roomTariff: item.roomChargeAmount,
+        exPax: item.exPaxAmount,
+        cgst: item.cgstAmount,
+        sgst: item.sgstAmount,
+        food: foodTotal,
+        total: total,
+        advanceTotal: advanceTotal,
+        postTotal: postTotal,
+        allowanceTotal: allowanceTotal,
+        postAllowNet: postAllowNet,
+        postCharges: item.postCharges,
+        allowances: item.allowances,
+        advances: item.advances,
+        foodCharges: item.foodCharges,
+        sacCode: '996311'
+      })
+    }
+
+    return rows
+  }
+
+  const tableRows = generateTableRows()
+
+  // Calculate totals for summary
+  const totalRoomTariffAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.roomTariff, 0))
+  const totalExPaxAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.exPax, 0))
+  const totalCGSTAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.cgst, 0))
+  const totalSGSTAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.sgst, 0))
+  const totalFoodAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.food, 0))
+  const totalAdvanceAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.advanceTotal, 0))
+  const totalPostAllowNet = roundToTwo(tableRows.reduce((sum, row) => sum + row.postAllowNet, 0))
+  const totalAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.total, 0))
+  const netTotal = grandTotal
+
+  // Check if we have extra data
+  const hasCGSTData = totalCGSTAmount > 0 || totalSGSTAmount > 0
+  const hasAdvanceData = totalAdvanceAmount > 0
 
   // ==================== ALL STYLES ====================
   const getBillStyles = () => `
@@ -423,7 +646,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
       font-size: ${getFontSize()};
       color: #1a1a1a;
-      line-height: 1.4;
+      line-height: 1.3;
     }
     .bill-wrap .text-left { text-align: left; }
     .bill-wrap .text-center { text-align: center; }
@@ -437,27 +660,27 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
     .bill-wrap .bill-divider {
       border: none;
-      border-top: 1.5px solid #d0d0d0;
-      margin: 12px 0;
+      border-top: 1px solid #d0d0d0;
+      margin: 10px 0;
     }
 
     .bill-wrap .bill-info-box {
       border: 1px solid #c8c8c8;
-      border-radius: 4px;
+      border-radius: 3px;
       overflow: hidden;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
     }
     .bill-wrap .bill-info-box-header {
       background: ${headerBg};
       color: ${headerText};
       text-align: center;
       font-weight: 700;
-      font-size: 8.5pt;
-      letter-spacing: 1px;
-      padding: 6px 10px;
+      font-size: 7.5pt;
+      letter-spacing: 0.5px;
+      padding: 4px 8px;
     }
     .bill-wrap .bill-info-box-body {
-      padding: 10px 12px;
+      padding: 8px 10px;
     }
 
     .bill-wrap .bill-detail-table {
@@ -465,20 +688,20 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       border-collapse: collapse;
     }
     .bill-wrap .bill-detail-table td {
-      padding: 3px 2px;
-      font-size: 8.5pt;
+      padding: 2px 4px;
+      font-size: 7.5pt;
       vertical-align: top;
     }
     .bill-wrap .bdt-label {
       font-weight: 600;
       color: #333;
       white-space: nowrap;
-      width: 110px;
+      width: 90px;
     }
     .bill-wrap .bdt-colon {
-      padding: 3px 6px;
+      padding: 2px 4px;
       color: #555;
-      width: 12px;
+      width: 10px;
     }
     .bill-wrap .bdt-value {
       color: #222;
@@ -486,8 +709,8 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
     .bill-wrap .two-column-layout {
       display: flex;
-      gap: 16px;
-      margin-bottom: 16px;
+      gap: 12px;
+      margin-bottom: 12px;
       align-items: stretch;
     }
     .bill-wrap .two-column-layout > div {
@@ -505,134 +728,114 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       flex: 1;
     }
 
+    /* Compact Charges Table */
     .bill-wrap .bill-charges-table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 0;
       font-size: ${getFontSize()};
+      table-layout: auto;
     }
     .bill-wrap .bill-charges-table thead tr th {
       background: ${headerBg};
       color: ${headerText};
       font-weight: 700;
-      padding: 7px 8px;
+      padding: 5px 6px;
       border: 1px solid ${headerBg};
       white-space: nowrap;
+      font-size: 7pt;
     }
     .bill-wrap .bill-charges-table tbody tr td {
       border: 1px solid #d4d4d4;
-      padding: 6px 8px;
+      padding: 5px 6px;
       vertical-align: middle;
+      font-size: 7.5pt;
     }
     .bill-wrap .bill-charges-table tbody tr:nth-child(even) td {
       background: #f9f9f9;
     }
-    .bill-wrap .bill-charges-table tfoot td {
+    .bill-wrap .bill-charges-table tfoot tr td {
       border: 1px solid #d4d4d4;
-      padding: 6px 8px;
+      padding: 5px 6px;
+      font-size: 7.5pt;
     }
     .bill-wrap .bct-right { text-align: right; }
     .bill-wrap .bct-center { text-align: center; }
+    .bill-wrap .bct-left { text-align: left; }
 
-    .bill-wrap .bct-total-row .bct-total-label {
-      font-weight: 600;
-      text-align: right;
-      background: #f4f4f4;
+    /* Column widths for compact table */
+    .bill-wrap .col-srno { width: 35px; }
+    .bill-wrap .col-date { width: 65px; }
+    .bill-wrap .col-amount { width: 80px; }
+    .bill-wrap .col-small { width: 65px; }
+
+    .bill-wrap .subcharge-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+      margin-bottom: 2px;
+      font-size: 6.5pt;
     }
-    .bill-wrap .bct-total-row .bct-total-value {
-      text-align: right;
-      font-weight: 600;
-      background: #f4f4f4;
+    .bill-wrap .subcharge-table td {
+      padding: 1px 3px;
+      border: none;
     }
-    .bill-wrap .bct-postcharge-row .bct-postcharge-label {
-      font-weight: 600;
-      text-align: right;
-      background: #e3f2fd;
-      color: #0066cc;
+    .bill-wrap .subcharge-label {
+      color: #666;
+      font-style: italic;
+      padding-left: 12px;
     }
-    .bill-wrap .bct-postcharge-row .bct-postcharge-value {
+    .bill-wrap .subcharge-amount {
       text-align: right;
-      font-weight: 600;
-      background: #e3f2fd;
-      color: #0066cc;
+      color: #555;
     }
-    .bill-wrap .bct-allowance-row .bct-allowance-label {
-      font-weight: 600;
-      text-align: right;
-      background: #fce4ec;
-      color: #cc0000;
-    }
-    .bill-wrap .bct-allowance-row .bct-allowance-value {
-      text-align: right;
-      font-weight: 600;
-      background: #fce4ec;
-      color: #cc0000;
-    }
-    .bill-wrap .bct-grand-total-row .bct-grand-label {
-      font-weight: 800;
-      font-size: 10pt;
-      text-align: right;
-      background: #f0f0f0;
-    }
-    .bill-wrap .bct-grand-total-row .bct-grand-value {
-      font-weight: 800;
-      font-size: 10pt;
-      text-align: right;
-      background: #f0f0f0;
-    }
-    .bill-wrap .bct-paid-row .bct-paid-label {
-      font-weight: 800;
-      font-size: 10pt;
-      color: ${headerBg};
-      text-align: right;
-      background: #eef2fa;
-    }
-    .bill-wrap .bct-paid-row .bct-paid-value {
-      font-weight: 800;
-      font-size: 10pt;
-      color: ${headerBg};
-      text-align: right;
-      background: #eef2fa;
+
+    .bill-wrap .sac-code-row td {
+      background: #f5f5f5 !important;
+      font-size: 6.5pt;
+      color: #666;
+      padding: 3px 6px !important;
     }
 
     .bill-wrap .bill-amount-words {
       border: 1px solid #d4d4d4;
       border-top: none;
       padding: 6px 10px;
-      font-size: 8.5pt;
-      margin-bottom: 16px;
+      font-size: 7.5pt;
+      margin-bottom: 12px;
+      margin-top: 0;
     }
-    .bill-wrap .baw-label { font-style: italic; color: #555; margin-right: 4px; }
+    .bill-wrap .baw-label { font-style: italic; color: #555; margin-right: 3px; }
     .bill-wrap .baw-text { font-style: italic; color: #222; }
 
     .bill-wrap .bill-thankyou {
       font-family: 'Dancing Script', 'Brush Script MT', cursive;
-      font-size: 24pt;
+      font-size: 20pt;
       color: ${headerBg};
       line-height: 1.2;
     }
 
     .bill-wrap .bill-hotel-logo {
-      max-height: 70px;
-      max-width: 180px;
+      max-height: 55px;
+      max-width: 140px;
       object-fit: contain;
     }
 
     .bill-wrap .bill-info-row {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
-      padding: 8px 12px;
+      padding: 6px 10px;
       background: #f8f9fa;
       border: 1px solid #dde2ea;
-      border-radius: 4px;
-      margin-bottom: 15px;
-      font-size: 8.5pt;
+      border-radius: 3px;
+      margin-bottom: 12px;
+      font-size: 7.5pt;
     }
     .bill-wrap .bill-info-row > div {
       flex: 1;
-      min-width: 160px;
+      min-width: 140px;
     }
     .bill-wrap .bill-info-row strong {
       color: #333;
@@ -641,46 +844,53 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       color: #1a7a3a;
       font-weight: 700;
     }
-    .bill-wrap .checked-out-rooms {
-      background: #e8f5e9;
-      padding: 6px 10px;
-      border-radius: 4px;
-      margin-bottom: 12px;
-      font-size: 8.5pt;
-      border-left: 3px solid #4caf50;
+
+    /* Horizontal Total Summary */
+    .bill-horizontal-summary {
+      width: 260px;
+      margin-left: auto;
+      border-collapse: collapse;
+      margin-top: 10px;
+      margin-bottom: 10px;
+      font-size: ${getFontSize()};
     }
-    .charge-type-badge {
-      display: inline-block;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-size: 7pt;
+    .bill-horizontal-summary td {
+      padding: 5px 10px;
+      border: 1px solid #d4d4d4;
+    }
+    .bill-horizontal-summary .summary-label {
       font-weight: 600;
-      margin-left: 6px;
+      background: #f5f5f5;
+      text-align: left;
+      width: 130px;
     }
-    .room-badge {
-      background: #e3f2fd;
-      color: #0066cc;
+    .bill-horizontal-summary .summary-amount {
+      text-align: right;
+      font-weight: 600;
+      width: 130px;
     }
-    .postcharge-badge {
-      background: #e3f2fd;
-      color: #0066cc;
-    }
-    .allowance-badge {
-      background: #fce4ec;
+    .bill-horizontal-summary .discount-row .summary-label,
+    .bill-horizontal-summary .discount-row .summary-amount {
       color: #cc0000;
+    }
+    .bill-horizontal-summary .total-row td {
+      background: #e8f0fe;
+      font-weight: 800;
+    }
+    .bill-horizontal-summary .grand-total-row td {
+      background: ${headerBg};
+      color: ${headerText};
+      font-weight: 800;
+      font-size: 9pt;
     }
   `
 
-
-
   const handlePrint = () => {
     const printContents = printRef.current?.innerHTML || ''
-    const printWindow = window.open('', '_blank', 'width=900,height=700')
+    const printWindow = window.open('', '_blank', 'width=800,height=700')
     if (!printWindow) return
 
-    // When header is hidden, spacer div in printContents handles the top gap,
-    // so @page top margin should be 0.
-    const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top_mm || 12
+    const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top_mm || 8
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -695,7 +905,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             }
             @page {
               size: ${printSettings?.default_print_size === 'A4' ? 'A4' : 'auto'};
-              margin: ${effectiveTopMargin}mm ${printSettings?.margin_right_mm || 10}mm ${printSettings?.margin_bottom_mm || 12}mm ${printSettings?.margin_left_mm || 10}mm;
+              margin: ${effectiveTopMargin}mm ${printSettings?.margin_right_mm || 8}mm ${printSettings?.margin_bottom_mm || 8}mm ${printSettings?.margin_left_mm || 8}mm;
             }
             body { 
               background: white; 
@@ -732,7 +942,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     setTimeout(() => {
       printWindow.print()
       printWindow.close()
-    }, 500)
+    }, 300)
   }
 
   const handleDownloadPDF = async () => {
@@ -741,7 +951,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
     setPdfLoading(true)
     try {
-      // Dynamically load html2canvas and jsPDF from CDN if not already loaded
       const loadScript = (src: string): Promise<void> =>
         new Promise((resolve, reject) => {
           if (document.querySelector(`script[src="${src}"]`)) {
@@ -755,9 +964,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           document.head.appendChild(scriptEl)
         })
 
-      await loadScript(
-        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
-      )
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
 
       const html2canvas = (window as any).html2canvas
@@ -765,32 +972,23 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
       const printSize = printSettings?.default_print_size || 'A4'
       const isA4 = printSize !== 'thermal_80mm' && printSize !== 'thermal_58mm'
-      const pdfW = isA4 ? 210 : printSize === 'thermal_80mm' ? 80 : 58 // mm
-          
+      const pdfW = isA4 ? 210 : printSize === 'thermal_80mm' ? 80 : 58
 
       const canvas = await html2canvas(billEl, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
-        width: billEl.scrollWidth,
-        height: billEl.scrollHeight, // ← FIXED: capture full bill height, not the PDF page mm value
-        windowWidth: billEl.scrollWidth,
-        windowHeight: billEl.scrollHeight,
       })
 
       const imgData = canvas.toDataURL('image/jpeg', 0.92)
-      const imgW =
-        pdfW - (printSettings?.margin_left_mm || 10) - (printSettings?.margin_right_mm || 10)
+      const imgW = pdfW - (printSettings?.margin_left_mm || 8) - (printSettings?.margin_right_mm || 8)
       const imgH = (canvas.height / canvas.width) * imgW
 
-      const topMargin = !showTopHeaderSection
-        ? printSettings?.top_margin_when_header_hidden || 30
-        : printSettings?.margin_top_mm || 12
-      const bottomMargin = printSettings?.margin_bottom_mm || 12
-      const leftMargin = printSettings?.margin_left_mm || 10
+      const topMargin = !showTopHeaderSection ? printSettings?.top_margin_when_header_hidden || 20 : printSettings?.margin_top_mm || 8
+      const bottomMargin = printSettings?.margin_bottom_mm || 8
+      const leftMargin = printSettings?.margin_left_mm || 8
 
-      // For long bills that exceed one A4 page, split across pages
       const pageContentH = (isA4 ? 297 : 999) - topMargin - bottomMargin
       const orientation = imgH <= pageContentH ? 'portrait' : 'portrait'
 
@@ -799,11 +997,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         unit: 'mm',
         format: isA4 ? 'a4' : [pdfW, imgH + topMargin + bottomMargin],
       })
+      
       if (imgH <= pageContentH) {
-        // Single page
         pdf.addImage(imgData, 'JPEG', leftMargin, topMargin, imgW, imgH)
       } else {
-        // Multi-page: slice the canvas into page-height chunks
         const pageHeightPx = (pageContentH / imgW) * canvas.width
         let yOffset = 0
         let page = 0
@@ -834,14 +1031,11 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
   }
 
-  // ==================== RENDER SECTIONS ====================
+  // ==================== RENDER FUNCTIONS ====================
 
   const renderHotelHeader = () => {
     if (!showTopHeaderSection) {
-      // When header is hidden (pre-printed paper), show a transparent spacer
-      // whose height equals the configured top margin so content starts below
-      // the pre-printed area. 1mm ≈ 3.7795px at 96dpi screen resolution.
-      const spacerPx = Math.round((topMarginWhenHeaderHidden || 30) * 3.7795)
+      const spacerPx = Math.round((topMarginWhenHeaderHidden || 20) * 3.7795)
       return (
         <div
           style={{ height: `${spacerPx}px`, width: '100%' }}
@@ -856,28 +1050,25 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const contactAlign = printSettings?.hotel_contact_position || 'left'
     const logoPosition = printSettings?.hotel_logo_position || 'left'
 
-    const logoEl =
-      printSettings?.show_hotel_logo === 1 && hotelLogo ? (
-        <img src={hotelLogo} alt="Hotel Logo" className="bill-hotel-logo" />
-      ) : null
+    const logoEl = printSettings?.show_hotel_logo === 1 && hotelLogo ? (
+      <img src={hotelLogo} alt="Hotel Logo" className="bill-hotel-logo" />
+    ) : null
 
     return (
-      <div className="mb-3">
-        {logoEl && <div className={`text-${logoPosition} mb-2`}>{logoEl}</div>}
+      <div className="mb-2">
+        {logoEl && <div className={`text-${logoPosition} mb-1`}>{logoEl}</div>}
         {printSettings?.show_hotel_name === 1 && (
-          <div
-            className={`text-${nameAlign}`}
-            style={{ fontSize: '18pt', fontWeight: 800, color: headerBg }}>
+          <div className={`text-${nameAlign}`} style={{ fontSize: '16pt', fontWeight: 800, color: headerBg }}>
             {hotelName}
           </div>
         )}
         {printSettings?.show_hotel_address === 1 && (
-          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '8.5pt', color: '#666' }}>
+          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '7.5pt', color: '#666' }}>
             📍 {hotelAddress}
           </div>
         )}
         {printSettings?.show_hotel_contact === 1 && (
-          <div className={`text-${contactAlign} mt-1`} style={{ fontSize: '8pt', color: '#666' }}>
+          <div className={`text-${contactAlign} mt-1`} style={{ fontSize: '7pt', color: '#666' }}>
             📞 {hotelPhone} &nbsp;|&nbsp; ✉ {hotelEmail} &nbsp;|&nbsp; 🌐 {hotelWebsite}
           </div>
         )}
@@ -890,8 +1081,8 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     if (printSettings?.show_bill_title !== 1) return null
     const titleAlign = printSettings?.bill_title_position || 'center'
     return (
-      <div className={`text-${titleAlign} mb-3`}>
-        <h3 style={{ margin: 0, fontWeight: 800, letterSpacing: '1px', color: headerBg }}>
+      <div className={`text-${titleAlign} mb-2`}>
+        <h3 style={{ margin: 0, fontWeight: 800, letterSpacing: '0.5px', color: headerBg, fontSize: '12pt' }}>
           HOTEL BOOKING BILL
         </h3>
       </div>
@@ -903,41 +1094,23 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       <div className="bill-info-row">
         <div>
           {printSettings?.show_invoice_no === 1 && (
-            <div>
-              <strong>Invoice No.&nbsp;:&nbsp;</strong>
-              {generatedBillNo}
-            </div>
+            <div><strong>Invoice No.</strong> : {generatedBillNo}</div>
           )}
           {printSettings?.show_invoice_date === 1 && (
-            <div>
-              <strong>Invoice Date&nbsp;:&nbsp;</strong>
-              {invoiceDate}
-            </div>
+            <div><strong>Invoice Date</strong> : {invoiceDate}</div>
           )}
           {printSettings?.show_booking_id === 1 && (
-            <div>
-              <strong>Booking ID&nbsp;:&nbsp;</strong>
-              {bookingId}
-            </div>
+            <div><strong>Booking ID</strong> : {bookingId}</div>
           )}
         </div>
         <div>
           {printSettings?.show_payment_status === 1 && (
-            <div>
-              <strong>Payment Status&nbsp;:&nbsp;</strong>
-              <span className="status-paid">{paymentStatus}</span>
-            </div>
+            <div><strong>Payment Status</strong> : <span className="status-paid">{paymentStatus}</span></div>
           )}
           {printSettings?.show_payment_mode === 1 && (
-            <div>
-              <strong>Payment Mode&nbsp;:&nbsp;</strong>
-              {paymentMode}
-            </div>
+            <div><strong>Payment Mode</strong> : {paymentMode}</div>
           )}
-          <div>
-            <strong>Guest Name&nbsp;:&nbsp;</strong>
-            {combinedSummary?.guest_name || '-'}
-          </div>
+          <div><strong>Guest Name</strong> : {combinedSummary?.guest_name || '-'}</div>
         </div>
       </div>
     )
@@ -952,39 +1125,19 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           <table className="bill-detail-table">
             <tbody>
               {printSettings?.show_guest_name === 1 && (
-                <tr>
-                  <td className="bdt-label">Name</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{combinedSummary?.guest_name || '-'}</td>
-                </tr>
+                <tr><td className="bdt-label">Name</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_name || '-'}</td></tr>
               )}
               {printSettings?.show_guest_mobile === 1 && (
-                <tr>
-                  <td className="bdt-label">Phone</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{combinedSummary?.guest_mobile || '-'}</td>
-                </tr>
+                <tr><td className="bdt-label">Phone</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_mobile || '-'}</td></tr>
               )}
               {printSettings?.show_guest_email === 1 && (
-                <tr>
-                  <td className="bdt-label">Email</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{combinedSummary?.guest_email || '-'}</td>
-                </tr>
+                <tr><td className="bdt-label">Email</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_email || '-'}</td></tr>
               )}
               {printSettings?.show_guest_address === 1 && (
-                <tr>
-                  <td className="bdt-label">Address</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{combinedSummary?.guest_address || '-'}</td>
-                </tr>
+                <tr><td className="bdt-label">Address</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_address || '-'}</td></tr>
               )}
               {printSettings?.show_guest_id_proof === 1 && (
-                <tr>
-                  <td className="bdt-label">ID Proof</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{combinedSummary?.guest_id_proof || '-'}</td>
-                </tr>
+                <tr><td className="bdt-label">ID Proof</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_id_proof || '-'}</td></tr>
               )}
             </tbody>
           </table>
@@ -1002,61 +1155,29 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           <table className="bill-detail-table">
             <tbody>
               {printSettings?.show_checkin_date === 1 && (
-                <tr>
-                  <td className="bdt-label">Check-in Date</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{checkinDateDisplay}</td>
-                </tr>
+                <tr><td className="bdt-label">Check-in Date</td><td className="bdt-colon">:</td><td className="bdt-value">{checkinDateDisplay}</td></tr>
               )}
               {printSettings?.show_checkout_date === 1 && (
-                <tr>
-                  <td className="bdt-label">Check-out Date</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{checkoutDateDisplay}</td>
-                </tr>
+                <tr><td className="bdt-label">Check-out Date</td><td className="bdt-colon">:</td><td className="bdt-value">{checkoutDateDisplay}</td></tr>
               )}
               {printSettings?.show_nights === 1 && (
-                <tr>
-                  <td className="bdt-label">No. of Days</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{combinedSummary?.total_days || 0}</td>
-                </tr>
+                <tr><td className="bdt-label">No. of Nights</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.total_days || 0}</td></tr>
               )}
               {printSettings?.show_room_type === 1 && (
-                <tr>
-                  <td className="bdt-label">Room Type</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{combinedSummary?.room_categories_str || '-'}</td>
-                </tr>
+                <tr><td className="bdt-label">Room Type</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.room_categories_str || '-'}</td></tr>
               )}
               {printSettings?.show_room_numbers === 1 && (
-                <tr>
-                  <td className="bdt-label">Room No(s).</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">
-                    {checkedOutRoomsStr || combinedSummary?.room_numbers_str || '-'}
-                  </td>
-                </tr>
+                <tr><td className="bdt-label">Room No(s).</td><td className="bdt-colon">:</td><td className="bdt-value">{checkedOutRoomsStr || combinedSummary?.room_numbers_str || '-'}</td></tr>
               )}
               {printSettings?.show_guests_count === 1 && (
-                <tr>
-                  <td className="bdt-label">Guests</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">
-                    {combinedSummary?.total_adults || 0} Adults
-                    {(combinedSummary?.total_child_paid || 0) > 0 &&
-                      `, ${combinedSummary?.total_child_paid} Child`}
-                    {(combinedSummary?.total_driver || 0) > 0 &&
-                      `, ${combinedSummary?.total_driver} Driver`}
-                  </td>
-                </tr>
+                <tr><td className="bdt-label">Guests</td><td className="bdt-colon">:</td><td className="bdt-value">
+                  {combinedSummary?.total_adults || 0} Adults
+                  {(combinedSummary?.total_child_paid || 0) > 0 && `, ${combinedSummary?.total_child_paid} Child`}
+                  {(combinedSummary?.total_driver || 0) > 0 && `, ${combinedSummary?.total_driver} Driver`}
+                </td></tr>
               )}
               {printSettings?.show_tariff_plan === 1 && (
-                <tr>
-                  <td className="bdt-label">Tariff Plan</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{combinedSummary?.plan_name || 'Room Only'}</td>
-                </tr>
+                <tr><td className="bdt-label">Tariff Plan</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.plan_name || 'Room Only'}</td></tr>
               )}
             </tbody>
           </table>
@@ -1066,207 +1187,160 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   }
 
   const renderChargesTable = () => {
-    const tableRows: TableRowWithIndex[] = []
-    const groupedRows: { [key: string]: DisplayDetailRow[] } = {}
-
-    roomCharges.forEach((row) => {
-      const key = row.room_number
-      if (!groupedRows[key]) groupedRows[key] = []
-      groupedRows[key].push(row)
-    })
-
-    let rowCounter = 1
-    Object.keys(groupedRows)
-      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-      .forEach((roomNumber) => {
-        groupedRows[roomNumber].forEach((row) => {
-          tableRows.push({ ...row, displayIndex: rowCounter++ })
-        })
-      })
-
-    postCharges.forEach((charge) => {
-      tableRows.push({
-        ...charge,
-        displayIndex: rowCounter++,
-        description: charge.description || 'Post Charge',
-        room_category_name: charge.room_category_name || 'Post Charge',
-      })
-    })
-
-    allowances.forEach((allowance) => {
-      tableRows.push({
-        ...allowance,
-        displayIndex: rowCounter++,
-        description: allowance.description || 'Allowance',
-        room_category_name: allowance.room_category_name || 'Allowance',
-      })
-    })
-
     const showRowNums = printSettings?.show_row_numbers === 1
-    const colCount = showRowNums ? 4 : 3
+    
+    // Build column headers - separate POST and ALLOW columns
+    const headers: React.ReactElement[] = []
+    if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
+    headers.push(<th key="date" className="col-date bct-left">DATE</th>)
+    headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
+    headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
+    if (hasCGSTData) {
+      headers.push(<th key="cgst" className="col-small bct-right">CGST</th>)
+      headers.push(<th key="sgst" className="col-small bct-right">SGST</th>)
+    }
+    // Separate POST and ALLOW columns
+    headers.push(<th key="post" className="col-amount bct-right">POST</th>)
+    headers.push(<th key="allow" className="col-amount bct-right">ALLOW</th>)
+    if (hasAdvanceData) {
+      headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>)
+    }
+    headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
+    headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
 
+    const totalCols = headers.length
+
+    // Build table body rows — one row per day only
+    const bodyRows: React.ReactElement[] = []
+    let runningIndex = 1
+
+    tableRows.forEach((row) => {
+      const mainIndex = runningIndex++
+      
+      // POST column shows positive charges (postCharges total)
+      const postDisplay = row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'
+      // ALLOW column shows allowances (negative adjustments)
+      const allowDisplay = row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'
+      // ADVANCE column shows advances
+      const advanceDisplay = row.advanceTotal > 0 ? formatAmtDisplay(row.advanceTotal) : '-'
+      
+      // Food display
+      const foodDisplay = row.food > 0 ? formatAmtDisplay(row.food) : '-'
+
+      const cells: React.ReactElement[] = []
+      if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>)
+      cells.push(<td key="date" className="bct-left">{row.date}</td>)
+      cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff)}</td>)
+      cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax)}</td>)
+      if (hasCGSTData) {
+        cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst)}</td>)
+        cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst)}</td>)
+      }
+      cells.push(<td key="post" className="bct-right" style={{ color: '#1a7a3a', fontWeight: 500 }}>{postDisplay}</td>)
+      cells.push(<td key="allow" className="bct-right" style={{ color: '#cc0000', fontWeight: 500 }}>{allowDisplay}</td>)
+      if (hasAdvanceData) {
+        cells.push(<td key="advance" className="bct-right" style={{ color: '#cc0000', fontWeight: 500 }}>{advanceDisplay}</td>)
+      }
+      cells.push(<td key="food" className="bct-right">{foodDisplay}</td>)
+      cells.push(<td key="total" className="bct-right" style={{ fontWeight: 600 }}>{formatAmtDisplay(row.total)}</td>)
+      bodyRows.push(<tr key={row.id}>{cells}</tr>)
+    })
+
+    // Calculate totals for separate columns
+    const totalPostAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.postTotal, 0))
+    const totalAllowanceAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0))
+
+    // Build footer row
+    const labelColSpan = showRowNums ? 2 : 1
+
+    const footerCells: React.ReactElement[] = []
+    footerCells.push(<td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ fontWeight: 700 }}>Total</td>)
+    footerCells.push(<td key="total_tariff" className="bct-right" style={{ fontWeight: 700 }}>{formatAmtDisplay(totalRoomTariffAmount)}</td>)
+    footerCells.push(<td key="total_expax" className="bct-right" style={{ fontWeight: 700 }}>{formatAmtDisplay(totalExPaxAmount)}</td>)
+    if (hasCGSTData) {
+      footerCells.push(<td key="total_cgst" className="bct-right" style={{ fontWeight: 700 }}>{formatAmtDisplay(totalCGSTAmount)}</td>)
+      footerCells.push(<td key="total_sgst" className="bct-right" style={{ fontWeight: 700 }}>{formatAmtDisplay(totalSGSTAmount)}</td>)
+    }
+    footerCells.push(<td key="total_post" className="bct-right" style={{ fontWeight: 700, color: '#1a7a3a' }}>{formatAmtDisplay(totalPostAmount)}</td>)
+    footerCells.push(<td key="total_allow" className="bct-right" style={{ fontWeight: 700, color: '#cc0000' }}>{formatAmtDisplay(totalAllowanceAmount)}</td>)
+    if (hasAdvanceData) {
+      footerCells.push(<td key="total_advance" className="bct-right" style={{ fontWeight: 700, color: '#cc0000' }}>{formatAmtDisplay(totalAdvanceAmount)}</td>)
+    }
+    footerCells.push(<td key="total_food" className="bct-right" style={{ fontWeight: 700 }}>{totalFoodAmount > 0 ? formatAmtDisplay(totalFoodAmount) : '-'}</td>)
+    footerCells.push(<td key="total_amount" className="bct-right" style={{ fontWeight: 800, background: '#f0f0f0' }}>{formatAmtDisplay(totalAmount)}</td>)
+
+    // Summary rows
+    const afterDiscountTotal = totalAmount - discountAmount
+
+    const summaryRows: React.ReactElement[] = []
+
+    if (discountAmount > 0) {
+      summaryRows.push(
+        <tr key="summary_discount">
+          <td
+            colSpan={totalCols - 1}
+            className="bct-right"
+            style={{ fontWeight: 600, color: '#cc0000', borderTop: '2px solid #d4d4d4' }}
+          >
+            Discount ({combinedSummary?.avg_discount_percent ? `${combinedSummary.avg_discount_percent.toFixed(2)}%` : ''})
+          </td>
+          <td className="bct-right" style={{ fontWeight: 600, color: '#cc0000', borderTop: '2px solid #d4d4d4' }}>
+            ₹{formatAmt(discountAmount)}
+          </td>
+        </tr>
+      )
+    }
+
+    summaryRows.push(
+      <tr key="summary_total" style={{ background: '#e8f0fe' }}>
+        <td
+          colSpan={totalCols - 1}
+          className="bct-right"
+          style={{ fontWeight: 800 }}
+        >
+          Sub Total
+        </td>
+        <td className="bct-right" style={{ fontWeight: 800 }}>
+          ₹{formatAmt(afterDiscountTotal)}
+        </td>
+      </tr>
+    )
+
+    summaryRows.push(
+      <tr key="summary_grand_total" style={{ background: headerBg, color: headerText }}>
+        <td
+          colSpan={totalCols - 1}
+          className="bct-right"
+          style={{ fontWeight: 800, fontSize: '9pt' }}
+        >
+          TOTAL PAID (INR)
+        </td>
+        <td className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
+          ₹{formatAmt(netTotal)}
+        </td>
+      </tr>
+    )
+    
     return (
-      <table className="bill-charges-table">
-        <thead>
-          <tr>
-            {showRowNums && <th style={{ width: '40px' }}>#</th>}
-            <th>DESCRIPTION</th>
-            <th>DATE</th>
-            <th className="bct-right">AMOUNT (INR)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tableRows.map((row) => {
-            let descriptionText = ''
-
-            if (row.isPostCharge) {
-              if (row.total_amount < 0) {
-                descriptionText = `Allowance - ${row.description || row.room_category_name}`
-              } else {
-                descriptionText = `Post Charge - ${row.description || row.room_category_name}`
-              }
-            } else {
-              descriptionText = `${row.room_number} – ${row.is_extension ? 'Day Extension' : 'Room Charges'}`
-            }
-
-            return (
-              <tr key={row.id}>
-                {showRowNums && <td className="bct-center">{row.displayIndex}</td>}
-                <td>{descriptionText}</td>
-                <td>{row.bill_date_formatted}</td>
-                <td
-                  className="bct-right"
-                  style={{
-                    color: row.isPostCharge && row.total_amount < 0 ? '#cc0000' : 'inherit',
-                  }}>
-                  {row.isPostCharge && row.total_amount < 0 ? '-' : ''}
-                  {formatAmtDisplay(Math.abs(row.total_amount))}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-        <tfoot>
-          {roomCharges.length > 0 && (
-            <tr className="bct-total-row">
-              <td colSpan={colCount - 1} className="bct-total-label">
-                ROOM CHARGES SUBTOTAL
-              </td>
-              <td className="bct-total-value bct-right">
-                {formatAmtDisplay(totalRoomTariff + totalExPax + totalChild + totalDriver)}
-              </td>
-            </tr>
-          )}
-          {discountAmount > 0 && (
-            <tr className="bct-total-row">
-              <td colSpan={colCount - 1} className="bct-total-label" style={{ color: '#cc0000' }}>
-                DISCOUNT (
-                {combinedSummary?.avg_discount_percent
-                  ? `${combinedSummary.avg_discount_percent.toFixed(2)}%`
-                  : ''}
-                )
-              </td>
-              <td className="bct-total-value bct-right" style={{ color: '#cc0000' }}>
-                -{formatAmtDisplay(discountAmount)}
-              </td>
-            </tr>
-          )}
-          {postCharges.length > 0 && (
-            <tr className="bct-postcharge-row">
-              <td colSpan={colCount - 1} className="bct-postcharge-label">
-                POST CHARGES TOTAL
-              </td>
-              <td className="bct-postcharge-value bct-right">
-                {formatAmtDisplay(totalPostCharges)}
-              </td>
-            </tr>
-          )}
-          {allowances.length > 0 && (
-            <tr className="bct-allowance-row">
-              <td colSpan={colCount - 1} className="bct-allowance-label">
-                ALLOWANCES TOTAL
-              </td>
-              <td className="bct-allowance-value bct-right">
-                -{formatAmtDisplay(totalAllowances)}
-              </td>
-            </tr>
-          )}
-          <tr className="bct-total-row">
-            <td colSpan={colCount - 1} className="bct-total-label">
-              TAXABLE AMOUNT
-            </td>
-            <td className="bct-total-value bct-right">{formatAmtDisplay(taxableAmount)}</td>
-          </tr>
-
-          {printSettings?.show_cgst_sgst_breakdown === 1 && totalCGST > 0 && totalSGST > 0 && (
-            <>
-              <tr className="bct-total-row">
-                <td colSpan={colCount - 1} className="bct-total-label">
-                  CGST ({cgstPercent.toFixed(2)}%)
-                </td>
-                <td className="bct-total-value bct-right">{formatAmtDisplay(totalCGST)}</td>
-              </tr>
-              <tr className="bct-total-row">
-                <td colSpan={colCount - 1} className="bct-total-label">
-                  SGST ({sgstPercent.toFixed(2)}%)
-                </td>
-                <td className="bct-total-value bct-right">{formatAmtDisplay(totalSGST)}</td>
-              </tr>
-            </>
-          )}
-
-          {printSettings?.show_cgst_sgst_breakdown === 1 && totalIGST > 0 && (
-            <tr className="bct-total-row">
-              <td colSpan={colCount - 1} className="bct-total-label">
-                IGST ({igstPercent.toFixed(2)}%)
-              </td>
-              <td className="bct-total-value bct-right">{formatAmtDisplay(totalIGST)}</td>
-            </tr>
-          )}
-
-          {printSettings?.show_cgst_sgst_breakdown === 1 && totalCess > 0 && (
-            <tr className="bct-total-row">
-              <td colSpan={colCount - 1} className="bct-total-label">
-                CESS ({cessPercent.toFixed(2)}%)
-              </td>
-              <td className="bct-total-value bct-right">{formatAmtDisplay(totalCess)}</td>
-            </tr>
-          )}
-
-          {printSettings?.show_cgst_sgst_breakdown === 1 && totalServiceCharge > 0 && (
-            <tr className="bct-total-row">
-              <td colSpan={colCount - 1} className="bct-total-label">
-                Service Charge ({serviceChargePercent.toFixed(2)}%)
-              </td>
-              <td className="bct-total-value bct-right">{formatAmtDisplay(totalServiceCharge)}</td>
-            </tr>
-          )}
-
-          {printSettings?.show_cgst_sgst_breakdown !== 1 && totalTax > 0 && (
-            <tr className="bct-total-row">
-              <td colSpan={colCount - 1} className="bct-total-label">
-                TAX ({avgTaxPercent.toFixed(2)}%)
-              </td>
-              <td className="bct-total-value bct-right">{formatAmtDisplay(totalTax)}</td>
-            </tr>
-          )}
-
-          <tr className="bct-grand-total-row">
-            <td colSpan={colCount - 1} className="bct-grand-label">
-              GRAND TOTAL
-            </td>
-            <td className="bct-grand-value bct-right">{formatAmtDisplay(netTotal)}</td>
-          </tr>
-          <tr className="bct-paid-row">
-            <td colSpan={colCount - 1} className="bct-paid-label">
-              TOTAL PAID (INR)
-            </td>
-            <td className="bct-paid-value bct-right">{formatAmtDisplay(netTotal)}</td>
-          </tr>
-        </tfoot>
-      </table>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="bill-charges-table">
+          <thead>
+            <tr>{headers}</tr>
+          </thead>
+          <tbody>
+            {bodyRows}
+          </tbody>
+          <tfoot>
+            <tr key="footer1">{footerCells}</tr>
+            {summaryRows}
+          </tfoot>
+        </table>
+      </div>
     )
   }
+
+  // Horizontal Summary Table - now merged into renderChargesTable tfoot
+  const renderHorizontalSummary = () => null
 
   const renderAmountInWords = () => {
     return (
@@ -1284,28 +1358,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         <div className="bill-info-box-body">
           <table className="bill-detail-table">
             <tbody>
-              <tr>
-                <td className="bdt-label">Paid Amount</td>
-                <td className="bdt-colon">:</td>
-                <td className="bdt-value">INR {formatAmt(netTotal)}</td>
-              </tr>
-              <tr>
-                <td className="bdt-label">Transaction ID</td>
-                <td className="bdt-colon">:</td>
-                <td className="bdt-value">
-                  {paymentTransactionId || `TXN${Date.now().toString().slice(-12)}`}
-                </td>
-              </tr>
-              <tr>
-                <td className="bdt-label">Payment Date</td>
-                <td className="bdt-colon">:</td>
-                <td className="bdt-value">{paymentDate || invoiceDate}</td>
-              </tr>
-              <tr>
-                <td className="bdt-label">Bank / Card</td>
-                <td className="bdt-colon">:</td>
-                <td className="bdt-value">{paymentBank || paymentMode}</td>
-              </tr>
+              <tr><td className="bdt-label">Paid Amount</td><td className="bdt-colon">:</td><td className="bdt-value">INR {formatAmt(netTotal)}</td></tr>
+              <tr><td className="bdt-label">Transaction ID</td><td className="bdt-colon">:</td><td className="bdt-value">{paymentTransactionId || `TXN${Date.now().toString().slice(-12)}`}</td></tr>
+              <tr><td className="bdt-label">Payment Date</td><td className="bdt-colon">:</td><td className="bdt-value">{paymentDate || invoiceDate}</td></tr>
+              <tr><td className="bdt-label">Bank / Card</td><td className="bdt-colon">:</td><td className="bdt-value">{paymentBank || paymentMode}</td></tr>
             </tbody>
           </table>
         </div>
@@ -1317,13 +1373,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     <div className="bill-info-box">
       <div className="bill-info-box-header">NOTE</div>
       <div className="bill-info-box-body">
-        <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '8pt' }}>
+        <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '7pt' }}>
           <li>Check-in time: {checkinTimeDisplay}</li>
           <li>Check-out time: {checkoutTimeDisplay}</li>
-          <li>
-            Early check-in or late check-out is subject to availability and may incur additional
-            charges.
-          </li>
+          <li>Early check-in or late check-out is subject to availability and may incur additional charges.</li>
           <li>This is a computer generated invoice. No signature required.</li>
         </ul>
       </div>
@@ -1332,26 +1385,22 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
   const renderFooter = () => {
     return (
-      <div className="text-center mt-3">
+      <div className="text-center mt-2">
         {printSettings?.show_thankyou_message === 1 && (
-          <div className="bill-thankyou">
-            {printSettings?.thankyou_message_text || 'Thank You!'}
-          </div>
+          <div className="bill-thankyou">{printSettings?.thankyou_message_text || 'Thank You!'}</div>
         )}
         {printSettings?.show_footer_note === 1 && (
-          <div className="mt-2" style={{ fontSize: '9pt', color: '#555' }}>
+          <div className="mt-1" style={{ fontSize: '8pt', color: '#555' }}>
             {printSettings?.footer_note_text || 'We look forward to welcoming you again.'}
           </div>
         )}
-        <div className="mt-2" style={{ fontSize: '8pt', color: '#999' }}>
+        <div className="mt-1" style={{ fontSize: '7pt', color: '#999' }}>
           {printSettings?.show_gst_details === 1 && <div>GSTIN: {hotelGSTIN}</div>}
           {printSettings?.show_company_pan === 1 && <div>PAN: {hotelPAN}</div>}
           {printSettings?.show_fssai === 1 && <div>FSSAI: {hotelFSSAI}</div>}
         </div>
         {printSettings?.custom_footer_text && (
-          <div className="mt-2" style={{ fontSize: '8pt', color: '#999' }}>
-            {printSettings.custom_footer_text}
-          </div>
+          <div className="mt-1" style={{ fontSize: '7pt', color: '#999' }}>{printSettings.custom_footer_text}</div>
         )}
       </div>
     )
@@ -1361,66 +1410,46 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const guestPosition = printSettings?.guest_details_position || 'left'
     const bookingPosition = printSettings?.booking_details_position || 'right'
 
-    const topBottom =
-      guestPosition === 'top' ||
-      bookingPosition === 'top' ||
-      guestPosition === 'bottom' ||
-      bookingPosition === 'bottom'
+    const topBottom = guestPosition === 'top' || bookingPosition === 'top' || guestPosition === 'bottom' || bookingPosition === 'bottom'
 
     return (
       <div>
         {renderHotelHeader()}
         {renderBillTitle()}
         {printSettings?.custom_header_text && (
-          <div className="text-center mb-3" style={{ fontSize: '9pt', color: '#666' }}>
-            {printSettings.custom_header_text}
-          </div>
+          <div className="text-center mb-2" style={{ fontSize: '8pt', color: '#666' }}>{printSettings.custom_header_text}</div>
         )}
 
         {topBottom ? (
           <>
-            {guestPosition === 'top' &&
-              printSettings?.show_guest_details === 1 &&
-              renderGuestDetails()}
-            {bookingPosition === 'top' &&
-              printSettings?.show_booking_details === 1 &&
-              renderBookingDetails()}
+            {guestPosition === 'top' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
+            {bookingPosition === 'top' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
             {renderBillInfo()}
             {renderChargesTable()}
+            {renderHorizontalSummary()}
             {renderAmountInWords()}
             <div className="two-column-layout">
               {renderPaymentDetails()}
               {renderNoteBox()}
             </div>
-            {guestPosition === 'bottom' &&
-              printSettings?.show_guest_details === 1 &&
-              renderGuestDetails()}
-            {bookingPosition === 'bottom' &&
-              printSettings?.show_booking_details === 1 &&
-              renderBookingDetails()}
+            {guestPosition === 'bottom' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
+            {bookingPosition === 'bottom' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
           </>
         ) : (
           <>
             <div className="two-column-layout">
               <div>
-                {guestPosition === 'left' &&
-                  printSettings?.show_guest_details === 1 &&
-                  renderGuestDetails()}
-                {bookingPosition === 'left' &&
-                  printSettings?.show_booking_details === 1 &&
-                  renderBookingDetails()}
+                {guestPosition === 'left' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
+                {bookingPosition === 'left' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
               </div>
               <div>
-                {guestPosition === 'right' &&
-                  printSettings?.show_guest_details === 1 &&
-                  renderGuestDetails()}
-                {bookingPosition === 'right' &&
-                  printSettings?.show_booking_details === 1 &&
-                  renderBookingDetails()}
+                {guestPosition === 'right' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
+                {bookingPosition === 'right' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
               </div>
             </div>
             {renderBillInfo()}
             {renderChargesTable()}
+            {renderHorizontalSummary()}
             {renderAmountInWords()}
             <div className="two-column-layout">
               {renderPaymentDetails()}
@@ -1435,12 +1464,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
   if (settingsLoading) {
     return (
-      <Modal
-        show={show}
-        onHide={onHide}
-        dialogClassName="bill-modal-dialog"
-        backdrop="static"
-        centered>
+      <Modal show={show} onHide={onHide} dialogClassName="bill-modal-dialog" backdrop="static" centered>
         <Modal.Body className="text-center py-5">
           <Spinner animation="border" variant="primary" />
           <p className="mt-2">Loading bill settings...</p>
@@ -1452,11 +1476,11 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   return (
     <>
       <style>{`
-        .bill-modal-dialog { max-width: 950px !important; }
+        .bill-modal-dialog { max-width: 1050px !important; width: 95% !important; }
         .bill-modal-body {
           background: #e8eaed;
           padding: 0;
-          max-height: 88vh;
+          max-height: 90vh;
           overflow-y: auto;
         }
         .bill-modal-action-bar {
@@ -1474,9 +1498,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           background: ${headerBg};
           color: white;
           border: none;
-          padding: 7px 22px;
+          padding: 6px 20px;
           border-radius: 4px;
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 600;
           display: flex;
           align-items: center;
@@ -1488,23 +1512,23 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           background: #c0392b;
           color: white;
           border: none;
-          padding: 7px 22px;
+          padding: 6px 20px;
           border-radius: 4px;
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 600;
           display: flex;
           align-items: center;
           gap: 7px;
           cursor: pointer;
-          position: relative;
         }
         .btn-bill-pdf:hover { opacity: 0.88; color: white; }
 
         .bill-a4-paper {
           background: white;
-          width: ${printSettings?.default_print_size === 'thermal_80mm' ? '80mm' : printSettings?.default_print_size === 'thermal_58mm' ? '58mm' : '820px'};
+          width: 100%;
+          max-width: 950px;
           margin: 0 auto;
-          padding: 0 32px 28px 32px;
+          padding: 15px 25px 25px 25px;
           box-shadow: 0 6px 24px rgba(0,0,0,0.13);
           border-radius: 3px;
         }
@@ -1525,40 +1549,21 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         ${getBillStyles()}
       `}</style>
 
-      <Modal
-        show={show}
-        onHide={onHide}
-        dialogClassName="bill-modal-dialog"
-        backdrop="static"
-        centered>
-        <Modal.Header
-          closeButton
-          className="py-2"
-          style={{ background: headerBg, borderBottom: 'none' }}>
-          <Modal.Title className="text-white fw-bold" style={{ fontSize: '0.9rem' }}>
+      <Modal show={show} onHide={onHide} dialogClassName="bill-modal-dialog" backdrop="static" centered>
+        <Modal.Header closeButton className="py-2" style={{ background: headerBg, borderBottom: 'none' }}>
+          <Modal.Title className="text-white fw-bold" style={{ fontSize: '0.85rem' }}>
             🧾 Hotel Booking Bill — {combinedSummary?.guest_name || 'Guest'}
           </Modal.Title>
         </Modal.Header>
 
         <Modal.Body className="bill-modal-body p-0">
           <div className="bill-modal-action-bar no-print">
-            <Button className="btn-bill-print" onClick={handlePrint}>
-              🖨️ Print Bill
-            </Button>
+            <Button className="btn-bill-print" onClick={handlePrint}>🖨️ Print Bill</Button>
             <Button className="btn-bill-pdf" onClick={handleDownloadPDF} disabled={pdfLoading}>
-              {pdfLoading ? (
-                <>
-                  <Spinner animation="border" size="sm" className="me-1" /> Generating PDF...
-                </>
-              ) : (
-                <>📄 Download PDF</>
-              )}
-            </Button>
-            <Button variant="outline-secondary" size="sm" onClick={onHide}>
-              Close
+              {pdfLoading ? <><Spinner animation="border" size="sm" className="me-1" /> Generating PDF...</> : <>📄 Download PDF</>}
             </Button>
           </div>
-          <div style={{ padding: '20px', background: '#e8eaed' }}>
+          <div style={{ padding: '15px', background: '#e8eaed' }}>
             <div className="bill-a4-paper bill-wrap" ref={printRef}>
               {renderLayout()}
             </div>

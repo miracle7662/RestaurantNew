@@ -118,9 +118,12 @@ const uploadGuestDocuments = upload.fields([
   { name: 'back_side', maxCount: 1 },
 ]);
 
+const uploadGuestPhoto = upload.single('image');
+
 module.exports = {
   upload,
   uploadGuestDocuments,
+  uploadGuestPhoto,
   singleUpload: upload.single('image'),
   multipleUpload: upload.array('images', 10),
   BASE_UPLOAD_DIR,

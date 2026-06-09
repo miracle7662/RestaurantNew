@@ -8,17 +8,13 @@ const getCurrentUserHotelId = (req) => req.user?.hotelid || null;
 // Helper function to format date for MySQL DATE column (YYYY-MM-DD)
 const formatDateOnly = (dateValue) => {
     if (!dateValue) return null;
-    // If it's a Date object
     if (dateValue instanceof Date) {
         return dateValue.toISOString().split('T')[0];
     }
-    // If it's a string
     const dateStr = String(dateValue);
-    // If it already looks like YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
         return dateStr;
     }
-    // Parse ISO string or other formats
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return null;
     return date.toISOString().split('T')[0];
@@ -27,12 +23,10 @@ const formatDateOnly = (dateValue) => {
 // Helper function to format datetime for MySQL DATETIME column
 const formatDateTime = (dateValue) => {
     if (!dateValue) return null;
-    // If it's a Date object
     if (dateValue instanceof Date) {
         return dateValue.toISOString().slice(0, 19).replace('T', ' ');
     }
     const dateStr = String(dateValue);
-    // If it's already in YYYY-MM-DD HH:MM:SS format
     if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateStr)) {
         return dateStr;
     }
@@ -49,34 +43,11 @@ const deleteFile = (filePath) => {
 };
 
 // Helper to get full URL for file
-// IMPORTANT:
-// multer stores absolute paths on Windows (e.g. C:/.../uploads/guests/...).
-// Browser cannot resolve URL like /C:/... because the server static route is /uploads/... only.
-// So we convert any stored absolute/relative path into a URL rooted at /uploads/...
 const getFileUrl = (req, filePath) => {
-    if (!filePath) return null;
-
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-
-    // Normalize to forward slashes
-    const normalized = String(filePath).replace(/\\/g, '/');
-
-    // Extract only the part starting from /uploads/
-    const uploadsIndex = normalized.toLowerCase().indexOf('/uploads/');
-    if (uploadsIndex !== -1) {
-        const relativeFromUploads = normalized.slice(uploadsIndex + 1); // keep leading 'uploads/...'
-        return `${baseUrl}/${relativeFromUploads}`;
-    }
-
-    // Fallback: if path already looks like it starts with uploads/
-    if (normalized.toLowerCase().startsWith('uploads/')) {
-        return `${baseUrl}/${normalized}`;
-    }
-
-    // Last resort: return as-is (won't work for absolute windows paths, but keeps backward compatibility)
-    return `${baseUrl}/${normalized}`;
+  if (!filePath) return null;
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  return `${baseUrl}/${filePath.replace(/\\/g, '/')}`;
 };
-
 
 // ---------- Helper for Foreign Key Validation ----------
 const validateForeignKeys = async (connection, { city_id, state_id, country_id, nationality_id, company_id, fragment_id, purpose_id, arrived_id, departure_id, guest_type_id, hotelid }) => {
@@ -245,7 +216,8 @@ exports.getGuest = async (req, res) => {
         guest.documents = documents.map(doc => ({
             ...doc,
             front_side_url: doc.front_side ? getFileUrl(req, doc.front_side) : null,
-            back_side_url: doc.back_side ? getFileUrl(req, doc.back_side) : null
+            back_side_url: doc.back_side ? getFileUrl(req, doc.back_side) : null,
+            guest_photo_url: doc.guest_photo ? getFileUrl(req, doc.guest_photo) : null
         }));
 
         res.json({ success: true, data: guest });
@@ -256,7 +228,6 @@ exports.getGuest = async (req, res) => {
 };
 
 exports.getGuests = async (req, res) => {
-    console.log('🔍 Query Params:', req.query);
     try {
         let hotelId = req.query.hotelid || req.query.mst_hotelid;
         if (!hotelId) hotelId = getCurrentUserHotelId(req);
@@ -328,29 +299,24 @@ exports.addGuest = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Name and phone are required' });
         }
 
-        // Format dates
         const formattedBirthday = formatDateOnly(birthday);
         const formattedAnniversary = formatDateOnly(anniversary);
 
-        // Handle purpose
         let finalPurposeId = purpose_id || null;
         if (purpose && purpose.trim()) {
             finalPurposeId = await getOrCreateReferenceId(connection, 'purpose_master', 'purpose_id', 'purpose_name', purpose.trim().toUpperCase());
         }
 
-        // Handle arrived_from
         let finalArrivedId = arrived_id || null;
         if (arrived_from && arrived_from.trim()) {
             finalArrivedId = await getOrCreateReferenceId(connection, 'arrived_master', 'arrived_id', 'arrived_name', arrived_from.trim().toUpperCase());
         }
 
-        // Handle departure_to
         let finalDepartureId = departure_id || null;
         if (departure_to && departure_to.trim()) {
             finalDepartureId = await getOrCreateReferenceId(connection, 'departure_master', 'departure_id', 'departure_name', departure_to.trim().toUpperCase());
         }
 
-        // Handle guest_type
         let finalGuestTypeId = guest_type_id || null;
         if (guest_type && guest_type.trim()) {
             finalGuestTypeId = await getOrCreateReferenceId(connection, 'guest_type_master', 'guest_type_id', 'guest_type_name', guest_type.trim());
@@ -461,7 +427,6 @@ exports.updateGuest = async (req, res) => {
         let hotelId = hotelid || getCurrentUserHotelId(req);
         const updated_at = formatDateTime(new Date());
 
-        // Format dates
         const formattedBirthday = birthday !== undefined ? formatDateOnly(birthday) : undefined;
         const formattedAnniversary = anniversary !== undefined ? formatDateOnly(anniversary) : undefined;
 
@@ -481,7 +446,6 @@ exports.updateGuest = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Access denied' });
         }
 
-        // Handle purpose
         let finalPurposeId = purpose_id;
         let finalPurposeName = purpose;
         if (purpose !== undefined) {
@@ -494,7 +458,6 @@ exports.updateGuest = async (req, res) => {
             }
         }
 
-        // Handle arrived_from
         let finalArrivedId = arrived_id;
         let finalArrivedName = arrived_from;
         if (arrived_from !== undefined) {
@@ -507,7 +470,6 @@ exports.updateGuest = async (req, res) => {
             }
         }
 
-        // Handle departure_to
         let finalDepartureId = departure_id;
         let finalDepartureName = departure_to;
         if (departure_to !== undefined) {
@@ -520,7 +482,6 @@ exports.updateGuest = async (req, res) => {
             }
         }
 
-        // Handle guest_type
         let finalGuestTypeId = guest_type_id;
         let finalGuestTypeName = guest_type;
         if (guest_type !== undefined) {
@@ -667,19 +628,17 @@ exports.deleteGuest = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Access denied' });
         }
 
-        // Get all documents to delete files
         const [documents] = await connection.execute(
-            'SELECT front_side, back_side FROM guest_document WHERE guest_id = ?',
+            'SELECT front_side, back_side, guest_photo FROM guest_document WHERE guest_id = ?',
             [id]
         );
         
-        // Delete physical files
         for (const doc of documents) {
             if (doc.front_side) deleteFile(doc.front_side);
             if (doc.back_side) deleteFile(doc.back_side);
+            if (doc.guest_photo) deleteFile(doc.guest_photo);
         }
         
-        // Delete database records
         await connection.execute('DELETE FROM guest_document WHERE guest_id = ?', [id]);
         await connection.execute('DELETE FROM guest_master WHERE guest_id = ?', [id]);
         
@@ -704,13 +663,14 @@ exports.getDocuments = async (req, res) => {
             ORDER BY document_id DESC
         `, [guestId]);
         
-        // Add full URLs for images
         const docsWithUrls = documents.map(doc => ({
             ...doc,
             front_side_url: doc.front_side ? getFileUrl(req, doc.front_side) : null,
             back_side_url: doc.back_side ? getFileUrl(req, doc.back_side) : null,
+            guest_photo_url: doc.guest_photo ? getFileUrl(req, doc.guest_photo) : null,
             front_side: doc.front_side,
-            back_side: doc.back_side
+            back_side: doc.back_side,
+            guest_photo: doc.guest_photo
         }));
         
         res.json({ success: true, data: docsWithUrls });
@@ -735,7 +695,8 @@ exports.getDocument = async (req, res) => {
         const docWithUrls = {
             ...doc[0],
             front_side_url: doc[0].front_side ? getFileUrl(req, doc[0].front_side) : null,
-            back_side_url: doc[0].back_side ? getFileUrl(req, doc[0].back_side) : null
+            back_side_url: doc[0].back_side ? getFileUrl(req, doc[0].back_side) : null,
+            guest_photo_url: doc[0].guest_photo ? getFileUrl(req, doc[0].guest_photo) : null
         };
         
         res.json({ success: true, data: docWithUrls });
@@ -746,8 +707,6 @@ exports.getDocument = async (req, res) => {
 };
 
 exports.addDocument = async (req, res) => {
-    console.log('📸 Files received:', req.files);
-    console.log('📝 Body:', req.body);
     const connection = await db.getConnection();
     
     try {
@@ -756,7 +715,6 @@ exports.addDocument = async (req, res) => {
         const { guestId } = req.params;
         const { document_type, document_no } = req.body;
         
-        // Get uploaded files
         const frontFile = req.files?.front_side?.[0];
         const backFile = req.files?.back_side?.[0];
         
@@ -797,7 +755,8 @@ exports.addDocument = async (req, res) => {
         const newDocWithUrls = {
             ...newDoc[0],
             front_side_url: newDoc[0].front_side ? getFileUrl(req, newDoc[0].front_side) : null,
-            back_side_url: newDoc[0].back_side ? getFileUrl(req, newDoc[0].back_side) : null
+            back_side_url: newDoc[0].back_side ? getFileUrl(req, newDoc[0].back_side) : null,
+            guest_photo_url: newDoc[0].guest_photo ? getFileUrl(req, newDoc[0].guest_photo) : null
         };
         
         res.status(201).json({ success: true, data: newDocWithUrls });
@@ -878,7 +837,8 @@ exports.updateDocument = async (req, res) => {
         const updatedWithUrls = {
             ...updated[0],
             front_side_url: updated[0].front_side ? getFileUrl(req, updated[0].front_side) : null,
-            back_side_url: updated[0].back_side ? getFileUrl(req, updated[0].back_side) : null
+            back_side_url: updated[0].back_side ? getFileUrl(req, updated[0].back_side) : null,
+            guest_photo_url: updated[0].guest_photo ? getFileUrl(req, updated[0].guest_photo) : null
         };
         
         res.json({ success: true, data: updatedWithUrls });
@@ -911,6 +871,7 @@ exports.deleteDocument = async (req, res) => {
         
         if (existing[0].front_side) deleteFile(existing[0].front_side);
         if (existing[0].back_side) deleteFile(existing[0].back_side);
+        if (existing[0].guest_photo) deleteFile(existing[0].guest_photo);
         
         await connection.execute('DELETE FROM guest_document WHERE document_id = ? AND guest_id = ?', [id, guestId]);
         
@@ -920,6 +881,149 @@ exports.deleteDocument = async (req, res) => {
         await connection.rollback();
         console.error('Error deleting document:', error);
         res.status(500).json({ success: false, message: 'Failed to delete document', error: error.message });
+    } finally {
+        connection.release();
+    }
+};
+
+// ---------- Guest Photo Upload ----------
+exports.uploadGuestPhoto = async (req, res) => {
+    const connection = await db.getConnection();
+    
+    try {
+        await connection.beginTransaction();
+
+        const { guestId } = req.params;
+        const photoFile = req.file;
+        
+        if (!photoFile) {
+            await connection.rollback();
+            return res.status(400).json({ success: false, message: 'No photo file provided' });
+        }
+
+        const photoPath = photoFile.path.replace(/\\/g, '/');
+
+        const [guest] = await connection.execute(
+            'SELECT guest_id FROM guest_master WHERE guest_id = ?',
+            [guestId]
+        );
+        
+        if (!guest || guest.length === 0) {
+            deleteFile(photoPath);
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'Guest not found' });
+        }
+
+        // Check if a guest photo document already exists
+        const [existingPhoto] = await connection.execute(
+            'SELECT document_id, guest_photo FROM guest_document WHERE guest_id = ? AND document_type = ?',
+            [guestId, 'Guest Photo']
+        );
+        
+        let result;
+        if (existingPhoto && existingPhoto.length > 0) {
+            // Update existing photo
+            if (existingPhoto[0].guest_photo) {
+                deleteFile(existingPhoto[0].guest_photo);
+            }
+            await connection.execute(
+                'UPDATE guest_document SET guest_photo = ?, updated_at = NOW() WHERE document_id = ?',
+                [photoPath, existingPhoto[0].document_id]
+            );
+            result = { insertId: existingPhoto[0].document_id };
+        } else {
+            // Create new photo document
+            const [insertResult] = await connection.execute(`
+                INSERT INTO guest_document (guest_id, document_type, document_no, guest_photo, created_at)
+                VALUES (?, ?, ?, ?, NOW())
+            `, [guestId, 'Guest Photo', new Date().toISOString().slice(0, 19).replace(/:/g, '-'), photoPath]);
+            result = insertResult;
+        }
+
+        await connection.commit();
+
+        const [newDoc] = await connection.execute(
+            'SELECT * FROM guest_document WHERE document_id = ?',
+            [result.insertId]
+        );
+        
+        const docWithUrl = {
+            ...newDoc[0],
+            guest_photo_url: newDoc[0].guest_photo ? getFileUrl(req, newDoc[0].guest_photo) : null
+        };
+        
+        res.status(200).json({ success: true, data: docWithUrl, message: existingPhoto ? 'Photo updated successfully' : 'Photo uploaded successfully' });
+    } catch (error) {
+        if (req.file) deleteFile(req.file.path);
+        await connection.rollback();
+        console.error('Error uploading guest photo:', error);
+        res.status(500).json({ success: false, message: 'Failed to upload guest photo', error: error.message });
+    } finally {
+        connection.release();
+    }
+};
+
+// Get guest photo
+exports.getGuestPhoto = async (req, res) => {
+    try {
+        const { guestId } = req.params;
+        
+        const [documents] = await db.execute(
+            'SELECT guest_photo FROM guest_document WHERE guest_id = ? AND document_type = ?',
+            [guestId, 'Guest Photo']
+        );
+        
+        if (!documents || documents.length === 0 || !documents[0].guest_photo) {
+            return res.status(404).json({ success: false, message: 'Photo not found' });
+        }
+        
+        res.json({ 
+            success: true, 
+            data: { 
+                guest_photo: documents[0].guest_photo,
+                guest_photo_url: getFileUrl(req, documents[0].guest_photo)
+            } 
+        });
+    } catch (error) {
+        console.error('Error getting guest photo:', error);
+        res.status(500).json({ success: false, message: 'Database error' });
+    }
+};
+
+// Delete guest photo
+exports.deleteGuestPhoto = async (req, res) => {
+    const connection = await db.getConnection();
+    
+    try {
+        await connection.beginTransaction();
+
+        const { guestId } = req.params;
+
+        const [existing] = await connection.execute(
+            'SELECT document_id, guest_photo FROM guest_document WHERE guest_id = ? AND document_type = ?',
+            [guestId, 'Guest Photo']
+        );
+        
+        if (!existing || existing.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'Photo not found' });
+        }
+        
+        if (existing[0].guest_photo) {
+            deleteFile(existing[0].guest_photo);
+        }
+        
+        await connection.execute(
+            'DELETE FROM guest_document WHERE document_id = ?',
+            [existing[0].document_id]
+        );
+        
+        await connection.commit();
+        res.json({ success: true, message: 'Photo deleted successfully' });
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error deleting guest photo:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete photo', error: error.message });
     } finally {
         connection.release();
     }

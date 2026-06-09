@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Row, Col, Form, Button, Modal, Offcanvas, Dropdown, Tab, Tabs } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
-import TitleHelmet from '@/components/Common/TitleHelmet'
+import  TitleHelmet  from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
 import RoomService from '@/common/hotel/room'
 import RoomCategoryService from '@/common/hotel/roomCategoryService'
@@ -22,19 +22,15 @@ import ReservationRoomService from '@/common/hotel/reservationRooms'
 import AgentRoomCheckinService, { AgentRoomCheckin } from '@/common/hotel/agentRoomCheckin'
 import AdvanceTransactionService from '@/common/hotel/advanceTransaction'
 import CheckoutService, { CheckoutMaster } from '@/common/hotel/checkout'
-import CheckoutPaymentService from '@/common/hotel/checkoutPayment'
 import PostChargesModal from './PostChargesModal'
 import ReceiptAgainstBillsModal from './ReceiptAgainstBillsModal'
 import Advance from './Advance'
 import RoomStatusModal from './RoomStatusModal'
 import RoomStatusLogService, { RoomStatusLog } from '@/common/hotel/roomStatusLog'
-import SettlementModal from './SettelmentModel';
-import PaymentModeService from '@/common/api/outletpaymentmode'
-// ya jo bhi aapka payment modes service path hai
+import CheckoutBillModal from './CheckoutBillModal'
+import SettlementModal from './SettelmentModel'
+import OutletPaymentModeService from '@/common/api/outletpaymentmode'
 
-
-
-// Extend HotelUiSettings to include all color fields
 // Extend HotelUiSettings to include all color fields
 type ExtendedHotelSettings = HotelUiSettings & {
   color_maintenance?: string
@@ -79,20 +75,46 @@ const DEFAULT_STATUS_TEXT = {
 const DEFAULT_STATUS_BORDER = {
   available: '#9CA3AF',
   occupied: '#4ADE80',
-  cleaning: '#FACC15',  
+  cleaning: '#FACC15',
   reserved: '#38BDF8',
   maintenance: '#F87171',
   reservation: '#38BDF8',
 }
 
 // ==================== TYPE DEFINITIONS ====================
+
+/**
+ * Normalize the dynamic status_name coming from the room_status table
+ * into the internal RoomStatus enum used throughout this component.
+ *
+ * The DB returns whatever string was stored in room_status.status_name
+ * (e.g. "Available", "Dirty", "Occupied", "Blocked", "Maintenance",
+ * "Reservation", "Cleaning", etc.).  We map them case-insensitively
+ * to the five internal keys.
+ */
+const normalizeRoomStatus = (raw: string | undefined | null): RoomStatus => {
+  if (!raw) return 'available'
+  const s = raw.trim().toLowerCase()
+  if (s === 'occupied') return 'occupied'
+  if (s === 'cleaning' || s === 'dirty' || s === 'clean') return 'cleaning'
+  if (s === 'reserved' || s === 'blocked' || s === 'block') return 'reserved'
+  if (s === 'maintenance' || s === 'under maintenance') return 'maintenance'
+  if (s === 'reservation') return 'reservation'
+  // default → vacant/available
+  return 'available'
+}
+
 interface ApiRoom {
   room_id: number
   room_no: string
   room_name: string
   display_name?: string
   room_category_id: number
-  room_status: 'available' | 'occupied' | 'cleaning' |'bill' |'reserved' | 'maintenance' | 'reservation'
+  /** status_name string returned by the backend (joined from room_status table) */
+  room_status: string
+  /** FK to room_status table — present in updated backend response */
+  room_status_id?: number
+  status_color?: string
   floor_id: number
   block_id?: number
   hotelid: number
@@ -116,7 +138,7 @@ interface ApiCategory {
   service_charge?: number
 }
 
-type RoomStatus = 'available' | 'occupied' | 'cleaning'|'bill' | 'reserved' | 'maintenance' | 'reservation'
+type RoomStatus = 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
 type ViewMode = 'floor' | 'category'
 
 interface Room {
@@ -365,8 +387,6 @@ const calculateDayExtensionPriceForItem = (
   const totalTax = roomTaxAmount + exPaxTaxAmount + childTaxAmount + driverTaxAmount
   const totalPrice = roomTotal + exPaxTotal + childTotal + driverTotal
 
- 
-
   return {
     roomCharge: Number((roomTotal * extensionDays).toFixed(2)),
     exPaxCharge: Number((exPaxTotal * extensionDays).toFixed(2)),
@@ -404,6 +424,7 @@ const calculateDayExtensionPriceForItem = (
 // ==================== MAIN COMPONENT ====================
 const HotelBookingPanel = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuthContext()
   const hotelId = user?.hotelid
 
@@ -462,6 +483,10 @@ const HotelBookingPanel = () => {
   const [loadingOccupied, setLoadingOccupied] = useState(false)
   const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
 
+  // Rooms that have been checked out but room status not yet changed to dirty
+  // These show in both Occupied section (light blue) and Settlement section
+  const [settledRoomNos, setSettledRoomNos] = useState<Set<string>>(new Set())
+
   const [checkoutAlertData, setCheckoutAlertData] = useState<CheckoutAlertItem[]>([])
   const [loadingCheckoutAlert, setLoadingCheckoutAlert] = useState(false)
   const [errorCheckoutAlert, setErrorCheckoutAlert] = useState<string | null>(null)
@@ -474,7 +499,7 @@ const HotelBookingPanel = () => {
   const [loadingAtGlance, setLoadingAtGlance] = useState(false)
   const [errorAtGlance, setErrorAtGlance] = useState<string | null>(null)
   const [atGlanceFilter, setAtGlanceFilter] = useState<
-    'all' | 'available' | 'occupied' | 'cleaning' |'bill'| 'reserved' | 'maintenance'
+    'all' | 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance'
   >('all')
 
   const [showContextMenu, setShowContextMenu] = useState(false)
@@ -554,8 +579,41 @@ const HotelBookingPanel = () => {
     number: string
     category: string
     floor: string
-    status: 'available' | 'occupied' | 'cleaning' |'bill'| 'reserved' | 'maintenance' | 'reservation'
+    status: 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
   } | null>(null)
+
+  // ==================== SETTLEMENT CARD MODALS STATE ====================
+  // Print Bill Modal (CheckoutBillModal)
+  const [showSettlementBillModal, setShowSettlementBillModal] = useState(false)
+  const [settlementBillData, setSettlementBillData] = useState<{
+    combinedSummary: any
+    displayRows: any[]
+    grandTotal: number
+    billNumber: string
+    paymentMode: string
+  } | null>(null)
+  const [, setSettlementBillLoading] = useState(false)
+
+  // Hotel info state (needed for bill modal)
+  const [hotelAddress, setHotelAddress] = useState<string>('')
+  const [hotelPhone, setHotelPhone] = useState<string>('')
+  const [hotelEmail, setHotelEmail] = useState<string>('')
+  const [hotelWebsite, setHotelWebsite] = useState<string>('')
+  const [hotelGSTIN, setHotelGSTIN] = useState<string>('')
+  const [hotelFSSAI, setHotelFSSAI] = useState<string>('')
+  const [hotelPAN, setHotelPAN] = useState<string>('')
+
+  // Settlement Payment Modal (SettlementModal)
+  const [showSettlementPayModal, setShowSettlementPayModal] = useState(false)
+  const [settlementPayData, setSettlementPayData] = useState<{
+    guestName: string
+    guestid: number
+    roomNo: string
+    totalPrice: number
+    checkoutId: number
+  } | null>(null)
+  const [settlementPayLoading, setSettlementPayLoading] = useState(false)
+  const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([])
 
   // ==================== MULTI-ROOM STATUS MODAL STATE ====================
   const [showMultiRoomStatusModal, setShowMultiRoomStatusModal] = useState(false)
@@ -563,10 +621,6 @@ const HotelBookingPanel = () => {
   // ==================== ROOM STATUS LOGS STATE ====================
   const [roomStatusLogs, setRoomStatusLogs] = useState<RoomStatusLog[]>([])
 
-  // ==================== SETTLEMENT MODAL STATE ====================
-const [selectedCheckout, setSelectedCheckout] = useState<any>(null)
-const [showSettlementModal, setShowSettlementModal] = useState(false)
-const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; mode_name: string; outletid: number}>>([])
   // ==================== DIRTY / BLOCK / MAINT SUB-PANEL STATE ====================
   type HousekeepingTab = 'all' | 'dirty' | 'block' | 'maint' | null
   const [activeHousekeepingTab, setActiveHousekeepingTab] = useState<HousekeepingTab>(null)
@@ -579,11 +633,11 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
 
   // Context menu options
   const contextMenuOptions: ContextMenuOption[] = [
-    { label: 'AMENDMENTS', icon: 'fi fi-rr-document' },
-    { label: 'ADVANCE', icon: 'fi fi-rr-receipt' },
-    { label: 'POST CHARGES', icon: 'fi fi-rr-credit-card' },
-    { label: 'ALLOWANCCES', icon: 'fi fi-rr-gift' },
-    { label: 'RECEIPT AGAINST POSTED BILLS', icon: 'fi fi-rr-document' },
+    { label: 'Amendments', icon: 'fi fi-rr-document' },
+    { label: 'Advance', icon: 'fi fi-rr-receipt' },
+    { label: 'Post Charges', icon: 'fi fi-rr-credit-card' },
+    { label: 'Allowances', icon: 'fi fi-rr-gift' },
+    { label: 'Receipt Against Posted Bills', icon: 'fi fi-rr-document' },
   ]
 
   // ==================== DYNAMIC COLOR HELPER FUNCTIONS ====================
@@ -707,12 +761,37 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
           const response = await BrandService.getBrandById(String(hotelId))
           const hotelData = response?.data || response
           setHotelName(hotelData?.hotel_name || 'Hotel')
+          setHotelAddress(hotelData?.address || '')
+          setHotelPhone(hotelData?.phone || '')
+          setHotelEmail(hotelData?.email || '')
+          setHotelWebsite(hotelData?.website || '')
+          setHotelGSTIN(hotelData?.trn_gstno || '')
+          setHotelFSSAI(hotelData?.fssai_no || '')
+          setHotelPAN(hotelData?.panno || '')
         }
       } catch {
         setHotelName('Hotel')
       }
     }
     fetchHotelName()
+
+    // Fetch outlet payment modes for settlement
+    const fetchPaymentModes = async () => {
+      try {
+        const res = await OutletPaymentModeService.list({ outletid: hotelId })
+        if (res.success && res.data) {
+          setOutletPaymentModes(res.data)
+        }
+      } catch {
+        // default modes fallback
+        setOutletPaymentModes([
+          { id: 1, mode_name: 'Cash', outletid: 0 },
+          { id: 2, mode_name: 'Card', outletid: 0 },
+          { id: 3, mode_name: 'UPI', outletid: 0 },
+        ])
+      }
+    }
+    fetchPaymentModes()
   }, [hotelId, user])
 
   useEffect(() => {
@@ -761,20 +840,131 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
     fetchRoomStatusLogs()
     // Pre-load occupied rooms so tile clicks work without switching filters
     fetchOccupiedRooms()
+    // Pre-load checkout data so settled rooms appear in light blue in Occupied view
+    fetchCheckoutDataAndSyncSettled()
   }, [hotelId])
 
-  useEffect(() => {
-  if (!user?.outletid) return
-  const fetchPaymentModes = async () => {
+  // ==================== SETTLEMENT CARD HANDLERS ====================
+  const handleSettlementCardPrint = async (co: CheckoutMaster) => {
+    if (!hotelId) return
+    setSettlementBillLoading(true)
     try {
-      const res = await PaymentModeService.list({ outletid: user.outletid })
-      setOutletPaymentModes(res.data || [])
+      const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
+      const payType = paymentData.split('|')[0] || 'Cash'
+      const invoiceNo = paymentData.split('|')[1] || '-'
+      const totalAmt = Number(co.total_amount) || 0
+
+      // Build a minimal combinedSummary from checkout data
+      const combinedSummary = {
+        checkin_id: co.checkin_id || 0,
+        guest_id: 0,
+        guest_name: co.guest_name || '-',
+        room_numbers: [co.room_no || '-'],
+        room_categories: [],
+        converted_categories: [],
+        room_numbers_str: co.room_no || '-',
+        room_categories_str: '',
+        converted_categories_str: '',
+        total_room_tariff: totalAmt,
+        total_ex_pax_charge: 0,
+        total_child_paid_amount: 0,
+        total_driver_charge: 0,
+        total_tax_amount: 0,
+        total_amount: totalAmt,
+        total_days: 1,
+        total_adults: 0,
+        total_pax: 0,
+        total_ex_pax: 0,
+        total_child_paid: 0,
+        total_child_unpaid: 0,
+        total_driver: 0,
+        avg_discount_percent: 0,
+        avg_tax_percent: 0,
+        has_extensions: false,
+        extension_count: 0,
+        extension_days: 0,
+        payment_methods: [payType],
+        payment_method: payType,
+        charges_ids: [],
+        selected: true,
+        original_checkin_datetime: co.checkin_datetime || co.checkout_datetime || new Date().toISOString(),
+        final_checkout_datetime: co.checkout_datetime || co.checkout_date || new Date().toISOString(),
+        reg_no: invoiceNo,
+        booking_ref: invoiceNo,
+        plan_name: '',
+        checked_out_rooms: [co.room_no || '-'],
+      }
+
+      // Build a single summary display row from checkout data
+      const today = new Date().toISOString().split('T')[0]
+      const displayRow = {
+        id: `co-${co.checkout_id}`,
+        guest_room_charges_id: co.checkout_id,
+        checkin_id: co.checkin_id || 0,
+        guest_id: 0,
+        room_id: 0,
+        room_number: co.room_no || '-',
+        room_category_name: '',
+        converted_category_name: '',
+        bill_date: today,
+        bill_date_formatted: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '/'),
+        checkin_datetime: co.checkin_datetime || co.checkout_datetime || '',
+        checkout_datetime: co.checkout_datetime || co.checkout_date || '',
+        no_of_days: 1,
+        day_number: 1,
+        original_day_number: 1,
+        room_tariff_per_day: totalAmt,
+        total_room_tariff: totalAmt,
+        ex_pax_count: 0, ex_pax_price: 0, ex_pax_tax: 0, ex_pax_tax_percent: 0, ex_pax_total: 0,
+        child_count: 0, child_unpaid: 0, child_price: 0, child_tax: 0, child_tax_percent: 0, child_total: 0,
+        driver_count: 0, driver_price: 0, driver_tax: 0, driver_tax_percent: 0, driver_total: 0,
+        cgst_amount: 0, sgst_amount: 0, igst_amount: 0, cess_amount: 0, service_charge_amount: 0,
+        adults: 0, pax: 0, ex_pax: 0, child_paid: 0, driver: 0,
+        discount_percent: 0, discount_amount: 0, tax_percent: 0, tax_amount: 0,
+        total_amount: totalAmt,
+        is_extension: false,
+        isPostCharge: false,
+        selected: true,
+        cumulative_total: totalAmt,
+        guest_name: co.guest_name || '-',
+        payment_method: payType,
+        created_at: today,
+        has_checkout_datetime: true,
+        checkout_time_formatted: co.checkout_datetime || '',
+      }
+
+      setSettlementBillData({
+        combinedSummary,
+        displayRows: [displayRow],
+        grandTotal: totalAmt,
+        billNumber: invoiceNo,
+        paymentMode: payType,
+      })
+      setShowSettlementBillModal(true)
     } catch (err) {
-      console.error('Failed to fetch payment modes', err)
+      console.error('Failed to prepare bill data', err)
+      toast.error('Failed to load bill data')
+    } finally {
+      setSettlementBillLoading(false)
     }
   }
-  fetchPaymentModes()
-}, [user?.outletid])
+
+  const handleSettlementCardSettle = (co: CheckoutMaster) => {
+    const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
+    const payType = paymentData.split('|')[0] || 'Cash'
+    setSettlementPayData({
+      guestName: co.guest_name || '-',
+      roomNo: co.room_no || '-',
+      totalPrice: Number(co.total_amount) || 0,
+      checkoutId: co.checkout_id,
+      guestid: co.guest_id || 0,
+    })
+    // Pre-select the existing payment mode
+    const matchedMode = outletPaymentModes.find(
+      (m) => m.mode_name?.toLowerCase() === payType.toLowerCase()
+    )
+    setShowSettlementPayModal(true)
+  }
 
   const fetchRoomStatusLogs = async () => {
     if (!hotelId) return
@@ -1222,9 +1412,25 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
     }
   }
 
+  // Detect when returning from RoomDetailSummary after a successful checkout.
+  // Auto-open settlement section + mark the checked-out rooms as settled (light blue in occupied view).
   useEffect(() => {
-    if (statusFilter === 'occupied' && hotelId) fetchOccupiedRooms()
-  }, [statusFilter, hotelId])
+    const state = location.state as any
+    if (state?.checkoutSuccess && state?.checkedOutRooms?.length) {
+      const roomSet = new Set<string>(state.checkedOutRooms as string[])
+      setSettledRoomNos((prev) => new Set([...prev, ...roomSet]))
+      // Auto-open settlement section so user can see the checkout
+      setActiveSection('settlement')
+      setActiveHousekeepingTab(null)
+      setSelectedHousekeepingRoomIds([])
+      fetchCheckoutData()
+      // Clear the state so back-navigation doesn't re-trigger
+      window.history.replaceState({}, '')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+
 
   // Fetch today's checkouts
   const fetchTodayCheckouts = async () => {
@@ -1724,7 +1930,7 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
       id: apiRoom.room_id,
       number: apiRoom.room_no,
       category: categoryMap.get(apiRoom.room_category_id) || 'Uncategorized',
-      status: apiRoom.room_status,
+      status: normalizeRoomStatus(apiRoom.room_status),
       floor: floorMap.get(apiRoom.floor_id) || `Floor ${apiRoom.floor_id}`,
       floor_id: apiRoom.floor_id,
       room_category_id: apiRoom.room_category_id,
@@ -1759,9 +1965,7 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
     return {
       total: all.length,
       available: all.filter((r) => r.status === 'available').length,
-      occupied: all.filter(
-        (r) => r.status === 'occupied' || r.status === 'bill',
-      ).length,
+      occupied: all.filter((r) => r.status === 'occupied').length,
       cleaning: all.filter((r) => r.status === 'cleaning').length,
       reserved: all.filter((r) => r.status === 'reserved').length,
       maintenance: all.filter((r) => r.status === 'maintenance').length,
@@ -1771,18 +1975,8 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
 
   const roomsAfterStatus = useMemo(() => {
     if (statusFilter === 'all' || statusFilter === 'arrivals') return roomsAfterBasicFilters
-
-    // Special rule for OCCUPIED tab:
-    // include both 'occupied' and 'bill' rooms.
-    if (statusFilter === 'occupied') {
-      return roomsAfterBasicFilters.filter(
-        (room) => room.status === 'occupied' || room.status === 'bill',
-      )
-    }
-
     return roomsAfterBasicFilters.filter((room) => room.status === statusFilter)
   }, [roomsAfterBasicFilters, statusFilter])
-
 
   const groupedFloors: FloorGroup[] = useMemo(() => {
     const grouped = new Map<number, Room[]>()
@@ -1823,8 +2017,6 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
         return 'Occupied'
       case 'cleaning':
         return 'Cleaning'
-          case 'bill':
-        return 'bill'
       case 'reserved':
         return 'Reserved'
       case 'maintenance':
@@ -1903,13 +2095,11 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
     if (tileClickTimerRef.current) return
     tileClickTimerRef.current = setTimeout(() => {
       tileClickTimerRef.current = null
-      if (room.status === 'occupied' || room.status === 'bill') {
+      if (room.status === 'occupied') {
         const occupiedItem = occupiedRooms.find((item) => item.room_no === room.number)
         if (occupiedItem) {
           handleOccupiedRoomClick(occupiedItem)
         } else {
-          // BILL rooms may not exist inside occupiedRooms (built from active check-ins)
-          // but should still open the room details UI.
           setSelectedRoom(room)
           setShowRoomDetails(true)
         }
@@ -1969,10 +2159,14 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
     try {
       const payload = {
         ...selectedRoom.rawData,
+        // Keep room_status as the normalized key for legacy compatibility;
+        // the backend uses room_status_id which is preserved via rawData.
         room_status: newStatus,
         updated_by_id: user?.id,
       }
       await RoomService.update(roomId, payload)
+      // Update local state: store the normalized key so enrichedRooms
+      // (which calls normalizeRoomStatus) continues to work correctly.
       setRooms((prev) =>
         prev.map((r) => (r.room_id === roomId ? { ...r, room_status: newStatus } : r)),
       )
@@ -2313,19 +2507,43 @@ const [outletPaymentModes, setOutletPaymentModes] = useState<Array<{id: number; 
       setSelectedHousekeepingRoomIds([])
       // Fetch occupied rooms for pay type cross-reference
       if (occupiedRooms.length === 0) fetchOccupiedRooms()
-      // Always fetch fresh checkout data
-      fetchCheckoutData()
+      // Always fetch fresh checkout data and sync settled room nos
+      fetchCheckoutDataAndSyncSettled()
     }
   }
 
+  // ==================== fetchCheckoutDataAndSyncSettled - loads checkout data and syncs settledRoomNos ====================
+  const fetchCheckoutDataAndSyncSettled = async () => {
+    if (!hotelId) return
+    try {
+      const res = await CheckoutService.list({ hotelid: hotelId })
+      const data: CheckoutMaster[] = res.data || []
+      const payMap = new Map<number, string>()
+      data.forEach((co) => {
+        const paymentMethod = co.payment_mode || 'Cash'
+        const billNo = co.ldg_bill_no || '-'
+        payMap.set(co.checkout_id, `${paymentMethod}|${billNo}`)
+      })
+      data.sort((a, b) => {
+        const invA = a.ldg_bill_no || ''
+        const invB = b.ldg_bill_no || ''
+        const numA = parseInt(invA.replace(/\D/g, '')) || 0
+        const numB = parseInt(invB.replace(/\D/g, '')) || 0
+        return numA - numB
+      })
+      setCheckoutData(data)
+      setCheckoutPaymentMap(new Map(payMap))
+      // Populate settledRoomNos so that these rooms show as light blue in Occupied section
+      const roomNos = new Set(data.map((co) => co.room_no).filter(Boolean) as string[])
+      if (roomNos.size > 0) {
+        setSettledRoomNos(roomNos)
+      }
+    } catch (err) {
+      console.error('Failed to fetch checkout data for sync', err)
+    }
+  }
 
-const handleViewChange = () => {
-  setViewMode((prev) =>
-    prev === 'floor' ? 'category' : 'floor'
-  );
-};
-
-  // ==================== UPDATED fetchCheckoutData FUNCTION - SORT BY INVOICE NUMBER ASCENDING ====================
+  // ==================== fetchCheckoutData - reads payment info directly from Checkout_Master ====================
   const fetchCheckoutData = async () => {
     if (!hotelId) return
     setLoadingCheckoutData(true)
@@ -2333,40 +2551,19 @@ const handleViewChange = () => {
       const res = await CheckoutService.list({ hotelid: hotelId })
       const data: CheckoutMaster[] = res.data || []
 
-      // First fetch payment data to get invoice numbers
-      const payMap = new Map<number, string>() // store "payment_method|invoice_no"
-      const invoiceMap = new Map<number, string>() // store invoice_no for sorting
+      // Build payMap directly from Checkout_Master fields (payment_mode + ldg_bill_no)
+      // Format: "payment_method|ldg_bill_no"
+      const payMap = new Map<number, string>()
+      data.forEach((co) => {
+        const paymentMethod = co.payment_mode || 'Cash'
+        const billNo = co.ldg_bill_no || co.ldg_bill_no || '-'
+        payMap.set(co.checkout_id, `${paymentMethod}|${billNo}`)
+      })
 
-      await Promise.all(
-        data.map(async (co) => {
-          try {
-            const payRes = await CheckoutPaymentService.getByCheckoutId(co.checkout_id)
-            const payments = payRes.data || []
-            if (Array.isArray(payments) && payments.length > 0) {
-              const payment = payments[0]
-              const paymentMethod = payment.payment_method || 'Cash'
-              const invoiceNo = payment.invoice_no || '-'
-              payMap.set(co.checkout_id, `${paymentMethod}|${invoiceNo}`)
-              invoiceMap.set(co.checkout_id, invoiceNo)
-            } else if (payments && !Array.isArray(payments)) {
-              const payment = payments as any
-              const paymentMethod = payment.payment_method || 'Cash'
-              const invoiceNo = payment.invoice_no || '-'
-              payMap.set(co.checkout_id, `${paymentMethod}|${invoiceNo}`)
-              invoiceMap.set(co.checkout_id, invoiceNo)
-            }
-          } catch {
-            // payment fetch failed for this checkout — leave as undefined
-            invoiceMap.set(co.checkout_id, `INV-${co.checkout_id}`)
-          }
-        }),
-      )
-
-      // Sort by invoice number ascending (0001, 0002, 0003)
+      // Sort by ldg_bill_no / ldg_bill_no ascending (0001, 0002, 0003)
       data.sort((a, b) => {
-        const invA = invoiceMap.get(a.checkout_id) || ''
-        const invB = invoiceMap.get(b.checkout_id) || ''
-        // Extract numeric part for proper numeric sorting
+        const invA = a.ldg_bill_no || a.ldg_bill_no || ''
+        const invB = b.ldg_bill_no || b.ldg_bill_no || ''
         const numA = parseInt(invA.replace(/\D/g, '')) || 0
         const numB = parseInt(invB.replace(/\D/g, '')) || 0
         return numA - numB
@@ -2656,8 +2853,8 @@ const handleViewChange = () => {
           body { font-family: Arial, sans-serif; margin: 20px; }
           .report-header { margin-bottom: 20px; }
           .hotel-name-row { font-size: 18px; font-weight: bold; margin-bottom: 8px; }
-          .report-subheader { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 14px; color: #ffefef; }
-          .at-glance-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+          .report-subheader { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 14px; color: #555; }
+          .at-glance-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
           .at-glance-table th, .at-glance-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
           .at-glance-table th { background-color: #f2f2f2; }
         </style>
@@ -2696,8 +2893,8 @@ const handleViewChange = () => {
           --color-reserved: ${getStatusBgColor('reserved')};
           --color-maintenance: ${getStatusBgColor('maintenance')};
         }
-        .at-glance-table { width: 100%; border-collapse: collapse; font-size: 1rem; }
-        .at-glance-table th, .at-glance-table td { border: 1px solid #3d5eac; padding: 4px; text-align: left; }
+        .at-glance-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+        .at-glance-table th, .at-glance-table td { border: 1px solid #ccc; padding: 4px; text-align: left; }
         .at-glance-table thead tr { background-color: #dfdfdf; }
         .at-glance-table tfoot tr { background-color: #f8f9fa; }
         .report-header { margin-bottom: 20px; }
@@ -2718,7 +2915,7 @@ const handleViewChange = () => {
       wrapper.appendChild(headerDiv)
       const tableClone = table.cloneNode(true) as HTMLElement
       tableClone.querySelectorAll('thead tr, tfoot tr').forEach((el) => {
-        (el as HTMLElement).style.position = 'static'
+        ;(el as HTMLElement).style.position = 'static'
       })
       wrapper.appendChild(tableClone)
       document.body.appendChild(wrapper)
@@ -3246,6 +3443,7 @@ const handleViewChange = () => {
           100% { opacity: 1; transform: scale(1); }
         }
         .checkout-soon-badge { display: inline-block; background-color: #ff0000; color: #fff; font-weight: bold; font-size: 0.65rem; text-align: center; border-radius: 2px; padding: 1px 4px; margin-top: 4px; animation: pulseBadge 1s infinite; }
+        .occupied-tile-settled { cursor: default !important; }
 
         /* === TABLES === */
         .checkout-table, .at-glance-table, .reserv-section-table { width: 100%; border-collapse: collapse; font-size: 0.70rem; }
@@ -3349,19 +3547,19 @@ const handleViewChange = () => {
                     variant={statusFilter === 'all' ? 'dark' : 'outline-dark'}
                     onClick={() => handleStatusFilterClick('all')}
                     className="fw-semibold px-3 same-btn">
-                    <i className="fi fi-rr-apps me-1"></i>ALL [{stats.total}]
+                    <i className="fi fi-rr-apps me-1"></i>All [{stats.total}]
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => handleStatusFilterClick('available')}
                     className={`fw-semibold px-3 same-btn ${statusFilter === 'available' ? 'btn-status-available' : 'btn-outline-status-available'}`}>
-                    <i className="fi fi-rr-bed-empty me-1"></i>VACCOUNT[{stats.available}]
+                    <i className="fi fi-rr-bed-empty me-1"></i>Vacant [{stats.available}]
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => handleStatusFilterClick('occupied')}
-                    className={`fw-semibold px-3 same-btn ${ statusFilter === 'occupied' || statusFilter === 'bill'? 'btn-status-occupied': 'btn-outline-status-occupied'}`}>
-                    <i className="fi fi-rr-user me-1"></i>OCCUPIED [{stats.occupied}]
+                    className={`fw-semibold px-3 same-btn ${statusFilter === 'occupied' ? 'btn-status-occupied' : 'btn-outline-status-occupied'}`}>
+                    <i className="fi fi-rr-user me-1"></i>Occupied [{stats.occupied + checkoutData.filter(co => !occupiedRooms.some(o => o.room_no === co.room_no) && co.room_no).length}]
                   </Button>
                   <Button
                     size="sm"
@@ -3377,7 +3575,7 @@ const handleViewChange = () => {
                       }
                     }}
                     className={`fw-semibold px-3 same-btn ${activeHousekeepingTab ? 'btn-status-cleaning' : 'btn-outline-status-cleaning'}`}>
-                    <i className="fi fi-rr-lock me-1"></i>BLOCK
+                    <i className="fi fi-rr-lock me-1"></i>Block
                   </Button>
                   <Button
                     size="sm"
@@ -3397,21 +3595,21 @@ const handleViewChange = () => {
                     }
                     onClick={handleReservSectionClick}
                     className="fw-semibold px-3 same-btn">
-                    <i className="fi fi-rr-calendar me-1"></i>RESERVATION
+                    <i className="fi fi-rr-calendar me-1"></i> Reservation
                   </Button>
                   <Button
                     size="sm"
                     variant={showArrivalSection ? 'info' : 'outline-info'}
                     onClick={handleArrivalSectionClick}
                     className="fw-semibold px-3 same-btn text-nowrap">
-                    <i className="fi fi-rr-plane-arrival me-1"></i>ARRIVALS
+                    <i className="fi fi-rr-plane-arrival me-1"></i>Arrivals
                   </Button>
                   <Button
                     size="sm"
                     variant={showSettlementSection ? 'success' : 'outline-success'}
                     className="fw-semibold px-3 same-btn"
                     onClick={handleSettlementClick}>
-                    <i className="fi fi-rr-money-check me-1"></i>SETTLEMENT
+                    <i className="fi fi-rr-money-check me-1"></i>Settlement
                   </Button>
                   <Button
                     size="sm"
@@ -3427,7 +3625,7 @@ const handleViewChange = () => {
                     variant="outline-primary"
                     className="fw-semibold text-nowrap px-3"
                     onClick={handleAtGlanceClick}>
-                    AT GLANCE
+                    At Glance
                   </Button>
                   <Button
                     size="sm"
@@ -3448,17 +3646,15 @@ const handleViewChange = () => {
                 </div>
               </div>
               <div className="d-flex gap-2 flex-wrap align-items-center">
-               
-                    <Button
-      size="sm"
-      variant="primary"
-      className="same-btn"
-      onClick={handleViewChange}
-    >
-      <i className="fi fi-rr-apps me-1"></i>
-      {viewMode === 'floor' ? ' ' : ''}
-    </Button>
-    
+                <Button
+  size="sm"
+  variant={viewMode === 'floor' ? 'danger' : 'primary'}
+  onClick={() => setViewMode(viewMode === 'floor' ? 'category' : 'floor')}
+  title={viewMode === 'floor' ? 'Switch to Category View' : 'Switch to Floor View'}
+  className="same-btn d-flex align-items-center justify-content-center"
+>
+  <i className={viewMode === 'floor' ? 'fi fi-rr-building' : 'fi fi-rr-apps'}></i>
+</Button>
                 <Button
                   size="sm"
                   variant="outline-success"
@@ -4025,7 +4221,7 @@ const handleViewChange = () => {
             style={{ width: '100%' }}>
             {activeHousekeepingTab ? // Housekeeping panel is in the header — content area is intentionally empty
             null : showAtGlanceTable ? (
-              <div className="at-glance-container d-flex flex-column h-100">
+              <div className="at-glance-container d-flex flex-column">
                 <div className="mb-3">
                   <div className="d-flex justify-content-end align-items-center flex-wrap">
                     <div className="d-flex align-items-center gap-2">
@@ -4226,278 +4422,409 @@ const handleViewChange = () => {
                 </div>
               </div>
             ) : showSettlementSection ? (
-             /* ==================== SETTLEMENT SECTION — CHECKED OUT CARDS ONLY ==================== */
-<div
-  key="settlement-section"
-  className="d-flex flex-column h-100"
-  style={{ padding: '0px 8px', width: '100%' }}>
-
-  {/* ---- CHECKED OUT CARDS ---- */}
-  <>
-    {loadingCheckoutData ? (
-      <div className="d-flex justify-content-center py-5">
-        <div className="spinner-border text-success" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    ) : checkoutData.length === 0 ? (
-      <div className="text-center py-5">
-        <i className="fi fi-rr-sign-out-alt text-muted fs-4 mb-3 d-block"></i>
-        <p className="text-muted mb-0">No checkout records found.</p>
-      </div>
-    ) : (
-      <div
-        className="flex-grow-1"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-          gap: '6px',
-          alignContent: 'start',
-          overflowY: 'auto',
-        }}>
-
-        {checkoutData.map((co) => {
-          const totalAmt = Number(co.total_amount) || 0
-          const checkoutDateDisplay = co.checkout_datetime
-            ? formatDateTime(co.checkout_datetime)
-            : co.checkout_date
-              ? formatDateTime(co.checkout_date)
-              : '-'
-          const headerBg = '#198754'
-          const isPartial = co.is_partial_checkout === 1
-
-          const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
-          const payType = paymentData.split('|')[0] || 'Cash'
-          const invoiceNo = paymentData.split('|')[1] || '-'
-
-          return (
-            <div
-              key={co.checkout_id}
-              style={{
-                borderRadius: 0,
-                overflow: 'hidden',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.10)',
-                border: `1.5px solid ${headerBg}30`,
-                background: '#fff',
-                cursor: 'default',
-                transition: 'box-shadow 0.18s, transform 0.12s',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 22px rgba(0,0,0,0.16)'
-                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(0,0,0,0.10)'
-                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
-              }}>
-
-              {/* ── Card Header ── */}
+              /* ==================== SETTLEMENT SECTION — CHECKED OUT CARDS ONLY ==================== */
               <div
-                style={{
-                  background: headerBg,
-                  padding: '4px 8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}>
-                <span
-                  style={{
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: '0.75rem',
-                    letterSpacing: 0.5,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}>
-                  Invoice: {invoiceNo}
-                  {isPartial && (
-                    <span style={{ fontSize: '0.6rem', marginLeft: 4, opacity: 0.85 }}>
-                      (Partial)
-                    </span>
-                  )}
-                </span>
-              </div>
+                key="settlement-section"
+                className="d-flex flex-column "
+                style={{ padding: '0px 8px', width: '100%' }}>
 
-              {/* ── Card Body ── */}
-              <div
-                style={{
-                  padding: '8px 10px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 5,
-                  flexGrow: 1,
-                }}>
-
-                {/* Guest Name */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span
-                    style={{
-                      width: 18, height: 18, borderRadius: '50%',
-                      background: `${headerBg}18`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                    <i className="fi fi-rr-user" style={{ fontSize: '0.6rem', color: headerBg }} />
-                  </span>
-                  <div
-                    style={{
-                      fontWeight: 600, fontSize: '0.68rem', color: '#222',
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      minWidth: 0,
-                    }}>
-                    {co.guest_name || '-'}
-                  </div>
-                </div>
-
-                <div style={{ height: 1, background: '#f0f0f0' }} />
-
-                {/* Checkout Date */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span
-                    style={{
-                      width: 18, height: 18, borderRadius: '50%',
-                      background: '#f3f4f6',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                    <i className="fi fi-rr-sign-out-alt" style={{ fontSize: '0.6rem', color: '#555' }} />
-                  </span>
-                  <div style={{ fontWeight: 500, fontSize: '0.65rem', color: '#333', minWidth: 0 }}>
-                    {checkoutDateDisplay}
-                  </div>
-                </div>
-
-                {/* Pay Type + Total Amount */}
-                <div
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    gap: 8, borderTop: '1px solid #f0f0f0', paddingTop: 4,
-                  }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                    <span
-                      style={{
-                        width: 18, height: 18, borderRadius: '50%',
-                        background: '#f3f4f6',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
+                {/* ---- SETTLED (PENDING DIRTY) OCCUPIED TILES — shown when rooms were just checked out ---- */}
+                {settledRoomNos.size > 0 && (() => {
+                  const settledItems = occupiedRooms.filter((item) => settledRoomNos.has(item.room_no))
+                  if (settledItems.length === 0) return null
+                  return (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: 6,
+                        padding: '4px 2px',
+                        borderBottom: '2px solid #ADD8E6',
                       }}>
-                      <i className="fi fi-rr-credit-card" style={{ fontSize: '0.6rem', color: '#555' }} />
-                    </span>
-                    <div
-                      style={{
-                        fontWeight: 500, fontSize: '0.68rem', color: '#333',
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{
+                            background: '#ADD8E6',
+                            color: '#1a4f6e',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            borderRadius: 4,
+                            padding: '2px 10px',
+                          }}>
+                            <i className="fi fi-rr-check-circle me-1"></i>
+                            Settlement Pending — Room Status Change Required
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: '#555' }}>
+                            ({settledItems.length} room{settledItems.length !== 1 ? 's' : ''} checked out — move to Dirty when ready)
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline-secondary"
+                          style={{ fontSize: '0.7rem', padding: '2px 8px' }}
+                          onClick={() => setSettledRoomNos(new Set())}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                        gap: '6px',
                       }}>
-                      {payType}
+                        {settledItems.map((item) => {
+                          return (
+                            <div
+                              key={`settled-${item.checkin_id}-${item.room_no}`}
+                              className="occupied-tile occupied-tile-settled"
+                              style={{ border: '2px solid #5ba3c9', cursor: 'default' }}
+                            >
+                              <div
+                                className="occupied-header"
+                                style={{ backgroundColor: '#5ba3c9', color: '#fff' }}>
+                                {item.room_no} {item.guest_name}
+                               
+                              </div>
+                              <div
+                                className="occupied-body"
+                                style={{ backgroundColor: '#ADD8E6', color: '#1a4f6e' }}>
+                                <div>IN : {formatDateTime(item.checkin_datetime)}</div>
+                                <div>OUT : {formatDateTime(item.checkout_datetime)}</div>
+                                <div style={{ fontSize: '0.6rem', fontWeight: 600, color: '#0d4f6e', marginTop: 2 }}>
+                                  ✅ Checked Out — Pending Room Status
+                                </div>
+                                <div
+                                  className="charges-line"
+                                  style={{ marginTop: 2 }}>
+                                  <span style={{ color: '#1a4f6e', fontWeight: 600 }}>
+                                    {formatAmount(item.net_room_amount ?? item.total_charge)}
+                                  </span>
+                                  <span style={{ color: '#1a4f6e', fontWeight: 700 }}>
+                                    {formatAmount(item.total_all_rooms_net ?? item.total_charge)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
-                  <span
-                    style={{
-                      fontWeight: 700, fontSize: '0.72rem',
-                      color: '#198754', letterSpacing: 0.2, flexShrink: 0,
-                    }}>
-                    {formatAmount(totalAmt)}
-                  </span>
-                </div>
+                  )
+                })()}
+
+                {/* ---- CHECKED OUT CARDS ---- */}
+                <>
+                  {loadingCheckoutData ? (
+                    <div className="d-flex justify-content-center py-5">
+                      <div className="spinner-border text-success" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                    </div>
+                  ) : checkoutData.length === 0 ? (
+                    <div className="text-center py-5">
+                      <i className="fi fi-rr-sign-out-alt text-muted fs-4 mb-3 d-block"></i>
+                      <p className="text-muted mb-0">No checkout records found.</p>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex-grow-1"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                        gap: '6px',
+                        alignContent: 'start',
+                        overflowY: 'auto',
+                      }}>
+                      {checkoutData.map((co) => {
+                        const totalAmt = Number(co.total_amount) || 0
+                        const checkoutDateDisplay = co.checkout_datetime
+                          ? formatDateTime(co.checkout_datetime)
+                          : co.checkout_date
+                            ? formatDateTime(co.checkout_date)
+                            : '-'
+                        const headerBg = '#198754' // green for checked-out
+                        const isPartial = co.is_partial_checkout === 1
+
+                        // Get payment_method and bill number directly from Checkout_Master
+                        // Format: "payment_method|ldg_bill_no"
+                        const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
+                        const payType = paymentData.split('|')[0] || 'Cash'
+                        const invoiceNo = paymentData.split('|')[1] || '-'
+
+                        return (
+                          <div
+                            key={co.checkout_id}
+                            style={{
+                              borderRadius: 0,
+                              overflow: 'hidden',
+                              boxShadow: '0 2px 10px rgba(0,0,0,0.10)',
+                              border: `1.5px solid ${headerBg}30`,
+                              background: '#fff',
+                              cursor: 'default',
+                              transition: 'box-shadow 0.18s, transform 0.12s',
+                            }}
+                            onMouseEnter={(e) => {
+                              ;(e.currentTarget as HTMLElement).style.boxShadow =
+                                '0 6px 22px rgba(0,0,0,0.16)'
+                              ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
+                            }}
+                            onMouseLeave={(e) => {
+                              ;(e.currentTarget as HTMLElement).style.boxShadow =
+                                '0 2px 10px rgba(0,0,0,0.10)'
+                              ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
+                            }}>
+                            {/* Card header - Invoice No + Room No on same row */}
+                            <div
+                              style={{
+                                background: headerBg,
+                                padding: '3px 6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 4,
+                              }}>
+                              <span
+                                style={{
+                                  color: '#fff',
+                                  fontWeight: 700,
+                                  fontSize: '0.72rem',
+                                  letterSpacing: 0.3,
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  flex: 1,
+                                }}>
+                                Bill: {invoiceNo}
+                                {isPartial && (
+                                  <span
+                                    style={{ fontSize: '0.58rem', marginLeft: 3, opacity: 0.85 }}>
+                                    (Partial)
+                                  </span>
+                                )}
+                              </span>
+                              <span
+                                style={{
+                                  color: '#fff',
+                                  fontWeight: 700,
+                                  fontSize: '0.72rem',
+                                  letterSpacing: 0.3,
+                                  whiteSpace: 'nowrap',
+                                  flexShrink: 0,
+                                  borderLeft: '1px solid rgba(255,255,255,0.4)',
+                                  paddingLeft: 6,
+                                }}>
+                                Rm: {co.room_no || '-'}
+                              </span>
+                            </div>
+
+                            {/* Card body */}
+                            <div
+                              style={{
+                                padding: '8px 10px 10px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 5,
+                              }}>
+                              {/* Guest Name */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <span
+                                  style={{
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: '50%',
+                                    background: `${headerBg}18`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                  }}>
+                                  <i
+                                    className="fi fi-rr-user"
+                                    style={{ fontSize: '0.6rem', color: headerBg }}></i>
+                                </span>
+                                <div
+                                  style={{
+                                    fontWeight: 600,
+                                    fontSize: '0.68rem',
+                                    color: '#222',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    minWidth: 0,
+                                  }}>
+                                  {co.guest_name || '-'}
+                                </div>
+                              </div>
+
+                              <div style={{ height: 1, background: '#f0f0f0' }} />
+
+                              {/* Checkout Date */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <span
+                                  style={{
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: '50%',
+                                    background: '#f3f4f6',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                  }}>
+                                  <i
+                                    className="fi fi-rr-sign-out-alt"
+                                    style={{ fontSize: '0.6rem', color: '#555' }}></i>
+                                </span>
+                                <div
+                                  style={{
+                                    fontWeight: 500,
+                                    fontSize: '0.65rem',
+                                    color: '#333',
+                                    minWidth: 0,
+                                  }}>
+                                  {checkoutDateDisplay}
+                                </div>
+                              </div>
+
+                              {/* Pay Type + Total Amount */}
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: 8,
+                                  borderTop: '1px solid #f0f0f0',
+                                  paddingTop: 4,
+                                }}>
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    minWidth: 0,
+                                  }}>
+                                  <span
+                                    style={{
+                                      width: 18,
+                                      height: 18,
+                                      borderRadius: '50%',
+                                      background: '#f3f4f6',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      flexShrink: 0,
+                                    }}>
+                                    <i
+                                      className="fi fi-rr-credit-card"
+                                      style={{ fontSize: '0.6rem', color: '#555' }}></i>
+                                  </span>
+                                  <div
+                                    style={{
+                                      fontWeight: 500,
+                                      fontSize: '0.68rem',
+                                      color: '#333',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                    }}>
+                                    {payType}
+                                  </div>
+                                </div>
+                                <span
+                                  style={{
+                                    fontWeight: 700,
+                                    fontSize: '0.72rem',
+                                    color: '#198754',
+                                    letterSpacing: 0.2,
+                                    flexShrink: 0,
+                                  }}>
+                                  {formatAmount(totalAmt)}
+                                </span>
+                              </div>
+
+                              {/* Print + Settlement buttons */}
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  gap: 4,
+                                  marginTop: 0,
+                                  borderTop: '1px solid #f0f0f0',
+                                  paddingTop: 3,
+                                }}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleSettlementCardPrint(co)
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    height: 26,
+                                    border: '1px solid #0d6efd',
+                                    background: '#fff',
+                                    color: '#0d6efd',
+                                    fontWeight: 600,
+                                    fontSize: '0.65rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 3,
+                                    transition: 'background 0.15s',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    ;(e.currentTarget as HTMLElement).style.background = '#e7f0ff'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    ;(e.currentTarget as HTMLElement).style.background = '#fff'
+                                  }}
+                                  title="Print invoice">
+                                  <i className="fi fi-rr-print" style={{ fontSize: '0.65rem' }}></i>
+                                  Print
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleSettlementCardSettle(co)
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    height: 26,
+                                    border: '1px solid #198754',
+                                    background: '#fff',
+                                    color: '#198754',
+                                    fontWeight: 600,
+                                    fontSize: '0.65rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 3,
+                                    transition: 'background 0.15s',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    ;(e.currentTarget as HTMLElement).style.background = '#e6f4ed'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    ;(e.currentTarget as HTMLElement).style.background = '#fff'
+                                  }}
+                                  title="Settlement">
+                                  <i className="fi fi-rr-money-check" style={{ fontSize: '0.65rem' }}></i>
+                                  Settlement
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
               </div>
-
-              {/* ── Card Footer — Print & Settle ── */}
-              <div
-                style={{
-                  display: 'flex',
-                  borderTop: `1px solid ${headerBg}25`,
-                }}>
-                {/* Print Button */}
-                <button
-                  onClick={() => handlePrint()}
-                  style={{
-                    flex: 1,
-                    padding: '5px 0',
-                    border: 'none',
-                    borderRight: `1px solid ${headerBg}25`,
-                    background: '#f8f9fa',
-                    color: '#555',
-                    fontSize: '0.65rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 3,
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#e9ecef')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = '#f8f9fa')}>
-                  <i className="fi fi-rr-print" style={{ fontSize: '0.6rem' }} />
-                 
-                </button>
-
-                {/* Settle Button */}
-                <button
-  onClick={() => {
-    setSelectedCheckout(co)
-    setShowSettlementModal(true)
-  }}
-  style={{
-    flex: 1,
-    padding: '5px 0',
-    border: 'none',
-    background: headerBg,
-    color: '#fff',
-    fontSize: '0.65rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-  }}>
-  <i className="fi fi-rr-wallet" style={{ fontSize: '0.7rem' }} />
-  
-</button>
-              </div>
-
-            </div>
-          )
-        })}
-      </div>
-    )}
-  </>
-
-  {/* ── Settlement Modal ── */}
-{selectedCheckout && (
-  <SettlementModal
-  show={showSettlementModal}
-  onHide={() => {
-    setShowSettlementModal(false)
-    setSelectedCheckout(null)
-  }}
-  onSettle={async (settlements, tip) => {
-    console.log('Settling:', selectedCheckout.checkout_id, settlements, tip)
-    setShowSettlementModal(false)
-    setSelectedCheckout(null)
-  }}
-  grandTotal={Number(selectedCheckout.total_amount) || 0}
-  subtotal={Number(selectedCheckout.total_amount) || 0}
-  loading={false}
-  outletPaymentModes={outletPaymentModes}
-  selectedOutletId={user?.outletid}  
-  table_name={selectedCheckout.room_no || selectedCheckout.table_name || ''}
-  initialCustomerName={selectedCheckout.guest_name || ''}
-  initialMobile={selectedCheckout.mobile || ''}
-  initialCustomerId={selectedCheckout.customer_id || null}
-/>
-)}
-
-</div>
             ) : showReservSection ? (
               /* ==================== RESERV SECTION ==================== */
               <div
                 key="reserv-section"
-                className="checkout-table-container d-flex flex-column h-100"
+                className="checkout-table-container d-flex flex-column "
                 style={{ width: '100%' }}>
                 <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                   <h6 className="mb-0 fw-bold">
@@ -4610,7 +4937,7 @@ const handleViewChange = () => {
               /* ==================== ARRIVAL SECTION ==================== */
               <div
                 key="arrival-section"
-                className="checkout-table-container d-flex flex-column h-100"
+                className="checkout-table-container d-flex flex-column "
                 style={{ width: '100%' }}>
                 <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                   <h6 className="mb-0 fw-bold">
@@ -4722,7 +5049,7 @@ const handleViewChange = () => {
             ) : showCheckoutAlertTable ? (
               <div
                 key="checkout-section"
-                className="checkout-table-container d-flex flex-column h-100"
+                className="checkout-table-container d-flex flex-column "
                 style={{ width: '100%' }}>
                 <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                   <h6 className="mb-0 fw-bold">
@@ -4845,7 +5172,7 @@ const handleViewChange = () => {
               </div>
             ) : statusFilter === 'occupied' ? (
               loadingOccupied && occupiedRooms.length === 0 ? (
-                <div className="d-flex justify-content-center align-items-center h-100">
+                <div className="d-flex justify-content-center align-items-center">
                   <div className="spinner-border text-primary" role="status">
                     <span className="visually-hidden">Loading occupied rooms...</span>
                   </div>
@@ -4861,7 +5188,7 @@ const handleViewChange = () => {
                     Retry
                   </Button>
                 </div>
-              ) : occupiedRooms.length === 0 ? (
+              ) : occupiedRooms.length === 0 && checkoutData.filter(co => settledRoomNos.has(co.room_no || '')).length === 0 ? (
                 <div className="text-center py-5">
                   <i className="fi fi-rr-bed-empty text-muted fs-4 mb-4 d-block"></i>
                   <p className="text-muted mb-0">No occupied rooms found.</p>
@@ -4880,7 +5207,10 @@ const handleViewChange = () => {
                     const minutesLeft = getMinutesLeft(item.checkout_datetime)
                     const isNear = minutesLeft <= 30 && minutesLeft > 0
                     const isExpired = minutesLeft <= 0
-                    const tileStyle = getOccupiedTileStyle(minutesLeft, isExpired)
+                    const isSettled = settledRoomNos.has(item.room_no)
+                    const tileStyle = isSettled
+                      ? { backgroundColor: '#ADD8E6', color: '#1a4f6e' }
+                      : getOccupiedTileStyle(minutesLeft, isExpired)
                     const perDayPrice = item.per_day_base_price || 0
                     const roomChargesTotal = item.guest_room_charges_total || 0
                     const isMultiRoom = item.is_multi_room_checkin === true
@@ -4908,11 +5238,11 @@ const handleViewChange = () => {
                     return (
                       <div
                         key={`${item.checkin_id}-${item.room_no}`}
-                        className={`occupied-tile ${isNear ? 'occupied-tile-checkout-near' : ''} ${isExpired ? 'occupied-tile-expired' : ''}`}
+                        className={`occupied-tile ${isNear && !isSettled ? 'occupied-tile-checkout-near' : ''} ${isExpired && !isSettled ? 'occupied-tile-expired' : ''} ${isSettled ? 'occupied-tile-settled' : ''}`}
                         onClick={() => handleOccupiedRoomClick(item)}
                         onContextMenu={(e) => handleContextMenu(e, item)}
                         style={{
-                          border: `2px solid ${isExpired ? uiSettings.occupied_expired_bg : isNear ? uiSettings.occupied_warning_bg : getStatusBorderColor('occupied')}`,
+                          border: `2px solid ${isSettled ? '#5ba3c9' : isExpired ? uiSettings.occupied_expired_bg : isNear ? uiSettings.occupied_warning_bg : getStatusBorderColor('occupied')}`,
                         }}
                         title={(() => {
                           const advMsg = hasAdvance
@@ -4925,8 +5255,20 @@ const handleViewChange = () => {
                         })()}>
                         <div
                           className="occupied-header"
-                          style={{ backgroundColor: '#000000', color: '#ffffff' }}>
+                          style={{ backgroundColor: isSettled ? '#5ba3c9' : '#000000', color: '#ffffff' }}>
                           {item.room_no} {item.guest_name}
+                          {isSettled && (
+                            <span style={{
+                              fontSize: '0.55rem',
+                              background: '#fff',
+                              color: '#1a4f6e',
+                              borderRadius: 2,
+                              padding: '1px 4px',
+                              marginLeft: 4,
+                              fontWeight: 700,
+                              verticalAlign: 'middle',
+                            }}>SETTLEMENT</span>
+                          )}
                         </div>
                         <div
                           className="occupied-body"
@@ -5009,6 +5351,61 @@ const handleViewChange = () => {
                       </div>
                     )
                   })}
+                  {/* ---- SETTLED ROOMS: show checked-out rooms as light-blue tiles identical to occupied tiles ---- */}
+                  {checkoutData
+                    .filter((co) => {
+                      // Only show rooms that are NOT already in occupiedRooms
+                      const alreadyOccupied = occupiedRooms.some((o) => o.room_no === co.room_no)
+                      return !alreadyOccupied && co.room_no
+                    })
+                    .map((co) => {
+                      const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
+                      const payType = paymentData.split('|')[0] || 'Cash'
+                      const invoiceNo = paymentData.split('|')[1] || '-'
+                      const totalAmt = Number(co.total_amount) || 0
+                      const checkoutDateDisplay = co.checkout_datetime
+                        ? formatDateTime(co.checkout_datetime)
+                        : co.checkout_date
+                          ? formatDateTime(co.checkout_date)
+                          : '-'
+                      const checkinDateDisplay = co.checkin_datetime
+                        ? formatDateTime(co.checkin_datetime)
+                        : '-'
+                      return (
+                        <div
+                          key={`settled-occ-${co.checkout_id}`}
+                          className="occupied-tile occupied-tile-settled"
+                          style={{ border: '2px solid #5ba3c9', cursor: 'default' }}
+                          title={`Checked out — Bill: ${invoiceNo}\nRoom: ${co.room_no}\nGuest: ${co.guest_name || '-'}\nPay: ${payType}\nTotal: ${formatAmount(totalAmt)}`}>
+                          {/* Header — identical structure to occupied tile header */}
+                          <div
+                            className="occupied-header"
+                            style={{ backgroundColor: '#5ba3c9', color: '#fff' }}>
+                            {co.room_no} {co.guest_name || '-'}
+                          
+                          </div>
+                          {/* Body — identical structure to occupied tile body */}
+                          <div
+                            className="occupied-body"
+                            style={{ backgroundColor: '#ADD8E6', color: '#1a4f6e' }}>
+                            {checkinDateDisplay !== '-' && (
+                              <div>IN : {checkinDateDisplay}</div>
+                            )}
+                            <div>OUT : {checkoutDateDisplay}</div>
+                            <div>✅ Checked Out</div>
+                            <div className="charges-line">
+                              <span style={{ color: '#1a4f6e', fontWeight: 600 }}>
+                                {formatAmount(totalAmt)}
+                              </span>
+                              <span style={{ color: '#1a4f6e', fontWeight: 700 }}>
+                                | {payType}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
+                  }
                 </div>
               )
             ) : roomsAfterStatus.length === 0 ? (
@@ -5044,10 +5441,11 @@ const handleViewChange = () => {
                         const isExpiredTile = occupiedItemForTile
                           ? occupiedItemForTile.isExpired
                           : false
-                        // Expired rooms show as normal occupied color (not red) in the All tab grid
-                        const tileBg = getStatusBgColor(room.status)
-                        const tileColor = getStatusTextColor(room.status)
-                        const tileBorder = getStatusBorderColor(room.status)
+                        // Settled (checked-out) rooms show as light blue in All tab grid
+                        const isSettledTile = settledRoomNos.has(room.number) && !occupiedItemForTile
+                        const tileBg = isSettledTile ? '#ADD8E6' : getStatusBgColor(room.status)
+                        const tileColor = isSettledTile ? '#1a4f6e' : getStatusTextColor(room.status)
+                        const tileBorder = isSettledTile ? '#5ba3c9' : getStatusBorderColor(room.status)
 
                         return (
                           <div
@@ -5830,7 +6228,7 @@ const handleViewChange = () => {
                 style={{
                   padding: '6px 12px',
                   cursor: 'pointer',
-                  fontSize: '1rem',
+                  fontSize: '0.75rem',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
@@ -5840,20 +6238,20 @@ const handleViewChange = () => {
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 onClick={() => {
-                  if (option.label === 'AMENDMENTS')
+                  if (option.label === 'Amendments')
                     navigate('/hotel/amendments', { state: { occupiedItem: contextMenuItem } })
                   else if (option.label === 'Advance') {
                     setSelectedOccupiedItem(contextMenuItem)
                     setShowAdvanceModal(true)
-                  } else if (option.label === 'POST CHARGES') {
+                  } else if (option.label === 'Post Charges') {
                     setSelectedOccupiedItem(contextMenuItem)
                     setPostChargesMode('charge')
                     setShowPostChargesModal(true)
-                  } else if (option.label === 'ALLOWANCES') {
+                  } else if (option.label === 'Allowances') {
                     setSelectedOccupiedItem(contextMenuItem)
                     setPostChargesMode('allowance')
                     setShowPostChargesModal(true)
-                  } else if (option.label === 'RECEPIT AGAINST POSTED BILLS') {
+                  } else if (option.label === 'Receipt Against Posted Bills') {
                     setSelectedOccupiedItem(contextMenuItem)
                     setShowReceiptModal(true)
                   }
@@ -5964,6 +6362,61 @@ const handleViewChange = () => {
             await handleRoomStatusChangeSuccess()
           }}
         />
+
+        {/* Settlement Section — Print Bill Modal */}
+        {settlementBillData && (
+          <CheckoutBillModal
+            show={showSettlementBillModal}
+            onHide={() => {
+              setShowSettlementBillModal(false)
+              setSettlementBillData(null)
+            }}
+            combinedSummary={settlementBillData.combinedSummary}
+            displayRows={settlementBillData.displayRows}
+            grandTotal={settlementBillData.grandTotal}
+            hotelName={hotelName}
+            hotelAddress={hotelAddress}
+            hotelPhone={hotelPhone}
+            hotelEmail={hotelEmail}
+            hotelWebsite={hotelWebsite}
+            hotelGSTIN={hotelGSTIN}
+            hotelFSSAI={hotelFSSAI}
+            hotelPAN={hotelPAN}
+            billNumber={settlementBillData.billNumber}
+            paymentBank={settlementBillData.paymentMode}
+            hotelId={hotelId}
+          />
+        )}
+
+        {/* Settlement Section — Payment Settlement Modal */}
+        {settlementPayData && (
+          <SettlementModal
+            show={showSettlementPayModal}
+            onHide={() => {
+              setShowSettlementPayModal(false)
+              setSettlementPayData(null)
+            }}
+            onSettle={async (settlements) => {
+              setSettlementPayLoading(true)
+              try {
+                toast.success(`Settlement recorded for Room ${settlementPayData.roomNo} — ${settlements[0]?.PaymentType || ''}`)
+                setShowSettlementPayModal(false)
+                setSettlementPayData(null)
+                await fetchCheckoutDataAndSyncSettled()
+              } catch (err) {
+                toast.error('Settlement failed')
+              } finally {
+                setSettlementPayLoading(false)
+              }
+            }}
+            grandTotal={settlementPayData.totalPrice}
+            subtotal={settlementPayData.totalPrice}
+            loading={settlementPayLoading}
+            outletPaymentModes={outletPaymentModes}
+           
+           
+          />
+        )}
       </div>
     </>
   )

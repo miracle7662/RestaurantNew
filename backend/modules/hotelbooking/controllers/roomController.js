@@ -5,7 +5,7 @@ const db = require('../../../config/db');
 const getCurrentUserId = (req) => req.user?.id || null;
 
 // Helper to get current user's hotel ID
-const getCurrentUserHotelId = (req) => req.user?.hotel_id || null;
+const getCurrentUserHotelId = (req) => req.user?.hotelid || null;
 
 // Helper to format MySQL datetime
 const formatDate = (date) => date ? new Date(date).toISOString() : null;
@@ -36,7 +36,9 @@ exports.getRooms = async (req, res) => {
                 rm.room_category_id,
                 rc.category_name,
                 rm.room_ext_no,
-                rm.room_status,
+                rm.room_status_id,
+                rs.status_name AS room_status,
+                rs.status_color,
                 rm.department_id,
                 dm.department_name,
                 rm.block_id,
@@ -50,6 +52,7 @@ exports.getRooms = async (req, res) => {
                 rm.updated_by_id
             FROM room_master rm
             LEFT JOIN room_category rc ON rm.room_category_id = rc.room_category_id
+            LEFT JOIN room_status rs ON rm.room_status_id = rs.room_status_id
             LEFT JOIN departmentmaster dm ON rm.department_id = dm.department_id
             LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
             LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
@@ -64,12 +67,13 @@ exports.getRooms = async (req, res) => {
                 rm.room_name LIKE ? OR 
                 rm.display_name LIKE ? OR
                 rc.category_name LIKE ? OR 
+                rs.status_name LIKE ? OR
                 dm.department_name LIKE ? OR
                 bm.block_name LIKE ? OR 
                 fm.floor_name LIKE ?
             )`;
             const like = `%${q}%`;
-            params.push(like, like, like, like, like, like, like);
+            params.push(like, like, like, like, like, like, like, like);
         }
 
         sql += ' ORDER BY rm.room_no ASC';
@@ -105,7 +109,7 @@ exports.addRoom = async (req, res) => {
             display_name,
             room_category_id,
             room_ext_no,
-            room_status,
+            room_status_id,
             department_id,
             block_id,
             floor_id,
@@ -144,7 +148,7 @@ exports.addRoom = async (req, res) => {
         const [result] = await db.execute(`
             INSERT INTO room_master (
                 room_no, room_name, display_name, room_category_id, room_ext_no,
-                room_status, department_id, block_id, floor_id, hotelid,
+                room_status_id, department_id, block_id, floor_id, hotelid,
                 created_by_id, created_date
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
@@ -153,7 +157,7 @@ exports.addRoom = async (req, res) => {
             getValueOrNull(display_name),
             room_category_id,
             getValueOrNull(room_ext_no),
-            room_status || 'available',
+            room_status_id || 1, // Default to 'Available' status
             getValueOrNull(department_id),
             getValueOrNull(block_id),
             getValueOrNull(floor_id),
@@ -172,7 +176,9 @@ exports.addRoom = async (req, res) => {
                 rm.room_category_id,
                 rc.category_name,
                 rm.room_ext_no,
-                rm.room_status,
+                rm.room_status_id,
+                rs.status_name AS room_status,
+                rs.status_color,
                 rm.department_id,
                 dm.department_name,
                 rm.block_id,
@@ -186,6 +192,7 @@ exports.addRoom = async (req, res) => {
                 rm.updated_by_id
             FROM room_master rm
             LEFT JOIN room_category rc ON rm.room_category_id = rc.room_category_id
+            LEFT JOIN room_status rs ON rm.room_status_id = rs.room_status_id
             LEFT JOIN departmentmaster dm ON rm.department_id = dm.department_id
             LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
             LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
@@ -225,7 +232,7 @@ exports.updateRoom = async (req, res) => {
             display_name,
             room_category_id,
             room_ext_no,
-            room_status,
+            room_status_id,
             department_id,
             block_id,
             floor_id,
@@ -238,7 +245,7 @@ exports.updateRoom = async (req, res) => {
 
         // Fetch existing room
         const [existingRooms] = await db.execute(`
-            SELECT room_no, room_name, hotelid, room_category_id 
+            SELECT room_no, room_name, hotelid, room_category_id, room_status_id
             FROM room_master 
             WHERE room_id = ?
         `, [id]);
@@ -288,7 +295,7 @@ exports.updateRoom = async (req, res) => {
                 display_name = ?,
                 room_category_id = ?,
                 room_ext_no = ?,
-                room_status = ?,
+                room_status_id = ?,
                 department_id = ?,
                 block_id = ?,
                 floor_id = ?,
@@ -302,7 +309,7 @@ exports.updateRoom = async (req, res) => {
             getValueOrNull(display_name),
             room_category_id || existingRoom.room_category_id,
             getValueOrNull(room_ext_no),
-            room_status || 'available',
+            room_status_id || existingRoom.room_status_id || 1,
             getValueOrNull(department_id),
             getValueOrNull(block_id),
             getValueOrNull(floor_id),
@@ -326,7 +333,9 @@ exports.updateRoom = async (req, res) => {
                 rm.room_category_id,
                 rc.category_name,
                 rm.room_ext_no,
-                rm.room_status,
+                rm.room_status_id,
+                rs.status_name AS room_status,
+                rs.status_color,
                 rm.department_id,
                 dm.department_name,
                 rm.block_id,
@@ -340,6 +349,7 @@ exports.updateRoom = async (req, res) => {
                 rm.updated_by_id
             FROM room_master rm
             LEFT JOIN room_category rc ON rm.room_category_id = rc.room_category_id
+            LEFT JOIN room_status rs ON rm.room_status_id = rs.room_status_id
             LEFT JOIN departmentmaster dm ON rm.department_id = dm.department_id
             LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
             LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
@@ -390,7 +400,9 @@ exports.getRoom = async (req, res) => {
                 rm.room_category_id,
                 rc.category_name,
                 rm.room_ext_no,
-                rm.room_status,
+                rm.room_status_id,
+                rs.status_name AS room_status,
+                rs.status_color,
                 rm.department_id,
                 dm.department_name,
                 rm.block_id,
@@ -404,6 +416,7 @@ exports.getRoom = async (req, res) => {
                 rm.updated_by_id
             FROM room_master rm
             LEFT JOIN room_category rc ON rm.room_category_id = rc.room_category_id
+            LEFT JOIN room_status rs ON rm.room_status_id = rs.room_status_id
             LEFT JOIN departmentmaster dm ON rm.department_id = dm.department_id
             LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
             LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id

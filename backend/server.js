@@ -113,6 +113,8 @@ const postChargesRoutes = require('./modules/hotelbooking/routes/postChargesRout
 const advanceTransactionRoutes = require('./modules/hotelbooking/routes/advanceTransactionRoutes');
 const stockRoutes = require('./modules/hotelbooking/routes/stockRoutes');
 const guestHistoryRoutes = require('./modules/hotelbooking/routes/guestHistoryRoutes');
+const roomStatusRoutes = require('./modules/hotelbooking/routes/roomStatusRoutes');
+
 // ✅ Correct order of middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -215,6 +217,8 @@ app.use('/api/post-charges', postChargesRoutes);
 app.use('/api/advance-transactions', advanceTransactionRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/guest-history', guestHistoryRoutes);
+app.use('/api/room-status', roomStatusRoutes);
+
 
 app.get("/get-server-ip", (req, res) => {
   const interfaces = os.networkInterfaces();

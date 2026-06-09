@@ -176,7 +176,7 @@ const isDateInRange = (dateStr: string, startDate: Date, endDate: Date): boolean
 const HotelReport = () => {
   const navigate = useNavigate()
   const { user } = useAuthContext()
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
   const tableContainerRef = useRef<HTMLDivElement>(null)
 
   // State

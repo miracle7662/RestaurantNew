@@ -9,6 +9,7 @@ import RoomCategoryService from '@/common/hotel/roomCategoryService'
 import BlockService from '@/common/hotel/blocks'
 import FloorService from '@/common/hotel/floors'
 import DepartmentService from '@/common/hotel/departments'
+import RoomStatusService from '@/common/hotel/roomStatus'
 import { useAuthContext } from '@/common/context/useAuthContext'
 
 type RoomFormData = {
@@ -18,7 +19,7 @@ type RoomFormData = {
     display_name: string
     room_category_id: string
     room_ext_no: string
-    room_status: string
+    room_status_id: string
     department_id?: string
     block_id?: string
     floor_id?: string
@@ -41,10 +42,13 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
     const [blocks, setBlocks] = useState<Array<{ id: number; name: string }>>([])
     const [floors, setFloors] = useState<Array<{ id: number; name: string }>>([])
     const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([])
+    const [roomStatuses, setRoomStatuses] = useState<Array<{ id: number; name: string; color: string }>>([])
+    
     const [loadingCategories, setLoadingCategories] = useState(false)
     const [loadingBlocks, setLoadingBlocks] = useState(false)
     const [loadingFloors, setLoadingFloors] = useState(false)
     const [loadingDepartments, setLoadingDepartments] = useState(false)
+    const [loadingStatuses, setLoadingStatuses] = useState(false)
 
     // Fetch all dropdown data on mount
     useEffect(() => {
@@ -111,6 +115,24 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
             })
             .catch(console.error)
             .finally(() => setLoadingDepartments(false))
+
+        // Room Statuses - Fetch only active statuses
+        setLoadingStatuses(true)
+        RoomStatusService.list({ is_active: 1 })
+            .then((res) => {
+                if (res.success) {
+                    const data = Array.isArray(res.data) ? res.data : []
+                    setRoomStatuses(
+                        data.map((status: any) => ({
+                            id: status.room_status_id,
+                            name: status.status_name,
+                            color: status.status_color,
+                        })),
+                    )
+                }
+            })
+            .catch(console.error)
+            .finally(() => setLoadingStatuses(false))
     }, [hotelId])
 
     const formik = useFormik({
@@ -123,7 +145,7 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
                 display_name: selectedItem.display_name || '',
                 room_category_id: selectedItem.room_category_id?.toString() || '',
                 room_ext_no: selectedItem.room_ext_no || '',
-                room_status: selectedItem.room_status || 'available',
+                room_status_id: selectedItem.room_status_id?.toString() || '',
                 department_id: selectedItem.department_id?.toString() || '',
                 block_id: selectedItem.block_id?.toString() || '',
                 floor_id: selectedItem.floor_id?.toString() || '',
@@ -135,7 +157,7 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
                 display_name: '',
                 room_category_id: '',
                 room_ext_no: '',
-                room_status: 'available',
+                room_status_id: '',
                 department_id: '',
                 block_id: '',
                 floor_id: '',
@@ -145,6 +167,7 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
             room_no: Yup.string().required('Room number is required'),
             room_name: Yup.string().required('Room name is required'),
             room_category_id: Yup.string().required('Category is required'),
+            room_status_id: Yup.string().required('Status is required'),
         }),
         onSubmit: (values) => {
             const { user_id, ...payload } = values
@@ -169,14 +192,7 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
     const blockOptions = blocks.map((b) => ({ label: b.name, value: b.id.toString() }))
     const floorOptions = floors.map((f) => ({ label: f.name, value: f.id.toString() }))
     const departmentOptions = departments.map((d) => ({ label: d.name, value: d.id.toString() }))
-    const statusOptions = [
-        { label: 'Available', value: 'available' },
-        { label: 'Occupied', value: 'occupied' },
-        { label: 'Maintenance', value: 'maintenance' },
-        { label: 'Cleaning', value: 'cleaning' },
-        { label: 'Out of Service', value: 'out_of_service' },
-        { label: 'Reservation', value: 'reserved' },
-    ]
+    const statusOptions = roomStatuses.map((s) => ({ label: s.name, value: s.id.toString() }))
 
     return (
         <FormikProvider value={formik}>
@@ -247,6 +263,19 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
                             </Row>
 
                             <Row className="align-items-center g-2 mb-1">
+                                <Col md={4}>Status *</Col>
+                                <Col md={8}>
+                                    <FormikSelect
+                                        name="room_status_id"
+                                        options={statusOptions}
+                                        isLoading={loadingStatuses}
+                                        placeholder="Select status"
+                                        className="w-100"
+                                    />
+                                </Col>
+                            </Row>
+
+                            <Row className="align-items-center g-2 mb-1">
                                 <Col md={4}>Department</Col>
                                 <Col md={8}>
                                     <FormikSelect
@@ -279,13 +308,6 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
                                         isLoading={loadingFloors}
                                         className="w-100"
                                     />
-                                </Col>
-                            </Row>
-
-                            <Row className="align-items-center g-2 mb-1">
-                                <Col md={4}>Status</Col>
-                                <Col md={8}>
-                                    <FormikSelect name="room_status" options={statusOptions} className="w-100" />
                                 </Col>
                             </Row>
                         </div>

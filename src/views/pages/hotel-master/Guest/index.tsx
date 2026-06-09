@@ -97,7 +97,7 @@ const defaultForm: GuestFormData = {
 
 const GuestMaster = () => {
   const { user } = useAuthContext()
-  const hotelId = user?.hotel_id
+  const hotelId = user?.hotelid
 
   const [guests, setGuests] = useState<Guest[]>([])
   const [search, setSearch] = useState('')

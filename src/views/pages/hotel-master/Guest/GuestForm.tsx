@@ -150,7 +150,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   // Fetch all reference data
   useEffect(() => {
     const fetchData = async () => {
-      if (!selectedItem.hotelid && !authUser?.hotel_id) {
+      if (!selectedItem.hotelid && !authUser?.hotelid) {
         console.warn('No hotel ID available, skipping data fetch')
         return
       }
@@ -167,7 +167,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
       setLoadingDeparture(true)
 
       try {
-        const hotelId = selectedItem.hotelid || authUser?.hotel_id
+        const hotelId = selectedItem.hotelid || authUser?.hotelid
 
         const [
           fragmentsRes,
@@ -268,7 +268,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
     }
 
     fetchData()
-  }, [selectedItem.hotelid, authUser?.hotel_id])
+  }, [selectedItem.hotelid, authUser?.hotelid])
 
   // Fetch document types from API
   useEffect(() => {

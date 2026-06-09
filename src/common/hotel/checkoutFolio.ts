@@ -6,7 +6,7 @@ export interface CheckoutFolio {
   folio_id: number;
   checkin_id: number;
   checkout_id: number;
-  hotel_id: number;
+  hotelid: number;
   detail_id: number;
   transaction_type: string;
   transaction_datetime: string;
