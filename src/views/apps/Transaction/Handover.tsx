@@ -356,7 +356,7 @@ const HandoverPage = () => {
 
   const handlePasswordVerify = async (password: string): Promise<boolean> => {
     try {
-     const response = await OrderService.verifyCreatorPassword(password);
+     const response = await OrderService.verifyDayendHandoverPassword(password);
       if (response.success) {
         setPasswordVerified(true);
         setShowPasswordModal(false);

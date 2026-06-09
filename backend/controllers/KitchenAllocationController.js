@@ -5,125 +5,114 @@ const db = require('../config/db');
  */
 const getKitchenAllocation = async (req, res) => {
   try {
-   const { fromDate, toDate, hotelId, outletId, userId, departmentId, itemGroupId, kitchenMainGroupId } = req.query;
-    console.log('🧑‍🍳 KitchenAllocation params:', { fromDate, toDate, hotelId, outletId,   });
+    const { fromDate, toDate, hotelId, outletId, userId, departmentId, itemGroupId, kitchenMainGroupId } = req.query;
+    console.log('🧑‍🍳 KitchenAllocation params:', { fromDate, toDate, hotelId, outletId });
 
     if (!hotelId) {
       return res.status(400).json({ success: false, message: 'hotelId is required' });
     }
 
-    // ✅ Date time handling - Support both date and datetime
+    // Date time handling - same as before
     const formatDateTime = (dateTime) => {
       if (!dateTime) {
-        // Default to start of today
         const now = new Date();
         now.setHours(0, 0, 0, 0);
         return now.toISOString().slice(0, 19).replace('T', ' ');
       }
-      
-      // If already has time component (contains space or T with time)
       if (dateTime.includes(' ') || (dateTime.includes('T') && dateTime.split('T')[1].length > 0)) {
-        // Replace T with space if needed
         let formatted = dateTime.replace('T', ' ');
-        // Ensure time is present
-        if (formatted.split(' ').length === 1) {
-          formatted += ' 00:00:00';
-        } else if (formatted.split(' ')[1].split(':').length === 2) {
-          // Add seconds if missing
-          formatted += ':00';
-        }
+        if (formatted.split(' ').length === 1) formatted += ' 00:00:00';
+        else if (formatted.split(' ')[1].split(':').length === 2) formatted += ':00';
         return formatted;
       }
-      
-      // Only date provided, add time
       return `${dateTime} 00:00:00`;
     };
 
     const formatEndDateTime = (dateTime) => {
       if (!dateTime) {
-        // Default to end of today
         const now = new Date();
         now.setHours(23, 59, 59, 999);
         return now.toISOString().slice(0, 19).replace('T', ' ');
       }
-      
-      // If already has time component
       if (dateTime.includes(' ') || (dateTime.includes('T') && dateTime.split('T')[1].length > 0)) {
         let formatted = dateTime.replace('T', ' ');
-        if (formatted.split(' ').length === 1) {
-          formatted += ' 23:59:59';
-        } else if (formatted.split(' ')[1].split(':').length === 2) {
-          formatted += ':59';
-        }
+        if (formatted.split(' ').length === 1) formatted += ' 23:59:59';
+        else if (formatted.split(' ')[1].split(':').length === 2) formatted += ':59';
         return formatted;
       }
-      
-      // Only date provided, add end of day time
       return `${dateTime} 23:59:59`;
     };
 
     const startDateTime = formatDateTime(fromDate);
     const endDateTime = formatEndDateTime(toDate);
 
-    // ✅ Params
+    // Parameters for the query (date range + hotelId)
     const params = [startDateTime, endDateTime, hotelId];
 
-    // ✅ WHERE conditions - Using KOTUsedDate with time
-    let where = `
-      WHERE d.KOTUsedDate BETWEEN ? AND ?
+    // Dynamic WHERE conditions (applied inside the CTE/main query)
+    let whereConditions = `
+      d.KOTUsedDate BETWEEN ? AND ?
       AND t.HotelID = ?
       AND d.isCancelled = 0
     `;
 
     if (outletId) {
-      where += ' AND t.outletid = ?';
+      whereConditions += ' AND t.outletid = ?';
       params.push(outletId);
     }
-
-      // User filter
     if (userId) {
-      where += ' AND t.UserID = ?';
+      whereConditions += ' AND t.UserID = ?';
       params.push(userId);
     }
-    // Department filter
     if (departmentId) {
-      where += ' AND t.DeptID = ?';
+      whereConditions += ' AND t.DeptID = ?';
       params.push(departmentId);
     }
-    // Item Group filter
     if (itemGroupId) {
-      where += ' AND m.item_group_id = ?';
+      whereConditions += ' AND m.item_group_id = ?';
       params.push(itemGroupId);
     }
-    // Kitchen Main Group filter
     if (kitchenMainGroupId) {
-      where += ' AND m.kitchen_main_group_id = ?';
+      whereConditions += ' AND m.kitchen_main_group_id = ?';
       params.push(kitchenMainGroupId);
     }
 
-    // ✅ FINAL QUERY (Using KOTUsedDate with time)
+    // Your original query with CTE (adapted to use dynamic WHERE)
     const query = `
-     SELECT
+      WITH BillData AS (
+        SELECT
+          d.*,
+          t.Discount,
+          ROW_NUMBER() OVER (PARTITION BY t.TxnID ORDER BY d.TxnDetailID) AS rn
+        FROM TAxnTrnbilldetails d
+        JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
+        LEFT JOIN mstrestmenu m ON m.restitemid = d.ItemID
+        WHERE ${whereConditions}
+      )
+      SELECT
         i.itemgroupname AS item_group,
-        COALESCE(m.item_no, d.item_no) AS item_no,
-        d.item_name,
-        SUM(d.Qty - d.RevQty) AS TotalQty,
-        d.RuntimeRate,
-        SUM(d.RevQty) as RevQty,
-        SUM((d.Qty - d.RevQty) * d.RuntimeRate) AS Amount
-      FROM TAxnTrnbilldetails d
-      JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
-      LEFT JOIN mstrestmenu m ON m.restitemid = d.ItemID
+        COALESCE(m.item_no, b.item_no) AS item_no,
+        b.item_name,
+        SUM(b.Qty - b.RevQty) AS TotalQty,
+        b.RuntimeRate,
+        SUM(b.RevQty) AS RevQty,
+        SUM((b.Qty - b.RevQty) * b.RuntimeRate) AS Amount,
+        SUM(
+          CASE
+            WHEN b.rn = 1 THEN IFNULL(b.Discount, 0)
+            ELSE 0
+          END
+        ) AS TotalDiscount
+      FROM BillData b
+      LEFT JOIN mstrestmenu m ON m.restitemid = b.ItemID
       LEFT JOIN mst_Item_Group i ON i.item_groupid = m.item_group_id
-   ${where}
       GROUP BY
         i.itemgroupname,
-        COALESCE(m.item_no, d.item_no),
-        d.item_name,
-        t.outletid,
-        d.RuntimeRate
-      ORDER BY
-            COALESCE(m.item_no, d.item_no) ASC;
+        COALESCE(m.item_no, b.item_no),
+        b.item_name,
+        b.outletid,
+        b.RuntimeRate
+      ORDER BY COALESCE(m.item_no, b.item_no) ASC
     `;
 
     console.log('📊 SQL Query:', query);
@@ -131,9 +120,14 @@ const getKitchenAllocation = async (req, res) => {
 
     const [results] = await db.query(query, params);
 
+    // Calculate overall total discount by summing the TotalDiscount column from the results
+    // (each transaction's discount is counted only once because of rn=1 condition)
+    const overallTotalDiscount = results.reduce((sum, row) => sum + (row.TotalDiscount || 0), 0);
+
     res.status(200).json({
       success: true,
       data: results,
+      totalDiscount: overallTotalDiscount,
       message: results.length ? 'Data fetched successfully' : 'No data found'
     });
 

@@ -204,27 +204,27 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
   const { user: authUser } = useAuthContext();
 
- const userDate = authUser?.currDate ?? date;
+  const userDate = authUser?.currDate ?? date;
 
-// User date se only date part
-const [datePart] = userDate.split("T");
-const [year, month, day] = datePart.split("-");
+  // User date se only date part
+  const [datePart] = userDate.split("T");
+  const [year, month, day] = datePart.split("-");
 
-// Current time
-const now = new Date();
+  // Current time
+  const now = new Date();
 
-let hours = now.getHours();
-const minutes = String(now.getMinutes()).padStart(2, "0");
+  let hours = now.getHours();
+  const minutes = String(now.getMinutes()).padStart(2, "0");
 
-const ampm = hours >= 12 ? "PM" : "AM";
+  const ampm = hours >= 12 ? "PM" : "AM";
 
-hours = hours % 12;
-hours = hours ? hours : 12;
+  hours = hours % 12;
+  hours = hours ? hours : 12;
 
-const formattedHours = String(hours).padStart(2, "0");
+  const formattedHours = String(hours).padStart(2, "0");
 
-const kotBusinessDateTime =
-  `${day}/${month}/${year} ${formattedHours}:${minutes}:${ampm}`;
+  const kotBusinessDateTime =
+    `${day}/${month}/${year} ${formattedHours}:${minutes}:${ampm}`;
 
 
 
@@ -237,10 +237,20 @@ const kotBusinessDateTime =
   <title>KOT</title>
   <style>
     @page { size: 72mm auto; margin: 0; }
-    @media print {
-      html, body { overflow: visible !important; }
-      body { margin: 0 !important; padding: 0 !important; }
-    }
+  @media print {
+  html, body {
+    overflow: visible !important;
+  }
+
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #kot-preview-content {
+    padding-top: 40px !important;
+  }
+}
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
       width: 72mm !important; max-width: 72mm !important; min-width: 72mm !important;
@@ -259,12 +269,12 @@ const kotBusinessDateTime =
     .text-small { font-size: 10px; } .text-smaller { font-size: 9px; }
     .separator { border: none; border-top: 1px dashed #000; margin: 5px 0; }
     .item-row {
-      display: grid; column-gap: 4px; font-weight: bold;
-      border-bottom: 1px solid #000; padding: 3px 0; margin-bottom: 3px;
-      align-items: start; width: 100%;
-    }
+  display: grid; column-gap: 4px; font-weight: bold;
+  padding: 3px 0; margin-bottom: 3px;
+  align-items: start; width: 100%;
+}
     .item-qty  { text-align: center; font-size: 12pt; font-weight: bold; }
-    .item-name { text-align: left; font-size: 10pt; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
+    .item-name { text-align: left; font-size: 12pt; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
     .item-rate { text-align: right; font-size: 10pt; white-space: nowrap; }
     .item-amt  { text-align: right; font-size: 10pt; white-space: nowrap; }
     .header-row {
@@ -377,7 +387,7 @@ const kotBusinessDateTime =
     };
     const tabKey = tabKeyMap[activeTab] || "dine_in";
 
-      const isTakeaway = activeTab === "Pickup" || activeTab === "Delivery";
+    const isTakeaway = activeTab === "Pickup" || activeTab === "Delivery";
 
 
     const orderTag = (() => {
@@ -393,19 +403,19 @@ const kotBusinessDateTime =
     const kotNoPrefix = localFormData[`${tabKey}_kot_no`] || "";
     const displayKOTNo = currentKOTNo ? `${kotNoPrefix}${currentKOTNo}` : "—";
 
-    const showStoreName      = localFormData.show_store_name;
-    const showWaiter         = localFormData.show_waiter && (selectedWaiter || user?.name);
-    const showUsername        = localFormData.show_username && user?.username;
+    const showStoreName = localFormData.show_store_name;
+    const showWaiter = localFormData.show_waiter && (selectedWaiter || user?.name);
+    const showUsername = localFormData.show_username && user?.username;
     const showTerminalUsername = localFormData.show_terminal_username && user?.terminal_username;
-    const showCaptainUsername  = localFormData.show_captain_username && user?.captain_username;
+    const showCaptainUsername = localFormData.show_captain_username && user?.captain_username;
 
     const showCustomerOnKOT = (() => {
       switch (activeTab) {
-        case "Dine-in":    return localFormData.customer_on_kot_dine_in;
-        case "Pickup":     return true;
-        case "Delivery":   return true;
+        case "Dine-in": return localFormData.customer_on_kot_dine_in;
+        case "Pickup": return true;
+        case "Delivery": return true;
         case "Quick Bill": return localFormData.customer_on_kot_quick_bill;
-        default:           return false;
+        default: return false;
       }
     })();
 
@@ -426,26 +436,26 @@ const kotBusinessDateTime =
       (activeTab === "Dine-in" || localFormData[`table_name_${tabKey}`]) &&
       !(activeTab === "Quick Bill" && localFormData.hide_table_name_quick_bill);
 
-    const showRateColumn             = localFormData.show_item_price;
-    const showAmountColumn           = localFormData.hide_item_Amt_column;
+    const showRateColumn = localFormData.show_item_price;
+    const showAmountColumn = localFormData.hide_item_Amt_column;
     //const showOrderTypeSymbol        = localFormData.show_order_type_symbol;
-    const showKotNote                = localFormData.show_kot_note;
-    const showOnlineOrderOtp         = localFormData.show_online_order_otp;
-    const showOrderIdQuickBill       = localFormData.show_order_id_quick_bill && activeTab === "Quick Bill";
-    const showKotNoQuickBill         = localFormData.show_kot_no_quick_bill && activeTab === "Quick Bill";
+    const showKotNote = localFormData.show_kot_note;
+    const showOnlineOrderOtp = localFormData.show_online_order_otp;
+    const showOrderIdQuickBill = localFormData.show_order_id_quick_bill && activeTab === "Quick Bill";
+    const showKotNoQuickBill = localFormData.show_kot_no_quick_bill && activeTab === "Quick Bill";
     const showOrderNoQuickBillSection =
       localFormData.show_order_no_quick_bill_section &&
       ["Pickup", "Quick Bill", "Delivery"].includes(activeTab);
     const groupKotItemsByCategory = localFormData.group_kot_items_by_category;
 
-    const qtyW  = "40px";
+    const qtyW = "40px";
     const rateW = "38px";
-    const amtW  = "42px";
+    const amtW = "42px";
     const gridCols = [
       qtyW,
       "1fr",
-      ...(showRateColumn   ? [rateW] : []),
-      ...(showAmountColumn ? [amtW]  : []),
+      ...(showRateColumn ? [rateW] : []),
+      ...(showAmountColumn ? [amtW] : []),
     ].join(" ");
 
     return `
@@ -459,10 +469,10 @@ const kotBusinessDateTime =
     <div style="text-align:center;margin-bottom:0px;word-wrap:break-word;">
 
      ${departmentName && !["Pickup", "Delivery"].includes(activeTab)
-  ? `<div style="font-weight:bold; font-size:10pt; word-wrap:break-word; margin-top:1px;">
+        ? `<div style="font-weight:bold; font-size:10pt; word-wrap:break-word; margin-top:1px;">
        ${departmentName}
     </div>`
-  : ``}
+        : ``}
      ${isTakeaway && orderNo ? `
   <div style="margin-top:1px; text-align:center;">
     <strong style="font-size:11pt;">Order No: ${orderNo}</strong>
@@ -474,7 +484,7 @@ const kotBusinessDateTime =
 
  
 </div>
-      ${showCustomerName   ? `<div style="font-size:9pt;margin-top:3px;"><strong>Customer:</strong> ${customerName}</div>` : ""}
+      ${showCustomerName ? `<div style="font-size:9pt;margin-top:3px;"><strong>Customer:</strong> ${customerName}</div>` : ""}
       ${showCustomerMobile ? `<div style="font-size:9pt;"><strong>Mobile:</strong> ${mobileNumber}</div>` : ""}
     </div>
 
@@ -484,9 +494,9 @@ const kotBusinessDateTime =
       <div class="table-box">${showTable ? selectedTable : activeTab}</div>
      <div class="details-grid">
   ${activeTab !== "Quick Bill" || showKotNoQuickBill
-    ? `<div><strong style="font-size:11pt;">KOT No:</strong></div>
+        ? `<div><strong style="font-size:11pt;">KOT No:</strong></div>
        <div style="font-weight:bold;font-size:14pt;">${displayKOTNo}</div>`
-    : ""}
+        : ""}
   <div><strong>Date:</strong></div>
   <div style=" font-weight:bold;font-size:8pt;white-space:nowrap;">${kotBusinessDateTime}</div>
 
@@ -498,47 +508,47 @@ const kotBusinessDateTime =
 
    
 
-    ${showUsername         ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>Username:</strong> ${user.username}</div>`            : ""}
-    ${showTerminalUsername ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>Terminal:</strong> ${user.terminal_username}</div>`   : ""}
-    ${showCaptainUsername  ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>Captain:</strong> ${user.captain_username}</div>`     : ""}
-    ${showOnlineOrderOtp   ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>OTP:</strong> 123456</div>`                           : ""}
+    ${showUsername ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>Username:</strong> ${user.username}</div>` : ""}
+    ${showTerminalUsername ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>Terminal:</strong> ${user.terminal_username}</div>` : ""}
+    ${showCaptainUsername ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>Captain:</strong> ${user.captain_username}</div>` : ""}
+    ${showOnlineOrderOtp ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>OTP:</strong> 123456</div>` : ""}
     ${showOrderIdQuickBill ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>Order ID:</strong> QB-${currentKOTNo || "N/A"}</div>` : ""}
-    ${showKotNoQuickBill   ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>KOT No:</strong> ${displayKOTNo}</div>`               : ""}
-    ${showOrderNoQuickBillSection ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>Order No:</strong> ${orderNo || "N/A"}</div>`  : ""}
+    ${showKotNoQuickBill ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>KOT No:</strong> ${displayKOTNo}</div>` : ""}
+    ${showOrderNoQuickBillSection ? `<div style="font-size:9pt;margin-bottom:3px;"><strong>Order No:</strong> ${orderNo || "N/A"}</div>` : ""}
 
     <hr class="dashed" />
 
     <div class="header-row" style="grid-template-columns:${gridCols};">
       <div class="header-qty">Qty</div>
       <div class="header-item">Item</div>
-      ${showRateColumn   ? `<div class="header-rate">Rate</div>` : ""}
-      ${showAmountColumn ? `<div class="header-amt">Amt</div>`   : ""}
+      ${showRateColumn ? `<div class="header-rate">Rate</div>` : ""}
+      ${showAmountColumn ? `<div class="header-amt">Amt</div>` : ""}
     </div>
 
     ${groupKotItemsByCategory
-      ? `<div style="font-weight:bold;margin-bottom:4px;font-size:9pt;">Category: Main Course</div>`
-      : ""}
+        ? `<div style="font-weight:bold;margin-bottom:4px;font-size:9pt;">Category: Main Course</div>`
+        : ""}
 
     ${kotItems.map((item) => {
-      const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
-      const variantHtml = item.variantName
-        ? `<span class="kot-variant"> (${item.variantName})</span>`
-        : "";
-      const specialInstHtml = item.specialInst
-        ? `<div style="font-weight:bold;font-size:10pt;margin-top:2px;">📝 ${item.specialInst}</div>`
-        : "";
-      return `
+          const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
+          const variantHtml = item.variantName
+            ? `<span class="kot-variant"> (${item.variantName})</span>`
+            : "";
+          const specialInstHtml = item.specialInst
+            ? `<div style="font-weight:bold;font-size:10pt;margin-top:2px;">📝 ${item.specialInst}</div>`
+            : "";
+          return `
       <div class="item-row" style="grid-template-columns:${gridCols};">
         <div class="item-qty">${qty}</div>
         <div class="item-name">
           ${item.name}${variantHtml}
           ${specialInstHtml}
         </div>
-        ${showRateColumn   ? `<div class="item-rate">${Number(item.price || 0)}</div>` : ""}
+        ${showRateColumn ? `<div class="item-rate">${Number(item.price || 0)}</div>` : ""}
         ${showAmountColumn ? `<div class="item-amt">${(item.price * qty).toFixed(2)}</div>` : ""}
       </div>`;
-    }).join("")}
-
+        }).join("")}
+<hr style="border:none; border-top:1px solid #000; margin:6px 0;" />
     <div class="totals-row">
       <div style="min-width:${qtyW};text-align:center;">
         ${kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0)}
@@ -546,8 +556,8 @@ const kotBusinessDateTime =
       <div style="flex:1;"></div>
       <div style="text-align:right;white-space:nowrap;">
   &#8377;${kotItems
-    .reduce((a, b) => a + b.price * (b.originalQty ? b.qty - b.originalQty : b.qty), 0)
-    .toFixed(2)}
+        .reduce((a, b) => a + b.price * (b.originalQty ? b.qty - b.originalQty : b.qty), 0)
+        .toFixed(2)}
 </div>
     </div>
 

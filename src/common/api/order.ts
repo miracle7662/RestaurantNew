@@ -614,6 +614,9 @@ getAllBills: (filters?: { curr_date?: string }, user?: any): Promise<ApiResponse
       txnId
     }),
 
+    verifyDayendHandoverPassword: (password: string): Promise<ApiResponse<{ verified: boolean }>> =>
+    HttpClient.post<ApiResponse<{ verified: boolean }>>('/auth/verify-dayend-handover-password', { password }),
+
   /* ═══════════════════════════════════════════════════════════════════════════
    * Additional Operations
    * ═══════════════════════════════════════════════════════════════════════════ */

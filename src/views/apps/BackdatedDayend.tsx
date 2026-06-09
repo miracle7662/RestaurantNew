@@ -503,7 +503,7 @@ const exportOrdersToExcel = () => {
         console.error('Authentication token is missing for password verification.');
         return false;
       }
-      const response = await OrderService.verifyCreatorPassword(password);
+      const response = await OrderService.verifyDayendHandoverPassword(password);
       if (response.success) {
         setPasswordVerified(true);
         setShowPasswordModal(false);
