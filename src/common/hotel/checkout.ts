@@ -52,6 +52,7 @@ export interface CheckoutMaster {
   service_charge_amt: number;
   net_payable: number;
   round_off_amount: number;
+
   
   // AUDIT FIELDS
   created_by_id: number;

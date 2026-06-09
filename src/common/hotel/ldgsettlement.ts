@@ -3,9 +3,9 @@ import { ApiResponse } from '@/types/api'
 
 export interface LdgSettlement {
   SettlementID: number
-  TxnID: number | null
-  TxnNo: string | null
-  OrderNo: string | null
+  TxnID?: number | null      // kept for read responses
+  TxnNo?: string | null      // kept for read responses
+  OrderNo?: string | null    // kept for read responses
   userid: number
   PaymentTypeID: number
   PaymentType: string
@@ -43,10 +43,6 @@ export interface LdgSettlement {
 }
 
 export interface LdgSettlementPayload {
-  SettlementID?: number
-  TxnID?: number | null
-  TxnNo?: string | null
-  OrderNo?: string | null
   userid: number
   PaymentTypeID: number
   PaymentType: string
@@ -84,8 +80,6 @@ export interface LdgSettlementPayload {
 }
 
 export interface ReplaceSettlementPayload {
-  OrderNo?: string
-  TxnNo?: string
   newSettlements: Array<{
     PaymentTypeID: number
     PaymentType: string
@@ -119,8 +113,6 @@ export interface ReplaceSettlementPayload {
 
 const LdgSettlementService = {
   list: (params?: {
-    orderNo?: string
-    txnNo?: string
     hotelId?: number
     outletId?: number
     checkinId?: number

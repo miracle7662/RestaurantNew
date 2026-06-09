@@ -30,6 +30,7 @@ import RoomStatusLogService, { RoomStatusLog } from '@/common/hotel/roomStatusLo
 import CheckoutBillModal from './CheckoutBillModal'
 import SettlementModal from './SettelmentModel'
 import OutletPaymentModeService from '@/common/api/outletpaymentmode'
+import LdgSettlementService from '@/common/hotel/ldgsettlement'
 
 // Extend HotelUiSettings to include all color fields
 type ExtendedHotelSettings = HotelUiSettings & {
@@ -606,11 +607,18 @@ const HotelBookingPanel = () => {
   // Settlement Payment Modal (SettlementModal)
   const [showSettlementPayModal, setShowSettlementPayModal] = useState(false)
   const [settlementPayData, setSettlementPayData] = useState<{
-    guestName: string
-    roomNo: string
-    totalPrice: number
-    checkoutId: number
-  } | null>(null)
+  guestName: string
+  guestid: number
+  roomNo: string
+  totalPrice: number
+  checkoutId: number
+  checkinId?: number
+  billNo?: string
+  regNo?: string
+  orderNo?: string
+  txnNo?: string
+  mobileNo?: string
+} | null>(null)
   const [settlementPayLoading, setSettlementPayLoading] = useState(false)
   const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([])
 
@@ -949,21 +957,22 @@ fetchPaymentModes()
     }
   }
 
-  const handleSettlementCardSettle = (co: CheckoutMaster) => {
-    const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
-    const payType = paymentData.split('|')[0] || 'Cash'
-    setSettlementPayData({
-      guestName: co.guest_name || '-',
-      roomNo: co.room_no || '-',
-      totalPrice: Number(co.total_amount) || 0,
-      checkoutId: co.checkout_id,
-    })
-    // Pre-select the existing payment mode
-    const matchedMode = outletPaymentModes.find(
-      (m) => m.mode_name?.toLowerCase() === payType.toLowerCase()
-    )
-    setShowSettlementPayModal(true)
-  }
+const handleSettlementCardSettle = (co: CheckoutMaster) => {
+  const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
+  const payType = paymentData.split('|')[0] || 'Cash'
+  setSettlementPayData({
+    guestName: co.guest_name || '-',
+    guestid: co.guest_id || 0,
+    roomNo: co.room_no || '-',
+    totalPrice: Number(co.total_amount) || 0,
+    checkoutId: co.checkout_id,
+    checkinId: co.checkin_id,
+    billNo: co.ldg_bill_no,
+    regNo: co.reg_no,
+   
+  })
+  setShowSettlementPayModal(true)
+}
 
   const fetchRoomStatusLogs = async () => {
     if (!hotelId) return
@@ -6454,35 +6463,76 @@ fetchPaymentModes()
         )}
 
         {/* Settlement Section — Payment Settlement Modal */}
-        {settlementPayData && (
-          <SettlementModal
-            show={showSettlementPayModal}
-            onHide={() => {
-              setShowSettlementPayModal(false)
-              setSettlementPayData(null)
-            }}
-            onSettle={async (settlements) => {
-              setSettlementPayLoading(true)
-              try {
-                toast.success(`Settlement recorded for Room ${settlementPayData.roomNo} — ${settlements[0]?.PaymentType || ''}`)
-                setShowSettlementPayModal(false)
-                setSettlementPayData(null)
-                await fetchCheckoutDataAndSyncSettled()
-              } catch (err) {
-                toast.error('Settlement failed')
-              } finally {
-                setSettlementPayLoading(false)
-              }
-            }}
-            grandTotal={settlementPayData.totalPrice}
-            subtotal={settlementPayData.totalPrice}
-            loading={settlementPayLoading}
-            outletPaymentModes={outletPaymentModes}
-            guestName={settlementPayData.guestName}
-            roomNo={settlementPayData.roomNo}
-            totalPrice={settlementPayData.totalPrice}
-          />
-        )}
+      {settlementPayData && (
+  <SettlementModal
+    show={showSettlementPayModal}
+    onHide={() => {
+      setShowSettlementPayModal(false)
+      setSettlementPayData(null)
+    }}
+    onSettle={async (settlements, tip) => {
+      if (!hotelId || !user?.id || !settlementPayData) return
+      setSettlementPayLoading(true)
+      try {
+        for (const split of settlements) {
+          const matchedMode = outletPaymentModes.find(
+            (m) => m.mode_name?.toLowerCase() === split.PaymentType?.toLowerCase()
+          )
+          if (!matchedMode) {
+            console.warn(`Payment type ${split.PaymentType} not found`)
+            continue
+          }
+          const payload = {
+            userid: user.id,
+            PaymentTypeID: matchedMode.id,
+            PaymentType: split.PaymentType,
+            Amount: split.Amount,
+            TipAmount: split.TipAmount || 0,
+            HotelID: hotelId,
+            outletid: user.outletid || hotelId,
+            outletname: user.outlet_name || '',
+            guest_id: settlementPayData.guestid,
+            guest_name: settlementPayData.guestName,
+            total_amount: settlementPayData.totalPrice,
+            checkinid: settlementPayData.checkinId || 0,
+            room_name: settlementPayData.roomNo,
+            bill_no: settlementPayData.billNo,
+            registration_no: settlementPayData.regNo,
+            OrderNo: settlementPayData.orderNo,
+            TxnNo: settlementPayData.txnNo,
+            Receive: split.Amount,
+            isSettled: 1,
+            created_by_id: user.id,
+            updated_by_id: user.id,
+            checkout_date: new Date().toISOString().slice(0, 19).replace('T', ' ')
+          }
+          await LdgSettlementService.create(payload)
+        }
+        toast.success(`Settlement recorded for Room ${settlementPayData.roomNo}`)
+        setShowSettlementPayModal(false)
+        setSettlementPayData(null)
+        await fetchCheckoutDataAndSyncSettled()
+      } catch (err) {
+        console.error(err)
+        toast.error('Settlement failed')
+      } finally {
+        setSettlementPayLoading(false)
+      }
+    }}
+    grandTotal={settlementPayData.totalPrice}
+    subtotal={settlementPayData.totalPrice}
+    loading={settlementPayLoading}
+    outletPaymentModes={outletPaymentModes}
+    table_name={settlementPayData.roomNo}
+    initialCustomerName={settlementPayData.guestName}
+    initialMobile={settlementPayData.mobileNo}
+    initialCustomerId={settlementPayData.guestid}
+    initialSelectedModes={[]}
+    initialIsMixed={false}
+    initialTip={0}
+    initialCashReceived={0}
+  />
+)}
       </div>
     </>
   )

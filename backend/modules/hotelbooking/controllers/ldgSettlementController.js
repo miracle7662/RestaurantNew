@@ -1,4 +1,4 @@
-const db = require('../config/db'); // mysql2/promise instance
+const db = require('../../../config/db');
 
 // Helper: MySQL datetime now
 const nowMySQL = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -7,7 +7,7 @@ const nowMySQL = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 exports.createSettlement = async (req, res) => {
   try {
     const {
-      TxnID, TxnNo, OrderNo, userid, PaymentTypeID, PaymentType, Amount,
+     userid, PaymentTypeID, PaymentType, Amount,
       TipAmount = 0, Batch = '', Name, HotelID, RefferedBy = '',
       customerid = null, CustomerName = '', MobileNo = '', Address = '',
       Refund = 0, Receive = 0, Name2 = '', Name3 = '', table_name = 'room',
@@ -23,9 +23,7 @@ exports.createSettlement = async (req, res) => {
     }
 
     const insertData = {
-      TxnID: TxnID || null,
-      TxnNo: TxnNo || null,
-      OrderNo: OrderNo || null,
+      
       userid,
       PaymentTypeID,
       PaymentType,
@@ -76,15 +74,14 @@ exports.createSettlement = async (req, res) => {
 exports.getSettlements = async (req, res) => {
   try {
     const {
-      orderNo, txnNo, hotelId, outletId, checkinId, roomName, guestName,
+      hotelId, outletId, checkinId, roomName, guestName,
       fromDate, toDate, paymentType, isSettled = '1'
     } = req.query;
 
     let where = [];
     let params = [];
 
-    if (orderNo) { where.push('OrderNo = ?'); params.push(orderNo); }
-    if (txnNo) { where.push('TxnNo = ?'); params.push(txnNo); }
+    
     if (hotelId) { where.push('HotelID = ?'); params.push(Number(hotelId)); }
     if (outletId) { where.push('outletid = ?'); params.push(Number(outletId)); }
     if (checkinId) { where.push('checkinid = ?'); params.push(Number(checkinId)); }
@@ -253,9 +250,7 @@ exports.replaceSettlement = async (req, res) => {
       } = s;
 
       const insertData = {
-        TxnID: null,
-        TxnNo: TxnNo || null,
-        OrderNo: OrderNo || null,
+       
         userid: userid || updated_by_id,
         PaymentTypeID,
         PaymentType,

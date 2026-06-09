@@ -28,7 +28,7 @@ import CheckInService from '@/common/hotel/checkIn'
 import DetailService from '@/common/hotel/detail'
 import GuestFolioService from '@/common/hotel/guestFolio'
 import GuestRoomChargesService from '@/common/hotel/guestRoomCharges'
-import OutletPaymentModeServiceoutlet from '@/common/api/outletpaymentmode'
+import PaymentModeService from '@/common/api/outletpaymentmode'
 import travelAgentApi from '@/common/hotel/travelagent'
 import AgentRoomCheckinService from '@/common/hotel/agentRoomCheckin'
 import StockService from '@/common/hotel/stock'
@@ -238,6 +238,7 @@ const CheckInForm = () => {
   } | null
 
   const hotelId = state?.hotelId || loggedInUser?.hotelid
+  const outletId = user?.outletid
 
   // Escape key → go back; Enter key → move to next focusable field
   useEffect(() => {
@@ -595,7 +596,7 @@ const CheckInForm = () => {
           RoomCategoryService.list({ hotelid: hotelId }),
           taxApi.list(),
           FragmentService.list(),
-          OutletPaymentModeServiceoutlet.list({ outletid: hotelId }), // Assuming outletId is available in scope; replace with actual value or state if needed
+          PaymentModeService.list({ outletid: user?.outletid ? String(user.outletid) : undefined }),// Assuming outletId is available in scope; replace with actual value or state if needed
         ])
 
         let countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || []
@@ -671,11 +672,18 @@ const CheckInForm = () => {
         )
         // ✅ FIX: pm.id is the payment_modes table PK — this is what must be stored
         // in Checkout_Master.payment_id. Never use paymenttypeid here.
-        const mappedPaymentMethods = activePaymentMethods.map((pm: any) => ({
-          id: pm.id,                                        // payment_modes.id (PK) ✅
-          name: pm.payment_mode_name ?? pm.mode_name,
-          payment_method_name: pm.payment_mode_name ?? pm.mode_name,
-        }))
+        const mappedPaymentMethods = paymentMethodsData
+  .map((pm: any) => {
+    const modeName = pm.mode_name || ''
+    const safeName = modeName.trim()
+    if (!safeName) return null
+    return {
+      id: pm.id ?? pm.paymenttypeid,
+      name: safeName,
+      payment_method_name: safeName,
+    }
+  })
+  .filter((item): item is { id: number; name: string; payment_method_name: string } => item !== null)
         setPaymentMethods(mappedPaymentMethods)
         // Pre-select Cash as default; also pre-set the numeric id
         const cashMethod = mappedPaymentMethods.find(
@@ -845,10 +853,13 @@ const CheckInForm = () => {
     return [walkInOption, ...companyOpts]
   }, [companies])
 
-  const paymentMethodOptions: Option[] = useMemo(
-    () => paymentMethods.map((pm) => ({ label: pm.name, value: pm.payment_method_name })),
-    [paymentMethods],
-  )
+const paymentMethodOptions: Option[] = useMemo(
+  () => paymentMethods.map((pm) => ({
+    label: pm.name,
+    value: pm.payment_method_name,
+  })),
+  [paymentMethods],
+)
 
   const loadAllGuests = async () => {
     if (!hotelId) return

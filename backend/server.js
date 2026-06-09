@@ -67,7 +67,7 @@ const outletMenuRoutes = require('./routes/outletMenuRoutes');
 // billing transfer routes
 const billingTransferRoutes = require('./routes/billingTransferRoutes');
 const userPermissionsRoutes = require('./routes/userPermissionsRoutes');
-const ldgSettlementRoutes = require('./routes/ldgSettlementRoutes');
+
 /* ───────── Hotel Booking Routes Import (MODULAR) ───────── */
 
 
@@ -114,6 +114,7 @@ const advanceTransactionRoutes = require('./modules/hotelbooking/routes/advanceT
 const stockRoutes = require('./modules/hotelbooking/routes/stockRoutes');
 const guestHistoryRoutes = require('./modules/hotelbooking/routes/guestHistoryRoutes');
 const roomStatusRoutes = require('./modules/hotelbooking/routes/roomStatusRoutes');
+const ldgSettlementRoutes = require('./modules/hotelbooking/routes/ldgSettlementRoutes');
 
 // ✅ Correct order of middleware
 app.use(cors());
