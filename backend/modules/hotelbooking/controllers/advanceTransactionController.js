@@ -345,9 +345,11 @@ exports.addAdvanceTransaction = async (req, res) => {
     await connection.beginTransaction();
 
     const {
-      hotel_id,
+      hotel_id: hotel_id_from_body,
+      hotelid: hotel_id_from_frontend,
       checkin_id,
       detail_id,
+
       room_id,
       guest_name,
       room_no,
@@ -376,10 +378,20 @@ exports.addAdvanceTransaction = async (req, res) => {
       ? formatMySQLDateTime(transaction_datetime)
       : formatMySQLDateTime(now);
 
+    const hotel_id = hotel_id_from_body ?? hotel_id_from_frontend;
+    if (!hotel_id) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'hotel_id is required',
+      });
+    }
+
     let finalReceiptNo = receipt_no;
     if (!finalReceiptNo) {
       finalReceiptNo = await generateReceiptNo(hotel_id, transaction_type);
     }
+
 
     let finalPaymentMethod = payment_method || 'Cash';
     if ((transaction_type === 'Advance Addition' || transaction_type === 'Booking Receipt') && items && items.length > 0) {
