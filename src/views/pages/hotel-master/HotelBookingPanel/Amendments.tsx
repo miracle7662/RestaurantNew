@@ -216,7 +216,20 @@ const Amendments = () => {
         const res = await RoomService.list({ hotelid: hotelId })
         const rooms = res.data || []
         const vacant = rooms
-          .filter((room: any) => room.room_status === 'available')
+          .filter((room: any) => {
+            const s = String(room.room_status ?? '').toLowerCase().trim()
+            const statusId = String(room.room_status_id ?? '').trim()
+
+            // Accept multiple possible backend values
+            return (
+              s === 'available' ||
+              s === 'vacant' ||
+              s === 'free' ||
+              s === '0' ||
+              statusId === '0' ||
+              statusId === '1'
+            )
+          })
           .map((room: any) => ({
             room_id: room.room_id,
             // API may return room_no or room_number — handle both
