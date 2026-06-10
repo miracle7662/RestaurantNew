@@ -145,12 +145,12 @@ const determinePaymentMethod = (items, defaultMethod = 'Cash') => {
 // ==================== GET ALL ====================
 exports.getAdvanceTransactions = async (req, res) => {
   try {
-    const { checkin_id, hotel_id, room_id } = req.query;
+    const { checkin_id, hotelid, room_id } = req.query;
     let query = `SELECT * FROM advance_transactions WHERE 1=1`;
     const params = [];
 
     if (checkin_id) { query += ` AND checkin_id = ?`; params.push(checkin_id); }
-    if (hotel_id)   { query += ` AND hotel_id = ?`;   params.push(hotel_id); }
+    if (hotelid)   { query += ` AND hotelid = ?`;   params.push(hotelid); }
     if (room_id)    { query += ` AND room_id = ?`;     params.push(room_id); }
 
     query += ` ORDER BY transaction_datetime DESC`;
@@ -345,6 +345,8 @@ exports.addAdvanceTransaction = async (req, res) => {
     await connection.beginTransaction();
 
     const {
+      // Support both naming conventions: hotelid (frontend payload) and hotel_id (some older clients)
+      hotelid,
       hotel_id,
       checkin_id,
       detail_id,
@@ -369,6 +371,19 @@ exports.addAdvanceTransaction = async (req, res) => {
       refund_items
     } = req.body;
 
+    // Normalize hotel id (column is hotel_id in DB error)
+    const normalizedHotelId = hotelid ?? hotel_id ?? null;
+
+    if (!normalizedHotelId) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "hotel_id is required (or send 'hotelid' from frontend)",
+        error: 'MISSING_HOTEL_ID'
+      });
+    }
+
+
     const userId = created_by_id || getCurrentUserId(req) || 1;
     const now = new Date();
 
@@ -378,8 +393,9 @@ exports.addAdvanceTransaction = async (req, res) => {
 
     let finalReceiptNo = receipt_no;
     if (!finalReceiptNo) {
-      finalReceiptNo = await generateReceiptNo(hotel_id, transaction_type);
+      finalReceiptNo = await generateReceiptNo(normalizedHotelId, transaction_type);
     }
+
 
     let finalPaymentMethod = payment_method || 'Cash';
     if ((transaction_type === 'Advance Addition' || transaction_type === 'Booking Receipt') && items && items.length > 0) {
@@ -410,14 +426,15 @@ exports.addAdvanceTransaction = async (req, res) => {
 
     const [result] = await connection.query(`
       INSERT INTO advance_transactions (
-        hotel_id, checkin_id, detail_id, room_id, guest_name, room_no,
+        hotelid, checkin_id, detail_id, room_id, guest_name, room_no,
         transaction_type, receipt_no, payment_method, amount,
         debit_amount, credit_amount, balance_amount, reason, narration,
         reference_no, transaction_datetime, status, created_by_id, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW())
     `, [
-      hotel_id,
+      normalizedHotelId,
       checkin_id,
+
       detail_id || null,
       room_id || null,
       guest_name,
@@ -509,13 +526,13 @@ exports.addAdvanceTransaction = async (req, res) => {
 
     await connection.query(`
       INSERT INTO guest_folio_master (
-        checkin_id, hotel_id, detail_id, transaction_type, transaction_datetime,
+        checkin_id, hotelid, detail_id, transaction_type, transaction_datetime,
         description, debit_amount, credit_amount, reference_number, payment_method,
         created_by_id, created_date
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `, [
       checkin_id,
-      hotel_id,
+      hotelid,
       detail_id || null,
       folioTransactionType,
       formattedTransactionDateTime,

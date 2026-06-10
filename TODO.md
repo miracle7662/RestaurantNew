@@ -1,7 +1,9 @@
-# TODO - Hotel settlement missing details fix
+# TODO
 
-- [x] Update `SettelmentModel.tsx` to log which required settlement fields are missing before failing validation.
+## Advance Addition fix: Unknown column `hotel_id` in `advance_transactions`
 
-- [ ] Update `HotelBookingPanel.tsx` settlement handler to ensure `userid`, `HotelID`, `outletid`, `checkinid`, and `room_id` are always correctly resolved.
-- [ ] Run frontend build / typecheck (if available) and perform quick manual test of settlement flow.
+- [ ] Locate current `advance_transactions` table schema (confirm missing `hotel_id`).
+- [ ] Create/commit a SQL migration to add `hotel_id` to `advance_transactions`.
+- [ ] Ensure `getAdvanceTransactions` filters on `hotel_id` safely.
+- [ ] Run backend and retry the failing transaction (Advance Addition) to verify insert works.
 

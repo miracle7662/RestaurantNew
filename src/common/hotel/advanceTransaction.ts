@@ -4,7 +4,7 @@ import { ApiResponse } from '@/types/api';
 
 export interface AdvanceTransaction {
   advance_id: number;
-  hotel_id: number;
+  hotelid: number;
   checkin_id: number;
   detail_id: number | null;
   room_id: number | null;
@@ -89,7 +89,7 @@ export interface SwapRoomsAdvancePayload {
 }
 
 const AdvanceTransactionService = {
-  list: (params?: { checkin_id?: number; hotel_id?: number; room_id?: number }): Promise<ApiResponse<AdvanceTransaction[]>> =>
+  list: (params?: { checkin_id?: number; hotelid?: number; room_id?: number }): Promise<ApiResponse<AdvanceTransaction[]>> =>
     HttpClient.get<ApiResponse<AdvanceTransaction[]>>('/advance-transactions', { params }),
 
   get: (id: number): Promise<ApiResponse<AdvanceTransaction>> =>
