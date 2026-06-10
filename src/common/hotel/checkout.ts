@@ -52,6 +52,11 @@ export interface CheckoutMaster {
   service_charge_amt: number;
   net_payable: number;
   round_off_amount: number;
+  room_id: number;
+
+  // print FIELDS
+  email : string;
+  id_proof : string;
 
   
   // AUDIT FIELDS
@@ -90,6 +95,7 @@ export interface PerformCheckoutPayload {
   payment_mode?: string;
 
   total_amount?: number;
+   room_id?: number | null;
   round_off_amount?: number;
   net_payable?: number;
   selected_rooms?: string[];
@@ -131,6 +137,20 @@ export interface NextInvoiceNoResponse {
   ldg_bill_no: string;
 }
 
+
+export interface UpdateRoomsPayload {
+  roomIds: number[];
+  userId?: number;
+}
+
+export interface UpdateRoomsResponse {
+  success: boolean;
+  message: string;
+  affectedRows: number;
+}
+
+
+
 const CheckoutService = {
   list: (params?: { hotelid?: number }): Promise<ApiResponse<CheckoutMaster[]>> =>
     HttpClient.get<ApiResponse<CheckoutMaster[]>>('/checkouts', { params }),
@@ -149,6 +169,9 @@ const CheckoutService = {
 
     getNextInvoiceNo: (): Promise<ApiResponse<NextInvoiceNoResponse>> =>
     HttpClient.get<ApiResponse<NextInvoiceNoResponse>>('/checkouts/next-ldg_bill_no'),
+
+    updateRoomsToAvailable: (payload: UpdateRoomsPayload) => 
+    HttpClient.put<ApiResponse<UpdateRoomsResponse>>( "/checkouts/rooms/available", payload ),
 
 };
 

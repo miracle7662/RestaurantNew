@@ -62,6 +62,9 @@ type GuestDocument = {
   front_side_url?: string | null
   back_side: string | null
   back_side_url?: string | null
+  // guest_photo column — only populated for document_type = 'Guest Photo'
+  guest_photo?: string | null
+  guest_photo_url?: string | null
   created_at: string
   updated_at: string
 }
@@ -92,6 +95,8 @@ const defaultForm: GuestFormData = {
   company_id: null,
   discount_percent: 0,
   status: 1,
+  guest_photo: null,
+  guest_photo_url: null,
   documents: [],
 }
 
@@ -181,14 +186,28 @@ const GuestMaster = () => {
   const handleOpenEditModal = async (guest: Guest) => {
     setEditingGuest(guest)
     let documents: GuestDocument[] = []
+    let guestPhotoUrl: string | null = null
+    let guestPhotoPath: string | null = null
+
     try {
       const docRes = await GuestService.listDocuments(guest.guest_id)
       if (docRes.success && docRes.data) {
-        documents = docRes.data
+        documents = docRes.data as GuestDocument[]
+
+        // Separate the guest photo record from regular documents
+        const guestPhotoDoc = documents.find(d => d.document_type === 'Guest Photo')
+        if (guestPhotoDoc) {
+          // guest_photo column holds the file path; guest_photo_url is the full URL
+          guestPhotoUrl = (guestPhotoDoc as any).guest_photo_url || null
+          guestPhotoPath = (guestPhotoDoc as any).guest_photo || null
+        }
       }
     } catch (error) {
       console.error('Failed to load documents:', error)
     }
+
+    // Filter out the "Guest Photo" record from the documents tab — it's shown in the Photo tab
+    const regularDocs = documents.filter(d => d.document_type !== 'Guest Photo')
 
     setForm({
       guest_id: guest.guest_id,
@@ -223,7 +242,11 @@ const GuestMaster = () => {
       status: guest.status,
       hotelid: hotelId,
       updated_by_id: user?.id,
-      documents: documents.map(d => ({
+      // ── Guest photo ───────────────────────────────────────────────
+      guest_photo: guestPhotoUrl || guestPhotoPath,
+      guest_photo_url: guestPhotoUrl,
+      // ── Regular ID documents ──────────────────────────────────────
+      documents: regularDocs.map(d => ({
         document_id: d.document_id,
         document_type: String(d.document_type),
         document_number: d.document_no,
@@ -243,10 +266,10 @@ const GuestMaster = () => {
   }
 
   const handleSubmit = async (payload: GuestFormData) => {
-   if (!payload.name || !payload.phone) {
-  toast.error('Name and Phone No.1 is required')
-  return
-}
+    if (!payload.name || !payload.phone) {
+      toast.error('Name and Phone No.1 is required')
+      return
+    }
     if (!hotelId) {
       toast.error('Hotel ID not found')
       return
@@ -284,11 +307,27 @@ const GuestMaster = () => {
         toast.success('Guest added')
       }
 
+      // ── Upload guest photo if a new capture exists (new guest only) ──
+      // For existing guests, the photo is uploaded immediately in GuestForm's handlePhotoCapture.
+      // For new guests, we upload here after the guest record is created.
+      if (!editingGuest && payload.guest_photo && payload.guest_photo.startsWith('data:')) {
+        try {
+          await GuestService.uploadGuestPhoto(savedGuest.guest_id, payload.guest_photo)
+        } catch (photoErr) {
+          console.error('Failed to upload guest photo:', photoErr)
+          toast.error('Guest saved but photo upload failed')
+        }
+      }
+
+      // ── Save regular (non-photo) ID documents ────────────────────────
       if (payload.documents && payload.documents.length > 0) {
         if (editingGuest) {
+          // Delete and re-create all non-photo documents
           const existingDocs = await GuestService.listDocuments(savedGuest.guest_id)
           if (existingDocs.success && existingDocs.data) {
-            for (const doc of existingDocs.data) {
+            for (const doc of existingDocs.data as GuestDocument[]) {
+              // Skip the Guest Photo record — it is managed separately
+              if (doc.document_type === 'Guest Photo') continue
               await GuestService.deleteDocument(savedGuest.guest_id, doc.document_id)
             }
           }
@@ -300,14 +339,10 @@ const GuestMaster = () => {
               document_type: doc.document_type,
               document_no: doc.document_number,
             }
-            
-            if (doc._temp_front instanceof File) {
-              docPayload.front_side = doc._temp_front
-            }
-            if (doc._temp_back instanceof File) {
-              docPayload.back_side = doc._temp_back
-            }
-            
+
+            if (doc._temp_front instanceof File) docPayload.front_side = doc._temp_front
+            if (doc._temp_back instanceof File)  docPayload.back_side  = doc._temp_back
+
             await GuestService.createDocument(savedGuest.guest_id, docPayload)
           }
         }
@@ -384,7 +419,9 @@ const GuestMaster = () => {
             <thead className="table-light">
               <tr>
                 <th style={{ width: '60px' }}>#</th>
-                <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>Name{sortField === 'name' && <span className="ms-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>}</th>
+                <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
+                  Name{sortField === 'name' && <span className="ms-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                </th>
                 <th>Organisation</th>
                 <th>Mobile</th>
                 <th>Email</th>
@@ -410,20 +447,28 @@ const GuestMaster = () => {
                     <td>{(currentPage - 1) * pageSize + idx + 1}</td>
                     <td className="fw-semibold">{guest.name}</td>
                     <td>{guest.organisation || '-'}</td>
-                    <td>{guest.mobile || '-'}</td>
+                    <td>{guest.phone || '-'}</td>
                     <td>{guest.email || '-'}</td>
                     <td>{guest.city_name || '-'}</td>
                     <td>{guest.country_name || '-'}</td>
-                    <td>{guest.company_name || '-'}</td>
+                    <td>{guest.company_id === 0 ? 'Self' : guest.company_name || '-'}</td>
                     <td>{guest.guest_type || '-'}</td>
                     <td>{guest.discount_percent ?? 0}%</td>
-                    <td><Badge bg={guest.status === 1 ? 'success' : 'secondary'}>{guest.status === 1 ? 'Active' : 'Inactive'}</Badge></td>
+                    <td>
+                      <Badge bg={guest.status === 1 ? 'success' : 'secondary'}>
+                        {guest.status === 1 ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </td>
                     <td>
                       <div className="d-flex gap-2">
                         <Button variant="outline-primary" size="sm" onClick={() => handleOpenEditModal(guest)}>
                           <i className="fi fi-rr-edit" />
                         </Button>
-                        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(guest)} disabled={deletingId === guest.guest_id}>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleDelete(guest)}
+                          disabled={deletingId === guest.guest_id}>
                           <i className="fi fi-rr-trash" />
                         </Button>
                       </div>

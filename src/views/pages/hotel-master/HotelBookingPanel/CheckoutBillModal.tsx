@@ -414,11 +414,11 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const getFontSize = () => {
     switch (printSettings?.table_font_size) {
       case 'small':
-        return '7pt'
+        return '12pt'
       case 'large':
-        return '9pt'
+        return '14pt'
       default:
-        return '8pt'
+        return '10pt'
     }
   }
 
@@ -631,7 +631,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const totalSGSTAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.sgst, 0))
   const totalFoodAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.food, 0))
   const totalAdvanceAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.advanceTotal, 0))
-
+  // const totalPostAllowNet = roundToTwo(tableRows.reduce((sum, row) => sum + row.postAllowNet, 0))
   const totalAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.total, 0))
   const netTotal = grandTotal
 
@@ -675,7 +675,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       color: ${headerText};
       text-align: center;
       font-weight: 700;
-      font-size: 7.5pt;
+      font-size: 10pt;
       letter-spacing: 0.5px;
       padding: 4px 8px;
     }
@@ -689,7 +689,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
     .bill-wrap .bill-detail-table td {
       padding: 2px 4px;
-      font-size: 7.5pt;
+      font-size: 10pt;
       vertical-align: top;
     }
     .bill-wrap .bdt-label {
@@ -743,13 +743,13 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       padding: 5px 6px;
       border: 1px solid ${headerBg};
       white-space: nowrap;
-      font-size: 7pt;
+      font-size: 10pt;
     }
     .bill-wrap .bill-charges-table tbody tr td {
       border: 1px solid #d4d4d4;
       padding: 5px 6px;
       vertical-align: middle;
-      font-size: 7.5pt;
+      font-size: 10pt;
     }
     .bill-wrap .bill-charges-table tbody tr:nth-child(even) td {
       background: #f9f9f9;
@@ -757,7 +757,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     .bill-wrap .bill-charges-table tfoot tr td {
       border: 1px solid #d4d4d4;
       padding: 5px 6px;
-      font-size: 7.5pt;
+      font-size: 10pt;
     }
     .bill-wrap .bct-right { text-align: right; }
     .bill-wrap .bct-center { text-align: center; }
@@ -774,7 +774,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       border-collapse: collapse;
       margin-top: 4px;
       margin-bottom: 2px;
-      font-size: 6.5pt;
+      font-size: 10pt;
     }
     .bill-wrap .subcharge-table td {
       padding: 1px 3px;
@@ -792,7 +792,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
     .bill-wrap .sac-code-row td {
       background: #f5f5f5 !important;
-      font-size: 6.5pt;
+      font-size:9pt;
       color: #666;
       padding: 3px 6px !important;
     }
@@ -801,7 +801,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       border: 1px solid #d4d4d4;
       border-top: none;
       padding: 6px 10px;
-      font-size: 7.5pt;
+      font-size: 10;
       margin-bottom: 12px;
       margin-top: 0;
     }
@@ -831,7 +831,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       border: 1px solid #dde2ea;
       border-radius: 3px;
       margin-bottom: 12px;
-      font-size: 7.5pt;
+      font-size: 10pt;
     }
     .bill-wrap .bill-info-row > div {
       flex: 1;
@@ -881,7 +881,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       background: ${headerBg};
       color: ${headerText};
       font-weight: 800;
-      font-size: 9pt;
+      font-size: 10pt;
     }
   `
 
@@ -1063,7 +1063,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           </div>
         )}
         {printSettings?.show_hotel_address === 1 && (
-          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '7.5pt', color: '#666' }}>
+          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: 'pt', color: '#666' }}>
             📍 {hotelAddress}
           </div>
         )}
@@ -1200,8 +1200,8 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       headers.push(<th key="sgst" className="col-small bct-right">SGST</th>)
     }
     // Separate POST and ALLOW columns
-    headers.push(<th key="post" className="col-amount bct-right">POST</th>)
-    headers.push(<th key="allow" className="col-amount bct-right">ALLOW</th>)
+    headers.push(<th key="post" className="col-amount bct-right">DEBIT</th>)
+    headers.push(<th key="allow" className="col-amount bct-right">CREDIT</th>)
     if (hasAdvanceData) {
       headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>)
     }
@@ -1390,17 +1390,17 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           <div className="bill-thankyou">{printSettings?.thankyou_message_text || 'Thank You!'}</div>
         )}
         {printSettings?.show_footer_note === 1 && (
-          <div className="mt-1" style={{ fontSize: '8pt', color: '#555' }}>
+          <div className="mt-1" style={{ fontSize: '10pt', color: '#555' }}>
             {printSettings?.footer_note_text || 'We look forward to welcoming you again.'}
           </div>
         )}
-        <div className="mt-1" style={{ fontSize: '7pt', color: '#999' }}>
+        <div className="mt-1" style={{ fontSize: '10pt', color: '#999' }}>
           {printSettings?.show_gst_details === 1 && <div>GSTIN: {hotelGSTIN}</div>}
           {printSettings?.show_company_pan === 1 && <div>PAN: {hotelPAN}</div>}
           {printSettings?.show_fssai === 1 && <div>FSSAI: {hotelFSSAI}</div>}
         </div>
         {printSettings?.custom_footer_text && (
-          <div className="mt-1" style={{ fontSize: '7pt', color: '#999' }}>{printSettings.custom_footer_text}</div>
+          <div className="mt-1" style={{ fontSize: '10pt', color: '#999' }}>{printSettings.custom_footer_text}</div>
         )}
       </div>
     )
@@ -1492,7 +1492,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           border-bottom: 1px solid #dee2e6;
           position: sticky;
           top: 0;
-          z-index: 10;
+          z-index: 10pt;
         }
         .btn-bill-print {
           background: ${headerBg};

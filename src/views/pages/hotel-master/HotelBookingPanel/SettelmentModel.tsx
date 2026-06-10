@@ -44,6 +44,7 @@ interface SettlementModalProps {
   // Hotel room booking specific
   guestName?: string;
   roomNo?: string;
+  room_id?: number;
   totalPrice?: number;
 }
 
@@ -67,6 +68,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   selectedOutletId,
   guestName,
   roomNo,
+  room_id,
   totalPrice,
 }) => {
   const [isMixedPayment, setIsMixedPayment] = useState(initialIsMixed);
@@ -209,7 +211,11 @@ const handleSettle = useCallback(async () => {
         outletid: mode?.outletid,
 
         checkinid: (window as any)?.__hotel_checkinid,
-        room_id: (window as any)?.__hotel_roomid,
+        // FIX: use modal prop first; fallback to window global for backward compatibility.
+        room_id: room_id ?? (window as any)?.__hotel_roomid,
+
+        // Ensure backend gets room reference (ldgsettlement.room_name)
+        room_name: roomNo ?? '',
 
         // Existing fields already used by backend insertData
         received_amount: cashReceived || 0,

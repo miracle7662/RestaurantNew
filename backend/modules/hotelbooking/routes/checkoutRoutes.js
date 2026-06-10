@@ -8,6 +8,8 @@ router.get('/:id', controller.getCheckoutById);
 router.get('/by-checkin/:checkin_id', controller.getCheckoutByCheckinId);
 router.get('/backups', controller.getBackupCheckins);
 router.post('/perform', controller.performCheckout);
+router.put("/rooms/available", controller.makeRoomsVacant);
 router.delete('/:id', controller.deleteCheckout);
+
 
 module.exports = router;

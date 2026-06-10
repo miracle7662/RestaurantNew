@@ -16,6 +16,7 @@ const createUploadDirs = () => {
     path.join(BASE_UPLOAD_DIR, 'guests', 'documents'),
     path.join(BASE_UPLOAD_DIR, 'guests', 'documents', 'front'),
     path.join(BASE_UPLOAD_DIR, 'guests', 'documents', 'back'),
+    path.join(BASE_UPLOAD_DIR, 'guests', 'guest_photo'),
   ];
 
   dirs.forEach((dir) => {
@@ -37,32 +38,40 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let dest;
 
-    switch (file.fieldname) {
-      case 'front_side':
-        dest = path.join(
-          BASE_UPLOAD_DIR,
-          'guests',
-          'documents',
-          'front'
-        );
-        break;
+  switch (file.fieldname) {
+  case "front_side":
+    dest = path.join(
+      BASE_UPLOAD_DIR,
+      "guests",
+      "documents",
+      "front"
+    );
+    break;
 
-      case 'back_side':
-        dest = path.join(
-          BASE_UPLOAD_DIR,
-          'guests',
-          'documents',
-          'back'
-        );
-        break;
+  case "back_side":
+    dest = path.join(
+      BASE_UPLOAD_DIR,
+      "guests",
+      "documents",
+      "back"
+    );
+    break;
 
-      default:
-        dest = path.join(
-          BASE_UPLOAD_DIR,
-          'guests',
-          'documents'
-        );
-    }
+  case "guest_photo": // ya "guest_photo", jo field name frontend bhej raha ho
+    dest = path.join(
+      BASE_UPLOAD_DIR,
+      "guests",
+      "guest_photo"
+    );
+    break;
+
+  default:
+    dest = path.join(
+      BASE_UPLOAD_DIR,
+      "guests",
+      "documents"
+    );
+}
 
     cb(null, dest);
   },
@@ -118,7 +127,7 @@ const uploadGuestDocuments = upload.fields([
   { name: 'back_side', maxCount: 1 },
 ]);
 
-const uploadGuestPhoto = upload.single('image');
+const uploadGuestPhoto = upload.single('guest_photo');
 
 module.exports = {
   upload,
