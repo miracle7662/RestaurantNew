@@ -984,10 +984,9 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
     // Backend required fields (passed through to SettlementModal)
     userid: user?.id,
     HotelID: hotelId,
-    outletid: user?.outletid,
+    outletid: outletIdFallback,
     checkinid: co.checkin_id,
     room_id: roomIdFallback,
-    outletid: outletIdFallback,
   } as any)
 
   setShowSettlementPayModal(true)

@@ -4,128 +4,26 @@ const db = require('../../../config/db');
 const nowMySQL = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 
 // ==================== CREATE ====================
-// exports.createSettlement = async (req, res) => {
-//   try {
-//     const {
-//      userid, PaymentTypeID, PaymentType, Amount,
-//       TipAmount = 0, Batch = '', Name, HotelID, RefferedBy = '',
-//       customerid = null, CustomerName = '', MobileNo = '', Address = '',
-//       Refund = 0, Receive = 0, Name2 = '', Name3 = '', table_name = 'room',
-//       outletid, outletname = '', guest_id = null, guest_name = '',
-//       discount = 0, total_advance = 0, total_amount, bill_no = null,
-//       registration_no = null, room_name = '', checkinid,
-//       created_by_id, updated_by_id, checkout_date = null
-//     } = req.body;
-
-//     // Required fields check
-//     if (!userid || !PaymentTypeID || !PaymentType || !Amount || !HotelID || !outletid || !total_amount || !checkinid) {
-//       return res.status(400).json({ success: false, message: 'Missing required fields' });
-//     }
-
-//     const insertData = {
-      
-//       userid,
-//       PaymentTypeID,
-//       PaymentType,
-//       Amount,
-//       TipAmount,
-//       Batch,
-//       Name: Name || guest_name,
-//       HotelID,
-//       InsertDate: nowMySQL(),
-//       isSettled: 1,
-//       RefferedBy,
-//       customerid,
-//       CustomerName: CustomerName || guest_name,
-//       MobileNo,
-//       Address,
-//       Refund,
-//       Receive,
-//       Name2,
-//       Name3,
-//       table_name,
-//       outletid,
-//       outletname,
-//       guest_id,
-//       guest_name,
-//       discount,
-//       total_advance,
-//       total_amount,
-//       bill_no,
-//       registration_no,
-//       room_name,
-//       checkinid,
-//       created_by_id: created_by_id || userid,
-//       updated_by_id: updated_by_id || userid,
-//       checkout_date
-//     };
-
-//     const [result] = await db.query('INSERT INTO ldgsettlement SET ?', [insertData]);
-//     const [newRow] = await db.query('SELECT * FROM ldgsettlement WHERE SettlementID = ?', [result.insertId]);
-
-//     res.status(201).json({ success: true, message: 'Settlement created', data: newRow[0] });
-//   } catch (error) {
-//     console.error('createSettlement error:', error);
-//     res.status(500).json({ success: false, message: 'Failed to create settlement' });
-//   }
-// };
 exports.createSettlement = async (req, res) => {
   try {
     const {
-      userid,
-      PaymentTypeID,
-      PaymentType,
-      Amount,
-      TipAmount = 0,
-      Batch = '',
-      Name,
-      HotelID,
-      RefferedBy = '',
-      customerid = null,
-      CustomerName = '',
-      MobileNo = '',
-      Address = '',
-      Refund = 0,
-      Receive = 0,
-      Name2 = '',
-      Name3 = '',
-      table_name = 'room',
-      outletid,
-      outletname = '',
-      guest_id = null,
-      guest_name = '',
-      discount = 0,
-      total_advance = 0,
-      total_amount,
-      bill_no = null,
-      registration_no = null,
-      room_name = '',
-      room_id, // ADD THIS
-      checkinid,
-      created_by_id,
-      updated_by_id,
-      checkout_date = null
+     userid, PaymentTypeID, PaymentType, Amount,
+      TipAmount = 0, Batch = '', Name, HotelID, RefferedBy = '',
+      customerid = null, CustomerName = '', MobileNo = '', Address = '',
+      Refund = 0, Receive = 0, Name2 = '', Name3 = '', table_name = 'room',
+      outletid, outletname = '', guest_id = null, guest_name = '',
+      discount = 0, total_advance = 0, total_amount, bill_no = null,
+      registration_no = null, room_name = '', checkinid,
+      created_by_id, updated_by_id, checkout_date = null
     } = req.body;
 
     // Required fields check
-    if (
-      !userid ||
-      !PaymentTypeID ||
-      !PaymentType ||
-      !Amount ||
-      !HotelID ||
-      !outletid ||
-      !total_amount ||
-      !checkinid ||
-      !room_id
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields'
-      });
+    if (!userid || !PaymentTypeID || !PaymentType || !Amount || !HotelID || !outletid || !total_amount || !checkinid) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
     const insertData = {
+      
       userid,
       PaymentTypeID,
       PaymentType,
@@ -162,41 +60,143 @@ exports.createSettlement = async (req, res) => {
       checkout_date
     };
 
-    // INSERT SETTLEMENT
-    const [result] = await db.query(
-      'INSERT INTO ldgsettlement SET ?',
-      [insertData]
-    );
+    const [result] = await db.query('INSERT INTO ldgsettlement SET ?', [insertData]);
+    const [newRow] = await db.query('SELECT * FROM ldgsettlement WHERE SettlementID = ?', [result.insertId]);
 
-    // UPDATE ROOM STATUS
-    await db.query(
-      `UPDATE room_master 
-       SET room_status_id = 4
-       WHERE room_id = ?`,
-      [room_id]
-    );
-
-    // FETCH INSERTED ROW
-    const [newRow] = await db.query(
-      'SELECT * FROM ldgsettlement WHERE SettlementID = ?',
-      [result.insertId]
-    );
-
-    res.status(201).json({
-      success: true,
-      message: 'Settlement created',
-      data: newRow[0]
-    });
-
+    res.status(201).json({ success: true, message: 'Settlement created', data: newRow[0] });
   } catch (error) {
     console.error('createSettlement error:', error);
-
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create settlement'
-    });
+    res.status(500).json({ success: false, message: 'Failed to create settlement' });
   }
 };
+// exports.createSettlement = async (req, res) => {
+//   try {
+//     const {
+//       userid,
+//       PaymentTypeID,
+//       PaymentType,
+//       Amount,
+//       TipAmount = 0,
+//       Batch = '',
+//       Name,
+//       HotelID,
+//       RefferedBy = '',
+//       customerid = null,
+//       CustomerName = '',
+//       MobileNo = '',
+//       Address = '',
+//       Refund = 0,
+//       Receive = 0,
+//       Name2 = '',
+//       Name3 = '',
+//       table_name = 'room',
+//       outletid,
+//       outletname = '',
+//       guest_id = null,
+//       guest_name = '',
+//       discount = 0,
+//       total_advance = 0,
+//       total_amount,
+//       bill_no = null,
+//       registration_no = null,
+//       room_name = '',
+//       room_id, // ADD THIS
+//       checkinid,
+//       created_by_id,
+//       updated_by_id,
+//       checkout_date = null
+//     } = req.body;
+
+//     // Required fields check
+//     if (
+//       !userid ||
+//       !PaymentTypeID ||
+//       !PaymentType ||
+//       !Amount ||
+//       !HotelID ||
+//       !outletid ||
+//       !total_amount ||
+//       !checkinid ||
+//       !room_id
+//     ) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Missing required fields'
+//       });
+//     }
+
+//     const insertData = {
+//       userid,
+//       PaymentTypeID,
+//       PaymentType,
+//       Amount,
+//       TipAmount,
+//       Batch,
+//       Name: Name || guest_name,
+//       HotelID,
+//       InsertDate: nowMySQL(),
+//       isSettled: 1,
+//       RefferedBy,
+//       customerid,
+//       CustomerName: CustomerName || guest_name,
+//       MobileNo,
+//       Address,
+//       Refund,
+//       Receive,
+//       Name2,
+//       Name3,
+//       table_name,
+//       outletid,
+//       outletname,
+//       guest_id,
+//       guest_name,
+//       discount,
+//       total_advance,
+//       total_amount,
+//       bill_no,
+//       registration_no,
+//       room_name,
+//       checkinid,
+//       created_by_id: created_by_id || userid,
+//       updated_by_id: updated_by_id || userid,
+//       checkout_date
+//     };
+
+//     // INSERT SETTLEMENT
+//     const [result] = await db.query(
+//       'INSERT INTO ldgsettlement SET ?',
+//       [insertData]
+//     );
+
+//     // // UPDATE ROOM STATUS
+//     // await db.query(
+//     //   `UPDATE room_master 
+//     //    SET room_status_id = 4
+//     //    WHERE room_id = ?`,
+//     //   [room_id]
+//     // );
+
+//     // FETCH INSERTED ROW
+//     const [newRow] = await db.query(
+//       'SELECT * FROM ldgsettlement WHERE SettlementID = ?',
+//       [result.insertId]
+//     );
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'Settlement created',
+//       data: newRow[0]
+//     });
+
+//   } catch (error) {
+//     console.error('createSettlement error:', error);
+
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to create settlement'
+//     });
+//   }
+// };
 
 // ==================== GET (with filters) ====================
 exports.getSettlements = async (req, res) => {

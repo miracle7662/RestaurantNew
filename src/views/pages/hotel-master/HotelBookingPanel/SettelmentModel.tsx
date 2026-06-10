@@ -204,9 +204,10 @@ const handleSettle = useCallback(async () => {
     // NOTE: HOTEL SPECIFIC fields (userid, HotelID, checkinid, room_id, outletid) must be
     // provided by parent props. This component should not rely on window globals.
     const settlements = currentModes.map((name) => {
-      const mode = outletPaymentModes.find((m) => m.mode_name === name)
+        const mode = outletPaymentModes.find((m) => m.mode_name === name)
 
       return {
+
         table_name: table_name || 'room',
 
         // Required by backend (provided by parent via props)
@@ -244,9 +245,35 @@ const handleSettle = useCallback(async () => {
           !s.total_amount,
       )
       if (invalid) {
+        // Debug: show exactly what is missing (helps track room_id/outletid/checkinid issues)
+        const debugMissing = {
+          userid,
+          HotelID,
+          checkinid,
+          room_id,
+          // PaymentTypeID is per-settlement row; outletid comes from selected mode
+          outletid: undefined,
+          PaymentTypeID: undefined,
+          PaymentType: undefined,
+
+
+
+          settlementsPreview: settlements.map(s => ({
+            PaymentType: s.PaymentType,
+            PaymentTypeID: s.PaymentTypeID,
+            userid: s.userid,
+            HotelID: s.HotelID,
+            outletid: s.outletid,
+            checkinid: s.checkinid,
+            room_id: s.room_id,
+            total_amount: s.total_amount,
+          })),
+        }
+        console.error('[SettlementModal] Missing required fields for ldgSettlement:', debugMissing)
         toast.error('Missing hotel settlement details (userid/HotelID/checkin/room/outlet etc.)')
         return
       }
+
 
       await onSettle(settlements as any, tip)
     } catch (err) {
