@@ -968,6 +968,8 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
   // Try to resolve room_id from occupiedRooms using the room number.
   // Backend requires room_id for ldgsettlement.createSettlement.
   const resolvedRoom = occupiedRooms.find((r) => r.room_no === co.room_no)
+  const roomIdFallback = resolvedRoom?.room_id ?? (co as any).room_id
+  const outletIdFallback = (user?.outletid ?? (co as any).outletid ?? 0) || 0
 
   setSettlementPayData({
     guestName: co.guest_name || '-',
@@ -984,7 +986,8 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
     HotelID: hotelId,
     outletid: user?.outletid,
     checkinid: co.checkin_id,
-    room_id: resolvedRoom?.room_id,
+    room_id: roomIdFallback,
+    outletid: outletIdFallback,
   } as any)
 
   setShowSettlementPayModal(true)
