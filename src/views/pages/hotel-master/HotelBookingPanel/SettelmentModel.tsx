@@ -41,11 +41,19 @@ interface SettlementModalProps {
   initialTip?: number;
   initialCashReceived?: number;
   table_name?: string | null;
-  // Hotel room booking specific
+
+  // Hotel room booking specific (REQUIRED for backend ldgSettlementController.createSettlement)
+  userid?: number;
+  HotelID?: number;
+  checkinid?: number;
+  room_id?: number;
+
+  // UI only
   guestName?: string;
   roomNo?: string;
   totalPrice?: number;
 }
+
 
 const SettlementModal: React.FC<SettlementModalProps> = ({
   show,
@@ -68,6 +76,10 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   guestName,
   roomNo,
   totalPrice,
+  userid,
+  HotelID,
+  checkinid,
+  room_id,
 }) => {
   const [isMixedPayment, setIsMixedPayment] = useState(initialIsMixed);
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>(initialSelectedModes);
@@ -189,27 +201,27 @@ const handleSettle = useCallback(async () => {
     }
 
 // Backend (ldgSettlementController) requires additional fields.
-    // We map what we can and rely on the parent to provide the rest.
-    // NOTE: window.__hotel_* globals are NOT a reliable contract; this is
-    // a temporary compile-time placeholder. Replace with proper props wiring
-    // in HotelBookingPanel when available.
+    // NOTE: HOTEL SPECIFIC fields (userid, HotelID, checkinid, room_id, outletid) must be
+    // provided by parent props. This component should not rely on window globals.
     const settlements = currentModes.map((name) => {
       const mode = outletPaymentModes.find((m) => m.mode_name === name)
 
       return {
         table_name: table_name || 'room',
 
-        // Required by backend
+        // Required by backend (provided by parent via props)
         PaymentTypeID: mode?.id,
         PaymentType: name,
         Amount: Number(currentAmounts[name] || 0),
 
-        userid: (window as any)?.__hotel_userid,
-        HotelID: (window as any)?.__hotel_hotelid,
+        // TODO: these required fields must come from parent props
+        // Hotel specific required fields (provided by parent via props)
+        userid,
+        HotelID,
         outletid: mode?.outletid,
 
-        checkinid: (window as any)?.__hotel_checkinid,
-        room_id: (window as any)?.__hotel_roomid,
+        checkinid,
+        room_id,
 
         // Existing fields already used by backend insertData
         received_amount: cashReceived || 0,
@@ -220,6 +232,22 @@ const handleSettle = useCallback(async () => {
     })
 
     try {
+      // Extra safety: backend requires these fields
+      const invalid = settlements.some(
+        s =>
+          !s.userid ||
+          !s.PaymentTypeID ||
+          !s.HotelID ||
+          !s.outletid ||
+          !s.checkinid ||
+          !s.room_id ||
+          !s.total_amount,
+      )
+      if (invalid) {
+        toast.error('Missing hotel settlement details (userid/HotelID/checkin/room/outlet etc.)')
+        return
+      }
+
       await onSettle(settlements as any, tip)
     } catch (err) {
       toast.error('Settlement failed')

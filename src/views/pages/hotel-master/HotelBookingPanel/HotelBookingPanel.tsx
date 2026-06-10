@@ -593,7 +593,11 @@ const HotelBookingPanel = () => {
     billNumber: string
     paymentMode: string
   } | null>(null)
+  // NOTE: kept to match older UI code; not used by current implementation.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [settlementBillLoading, setSettlementBillLoading] = useState(false)
+  void settlementBillLoading
+
 
   // Hotel info state (needed for bill modal)
   const [hotelAddress, setHotelAddress] = useState<string>('')
@@ -958,8 +962,13 @@ fetchPaymentModes()
   }
 
 const handleSettlementCardSettle = (co: CheckoutMaster) => {
-  const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
-  const payType = paymentData.split('|')[0] || 'Cash'
+  const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-' 
+  void paymentData
+
+  // Try to resolve room_id from occupiedRooms using the room number.
+  // Backend requires room_id for ldgsettlement.createSettlement.
+  const resolvedRoom = occupiedRooms.find((r) => r.room_no === co.room_no)
+
   setSettlementPayData({
     guestName: co.guest_name || '-',
     guestid: co.guest_id || 0,
@@ -969,10 +978,18 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
     checkinId: co.checkin_id,
     billNo: co.ldg_bill_no,
     regNo: co.reg_no,
-   
-  })
+
+    // Backend required fields (passed through to SettlementModal)
+    userid: user?.id,
+    HotelID: hotelId,
+    outletid: user?.outletid,
+    checkinid: co.checkin_id,
+    room_id: resolvedRoom?.room_id,
+  } as any)
+
   setShowSettlementPayModal(true)
 }
+
 
   const fetchRoomStatusLogs = async () => {
     if (!hotelId) return
