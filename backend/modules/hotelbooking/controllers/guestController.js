@@ -44,9 +44,27 @@ const deleteFile = (filePath) => {
 
 // Helper to get full URL for file
 const getFileUrl = (req, filePath) => {
-  if (!filePath) return null;
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
-  return `${baseUrl}/${filePath.replace(/\\/g, '/')}`;
+    if (!filePath) return null;
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+    // Normalize to forward slashes
+    const normalized = String(filePath).replace(/\\/g, '/');
+
+    // Extract only the part starting from /uploads/
+    const uploadsIndex = normalized.toLowerCase().indexOf('/uploads/');
+    if (uploadsIndex !== -1) {
+        const relativeFromUploads = normalized.slice(uploadsIndex + 1); // keep leading 'uploads/...'
+        return `${baseUrl}/${relativeFromUploads}`;
+    }
+
+    // Fallback: if path already looks like it starts with uploads/
+    if (normalized.toLowerCase().startsWith('uploads/')) {
+        return `${baseUrl}/${normalized}`;
+    }
+
+    // Last resort: return as-is (won't work for absolute windows paths, but keeps backward compatibility)
+    return `${baseUrl}/${normalized}`;
 };
 
 // ---------- Helper for Foreign Key Validation ----------

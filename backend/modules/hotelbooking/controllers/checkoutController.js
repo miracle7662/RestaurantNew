@@ -15,12 +15,12 @@ const safeDecimal = (value) => {
 // Helper to get default room status ID for 'cleaning'
 const getCleaningStatusId = async (connection) => {
   const [statuses] = await connection.query(
-    "SELECT room_status_id FROM room_status WHERE LOWER(status_name) = 'cleaning' LIMIT 1"
+    "SELECT room_status_id FROM room_status WHERE  room_status_id=4 LIMIT 1"
   );
   if (statuses.length > 0) return statuses[0].room_status_id;
   
   const [altStatuses] = await connection.query(
-    "SELECT room_status_id FROM room_status WHERE LOWER(status_name) IN ('cleaning', 'dirty', 'clean') LIMIT 1"
+    "SELECT room_status_id FROM room_status WHERE room_status_id  IN(4, 5, 6) LIMIT 1"
   );
   return altStatuses.length > 0 ? altStatuses[0].room_status_id : 2;
 };
@@ -28,14 +28,26 @@ const getCleaningStatusId = async (connection) => {
 // Helper to get default room status ID for 'available'
 const getAvailableStatusId = async (connection) => {
   const [statuses] = await connection.query(
-    "SELECT room_status_id FROM room_status WHERE LOWER(status_name) = 'available' LIMIT 1"
+    "SELECT room_status_id FROM room_status WHERE room_status_id = 1 LIMIT 1"
   );
   if (statuses.length > 0) return statuses[0].room_status_id;
   
   const [altStatuses] = await connection.query(
-    "SELECT room_status_id FROM room_status WHERE LOWER(status_name) IN ('available', 'vacant', 'free') LIMIT 1"
+    "SELECT room_status_id FROM room_status WHERE room_status_id = 1 LIMIT 1"
   );
   return altStatuses.length > 0 ? altStatuses[0].room_status_id : 1;
+};
+
+const updateRoomsToAvailable = async (connection, roomIds, userId) => {
+  const placeholders = roomIds.map(() => '?').join(',');
+  const query = `
+    UPDATE room_master 
+    SET room_status_id = ?, updated_by_id = ?, updated_date = NOW()
+    WHERE room_id IN (${placeholders})
+  `;
+  const params = [1, userId, ...roomIds];
+  const [result] = await connection.query(query, params);
+  return result;
 };
 
 // Helper to get occupied status ID
@@ -54,7 +66,7 @@ const getOccupiedStatusId = async (connection) => {
 // Helper to get room status ID for 'settlement'
 const getSettlementStatusId = async (connection) => {
   const [statuses] = await connection.query(
-    "SELECT room_status_id FROM room_status WHERE LOWER(status_name) = 'settlement' LIMIT 1"
+    "SELECT room_status_id FROM room_status WHERE room_status_id = 7 LIMIT 1"
   );
   if (statuses.length > 0) return statuses[0].room_status_id;
   
@@ -112,7 +124,14 @@ exports.getCheckouts = async (req, res) => {
     if (!hotelId) return res.status(400).json({ success: false, message: "Hotel ID not found" });
 
     const [checkouts] = await db.query(`
-      SELECT * FROM Checkout_Master WHERE hotelid = ? ORDER BY checkout_datetime DESC
+   SELECT cm.*,rm.room_status_id FROM 
+
+Checkout_Master cm 
+left join room_master rm on rm.room_id = cm.room_id
+
+ WHERE cm.hotelid = ? and rm.room_status_id=7 and is_settle=0
+
+ORDER BY checkout_datetime DESC
     `, [hotelId]);
 
     res.json({ success: true, message: "Data fetched successfully", data: checkouts });
@@ -539,7 +558,7 @@ exports.performCheckout = async (req, res) => {
       INSERT INTO Checkout_Master (
         checkin_id, guest_id, guest_name, address, mobile, company_name, emailed, booking,
         plan_name, reg_no, special_instruction, message, checkin_datetime, checkout_datetime,
-        room_no, category_id, converted_category, adults, pax, pax_charges, ex_pax,
+        room_no, room_id, category_id, converted_category, adults, pax, pax_charges, ex_pax,
         ex_pax_charge, child_paid, child_unpaid, child_charge, driver, driver_charge,
         hotelid, id_type, id_number, department_id, department_name, created_by_id,
         created_date, updated_by_id, updated_date, status, total_nights, total_amount,
@@ -548,7 +567,7 @@ exports.performCheckout = async (req, res) => {
         discount_amount, post_changes_amt, allowances_amt, advance_amt,
         cgst_amt, sgst_amt, igst_amt, cess_amt, service_charge_amt,
         net_payable, round_off_amount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       checkinData.checkin_id, 
       checkinData.guest_id, 
@@ -565,6 +584,7 @@ exports.performCheckout = async (req, res) => {
       formatDateTime(checkinData.checkin_datetime), 
       formatDateTime(checkinData.checkout_datetime),
       (checkedOutRoomNumbers[0] || ''),
+      (checkedOutRoomIds[0] || null),
       checkinData.category_id, 
       checkinData.converted_category,
       totalDetailAggregation.adults, 
@@ -597,8 +617,8 @@ exports.performCheckout = async (req, res) => {
       ldg_bill_no,
       finalPaymentId,
       resolvedPaymentMode,
-      is_settle !== undefined ? is_settle : 1,
-      is_print !== undefined ? is_print : 0,
+      is_settle !== undefined ? is_settle : 0,
+      is_print !== undefined ? is_print : 1,
       finalDiscountAmount,
       finalPostChangesAmt,
       finalAllowancesAmt,
@@ -930,3 +950,25 @@ exports.getBackupCheckins = async (req, res) => {
     res.status(500).json({ success: false, message: "Database error" });
   }
 };
+
+// यह function HTTP request handle करेगा
+exports.makeRoomsVacant = async (req, res) => {
+  const { roomIds } = req.body;
+  const userId = getCurrentUserId(req);
+  
+  if (!roomIds || !Array.isArray(roomIds) || roomIds.length === 0) {
+    return res.status(400).json({ success: false, message: "roomIds array is required" });
+  }
+
+  const connection = await db.getConnection();
+  try {
+    const result = await updateRoomsToAvailable(connection, roomIds, userId);
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
