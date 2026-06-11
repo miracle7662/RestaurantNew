@@ -12,6 +12,14 @@ export default defineConfig(({ command }) => ({
 			"@": path.resolve(__dirname, "src"),
 		},
 	},
+	css: {
+		preprocessorOptions: {
+			scss: {
+				silenceDeprecations: ['color-functions', 'import', 'global-builtin'],
+				quietDeps: true,
+			},
+		},
+	},
 	build: {
 		target: 'es2022'
 	},
@@ -26,4 +34,3 @@ export default defineConfig(({ command }) => ({
 		},
 	},
 }));
-

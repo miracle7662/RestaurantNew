@@ -634,7 +634,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
   // Kept for backward-compat with older implementations; intentionally unused.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const totalPostAllowNet = roundToTwo(tableRows.reduce((sum, row) => sum + (row as any).postAllowNet, 0))
+  // const totalPostAllowNet = roundToTwo(tableRows.reduce((sum, row) => sum + (row as any).postAllowNet, 0))
 
   const totalAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.total, 0))
   const netTotal = grandTotal
