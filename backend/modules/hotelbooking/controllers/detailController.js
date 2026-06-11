@@ -30,7 +30,7 @@ exports.getDetails = async (req, res) => {
       return res.status(400).json({ success: false, message: "Hotel ID or checkin_id required" });
     }
 
-    let query = `SELECT * FROM detail_master`;
+    let query = `SELECT * FROM checkin_detail_master`;
     const params = [];
 
     if (checkin_id) {
@@ -55,7 +55,7 @@ exports.getDetails = async (req, res) => {
 exports.getDetailById = async (req, res) => {
   try {
     const { id } = req.params;
-    const [details] = await db.query('SELECT * FROM detail_master WHERE detail_id = ?', [id]);
+    const [details] = await db.query('SELECT * FROM checkin_detail_master WHERE detail_id = ?', [id]);
     const detail = details[0];
     
     if (!detail) {
@@ -94,7 +94,7 @@ exports.addDetail = async (req, res) => {
     const formattedCheckoutDatetime = formatDateTime(checkout_datetime);
 
     const [result] = await db.query(`
-      INSERT INTO detail_master (
+      INSERT INTO checkin_detail_master (
         checkin_id, hotelid, room_id, room_number, room_category_id, room_category_name,
         converted_category_id, converted_category_name, checkin_datetime, checkout_datetime,
         no_of_days, adults, pax, ex_pax, child_unpaid, driver, room_tariff, ex_pax_charge,
@@ -154,7 +154,7 @@ exports.addDetailBulk = async (req, res) => {
       const formattedCheckoutDatetime = formatDateTime(checkout_datetime);
 
       const [result] = await db.query(`
-        INSERT INTO detail_master (
+        INSERT INTO checkin_detail_master (
           checkin_id, hotelid, room_id, room_number, room_category_id, room_category_name,
           converted_category_id, converted_category_name, checkin_datetime, checkout_datetime,
           no_of_days, adults, pax, ex_pax, child_unpaid, driver, room_tariff, ex_pax_charge,
@@ -213,7 +213,7 @@ exports.addExtensionDetail = async (req, res) => {
     const formattedCheckoutDatetime = formatDateTime(checkout_datetime);
 
     const [result] = await db.query(`
-      INSERT INTO detail_master (
+      INSERT INTO checkin_detail_master (
         checkin_id, hotelid, room_id, room_number, room_category_id, room_category_name,
         converted_category_id, converted_category_name, checkin_datetime, checkout_datetime,
         no_of_days, adults, pax, ex_pax, child_unpaid, driver, room_tariff, ex_pax_charge,
@@ -251,7 +251,7 @@ exports.updateDetail = async (req, res) => {
     const userId = getCurrentUserId(req);
     const updated_date = new Date();
 
-    const [existing] = await db.query('SELECT detail_id FROM detail_master WHERE detail_id = ?', [id]);
+    const [existing] = await db.query('SELECT detail_id FROM checkin_detail_master WHERE detail_id = ?', [id]);
     if (!existing[0]) {
       return res.status(404).json({ success: false, message: "Detail not found" });
     }
@@ -284,7 +284,7 @@ exports.updateDetail = async (req, res) => {
     updates.push('updated_by_id = ?', 'updated_date = ?');
     values.push(userId, updated_date, id);
 
-    const query = `UPDATE detail_master SET ${updates.join(', ')} WHERE detail_id = ?`;
+    const query = `UPDATE checkin_detail_master SET ${updates.join(', ')} WHERE detail_id = ?`;
     const [result] = await db.query(query, values);
 
     if (result.affectedRows === 0) {
@@ -307,12 +307,12 @@ exports.deleteDetail = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const [existing] = await db.query('SELECT detail_id FROM detail_master WHERE detail_id = ?', [id]);
+    const [existing] = await db.query('SELECT detail_id FROM checkin_detail_master WHERE detail_id = ?', [id]);
     if (!existing[0]) {
       return res.status(404).json({ success: false, message: "Detail not found" });
     }
 
-    const [result] = await db.query('DELETE FROM detail_master WHERE detail_id = ?', [id]);
+    const [result] = await db.query('DELETE FROM checkin_detail_master WHERE detail_id = ?', [id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Detail not found" });

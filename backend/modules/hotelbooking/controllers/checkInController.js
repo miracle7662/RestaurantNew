@@ -319,7 +319,7 @@ exports.getDetailsByCheckinId = async (req, res) => {
                 is_checkout,
                 merged,
                 tax
-            FROM detail_master
+            FROM checkin_detail_master
             WHERE checkin_id = ?
             ORDER BY detail_id ASC
         `, [id]);
@@ -922,7 +922,7 @@ exports.extendStay = async (req, res) => {
         // Mark old detail as checked out if detailId provided
         if (detailId) {
             await connection.execute(`
-                UPDATE detail_master 
+                UPDATE checkin_detail_master 
                 SET is_checkout = 1, merged = 1, updated_by_id = ?, updated_date = ?
                 WHERE detail_id = ? AND checkin_id = ?
             `, [userId, now, detailId, checkinId]);
@@ -1048,11 +1048,11 @@ exports.deleteCheckin = async (req, res) => {
         const checkin = checkins[0];
 
         // Delete related records first (foreign key constraints)
-        await connection.execute('DELETE FROM guest_folio_master WHERE checkin_id = ?', [checkinId]);
-        await connection.execute('DELETE FROM guest_room_charges WHERE checkin_id = ?', [checkinId]);
+        await connection.execute('DELETE FROM checkin_guest_folio_master WHERE checkin_id = ?', [checkinId]);
+        await connection.execute('DELETE FROM checkin_guest_room_charges WHERE checkin_id = ?', [checkinId]);
         await connection.execute('DELETE FROM post_charges WHERE checkin_id = ?', [checkinId]);
         await connection.execute('DELETE FROM advance_transactions WHERE checkin_id = ?', [checkinId]);
-        await connection.execute('DELETE FROM detail_master WHERE checkin_id = ?', [checkinId]);
+        await connection.execute('DELETE FROM checkin_detail_master WHERE checkin_id = ?', [checkinId]);
 
         // Delete the checkin
         const [result] = await connection.execute(

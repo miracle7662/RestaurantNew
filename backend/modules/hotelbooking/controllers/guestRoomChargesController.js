@@ -21,7 +21,7 @@ const formatDateTime = (dateValue) => {
 exports.getCharges = async (req, res) => {
   try {
     const { guest_id, room_id, checkin_id } = req.query;
-    let query = `SELECT * FROM guest_room_charges`;
+    let query = `SELECT * FROM checkin_guest_room_charges`;
     const params = [];
     const conditions = [];
 
@@ -54,7 +54,7 @@ exports.getCharges = async (req, res) => {
 exports.getChargeById = async (req, res) => {
   try {
     const { id } = req.params;
-    const [charges] = await db.query('SELECT * FROM guest_room_charges WHERE guest_room_charges_id = ?', [id]);
+    const [charges] = await db.query('SELECT * FROM checkin_guest_room_charges WHERE guest_room_charges_id = ?', [id]);
     const charge = charges[0];
     
     if (!charge) {
@@ -85,7 +85,7 @@ exports.addCharge = async (req, res) => {
     const created_date = new Date();
 
     const [result] = await db.query(`
-      INSERT INTO guest_room_charges (
+      INSERT INTO checkin_guest_room_charges (
         guest_id, room_id, category_id, checkin_id,
         pax_count, pax_price, pax_tax,
         ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
@@ -125,7 +125,7 @@ exports.updateCharge = async (req, res) => {
     const updateData = req.body;
     const updated_date = new Date();
 
-    const [existing] = await db.query('SELECT guest_room_charges_id FROM guest_room_charges WHERE guest_room_charges_id = ?', [id]);
+    const [existing] = await db.query('SELECT guest_room_charges_id FROM checkin_guest_room_charges WHERE guest_room_charges_id = ?', [id]);
     if (!existing[0]) {
       return res.status(404).json({ success: false, message: 'Charge not found' });
     }
@@ -152,7 +152,7 @@ exports.updateCharge = async (req, res) => {
     updates.push('updated_at = ?');
     values.push(updated_date, id);
 
-    const query = `UPDATE guest_room_charges SET ${updates.join(', ')} WHERE guest_room_charges_id = ?`;
+    const query = `UPDATE checkin_guest_room_charges SET ${updates.join(', ')} WHERE guest_room_charges_id = ?`;
     const [result] = await db.query(query, values);
 
     if (result.affectedRows === 0) {
@@ -171,12 +171,12 @@ exports.deleteCharge = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const [existing] = await db.query('SELECT guest_room_charges_id FROM guest_room_charges WHERE guest_room_charges_id = ?', [id]);
+    const [existing] = await db.query('SELECT guest_room_charges_id FROM checkin_guest_room_charges WHERE guest_room_charges_id = ?', [id]);
     if (!existing[0]) {
       return res.status(404).json({ success: false, message: 'Charge not found' });
     }
 
-    const [result] = await db.query('DELETE FROM guest_room_charges WHERE guest_room_charges_id = ?', [id]);
+    const [result] = await db.query('DELETE FROM checkin_guest_room_charges WHERE guest_room_charges_id = ?', [id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: 'Charge not found' });
@@ -215,7 +215,7 @@ exports.addChargeBulk = async (req, res) => {
       const created_date = new Date();
 
       const [result] = await db.query(`
-        INSERT INTO guest_room_charges (
+        INSERT INTO checkin_guest_room_charges (
           guest_id, room_id, category_id, checkin_id,
           pax_count, pax_price, pax_tax,
           ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,

@@ -520,7 +520,7 @@ exports.addAdvanceTransaction = async (req, res) => {
     }
 
     await connection.query(`
-      INSERT INTO guest_folio_master (
+      INSERT INTO checkin_guest_folio_master (
         checkin_id, hotel_id, detail_id, transaction_type, transaction_datetime,
         description, debit_amount, credit_amount, reference_number, payment_method,
         created_by_id, created_date
@@ -687,7 +687,7 @@ exports.deleteAdvanceTransaction = async (req, res) => {
 //   - Rohit's ₹1000 advance: keep checkin_id (Rohit's), update room_id/room_no to Room 102
 //   - Prasad's ₹2000 advance: keep checkin_id (Prasad's), update room_id/room_no to Room 101
 //
-// ALSO: guest_folio_master rows for these advances are linked via reference_number = receipt_no.
+// ALSO: checkin_guest_folio_master rows for these advances are linked via reference_number = receipt_no.
 //       Their checkin_id must NOT change (the guest hasn't changed), but the description is
 //       updated to note the room change for the audit trail.
 //
@@ -848,7 +848,7 @@ exports.swapAdvanceBetweenRooms = async (req, res) => {
       console.log(`Step 3: Moved ${idsA.length} advances for Guest A to Room ${room_b_room_no} (their new room)`);
     }
 
-    // ── Update guest_folio_master — AUDIT TRAIL ONLY ─────────────────────────
+    // ── Update checkin_guest_folio_master — AUDIT TRAIL ONLY ─────────────────────────
     //
     // The folio rows for advance transactions are linked via reference_number = receipt_no.
     // checkin_id stays the same (guest hasn't changed); we only append a description note
@@ -860,7 +860,7 @@ exports.swapAdvanceBetweenRooms = async (req, res) => {
     if (receiptNosA.length > 0) {
       const ph = receiptNosA.map(() => '?').join(',');
       await connection.query(
-        `UPDATE guest_folio_master
+        `UPDATE checkin_guest_folio_master
          SET description  = CONCAT('[Room Swap] Guest "${guestNameA}" moved ${room_a_room_no}→${room_b_room_no}. ', description),
              updated_date = NOW()
          WHERE reference_number IN (${ph})
@@ -873,7 +873,7 @@ exports.swapAdvanceBetweenRooms = async (req, res) => {
     if (receiptNosB.length > 0) {
       const ph = receiptNosB.map(() => '?').join(',');
       await connection.query(
-        `UPDATE guest_folio_master
+        `UPDATE checkin_guest_folio_master
          SET description  = CONCAT('[Room Swap] Guest "${guestNameB}" moved ${room_b_room_no}→${room_a_room_no}. ', description),
              updated_date = NOW()
          WHERE reference_number IN (${ph})
@@ -960,7 +960,7 @@ exports.transferAdvanceToRoom = async (req, res) => {
     if (receiptNos.length > 0) {
       const ph = receiptNos.map(() => '?').join(',');
       await connection.query(
-        `UPDATE guest_folio_master
+        `UPDATE checkin_guest_folio_master
          SET description  = CONCAT('[Transferred to Room ${new_room_no}] ', description),
              updated_date = NOW()
          WHERE reference_number IN (${ph})

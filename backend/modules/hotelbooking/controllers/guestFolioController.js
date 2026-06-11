@@ -35,7 +35,7 @@ exports.getFolioEntries = async (req, res) => {
       return res.status(400).json({ success: false, message: "Hotel ID or checkin_id required" });
     }
 
-    let query = `SELECT * FROM guest_folio_master`;
+    let query = `SELECT * FROM checkin_guest_folio_master`;
     const params = [];
 
     if (checkin_id) {
@@ -60,7 +60,7 @@ exports.getFolioEntries = async (req, res) => {
 exports.getFolioEntryById = async (req, res) => {
   try {
     const { id } = req.params;
-    const [entries] = await db.query('SELECT * FROM guest_folio_master WHERE folio_id = ?', [id]);
+    const [entries] = await db.query('SELECT * FROM checkin_guest_folio_master WHERE folio_id = ?', [id]);
     const entry = entries[0];
     
     if (!entry) {
@@ -78,7 +78,8 @@ exports.addFolioEntry = async (req, res) => {
   try {
     const {
       checkin_id, hotel_id, detail_id, transaction_type, transaction_datetime,
-      description, debit_amount = 0, credit_amount = 0, reference_number, payment_method
+      description, debit_amount = 0, credit_amount = 0, reference_number, payment_method,
+      payment_id          // <-- added payment_id
     } = req.body;
 
     let currentPaymentMethod = payment_method || '';
@@ -104,15 +105,17 @@ exports.addFolioEntry = async (req, res) => {
     }
 
     const [result] = await db.query(`
-      INSERT INTO guest_folio_master (
+      INSERT INTO checkin_guest_folio_master (
         checkin_id, hotel_id, detail_id, transaction_type, transaction_datetime,
         description, debit_amount, credit_amount, reference_number, payment_method,
+        payment_id,                               -- <-- added column
         created_by_id, created_date, updated_by_id, updated_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       checkin_id, finalHotelId, detail_id || null, transaction_type, 
       formattedTransactionDatetime || now,
       description, debit_amount, credit_amount, reference_number || null, currentPaymentMethod,
+      payment_id || null,                          
       userId, now, userId, now
     ]);
 
@@ -135,14 +138,15 @@ exports.updateFolioEntry = async (req, res) => {
     const userId = getCurrentUserId(req);
     const now = formatDateTime(new Date());
 
-    const [existing] = await db.query('SELECT folio_id FROM guest_folio_master WHERE folio_id = ?', [id]);
+    const [existing] = await db.query('SELECT folio_id FROM checkin_guest_folio_master WHERE folio_id = ?', [id]);
     if (!existing[0]) {
       return res.status(404).json({ success: false, message: "Folio entry not found" });
     }
 
     const allowedFields = [
       'checkin_id', 'hotel_id', 'detail_id', 'transaction_type', 'transaction_datetime',
-      'description', 'debit_amount', 'credit_amount', 'reference_number', 'payment_method'
+      'description', 'debit_amount', 'credit_amount', 'reference_number', 'payment_method',
+      'payment_id'       // <-- added payment_id
     ];
 
     const updates = [];
@@ -163,7 +167,7 @@ exports.updateFolioEntry = async (req, res) => {
     updates.push('updated_by_id = ?', 'updated_date = ?');
     values.push(userId, now, id);
 
-    const query = `UPDATE guest_folio_master SET ${updates.join(', ')} WHERE folio_id = ?`;
+    const query = `UPDATE checkin_guest_folio_master SET ${updates.join(', ')} WHERE folio_id = ?`;
     const [result] = await db.query(query, values);
 
     if (result.affectedRows === 0) {
@@ -186,12 +190,12 @@ exports.deleteFolioEntry = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const [existing] = await db.query('SELECT folio_id FROM guest_folio_master WHERE folio_id = ?', [id]);
+    const [existing] = await db.query('SELECT folio_id FROM checkin_guest_folio_master WHERE folio_id = ?', [id]);
     if (!existing[0]) {
       return res.status(404).json({ success: false, message: "Folio entry not found" });
     }
 
-    const [result] = await db.query('DELETE FROM guest_folio_master WHERE folio_id = ?', [id]);
+    const [result] = await db.query('DELETE FROM checkin_guest_folio_master WHERE folio_id = ?', [id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Folio entry not found" });
@@ -220,6 +224,7 @@ exports.addFolioEntryBulk = async (req, res) => {
       const {
         checkin_id, hotel_id, detail_id, transaction_type, transaction_datetime,
         description, debit_amount, credit_amount, reference_number, payment_method,
+        payment_id,                       // <-- added payment_id
         created_by_id
       } = folio;
 
@@ -227,14 +232,16 @@ exports.addFolioEntryBulk = async (req, res) => {
       const formattedTransactionDatetime = formatDateTime(transaction_datetime) || now;
 
       const [result] = await db.query(`
-        INSERT INTO guest_folio_master (
+        INSERT INTO checkin_guest_folio_master (
           checkin_id, hotel_id, detail_id, transaction_type, transaction_datetime,
           description, debit_amount, credit_amount, reference_number, payment_method,
+          payment_id,                      -- <-- added column
           created_by_id, created_date, updated_by_id, updated_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         checkin_id, hotel_id, detail_id || null, transaction_type, formattedTransactionDatetime,
         description, debit_amount || 0, credit_amount || 0, reference_number || null, payment_method || null,
+        payment_id || null,                 // <-- added value
         userId, now, userId, now
       ]);
 
