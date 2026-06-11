@@ -5,7 +5,7 @@ const db = require('../../../config/db');
 const getCurrentUserId = (req) => req.user?.id || null;
 
 // Helper to get current user's hotel ID
-const getCurrentUserHotelId = (req) => req.user?.hotel_id || null;
+const getCurrentUserHotelId = (req) => req.user?.hotelid || req.user?.hotel_id || null;
 
 // Helper to format MySQL datetime
 const formatDate = (date) => date ? new Date(date).toISOString() : null;
@@ -146,11 +146,12 @@ exports.saveUiSettings = async (req, res) => {
             occupied_expired_bg,
             occupied_expired_text,
             dark_mode,
-            hotel_id
+            hotel_id,
+            hotelid
         } = req.body;
 
         const userId = getCurrentUserId(req);
-        let hotelId = hotel_id || getCurrentUserHotelId(req);
+        let hotelId = hotelid || hotel_id || getCurrentUserHotelId(req);
 
         if (!hotelId) {
             return res.status(400).json({ 
