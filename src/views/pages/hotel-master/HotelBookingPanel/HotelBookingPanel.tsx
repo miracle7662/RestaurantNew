@@ -593,11 +593,7 @@ const HotelBookingPanel = () => {
     billNumber: string
     paymentMode: string
   } | null>(null)
-  // NOTE: kept to match older UI code; not used by current implementation.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [settlementBillLoading, setSettlementBillLoading] = useState(false)
-  void settlementBillLoading
-
+  const [, setSettlementBillLoading] = useState(false)
 
   // Hotel info state (needed for bill modal)
   const [hotelAddress, setHotelAddress] = useState<string>('')
@@ -614,6 +610,7 @@ const HotelBookingPanel = () => {
   guestName: string
   guestid: number
   roomNo: string
+  roomid: number
   totalPrice: number
   checkoutId: number
   checkinId?: number
@@ -869,8 +866,13 @@ fetchPaymentModes()
       // Build a minimal combinedSummary from checkout data
       const combinedSummary = {
         checkin_id: co.checkin_id || 0,
-        guest_id: 0,
+      
+        guest_id: co.guest_id || 0,
         guest_name: co.guest_name || '-',
+        guest_mobile: co.mobile || undefined,
+        guest_email: co.email || undefined,
+        guest_address: co.address || undefined,
+        guest_id_proof: co.id_proof || undefined,
         room_numbers: [co.room_no || '-'],
         room_categories: [],
         converted_categories: [],
@@ -906,6 +908,7 @@ fetchPaymentModes()
         plan_name: '',
         checked_out_rooms: [co.room_no || '-'],
       }
+
 
       // Build a single summary display row from checkout data
       const today = new Date().toISOString().split('T')[0]
@@ -962,36 +965,23 @@ fetchPaymentModes()
   }
 
 const handleSettlementCardSettle = (co: CheckoutMaster) => {
-  const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-' 
-  void paymentData
-
-  // Try to resolve room_id from occupiedRooms using the room number.
-  // Backend requires room_id for ldgsettlement.createSettlement.
-  const resolvedRoom = occupiedRooms.find((r) => r.room_no === co.room_no)
-  const roomIdFallback = resolvedRoom?.room_id ?? (co as any).room_id
-  const outletIdFallback = (user?.outletid ?? (co as any).outletid ?? 0) || 0
-
+  const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
+  const payType = paymentData.split('|')[0] || 'Cash'
+  console.log('handleSettlementCardSettle', co, payType, paymentData)
   setSettlementPayData({
     guestName: co.guest_name || '-',
     guestid: co.guest_id || 0,
     roomNo: co.room_no || '-',
+    roomid: co.room_id || 0,
     totalPrice: Number(co.total_amount) || 0,
     checkoutId: co.checkout_id,
     checkinId: co.checkin_id,
     billNo: co.ldg_bill_no,
     regNo: co.reg_no,
-
-    // Backend required fields (passed through to SettlementModal)
-    userid: user?.id,
-    HotelID: hotelId,
-    outletid: outletIdFallback,
-    checkinid: co.checkin_id,
-    room_id: roomIdFallback,
-  } as any)
-
+   
+  })
   setShowSettlementPayModal(true)
 }
-
 
   const fetchRoomStatusLogs = async () => {
     if (!hotelId) return
@@ -3349,37 +3339,41 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
     })
   }
 
-  const handleRemoveSelectionForSection = async (roomIds: number[]) => {
-    // Only act on rooms that are currently selected
-    const toMakeAvailable = roomIds.filter((id) => selectedHousekeepingRoomIds.includes(id))
-    if (toMakeAvailable.length === 0) {
-      toast.error(
-        'No rooms selected. Please select rooms first using "Select All" or by clicking individual room cards.',
-      )
-      return
-    }
-    try {
-      await Promise.all(
-        toMakeAvailable.map((id) => {
-          const room = enrichedRooms.find((r) => r.id === id)
-          if (!room) return Promise.resolve()
-          return RoomService.update(id, {
-            ...room.rawData,
-            room_status: 'available' as RoomStatus,
-            updated_by_id: user?.id,
-          })
-        }),
-      )
-      // Deselect those rooms
-      setSelectedHousekeepingRoomIds((prev) => prev.filter((id) => !toMakeAvailable.includes(id)))
-      // Refresh room data
-      await handleRoomStatusChangeSuccess()
-      toast.success(`${toMakeAvailable.length} room(s) marked as Vacant.`)
-    } catch (err) {
-      console.error('Failed to make rooms vacant:', err)
-      toast.error('Failed to update room status. Please try again.')
-    }
+
+ const handleRemoveSelectionForSection = async (roomIds: number[]) => {
+  const toMakeAvailable = roomIds.filter((id) =>
+    selectedHousekeepingRoomIds.includes(id)
+  );
+
+  if (toMakeAvailable.length === 0) {
+    toast.error(
+      "No rooms selected. Please select rooms first."
+    );
+    return;
   }
+
+  try {
+    await CheckoutService.updateRoomsToAvailable({
+      roomIds: toMakeAvailable,
+      userId: user?.id,
+    });
+
+    // Deselect updated rooms
+    setSelectedHousekeepingRoomIds((prev) =>
+      prev.filter((id) => !toMakeAvailable.includes(id))
+    );
+
+    // Refresh room list
+    await handleRoomStatusChangeSuccess();
+
+    toast.success(
+      `${toMakeAvailable.length} room(s) marked as Vacant.`
+    );
+  } catch (err) {
+    console.error("Failed to make rooms vacant:", err);
+    toast.error("Failed to update room status.");
+  }
+};
 
   // Note: handleMakeRoomsAvailable function was removed as it was unused
 
@@ -6478,11 +6472,13 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
             billNumber={settlementBillData.billNumber}
             paymentBank={settlementBillData.paymentMode}
             hotelId={hotelId}
+            
           />
         )}
 
         {/* Settlement Section — Payment Settlement Modal */}
-      {settlementPayData && (
+     
+{settlementPayData && (
   <SettlementModal
     show={showSettlementPayModal}
     onHide={() => {
@@ -6515,8 +6511,8 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
             total_amount: settlementPayData.totalPrice,
             checkinid: settlementPayData.checkinId || 0,
             room_name: settlementPayData.roomNo,
-            room_id: (settlementPayData as any).roomId || 0,
-
+           
+            room_id: settlementPayData.roomid || 0,
             bill_no: settlementPayData.billNo,
             registration_no: settlementPayData.regNo,
             OrderNo: settlementPayData.orderNo,
@@ -6529,10 +6525,26 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
           }
           await LdgSettlementService.create(payload)
         }
+        
+        // ✔️ CHANGE 1: Room ko settled set se hatao (light blue tiles se)
+        setSettledRoomNos((prev) => {
+          const updated = new Set(prev)
+          updated.delete(settlementPayData.roomNo)
+          return updated
+        })
+
         toast.success(`Settlement recorded for Room ${settlementPayData.roomNo}`)
         setShowSettlementPayModal(false)
         setSettlementPayData(null)
+
+        // ✔️ CHANGE 2: Existing checkout refresh
         await fetchCheckoutDataAndSyncSettled()
+        
+        // ✔️ CHANGE 3: Rooms aur logs refresh (without status change)
+        await handleRoomStatusChangeSuccess()
+        await fetchOccupiedRooms()
+        if (showAtGlanceTable) fetchAtGlanceData()
+
       } catch (err) {
         console.error(err)
         toast.error('Settlement failed')
@@ -6546,6 +6558,7 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
     outletPaymentModes={outletPaymentModes}
     guestName={settlementPayData.guestName}
     roomNo={settlementPayData.roomNo}
+    room_id={settlementPayData.roomid}
     totalPrice={settlementPayData.totalPrice}
     initialCustomerName={settlementPayData.guestName}
     initialMobile={settlementPayData.mobileNo}

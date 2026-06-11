@@ -169,7 +169,7 @@ app.use('/api/accounttype', authenticateToken, AccountTypeRoutes);
 
 app.use('/api/outletmenu', outletMenuRoutes);
 app.use('/api/user-permissions', userPermissionsRoutes);
-app.use('/api/ldg-settlement', ldgSettlementRoutes);
+
 
 // Register billing transfer routes
 app.use('/api/billing-transfer', billingTransferRoutes);
@@ -220,6 +220,7 @@ app.use('/api/advance-transactions', advanceTransactionRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/guest-history', guestHistoryRoutes);
 app.use('/api/room-status', roomStatusRoutes);
+app.use('/api/ldg-settlement', ldgSettlementRoutes);
 
 
 app.get("/get-server-ip", (req, res) => {

@@ -431,7 +431,7 @@ exports.performCheckout = async (req, res) => {
     // Backup checkin_detail_master
     for (const detail of roomsToCheckout) {
       await connection.query(`
-        INSERT INTO backup_checkin_detail_master (
+        INSERT INTO backup_detail_master (
           original_detail_id, checkin_id, hotelid, room_id, room_number, room_category_id,
           room_category_name, converted_category_id, converted_category_name, checkin_datetime,
           checkout_datetime, no_of_days, adults, pax, ex_pax, child_unpaid, driver, room_tariff,
@@ -457,7 +457,7 @@ exports.performCheckout = async (req, res) => {
     // Backup folio entries
     for (const folio of folioRows) {
       await connection.query(`
-        INSERT INTO backup_checkin_guest_folio_master (
+        INSERT INTO backup_guest_folio_master (
           original_folio_id, checkin_id, hotel_id, detail_id, transaction_type, transaction_datetime,
           description, debit_amount, credit_amount, reference_number, payment_method,
           created_by_id, created_date, updated_by_id, updated_date
