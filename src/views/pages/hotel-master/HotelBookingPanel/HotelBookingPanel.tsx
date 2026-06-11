@@ -610,7 +610,7 @@ const HotelBookingPanel = () => {
   guestName: string
   guestid: number
   roomNo: string
-  roomid: number
+  room_id: number
   totalPrice: number
   checkoutId: number
   checkinId?: number
@@ -972,7 +972,7 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
     guestName: co.guest_name || '-',
     guestid: co.guest_id || 0,
     roomNo: co.room_no || '-',
-    roomid: co.room_id || 0,
+    room_id: co.room_id || 0,
     totalPrice: Number(co.total_amount) || 0,
     checkoutId: co.checkout_id,
     checkinId: co.checkin_id,
@@ -6512,7 +6512,7 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
             checkinid: settlementPayData.checkinId || 0,
             room_name: settlementPayData.roomNo,
            
-            room_id: settlementPayData.roomid || 0,
+            room_id: settlementPayData.room_id || 0,
             bill_no: settlementPayData.billNo,
             registration_no: settlementPayData.regNo,
             OrderNo: settlementPayData.orderNo,
@@ -6558,7 +6558,7 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
     outletPaymentModes={outletPaymentModes}
     guestName={settlementPayData.guestName}
     roomNo={settlementPayData.roomNo}
-    room_id={settlementPayData.roomid}
+    room_id={settlementPayData.room_id}
     totalPrice={settlementPayData.totalPrice}
     initialCustomerName={settlementPayData.guestName}
     initialMobile={settlementPayData.mobileNo}
