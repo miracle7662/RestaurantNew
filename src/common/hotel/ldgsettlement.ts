@@ -73,6 +73,7 @@ export interface LdgSettlementPayload {
   bill_no?: string | null
   registration_no?: string | null
   room_name?: string
+    room_id: number;   // <-- ADD THIS
   checkinid: number
   created_by_id?: number | null
   updated_by_id?: number | null

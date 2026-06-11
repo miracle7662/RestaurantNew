@@ -33,7 +33,7 @@ export interface PaymentTypeInfo {
 /** List params for payment modes */
 export interface PaymentModeListParams {
   q?: string
-  outletid?: string
+ outletid?: string | number   // ✅ allow both
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

@@ -239,13 +239,13 @@ exports.performCheckout = async (req, res) => {
     
     // Get ALL details for this checkin
     const [allDetailRows] = await connection.query(
-      `SELECT * FROM detail_master WHERE checkin_id = ?`,
+      `SELECT * FROM checkin_detail_master WHERE checkin_id = ?`,
       [checkin_id]
     );
     
     // Get active details (not checked out yet)
     const [activeDetailRows] = await connection.query(
-      'SELECT * FROM detail_master WHERE checkin_id = ? AND is_checkout = 0',
+      'SELECT * FROM checkin_detail_master WHERE checkin_id = ? AND is_checkout = 0',
       [checkin_id]
     );
     
@@ -290,7 +290,7 @@ exports.performCheckout = async (req, res) => {
     const checkedOutDetailIds = roomsToCheckout.map(d => d.detail_id);
     
     // ============================================================
-    // STEP 1: AGGREGATE FROM detail_master (ALL DAYS)
+    // STEP 1: AGGREGATE FROM checkin_detail_master (ALL DAYS)
     // ============================================================
     let totalDetailAggregation = {
       total_amount: 0,
@@ -343,7 +343,7 @@ exports.performCheckout = async (req, res) => {
         const placeholders = allRoomIds.map(() => '?').join(',');
         const [childCountRows] = await connection.query(
           `SELECT room_id, SUM(COALESCE(child_count,0)) AS child_head_count 
-           FROM guest_room_charges 
+           FROM checkin_guest_room_charges 
            WHERE checkin_id = ? AND room_id IN (${placeholders}) 
            GROUP BY room_id`,
           [checkin_id, ...allRoomIds]
@@ -358,7 +358,7 @@ exports.performCheckout = async (req, res) => {
     }
 
     // ============================================================
-    // STEP 2: AGGREGATE FROM guest_folio_master
+    // STEP 2: AGGREGATE FROM checkin_guest_folio_master
     // ============================================================
     let folioAggregation = {
       advance_amt: 0,
@@ -370,7 +370,7 @@ exports.performCheckout = async (req, res) => {
       SELECT transaction_type, debit_amount, credit_amount, detail_id,
              folio_id, checkin_id, hotel_id, description, reference_number, 
              payment_method, created_by_id, created_date, updated_by_id, updated_date
-      FROM guest_folio_master 
+      FROM checkin_guest_folio_master 
       WHERE checkin_id = ?
     `;
     
@@ -428,7 +428,7 @@ exports.performCheckout = async (req, res) => {
       ]);
     }
     
-    // Backup detail_master
+    // Backup checkin_detail_master
     for (const detail of roomsToCheckout) {
       await connection.query(`
         INSERT INTO backup_detail_master (
@@ -481,11 +481,11 @@ exports.performCheckout = async (req, res) => {
       ]);
     }
     
-    // Backup guest_room_charges
+    // Backup checkin_guest_room_charges
     if (checkedOutRoomIds.length > 0) {
       const placeholders = checkedOutRoomIds.map(() => '?').join(',');
       const [chargeRows] = await connection.query(
-        `SELECT * FROM guest_room_charges WHERE checkin_id = ? AND room_id IN (${placeholders})`,
+        `SELECT * FROM checkin_guest_room_charges WHERE checkin_id = ? AND room_id IN (${placeholders})`,
         [checkin_id, ...checkedOutRoomIds]
       );
       
@@ -695,7 +695,7 @@ exports.performCheckout = async (req, res) => {
     if (checkedOutRoomIds.length > 0) {
       const placeholders = checkedOutRoomIds.map(() => '?').join(',');
       const [chargeRows] = await connection.query(
-        `SELECT * FROM guest_room_charges WHERE checkin_id = ? AND room_id IN (${placeholders})`,
+        `SELECT * FROM checkin_guest_room_charges WHERE checkin_id = ? AND room_id IN (${placeholders})`,
         [checkin_id, ...checkedOutRoomIds]
       );
       
@@ -736,7 +736,7 @@ exports.performCheckout = async (req, res) => {
       
       // Mark all details as checked out
       await connection.query(`
-        UPDATE detail_master 
+        UPDATE checkin_detail_master 
         SET is_checkout = 1, 
             updated_by_id = ?, 
             updated_date = ?
@@ -753,9 +753,9 @@ exports.performCheckout = async (req, res) => {
       if (checkedOutRoomIds.length > 0) {
         const placeholders = checkedOutRoomIds.map(() => '?').join(',');
         
-        // Update detail_master for checked out rooms
+        // Update checkin_detail_master for checked out rooms
         await connection.query(`
-          UPDATE detail_master 
+          UPDATE checkin_detail_master 
           SET is_checkout = 1, 
               updated_by_id = ?, 
               updated_date = ?
@@ -789,7 +789,7 @@ exports.performCheckout = async (req, res) => {
         const rPlaceholders = remainingRoomIds.map(() => '?').join(',');
         const [remainingChargeRows] = await connection.query(
           `SELECT room_id, SUM(COALESCE(child_count,0)) AS child_head_count 
-           FROM guest_room_charges 
+           FROM checkin_guest_room_charges 
            WHERE checkin_id = ? AND room_id IN (${rPlaceholders}) 
            GROUP BY room_id`,
           [checkin_id, ...remainingRoomIds]

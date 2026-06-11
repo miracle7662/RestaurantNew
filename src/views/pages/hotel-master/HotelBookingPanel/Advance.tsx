@@ -2,9 +2,11 @@
 import { useState, useEffect } from 'react'
 import { Modal, Button, Form, Card } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
+import { useAuthContext } from '@/common/context/useAuthContext'; // adjust path
+
 
 // API Services
-import PaymentMethodService from '@/common/hotel/paymentMethod'
+import PaymentModeService from '@/common/api/outletpaymentmode'
 import CheckInService from '@/common/hotel/checkIn'
 import AdvanceTransactionService from '@/common/hotel/advanceTransaction'
 import RoomService from '@/common/hotel/room'
@@ -176,6 +178,8 @@ const Advance = ({
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
   const [currentDateTime, setCurrentDateTime] = useState('')
   const [billDate, setBillDate] = useState(new Date().toISOString().slice(0, 10))
+  const { user } = useAuthContext();
+  const outletId = user?.outletid ?? user?.outletId;
 
   useEffect(() => {
     const now = new Date()
@@ -210,33 +214,51 @@ const Advance = ({
     }
   }
 
-  const fetchInitialData = async () => {
-    setIsLoadingData(true)
-    try {
-      const pmRes = await PaymentMethodService.list({ status: 1 })
-      const pmData = Array.isArray(pmRes) ? pmRes : pmRes?.data || []
-      const mapped = pmData.map((pm: any) => ({
-        id: pm.id || pm.payment_method_id,
-        name: pm.name || pm.payment_method_name,
-        payment_method_name: pm.payment_method_name || pm.name,
-      }))
-      setPaymentMethods(mapped)
+const fetchInitialData = async () => {
+  setIsLoadingData(true);
+  try {
+    // 1. Fetch payment modes using the outlet ID from auth
+    if (!outletId) {
+      console.warn('No outlet ID found in auth context');
+      setPaymentMethods([]);
+    } else {
+      const pmResponse = await PaymentModeService.list({ 
+        outletid: String(outletId)   // ✅ convert to string if needed
+      });
+      const pmData = pmResponse?.data ?? [];
 
-      const checkinRes = await CheckInService.get(checkinId)
-      const checkin = checkinRes.data || checkinRes
-      setCompanyName(checkin?.company_name || 'SELF')
-
-      const summaryRes = await AdvanceTransactionService.getSummary(checkinId)
-      if (summaryRes.success && summaryRes.data) {
-        setPendingAdvance(summaryRes.data.pending_advance)
-      }
-    } catch (error) {
-      console.error('Failed to fetch initial data:', error)
-      toast.error('Could not load required data')
-    } finally {
-      setIsLoadingData(false)
+      // Map correctly – mode_name is the display name
+      const mapped = pmData.map((pm) => ({
+        id: pm.id,
+        name: pm.mode_name,
+        payment_method_name: pm.mode_name,
+      }));
+      setPaymentMethods(mapped);
     }
+
+    // 2. Other API calls (checkin, advance summary) can still use hotelId prop
+    const checkinRes = await CheckInService.get(checkinId);
+    const checkin = checkinRes.data || checkinRes;
+    setCompanyName(checkin?.company_name || 'SELF');
+
+    const summaryRes = await AdvanceTransactionService.getSummary(checkinId);
+    if (summaryRes.success && summaryRes.data) {
+      setPendingAdvance(summaryRes.data.pending_advance);
+    }
+  } catch (error) {
+    console.error('Failed to fetch initial data:', error);
+    toast.error('Could not load required data');
+  } finally {
+    setIsLoadingData(false);
   }
+};
+
+// Update useEffect dependencies to include outletId
+useEffect(() => {
+  if (show && checkinId && hotelId) {
+    fetchInitialData();
+  }
+}, [show, checkinId, hotelId, outletId]);   // ✅ outletId added
 
   // Refresh only the pending advance balance (called after every save)
   const refreshPendingAdvance = async () => {

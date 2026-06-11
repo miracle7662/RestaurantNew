@@ -1795,7 +1795,7 @@ const PaxChangeComponent = ({
 // ================== Stay Amendments Component (UPDATED - Day-wise storage) ==================
 // ==================== StayAmendmentsComponent (FIXED) ====================
 // KEY FIXES:
-// 1. Per-room child count is fetched from guest_room_charges filtered by room_id
+// 1. Per-room child count is fetched from checkin_guest_room_charges filtered by room_id
 //    (not from selectedRoom.checkin.child_paid which is the whole-booking total).
 // 2. Extra-charge rates (child, ex_pax, driver) are taken from detail fields
 //    (child_paid_amount, ex_pax_charge, driver_charge) — same source HotelBookingPanel uses —
@@ -1803,7 +1803,7 @@ const PaxChangeComponent = ({
 // 3. computeStayModeCharge replaced by computeExtraCharge using per-person rate × count.
 // 4. stayModeCharges / taxApi calls kept ONLY as fallback when detail fields are 0.
 // 5. originalRow childPaid column is patched with resolvedChildCount (per-room) after
-//    guest_room_charges are loaded — so the table never shows the booking-total child count.
+//    checkin_guest_room_charges are loaded — so the table never shows the booking-total child count.
 
 interface StayAmendmentsProps {
   selectedRoom: OccupiedRoom
@@ -1825,18 +1825,18 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
   const [stayModeCharges, setStayModeCharges] = useState<any[]>([])
   const [stayTaxMap, setStayTaxMap] = useState<Map<number, number>>(new Map())
 
-  // FIX: per-room child count resolved from guest_room_charges for this specific room
+  // FIX: per-room child count resolved from checkin_guest_room_charges for this specific room
   const [perRoomChildCount, setPerRoomChildCount] = useState<number | null>(null)
 
-  // Fetch category mode charges as fallback + per-room child count from guest_room_charges
+  // Fetch category mode charges as fallback + per-room child count from checkin_guest_room_charges
   useEffect(() => {
     const fetchData = async () => {
       const detail = selectedRoom.detail
       const checkin = selectedRoom.checkin
 
-      // ── 1. Fetch per-room child count from guest_room_charges ──────────────
+      // ── 1. Fetch per-room child count from checkin_guest_room_charges ──────────────
       // selectedRoom.checkin.child_paid is the BOOKING-TOTAL child count.
-      // guest_room_charges rows are per-room, so filtering by room_id gives the
+      // checkin_guest_room_charges rows are per-room, so filtering by room_id gives the
       // correct per-room child count.
       try {
         const chargesRes = await GuestRoomChargesService.list({ checkin_id: checkin.checkin_id })
@@ -1856,7 +1856,7 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
           setPerRoomChildCount(Number(checkin.child_paid) || 0)
         }
       } catch (err) {
-        console.error('Failed to fetch guest_room_charges for child count', err)
+        console.error('Failed to fetch checkin_guest_room_charges for child count', err)
         setPerRoomChildCount(Number(checkin.child_paid) || 0)
       }
 
@@ -1884,7 +1884,7 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
   }, [selectedRoom])
 
   // ── Resolved per-room counts ───────────────────────────────────────────────
-  // Use perRoomChildCount (from guest_room_charges) once loaded; while loading show checkin value.
+  // Use perRoomChildCount (from checkin_guest_room_charges) once loaded; while loading show checkin value.
   const resolvedChildCount =
     perRoomChildCount !== null ? perRoomChildCount : Number(selectedRoom.checkin.child_paid) || 0
 
@@ -2192,7 +2192,7 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
       if (!newDetailId) throw new Error(`Failed to create extension detail for day ${dayIndex + 1}`)
       newDetailIds.push(newDetailId)
 
-      // guest_room_charges row for this day
+      // checkin_guest_room_charges row for this day
       const chargePayload = {
         guest_id: Number(checkinData.guest_id) || 0,
         room_id: Number(detailData.room_id) || 0,
@@ -3037,7 +3037,7 @@ const ChangeRoomCategoryComponent = ({
         })
       }
 
-      // ---- 2. Update all future guest_room_charges for this room ----
+      // ---- 2. Update all future checkin_guest_room_charges for this room ----
       for (const charge of futureRecords.charges) {
         const chargeId = charge.guest_room_charges_id
         const chargeNights = 1
@@ -3113,7 +3113,7 @@ const ChangeRoomCategoryComponent = ({
         })
       }
 
-      // ---- 4. Update current guest_room_charges if exists and is future ----
+      // ---- 4. Update current checkin_guest_room_charges if exists and is future ----
       if (selectedRoom.charges) {
         const chargeDate = selectedRoom.charges.checkout_datetime
           ? new Date(selectedRoom.charges.checkout_datetime)
@@ -4188,7 +4188,7 @@ const TransferRoomComponent = ({
         room_no: targetRoom.room_no,
       })
 
-      // 3. Update FUTURE guest_room_charges ONLY (today and future)
+      // 3. Update FUTURE checkin_guest_room_charges ONLY (today and future)
       //    IMPORTANT: DO NOT update past charges!
       for (const charge of futureCharges) {
         await GuestRoomChargesService.update(charge.guest_room_charges_id, {
@@ -4690,7 +4690,7 @@ const ChangePayModeComponent = ({
           }
         }
 
-        // Step 3: If still empty, read payment_method from guest_folio_master via GET API
+        // Step 3: If still empty, read payment_method from checkin_guest_folio_master via GET API
         if (!resolvedMethod) {
           try {
             const folioRes = await GuestFolioService.list({

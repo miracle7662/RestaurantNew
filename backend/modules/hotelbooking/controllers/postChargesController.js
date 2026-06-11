@@ -245,13 +245,13 @@ exports.addPostCharge = async (req, res) => {
     }
 
     // ===============================
-    // INSERT INTO guest_room_charges TABLE WITH SELECTED BILL DATE
+    // INSERT INTO checkin_guest_room_charges TABLE WITH SELECTED BILL DATE
     // ===============================
     let chargeCheckinDateTime = selectedBillDate ? `${selectedBillDate} 00:00:00` : originalCheckinDateTime;
     let chargeCheckoutDateTime = selectedBillDate ? `${selectedBillDate} 23:59:59` : originalCheckoutDateTime;
 
     await connection.query(`
-      INSERT INTO guest_room_charges (
+      INSERT INTO checkin_guest_room_charges (
         checkin_id, guest_id, room_id, category_id, pax_count, pax_price, pax_tax,
         ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
         child_count, child_price, child_tax, child_tax_percent, child_total,
@@ -270,10 +270,10 @@ exports.addPostCharge = async (req, res) => {
     ]);
 
     // ===============================
-    // INSERT INTO guest_folio_master
+    // INSERT INTO checkin_guest_folio_master
     // ===============================
     await connection.query(`
-      INSERT INTO guest_folio_master (
+      INSERT INTO checkin_guest_folio_master (
         checkin_id, hotel_id, detail_id, transaction_type,
         transaction_datetime, description, debit_amount, credit_amount,
         reference_number, payment_method, created_by_id, created_date,
@@ -430,20 +430,20 @@ exports.updatePostCharge = async (req, res) => {
       totalTax, newTotalAmount, userId, now, id
     ]);
 
-    // Update guest_room_charges table with selected bill date
+    // Update checkin_guest_room_charges table with selected bill date
     let chargeCheckinDateTime = selectedBillDate ? `${selectedBillDate} 00:00:00` : existingCharge.post_datetime;
     let chargeCheckoutDateTime = selectedBillDate ? `${selectedBillDate} 23:59:59` : existingCharge.post_datetime;
 
-    // Find the corresponding guest_room_charges record
+    // Find the corresponding checkin_guest_room_charges record
     const [guestCharges] = await connection.query(`
-      SELECT guest_room_charges_id FROM guest_room_charges 
+      SELECT guest_room_charges_id FROM checkin_guest_room_charges 
       WHERE checkin_id = ? AND room_id = ? AND pax_price = ? AND total_amount = ?
       ORDER BY guest_room_charges_id DESC LIMIT 1
     `, [checkin_id, room_id, existingCharge.amount, existingCharge.total_amount]);
 
     if (guestCharges.length > 0) {
       await connection.query(`
-        UPDATE guest_room_charges SET
+        UPDATE checkin_guest_room_charges SET
           pax_price = ?, total_amount = ?, checkin_datetime = ?, checkout_datetime = ?,
           updated_at = ?
         WHERE guest_room_charges_id = ?
@@ -453,9 +453,9 @@ exports.updatePostCharge = async (req, res) => {
       ]);
     }
 
-    // Update guest_folio_master
+    // Update checkin_guest_folio_master
     await connection.query(`
-      UPDATE guest_folio_master SET
+      UPDATE checkin_guest_folio_master SET
         transaction_type = ?, transaction_datetime = ?, description = ?,
         debit_amount = ?, credit_amount = ?, reference_number = ?,
         updated_by_id = ?, updated_date = ?
@@ -528,21 +528,21 @@ exports.deletePostCharge = async (req, res) => {
 
     await connection.query(`DELETE FROM post_charges WHERE post_charge_id = ?`, [id]);
 
-    // Delete from guest_room_charges - use more precise matching
+    // Delete from checkin_guest_room_charges - use more precise matching
     const [guestCharges] = await connection.query(`
-      SELECT guest_room_charges_id FROM guest_room_charges 
+      SELECT guest_room_charges_id FROM checkin_guest_room_charges 
       WHERE checkin_id = ? AND room_id = ? AND pax_price = ? AND total_amount = ?
       ORDER BY guest_room_charges_id DESC LIMIT 1
     `, [charge.checkin_id, charge.room_id, charge.amount, charge.total_amount]);
 
     if (guestCharges.length > 0) {
-      await connection.query(`DELETE FROM guest_room_charges WHERE guest_room_charges_id = ?`, 
+      await connection.query(`DELETE FROM checkin_guest_room_charges WHERE guest_room_charges_id = ?`, 
         [guestCharges[0].guest_room_charges_id]);
     }
 
-    // Delete from guest_folio_master
+    // Delete from checkin_guest_folio_master
     await connection.query(`
-      DELETE FROM guest_folio_master 
+      DELETE FROM checkin_guest_folio_master 
       WHERE checkin_id = ? AND reference_number = ? AND transaction_datetime = ?
     `, [charge.checkin_id, charge.bill_no, charge.post_datetime]);
 
@@ -685,7 +685,7 @@ exports.addPostChargeBulk = async (req, res) => {
       let chargeCheckoutDateTime = selectedBillDate ? `${selectedBillDate} 23:59:59` : (checkinData[0]?.checkout_datetime || updatedPostDateTime);
 
       await connection.query(`
-        INSERT INTO guest_room_charges (
+        INSERT INTO checkin_guest_room_charges (
           checkin_id, guest_id, room_id, category_id, pax_count, pax_price, pax_tax,
           ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
           child_count, child_price, child_tax, child_tax_percent, child_total,
@@ -739,7 +739,7 @@ exports.addPostChargeBulk = async (req, res) => {
 // ===============================
 // TRANSFER POST CHARGES TO NEW ROOM (called during Room Transfer in Amendments)
 // Updates room_id for all post charges of checkin + old room → new room
-// Also updates linked guest_room_charges rows
+// Also updates linked checkin_guest_room_charges rows
 // ===============================
 exports.transferPostChargesToRoom = async (req, res) => {
   try {
@@ -772,9 +772,9 @@ exports.transferPostChargesToRoom = async (req, res) => {
       [new_room_id, checkin_id, old_room_id]
     );
 
-    // Also update linked guest_room_charges rows for the same checkin + old room
+    // Also update linked checkin_guest_room_charges rows for the same checkin + old room
     await db.query(
-      `UPDATE guest_room_charges SET room_id = ?, updated_at = NOW() WHERE checkin_id = ? AND room_id = ?`,
+      `UPDATE checkin_guest_room_charges SET room_id = ?, updated_at = NOW() WHERE checkin_id = ? AND room_id = ?`,
       [new_room_id, checkin_id, old_room_id]
     );
 
@@ -844,13 +844,13 @@ exports.swapPostChargesBetweenRooms = async (req, res) => {
     const idsA = rowsA.map(r => r.post_charge_id);
     const idsB = rowsB.map(r => r.post_charge_id);
 
-    // Also fetch mirrored guest_room_charges rows inserted by post charges controller
+    // Also fetch mirrored checkin_guest_room_charges rows inserted by post charges controller
     const [grcRowsA] = await connection.query(
-      `SELECT guest_room_charges_id FROM guest_room_charges WHERE checkin_id = ? AND room_id = ?`,
+      `SELECT guest_room_charges_id FROM checkin_guest_room_charges WHERE checkin_id = ? AND room_id = ?`,
       [room_a_checkin_id, room_a_room_id]
     );
     const [grcRowsB] = await connection.query(
-      `SELECT guest_room_charges_id FROM guest_room_charges WHERE checkin_id = ? AND room_id = ?`,
+      `SELECT guest_room_charges_id FROM checkin_guest_room_charges WHERE checkin_id = ? AND room_id = ?`,
       [room_b_checkin_id, room_b_room_id]
     );
     const grcIdsA = grcRowsA.map(r => r.guest_room_charges_id);
@@ -881,7 +881,7 @@ exports.swapPostChargesBetweenRooms = async (req, res) => {
     if (grcIdsA.length > 0) {
       const ph = grcIdsA.map(() => '?').join(',');
       await connection.query(
-        `UPDATE guest_room_charges SET room_id = ?, updated_at = NOW() WHERE guest_room_charges_id IN (${ph})`,
+        `UPDATE checkin_guest_room_charges SET room_id = ?, updated_at = NOW() WHERE guest_room_charges_id IN (${ph})`,
         [SENTINEL_ROOM_ID, ...grcIdsA]
       );
     }
@@ -898,7 +898,7 @@ exports.swapPostChargesBetweenRooms = async (req, res) => {
     if (grcIdsB.length > 0) {
       const ph = grcIdsB.map(() => '?').join(',');
       await connection.query(
-        `UPDATE guest_room_charges SET room_id = ?, updated_at = NOW() WHERE guest_room_charges_id IN (${ph})`,
+        `UPDATE checkin_guest_room_charges SET room_id = ?, updated_at = NOW() WHERE guest_room_charges_id IN (${ph})`,
         [room_a_room_id, ...grcIdsB]
       );
     }
@@ -916,7 +916,7 @@ exports.swapPostChargesBetweenRooms = async (req, res) => {
     if (grcIdsA.length > 0) {
       const ph = grcIdsA.map(() => '?').join(',');
       await connection.query(
-        `UPDATE guest_room_charges SET room_id = ?, updated_at = NOW() WHERE guest_room_charges_id IN (${ph})`,
+        `UPDATE checkin_guest_room_charges SET room_id = ?, updated_at = NOW() WHERE guest_room_charges_id IN (${ph})`,
         [room_b_room_id, ...grcIdsA]
       );
     }

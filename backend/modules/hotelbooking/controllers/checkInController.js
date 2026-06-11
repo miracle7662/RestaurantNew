@@ -50,8 +50,6 @@ const getAvailableStatusId = async () => {
 // ----------------------------------------------------------------------
 // GET /checkins – list checkins
 // ----------------------------------------------------------------------
-// In checkInController.js - Update getCheckins function
-
 exports.getCheckins = async (req, res) => {
     try {
         let hotelId = req.query.hotelid || req.query.mst_hotelid;
@@ -102,15 +100,16 @@ exports.getCheckins = async (req, res) => {
                 cm.created_by_id,
                 cm.created_date,
                 cm.updated_by_id,
-                cm.updated_date
+                cm.updated_date,
+                cm.room_id,          -- ✅ new field added
+                cm.is_settle,        -- ✅ new field added
+                cm.checkout_id       -- ✅ new field added
             FROM checkin_master cm
             WHERE cm.hotelid = ?
         `;
 
         const params = [hotelId];
 
-        // ✅ Filter active checkins only for the main view
-        // But allow 'checked_out' if specifically requested via status param
         if (!status) {
             sql += ` AND cm.status = 'active'`;
         } else if (status === 'checked_out') {
@@ -150,6 +149,7 @@ exports.getCheckins = async (req, res) => {
         res.status(500).json({ success: false, message: 'Database error', error: error.message });
     }
 };
+
 // ----------------------------------------------------------------------
 // GET /checkins/:id – get single checkin by ID
 // ----------------------------------------------------------------------
@@ -204,7 +204,10 @@ exports.getCheckin = async (req, res) => {
                 cm.created_by_id,
                 cm.created_date,
                 cm.updated_by_id,
-                cm.updated_date
+                cm.updated_date,
+                cm.room_id,          -- ✅ new field added
+                cm.is_settle,        -- ✅ new field added
+                cm.checkout_id       -- ✅ new field added
             FROM checkin_master cm
             WHERE cm.checkin_id = ?
         `;
@@ -319,7 +322,7 @@ exports.getDetailsByCheckinId = async (req, res) => {
                 is_checkout,
                 merged,
                 tax
-            FROM detail_master
+            FROM checkin_detail_master
             WHERE checkin_id = ?
             ORDER BY detail_id ASC
         `, [id]);
@@ -439,7 +442,10 @@ exports.addCheckin = async (req, res) => {
             created_by_id,
             room_ids,
             total_nights,
-            total_amount
+            total_amount,
+            room_id,          // ✅ new field added
+            is_settle,        // ✅ new field added 
+            checkout_id       // ✅ new field added
         } = req.body;
 
         const userId = getCurrentUserId(req);
@@ -457,6 +463,21 @@ exports.addCheckin = async (req, res) => {
                 success: false, 
                 message: 'Guest name, checkin datetime, and checkout datetime are required' 
             });
+        }
+        
+        let finalRoomId = getValueOrNull(room_id); // Start with the room_id from req.body
+
+        // If room_id is not explicitly provided in the body, try to derive it
+        if (!finalRoomId) {
+            if (room_ids && room_ids.length > 0) {
+                finalRoomId = room_ids[0]; // If multiple rooms, use the first one as the primary
+            } else if (room_no) {
+                const [rooms] = await connection.execute(
+                    'SELECT room_id FROM room_master WHERE room_no = ? AND hotelid = ?',
+                    [room_no, hotelId]
+                );
+                if (rooms.length > 0) finalRoomId = rooms[0].room_id;
+            }
         }
 
         let finalRegNo = reg_no;
@@ -477,8 +498,9 @@ exports.addCheckin = async (req, res) => {
                 converted_category, adults, pax, pax_charges, ex_pax, ex_pax_charge,
                 child_paid, child_unpaid, child_charge, driver, driver_charge,
                 hotelid, id_type, id_number, department_id, department_name,
-                status, total_nights, total_amount, created_by_id, created_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                status, total_nights, total_amount, created_by_id, created_date,
+                room_id, is_settle, checkout_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             getValueOrNull(guest_id),
             guest_name,
@@ -515,7 +537,10 @@ exports.addCheckin = async (req, res) => {
             total_nights || 1,
             total_amount || 0,
             created_by_id || userId,
-            now
+            now,
+            finalRoomId, // Use the derived or provided room_id
+            is_settle !== undefined ? is_settle : 0,
+            getValueOrNull(checkout_id)
         ]);
 
         const checkinId = result.insertId;
@@ -554,7 +579,8 @@ exports.addCheckin = async (req, res) => {
                 child_paid, child_unpaid, child_charge, driver, driver_charge,
                 hotelid, id_type, id_number, department_id, department_name,
                 status, total_nights, total_amount, created_by_id, created_date,
-                updated_by_id, updated_date
+                updated_by_id, updated_date,
+                room_id, is_settle, checkout_id
             FROM checkin_master 
             WHERE checkin_id = ?
         `, [checkinId]);
@@ -632,7 +658,10 @@ exports.updateCheckin = async (req, res) => {
             department_name,
             status,
             total_nights,
-            total_amount
+            total_amount,
+            room_id,          // ✅ new field added
+            is_settle,        // ✅ new field added
+            checkout_id       // ✅ new field added
         } = req.body;
 
         let hotelId = req.body.hotelid || getCurrentUserHotelId(req);
@@ -671,6 +700,9 @@ exports.updateCheckin = async (req, res) => {
         if (status !== undefined) { updates.push('status = ?'); params.push(status); }
         if (total_nights !== undefined) { updates.push('total_nights = ?'); params.push(total_nights); }
         if (total_amount !== undefined) { updates.push('total_amount = ?'); params.push(total_amount); }
+        if (room_id !== undefined) { updates.push('room_id = ?'); params.push(room_id); }
+        if (is_settle !== undefined) { updates.push('is_settle = ?'); params.push(is_settle); }
+        if (checkout_id !== undefined) { updates.push('checkout_id = ?'); params.push(checkout_id); }
 
         updates.push('updated_by_id = ?');
         params.push(userId);
@@ -700,7 +732,8 @@ exports.updateCheckin = async (req, res) => {
                 child_paid, child_unpaid, child_charge, driver, driver_charge,
                 hotelid, id_type, id_number, department_id, department_name,
                 status, total_nights, total_amount, created_by_id, created_date,
-                updated_by_id, updated_date
+                updated_by_id, updated_date,
+                room_id, is_settle, checkout_id
             FROM checkin_master 
             WHERE checkin_id = ?
         `, [checkinId]);
@@ -773,13 +806,10 @@ exports.updatePartialCheckin = async (req, res) => {
 
         // CRITICAL FIX: Handle day extension correctly by accumulating
         if (total_amount !== undefined) {
-            // Direct set (use this for initial checkin or manual override)
             updates.push('total_amount = ?');
             params.push(Number(total_amount));
             console.log(`[DEBUG] Setting total_amount directly to ${total_amount}`);
         } else if (additional_amount !== undefined) {
-            // DAY EXTENSION: Accumulate the new amount to existing total
-            // This ensures: Day1=3000, Day2=3000+3000=6000, Day3=6000+3000=9000
             const newTotal = currentStoredAmount + Number(additional_amount);
             updates.push('total_amount = ?');
             params.push(newTotal);
@@ -797,7 +827,6 @@ exports.updatePartialCheckin = async (req, res) => {
             params.push(total_nights);
             console.log(`[DEBUG] Setting total_nights to ${total_nights}`);
         } else if (additional_amount !== undefined && total_nights === undefined) {
-            // Auto-increment nights by 1 for day extension
             updates.push('total_nights = ?');
             params.push(currentStoredNights + 1);
             console.log(`[DEBUG] Auto-incrementing total_nights from ${currentStoredNights} to ${currentStoredNights + 1}`);
@@ -825,7 +854,6 @@ exports.updatePartialCheckin = async (req, res) => {
 
         console.log(`[DEBUG] Update affected rows: ${updateResult.affectedRows}`);
 
-        // Fetch updated checkin to verify and return
         const [updatedCheckin] = await db.execute(`
             SELECT 
                 checkin_id, guest_id, guest_name, address, mobile, company_name, 
@@ -835,7 +863,8 @@ exports.updatePartialCheckin = async (req, res) => {
                 child_paid, child_unpaid, child_charge, driver, driver_charge,
                 hotelid, id_type, id_number, department_id, department_name,
                 status, total_nights, total_amount, created_by_id, created_date,
-                updated_by_id, updated_date
+                updated_by_id, updated_date,
+                room_id, is_settle, checkout_id
             FROM checkin_master 
             WHERE checkin_id = ?
         `, [checkinId]);
@@ -905,7 +934,6 @@ exports.extendStay = async (req, res) => {
             });
         }
 
-        // Get current checkin
         const [checkins] = await connection.execute(
             'SELECT * FROM checkin_master WHERE checkin_id = ?',
             [checkinId]
@@ -919,28 +947,23 @@ exports.extendStay = async (req, res) => {
         const currentCheckin = checkins[0];
         console.log(`[EXTEND] Current checkin ${checkinId}: total_amount=${currentCheckin.total_amount}, total_nights=${currentCheckin.total_nights}`);
 
-        // Mark old detail as checked out if detailId provided
         if (detailId) {
             await connection.execute(`
-                UPDATE detail_master 
+                UPDATE checkin_detail_master 
                 SET is_checkout = 1, merged = 1, updated_by_id = ?, updated_date = ?
                 WHERE detail_id = ? AND checkin_id = ?
             `, [userId, now, detailId, checkinId]);
             console.log(`[EXTEND] Marked detail ${detailId} as checked out`);
         }
 
-        // CRITICAL: Calculate cumulative total
         const finalTotalNights = newTotalNights ?? (currentCheckin.total_nights + additionalDays);
         const currentStoredTotal = Number(currentCheckin.total_amount) || 0;
         
-        // IMPORTANT: Always accumulate - never replace
         let finalTotalAmount;
         if (newTotalAmount !== undefined && newTotalAmount !== null) {
-            // If frontend sends cumulative total, use it directly
             finalTotalAmount = Number(newTotalAmount);
             console.log(`[EXTEND] Using provided cumulative total: ${finalTotalAmount}`);
         } else {
-            // Otherwise accumulate: current + additional
             finalTotalAmount = currentStoredTotal + Number(additionalAmount || 0);
             console.log(`[EXTEND] Accumulating: ${currentStoredTotal} + ${additionalAmount} = ${finalTotalAmount}`);
         }
@@ -962,7 +985,6 @@ exports.extendStay = async (req, res) => {
             checkinId
         ]);
 
-        // Update room status if roomId provided
         if (roomId) {
             const occupiedStatusId = await getOccupiedStatusId();
             await connection.execute(`
@@ -975,7 +997,6 @@ exports.extendStay = async (req, res) => {
 
         await connection.commit();
 
-        // Fetch updated checkin
         const [updatedCheckin] = await connection.execute(`
             SELECT 
                 checkin_id, guest_id, guest_name, address, mobile, company_name, 
@@ -985,7 +1006,8 @@ exports.extendStay = async (req, res) => {
                 child_paid, child_unpaid, child_charge, driver, driver_charge,
                 hotelid, id_type, id_number, department_id, department_name,
                 status, total_nights, total_amount, created_by_id, created_date,
-                updated_by_id, updated_date
+                updated_by_id, updated_date,
+                room_id, is_settle, checkout_id
             FROM checkin_master 
             WHERE checkin_id = ?
         `, [checkinId]);
@@ -1034,7 +1056,6 @@ exports.deleteCheckin = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid checkin ID' });
         }
 
-        // Get checkin details to know which rooms to update
         const [checkins] = await connection.execute(
             'SELECT hotelid, room_no FROM checkin_master WHERE checkin_id = ?',
             [checkinId]
@@ -1047,14 +1068,12 @@ exports.deleteCheckin = async (req, res) => {
 
         const checkin = checkins[0];
 
-        // Delete related records first (foreign key constraints)
-        await connection.execute('DELETE FROM guest_folio_master WHERE checkin_id = ?', [checkinId]);
-        await connection.execute('DELETE FROM guest_room_charges WHERE checkin_id = ?', [checkinId]);
+        await connection.execute('DELETE FROM checkin_guest_folio_master WHERE checkin_id = ?', [checkinId]);
+        await connection.execute('DELETE FROM checkin_guest_room_charges WHERE checkin_id = ?', [checkinId]);
         await connection.execute('DELETE FROM post_charges WHERE checkin_id = ?', [checkinId]);
         await connection.execute('DELETE FROM advance_transactions WHERE checkin_id = ?', [checkinId]);
-        await connection.execute('DELETE FROM detail_master WHERE checkin_id = ?', [checkinId]);
+        await connection.execute('DELETE FROM checkin_detail_master WHERE checkin_id = ?', [checkinId]);
 
-        // Delete the checkin
         const [result] = await connection.execute(
             'DELETE FROM checkin_master WHERE checkin_id = ?',
             [checkinId]
@@ -1065,7 +1084,6 @@ exports.deleteCheckin = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Checkin not found' });
         }
 
-        // Update room status back to available
         if (checkin.room_no) {
             const [rooms] = await connection.execute(
                 'SELECT room_id FROM room_master WHERE room_no = ? AND hotelid = ?',
