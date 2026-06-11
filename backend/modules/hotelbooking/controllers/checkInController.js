@@ -444,7 +444,7 @@ exports.addCheckin = async (req, res) => {
             total_nights,
             total_amount,
             room_id,          // ✅ new field added
-            is_settle,        // ✅ new field added
+            is_settle,        // ✅ new field added 
             checkout_id       // ✅ new field added
         } = req.body;
 
@@ -463,6 +463,21 @@ exports.addCheckin = async (req, res) => {
                 success: false, 
                 message: 'Guest name, checkin datetime, and checkout datetime are required' 
             });
+        }
+        
+        let finalRoomId = getValueOrNull(room_id); // Start with the room_id from req.body
+
+        // If room_id is not explicitly provided in the body, try to derive it
+        if (!finalRoomId) {
+            if (room_ids && room_ids.length > 0) {
+                finalRoomId = room_ids[0]; // If multiple rooms, use the first one as the primary
+            } else if (room_no) {
+                const [rooms] = await connection.execute(
+                    'SELECT room_id FROM room_master WHERE room_no = ? AND hotelid = ?',
+                    [room_no, hotelId]
+                );
+                if (rooms.length > 0) finalRoomId = rooms[0].room_id;
+            }
         }
 
         let finalRegNo = reg_no;
@@ -523,7 +538,7 @@ exports.addCheckin = async (req, res) => {
             total_amount || 0,
             created_by_id || userId,
             now,
-            getValueOrNull(room_id),
+            finalRoomId, // Use the derived or provided room_id
             is_settle !== undefined ? is_settle : 0,
             getValueOrNull(checkout_id)
         ]);

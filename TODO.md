@@ -1,7 +1,6 @@
-# TODO - Hotel settlement missing details fix
+# TODO
 
-- [x] Update `SettelmentModel.tsx` to log which required settlement fields are missing before failing validation.
-
-- [ ] Update `HotelBookingPanel.tsx` settlement handler to ensure `userid`, `HotelID`, `outletid`, `checkinid`, and `room_id` are always correctly resolved.
-- [ ] Run frontend build / typecheck (if available) and perform quick manual test of settlement flow.
+- [x] Check frontend check-in payload structure (CheckInForm.tsx)
+- [x] Locate backend check-in endpoint (/api/checkins) and controller (checkInController.js)
+- [x] Fix backend so `checkin_master.room_id` gets populated when frontend sends `room_ids` (use first room id)
 
