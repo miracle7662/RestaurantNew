@@ -104,6 +104,7 @@ exports.createSettlement = async (req, res) => {
       room_name = '',
       room_id, // ADD THIS
       checkinid,
+      checkout_id,
       created_by_id,
       updated_by_id,
       checkout_date = null
@@ -159,37 +160,68 @@ exports.createSettlement = async (req, res) => {
       registration_no,
       room_name,
       checkinid,
+      checkout_id,
       created_by_id: created_by_id || userid,
       updated_by_id: updated_by_id || userid,
       checkout_date
     };
 
-    // INSERT SETTLEMENT
-    const [result] = await db.query(
-      'INSERT INTO ldgsettlement SET ?',
-      [insertData]
-    );
+    const conn = await db.getConnection();
+    await conn.beginTransaction();
 
-    // UPDATE ROOM STATUS
-    await db.query(
-      `UPDATE room_master 
-       SET room_status_id = 4
-       WHERE room_id = ?`,
-      [room_id]
-    );
+    try {
+      // INSERT SETTLEMENT
+      const [result] = await conn.query(
+        'INSERT INTO ldgsettlement SET ?',
+        [insertData]
+      );
 
-    // FETCH INSERTED ROW
-    const [newRow] = await db.query(
-      'SELECT * FROM ldgsettlement WHERE SettlementID = ?',
-      [result.insertId]
-    );
+      // UPDATE CHECKIN/CHECKOUT MASTER
+      // (Assumption: linkage is via checkinid; adjust WHERE if your schema differs)
+      await conn.query(
+  `UPDATE checkin_master
+   SET is_settle = 1
+   WHERE checkin_id = ?`,
+  [checkinid]
+);
 
-    res.status(201).json({
-      success: true,
-      message: 'Settlement created',
-      data: newRow[0]
-    });
+await conn.query(
+  `UPDATE checkout_master
+   SET is_settle = 1
+   WHERE checkout_id = ?`,
+  [checkout_id] 
+);
 
+      // UPDATE ROOM STATUS
+      await conn.query(
+        `UPDATE room_master 
+         SET room_status_id = 4
+         WHERE room_id = ?`,
+        [room_id]
+      );
+
+      // FETCH INSERTED ROW
+      const [newRow] = await conn.query(
+        'SELECT * FROM ldgsettlement WHERE SettlementID = ?',
+        [result.insertId]
+      );
+
+      await conn.commit();
+
+    return res.status(201).json({
+  success: true,
+  message: 'Settlement created',
+  data: newRow[0]
+});
+
+    } catch (txErr) {
+      await conn.rollback();
+      throw txErr;
+    } finally {
+      conn.release();
+    }
+
+  
   } catch (error) {
     console.error('createSettlement error:', error);
 

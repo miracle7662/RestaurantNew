@@ -6510,6 +6510,7 @@ const handleSettlementCardSettle = (co: CheckoutMaster) => {
             guest_name: settlementPayData.guestName,
             total_amount: settlementPayData.totalPrice,
             checkinid: settlementPayData.checkinId || 0,
+            checkout_id: settlementPayData.checkoutId,
             room_name: settlementPayData.roomNo,
            
             room_id: settlementPayData.room_id || 0,
