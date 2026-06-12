@@ -2743,6 +2743,29 @@ useEffect(() => {
           position: relative;
           width: 100%;
         }
+
+        /* Consistent left label + right field alignment */
+        .form-label-col {
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          white-space: nowrap;
+        }
+
+        .form-field-col {
+          display: flex;
+          align-items: center;
+        }
+
+        .form-field-col > * {
+          width: 100%;
+        }
+
+        .form-field-control {
+          height: 28px !important;
+          min-height: 28px !important;
+        }
+
         .room-charge-checkbox {
           position: absolute;
           right: 5px;
@@ -2793,7 +2816,35 @@ useEffect(() => {
         }
       `}</style>
 
-      <div className="vh-100 d-flex flex-column overflow-hidden">
+      <div className="container-fluid px-2 px-md-3 vh-100 d-flex flex-column overflow-hidden checkin-page">
+        <style>{`
+          html, body { overflow-x: hidden; }
+          .checkin-page { max-width: 100%; overflow-x: hidden; scroll-behavior: smooth; }
+          .checkin-page * { box-sizing: border-box; }
+
+          /* Mobile-first compact spacing */
+          @media (max-width: 575.98px) {
+            .checkin-page { padding-left: 0; padding-right: 0; }
+            .checkin-page .fs-small { font-size: 0.68rem; }
+            .checkin-page .card-body { padding-left: 0.35rem !important; padding-right: 0.35rem !important; }
+          }
+
+          /* Sticky billing/right panel for desktop only */
+          @media (min-width: 992px) {
+            .checkin-sticky-right {
+              position: sticky;
+              top: 0;
+              align-self: flex-start;
+            }
+          }
+
+          /* Prevent horizontal overflow caused by tables on small screens */
+          .checkin-table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          @media (max-width: 575.98px) {
+            .checkin-table-responsive table { min-width: 100% !important; }
+            .checkin-page .scrollable-table { overflow: hidden !important; }
+          }
+        `}</style>
         <div className="d-flex align-items-center">
           <span className="d-flex align-items-center me-3">
             <span className="fw-semibold fs-medium me-1">Reg No:</span>
