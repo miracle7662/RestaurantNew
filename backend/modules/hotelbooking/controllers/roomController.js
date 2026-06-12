@@ -16,6 +16,134 @@ const getValueOrNull = (value) => value !== undefined && value !== null && value
 // ----------------------------------------------------------------------
 // GET /rooms – list rooms (filter by hotel, optional search)
 // ----------------------------------------------------------------------
+
+exports.getCheckinFullDetails = async (req, res) => {
+  try {
+    const { hotelid, checkin_id } = req.query;
+
+    if (!hotelid || !checkin_id) {
+      return res.status(400).json({
+        success: false,
+        message: "hotelid and checkin_id are required",
+      });
+    }
+
+    const sql = `
+      SELECT
+          -- Checkin Master
+          cm.checkin_id,
+          cm.guest_id,
+          cm.guest_name,
+          cm.mobile,
+          cm.address,
+          cm.company_name,
+          cm.emailed,
+          cm.booking,
+          cm.plan_name,
+          cm.reg_no,
+          cm.checkin_datetime,
+          cm.checkout_datetime,
+          cm.hotelid,
+          cm.checkout_id,
+
+          -- Checkin Detail
+          cdm.detail_id,
+          cdm.room_id ,
+          cdm.room_number,
+          cdm.room_category_name,
+          cdm.converted_category_name,
+          cdm.room_tariff,
+          cdm.discount_percent,
+          cdm.cgst_percent,
+          cdm.sgst_percent,
+          cdm.igst_percent,
+          cdm.is_settel,
+          cdm.checkin_datetime AS detail_checkin_datetime,
+          cdm.checkout_datetime AS detail_checkout_datetime,
+          cdm.adults AS detail_adults,
+          cdm.pax AS detail_pax,
+          cdm.ex_pax AS detail_ex_pax,
+          cdm.child_unpaid AS detail_child_unpaid,
+          cdm.driver AS detail_driver,
+          cdm.ex_pax_charge AS detail_ex_pax_charge,
+          cdm.child_paid_amount AS detail_child_paid_amount,
+          cdm.driver_charge AS detail_driver_charge,
+          cdm.cess_percent AS detail_cess_percent,
+          cdm.service_charge AS detail_service_charge,
+          cdm.parent_detail_id,
+
+          -- Guest Folio
+          cgfm.folio_id,
+          cgfm.transaction_type,
+          cgfm.payment_method,
+          cgfm.debit_amount,
+          cgfm.credit_amount,
+          cgfm.reference_number,
+
+          -- Guest Room Charges (joined ONLY on checkin_id)
+          cgrc.guest_room_charges_id,
+cgrc.room_id AS charge_room_id,
+cgrc.category_id,
+cgrc.pax_count,
+cgrc.pax_price,
+cgrc.pax_tax,
+cgrc.ex_pax_count,
+cgrc.ex_pax_price,
+cgrc.ex_pax_tax,
+cgrc.ex_pax_tax_percent,
+cgrc.ex_pax_total,
+cgrc.child_count,
+cgrc.child_price,
+cgrc.child_tax,
+cgrc.child_tax_percent,
+cgrc.child_total,
+cgrc.driver_count,
+cgrc.driver_price,
+cgrc.driver_tax,
+cgrc.driver_tax_percent,
+cgrc.driver_total,
+cgrc.total_amount,
+cgrc.checkin_datetime AS charge_checkin_datetime,
+cgrc.checkout_datetime AS charge_checkout_datetime,
+cgrc.created_at AS charge_created_at,
+cgrc.updated_at AS charge_updated_at
+
+      FROM checkin_master cm
+      LEFT JOIN checkin_detail_master cdm
+        ON cm.checkin_id = cdm.checkin_id
+       AND cdm.is_settel = 0
+      LEFT JOIN checkin_guest_folio_master cgfm
+        ON cm.checkin_id = cgfm.checkin_id
+     LEFT JOIN checkin_guest_room_charges cgrc
+    ON cgrc.checkin_id = cdm.checkin_id
+   AND cgrc.room_id = cdm.room_id
+      WHERE cm.hotelid = ?
+        AND cm.checkin_id = ?
+        AND cdm.is_settel = 0
+      ORDER BY cdm.room_number, cgrc.checkin_datetime
+    `;
+
+    const [rows] = await db.query(sql, [hotelid, checkin_id]);
+
+    return res.status(200).json({
+      success: true,
+      count: rows.length,
+      data: rows,
+    });
+  } catch (error) {
+    console.error("getCheckinFullDetails Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
+
+
+
+
 exports.getRooms = async (req, res) => {
     try {
         let hotelId = req.query.hotelid || req.query.mst_hotelid;
@@ -97,6 +225,9 @@ exports.getRooms = async (req, res) => {
         res.status(500).json({ success: false, message: 'Database error', error: error.message });
     }
 };
+
+
+
 
 // ----------------------------------------------------------------------
 // POST /rooms – create a new room

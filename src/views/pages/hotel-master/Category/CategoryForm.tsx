@@ -184,6 +184,22 @@ const RoomCategoryForm = forwardRef<any, Props>(({ selectedItem, isEdit, onSave 
                 <FormikTextInput name="display_seq" type="number" className="mb-0 w-100" inputStyle={{ minHeight: '28px', padding: '3px 6px', fontSize: '14px' }} />
               </Col>
             </Row>
+           <Row className="align-items-center g-2 mb-1">
+  <Col md={4}>
+    <Form.Label className="mb-0 small">Tax Type</Form.Label>
+  </Col>
+  <Col md={8}>
+    <FormikSelect
+      name="tax_type"
+      className="mb-0 w-100"
+      options={[
+        { value: "Inclusive", label: "Tax Inclusive" },
+        { value: "Exclusive", label: "Tax Exclusive" },
+      ]}
+    />
+  </Col>
+</Row>
+
           </Col>
 
           <Col md={6}>
