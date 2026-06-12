@@ -1,9 +1,10 @@
-# TODO
+# TODO (CheckInForm zoom/resize stability)
 
-## Advance Addition fix: Unknown column `hotel_id` in `advance_transactions`
+- [x] Inspect `CheckInForm.tsx` for fixed heights/min-width and absolute positioned elements that break on zoom.
+- [x] Remove fixed-height regions causing blank gaps/cut-offs (scrollable table height and absolute bottom panel).
+- [x] Replace absolute positioning (`room-charge-checkbox`, `Rate Information` bottom panel) with flex/normal flow while keeping visual placement.
+- [x] Make the wide table wrapper responsive (avoid horizontal scrollbar and prevent overflow leaks).
+- [ ] Ensure main container uses `min-height: 100vh` and `overflow-x: hidden` (already present) and add `min-width: 0` where flex items need it.
+- [ ] Run build/typecheck (if scripts exist) and validate at zoom 90/100/110/125/150 on at least one narrow and one wide resolution.
 
-- [ ] Locate current `advance_transactions` table schema (confirm missing `hotel_id`).
-- [ ] Create/commit a SQL migration to add `hotel_id` to `advance_transactions`.
-- [ ] Ensure `getAdvanceTransactions` filters on `hotel_id` safely.
-- [ ] Run backend and retry the failing transaction (Advance Addition) to verify insert works.
 
