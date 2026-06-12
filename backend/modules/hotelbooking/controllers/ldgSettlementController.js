@@ -192,6 +192,13 @@ await conn.query(
   [checkout_id] 
 );
 
+await conn.query(
+  `UPDATE checkin_detail_master
+   SET is_settel = 1
+   WHERE checkin_id = ? AND room_id = ?`,
+  [checkinid, room_id]
+);
+
       // UPDATE ROOM STATUS
       await conn.query(
         `UPDATE room_master 
