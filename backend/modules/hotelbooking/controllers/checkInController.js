@@ -401,218 +401,132 @@ exports.getTodayCheckouts = async (req, res) => {
 // ----------------------------------------------------------------------
 // POST /checkins – create a new checkin
 // ----------------------------------------------------------------------
-exports.addCheckin = async (req, res) => {
-    const connection = await db.getConnection();
-    try {
-        await connection.beginTransaction();
-
-        const {
-            guest_id,
-            guest_name,
-            address,
-            mobile,
-            company_name,
-            emailed,
-            booking,
-            plan_name,
-            reg_no,
-            special_instruction,
-            message,
-            checkin_datetime,
-            checkout_datetime,
-            room_no,
-            category_id,
-            converted_category,
-            adults,
-            pax,
-            pax_charges,
-            ex_pax,
-            ex_pax_charge,
-            child_paid,
-            child_unpaid,
-            child_charge,
-            driver,
-            driver_charge,
-            hotelid,
-            id_type,
-            id_number,
-            department_id,
-            department_name,
-            status,
-            created_by_id,
-            room_ids,
-            total_nights,
-            total_amount,
-            room_id,          // ✅ new field added
-            is_settle,        // ✅ new field added 
-            checkout_id       // ✅ new field added
-        } = req.body;
-
-        const userId = getCurrentUserId(req);
-        let hotelId = hotelid || getCurrentUserHotelId(req);
-        const now = new Date();
-
-        if (!hotelId) {
-            await connection.rollback();
-            return res.status(400).json({ success: false, message: 'Hotel ID not found' });
-        }
-
-        if (!guest_name || !checkin_datetime || !checkout_datetime) {
-            await connection.rollback();
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Guest name, checkin datetime, and checkout datetime are required' 
-            });
-        }
-        
-        let finalRoomId = getValueOrNull(room_id); // Start with the room_id from req.body
-
-        // If room_id is not explicitly provided in the body, try to derive it
-        if (!finalRoomId) {
-            if (room_ids && room_ids.length > 0) {
-                finalRoomId = room_ids[0]; // If multiple rooms, use the first one as the primary
-            } else if (room_no) {
-                const [rooms] = await connection.execute(
-                    'SELECT room_id FROM room_master WHERE room_no = ? AND hotelid = ?',
-                    [room_no, hotelId]
-                );
-                if (rooms.length > 0) finalRoomId = rooms[0].room_id;
-            }
-        }
-
-        let finalRegNo = reg_no;
-        if (!finalRegNo) {
-            const [countResult] = await connection.execute(
-                `SELECT COUNT(*) as count FROM checkin_master WHERE hotelid = ?`,
-                [hotelId]
-            );
-            const count = countResult[0].count + 1;
-            finalRegNo = `REG${String(count).padStart(4, '0')}`;
-        }
-
-        const [result] = await connection.execute(`
-            INSERT INTO checkin_master (
-                guest_id, guest_name, address, mobile, company_name, emailed, 
-                booking, plan_name, reg_no, special_instruction, message,
-                checkin_datetime, checkout_datetime, room_no, category_id, 
-                converted_category, adults, pax, pax_charges, ex_pax, ex_pax_charge,
-                child_paid, child_unpaid, child_charge, driver, driver_charge,
-                hotelid, id_type, id_number, department_id, department_name,
-                status, total_nights, total_amount, created_by_id, created_date,
-                room_id, is_settle, checkout_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-            getValueOrNull(guest_id),
-            guest_name,
-            getValueOrNull(address),
-            getValueOrNull(mobile),
-            getValueOrNull(company_name),
-            getValueOrNull(emailed),
-            booking || 'WALK-IN-GUEST',
-            plan_name || 'EP',
-            finalRegNo,
-            getValueOrNull(special_instruction),
-            getValueOrNull(message),
-            formatDateTime(checkin_datetime),
-            formatDateTime(checkout_datetime),
-            room_no,
-            getValueOrNull(category_id),
-            getValueOrNull(converted_category),
-            adults || 1,
-            pax || 0,
-            pax_charges || 0,
-            ex_pax || 0,
-            ex_pax_charge || 0,
-            child_paid || 0,
-            child_unpaid || 0,
-            child_charge || 0,
-            driver || 0,
-            driver_charge || 0,
-            hotelId,
-            getValueOrNull(id_type),
-            getValueOrNull(id_number),
-            getValueOrNull(department_id),
-            getValueOrNull(department_name),
-            status || 'active',
-            total_nights || 1,
-            total_amount || 0,
-            created_by_id || userId,
-            now,
-            finalRoomId, // Use the derived or provided room_id
-            is_settle !== undefined ? is_settle : 0,
-            getValueOrNull(checkout_id)
-        ]);
-
-        const checkinId = result.insertId;
-
-        if (room_ids && room_ids.length > 0) {
-            const occupiedStatusId = await getOccupiedStatusId();
-            
-            for (const roomId of room_ids) {
-                await connection.execute(`
-                    UPDATE room_master 
-                    SET room_status_id = ?, updated_by_id = ?, updated_date = ? 
-                    WHERE room_id = ? AND hotelid = ?
-                `, [occupiedStatusId, created_by_id || userId, now, roomId, hotelId]);
-            }
-        } else if (room_no) {
-            const [rooms] = await connection.execute(
-                'SELECT room_id FROM room_master WHERE room_no = ? AND hotelid = ?',
-                [room_no, hotelId]
-            );
-            if (rooms.length > 0) {
-                const occupiedStatusId = await getOccupiedStatusId();
-                await connection.execute(`
-                    UPDATE room_master 
-                    SET room_status_id = ?, updated_by_id = ?, updated_date = ? 
-                    WHERE room_id = ? AND hotelid = ?
-                `, [occupiedStatusId, created_by_id || userId, now, rooms[0].room_id, hotelId]);
-            }
-        }
-
-        const [newCheckin] = await connection.execute(`
-            SELECT 
-                checkin_id, guest_id, guest_name, address, mobile, company_name, 
-                emailed, booking, plan_name, reg_no, special_instruction, message,
-                checkin_datetime, checkout_datetime, room_no, category_id, 
-                converted_category, adults, pax, pax_charges, ex_pax, ex_pax_charge,
-                child_paid, child_unpaid, child_charge, driver, driver_charge,
-                hotelid, id_type, id_number, department_id, department_name,
-                status, total_nights, total_amount, created_by_id, created_date,
-                updated_by_id, updated_date,
-                room_id, is_settle, checkout_id
-            FROM checkin_master 
-            WHERE checkin_id = ?
-        `, [checkinId]);
-
-        await connection.commit();
-
-        const formattedCheckin = {
-            ...newCheckin[0],
-            checkin_datetime: formatDate(newCheckin[0].checkin_datetime),
-            checkout_datetime: formatDate(newCheckin[0].checkout_datetime),
-            created_date: formatDate(newCheckin[0].created_date),
-            updated_date: formatDate(newCheckin[0].updated_date)
-        };
-
-        res.status(201).json({
-            success: true,
-            message: 'Checkin created successfully',
-            data: formattedCheckin,
-        });
-    } catch (error) {
-        await connection.rollback();
-        console.error('Error creating checkin:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to create checkin', 
-            error: error.message 
-        });
-    } finally {
-        connection.release();
-    }
+const formatDateTime = (dateInput) => {
+  if (!dateInput) return null;
+  const d = new Date(dateInput);
+  return d.toISOString().slice(0, 19).replace('T', ' ');
 };
 
+const getValueOrNull = (val) => (val === undefined || val === '') ? null : val;
+
+exports.addCheckin = async (req, res) => {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const now = new Date();
+    const body = req.body;
+    const userId = body.created_by_id || 1; // or get from token
+
+    // ========== 1. CHECKIN MASTER ==========
+    const masterAllowed = [
+      'guest_id', 'guest_name', 'address', 'mobile', 'company_name', 'email',
+      'booking', 'plan_name', 'reg_no', 'special_instruction', 'message',
+      'checkin_datetime', 'checkout_datetime', 'room_no', 'room_id', 'room_name',
+      'category_id', 'category_name', 'converted_category', 'converted_category_id',
+      'adults', 'pax', 'pax_charges', 'ex_pax', 'ex_pax_charge',
+      'child_paid', 'child_unpaid', 'child_charge', 'driver', 'driver_charge',
+      'hotelid', 'outletid', 'userid', 'id_type', 'id_number',
+      'department_id', 'department_name', 'total_nights', 'total_amount'
+    ];
+    const masterCols = [], masterVals = [];
+    masterAllowed.forEach(f => {
+      if (body[f] !== undefined) {
+        masterCols.push(f);
+        masterVals.push(['checkin_datetime', 'checkout_datetime'].includes(f)
+          ? formatDateTime(body[f]) : body[f]);
+      }
+    });
+    // Add fixed columns
+    masterCols.push('status', 'created_by_id', 'created_date', 'updated_by_id', 'updated_date');
+    masterVals.push(body.status || 'active', userId, now, userId, now);
+
+    const masterPlaceholders = masterCols.map(() => '?').join(',');
+    const [masterRes] = await connection.execute(
+      `INSERT INTO checkin_master (${masterCols.join(',')}) VALUES (${masterPlaceholders})`,
+      masterVals
+    );
+    const checkinId = masterRes.insertId;
+
+    // ========== 2. CHECKIN DETAIL MASTER ==========
+    if (body.details && body.details.length) {
+      for (const d of body.details) {
+        const detailAllowed = [
+          'room_id', 'room_number', 'room_category_id', 'room_category_name',
+          'converted_category_id', 'converted_category_name', 'no_of_days',
+          'adults', 'pax', 'ex_pax', 'child_unpaid', 'driver', 'room_tariff',
+          'ex_pax_charge', 'child_paid_amount', 'driver_charge', 'discount_percent',
+          'discount_amount', 'cgst_percent', 'cgst_amount', 'sgst_percent',
+          'sgst_amount', 'igst_percent', 'igst_amount', 'cess_percent',
+          'cess_amount', 'service_charge', 'service_charge_amount', 'tax'
+        ];
+        const detailCols = ['checkin_id', 'hotelid', 'created_date', 'updated_date', 'created_by_id', 'updated_by_id'];
+        const detailVals = [checkinId, body.hotelid, now, now, userId, userId];
+        detailAllowed.forEach(f => {
+          if (d[f] !== undefined) {
+            detailCols.push(f);
+            detailVals.push(f === 'checkin_datetime' || f === 'checkout_datetime' ? formatDateTime(d[f]) : d[f]);
+          }
+        });
+        const [detailRes] = await connection.execute(
+          `INSERT INTO checkin_detail_master (${detailCols.join(',')}) VALUES (${detailCols.map(()=>'?').join(',')})`,
+          detailVals
+        );
+      }
+    }
+
+    // ========== 3. GUEST ROOM CHARGES ==========
+    if (body.room_charges && body.room_charges.length) {
+      for (const rc of body.room_charges) {
+        const chargesAllowed = [
+          'guest_id', 'room_id', 'room_no', 'category_id', 'pax_count', 'pax_price',
+          'pax_tax', 'ex_pax_count', 'ex_pax_price', 'ex_pax_tax', 'ex_pax_tax_percent',
+          'ex_pax_total', 'child_count', 'child_price', 'child_tax', 'child_tax_percent',
+          'child_total', 'driver_count', 'driver_price', 'driver_tax', 'driver_tax_percent',
+          'driver_total', 'total_amount', 'checkin_datetime', 'checkout_datetime'
+        ];
+        const chargesCols = ['checkin_id', 'created_at', 'updated_at'];
+        const chargesVals = [checkinId, now, now];
+        chargesAllowed.forEach(f => {
+          if (rc[f] !== undefined) {
+            chargesCols.push(f);
+            chargesVals.push(['checkin_datetime', 'checkout_datetime'].includes(f) ? formatDateTime(rc[f]) : rc[f]);
+          }
+        });
+        await connection.execute(
+          `INSERT INTO checkin_guest_room_charges (${chargesCols.join(',')}) VALUES (${chargesCols.map(()=>'?').join(',')})`,
+          chargesVals
+        );
+      }
+    }
+
+    // ========== 4. FOLIO ENTRIES ==========
+    if (body.folio_entries && body.folio_entries.length) {
+      for (const fe of body.folio_entries) {
+        const folioCols = ['checkin_id', 'hotel_id', 'transaction_type', 'transaction_datetime', 'description', 'debit_amount', 'credit_amount', 'reference_number', 'payment_method', 'created_by_id', 'created_date'];
+        const folioVals = [checkinId, body.hotelid, fe.transaction_type || 'debit', formatDateTime(fe.transaction_datetime) || now, fe.description || '', fe.debit_amount || 0, fe.credit_amount || 0, fe.reference_number || null, fe.payment_method || null, userId, now];
+        await connection.execute(
+          `INSERT INTO checkin_guest_folio_master (${folioCols.join(',')}) VALUES (${folioCols.map(()=>'?').join(',')})`,
+          folioVals
+        );
+      }
+    }
+
+    await connection.commit();
+
+    // Return inserted data
+    const [masterRow] = await connection.execute('SELECT * FROM checkin_master WHERE checkin_id = ?', [checkinId]);
+    res.status(201).json({ success: true, message: 'Check-in created', data: masterRow[0] });
+
+  } catch (err) {
+    if (connection) await connection.rollback();
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    if (connection) connection.release();
+  }
+};
 // ----------------------------------------------------------------------
 // PUT /checkins/:id – update checkin
 // ----------------------------------------------------------------------
