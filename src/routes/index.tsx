@@ -20,6 +20,12 @@ import DayEndReportPreview from '../views/apps/Masters/Reports/DayEndReportPrevi
 import BackdatedDayEndReport from '../views/apps/Masters/Reports/BackdatedDayEndReport'
 
 
+
+import AtGlance from '@/views/pages/hotel-master/HotelBookingPanel/AtGlancePage'
+import Arrivals from '@/views/pages/hotel-master/HotelBookingPanel/Arrivals'
+
+
+
  
 // Dashboards
 const Ecommerce = React.lazy(() => import('./../views/dashboards'))
@@ -96,8 +102,6 @@ const AccountLedger = React.lazy(() => import('../views/apps/Masters/RestaurantM
 /* ================================
    🏨 HOTEL BOOKING SECTION
 ================================ */
-
-
 
 
 // Master Setting
@@ -773,6 +777,18 @@ const appsRoutes: RoutesProps = {
           element: <FloorMaster />,
           route: PrivateRoute,
         },
+        {
+  path: '/hotel/at-glance',
+  name: 'At a Glance',
+  element: <AtGlance />,
+  route: PrivateRoute, // or your route guard component if needed
+},
+{
+  path: '/hotel/arrivals',
+  name: 'Arrivals',
+  element: <Arrivals />,
+  route: PrivateRoute,
+},
         {
           path: '/hotel-master/Block-master',
           name: 'Block Master',

@@ -20,10 +20,12 @@ const ThemeRoutes = (props: IRoutesProps) => {
   const { isAuthenticated } = useAuthContext()
 
   // Combined full‑screen routes (existing + new hotel routes)
-  const fullScreenRoutes = [
+const fullScreenRoutes = [
     '/apps/Tableview',
     '/apps/Billview',
     '/hotel-master/HotelBookingPanel',
+    '/hotel/at-glance',
+    '/hotel/arrivals',
     '/hotel/reservation',
     '/hotel/checkin',
     '/hotel/room-detail',

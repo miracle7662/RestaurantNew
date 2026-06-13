@@ -140,91 +140,147 @@ cgrc.updated_at AS charge_updated_at
   }
 };
 
+// exports.getRooms = async (req, res) => {
+//     try {
+//         const { hotelid } = req.params; // ya req.user.hotelid
+
+//         const query = `
+//             SELECT 
+//                 rm.room_id,
+//                 rm.room_no,
+//                 rm.room_name,
+//                 rm.display_name,
+//                 rm.room_category_id,
+//                 rm.floor_id,
+//                 rm.room_status_id,
+//                 rm.hotelid,
+//                 rm.created_date,
+//                 rm.updated_date,
+//                 rc.category_name,
+//                 rc.print_name,
+//                 rc.display_name AS category_display_name,
+//                 fm.floor_name,
+//                 fm.floor_number,
+//                 rs.status_name,
+//                 rs.status_color,
+//                 rm.room_status_id
+//             FROM room_master rm
+//             LEFT JOIN room_category rc 
+//                 ON rm.room_category_id = rc.room_category_id 
+//                 AND rc.hotelid = rm.hotelid
+//             LEFT JOIN floormaster fm 
+//                 ON rm.floor_id = fm.floor_id 
+//                 AND fm.hotelid = rm.hotelid
+//             LEFT JOIN room_status rs 
+//                 ON rm.room_status_id = rs.room_status_id
+//             WHERE rm.hotelid = ?
+//             ORDER BY fm.floor_number, rm.room_no
+//         `;
+
+//         const [rooms] = await db.query(query, [hotelid]);
+
+//         res.status(200).json({
+//             success: true,
+//             count: rooms.length,
+//             data: rooms
+//         });
+
+//     } catch (error) {
+//         console.error('Get Rooms Error:', error);
+//         res.status(500).json({
+//             success: false,
+//             message: 'Failed to fetch rooms',
+//             error: error.message
+//         });
+//     }
+// };
 
 
 
 
-exports.getRooms = async (req, res) => {
-    try {
-        let hotelId = req.query.hotelid || req.query.mst_hotelid;
-        if (!hotelId) hotelId = getCurrentUserHotelId(req);
-        if (!hotelId && req.body?.hotelid) hotelId = req.body.hotelid;
-        if (!hotelId) {
-            return res.status(400).json({ success: false, message: 'Hotel ID not found' });
-        }
 
-        const { q } = req.query;
+// exports.getRooms = async (req, res) => {
+//     try {
+//         let hotelId = req.query.hotelid || req.query.mst_hotelid;
 
-        let sql = `
-            SELECT
-                rm.room_id,
-                rm.room_no,
-                rm.room_name,
-                rm.display_name,
-                rm.room_category_id,
-                rc.category_name,
-                rm.room_ext_no,
-                rm.room_status_id,
-                rs.status_name AS room_status,
-                rs.status_color,
-                rm.department_id,
-                dm.department_name,
-                rm.block_id,
-                bm.block_name,
-                rm.floor_id,
-                fm.floor_name,
-                rm.hotelid,
-                rm.created_date,
-                rm.updated_date,
-                rm.created_by_id,
-                rm.updated_by_id
-            FROM room_master rm
-            LEFT JOIN room_category rc ON rm.room_category_id = rc.room_category_id
-            LEFT JOIN room_status rs ON rm.room_status_id = rs.room_status_id
-            LEFT JOIN departmentmaster dm ON rm.department_id = dm.department_id
-            LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
-            LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
-            WHERE rm.hotelid = ?
-        `;
+//         if (!hotelId) hotelId = getCurrentUserHotelId(req);
+//         if (!hotelId && req.body?.hotelid) hotelId = req.body.hotelid;
+//         if (!hotelId) {
+//             return res.status(400).json({ success: false, message: 'Hotel ID not found' });
+//         }
 
-        const params = [hotelId];
+//         const { q } = req.query;
 
-        if (q) {
-            sql += ` AND (
-                rm.room_no LIKE ? OR 
-                rm.room_name LIKE ? OR 
-                rm.display_name LIKE ? OR
-                rc.category_name LIKE ? OR 
-                rs.status_name LIKE ? OR
-                dm.department_name LIKE ? OR
-                bm.block_name LIKE ? OR 
-                fm.floor_name LIKE ?
-            )`;
-            const like = `%${q}%`;
-            params.push(like, like, like, like, like, like, like, like);
-        }
+//         let sql = `
+//             SELECT
+//                 rm.room_id,
+//                 rm.room_no,
+//                 rm.room_name,
+//                 rm.display_name,
+//                 rm.room_category_id,
+//                 rc.category_name,
+//                 rm.room_ext_no,
+//                 rm.room_status_id,
+//                 rs.status_name AS room_status,
+//                 rs.status_color,
+//                 rm.department_id,
+//                 dm.department_name,
+//                 rm.block_id,
+//                 bm.block_name,
+//                 rm.floor_id,
+//                 fm.floor_name,
+//                 rm.hotelid,
+//                 rm.created_date,
+//                 rm.updated_date,
+//                 rm.created_by_id,
+//                 rm.updated_by_id
+//             FROM room_master rm
+//             LEFT JOIN room_category rc ON rm.room_category_id = rc.room_category_id
+//             LEFT JOIN room_status rs ON rm.room_status_id = rs.room_status_id
+//             LEFT JOIN departmentmaster dm ON rm.department_id = dm.department_id
+//             LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
+//             LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
+//             WHERE rm.hotelid = ?
+//         `;
 
-        sql += ' ORDER BY rm.room_no ASC';
+//         const params = [hotelId];
 
-        const [rooms] = await db.execute(sql, params);
+//         if (q) {
+//             sql += ` AND (
+//                 rm.room_no LIKE ? OR 
+//                 rm.room_name LIKE ? OR 
+//                 rm.display_name LIKE ? OR
+//                 rc.category_name LIKE ? OR 
+//                 rs.status_name LIKE ? OR
+//                 dm.department_name LIKE ? OR
+//                 bm.block_name LIKE ? OR 
+//                 fm.floor_name LIKE ?
+//             )`;
+//             const like = `%${q}%`;
+//             params.push(like, like, like, like, like, like, like, like);
+//         }
 
-        // Format dates
-        const formattedRooms = rooms.map(room => ({
-            ...room,
-            created_date: formatDate(room.created_date),
-            updated_date: formatDate(room.updated_date)
-        }));
+//         sql += ' ORDER BY rm.room_no ASC';
 
-        res.json({
-            success: true,
-            message: 'Data fetched successfully',
-            data: formattedRooms,
-        });
-    } catch (error) {
-        console.error('Error fetching rooms:', error);
-        res.status(500).json({ success: false, message: 'Database error', error: error.message });
-    }
-};
+//         const [rooms] = await db.execute(sql, params);
+
+//         // Format dates
+//         const formattedRooms = rooms.map(room => ({
+//             ...room,
+//             created_date: formatDate(room.created_date),
+//             updated_date: formatDate(room.updated_date)
+//         }));
+
+//         res.json({
+//             success: true,
+//             message: 'Data fetched successfully',
+//             data: formattedRooms,
+//         });
+//     } catch (error) {
+//         console.error('Error fetching rooms:', error);
+//         res.status(500).json({ success: false, message: 'Database error', error: error.message });
+//     }
+// };
 
 
 
@@ -590,11 +646,134 @@ exports.getRoom = async (req, res) => {
 // ----------------------------------------------------------------------
 // DELETE /rooms/:id – delete a room
 // ----------------------------------------------------------------------
+exports.getHotelBookingMeta = async (req, res) => {
+    try {
+        let hotelId = req.query.hotelid || req.query.mst_hotelid;
+        if (!hotelId) hotelId = getCurrentUserHotelId(req);
+        if (!hotelId && req.body?.hotelid) hotelId = req.body.hotelid;
+        if (!hotelId) {
+            return res.status(400).json({ success: false, message: 'Hotel ID not found' });
+        }
+
+        const roomsSql = `
+            SELECT
+                rm.room_id,
+                rm.room_no,
+                rm.room_name,
+                rm.display_name,
+                rm.room_category_id,
+                rc.category_name,
+                rm.room_ext_no,
+                rm.room_status_id,
+                rs.status_name AS room_status,
+                rs.status_color,
+                rm.department_id,
+                dm.department_name,
+                rm.block_id,
+                bm.block_name,
+                rm.floor_id,
+                fm.floor_name,
+                fm.floor_number,
+                rm.hotelid,
+                rm.created_date,
+                rm.updated_date,
+                rm.created_by_id,
+                rm.updated_by_id
+            FROM room_master rm
+            LEFT JOIN room_category rc ON rm.room_category_id = rc.room_category_id
+            LEFT JOIN room_status rs ON rm.room_status_id = rs.room_status_id
+            LEFT JOIN departmentmaster dm ON rm.department_id = dm.department_id
+            LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
+            LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
+            WHERE rm.hotelid = ?
+            ORDER BY rm.floor_id ASC, rm.room_no ASC
+        `;
+
+        const floorsSql = `
+            SELECT
+                floor_id,
+                floor_name,
+                floor_number,
+                hotelid,
+                status,
+                created_by_id,
+                created_date,
+                updated_by_id,
+                updated_date
+            FROM floormaster
+            WHERE hotelid = ?
+            ORDER BY floor_number ASC, floor_id ASC
+        `;
+
+        const categoriesSql = `
+            SELECT
+                rc.room_category_id,
+                rc.category_no,
+                rc.category_name,
+                rc.department_id,
+                dm.department_name,
+                rc.print_name,
+                rc.display_seq,
+                rc.display_name,
+                rc.total_rooms,
+                rc.apply_date,
+                rc.max_limit,
+                rc.overbooking_no,
+                rc.hotelid,
+                rc.status,
+                rc.created_by_id,
+                rc.created_date,
+                rc.updated_by_id,
+                rc.updated_date
+            FROM room_category rc            
+            LEFT JOIN departmentmaster dm ON rc.department_id = dm.department_id
+            WHERE rc.hotelid = ?
+            ORDER BY rc.display_seq ASC, rc.room_category_id ASC
+        `;
+
+        const [rooms] = await db.execute(roomsSql, [hotelId]);
+        const [floors] = await db.execute(floorsSql, [hotelId]);
+        const [categories] = await db.execute(categoriesSql, [hotelId]);
+
+        const formattedRooms = (rooms || []).map((room) => ({
+            ...room,
+            created_date: formatDate(room.created_date),
+            updated_date: formatDate(room.updated_date),
+        }));
+
+        const formattedFloors = (floors || []).map((f) => ({
+            ...f,
+            created_date: formatDate(f.created_date),
+            updated_date: formatDate(f.updated_date),
+        }));
+
+        const formattedCategories = (categories || []).map((c) => ({
+            ...c,
+            created_date: formatDate(c.created_date),
+            updated_date: formatDate(c.updated_date),
+        }));
+
+        res.json({
+            success: true,
+            message: 'Hotel booking meta fetched successfully',
+            data: {
+                floors: formattedFloors,
+                categories: formattedCategories,
+                rooms: formattedRooms,
+            },
+        });
+    } catch (error) {
+        console.error('getHotelBookingMeta Error:', error);
+        res.status(500).json({ success: false, message: 'Database error', error: error.message });
+    }
+};
+
 exports.deleteRoom = async (req, res) => {
     try {
         const { id } = req.params;
         const { hotelid } = req.body;
         let hotelId = hotelid || getCurrentUserHotelId(req);
+
 
         const [existing] = await db.execute(
             'SELECT hotelid FROM room_master WHERE room_id = ?',
