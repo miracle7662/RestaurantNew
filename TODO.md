@@ -1,9 +1,16 @@
-# TODO
+# TODO - Single API for HotelBookingPanel floors+categories+rooms
 
-## Advance Addition fix: Unknown column `hotel_id` in `advance_transactions`
+## Backend
+- [x] Add controller: `getHotelBookingMeta` in `backend/modules/hotelbooking/controllers/roomController.js`
+- [x] Add route: `GET /rooms/hotelbooking-meta` in `backend/modules/hotelbooking/routes/roomRoutes.js`
 
-- [ ] Locate current `advance_transactions` table schema (confirm missing `hotel_id`).
-- [ ] Create/commit a SQL migration to add `hotel_id` to `advance_transactions`.
-- [ ] Ensure `getAdvanceTransactions` filters on `hotel_id` safely.
-- [ ] Run backend and retry the failing transaction (Advance Addition) to verify insert works.
+
+## Frontend
+- [x] Add API method in `src/common/hotel/room.ts` (e.g., `getHotelBookingMeta`)
+- [ ] Update `HotelBookingPanel.tsx` to call single API and remove 3 parallel calls
+
+
+## Test
+- [ ] Run backend (or lint/build) and verify panel loads correctly
+- [ ] Verify grouping by floor and category still works
 

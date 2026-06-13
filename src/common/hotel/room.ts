@@ -8,23 +8,23 @@ export interface Room {
   room_no: string;
   room_name: string;
   display_name?: string;
+
   room_category_id: number;
   category_name?: string;
-  room_ext_no?: string;
-  room_status_id: number;
-  room_status?: string;
-  status_color?: string;
-  department_id?: number;
-  department_name?: string;
-  block_id?: number;
-  block_name?: string;
+  print_name?: string;
+  category_display_name?: string;
+
   floor_id?: number;
   floor_name?: string;
+  floor_number?: number;
+
+  room_status?: number;
+  status_name?: string;
+  status_color?: string;
+
   hotelid: number;
   created_date?: string;
   updated_date?: string;
-  created_by_id?: number;
-  updated_by_id?: number;
 }
 
 export interface RoomPayload {
@@ -133,6 +133,21 @@ const RoomService = {
     return HttpClient.get<ApiResponse<Room[]>>("/rooms", { params });
   },
 
+  /**
+   * Single API for HotelBookingPanel: floors + categories + rooms
+   * Backend: GET /rooms/hotelbooking-meta?hotelid=...
+   */
+  getHotelBookingMeta(hotelid: string | number) {
+    return HttpClient.get<
+      ApiResponse<{
+        floors: any[]
+        categories: any[]
+        rooms: Room[]
+      }>
+    >('/rooms/hotelbooking-meta', { params: { hotelid } })
+  },
+
+
   get(roomId: number) {
     return HttpClient.get<ApiResponse<Room>>(`/rooms/${roomId}`);
   },
@@ -154,6 +169,13 @@ const RoomService = {
    * Backend endpoint: GET /rooms?hotelid=...&checkin_id=...
    * (router.get("/", controller.getCheckinFullDetails) mounted under "/rooms")
    */
+
+  getRooms(hotelid: string | number) {
+  return HttpClient.get<ApiResponse<Room[]>>("/rooms", {
+    params: { hotelid },
+  });
+},
+
   getCheckinFullDetails(hotelid: string | number, checkin_id: string | number) {
     return HttpClient.get<ApiResponse<CheckinFullDetailsRow[]>>("/rooms/checkin-full-details", {
       params: { hotelid, checkin_id },
