@@ -25,19 +25,18 @@ import FragmentService from '@/common/hotel/fragments'
 import DocumentTypeService from '@/common/hotel/documentType'
 import CheckInService from '@/common/hotel/checkIn'
 
-import DetailService from '@/common/hotel/detail'
-import GuestFolioService from '@/common/hotel/guestFolio'
-import GuestRoomChargesService from '@/common/hotel/guestRoomCharges'
+// Removed unused imports:
+// import DetailService from '@/common/hotel/detail'
+// import GuestFolioService from '@/common/hotel/guestFolio'
+// import GuestRoomChargesService from '@/common/hotel/guestRoomCharges'
+// import AgentRoomCheckinService from '@/common/hotel/agentRoomCheckin'
+// import StockService from '@/common/hotel/stock'
+
 import PaymentModeService from '@/common/api/outletpaymentmode'
 import travelAgentApi from '@/common/hotel/travelagent'
-import AgentRoomCheckinService from '@/common/hotel/agentRoomCheckin'
-import StockService from '@/common/hotel/stock'
 import { useAuthContext } from '@/common/context/useAuthContext'
 
-import type { CheckInPayload } from '@/common/hotel/checkIn'
-import type { DetailPayload } from '@/common/hotel/detail'
-import type { GuestFolioPayload } from '@/common/hotel/guestFolio'
-import type { AgentRoomCheckinPayload } from '@/common/hotel/agentRoomCheckin'
+// Removed unused types: DetailPayload, GuestFolioPayload, AgentRoomCheckinPayload
 
 import GuestForm from '../Guest/GuestForm'
 import CompanyForm from '../Company/CompanyForm'
@@ -282,8 +281,6 @@ const CheckInForm = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [navigate])
 
-
-  
   const [loadingRooms, setLoadingRooms] = useState(false)
   const [initialSelectedRooms, setInitialSelectedRooms] = useState<
     Array<{ roomId: number; roomNumber: string; roomCategoryName: string }>
@@ -383,25 +380,25 @@ const CheckInForm = () => {
   // Never written to DB or uploads folder until onSubmit succeeds.
   const [tempGuestPhoto, setTempGuestPhoto] = useState<string | null>(null)
 
-  // ==================== INVENTORY AUTO-ASSIGN FUNCTION ====================
-  const autoAssignAmenities = async (checkinId: number, roomId: number, guestCount: number) => {
-    if (!hotelId) return
-    try {
-      const response = await StockService.autoAssign({ 
-        checkin_id: checkinId, 
-        room_id: roomId, 
-        guest_count: guestCount,
-        hotelid: hotelId 
-      })
-      if (response.success && response.data?.assignedItems?.length > 0) {
-        console.log(`Auto-assigned amenities to room ${roomId}:`, response.data.assignedItems)
-        return response.data.assignedItems
-      }
-    } catch (error) {
-      console.error(`Failed to auto-assign amenities for room ${roomId}:`, error)
-    }
-    return []
-  }
+  // ==================== INVENTORY AUTO-ASSIGN FUNCTION (kept but not used now) ====================
+  // const autoAssignAmenities = async (checkinId: number, roomId: number, guestCount: number) => {
+  //   if (!hotelId) return
+  //   try {
+  //     const response = await StockService.autoAssign({ 
+  //       checkin_id: checkinId, 
+  //       room_id: roomId, 
+  //       guest_count: guestCount,
+  //       hotelid: hotelId 
+  //     })
+  //     if (response.success && response.data?.assignedItems?.length > 0) {
+  //       console.log(`Auto-assigned amenities to room ${roomId}:`, response.data.assignedItems)
+  //       return response.data.assignedItems
+  //     }
+  //   } catch (error) {
+  //     console.error(`Failed to auto-assign amenities for room ${roomId}:`, error)
+  //   }
+  //   return []
+  // }
   // ==================== END INVENTORY FUNCTION ====================
 
   const defaultGuestForm = {
@@ -435,7 +432,7 @@ const CheckInForm = () => {
     documents: [],
   }
 
-  // Prepare Agent Room Checkin Payload Helper Function
+  // Prepare Agent Room Checkin Payload Helper Function (kept for reference but not called)
   const prepareAgentRoomCheckinPayload = (
     checkinId: number, 
     regNoValue: string, 
@@ -445,7 +442,7 @@ const CheckInForm = () => {
     totalAmount: number,
     totalRoomCharges: number,
     totalExtraCharges: number
-  ): AgentRoomCheckinPayload => {
+  ) => {
     const agentId = values.travelAgentId
     const selectedAgent = travelAgents.find(a => a.agent_id === agentId)
 
@@ -1710,385 +1707,269 @@ onSubmit: async (values) => {
   setSubmitting(true)
 
   try {
-    const groups = new Map<number, RoomRow[]>()
+    // Use the first row for master data (guest name, dates, etc.)
+    const firstRow = roomRows[0]
+    const totalNights = firstRow.nights
+    const guestName = firstRow.guestName
+    const guestId = firstRow.guestId!
+
+    // Build datetime strings (MySQL compatible)
+    const checkinDateTime = `${firstRow.arrivalDate} ${firstRow.arrivalTime}:00`
+    const checkoutDateTime = `${firstRow.departureDate} ${firstRow.departureTime}:00`
+
+    // Compute totals across all rooms
+    let totalAdults = 0
+    let totalPax = 0
+    let totalExPax = 0
+    let totalChildPaid = 0
+    let totalChildUnpaid = 0
+    let totalDriver = 0
+    let totalPaxCharges = 0
+    let totalExPaxCharge = 0
+    let totalDriverCharge = 0
+    let totalChildPaidCharge = 0
+    let totalAmountAllNights = 0
+
     roomRows.forEach((row) => {
-      const gid = row.guestId
-      if (gid === null || gid === undefined) return
-      if (!groups.has(gid)) groups.set(gid, [])
-      groups.get(gid)!.push(row)
+      totalAdults += row.adults || 0
+      totalPax += row.pax || 0
+      totalExPax += row.exPax || 0
+      totalChildPaid += row.childPaid || 0
+      totalChildUnpaid += row.childUnpaid || 0
+      totalDriver += row.driver || 0
+
+      totalPaxCharges += (row.rate || 0) * totalNights
+      totalExPaxCharge += ((row.exPaxPrice || 0) * totalNights)
+      totalDriverCharge += ((row.driverPrice || 0) * totalNights)
+      totalChildPaidCharge += ((row.childPrice || 0) * totalNights)
+
+      totalAmountAllNights += (row.totalAmount || 0)
     })
 
-    for (const [guestId, rows] of groups.entries()) {
-      const firstRow = rows[0]
-      const guestName = firstRow.guestName
-      const totalNights = firstRow.nights
+    const companyName =
+      values.companyId === 'WALK-N-GUESTI' || !values.companyId
+        ? 'WALK-IN-GUEST'
+        : companies.find((c) => c.company_id === values.companyId)?.company_name || 'WALK-IN-GUEST'
 
-      // Build datetime strings as 'YYYY-MM-DD HH:MM:SS' — MySQL-compatible, timezone-safe.
-      // Avoid new Date('YYYY-MM-DD') which parses as UTC and shifts dates in non-UTC timezones.
-      const checkinDateTime = `${firstRow.arrivalDate} ${firstRow.arrivalTime}:00`
-      const checkoutDateTime = `${firstRow.departureDate} ${firstRow.departureTime}:00`
+    const firstRoomDeptInfo = roomDepartmentMap.get(firstRow.roomId)
+    const departmentId = firstRoomDeptInfo?.department_id
+    const departmentName = firstRoomDeptInfo?.department_name || ''
 
-      const primaryCategoryId =
-        roomCategories.find((c) => c.category_name === firstRow.type)?.room_category_id ??
-        undefined
+    const primaryCategoryId = roomCategories.find((c) => c.category_name === firstRow.type)?.room_category_id
 
-      const firstRoomDeptInfo = roomDepartmentMap.get(firstRow.roomId)
-      const departmentId = firstRoomDeptInfo?.department_id ?? undefined
-      const departmentName = firstRoomDeptInfo?.department_name || ''
-
-      const companyName =
-        values.companyId === 'WALK-N-GUESTI' || !values.companyId
-          ? 'WALK-IN-GUEST'
-          : companies.find((c) => c.company_id === values.companyId)?.company_name ||
-            'WALK-IN-GUEST'
-
-      const totalAdults = rows.reduce((sum, row) => sum + (row.adults || 0), 0)
-      const totalPax = rows.reduce((sum, row) => sum + (row.pax || 0), 0)
-      const totalExPax = rows.reduce((sum, row) => sum + (row.exPax || 0), 0)
-      const totalChildPaid = rows.reduce((sum, row) => sum + (row.childPaid || 0), 0)
-      const totalChildUnpaid = rows.reduce((sum, row) => sum + (row.childUnpaid || 0), 0)
-      const totalDriver = rows.reduce((sum, row) => sum + (row.driver || 0), 0)
-      
-      const totalPaxCharges = rows.reduce((sum, row) => sum + (row.rate * row.nights), 0)
-      const totalExPaxCharge = rows.reduce((sum, row) => sum + ((row.exPaxPrice || 0) * row.nights), 0)
-      const totalDriverCharge = rows.reduce((sum, row) => sum + ((row.driverPrice || 0) * row.nights), 0)
-      const totalChildPaidCharge = rows.reduce((sum, row) => sum + ((row.childPrice || 0) * row.nights), 0)
-
-      const convertedCategoryValue = firstRow.convertedCategoryName || ''
-
-      let totalAmountAllNights = 0
-      rows.forEach((row) => {
-        totalAmountAllNights += safeNumber(row.totalAmount)
-      })
-
-      let firstDayTotalAmount = 0
-      rows.forEach((row) => {
-        firstDayTotalAmount += safeNumber(row.totalAmount) / totalNights
-      })
-
-      const checkinPayload: CheckInPayload = {
-        guest_id: guestId,
-        guest_name: guestName,
-        address: values.address,
-        mobile: values.phone1,
-        company_name: companyName,
-        emailed: values.email,
-        booking: values.bookingType,
-        plan_name: values.planName,
-        reg_no: values.regNo,
-        special_instruction: values.specialInstruction,
-        message: values.message,
-        checkin_datetime: checkinDateTime,
-        checkout_datetime: checkoutDateTime,
-        room_no: firstRow.roomNumber,
-        category_id: primaryCategoryId,
-        converted_category: convertedCategoryValue,
-        adults: totalAdults,
-        pax: totalPax,
-        pax_charges: totalPaxCharges,
-        ex_pax: totalExPax,
-        ex_pax_charge: totalExPaxCharge,
-        child_paid: totalChildPaid,
-        child_unpaid: totalChildUnpaid,
-        child_charge: totalChildPaidCharge,
-        driver: totalDriver.toString(),
-        driver_charge: totalDriverCharge,
-        hotelid: hotelId,
-        id_type: values.idType || '',
-        id_number: values.idNumber || '',
-        department_id: departmentId,
-        department_name: departmentName,
-        status: 'active',
-        created_by_id: user?.id,
-        room_ids: rows.map((row) => row.roomId),
-        total_nights: totalNights,
-        total_amount: totalAmountAllNights,
-      }
-
-      const checkinRes = await CheckInService.create(checkinPayload)
-      const checkinId = checkinRes.data.checkin_id
-      const finalRegNo = checkinRes.data.reg_no || values.regNo || regNo || ''
-      
-      if (!finalRegNo) {
-        console.warn('reg_no could not be determined — agent room checkin record may fail validation')
-      }
-      
-      // Build datetime strings directly from date parts — avoids UTC timezone shift.
-      // new Date('YYYY-MM-DD') parses as UTC midnight, so in IST (UTC+5:30) it would shift
-      // the date back by one day. Using Date(year, month-1, day) uses LOCAL time instead.
-      const addDaysToDateStr = (dateStr: string, days: number): string => {
-        const [year, month, day] = dateStr.split('-').map(Number)
-        const d = new Date(year, month - 1, day + days)
-        return [
-          d.getFullYear(),
-          String(d.getMonth() + 1).padStart(2, '0'),
-          String(d.getDate()).padStart(2, '0'),
-        ].join('-')
-      }
-
-      // MySQL-compatible format: 'YYYY-MM-DD HH:MM:SS' (no 'T', no timezone suffix)
-      const firstDayCheckinDateTime = `${firstRow.arrivalDate} ${firstRow.arrivalTime}:00`
-      const firstDayCheckoutDate = addDaysToDateStr(firstRow.arrivalDate, 1)
-      const firstDayCheckoutDateTime = `${firstDayCheckoutDate} ${firstRow.departureTime}:00`
-
-      const allDetailPayloads: DetailPayload[] = []
-      const allChargePayloads: any[] = []
-      
-      let totalRoomChargesForAgent = 0
-      let totalExtraChargesForAgent = 0
-
-      for (const row of rows) {
-        const categoryId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id ?? undefined
-
-        const dailyDiscountedTariff = row.rate - ((row.rate * (row.discount || 0)) / 100)
-        const dailyCgstAmount = (dailyDiscountedTariff * (row.cgstPercent || 0)) / 100
-        const dailySgstAmount = (dailyDiscountedTariff * (row.sgstPercent || 0)) / 100
-        const dailyIgstAmount = (dailyDiscountedTariff * (row.igstPercent || 0)) / 100
-        const dailyCessAmount = (dailyDiscountedTariff * (row.cessPercent || 0)) / 100
-        const dailyTotalTax = dailyCgstAmount + dailySgstAmount + dailyIgstAmount + dailyCessAmount
-
-        const dailyExPaxTotal = row.exPaxTotal || 0
-        const dailyChildTotal = row.childTotal || 0
-        const dailyDriverTotal = row.driverTotal || 0
-        const dailyExPaxCharge = row.exPaxPrice || 0
-        const dailyChildCharge = row.childPrice || 0
-        const dailyDriverCharge = row.driverPrice || 0
-        const dailyExPaxTax = row.exPaxTax || 0
-        const dailyChildTax = row.childTax || 0
-        const dailyDriverTax = row.driverTax || 0
-
-        totalRoomChargesForAgent += row.rate * row.nights
-        totalExtraChargesForAgent += (dailyExPaxTotal + dailyChildTotal + dailyDriverTotal) * row.nights
-
-        const detailPayload: DetailPayload = {
-          hotelid: hotelId,
-          checkin_id: checkinId,
-          room_id: row.roomId,
-          room_number: row.roomNumber,
-          room_category_id: categoryId,
-          room_category_name: row.type,
-          converted_category_id: row.convertedCategoryId ?? undefined,
-          converted_category_name: row.convertedCategoryName || '',
-          checkin_datetime: firstDayCheckinDateTime,
-          checkout_datetime: firstDayCheckoutDateTime,
-          no_of_days: 1,
-          adults: row.adults,
-          pax: row.pax,
-          ex_pax: row.exPax,
-          child_unpaid: row.childUnpaid,
-          driver: row.driver,
-          room_tariff: row.rate,
-          ex_pax_charge: dailyExPaxCharge,
-          child_paid_amount: dailyChildCharge,
-          driver_charge: dailyDriverCharge,
-          discount_percent: row.discount,
-          discount_amount: (row.rate * (row.discount || 0)) / 100,
-          cgst_percent: row.cgstPercent || 0,
-          cgst_amount: dailyCgstAmount,
-          sgst_percent: row.sgstPercent || 0,
-          sgst_amount: dailySgstAmount,
-          igst_percent: row.igstPercent || 0,
-          igst_amount: dailyIgstAmount,
-          cess_percent: row.cessPercent || 0,
-          cess_amount: dailyCessAmount,
-          service_charge: 0,
-          service_charge_amount: 0,
-          parent_detail_id: undefined,
-          is_checkout: 0,
-          merged: 0,
-          tax: dailyTotalTax,
-        }
-        allDetailPayloads.push(detailPayload)
-
-        const perDayTotalAmount = (row.totalAmount || 0) / totalNights
-
-        const chargesPayload = {
-          guest_id: guestId,
-          room_id: row.roomId,
-          category_id: categoryId,
-          checkin_id: checkinId,
-          pax_count: row.pax,
-          pax_price: row.rate,
-          pax_tax: dailyTotalTax,
-          ex_pax_count: row.exPax,
-          ex_pax_price: dailyExPaxCharge,
-          ex_pax_tax: dailyExPaxTax,
-          ex_pax_tax_percent: row.exPaxTaxPercent,
-          ex_pax_total: dailyExPaxTotal,
-          child_count: row.childPaid,
-          child_price: dailyChildCharge,
-          child_tax: dailyChildTax,
-          child_tax_percent: row.childTaxPercent,
-          child_total: dailyChildTotal,
-          driver_count: row.driver,
-          driver_price: dailyDriverCharge,
-          driver_tax: dailyDriverTax,
-          driver_tax_percent: row.driverTaxPercent,
-          driver_total: dailyDriverTotal,
-          total_amount: perDayTotalAmount,
-          checkin_datetime: firstDayCheckinDateTime,
-          checkout_datetime: firstDayCheckoutDateTime,
-        }
-        allChargePayloads.push(chargesPayload)
-      }
-
-      // Capture detail IDs so folio entries can reference the first detail record
-      let firstDetailId: number | null = null
-
-      if (allDetailPayloads.length > 0) {
-        console.log(`Creating ${allDetailPayloads.length} detail record(s) for FIRST DAY only`)
-        const detailResult = await DetailService.createBulk({ details: allDetailPayloads })
-        console.log('Detail records created successfully:', detailResult)
-
-        // Extract the first inserted detail_id from whatever shape the API returns.
-        // Possible shapes:
-        // 1) { success, data: [ { detail_id, ... } ] }
-        // 2) { data: [ { detail_id } ] }
-        // 3) { data: { detail_id } } or { insertedDetails: [...] }
-        const extractedFirstDetailId = (() => {
-          const d: any = detailResult as any
-
-          const candidates: any[] = []
-
-          if (Array.isArray(d?.data)) candidates.push(...d.data)
-          if (Array.isArray(d?.insertedDetails)) candidates.push(...d.insertedDetails)
-          if (Array.isArray(d?.details)) candidates.push(...d.details)
-
-          if (candidates.length > 0) {
-            const first = candidates[0]
-            return first?.detail_id ?? first?.detailId ?? null
-          }
-
-          // If data is an object instead of array
-          if (d?.data && typeof d.data === 'object') {
-            return d.data?.detail_id ?? d.data?.detailId ?? null
-          }
-
-          return null
-        })()
-
-        firstDetailId = extractedFirstDetailId ?? null
-        console.log('✅ firstDetailId used for folio:', firstDetailId)
-
-        if (!firstDetailId) {
-          console.warn(
-            '⚠️ Could not determine firstDetailId from createBulk response. Folio will be inserted with detail_id = null. '
-            + 'Check backend DetailService.createBulk response shape.',
-            detailResult,
-          )
-        }
-      }
-
-
-      if (allChargePayloads.length > 0) {
-        console.log(`Creating ${allChargePayloads.length} charge record(s) for FIRST DAY only`)
-        await GuestRoomChargesService.createBulk({ charges: allChargePayloads })
-      }
-
-      // Helper: MySQL-compatible datetime string for NOW
-      const nowMysql = (): string => {
-        const n = new Date()
-        return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')} ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}:${String(n.getSeconds()).padStart(2, '0')}`
-      }
-
-      const folioPayload: GuestFolioPayload = {
-        checkin_id: checkinId,
-        hotelid: hotelId,
-        detail_id: firstDetailId,          // ✅ now correctly set from bulk insert result
-        transaction_type: 'Room Charges',
-        transaction_datetime: nowMysql(),
-        description: `Room charges for Day 1 of ${totalNights} night(s) from ${firstRow.arrivalDate} to ${firstRow.departureDate}`,
-        debit_amount: firstDayTotalAmount,
-        credit_amount: 0,
-        reference_number: `CHK-${checkinId}`,
-        payment_method: values.paymentMethod || 'Cash',
-      }
-      await GuestFolioService.create(folioPayload)
-
-      if (values.receivedAmount && Number(values.receivedAmount) > 0) {
-        const paymentFolioPayload: GuestFolioPayload = {
-          checkin_id: checkinId,
-          hotelid: hotelId,
-          detail_id: firstDetailId,        // ✅ now correctly set from bulk insert result
-          transaction_type: 'Payment',
-          transaction_datetime: nowMysql(),
-          description: 'Payment received',
-          debit_amount: 0,
-          credit_amount: Number(values.receivedAmount),
-          reference_number: '',
-          payment_method: values.paymentMethod || 'Cash',
-        }
-        await GuestFolioService.create(paymentFolioPayload)
-      }
-
-      const isTravelAgentSelected = values.travelAgentId && values.travelAgentId > 0
-      
-      if (isTravelAgentSelected) {
-        console.log('Travel agent selected, creating agent_room_checkin record...')
-        
-        for (const row of rows) {
-          const roomTotalAmount = rows.reduce((sum, r) => sum + safeNumber(r.totalAmount), 0)
-          
-          const agentPayload = prepareAgentRoomCheckinPayload(
-            checkinId,
-            finalRegNo,
-            guestId,
-            row,
-            values,
-            roomTotalAmount,
-            totalRoomChargesForAgent,
-            totalExtraChargesForAgent
-          )
-          
-          console.log('Agent Room Checkin Payload:', agentPayload)
-          
-          try {
-            const agentResult = await AgentRoomCheckinService.create(agentPayload)
-            console.log(`Agent room checkin created for room ${row.roomNumber}:`, agentResult)
-          } catch (agentError) {
-            console.error('Failed to create agent room checkin record:', agentError)
-            toast.error(`Warning: Agent record for room ${row.roomNumber} could not be saved`)
-          }
-        }
-      } else {
-        console.log('No travel agent selected, skipping agent_room_checkin record creation')
-      }
-
-      const totalGuestCount = totalAdults + totalChildPaid + totalChildUnpaid
-      
-      for (const row of rows) {
-        try {
-          const assignedItems = await autoAssignAmenities(checkinId, row.roomId, totalGuestCount)
-          if (assignedItems && assignedItems.length > 0) {
-            console.log(`✅ Auto-assigned amenities to room ${row.roomNumber}:`, assignedItems)
-          }
-        } catch (err) {
-          console.error(`Failed to auto-assign amenities for room ${row.roomNumber}:`, err)
-        }
-      }
+    // ---------- 1. Build master payload ----------
+    const masterPayload = {
+      // Guest info
+      guest_id: guestId,
+      guest_name: guestName,
+      address: values.address,
+      mobile: values.phone1,
+      company_name: companyName,
+      email: values.email,
+      booking: values.bookingType,
+      plan_name: values.planName,
+      reg_no: values.regNo,
+      special_instruction: values.specialInstruction,
+      message: values.message,
+      checkin_datetime: checkinDateTime,
+      checkout_datetime: checkoutDateTime,
+      room_no: firstRow.roomNumber,
+      room_id: firstRow.roomId,
+      room_name: firstRow.roomNumber,
+      category_id: primaryCategoryId,
+      category_name: firstRow.type,
+      converted_category: firstRow.convertedCategoryName || '',
+      converted_category_id: firstRow.convertedCategoryId,
+      adults: totalAdults,
+      pax: totalPax,
+      pax_charges: totalPaxCharges,
+      ex_pax: totalExPax,
+      ex_pax_charge: totalExPaxCharge,
+      child_paid: totalChildPaid,
+      child_unpaid: totalChildUnpaid,
+      child_charge: totalChildPaidCharge,
+      driver: totalDriver,
+      driver_charge: totalDriverCharge,
+      hotelid: hotelId,
+      id_type: values.idType || '',
+      id_number: values.idNumber || '',
+      department_id: departmentId,
+      department_name: departmentName,
+      status: 'active',
+      total_nights: totalNights,
+      total_amount: totalAmountAllNights,
+      created_by_id: user?.id,
+      room_ids: roomRows.map((r) => r.roomId),
+      // Agent fields
+      travelAgentId: values.travelAgentId,
+      travelAgent: values.travelAgent,
+      agentAmount: values.agentAmount,
+      agentAmountPer: values.agentAmountPer,
+      agentIgst: values.agentIgst,
+      agentIgstPer: values.agentIgstPer,
+      agentCgst: values.agentCgst,
+      agentCgstPer: values.agentCgstPer,
+      agentSgst: values.agentSgst,
+      agentSgstPer: values.agentSgstPer,
+      agentTds: values.agentTds,
+      agentTdsPer: values.agentTdsPer,
+      agentTcs: values.agentTcs,
+      agentTcsPer: values.agentTcsPer,
+      agentCess: values.agentCess,
+      agentCessPer: values.agentCessPer,
+      agentServiceFee: values.agentServiceFee,
+      agentTotal: values.agentTotal,
+      agentPayToHotel: values.agentPayToHotel,
+      bookingId: values.bookingId,
+      bookingDate: values.bookingDate,
+      paymentMethod: values.paymentMethod,
+      receivedAmount: values.receivedAmount,
     }
 
-    // -- PERMANENT GUEST PHOTO UPLOAD -----------------------------------------
-    // Now that Check-In has succeeded, persist the temporary photo (if any).
-    // This is the ONLY place where the photo is written to DB/uploads.
-    const primaryGuestId = roomRows[0]?.guestId ?? values.guestId
-    if (tempGuestPhoto && primaryGuestId) {
+    // ---------- 2. Build details array (one per room) ----------
+    const detailsPayload = roomRows.map((row) => {
+      const catId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id
+      const dailyDiscountedTariff = row.rate - ((row.rate * (row.discount || 0)) / 100)
+      const dailyCgstAmount = (dailyDiscountedTariff * (row.cgstPercent || 0)) / 100
+      const dailySgstAmount = (dailyDiscountedTariff * (row.sgstPercent || 0)) / 100
+      const dailyIgstAmount = (dailyDiscountedTariff * (row.igstPercent || 0)) / 100
+      const dailyCessAmount = (dailyDiscountedTariff * (row.cessPercent || 0)) / 100
+      const dailyTotalTax = dailyCgstAmount + dailySgstAmount + dailyIgstAmount + dailyCessAmount
+
+      return {
+        hotelid: hotelId,
+        room_id: row.roomId,
+        room_number: row.roomNumber,
+        room_category_id: catId,
+        room_category_name: row.type,
+        converted_category_id: row.convertedCategoryId,
+        converted_category_name: row.convertedCategoryName || '',
+        checkin_datetime: checkinDateTime,
+        checkout_datetime: checkoutDateTime,
+        no_of_days: 1,
+        adults: row.adults,
+        pax: row.pax,
+        ex_pax: row.exPax,
+        child_unpaid: row.childUnpaid,
+        driver: row.driver,
+        room_tariff: row.rate,
+        ex_pax_charge: row.exPaxPrice || 0,
+        child_paid_amount: row.childPrice || 0,
+        driver_charge: row.driverPrice || 0,
+        discount_percent: row.discount || 0,
+        discount_amount: (row.rate * (row.discount || 0)) / 100,
+        cgst_percent: row.cgstPercent || 0,
+        cgst_amount: dailyCgstAmount,
+        sgst_percent: row.sgstPercent || 0,
+        sgst_amount: dailySgstAmount,
+        igst_percent: row.igstPercent || 0,
+        igst_amount: dailyIgstAmount,
+        cess_percent: row.cessPercent || 0,
+        cess_amount: dailyCessAmount,
+        service_charge: 0,
+        service_charge_amount: 0,
+        tax: dailyTotalTax,
+      }
+    })
+
+    // ---------- 3. Build room_charges array (one per room) ----------
+    const roomChargesPayload = roomRows.map((row) => {
+      const catId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id
+      const perDayTotalAmount = (row.totalAmount || 0) / totalNights
+
+      return {
+        guest_id: guestId,
+        room_id: row.roomId,
+        room_no: row.roomNumber,
+        category_id: catId,
+        pax_count: row.pax,
+        pax_price: row.rate,
+        pax_tax: (row.taxAmount || 0) / totalNights,
+        ex_pax_count: row.exPax,
+        ex_pax_price: row.exPaxPrice || 0,
+        ex_pax_tax: row.exPaxTax || 0,
+        ex_pax_tax_percent: row.exPaxTaxPercent || 0,
+        ex_pax_total: row.exPaxTotal || 0,
+        child_count: row.childPaid,
+        child_price: row.childPrice || 0,
+        child_tax: row.childTax || 0,
+        child_tax_percent: row.childTaxPercent || 0,
+        child_total: row.childTotal || 0,
+        driver_count: row.driver,
+        driver_price: row.driverPrice || 0,
+        driver_tax: row.driverTax || 0,
+        driver_tax_percent: row.driverTaxPercent || 0,
+        driver_total: row.driverTotal || 0,
+        total_amount: perDayTotalAmount,
+        checkin_datetime: checkinDateTime,
+        checkout_datetime: checkoutDateTime,
+      }
+    })
+
+    // ---------- 4. Build folio_entries array ----------
+    const folioEntries = []
+
+    // Room charge folio entry (first day total)
+    const firstDayTotal = roomRows.reduce((sum, row) => sum + (row.totalAmount || 0) / totalNights, 0)
+    folioEntries.push({
+      hotel_id: hotelId,
+      transaction_type: 'Room Charges',
+      transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      description: `Room charges for Day 1 of ${totalNights} night(s)`,
+      debit_amount: firstDayTotal,
+      credit_amount: 0,
+      reference_number: null,
+      payment_method: values.paymentMethod,
+    })
+
+    // Payment folio entry if received amount > 0
+    if (values.receivedAmount && Number(values.receivedAmount) > 0) {
+      folioEntries.push({
+        hotel_id: hotelId,
+        transaction_type: 'Payment',
+        transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        description: 'Payment received at check-in',
+        debit_amount: 0,
+        credit_amount: Number(values.receivedAmount),
+        reference_number: '',
+        payment_method: values.paymentMethod,
+      })
+    }
+
+    // ---------- 5. Build final payload ----------
+    const finalPayload: any = {
+      ...masterPayload,
+      details: detailsPayload,
+      room_charges: roomChargesPayload,
+      folio_entries: folioEntries,
+      hotelid: hotelId,
+      created_by_id: user?.id,
+    }
+
+    // ---------- 6. Single API call ----------
+    const response = await CheckInService.create(finalPayload)
+
+    if (!response.success) {
+      throw new Error(response.message || 'Check-in failed')
+    }
+
+    // ---------- 7. Upload guest photo if any (temporary) ----------
+    if (tempGuestPhoto && guestId) {
       try {
-        await GuestService.uploadGuestPhoto(primaryGuestId, tempGuestPhoto)
-        console.log('Guest photo permanently saved after successful check-in')
+        await GuestService.uploadGuestPhoto(guestId, tempGuestPhoto)
         setTempGuestPhoto(null)
       } catch (photoErr) {
         console.error('Guest photo upload failed after check-in:', photoErr)
-        toast.error('Check-in saved, but guest photo could not be uploaded. Please re-capture from Documents.')
+        toast.error('Check-in saved, but guest photo could not be uploaded.')
       }
     }
-    // -- END PERMANENT GUEST PHOTO UPLOAD --------------------------------------
 
-    toast.success(`Checked in ${roomRows.length} room(s) for ${roomRows[0]?.nights || 1} day(s) successfully`)
+    toast.success(`Checked in ${roomRows.length} room(s) for ${totalNights} day(s) successfully`)
     navigate(-1)
+
   } catch (error: any) {
     console.error('Check-in submission failed:', error)
-    toast.error(error.response?.data?.message || 'Check-in failed')
+    toast.error(error.response?.data?.message || error.message || 'Check-in failed')
   } finally {
     setSubmitting(false)
   }
