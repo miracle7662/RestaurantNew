@@ -282,6 +282,8 @@ const CheckInForm = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [navigate])
 
+
+  
   const [loadingRooms, setLoadingRooms] = useState(false)
   const [initialSelectedRooms, setInitialSelectedRooms] = useState<
     Array<{ roomId: number; roomNumber: string; roomCategoryName: string }>
