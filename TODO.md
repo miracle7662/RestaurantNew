@@ -1,16 +1,7 @@
-# TODO - Single API for HotelBookingPanel floors+categories+rooms
+# TODO - Hotel Multi-Room Check-in Fix
 
-## Backend
-- [x] Add controller: `getHotelBookingMeta` in `backend/modules/hotelbooking/controllers/roomController.js`
-- [x] Add route: `GET /rooms/hotelbooking-meta` in `backend/modules/hotelbooking/routes/roomRoutes.js`
-
-
-## Frontend
-- [x] Add API method in `src/common/hotel/room.ts` (e.g., `getHotelBookingMeta`)
-- [ ] Update `HotelBookingPanel.tsx` to call single API and remove 3 parallel calls
-
-
-## Test
-- [ ] Run backend (or lint/build) and verify panel loads correctly
-- [ ] Verify grouping by floor and category still works
+- [ ] Update `CheckInForm.tsx` to auto-add `roomRows` for all rooms passed from `HotelBookingPanel` (from `location.state.rooms`) when form loads.
+- [ ] Ensure auto-add runs only once (or only when `roomRows.length === 0`) to avoid overwriting manual edits.
+- [ ] After auto-add, ensure `roomNo`/type fields don’t break Formik flow.
+- [ ] Validate: selecting 3 rooms → pressing F9 creates check-in for all 3 rooms.
 
