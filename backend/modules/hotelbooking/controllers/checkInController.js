@@ -412,41 +412,32 @@ exports.addCheckin = async (req, res) => {
 
     const now = new Date();
     const body = req.body;
-    const userId = body.created_by_id || 1; // fallback, should come from auth
+    const userId = body.created_by_id || 1;
 
-   const { hotelid } = body;
-
-if (!hotelid) {
-  throw new Error("hotelid is required");
-}
-   
+    const { hotelid } = body;
+    if (!hotelid) {
+      throw new Error("hotelid is required");
+    }
 
     // ========== FETCH & UPDATE REG_NO FROM LDG_BILL_SETTINGS ==========
-    // Lock the row for update to prevent race conditions
     const [settingsRows] = await connection.execute(
       `SELECT ldgsettingid, reg_no
        FROM ldg_bill_settings
        WHERE hotelid = ? 
        FOR UPDATE`,
-      [hotelid ]
+      [hotelid]
     );
 
     if (settingsRows.length === 0) {
       throw new Error(`No ldg_bill_settings record found for hotelid=${hotelid}`);
     }
 
-    // Convert currentRegNo to number (handles null/undefined)
     const currentRegNo = Number(settingsRows[0].reg_no) || 0;
     const nextRegNo = currentRegNo + 1;
-    body.reg_no = nextRegNo; // Override any incoming reg_no with generated value
-
-    // Display formatted value
-const displayRegNo = `REG${String(nextRegNo).padStart(4, "0")}`;
-
-console.log(displayRegNo); // REG0012
+    const formattedRegNo = `REG${String(nextRegNo).padStart(4, "0")}`;
+    body.reg_no = formattedRegNo;
 
     // ========== 1. CHECKIN MASTER ==========
-    // Allowed fields that exist in checkin_master table
     const masterAllowed = [
       'guest_id', 'guest_name', 'address', 'mobile', 'company_name', 'emailed',
       'booking', 'plan_name', 'reg_no', 'special_instruction', 'message',
@@ -479,7 +470,7 @@ console.log(displayRegNo); // REG0012
     );
     const checkinId = masterRes.insertId;
 
-    // ========== UPDATE LDG_BILL_SETTINGS WITH NEW REG_NO ==========
+    // ========== UPDATE LDG_BILL_SETTINGS WITH NUMERIC VALUE ==========
     await connection.execute(
       `UPDATE ldg_bill_settings
        SET reg_no = ?
@@ -487,7 +478,7 @@ console.log(displayRegNo); // REG0012
       [nextRegNo, hotelid]
     );
 
-    // ========== 2. CHECKIN DETAIL MASTER ==========
+    // ========== 2. CHECKIN DETAIL MASTER + UPDATE ROOM STATUS ==========
     let firstDetailId = null;
     if (body.details && body.details.length) {
       for (const d of body.details) {
@@ -516,6 +507,16 @@ console.log(displayRegNo); // REG0012
           detailVals
         );
         if (firstDetailId === null) firstDetailId = detailRes.insertId;
+
+        // ✅ UPDATE ROOM STATUS TO OCCUPIED (room_status_id = 2)
+        if (d.room_id) {
+          await connection.execute(
+            `UPDATE room_master 
+             SET room_status_id = 2
+             WHERE room_id = ?`,
+            [d.room_id]
+          );
+        }
       }
     }
 
