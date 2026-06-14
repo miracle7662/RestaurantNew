@@ -130,7 +130,16 @@ export interface CheckinFullDetailsRow {
 
 const RoomService = {
   list(params?: { hotelid?: number; q?: string }) {
-    return HttpClient.get<ApiResponse<Room[]>>("/rooms", { params });
+    // Legacy: CheckInForm expects ApiResponse<Room[]> in `.data`.
+    // Backend returns ApiResponse<{ floors, categories, rooms }>.
+    // We reshape it so `.data` becomes the rooms array.
+    return HttpClient.get<ApiResponse<any>>("/rooms/hotelbooking-meta", { params }).then(
+      (res) => ({
+        success: res.success,
+       
+        data: res.data?.rooms ?? [],
+      }),
+    );
   },
 
   /**
@@ -171,10 +180,13 @@ const RoomService = {
    */
 
   getRooms(hotelid: string | number) {
-  return HttpClient.get<ApiResponse<Room[]>>("/rooms", {
-    params: { hotelid },
-  });
-},
+    return HttpClient.get<ApiResponse<any>>("/rooms/hotelbooking-meta", {
+      params: { hotelid },
+    }).then((res) => ({
+      success: res.success,
+      data: res.data?.rooms ?? [],
+    }));
+  },
 
   getCheckinFullDetails(hotelid: string | number, checkin_id: string | number) {
     return HttpClient.get<ApiResponse<CheckinFullDetailsRow[]>>("/rooms/checkin-full-details", {
