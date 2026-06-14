@@ -433,68 +433,7 @@ const CheckInForm = () => {
   }
 
   // Prepare Agent Room Checkin Payload Helper Function (kept for reference but not called)
-  const prepareAgentRoomCheckinPayload = (
-    checkinId: number, 
-    regNoValue: string, 
-    guestId: number, 
-    roomRow: RoomRow,
-    values: CheckInFormData,
-    totalAmount: number,
-    totalRoomCharges: number,
-    totalExtraCharges: number
-  ) => {
-    const agentId = values.travelAgentId
-    const selectedAgent = travelAgents.find(a => a.agent_id === agentId)
-
-    const safeRegNo = regNoValue || values.regNo || regNo || ''
-
-    const rawCommissionType = selectedAgent?.commission_type
-    const safeCommissionType: 'PERCENTAGE' | 'FIXED' =
-      rawCommissionType === 'FIXED' ? 'FIXED' : 'PERCENTAGE'
-    
-    return {
-      checkin_id: checkinId,
-      reg_no: safeRegNo,
-      hotelid: hotelId!,
-      guest_id: guestId,
-      agent_id: agentId || null,
-      agent_name: selectedAgent?.agent_name || values.travelAgent || null,
-      agent_code: selectedAgent?.agent_code || null,
-      commission_type: safeCommissionType,
-      commission_value: selectedAgent?.commission_value || values.agentAmountPer || null,
-      commission_amount: values.agentAmount || null,
-      agent_cgst_percent: values.agentCgstPer || null,
-      agent_cgst_amount: values.agentCgst || null,
-      agent_sgst_percent: values.agentSgstPer || null,
-      agent_sgst_amount: values.agentSgst || null,
-      agent_igst_percent: values.agentIgstPer || null,
-      agent_igst_amount: values.agentIgst || null,
-      agent_cess_percent: values.agentCessPer || null,
-      agent_cess_amount: values.agentCess || null,
-      agent_tds_percent: values.agentTdsPer || null,
-      agent_tds_amount: values.agentTds || null,
-      agent_tcs_percent: values.agentTcsPer || null,
-      agent_tcs_amount: values.agentTcs || null,
-      agent_service_fee: values.agentServiceFee || null,
-      agent_total_commission: values.agentTotal || null,
-      agent_pay_to_hotel: values.agentPayToHotel || null,
-      room_id: roomRow.roomId,
-      room_number: roomRow.roomNumber,
-      room_category_id: roomRow.roomCategoryId || null,
-      converted_category_id: roomRow.convertedCategoryId || null,
-      total_room_charges: totalRoomCharges,
-      total_extra_charges: totalExtraCharges,
-      grand_total_amount: totalAmount,
-      payment_method: values.paymentMethod || null,
-      plan_name: values.planName || 'EP',
-      booking_id: values.bookingId || null,
-      booking_date: values.bookingDate || null,
-      status: 'active',
-      is_billed: 0,
-      is_dayend: 0,
-      created_by_id: user?.id
-    }
-  }
+  
 
   useEffect(() => {
     const fetchRegNumber = async () => {

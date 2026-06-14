@@ -254,20 +254,30 @@ exports.getNextRegNumber = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Hotel ID not found' });
         }
 
-        const [result] = await db.execute(
-            `SELECT COUNT(*) as count FROM checkin_master WHERE hotelid = ? AND reg_no IS NOT NULL`,
+        // Fetch current reg_no from ldg_bill_settings using only hotelid
+        // If multiple outlets exist for same hotel, we take the first row (or you can use MAX(reg_no) depending on business rule)
+        const [rows] = await db.execute(
+            `SELECT reg_no FROM ldg_bill_settings WHERE hotelid = ? LIMIT 1`,
             [hotelId]
         );
 
-        const count = result[0].count + 1;
-        const regNo = `REG${String(count).padStart(4, '0')}`;
+        if (rows.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: `No ldg_bill_settings record found for hotelid=${hotelId}` 
+            });
+        }
+
+        const currentRegNo = Number(rows[0].reg_no) || 0;
+        const nextRegNo = currentRegNo + 1;
+        const formattedRegNo = `REG${String(nextRegNo).padStart(4, '0')}`;
 
         res.json({
             success: true,
-            data: { reg_no: regNo },
+            data: { reg_no: formattedRegNo },
         });
     } catch (error) {
-        console.error('Error generating reg number:', error);
+        console.error('Error generating preview reg number:', error);
         res.status(500).json({ success: false, message: 'Database error', error: error.message });
     }
 };
