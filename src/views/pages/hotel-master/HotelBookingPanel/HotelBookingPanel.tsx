@@ -74,8 +74,6 @@ const normalizeRoomStatus = (raw: any): RoomStatus => {
   if (s === 'reserved' || s === 'blocked' || s === 'block') return 'reserved'
   if (s === 'maintenance' || s === 'under maintenance') return 'maintenance'
   if (s === 'reservation') return 'reservation'
-  // // room_status_id=7 (checkout/bill/settlement) ko UI me occupied ki tarah show karna
-  // if (s === 'settlement' || s === 'checkout' || s === 'checked_out' || s === 'bill' || s === 'checked out') return 'occupied'
   return 'available'
 }
 
