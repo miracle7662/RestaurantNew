@@ -1395,6 +1395,7 @@ const handleConfirmCheckout = async () => {
       .map(roomNo => {
         const row = displayRows.find(r => r.room_number === roomNo);
         return row?.room_id;
+    
       })
       .filter((id): id is number => id !== null && id !== undefined);
 
@@ -1436,6 +1437,7 @@ const handleConfirmCheckout = async () => {
       setShowBillModal(true);
     } else {
       toast.error(response.message || 'Checkout failed');
+      
     }
   } catch (error: any) {
     console.error('Checkout failed:', error);
