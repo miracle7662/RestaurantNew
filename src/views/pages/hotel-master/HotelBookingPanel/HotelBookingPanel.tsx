@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Button, Modal } from 'react-bootstrap'
+import { useNavigate, useLocation } from 'react-router-dom'
+import {  Form, Button, Modal,  Dropdown } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
 import TitleHelmet from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
@@ -11,7 +11,6 @@ import CheckInService, { CheckIn } from '@/common/hotel/checkIn'
 import DetailService, { Detail } from '@/common/hotel/detail'
 import GuestFolioService, { GuestFolio } from '@/common/hotel/guestFolio'
 import GuestRoomChargesService, { GuestRoomCharge } from '@/common/hotel/guestRoomCharges'
-import PostChargesService, { PostCharge } from '@/common/hotel/postCharges'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
@@ -27,18 +26,61 @@ import RoomStatusModal from './RoomStatusModal'
 import RoomStatusLogService, { RoomStatusLog } from '@/common/hotel/roomStatusLog'
 import DisplaySettings from './DisplaySettings'
 
+
+// Default colors (fallback if settings not loaded)
+const DEFAULT_STATUS_BG = {
+  available: '#ffffff',
+  occupied: '#DFF5E1',
+  cleaning: '#FFF4CC',
+  bill: '#f59999',
+  reserved: '#D9F1FF',
+  maintenance: '#FFE0E0',
+  reservation: '#D9F1FF',
+}
+
+const DEFAULT_STATUS_TEXT = {
+  available: '#4B5563',
+  occupied: '#16A34A',
+  cleaning: '#D4A017',
+  bill: '#DC2626',
+  reserved: '#0284C7',
+  maintenance: '#DC2626',
+  reservation: '#0284C7',
+}
+
+const DEFAULT_STATUS_BORDER = {
+  available: '#9CA3AF',
+  occupied: '#4ADE80',
+  cleaning: '#FACC15',
+  bill: '#FFF4CC',
+  reserved: '#38BDF8',
+  maintenance: '#F87171',
+  reservation: '#38BDF8',
+}
+
 // ==================== TYPE DEFINITIONS ====================
 
 const normalizeRoomStatus = (raw: any): RoomStatus => {
   if (!raw) return 'available'
-  const s = raw.trim().toLowerCase()
+  const s = String(raw).trim().toLowerCase()
+
   if (s === 'occupied') return 'occupied'
   if (s === 'cleaning' || s === 'dirty' || s === 'clean') return 'cleaning'
+  // API may send Bill in different casing
+  if (s === 'bill') return 'Bill'
   if (s === 'reserved' || s === 'blocked' || s === 'block') return 'reserved'
   if (s === 'maintenance' || s === 'under maintenance') return 'maintenance'
   if (s === 'reservation') return 'reservation'
+
   return 'available'
 }
+
+const normalizeRoomStatusFromApi = (apiRoom: ApiRoom): RoomStatus => {
+  // Priority: if room_status_id=7 => Bill always wins (even if room_status string conflicts)
+  if (Number(apiRoom?.room_status_id) === 7) return 'Bill'
+  return normalizeRoomStatus(apiRoom?.room_status)
+}
+
 
 interface ApiRoom {
   room_id: number
@@ -72,7 +114,7 @@ interface ApiCategory {
   service_charge?: number
 }
 
-type RoomStatus = 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
+type RoomStatus = 'available' | 'occupied' | 'cleaning' |  'Bill' | 'reserved' | 'maintenance' | 'reservation'
 type ViewMode = 'floor' | 'category'
 
 interface Room {
@@ -153,6 +195,28 @@ interface OccupiedRoomItem {
   net_room_amount?: number
   total_all_rooms_net?: number
   total_allowances?: number
+}
+
+interface CheckoutAlertItem {
+  srNo: number
+  roomNo: string
+  guestName: string
+  category: string
+  pax: number
+  adults: number
+  exPax: number
+  child: number
+  driver: number
+  checkinDatetime: string
+  checkoutDatetime: string
+  totalPrice: number
+  minutesLeft?: number
+  totalNights?: number
+  totalAmount?: number
+  regNo?: string
+  booking?: string
+  planName?: string
+  status?: string
 }
 
 interface DayExtendModalData {
@@ -312,6 +376,7 @@ const calculateDayExtensionPriceForItem = (
 // ==================== MAIN COMPONENT ====================
 const HotelBookingPanel = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuthContext()
   const hotelId = user?.hotelid
 
@@ -334,40 +399,46 @@ const HotelBookingPanel = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('floor')
   const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([])
 
- const [uiSettings, setUiSettings] = useState<HotelUiSettings>({
-  hotelid: hotelId || 0,
-  show_left_category: true,
-  show_room_text: true,
-  room_box_size: 2,
-  color_vacant: '#ffffff',
-  color_occupied: '#DFF5E1',
-  color_cleaning: '#FFF4CC',
-  color_reserved: '#D9F1FF',
-  color_maintenance: '#FFE0E0',
-  color_reservation: '#D9F1FF',
-  text_color_vacant: '#4B5563',
-  text_color_occupied: '#16A34A',
-  text_color_cleaning: '#D4A017',
-  text_color_reserved: '#0284C7',
-  text_color_maintenance: '#DC2626',
-  text_color_reservation: '#0284C7',
-  border_color_vacant: '#9CA3AF',
-  border_color_occupied: '#4ADE80',
-  border_color_cleaning: '#FACC15',
-  border_color_reserved: '#38BDF8',
-  border_color_maintenance: '#F87171',
-  border_color_reservation: '#38BDF8',
-  occupied_warning_bg: '#b96eff',
-  occupied_warning_text: '#ffffff',
-  occupied_expired_bg: '#E03F4F',
-  occupied_expired_text: '#ffffff',
-  dark_mode: false,
-})
+  const [uiSettings, setUiSettings] = useState<HotelUiSettings>({
+    hotelid: hotelId || 0,
+    show_left_category: true,
+    show_room_text: true,
+    room_box_size: 2,
+    color_vacant: DEFAULT_STATUS_BG.available,
+    color_occupied: DEFAULT_STATUS_BG.occupied,
+    color_cleaning: DEFAULT_STATUS_BG.cleaning,
+    color_bill: DEFAULT_STATUS_BG.bill,
+    color_reserved: DEFAULT_STATUS_BG.reserved,
+    color_maintenance: DEFAULT_STATUS_BG.maintenance,
+    color_reservation: DEFAULT_STATUS_BG.reservation,
+    text_color_vacant: DEFAULT_STATUS_TEXT.available,
+    text_color_occupied: DEFAULT_STATUS_TEXT.occupied,
+    text_color_cleaning: DEFAULT_STATUS_TEXT.cleaning,
+    text_color_reserved: DEFAULT_STATUS_TEXT.reserved,
+    text_color_maintenance: DEFAULT_STATUS_TEXT.maintenance,
+    text_color_reservation: DEFAULT_STATUS_TEXT.reservation,
+    border_color_vacant: DEFAULT_STATUS_BORDER.available,
+    border_color_occupied: DEFAULT_STATUS_BORDER.occupied,
+    border_color_cleaning: DEFAULT_STATUS_BORDER.cleaning,
+    border_color_reserved: DEFAULT_STATUS_BORDER.reserved,
+    border_color_maintenance: DEFAULT_STATUS_BORDER.maintenance,
+    border_color_reservation: DEFAULT_STATUS_BORDER.reservation,
+    occupied_warning_bg: '#b96eff',
+    occupied_warning_text: '#ffffff',
+    occupied_expired_bg: '#E03F4F',
+    occupied_expired_text: '#ffffff',
+    dark_mode: false,
+  })
   const [showSettings, setShowSettings] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
 
   const [occupiedRooms, setOccupiedRooms] = useState<OccupiedRoomItem[]>([])
+  const [loadingOccupied, setLoadingOccupied] = useState(false)
+  const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
 
+  const [checkoutAlertData, setCheckoutAlertData] = useState<CheckoutAlertItem[]>([])
+  const [loadingCheckoutAlert, setLoadingCheckoutAlert] = useState(false)
+  const [errorCheckoutAlert, setErrorCheckoutAlert] = useState<string | null>(null)
 
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 })
@@ -392,12 +463,36 @@ const HotelBookingPanel = () => {
   const [calculatedDayPrice, setCalculatedDayPrice] = useState<any>(null)
   const [todayReservationCount, setTodayReservationCount] = useState<number>(0)
 
-  // ==================== SETTLEMENT / RESERV / CHECKOUT SECTION STATES ====================
-  type ActiveSection = 'settlement' | 'reserv' | 'checkout' | null
+  // ==================== SECTION STATES ====================
+  type ActiveSection = 'reserv' | 'checkout' | null
   const [activeSection, setActiveSection] = useState<ActiveSection>(null)
 
   const showReservSection = activeSection === 'reserv'
   const showCheckoutAlertTable = activeSection === 'checkout'
+
+  interface ReservTableRow {
+    reservation_id: number
+    reservation_no: string
+    guest_name: string
+    phone1: string
+    room_category_name: string
+    converted_category_name: string
+    arrival_date: string
+    arrival_time: string
+    departure_date: string
+    departure_time: string
+    total_rooms: number
+    pax_price: number
+    pax_count: number
+    ex_pax_count: number
+    child_count: number
+    driver_count: number
+    total_amount: number
+    nights: number
+  }
+  const [reservTableData, setReservTableData] = useState<ReservTableRow[]>([])
+  const [loadingReservTable, setLoadingReservTable] = useState(false)
+  const [reservDate, setReservDate] = useState<string>(new Date().toISOString().slice(0, 10))
 
   // ==================== MODAL STATES ====================
   const [showPostChargesModal, setShowPostChargesModal] = useState(false)
@@ -413,7 +508,7 @@ const HotelBookingPanel = () => {
     number: string
     category: string
     floor: string
-    status: 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
+    status: 'available' | 'occupied' | 'cleaning' |   'Bill' | 'reserved' | 'maintenance' | 'reservation'
   } | null>(null)
 
   // ==================== MULTI-ROOM STATUS MODAL STATE ====================
@@ -448,12 +543,15 @@ const HotelBookingPanel = () => {
         return uiSettings.color_occupied
       case 'cleaning':
         return uiSettings.color_cleaning
+      case 'Bill':
+        return uiSettings.color_bill || DEFAULT_STATUS_BG.bill
       case 'reserved':
         return uiSettings.color_reserved
+
       case 'maintenance':
-        return uiSettings.color_maintenance
+        return uiSettings.color_maintenance || DEFAULT_STATUS_BG.maintenance
       case 'reservation':
-        return uiSettings.color_reservation
+        return uiSettings.color_reservation || DEFAULT_STATUS_BG.reservation
       default:
         return '#ffffff'
     }
@@ -462,38 +560,64 @@ const HotelBookingPanel = () => {
   const getStatusTextColor = (status: RoomStatus): string => {
     switch (status) {
       case 'available':
-        return uiSettings.text_color_vacant
+        return uiSettings.text_color_vacant || DEFAULT_STATUS_TEXT.available
       case 'occupied':
-        return uiSettings.text_color_occupied
+        return uiSettings.text_color_occupied || DEFAULT_STATUS_TEXT.occupied
       case 'cleaning':
-        return uiSettings.text_color_cleaning
+        return uiSettings.text_color_cleaning || DEFAULT_STATUS_TEXT.cleaning
       case 'reserved':
-        return uiSettings.text_color_reserved
+        return uiSettings.text_color_reserved || DEFAULT_STATUS_TEXT.reserved
       case 'maintenance':
-        return uiSettings.text_color_maintenance
+        return uiSettings.text_color_maintenance || DEFAULT_STATUS_TEXT.maintenance
       case 'reservation':
-        return uiSettings.text_color_reservation
+        return uiSettings.text_color_reservation || DEFAULT_STATUS_TEXT.reservation
+      case 'Bill':
+        // No dedicated setting in UI, fall back to default red/bill text
+        return '#DC2626'
       default:
         return '#4B5563'
+
     }
   }
 
   const getStatusBorderColor = (status: RoomStatus): string => {
     switch (status) {
       case 'available':
-        return uiSettings.border_color_vacant
+        return uiSettings.border_color_vacant || DEFAULT_STATUS_BORDER.available
       case 'occupied':
-        return uiSettings.border_color_occupied
+        return uiSettings.border_color_occupied || DEFAULT_STATUS_BORDER.occupied
       case 'cleaning':
-        return uiSettings.border_color_cleaning
+        return uiSettings.border_color_cleaning || DEFAULT_STATUS_BORDER.cleaning
       case 'reserved':
-        return uiSettings.border_color_reserved
+        return uiSettings.border_color_reserved || DEFAULT_STATUS_BORDER.reserved
       case 'maintenance':
-        return uiSettings.border_color_maintenance
+        return uiSettings.border_color_maintenance || DEFAULT_STATUS_BORDER.maintenance
       case 'reservation':
-        return uiSettings.border_color_reservation
+        return uiSettings.border_color_reservation || DEFAULT_STATUS_BORDER.reservation
+      case 'Bill':
+        return uiSettings.color_bill || DEFAULT_STATUS_BORDER.bill
       default:
         return '#9CA3AF'
+
+    }
+  }
+
+  const getOccupiedTileStyle = (minutesLeft: number, isExpired: boolean) => {
+    if (isExpired) {
+      return {
+        backgroundColor: uiSettings.occupied_expired_bg || '#E03F4F',
+        color: uiSettings.occupied_expired_text || '#ffffff',
+      }
+    }
+    if (minutesLeft <= 30 && minutesLeft > 0) {
+      return {
+        backgroundColor: uiSettings.occupied_warning_bg || '#b96eff',
+        color: uiSettings.occupied_warning_text || '#ffffff',
+      }
+    }
+    return {
+      backgroundColor: uiSettings.color_occupied,
+      color: uiSettings.text_color_occupied || DEFAULT_STATUS_TEXT.occupied,
     }
   }
 
@@ -502,9 +626,17 @@ const HotelBookingPanel = () => {
     const timer = setInterval(() => {
       const now = new Date()
       setCurrentTime(now)
+      const todayStr = now.toISOString().slice(0, 10)
+      setReservDate((prev) => {
+        if (prev !== todayStr && activeSection === 'reserv') {
+          fetchReservTableData(todayStr)
+        }
+        return prev
+      })
     }, 60000)
     return () => clearInterval(timer)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection])
 
   useEffect(() => {
     if (!hotelId) return
@@ -563,21 +695,9 @@ const HotelBookingPanel = () => {
       }
     }
     fetchData()
-    fetchRoomStatusLogs()
-    fetchOccupiedRooms()
   }, [hotelId])
 
-  const fetchRoomStatusLogs = async () => {
-    if (!hotelId) return
-    try {
-      const res = await RoomStatusLogService.list({ hotelid: hotelId })
-      if (res.success && res.data) {
-        setRoomStatusLogs(res.data)
-      }
-    } catch (err) {
-      console.warn('Failed to fetch room status logs', err)
-    }
-  }
+  
 
   const fetchAgentRoomCheckin = async (checkinId: number): Promise<AgentRoomCheckin | null> => {
     try {
@@ -592,411 +712,155 @@ const HotelBookingPanel = () => {
     }
   }
 
-  const fetchOccupiedRooms = async () => {
+  // Fetch occupied rooms
+  
+
+  // Fetch today's checkouts
+  const fetchTodayCheckouts = async () => {
     if (!hotelId) return
+
+    setLoadingCheckoutAlert(true)
     try {
       const checkinsRes = await CheckInService.list({ hotelid: hotelId })
-      const checkins = (checkinsRes.data || []).filter((c: CheckIn) => c.status === 'active')
-      const checkinMap = new Map(checkins.map((c) => [c.checkin_id, c]))
+      const activeCheckins = (checkinsRes.data || []).filter((c: CheckIn) => c.status === 'active')
 
-      const detailsRes = await DetailService.list({ hotelid: hotelId })
-      const activeDetails = (detailsRes.data || []).filter(
-        (d: Detail) => checkinMap.has(d.checkin_id) && d.is_checkout === 0,
-      )
+      const allCheckoutItems: CheckoutAlertItem[] = []
+      const todayStr = getLocalYMD(new Date())
 
-      const foliosRes = await GuestFolioService.list({ hotelid: hotelId })
-      const folios = foliosRes.data || []
-
-      const paymentMethodMap = new Map<number, string>()
-      folios.forEach((folio: GuestFolio) => {
-        if (folio.checkin_id && !paymentMethodMap.has(folio.checkin_id))
-          paymentMethodMap.set(folio.checkin_id, folio.payment_method || 'Cash')
-      })
-
-      const activeCheckinIds = [...new Set(activeDetails.map((d) => d.checkin_id))]
-      const chargesMap = new Map<number, GuestRoomChargeExtended[]>()
-      for (const cid of activeCheckinIds) {
+      for (const checkin of activeCheckins) {
         try {
-          const res = await GuestRoomChargesService.list({ checkin_id: cid })
-          if (res.success && res.data) {
-            chargesMap.set(cid, res.data as GuestRoomChargeExtended[])
-          }
-        } catch (err) {
-          console.warn(`Failed to fetch charges for checkin ${cid}`, err)
-        }
-      }
+          const chargesRes = await GuestRoomChargesService.list({ checkin_id: checkin.checkin_id })
+          const charges = chargesRes.data || []
 
-      const postChargesMap = new Map<number, PostCharge[]>()
-      for (const cid of activeCheckinIds) {
-        try {
-          const res = await PostChargesService.list({ checkin_id: cid, hotelid: hotelId })
-          if (res.success && res.data) {
-            postChargesMap.set(cid, res.data)
-          }
-        } catch (err) {
-          console.warn(`Failed to fetch post charges for checkin ${cid}`, err)
-        }
-      }
-
-      const advancePerRoomMap = new Map<number, Map<number, number>>()
-      for (const cid of activeCheckinIds) {
-        const roomAdvanceMap = new Map<number, number>()
-        try {
-          const advRes = await AdvanceTransactionService.list({ checkin_id: cid })
-          if (advRes.success && advRes.data) {
+          const advRoomMap = new Map<number, number>()
+          try {
+            const advRes = await AdvanceTransactionService.list({ checkin_id: checkin.checkin_id })
             const roomCredits = new Map<number, number>()
             const roomDebits = new Map<number, number>()
-            let globalCredits = 0
-            let globalDebits = 0
-
-            advRes.data.forEach((t: any) => {
-              const roomId = t.room_id
-              if (!roomId) {
-                if (
-                  t.transaction_type === 'Booking Receipt' ||
-                  t.transaction_type === 'Advance Addition'
-                ) {
-                  if (t.status === 'active') globalCredits += Number(t.credit_amount) || 0
-                } else if (
-                  t.transaction_type === 'Advance Posting' ||
-                  t.transaction_type === 'Advance Refund'
-                ) {
-                  if (t.status === 'active') globalDebits += Number(t.debit_amount) || 0
-                }
-                return
-              }
-
-              if (
+            let globalCredits = 0,
+              globalDebits = 0
+            ;(advRes.data || []).forEach((t: any) => {
+              const rid = t.room_id
+              const isCredit =
                 t.transaction_type === 'Booking Receipt' ||
                 t.transaction_type === 'Advance Addition'
-              ) {
-                if (t.status === 'active') {
-                  roomCredits.set(
-                    roomId,
-                    (roomCredits.get(roomId) || 0) + (Number(t.credit_amount) || 0),
-                  )
-                }
-              } else if (
-                t.transaction_type === 'Advance Posting' ||
-                t.transaction_type === 'Advance Refund'
-              ) {
-                if (t.status === 'active') {
-                  roomDebits.set(
-                    roomId,
-                    (roomDebits.get(roomId) || 0) + (Number(t.debit_amount) || 0),
-                  )
-                }
+              const isDebit =
+                t.transaction_type === 'Advance Posting' || t.transaction_type === 'Advance Refund'
+              if (t.status !== 'active') return
+              if (!rid) {
+                if (isCredit) globalCredits += Number(t.credit_amount) || 0
+                if (isDebit) globalDebits += Number(t.debit_amount) || 0
+              } else {
+                if (isCredit)
+                  roomCredits.set(rid, (roomCredits.get(rid) || 0) + (Number(t.credit_amount) || 0))
+                if (isDebit)
+                  roomDebits.set(rid, (roomDebits.get(rid) || 0) + (Number(t.debit_amount) || 0))
               }
             })
-
-            for (const [roomId, credit] of roomCredits) {
-              const debit = roomDebits.get(roomId) || 0
-              roomAdvanceMap.set(roomId, credit - debit)
+            for (const [rid, credit] of roomCredits) {
+              advRoomMap.set(rid, credit - (roomDebits.get(rid) || 0))
             }
-
-            if (roomAdvanceMap.size === 0 && (globalCredits > 0 || globalDebits > 0)) {
-              const netGlobal = globalCredits - globalDebits
-              roomAdvanceMap.set(0, netGlobal)
+            const hasRoomSpecificAdv = advRoomMap.size > 0
+            if (!hasRoomSpecificAdv && (globalCredits > 0 || globalDebits > 0)) {
+              advRoomMap.set(0, globalCredits - globalDebits)
             }
+          } catch {
+            // ignore
           }
-        } catch (err) {
-          console.warn(`Failed to fetch advance transactions for checkin ${cid}`, err)
-        }
-        advancePerRoomMap.set(cid, roomAdvanceMap)
-      }
 
-      const agentMap = new Map<number, AgentRoomCheckin>()
-      for (const cid of activeCheckinIds) {
-        const agentData = await fetchAgentRoomCheckin(cid)
-        if (agentData) {
-          agentMap.set(cid, agentData)
-        }
-      }
+          const chargesByRoom = new Map<number, GuestRoomCharge[]>()
+          charges.forEach((charge: GuestRoomCharge) => {
+            if (charge.room_id) {
+              if (!chargesByRoom.has(charge.room_id)) {
+                chargesByRoom.set(charge.room_id, [])
+              }
+              chargesByRoom.get(charge.room_id)!.push(charge)
+            }
+          })
 
-      const roomGroupMap = new Map<string, Detail[]>()
-      activeDetails.forEach((detail: Detail) => {
-        const key = `${detail.checkin_id}__${detail.room_id}`
-        const group = roomGroupMap.get(key) || []
-        group.push(detail)
-        roomGroupMap.set(key, group)
-      })
-
-      const consolidatedDetails: Array<{
-        detail: Detail
-        originalCheckinDatetime: string
-        finalCheckoutDatetime: string
-      }> = []
-      roomGroupMap.forEach((group) => {
-        const sorted = [...group].sort(
-          (a, b) =>
-            new Date(b.checkout_datetime || 0).getTime() -
-            new Date(a.checkout_datetime || 0).getTime(),
-        )
-        const latestDetail = sorted[0]
-        const earliestCheckin = group.reduce((earliest, d) => {
-          const t = new Date(d.checkin_datetime || 0).getTime()
-          return t < new Date(earliest || 0).getTime() ? d.checkin_datetime : earliest
-        }, latestDetail.checkin_datetime)
-        const latestCheckout = group.reduce((latest, d) => {
-          const t = new Date(d.checkout_datetime || 0).getTime()
-          return t > new Date(latest || 0).getTime() ? d.checkout_datetime : latest
-        }, latestDetail.checkout_datetime)
-        consolidatedDetails.push({
-          detail: latestDetail,
-          originalCheckinDatetime: earliestCheckin,
-          finalCheckoutDatetime: latestCheckout,
-        })
-      })
-
-      const items: OccupiedRoomItem[] = await Promise.all(
-        consolidatedDetails.map(
-          async ({ detail, originalCheckinDatetime, finalCheckoutDatetime }) => {
-            const checkin = checkinMap.get(detail.checkin_id)!
-
-            const allChargesForCheckin = chargesMap.get(detail.checkin_id) || []
-            const roomCharges = allChargesForCheckin.filter((c) => c.room_id === detail.room_id)
-            const sortedCharges = [...roomCharges].sort(
+          for (const [roomId, roomCharges] of chargesByRoom) {
+            const regularCharges = roomCharges.filter(
+              (c) => c.category_id !== null && c.category_id !== undefined,
+            )
+            const sortedCharges = [...regularCharges].sort(
               (a, b) =>
                 new Date(b.checkout_datetime || 0).getTime() -
                 new Date(a.checkout_datetime || 0).getTime(),
             )
             const latestCharge = sortedCharges[0]
-            const latestChargeCheckoutDatetime =
-              latestCharge?.checkout_datetime || finalCheckoutDatetime
 
-            const minutesLeft = getMinutesLeft(latestChargeCheckoutDatetime)
-            const isNear = minutesLeft <= 30 && minutesLeft > 0
-            const isExpired = minutesLeft <= 0
-            const masterTotal = checkin.total_amount || 0
-            const originalPax = detail.pax || detail.adults
+            if (latestCharge?.checkout_datetime) {
+              const checkoutDateStr = getLocalYMD(new Date(latestCharge.checkout_datetime))
 
-            const bookingType = checkin.booking || 'WALK-IN-GUEST'
+              if (checkoutDateStr === todayStr) {
+                const room = rooms.find((r) => r.room_id === roomId)
+                const roomNumber = room?.room_no || `Room ${roomId}`
 
-            let agentName: string | undefined
-            let isAgentCheckin = false
-            const agentData = agentMap.get(detail.checkin_id)
-            if (agentData && (bookingType === 'AGENT' || agentData.agent_name)) {
-              isAgentCheckin = true
-              agentName = agentData.agent_name || undefined
+                const allRoomChargesTotal = roomCharges.reduce(
+                  (sum, c) => sum + (Number(c.total_amount) || 0),
+                  0,
+                )
+                const hasRoomSpecific = [...advRoomMap.keys()].some((k) => k !== 0)
+                const roomAdvance = hasRoomSpecific
+                  ? advRoomMap.get(roomId) || 0
+                  : advRoomMap.get(0) || 0
+                const netTotal = allRoomChargesTotal - roomAdvance
+
+                allCheckoutItems.push({
+                  srNo: 0,
+                  roomNo: roomNumber,
+                  guestName: checkin.guest_name,
+                  category: checkin.converted_category || '',
+                  pax: checkin.pax || 0,
+                  adults: checkin.adults || 0,
+                  exPax: checkin.ex_pax || 0,
+                  child: (checkin.child_paid || 0) + (checkin.child_unpaid || 0),
+                  driver: Number(checkin.driver) || 0,
+                  checkinDatetime: checkin.checkin_datetime,
+                  checkoutDatetime: latestCharge.checkout_datetime,
+                  totalPrice: latestCharge.total_amount || 0,
+                  minutesLeft: getMinutesLeft(latestCharge.checkout_datetime),
+                  totalNights: checkin.total_nights,
+                  totalAmount: netTotal,
+                  regNo: checkin.reg_no,
+                  booking: checkin.booking,
+                  planName: checkin.plan_name,
+                  status: checkin.status,
+                })
+              }
             }
-
-            let perDayPriceFromCharges = detail.room_tariff || 0
-            const regularRoomCharges = roomCharges.filter(
-              (c) => c.category_id !== null && c.category_id !== undefined,
-            )
-
-            const guestRoomChargesTotal = regularRoomCharges.reduce(
-              (sum, c) => sum + (Number(c.total_amount) || 0),
-              0,
-            )
-            if (regularRoomCharges.length > 0) {
-              const sorted = [...regularRoomCharges].sort(
-                (a, b) =>
-                  new Date(b.checkin_datetime || 0).getTime() -
-                  new Date(a.checkin_datetime || 0).getTime(),
-              )
-              const latest = sorted[0]
-              if (latest.total_amount) perDayPriceFromCharges = Number(latest.total_amount)
-            }
-
-            const postChargesByDate: Record<string, number> = {}
-            const allPostChargesForCheckin = postChargesMap.get(detail.checkin_id) || []
-            const roomPostCharges = allPostChargesForCheckin.filter(
-              (c: PostCharge) => c.room_id === detail.room_id,
-            )
-            roomPostCharges.forEach((c: PostCharge) => {
-              const rawDate = c.post_datetime ?? ''
-              const dateKey =
-                rawDate.length >= 10
-                  ? rawDate.substring(0, 10)
-                  : new Date().toISOString().split('T')[0]
-              const amt = Number(c.total_amount) || 0
-              const signedAmt = c.transaction_type === 'ALLOWANCE' ? amt : amt
-              postChargesByDate[dateKey] = (postChargesByDate[dateKey] || 0) + signedAmt
-            })
-
-            const allRoomPostChargesNetTotal = roomPostCharges.reduce((sum, c) => {
-              const amt = Number(c.total_amount) || 0
-              return sum + (c.transaction_type === 'ALLOWANCE' ? amt : amt)
-            }, 0)
-
-            const totalAllowancesForRoom = roomPostCharges.reduce((sum, c) => {
-              const amt = Number(c.total_amount) || 0
-              return sum + (c.transaction_type === 'ALLOWANCE' ? amt : 0)
-            }, 0)
-
-            const currentActiveDayKey = detail.checkin_datetime
-              ? String(detail.checkin_datetime).substring(0, 10)
-              : new Date().toISOString().split('T')[0]
-
-            const systemTodayKey = new Date().toISOString().split('T')[0]
-            const activePostChargesForDay =
-              postChargesByDate[currentActiveDayKey] ?? postChargesByDate[systemTodayKey] ?? 0
-            const todayCombinedTotal = perDayPriceFromCharges + activePostChargesForDay
-
-            const perRoomAdvanceMap = advancePerRoomMap.get(detail.checkin_id) || new Map()
-            const pendingAdvanceForRoom =
-              perRoomAdvanceMap.get(detail.room_id) ?? perRoomAdvanceMap.get(0) ?? 0
-
-            const individualRoomChargesTotal = guestRoomChargesTotal + allRoomPostChargesNetTotal
-
-            const netRoomAmount = individualRoomChargesTotal - pendingAdvanceForRoom
-
-            let totalAllRoomsCharges = 0
-            let totalAllRoomsAdvance = 0
-            const checkinRooms = consolidatedDetails.filter(
-              (d) => d.detail.checkin_id === detail.checkin_id,
-            )
-            for (const roomDetail of checkinRooms) {
-              const roomAdvance = perRoomAdvanceMap.get(roomDetail.detail.room_id) ?? 0
-              totalAllRoomsAdvance += roomAdvance
-
-              const roomChargesList = allChargesForCheckin.filter(
-                (c) =>
-                  c.room_id === roomDetail.detail.room_id &&
-                  c.category_id !== null &&
-                  c.category_id !== undefined,
-              )
-              const roomPostChargesList = (postChargesMap.get(detail.checkin_id) || []).filter(
-                (c: PostCharge) => c.room_id === roomDetail.detail.room_id,
-              )
-              const roomGuestChargesTotal = roomChargesList.reduce(
-                (sum, c) => sum + (Number(c.total_amount) || 0),
-                0,
-              )
-              const roomPostChargesTotal = roomPostChargesList.reduce((sum, c) => {
-                const amt = Number(c.total_amount) || 0
-                return sum + (c.transaction_type === 'ALLOWANCE' ? amt : amt)
-              }, 0)
-              totalAllRoomsCharges += roomGuestChargesTotal + roomPostChargesTotal
-            }
-            const globalAdvance = perRoomAdvanceMap.get(0) ?? 0
-            const hasRoomSpecificAdvances = [...perRoomAdvanceMap.keys()].some((k) => k !== 0)
-            const effectiveTotalAdvance = hasRoomSpecificAdvances
-              ? totalAllRoomsAdvance
-              : globalAdvance
-            const totalAllRoomsNet = totalAllRoomsCharges - effectiveTotalAdvance
-
-            return {
-              room_no: detail.room_number,
-              guest_name: checkin.guest_name,
-              checkin_datetime: originalCheckinDatetime || checkin.checkin_datetime,
-              checkout_datetime: latestChargeCheckoutDatetime,
-              guest_type: bookingType,
-              original_charge: detail.room_tariff,
-              folio_total: masterTotal,
-              total_charge: masterTotal,
-              adults: detail.adults,
-              child_count: (() => {
-                const roomChargesSorted = (chargesMap.get(detail.checkin_id) || [])
-                  .filter((c) => c.room_id === detail.room_id)
-                  .sort(
-                    (a, b) =>
-                      new Date(b.checkin_datetime || 0).getTime() -
-                      new Date(a.checkin_datetime || 0).getTime(),
-                  )
-                const latestChargeForCount = roomChargesSorted[0]
-                return latestChargeForCount != null
-                  ? Number(latestChargeForCount.child_count) || 0
-                  : Number(detail.child_unpaid) || 0
-              })(),
-              driver_count: detail.driver,
-              ex_pax: detail.ex_pax,
-              payment_method: paymentMethodMap.get(detail.checkin_id) || 'Cash',
-              checkin,
-              detail,
-              checkin_id: detail.checkin_id,
-              detail_id: detail.detail_id,
-              room_id: detail.room_id,
-              room_category_id: detail.room_category_id,
-              isCheckoutNear: isNear,
-              minutesLeft,
-              isExpired,
-              ex_pax_charge: detail.ex_pax_charge,
-              child_paid_amount: detail.child_paid_amount,
-              driver_charge: detail.driver_charge,
-              cgst_percent: detail.cgst_percent,
-              sgst_percent: detail.sgst_percent,
-              igst_percent: detail.igst_percent,
-              cess_percent: detail.cess_percent,
-              service_charge: detail.service_charge,
-              tax: detail.tax,
-              discount_percent: detail.discount_percent,
-              total_days: Math.max(
-                1,
-                Math.ceil(
-                  (new Date(latestChargeCheckoutDatetime).getTime() -
-                    new Date(originalCheckinDatetime || detail.checkin_datetime).getTime()) /
-                    (1000 * 3600 * 24),
-                ),
-              ),
-              per_day_base_price: perDayPriceFromCharges,
-              individual_room_charges_total: individualRoomChargesTotal,
-              net_room_amount: netRoomAmount,
-              total_all_rooms_net: totalAllRoomsNet,
-              pending_advance_for_room: pendingAdvanceForRoom,
-              guest_room_charges_total: guestRoomChargesTotal + allRoomPostChargesNetTotal,
-              checkin_total_amount: masterTotal,
-              room_category_name: detail.room_category_name,
-              converted_category_name: detail.converted_category_name,
-              original_pax: originalPax,
-              booking_type: bookingType,
-              agent_name: agentName,
-              is_agent_checkin: isAgentCheckin,
-              post_charges_by_date: postChargesByDate,
-              today_combined_total: todayCombinedTotal,
-              current_active_day_key: currentActiveDayKey,
-              latest_charge_checkout_datetime: latestChargeCheckoutDatetime,
-              pending_advance: totalAllRoomsAdvance,
-              total_allowances: totalAllowancesForRoom,
-            }
-          },
-        ),
-      )
-
-      const checkinTotalsMap = new Map<
-        number,
-        { combinedPerDay: number; combinedCumulative: number }
-      >()
-      items.forEach((item) => {
-        const cid = item.checkin_id
-        const existing = checkinTotalsMap.get(cid) || { combinedPerDay: 0, combinedCumulative: 0 }
-        checkinTotalsMap.set(cid, {
-          combinedPerDay: existing.combinedPerDay + (item.per_day_base_price || 0),
-          combinedCumulative: existing.combinedCumulative + (item.guest_room_charges_total || 0),
-        })
-      })
-
-      const itemsWithCombined = items.map((item) => {
-        const combined = checkinTotalsMap.get(item.checkin_id)
-        const roomCount = items.filter((i) => i.checkin_id === item.checkin_id).length
-        const activeDayKey = item.current_active_day_key || new Date().toISOString().split('T')[0]
-        const systemTodayKey = new Date().toISOString().split('T')[0]
-        const postByDate = item.post_charges_by_date || {}
-        const todayPostCharges = postByDate[activeDayKey] ?? postByDate[systemTodayKey] ?? 0
-        const perDay = item.per_day_base_price || 0
-        const isMulti = roomCount > 1
-        return {
-          ...item,
-          per_day_base_price: perDay,
-          individual_room_charges_total:
-            item.individual_room_charges_total ?? item.guest_room_charges_total,
-          guest_room_charges_total: isMulti
-            ? (combined?.combinedCumulative ?? item.guest_room_charges_total)
-            : item.guest_room_charges_total,
-          is_multi_room_checkin: isMulti,
-          today_combined_total: perDay + todayPostCharges,
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch charges for checkin ${checkin.checkin_id}`, err)
         }
+      }
+
+      allCheckoutItems.sort((a, b) => {
+        const now = Date.now()
+        const aTime = new Date(a.checkoutDatetime).getTime()
+        const bTime = new Date(b.checkoutDatetime).getTime()
+        const aExpired = aTime < now
+        const bExpired = bTime < now
+        if (aExpired && !bExpired) return -1
+        if (!aExpired && bExpired) return 1
+        return aTime - bTime
       })
 
-      itemsWithCombined.sort((a, b) =>
-        a.room_no.localeCompare(b.room_no, undefined, { numeric: true }),
-      )
-      setOccupiedRooms(itemsWithCombined)
+      allCheckoutItems.forEach((item, idx) => {
+        item.srNo = idx + 1
+      })
+      setCheckoutAlertData(allCheckoutItems)
     } catch (err) {
-      console.error('Failed to fetch occupied rooms:', err)
+      console.error("Failed to fetch today's checkouts:", err)
+      setErrorCheckoutAlert("Could not load today's checkouts")
+    } finally {
+      setLoadingCheckoutAlert(false)
     }
   }
+
+  useEffect(() => {
+    if (showCheckoutAlertTable && hotelId) fetchTodayCheckouts()
+  }, [showCheckoutAlertTable, hotelId])
 
   // ==================== EXTEND SINGLE ROOM FUNCTION ====================
   const extendSingleRoom = async (
@@ -1285,7 +1149,17 @@ const HotelBookingPanel = () => {
       })
       setSiblingRooms([])
 
-      await fetchOccupiedRooms()
+      const todayStr = new Date().toISOString().split('T')[0]
+      const newCheckoutDateStr = primaryNewCheckoutDate.toISOString().split('T')[0]
+
+      if (newCheckoutDateStr !== todayStr) {
+        setCheckoutAlertData((prev) => prev.filter((row) => !extendedRoomNos.has(row.roomNo)))
+      }
+
+
+      if (showCheckoutAlertTable) {
+        await fetchTodayCheckouts()
+      }
     } catch (err) {
       console.error('Failed to extend day:', err)
       toast.error((err as Error).message || 'Failed to extend day')
@@ -1316,6 +1190,12 @@ const HotelBookingPanel = () => {
   ])
 
   // ==================== UI HELPER FUNCTIONS ====================
+  const boxSizeClass = useMemo(() => `size${uiSettings.room_box_size}`, [uiSettings.room_box_size])
+  const showSubtext = useMemo(
+    () => uiSettings.room_box_size > 1 && uiSettings.show_room_text,
+    [uiSettings.room_box_size, uiSettings.show_room_text],
+  )
+
   const enrichedRooms: Room[] = useMemo(() => {
     const floorMap = new Map(floors.map((f) => [f.floor_id, f.floor_name]))
     const categoryMap = new Map(categories.map((c) => [c.room_category_id, c.category_name]))
@@ -1323,7 +1203,8 @@ const HotelBookingPanel = () => {
       id: apiRoom.room_id,
       number: apiRoom.room_no,
       category: categoryMap.get(apiRoom.room_category_id) || 'Uncategorized',
-      status: normalizeRoomStatus(apiRoom.room_status),
+      status: normalizeRoomStatusFromApi(apiRoom),
+
       floor: floorMap.get(apiRoom.floor_id) || `Floor ${apiRoom.floor_id}`,
       floor_id: apiRoom.floor_id,
       room_category_id: apiRoom.room_category_id,
@@ -1360,6 +1241,7 @@ const HotelBookingPanel = () => {
       available: all.filter((r) => r.status === 'available').length,
       occupied: all.filter((r) => r.status === 'occupied').length,
       cleaning: all.filter((r) => r.status === 'cleaning').length,
+      bill: all.filter((r) => r.status === 'Bill').length,
       reserved: all.filter((r) => r.status === 'reserved').length,
       maintenance: all.filter((r) => r.status === 'maintenance').length,
       reservation: all.filter((r) => r.status === 'reservation').length,
@@ -1421,6 +1303,19 @@ const HotelBookingPanel = () => {
     }
   }
 
+  const toggleRoomSelection = (roomId: number) => {
+    const room = enrichedRooms.find((r) => r.id === roomId)
+    if (room && room.status !== 'available') {
+      toast.error('Only vacant rooms can be selected for check-in.')
+      return
+    }
+    setSelectedRoomIds((prev) =>
+      prev.includes(roomId) ? prev.filter((id) => id !== roomId) : [...prev, roomId],
+    )
+  }
+
+  const isRoomSelected = (roomId: number) => selectedRoomIds.includes(roomId)
+
   const handleCheckInClick = () => {
     if (selectedRoomIds.length === 0) {
       toast.error('Please select at least one room to check in.')
@@ -1438,17 +1333,33 @@ const HotelBookingPanel = () => {
     })
   }
 
-  const handleRoomStatusChangeSuccess = async () => {
-    try {
-      const roomsRes = await RoomService.list({ hotelid: hotelId })
-      setRooms(roomsRes.data || [])
-      await fetchRoomStatusLogs()
-      if (statusFilter === 'occupied') {
-        await fetchOccupiedRooms()
+  const handleRoomStatusChangeRequest = (room: Room) => {
+    setSelectedRoomForStatus({
+      id: room.id,
+      number: room.number,
+      category: room.category,
+      floor: room.floor,
+      status: room.status,
+    })
+    setShowRoomStatusModal(true)
+  }
+
+ 
+
+  const handleRoomTileClick = (room: Room) => {
+    if (tileClickTimerRef.current) return
+    tileClickTimerRef.current = setTimeout(() => {
+      tileClickTimerRef.current = null
+      if (room.status === 'occupied') {
+        const occupiedItem = occupiedRooms.find((item) => item.room_no === room.number)
+        if (occupiedItem) {
+          handleOccupiedRoomClick(occupiedItem)
+        } else {
+          setSelectedRoom(room)
+          setShowRoomDetails(true)
+        }
       }
-    } catch (err) {
-      console.error('Failed to refresh room data:', err)
-    }
+    }, 250)
   }
 
   const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
@@ -1474,6 +1385,27 @@ const HotelBookingPanel = () => {
   const closeContextMenu = () => {
     setShowContextMenu(false)
     setContextMenuItem(null)
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, item: OccupiedRoomItem) => {
+    e.preventDefault()
+    closeContextMenu()
+    setContextMenuItem(item)
+    setShowContextMenu(true)
+    setTimeout(() => {
+      if (contextMenuRef.current) {
+        const menuRect = contextMenuRef.current.getBoundingClientRect()
+        const viewportWidth = window.innerWidth
+        const viewportHeight = window.innerHeight
+        let left = e.clientX
+        let top = e.clientY
+        if (left + menuRect.width > viewportWidth) left = e.clientX - menuRect.width
+        if (top + menuRect.height > viewportHeight) top = e.clientY - menuRect.height
+        left = Math.max(0, Math.min(left, viewportWidth - menuRect.width))
+        top = Math.max(0, Math.min(top, viewportHeight - menuRect.height))
+        setContextMenuPos({ x: left, y: top })
+      }
+    }, 0)
   }
 
   const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => {
@@ -1550,6 +1482,13 @@ const HotelBookingPanel = () => {
     }
   }
 
+  const resetFilters = () => {
+    setSearchQuery('')
+    setStatusFilter('all')
+    setTypeFilter('all')
+    setFloorFilter('all')
+  }
+
   const handleClose = () => {
     navigate(-1)
   }
@@ -1570,6 +1509,7 @@ const HotelBookingPanel = () => {
       setActiveSection(null)
     } else {
       setActiveSection('checkout')
+      fetchTodayCheckouts()
     }
   }
 
@@ -1581,16 +1521,301 @@ const HotelBookingPanel = () => {
     navigate('/hotel/arrivals')
   }
 
+  // ---- Reservations ----
+  const fetchReservTableData = async (filterDate?: string) => {
+    if (!hotelId) return
+    setLoadingReservTable(true)
+    try {
+      const res = await ReservationService.list({ hotelid: hotelId })
+      const reservations: any[] = res.data || []
+      const todayStr = filterDate || new Date().toISOString().slice(0, 10)
+
+      const todayReservs = reservations.filter((r: any) => {
+        const arrival = r.arrival_date ? String(r.arrival_date).slice(0, 10) : ''
+        const status = (r.status || '').toLowerCase()
+        return (
+          arrival === todayStr &&
+          status !== 'checkin' &&
+          status !== 'checkout' &&
+          status !== 'checked_in' &&
+          status !== 'checked_out'
+        )
+      })
+
+      const rows: any[] = []
+
+      for (const r of todayReservs) {
+        try {
+          const roomRes = await ReservationRoomService.list({ reservation_id: r.reservation_id })
+          const roomRows: any[] = roomRes?.data || []
+
+          if (roomRows.length === 0) {
+            rows.push({
+              reservation_id: r.reservation_id,
+              reservation_no: r.reservation_no || '-',
+              guest_name: r.reservation_name || r.guest_name || '-',
+              phone1: r.phone1 || '-',
+              room_category_name: '-',
+              converted_category_name: '-',
+              arrival_date: r.arrival_date || '',
+              arrival_time: r.arrival_time || '',
+              departure_date: r.departure_date || '',
+              departure_time: r.departure_time || '',
+              total_rooms: 0,
+              pax_price: 0,
+              pax_count: 0,
+              ex_pax_count: 0,
+              child_count: 0,
+              driver_count: 0,
+              total_amount: 0,
+              nights: r.nights || 0,
+            })
+          } else {
+            for (const rm of roomRows) {
+              rows.push({
+                reservation_id: r.reservation_id,
+                reservation_no: r.reservation_no || '-',
+                guest_name: r.reservation_name || r.guest_name || '-',
+                phone1: r.phone1 || '-',
+                room_category_name: (rm as any).room_category_name || '-',
+                converted_category_name: (rm as any).converted_category_name || '-',
+                arrival_date: r.arrival_date || '',
+                arrival_time: r.arrival_time || '',
+                departure_date: r.departure_date || '',
+                departure_time: r.departure_time || '',
+                total_rooms: rm.total_rooms || 1,
+                pax_price: rm.pax_price || 0,
+                pax_count: rm.pax_count || 0,
+                ex_pax_count: rm.ex_pax_count || 0,
+                child_count: rm.child_count || 0,
+                driver_count: rm.driver_count || 0,
+                total_amount: rm.total_amount || 0,
+                nights: r.nights || 0,
+              })
+            }
+          }
+        } catch {
+          rows.push({
+            reservation_id: r.reservation_id,
+            reservation_no: r.reservation_no || '-',
+            guest_name: r.reservation_name || r.guest_name || '-',
+            phone1: r.phone1 || '-',
+            room_category_name: '-',
+            converted_category_name: '-',
+            arrival_date: r.arrival_date || '',
+            arrival_time: r.arrival_time || '',
+            departure_date: r.departure_date || '',
+            departure_time: r.departure_time || '',
+            total_rooms: 0,
+            pax_price: 0,
+            pax_count: 0,
+            ex_pax_count: 0,
+            child_count: 0,
+            driver_count: 0,
+            total_amount: 0,
+            nights: r.nights || 0,
+          })
+        }
+      }
+
+      setReservTableData(rows)
+    } catch (err) {
+      console.error('Failed to fetch reserv data', err)
+    } finally {
+      setLoadingReservTable(false)
+    }
+  }
+
   const handleReservSectionClick = () => {
     if (showReservSection) {
       setActiveSection(null)
     } else {
       setActiveSection('reserv')
+      fetchReservTableData(reservDate)
     }
   }
 
-  const handleSettlementClick = () => {
-    navigate('/hotel/SettlementPage')
+  const exportReservTableToExcel = (data: any[], filename: string) => {
+    const ws = XLSX.utils.json_to_sheet(
+      data.map((r, i) => ({
+        'Sr.No': i + 1,
+        'Reservation No': r.reservation_no,
+        'Guest Name': r.guest_name,
+        'Mobile No': r.phone1,
+        'Room Category': r.room_category_name,
+        'Convert Category': r.converted_category_name,
+        'Arrival Date': r.arrival_date,
+        'Arrival Time': r.arrival_time,
+        'Departure Date': r.departure_date,
+        'Departure Time': r.departure_time,
+        'Total Rooms': r.total_rooms,
+        'Room Price': r.pax_price,
+        'Pax Count': r.pax_count,
+        'Ex-Pax Count': r.ex_pax_count,
+        'Child Count': r.child_count,
+        'Driver Count': r.driver_count,
+        'Total Price': r.total_amount,
+        'Total Days': r.nights,
+      })),
+    )
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
+    XLSX.writeFile(wb, filename)
+  }
+
+  const exportCheckoutToExcel = (data: CheckoutAlertItem[], filename: string) => {
+    const ws = XLSX.utils.json_to_sheet(
+      data.map((item) => ({
+        'Sr.No': item.srNo,
+        'Room No': item.roomNo,
+        'Guest Name': item.guestName,
+        Category: item.category,
+        Adults: item.adults,
+        Pax: item.pax,
+        'Ex-Pax': item.exPax,
+        Child: item.child,
+        Driver: item.driver,
+        'Total Days': item.totalNights != null ? item.totalNights : '-',
+        'Total Amount': item.totalAmount || item.totalPrice,
+        'Reg No': item.regNo || '-',
+        'Booking Ref': item.booking || '-',
+        'Plan Name': item.planName || '-',
+        'Check-out Date & Time': formatDateTime(item.checkoutDatetime),
+        'Check-in Date & Time': formatDateTime(item.checkinDatetime),
+      })),
+    )
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
+    XLSX.writeFile(wb, filename)
+  }
+
+  const handlePrintCheckout = () => {
+    const tableElement = document.querySelector('.checkout-table')
+    if (!tableElement) {
+      toast.error('No table to print')
+      return
+    }
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.error('Please allow pop-ups to print')
+      return
+    }
+    const hotel = hotelName || 'Hotel'
+    const dateStr = new Date().toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    })
+    printWindow.document.write(`
+      <html>
+        <head><title>${hotel} - Today's Checkouts</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .report-header { margin-bottom: 16px; }
+          .hotel-name-row { font-size: 18px; font-weight: bold; margin-bottom: 6px; }
+          .report-subheader { font-size: 13px; color: #555; }
+          table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+          th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+          th { background-color: #f2f2f2; font-weight: 600; }
+        </style>
+        </head>
+        <body>
+          <div class="report-header">
+            <div class="hotel-name-row">Hotel name: ${hotel}</div>
+            <div class="report-subheader">Today's Checkouts — ${dateStr}</div>
+          </div>
+          ${tableElement.outerHTML}
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+    printWindow.print()
+  }
+
+  const handlePdfCheckout = async () => {
+    const table = document.querySelector('.checkout-table')
+    if (!table) {
+      toast.error('No table found')
+      return
+    }
+    try {
+      const hotel = hotelName || 'Hotel'
+      const dateStr = new Date().toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+      const wrapper = document.createElement('div')
+      wrapper.style.cssText =
+        'background:#fff;padding:20px;width:1400px;margin:auto;font-family:Arial,sans-serif;'
+      const style = document.createElement('style')
+      style.textContent = `table{width:100%;border-collapse:collapse;font-size:0.7rem;}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;}thead tr{background-color:#dfdfdf;font-weight:600;}.report-header{margin-bottom:16px;}.hotel-name-row{font-size:18px;font-weight:bold;margin-bottom:6px;}.report-subheader{font-size:13px;color:#555;}`
+      wrapper.appendChild(style)
+      const headerDiv = document.createElement('div')
+      headerDiv.className = 'report-header'
+      headerDiv.innerHTML = `<div class="hotel-name-row">Hotel name: ${hotel}</div><div class="report-subheader">Today's Checkouts — ${dateStr}</div>`
+      wrapper.appendChild(headerDiv)
+      wrapper.appendChild(table.cloneNode(true) as HTMLElement)
+      document.body.appendChild(wrapper)
+      const canvas = await html2canvas(wrapper, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      })
+      document.body.removeChild(wrapper)
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const imgWidth = 280
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight)
+      pdf.save('todays-checkouts.pdf')
+    } catch (err) {
+      console.error(err)
+      toast.error('PDF generation failed')
+    }
+  }
+
+  const handlePdfReserv = async () => {
+    const table = document.querySelector('.reserv-section-table')
+    if (!table) {
+      toast.error('No table found')
+      return
+    }
+    try {
+      const hotel = hotelName || 'Hotel'
+      const dateStr = new Date().toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+      const wrapper = document.createElement('div')
+      wrapper.style.cssText =
+        'background:#fff;padding:20px;width:1400px;margin:auto;font-family:Arial,sans-serif;'
+      const style = document.createElement('style')
+      style.textContent = `table{width:100%;border-collapse:collapse;font-size:0.7rem;}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;}thead tr{background-color:#dfdfdf;font-weight:600;}tfoot tr{background-color:#f8f9fa;font-weight:600;}.report-header{margin-bottom:16px;}.hotel-name-row{font-size:18px;font-weight:bold;margin-bottom:6px;}.report-subheader{font-size:13px;color:#555;}`
+      wrapper.appendChild(style)
+      const headerDiv = document.createElement('div')
+      headerDiv.className = 'report-header'
+      headerDiv.innerHTML = `<div class="hotel-name-row">Hotel name: ${hotel}</div><div class="report-subheader">Today's Reservations — ${dateStr}</div>`
+      wrapper.appendChild(headerDiv)
+      wrapper.appendChild(table.cloneNode(true) as HTMLElement)
+      document.body.appendChild(wrapper)
+      const canvas = await html2canvas(wrapper, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      })
+      document.body.removeChild(wrapper)
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const imgWidth = 280
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight)
+      pdf.save('todays-reservations.pdf')
+    } catch (err) {
+      console.error(err)
+      toast.error('PDF generation failed')
+    }
   }
 
   useEffect(() => {
@@ -1691,6 +1916,40 @@ const HotelBookingPanel = () => {
     })
   }
 
+  const handleRemoveSelectionForSection = async (roomIds: number[]) => {
+    const toMakeAvailable = roomIds.filter((id) => selectedHousekeepingRoomIds.includes(id))
+
+    if (toMakeAvailable.length === 0) {
+      toast.error('No rooms selected. Please select rooms first.')
+      return
+    }
+
+    try {
+      // NOTE: CheckoutService.updateRoomsToAvailable is kept in SettlementPage only.
+      // Here we update rooms individually via RoomService.
+      for (const roomId of toMakeAvailable) {
+        const room = enrichedRooms.find((r) => r.id === roomId)
+        if (room) {
+          await RoomService.update(roomId, {
+            ...room.rawData,
+            room_status: 'available',
+            updated_by_id: user?.id,
+          })
+        }
+      }
+
+      setSelectedHousekeepingRoomIds((prev) =>
+        prev.filter((id) => !toMakeAvailable.includes(id)),
+      )
+
+
+      toast.success(`${toMakeAvailable.length} room(s) marked as Vacant.`)
+    } catch (err) {
+      console.error('Failed to make rooms vacant:', err)
+      toast.error('Failed to update room status.')
+    }
+  }
+
   if (loading) {
     return (
       <div className="d-flex flex-column align-items-center justify-content-center vh-100">
@@ -1717,11 +1976,12 @@ const HotelBookingPanel = () => {
     )
   }
 
+  const groups = viewMode === 'floor' ? groupedFloors : groupedCategoriesView
+
   return (
     <>
       <TitleHelmet title="Room Management" />
       <style>{`
-        /* CSS remains unchanged from original */
         .room-tile {
           position: relative;
           cursor: pointer;
@@ -1779,7 +2039,16 @@ const HotelBookingPanel = () => {
           100% { opacity: 1; transform: scale(1); }
         }
         .checkout-soon-badge { display: inline-block; background-color: #ff0000; color: #fff; font-weight: bold; font-size: 0.65rem; text-align: center; border-radius: 2px; padding: 1px 4px; margin-top: 4px; animation: pulseBadge 1s infinite; }
-        .occupied-tile-settled { cursor: default !important; }
+
+        .checkout-table, .reserv-section-table { width: 100%; border-collapse: collapse; font-size: 0.70rem; }
+        .checkout-table th { position: sticky; top: 0; background-color: #dfdfdf; font-weight: 550; z-index: 10; padding: 0.35rem; }
+        .checkout-table td { border: 1px solid #dee2e6; padding: 0.35rem; text-align: left; }
+        .reserv-section-table th, .reserv-section-table td { border: 1px solid #dee2e6; padding: 4px 7px; white-space: nowrap; }
+        .reserv-section-table thead tr { background: #f1f5fb; font-weight: 600; position: sticky; top: 0; z-index: 1; }
+        .reserv-section-table tbody tr:hover { background: #f8f9fa; }
+        .reserv-section-table tfoot tr td { background: #f1f5fb; }
+        body.dark-mode th { background-color: #2c2c2c; color: #eee; }
+        body.dark-mode .checkout-table td { border-color: #444; }
 
         .btn-status-available { background-color: ${getStatusBgColor('available')} !important; color: ${getStatusTextColor('available')} !important; border: 1px solid ${getStatusBorderColor('available')} !important; }
         .btn-outline-status-available { background-color: transparent !important; color: ${getStatusTextColor('available')} !important; border: 1px solid ${getStatusBorderColor('available')} !important; }
@@ -1917,11 +2186,12 @@ const HotelBookingPanel = () => {
                     className="fw-semibold px-3 same-btn text-nowrap">
                     <i className="fi fi-rr-plane-arrival me-1"></i>Arrivals
                   </Button>
+                  {/* Settlement navigates to separate page */}
                   <Button
                     size="sm"
                     variant="outline-success"
                     className="fw-semibold px-3 same-btn"
-                    onClick={handleSettlementClick}>
+                    onClick={() => navigate('/hotel/settlement')}>
                     <i className="fi fi-rr-money-check me-1"></i>Settlement
                   </Button>
                   <Button
@@ -2019,6 +2289,20 @@ const HotelBookingPanel = () => {
                             }>
                             Select All
                           </Button>
+                          <Button
+                            size="sm"
+                            variant="outline-danger"
+                            className="fw-semibold px-2 py-1"
+                            style={{ fontSize: '0.7rem' }}
+                            onClick={() =>
+                              handleRemoveSelectionForSection(
+                                housekeepingRoomsForTab
+                                  .filter((r) => r.status === 'cleaning')
+                                  .map((r) => r.id),
+                              )
+                            }>
+                            Vacant
+                          </Button>
                         </div>
                       </div>
                       <div className="dirty-rooms-body" ref={dirtyScrollRef}>
@@ -2085,6 +2369,20 @@ const HotelBookingPanel = () => {
                               )
                             }>
                             Select All
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline-danger"
+                            className="fw-semibold px-2 py-1"
+                            style={{ fontSize: '0.7rem' }}
+                            onClick={() =>
+                              handleRemoveSelectionForSection(
+                                housekeepingRoomsForTab
+                                  .filter((r) => r.status === 'reserved')
+                                  .map((r) => r.id),
+                              )
+                            }>
+                            Vacant
                           </Button>
                         </div>
                       </div>
@@ -2293,6 +2591,20 @@ const HotelBookingPanel = () => {
                             }>
                             Select All
                           </Button>
+                          <Button
+                            size="sm"
+                            variant="outline-danger"
+                            className="fw-semibold px-2 py-1"
+                            style={{ fontSize: '0.7rem' }}
+                            onClick={() =>
+                              handleRemoveSelectionForSection(
+                                housekeepingRoomsForTab
+                                  .filter((r) => r.status === 'maintenance')
+                                  .map((r) => r.id),
+                              )
+                            }>
+                            Vacant
+                          </Button>
                         </div>
                       </div>
                       <div
@@ -2483,6 +2795,301 @@ const HotelBookingPanel = () => {
             )}
           </div>
 
+          {/* Scrollable Content Area */}
+          <div
+            className={`${activeHousekeepingTab ? '' : 'flex-grow-1 overflow-auto'} bg-white`}
+            style={{ width: '100%' }}>
+            {activeHousekeepingTab ? null : showReservSection ? (
+              <div key="reserv-section" className="checkout-table-container d-flex flex-column" style={{ width: '100%' }}>
+                <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                  <h6 className="mb-0 fw-bold">
+                    <i className="fi fi-rr-calendar me-2 text-primary"></i>
+                    Today's Reservations —{' '}
+                    {new Date(reservDate + 'T00:00:00').toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </h6>
+                  <div className="d-flex align-items-center gap-2">
+                    <Form.Control
+                      type="date"
+                      size="sm"
+                      value={reservDate}
+                      onChange={(e) => {
+                        const d = e.target.value
+                        setReservDate(d)
+                        fetchReservTableData(d)
+                      }}
+                      style={{ width: 'auto' }}
+                    />
+                    <button className="btn btn-success btn-sm fw-normal px-3" onClick={() => {
+                      const printWindow = window.open('', '_blank')
+                      if (!printWindow) {
+                        toast.error('Please allow pop-ups to print')
+                        return
+                      }
+                      const hotel = hotelName || 'Hotel'
+                      const dateStr = new Date(reservDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                      printWindow.document.write(`
+                        <html><head><title>${hotel} - Reservations</title>
+                        <style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px}th{background:#f2f2f2}</style>
+                        </head><body><h3>${hotel}</h3><p>Reservations - ${dateStr}</p>${document.querySelector('.reserv-section-table')?.outerHTML || ''}</body></html>
+                      `)
+                      printWindow.document.close()
+                      printWindow.print()
+                    }}>
+                      <i className="fi fi-rr-print me-1"></i> Print
+                    </button>
+                    <Dropdown>
+                      <Dropdown.Toggle variant="primary" size="sm" className="fw-normal px-2">
+                        <i className="fi fi-rr-download me-1"></i> Export
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item onClick={handlePdfReserv}>
+                          <i className="fi fi-rr-file-pdf me-2"></i> PDF
+                        </Dropdown.Item>
+                        <Dropdown.Item onClick={() => exportReservTableToExcel(reservTableData, 'reservations.xlsx')}>
+                          <i className="fi fi-rr-file-excel me-2"></i> Excel
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                  </div>
+                </div>
+                {loadingReservTable ? (
+                  <div className="d-flex justify-content-center py-5">
+                    <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading…</span></div>
+                  </div>
+                ) : reservTableData.length === 0 ? (
+                  <div className="text-center py-5">
+                    <i className="fi fi-rr-calendar text-muted fs-4 mb-3 d-block"></i>
+                    <p className="text-muted mb-0">No reservations for today.</p>
+                  </div>
+                ) : (
+                  <div className="flex-grow-1 overflow-auto">
+                    <table className="reserv-section-table">
+                      <thead>
+                        <tr><th>#</th><th>Res. No</th><th>Guest Name</th><th>Mobile No</th><th>Room Category</th><th>Convert Category</th><th>Total Days</th><th>Arrival Date & Time</th><th>Departure Date & Time</th><th>Rooms</th><th>Room Tariff</th><th>Pax</th><th>Ex-Pax</th><th>Child</th><th>Driver</th><th>Total Price</th></tr>
+                      </thead>
+                      <tbody>
+                        {reservTableData.map((r, idx) => (
+                          <tr key={`${r.reservation_id}-${idx}`}>
+                            <td className="text-center">{idx + 1}</td>
+                            <td>{r.reservation_no}</td>
+                            <td>{r.guest_name}</td>
+                            <td>{r.phone1}</td>
+                            <td>{r.room_category_name}</td>
+                            <td>{r.converted_category_name}</td>
+                            <td className="text-center">{r.nights || '-'}</td>
+                            <td>{r.arrival_date} {r.arrival_time}</td>
+                            <td>{r.departure_date} {r.departure_time}</td>
+                            <td className="text-center">{r.total_rooms}</td>
+                            <td className="text-end">{formatAmount(r.pax_price)}</td>
+                            <td className="text-center">{r.pax_count}</td>
+                            <td className="text-center">{r.ex_pax_count}</td>
+                            <td className="text-center">{r.child_count}</td>
+                            <td className="text-center">{r.driver_count}</td>
+                            <td className="text-end fw-semibold">{formatAmount(r.total_amount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : showCheckoutAlertTable ? (
+              <div key="checkout-section" className="checkout-table-container d-flex flex-column" style={{ width: '100%' }}>
+                <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                  <h6 className="mb-0 fw-bold">
+                    <i className="fi fi-rr-calendar-check me-2 text-warning"></i>
+                    Today's Checkouts —{' '}
+                    {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </h6>
+                  <div className="d-flex align-items-center gap-2">
+                    <button className="btn btn-success btn-sm fw-normal px-3" onClick={handlePrintCheckout}>
+                      <i className="fi fi-rr-print me-1"></i> Print
+                    </button>
+                    <Dropdown>
+                      <Dropdown.Toggle variant="primary" size="sm" className="fw-normal px-2">
+                        <i className="fi fi-rr-download me-1"></i> Export
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item onClick={handlePdfCheckout}>
+                          <i className="fi fi-rr-file-pdf me-2"></i> PDF
+                        </Dropdown.Item>
+                        <Dropdown.Item onClick={() => exportCheckoutToExcel(checkoutAlertData, 'todays_checkouts.xlsx')}>
+                          <i className="fi fi-rr-file-excel me-2"></i> Excel
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                  </div>
+                </div>
+                {loadingCheckoutAlert ? (
+                  <div className="d-flex justify-content-center py-5">
+                    <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading checkout data...</span></div>
+                  </div>
+                ) : errorCheckoutAlert ? (
+                  <div className="text-center py-5">
+                    <i className="fi fi-rr-exclamation text-danger fs-4 mb-3 d-block"></i>
+                    <p className="text-danger">{errorCheckoutAlert}</p>
+                    <Button variant="outline-primary" onClick={fetchTodayCheckouts}>Retry</Button>
+                  </div>
+                ) : checkoutAlertData.length === 0 ? (
+                  <div className="text-center py-5">
+                    <i className="fi fi-rr-calendar text-muted fs-4 mb-3 d-block"></i>
+                    <p className="text-muted mb-0">No checkouts scheduled for today.</p>
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="checkout-table">
+                      <thead>
+                        <tr><th>Sr. No.</th><th>Room No</th><th>Guest Name</th><th>Category</th><th>Adults</th><th>Pax</th><th>Ex-Pax</th><th>Child</th><th>Driver</th><th>Total Days</th><th>Total Amount</th><th>Reg No</th><th>Booking Ref</th><th>Plan Name</th><th>Check-out Date & Time</th><th>Check-in Date & Time</th></tr>
+                      </thead>
+                      <tbody>
+                        {checkoutAlertData.map((item) => {
+                          const minutesLeft = item.minutesLeft || getMinutesLeft(item.checkoutDatetime)
+                          const isNear = minutesLeft <= 30 && minutesLeft > 0
+                          const isExpired = minutesLeft <= 0
+                          const cellClass = isExpired ? '' : isNear ? 'text-red' : ''
+                          return (
+                            <tr key={item.srNo}>
+                              <td className={cellClass}>{item.srNo}</td>
+                              <td className={cellClass}>{item.roomNo}</td>
+                              <td className={cellClass}>{item.guestName}</td>
+                              <td className={cellClass}>{item.category}</td>
+                              <td className={cellClass}>{item.adults}</td>
+                              <td className={cellClass}>{item.pax}</td>
+                              <td className={cellClass}>{item.exPax}</td>
+                              <td className={cellClass}>{item.child}</td>
+                              <td className={cellClass}>{item.driver}</td>
+                              <td className={cellClass}>{item.totalNights != null ? item.totalNights : '-'}</td>
+                              <td className={cellClass}>{item.totalAmount ? formatAmount(item.totalAmount) : formatAmount(item.totalPrice)}</td>
+                              <td className={cellClass}>{item.regNo || '-'}</td>
+                              <td className={cellClass}>{item.booking || '-'}</td>
+                              <td className={cellClass}>{item.planName || '-'}</td>
+                              <td className={cellClass}>{formatDateTime(item.checkoutDatetime)}{isExpired && ' ⚠️ Expired'}{isNear && !isExpired && ` (${minutesLeft} min left)`}</td>
+                              <td className={cellClass}>{formatDateTime(item.checkinDatetime)}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : statusFilter === 'occupied' ? (
+              loadingOccupied && occupiedRooms.length === 0 ? (
+                <div className="d-flex justify-content-center align-items-center"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading occupied rooms...</span></div></div>
+              ) : errorOccupied ? (
+                <div className="text-center py-5">
+                  <i className="fi fi-rr-exclamation text-danger fs-4 mb-3 d-block"></i>
+                  <p className="text-danger">{errorOccupied}</p>
+                  <Button variant="outline-primary" size="sm" onClick={() => setStatusFilter('occupied')}>Retry</Button>
+                </div>
+              ) : occupiedRooms.length === 0 ? (
+                <div className="text-center py-5"><i className="fi fi-rr-bed-empty text-muted fs-4 mb-4 d-block"></i><p className="text-muted mb-0">No occupied rooms found.</p></div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '6px', alignContent: 'start', padding: '0px 8px', width: '100%' }}>
+                  {occupiedRooms.map((item) => {
+                    const minutesLeft = getMinutesLeft(item.checkout_datetime)
+                    const isNear = minutesLeft <= 30 && minutesLeft > 0
+                    const isExpired = minutesLeft <= 0
+                    const tileStyle = getOccupiedTileStyle(minutesLeft, isExpired)
+                    const perDayPrice = item.per_day_base_price || 0
+                    const roomChargesTotal = item.guest_room_charges_total || 0
+                    const isMultiRoom = item.is_multi_room_checkin === true
+                    const netRoomAmount = item.net_room_amount ?? roomChargesTotal
+                    const netAllRoomsAmount = item.total_all_rooms_net ?? roomChargesTotal
+                    const pendingAdvanceForRoom = item.pending_advance_for_room || 0
+                    const activeDayKey = item.current_active_day_key || new Date().toISOString().split('T')[0]
+                    const systemTodayKey = new Date().toISOString().split('T')[0]
+                    const postByDate = item.post_charges_by_date || {}
+                    const todayPostChargesAmt = postByDate[activeDayKey] ?? postByDate[systemTodayKey] ?? 0
+                    const todayCombined = perDayPrice + todayPostChargesAmt
+                    const hasTodayPostCharges = todayPostChargesAmt !== 0
+                    const bookingType = item.booking_type || 'WALK-IN-GUEST'
+                    const hasAdvance = pendingAdvanceForRoom > 0
+                    const leftIsNegative = netRoomAmount < 0
+                    const rightIsNegative = netAllRoomsAmount < 0
+                    const totalAllowances = item.total_allowances || 0
+                    const hasAllowances = totalAllowances > 0
+
+                    return (
+                      <div
+                        key={`${item.checkin_id}-${item.room_no}`}
+                        className={`occupied-tile ${isNear ? 'occupied-tile-checkout-near' : ''} ${isExpired ? 'occupied-tile-expired' : ''}`}
+                        onClick={() => handleOccupiedRoomClick(item)}
+                        onContextMenu={(e) => handleContextMenu(e, item)}
+                        style={{ border: `2px solid ${isExpired ? uiSettings.occupied_expired_bg : isNear ? uiSettings.occupied_warning_bg : getStatusBorderColor('occupied')}` }}
+                        title={`${item.guest_name}\nBooking Type: ${bookingType}${item.agent_name ? `\nAgent: ${item.agent_name}` : ''}${hasAdvance ? `\nAdvance applied: -₹${pendingAdvanceForRoom.toFixed(2)}` : ''}${hasAllowances ? `\nAllowances applied: -₹${totalAllowances.toFixed(2)}` : ''}IN: ${formatDateTime(item.checkin_datetime)}\nOUT: ${formatDateTime(item.checkout_datetime)}\n${isMultiRoom ? `[Multi-Room] Left: ${item.room_no} own total | Right: all rooms combined\n` : ''}Per Day: ${formatAmount(perDayPrice)}${hasTodayPostCharges ? `\nToday Post Charges: ${formatAmount(todayPostChargesAmt)}\nToday Combined: ${formatAmount(todayCombined)}` : ''}\nLeft (${item.room_no}): ${formatAmount(netRoomAmount)}${hasAdvance ? ` (₹${pendingAdvanceForRoom.toFixed(2)} advance deducted)` : ''}${hasAllowances ? ` (₹${totalAllowances.toFixed(2)} allowance deducted)` : ''}\nRight (${isMultiRoom ? 'All rooms combined' : 'Total'}): ${formatAmount(netAllRoomsAmount)}${hasAdvance ? ` (total advance: ₹${pendingAdvanceForRoom.toFixed(2)})` : ''}\n${isExpired ? '⚠️ Checkout time has passed! Click to extend day. ⚠️' : isNear ? '⚠️ Checkout in less than 30 minutes! ⚠️' : ''}`}>
+                        <div className="occupied-header" style={{ backgroundColor: '#000000', color: '#ffffff' }}>
+                          {item.room_no} {item.guest_name}
+                        </div>
+                        <div className="occupied-body" style={{ backgroundColor: tileStyle.backgroundColor, color: tileStyle.color }}>
+                          <div>IN : {formatDateTime(item.checkin_datetime)}</div>
+                          <div>OUT : {formatDateTime(item.checkout_datetime)}</div>
+                          <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : item.guest_type}</div>
+                          <div className="charges-line">
+                            <span title={`${isMultiRoom ? `This room (${item.room_no}) cumulative` : 'Cumulative Total'}${hasAllowances ? `\nAllowances Deducted: -₹${totalAllowances.toFixed(2)}` : ''}${hasAdvance ? `\nAdvance Deducted: -₹${pendingAdvanceForRoom.toFixed(2)}` : ''}${leftIsNegative ? '\n⚠️ Excess advance — refund due to guest' : ''}`} style={{ color: '#000000', fontWeight: leftIsNegative || hasAdvance ? 600 : 'normal' }}>
+                              {formatAmount(netRoomAmount)}
+                            </span>
+                            <span className="fw-bold" title={`${isMultiRoom ? 'Combined Total (all rooms)' : 'Cumulative Total'}${hasAllowances ? `\nAllowances Deducted: -₹${totalAllowances.toFixed(2)}` : ''}${hasAdvance ? `\nTotal Advance Deducted: -₹${pendingAdvanceForRoom.toFixed(2)}` : ''}${rightIsNegative ? '\n⚠️ Excess advance — refund due to guest' : ''}`} style={{ color: '#000000' }}>
+                              {formatAmount(netAllRoomsAmount)}
+                            </span>
+                          </div>
+                          {hasAllowances && (
+                            <div style={{ fontSize: '0.6rem', color: '#c0392b', fontWeight: 600, display: 'flex', justifyContent: 'space-between', marginTop: '1px' }} title={`Allowance of ₹${totalAllowances.toFixed(2)} deducted from room total`}>
+                              <span>Alw: -{formatAmount(totalAllowances)}</span>
+                              <span>Net: {formatAmount(netRoomAmount)}</span>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.65rem' }}>
+                            <span title="Adult : Pax : Ex-Pax : Child">
+                              <span title="Pax (total guests)">{item.original_pax ?? item.adults}</span>
+                              <span style={{ opacity: 0.5 }}>:</span>
+                              <span title="Extra Pax">{item.ex_pax}</span>
+                              <span style={{ opacity: 0.5 }}>:</span>
+                              <span title="Child">{item.child_count}</span>
+                              <span style={{ opacity: 0.5 }}>:</span>
+                              <span title="Driver">{item.driver_count}</span>
+                            </span>
+                            <span>| {item.payment_method}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            ) : roomsAfterStatus.length === 0 ? (
+              <div className="text-center py-5"><i className="fi fi-rr-search text-muted fs-4 mb-4 d-block"></i><p className="text-muted mb-0">No rooms found</p><Button variant="outline-primary" size="sm" onClick={resetFilters} className="mt-2">Reset Filters</Button></div>
+            ) : (
+              <div className="d-flex flex-column">
+                {groups.map((group) => (
+                  <div key={group.id} className="d-flex align-items-stretch gap-1 p-1 bg-white" style={{ border: '1px solid lightgray' }}>
+                    {uiSettings.show_left_category && <div className="group-box me-1" style={{ minWidth: '100px' }}><div><span className="fw-bold">{group.name}</span><br /><span>{group.rooms.length}</span></div></div>}
+                    <div className="d-flex flex-wrap gap-1 flex-grow-1">
+                      {group.rooms.map((room) => {
+                        const occupiedItemForTile = room.status === 'occupied' ? occupiedRooms.find((occ) => occ.room_no === room.number) : null
+                        const isExpiredTile = occupiedItemForTile ? occupiedItemForTile.isExpired : false
+                        const tileBg = getStatusBgColor(room.status)
+                        const tileColor = getStatusTextColor(room.status)
+                        const tileBorder = getStatusBorderColor(room.status)
+                        return (
+                          <div key={room.id} onClick={isExpiredTile ? undefined : () => handleRoomTileClick(room)} onContextMenu={isExpiredTile ? undefined : (e) => { if (room.status === 'occupied') { if (occupiedItemForTile) { e.preventDefault(); handleContextMenu(e, occupiedItemForTile) } } else { e.preventDefault(); handleRoomStatusChangeRequest(room) } }} className={`d-flex flex-column align-items-center justify-content-center p-1 shadow-sm room-tile room-tile-${boxSizeClass}${isExpiredTile ? '' : ' cursor-pointer'}`} style={{ cursor: isExpiredTile ? 'not-allowed' : 'pointer', backgroundColor: tileBg, color: tileColor, border: `1px solid ${tileBorder}`, opacity: isExpiredTile ? 0.85 : 1 }} title={isExpiredTile ? 'Checkout time has expired' : undefined}>
+                            <input type="checkbox" className="room-checkbox" checked={isRoomSelected(room.id)} onChange={(e) => { e.stopPropagation(); toggleRoomSelection(room.id) }} onClick={(e) => e.stopPropagation()} disabled={room.status !== 'available' || isExpiredTile} title={isExpiredTile ? 'Checkout time has expired' : room.status !== 'available' ? 'Only vacant rooms can be selected for check-in' : 'Select for check-in'} />
+                            <div className="fw-bold">{room.number}</div>
+                            {showSubtext && <div className="small">{viewMode === 'category' ? room.floor : room.category}</div>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Footer */}
           <div className="flex-shrink-0 bg-white border-top p-2">
             <div className="d-flex flex-wrap gap-2 align-items-center">
@@ -2546,6 +3153,7 @@ const HotelBookingPanel = () => {
             )}
           </Modal.Body>
         </Modal>
+
         <DisplaySettings
           show={showSettings}
           onHide={() => setShowSettings(false)}
@@ -2571,17 +3179,94 @@ const HotelBookingPanel = () => {
           </div>
         )}
 
-        {/* Post Charges Modal */}
-        {selectedOccupiedItem && <PostChargesModal show={showPostChargesModal} onHide={() => { setShowPostChargesModal(false); setSelectedOccupiedItem(null) }} roomNo={selectedOccupiedItem.room_no} guestName={selectedOccupiedItem.guest_name} checkinId={selectedOccupiedItem.checkin_id} detailId={selectedOccupiedItem.detail_id} roomId={selectedOccupiedItem.room_id} guestId={selectedOccupiedItem.checkin?.guest_id} hotelId={hotelId || 0} userId={user?.id} mode={postChargesMode} onSuccess={() => { fetchOccupiedRooms() }} existingCharges={[]} onChargesUpdated={() => { fetchOccupiedRooms() }} />}
-        {/* Receipt Against Bills Modal */}
-        {selectedOccupiedItem && <ReceiptAgainstBillsModal show={showReceiptModal} onHide={() => { setShowReceiptModal(false); setSelectedOccupiedItem(null) }} roomNo={selectedOccupiedItem.room_no} guestName={selectedOccupiedItem.guest_name} checkinId={selectedOccupiedItem.checkin_id} detailId={selectedOccupiedItem.detail_id} hotelId={hotelId || 0} userId={user?.id} onSuccess={() => { fetchOccupiedRooms() }} />}
-        {/* Advance Modal */}
-        {selectedOccupiedItem && <Advance show={showAdvanceModal} onHide={() => { setShowAdvanceModal(false); setSelectedOccupiedItem(null) }} roomNo={selectedOccupiedItem.room_no} guestName={selectedOccupiedItem.guest_name} checkinId={selectedOccupiedItem.checkin_id} detailId={selectedOccupiedItem.detail_id} hotelId={hotelId || 0} userId={user?.id} roomId={selectedOccupiedItem.room_id} onSuccess={() => { fetchOccupiedRooms() }} />}
-        {/* Room Status Modal - Single Room */}
-        <RoomStatusModal show={showRoomStatusModal} onHide={() => { setShowRoomStatusModal(false); setSelectedRoomForStatus(null) }} room={selectedRoomForStatus} hotelId={hotelId || 0} userId={user?.id} onSuccess={handleRoomStatusChangeSuccess} />
-        {/* Room Status Modal - Multiple Rooms (bulk) */}
-        <RoomStatusModal show={showMultiRoomStatusModal} onHide={() => setShowMultiRoomStatusModal(false)} room={null} rooms={enrichedRooms.filter((r) => selectedRoomIds.includes(r.id))} hotelId={hotelId || 0} userId={user?.id} onSuccess={async () => { setSelectedRoomIds([]); await handleRoomStatusChangeSuccess() }} />
-        
+       {/* Post Charges Modal */}
+{selectedOccupiedItem && (
+  <PostChargesModal
+    show={showPostChargesModal}
+    onHide={() => {
+      setShowPostChargesModal(false)
+      setSelectedOccupiedItem(null)
+    }}
+    roomNo={selectedOccupiedItem.room_no}
+    guestName={selectedOccupiedItem.guest_name}
+    checkinId={selectedOccupiedItem.checkin_id}
+    detailId={selectedOccupiedItem.detail_id}
+    roomId={selectedOccupiedItem.room_id}
+    guestId={selectedOccupiedItem.checkin?.guest_id}
+    hotelId={hotelId || 0}
+    userId={user?.id}
+    mode={postChargesMode}
+    onSuccess={() => {}}
+    existingCharges={[]}
+    onChargesUpdated={() => {}}
+  />
+)}
+
+{/* Receipt Against Bills Modal */}
+{selectedOccupiedItem && (
+  <ReceiptAgainstBillsModal
+    show={showReceiptModal}
+    onHide={() => {
+      setShowReceiptModal(false)
+      setSelectedOccupiedItem(null)
+    }}
+    roomNo={selectedOccupiedItem.room_no}
+    guestName={selectedOccupiedItem.guest_name}
+    checkinId={selectedOccupiedItem.checkin_id}
+    detailId={selectedOccupiedItem.detail_id}
+    hotelId={hotelId || 0}
+    userId={user?.id}
+    onSuccess={() => {}}
+  />
+)}
+
+{/* Advance Modal */}
+{selectedOccupiedItem && (
+  <Advance
+    show={showAdvanceModal}
+    onHide={() => {
+      setShowAdvanceModal(false)
+      setSelectedOccupiedItem(null)
+    }}
+    roomNo={selectedOccupiedItem.room_no}
+    guestName={selectedOccupiedItem.guest_name}
+    checkinId={selectedOccupiedItem.checkin_id}
+    detailId={selectedOccupiedItem.detail_id}
+    hotelId={hotelId || 0}
+    userId={user?.id}
+    roomId={selectedOccupiedItem.room_id}
+    onSuccess={() => {}}
+  />
+)}
+
+{/* Room Status Modal - Single Room */}
+<RoomStatusModal
+  show={showRoomStatusModal}
+  onHide={() => {
+    setShowRoomStatusModal(false)
+    setSelectedRoomForStatus(null)
+  }}
+  room={selectedRoomForStatus}
+  hotelId={hotelId || 0}
+  userId={user?.id}
+  onSuccess={async () => {
+    setShowRoomStatusModal(false)
+    setSelectedRoomForStatus(null)
+  }}
+/>
+
+{/* Room Status Modal - Multiple Rooms */}
+<RoomStatusModal
+  show={showMultiRoomStatusModal}
+  onHide={() => setShowMultiRoomStatusModal(false)}
+  room={null}
+  rooms={enrichedRooms.filter((r) => selectedRoomIds.includes(r.id))}
+  hotelId={hotelId || 0}
+  userId={user?.id}
+  onSuccess={async () => {
+    setShowMultiRoomStatusModal(false)
+  }}
+/>
       </div>
     </>
   )

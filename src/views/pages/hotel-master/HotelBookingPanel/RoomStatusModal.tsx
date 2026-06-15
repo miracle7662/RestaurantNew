@@ -17,14 +17,14 @@ interface RoomStatusModalProps {
     number: string
     category: string
     floor: string
-    status: 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
+    status: 'available' | 'occupied' | 'cleaning' |  'Bill' | 'reserved' | 'maintenance' | 'reservation'
   } | null
   rooms?: {
     id: number
     number: string
     category: string
     floor: string
-    status: 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
+    status: 'available' | 'occupied' | 'cleaning' |  'Bill' | 'reserved' | 'maintenance' | 'reservation'
   }[]
   hotelId: number
   userId?: number
@@ -247,7 +247,7 @@ const RoomStatusModal = ({
 
     setSaving(true)
     try {
-      let newStatus: 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation' = 'available'
+      let newStatus: 'available' | 'occupied' | 'cleaning' |   'Bill' |'reserved' | 'maintenance' | 'reservation' = 'available'
       let successMessage = ''
 
       switch (statusType) {
