@@ -23,6 +23,7 @@ import BackdatedDayEndReport from '../views/apps/Masters/Reports/BackdatedDayEnd
 
 import AtGlance from '@/views/pages/hotel-master/HotelBookingPanel/AtGlancePage'
 import Arrivals from '@/views/pages/hotel-master/HotelBookingPanel/Arrivals'
+import SettlementPage from '@/views/pages/hotel-master/HotelBookingPanel/SettlementPage'
 
 
 
@@ -787,6 +788,13 @@ const appsRoutes: RoutesProps = {
   path: '/hotel/arrivals',
   name: 'Arrivals',
   element: <Arrivals />,
+  route: PrivateRoute,
+},
+
+{
+  path: '/hotel/SettlementPage',
+  name: 'SettlementPage',
+  element: <SettlementPage />,
   route: PrivateRoute,
 },
         {
