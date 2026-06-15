@@ -11,6 +11,7 @@ export interface HotelUiSettings {
     color_vacant: string;
     color_occupied: string;
     color_cleaning: string;
+    color_bill: string;
     color_reserved: string;
     color_maintenance: string;
     color_reservation: string;
