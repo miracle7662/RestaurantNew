@@ -124,14 +124,23 @@ exports.getCheckouts = async (req, res) => {
     if (!hotelId) return res.status(400).json({ success: false, message: "Hotel ID not found" });
 
     const [checkouts] = await db.query(`
-   SELECT cm.*,rm.room_status_id FROM 
-
-Checkout_Master cm 
-left join room_master rm on rm.room_id = cm.room_id
-
- WHERE cm.hotelid = ? and rm.room_status_id=7 and is_settle=0
-
-ORDER BY checkout_datetime DESC
+  SELECT
+    cm.*,
+    rm.room_status_id
+FROM Checkout_Master cm
+LEFT JOIN room_master rm
+    ON rm.room_id = cm.room_id
+WHERE
+    cm.hotelid = ?
+    AND rm.room_status_id = 7
+    AND cm.is_settle = 0
+    AND cm.checkout_datetime = (
+        SELECT MAX(c2.checkout_datetime)
+        FROM Checkout_Master c2
+        WHERE c2.ldg_bill_no = cm.ldg_bill_no
+    )
+ORDER BY
+    cm.ldg_bill_no;
     `, [hotelId]);
 
     res.json({ success: true, message: "Data fetched successfully", data: checkouts });
@@ -584,7 +593,7 @@ exports.performCheckout = async (req, res) => {
       formatDateTime(checkinData.checkin_datetime), 
       formatDateTime(checkinData.checkout_datetime),
       (checkedOutRoomNumbers[0] || ''),
-      (checkedOutRoomIds[0] || null),
+     req.body.room_id || null,   // jo frontend se aa raha hai "94,95"
       checkinData.category_id, 
       checkinData.converted_category,
       totalDetailAggregation.adults, 
@@ -875,33 +884,35 @@ exports.performCheckout = async (req, res) => {
       .filter(d => !checkedOutRoomNumbers.includes(d.room_number))
       .map(d => d.room_number);
     
-    res.status(200).json({
-      success: true,
-      message: isFullCheckout 
-        ? `Checkout completed successfully. Data preserved in original tables with status='checked_out'.`
-        : `${roomsToCheckout.length} room(s) checked out successfully. Remaining rooms: ${remainingRoomNumbers.length > 0 ? remainingRoomNumbers.join(', ') : 'None'}`,
-      data: { 
-        checkout_id: checkoutId, 
-        checkin_id: parseInt(checkin_id),
-        is_partial: !isFullCheckout,
-        checked_out_rooms: checkedOutRoomNumbers,
-        remaining_rooms: remainingRoomNumbers,
-        ldg_bill_no: ldg_bill_no,
-        aggregated_values: {
-          advance_amt: finalAdvanceAmt,
-          post_changes_amt: finalPostChangesAmt,
-          allowances_amt: finalAllowancesAmt,
-          discount_amount: finalDiscountAmount,
-          cgst_amt: finalCgstAmt,
-          sgst_amt: finalSgstAmt,
-          igst_amt: finalIgstAmt,
-          cess_amt: finalCessAmt,
-          service_charge_amt: finalServiceChargeAmt,
-          total_amount: finalTotalAmount,
-          net_payable: finalNetPayable
-        }
-      }
-    });
+   res.status(200).json({
+  success: true,
+  message: isFullCheckout 
+    ? `Checkout completed successfully. Data preserved in original tables with status='checked_out'.`
+    : `${roomsToCheckout.length} room(s) checked out successfully. Remaining rooms: ${remainingRoomNumbers.length > 0 ? remainingRoomNumbers.join(', ') : 'None'}`,
+  data: { 
+    checkout_id: checkoutId, 
+    checkin_id: parseInt(checkin_id),
+    is_partial: !isFullCheckout,
+    checked_out_rooms: checkedOutRoomNumbers,           // room numbers (array)
+    checked_out_room_ids: checkedOutRoomIds,            // room IDs (array)   <-- add
+    checked_out_room_ids_comma: checkedOutRoomIds.join(', '), // comma string <-- add
+    remaining_rooms: remainingRoomNumbers,
+    ldg_bill_no: ldg_bill_no,
+    aggregated_values: {
+      advance_amt: finalAdvanceAmt,
+      post_changes_amt: finalPostChangesAmt,
+      allowances_amt: finalAllowancesAmt,
+      discount_amount: finalDiscountAmount,
+      cgst_amt: finalCgstAmt,
+      sgst_amt: finalSgstAmt,
+      igst_amt: finalIgstAmt,
+      cess_amt: finalCessAmt,
+      service_charge_amt: finalServiceChargeAmt,
+      total_amount: finalTotalAmount,
+      net_payable: finalNetPayable
+    }
+  }
+});
     
   } catch (error) {
     await connection.rollback();

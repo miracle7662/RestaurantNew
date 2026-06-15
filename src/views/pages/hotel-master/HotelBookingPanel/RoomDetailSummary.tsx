@@ -1373,65 +1373,77 @@ const RoomDetailSummary = () => {
     setShowCheckoutModal(true)
   }
 
-  const handleConfirmCheckout = async () => {
-    if (!combinedSummary) return
-    setCheckoutProcessing(true)
+const handleConfirmCheckout = async () => {
+  if (!combinedSummary) return;
+  setCheckoutProcessing(true);
+  try {
+    const finalTotalAmount = grandTotal || combinedSummary.total_amount;
+
+    let invoiceNo = '';
     try {
-      const finalTotalAmount = grandTotal || combinedSummary.total_amount
-
-      let invoiceNo = ''
-      try {
-        const invoiceRes = await CheckoutService.getNextInvoiceNo()
-        if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
-          invoiceNo = invoiceRes.data.ldg_bill_no
-          console.log('Fetched invoice number:', invoiceNo)
-        }
-      } catch (invoiceErr) {
-        console.warn('Could not fetch invoice number; server will auto-assign one', invoiceErr)
+      const invoiceRes = await CheckoutService.getNextInvoiceNo();
+      if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
+        invoiceNo = invoiceRes.data.ldg_bill_no;
+        console.log('Fetched invoice number:', invoiceNo);
       }
-
-      const firstSelectedRoomNo = Array.from(selectedRooms)[0];
-      const matchedRow = displayRows.find(r => r.room_number === firstSelectedRoomNo);
-      const primaryRoomId = matchedRow?.room_id || null;
-
-      const response = await CheckoutService.performCheckout({
-        checkin_id: combinedSummary.checkin_id,
-        checkout_reason: checkoutReason || 'Regular checkout',
-        payment_id: selectedPaymentModeId ?? undefined,
-        payment_mode: selectedPaymentModeName,
-        payment_method: selectedPaymentModeName,
-        total_amount: finalTotalAmount,
-        room_id: primaryRoomId,
-        round_off_amount: 0,
-        net_payable: finalTotalAmount,
-        selected_rooms: Array.from(selectedRooms),
-        invoiceNoFromBody: invoiceNo,
-        is_settle: 0,
-        is_print: 1,
-      })
-
-      if (response.success) {
-        if (response.data?.ldg_bill_no) {
-          setGeneratedBillNumber(response.data.ldg_bill_no)
-        } else if (invoiceNo) {
-          setGeneratedBillNumber(invoiceNo)
-        }
-
-        toast.success(`Checkout completed successfully for selected rooms`)
-        setShowCheckoutModal(false)
-        setCheckoutReason('')
-        setCheckoutDone(true)
-        setShowBillModal(true)
-      } else {
-        toast.error(response.message || 'Checkout failed')
-      }
-    } catch (error: any) {
-      console.error('Checkout failed:', error)
-      toast.error(error.response?.data?.message || 'Failed to process checkout')
-    } finally {
-      setCheckoutProcessing(false)
+    } catch (invoiceErr) {
+      console.warn('Could not fetch invoice number; server will auto-assign one', invoiceErr);
     }
+
+    // ✅ Get ALL selected room IDs (not just the first one)
+    const selectedRoomIds = Array.from(selectedRooms)
+      .map(roomNo => {
+        const row = displayRows.find(r => r.room_number === roomNo);
+        return row?.room_id;
+      })
+      .filter((id): id is number => id !== null && id !== undefined);
+
+    // ✅ Join multiple IDs with comma (e.g., "94,95,96")
+    const roomIdsCommaString = selectedRoomIds.join(',');
+
+    const response = await CheckoutService.performCheckout({
+      checkin_id: combinedSummary.checkin_id,
+      checkout_reason: checkoutReason || 'Regular checkout',
+      payment_id: selectedPaymentModeId ?? undefined,
+      payment_mode: selectedPaymentModeName,
+      payment_method: selectedPaymentModeName,
+      total_amount: finalTotalAmount,
+      room_id: roomIdsCommaString,        // ✅ now sends multiple IDs
+      round_off_amount: 0,
+      net_payable: finalTotalAmount,
+      selected_rooms: Array.from(selectedRooms),
+      invoiceNoFromBody: invoiceNo,
+      is_settle: 0,
+      is_print: 1,
+    });
+
+    if (response.success) {
+      if (response.data?.ldg_bill_no) {
+        setGeneratedBillNumber(response.data.ldg_bill_no);
+      } else if (invoiceNo) {
+        setGeneratedBillNumber(invoiceNo);
+      }
+
+      // ✅ Show comma-separated room IDs from response (backup if response doesn't have it)
+      const roomIdsCommaFromResponse = response.data?.checked_out_room_ids_comma ||
+                                       (response.data?.checked_out_room_ids || []).join(', ');
+      
+      toast.success(`Checkout completed for room ID(s): ${roomIdsCommaFromResponse}`);
+
+      setShowCheckoutModal(false);
+      setCheckoutReason('');
+      setCheckoutDone(true);
+      setShowBillModal(true);
+    } else {
+      toast.error(response.message || 'Checkout failed');
+    }
+  } catch (error: any) {
+    console.error('Checkout failed:', error);
+    toast.error(error.response?.data?.message || 'Failed to process checkout');
+  } finally {
+    setCheckoutProcessing(false);
   }
+};
 
   const handleCancelCheckout = () => {
     setShowCheckoutModal(false)

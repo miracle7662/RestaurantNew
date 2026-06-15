@@ -95,7 +95,7 @@ export interface PerformCheckoutPayload {
   payment_mode?: string;
 
   total_amount?: number;
-   room_id?: number | null;
+   room_id?: string;
   round_off_amount?: number;
   net_payable?: number;
   selected_rooms?: string[];
@@ -130,6 +130,8 @@ export interface CheckoutResponse {
   checked_out_rooms?: string[];
   remaining_rooms?: string[];
   ldg_bill_no?: string;
+   checked_out_room_ids: number[];        // new
+    checked_out_room_ids_comma: string;    // new
 }
 
 

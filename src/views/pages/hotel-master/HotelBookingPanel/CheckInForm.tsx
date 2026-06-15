@@ -1704,7 +1704,7 @@ onSubmit: async (values) => {
       address: values.address,
       mobile: values.phone1,
       company_name: companyName,
-      email: values.email,
+      emailed: values.email,
       booking: values.bookingType,
       plan_name: values.planName,
       reg_no: values.regNo,
