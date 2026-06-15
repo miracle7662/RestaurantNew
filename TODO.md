@@ -1,10 +1,11 @@
-# TODO (CheckInForm zoom/resize stability)
+# TODO - Partial checkout multi-room fix (Occupied tab)
 
-- [x] Inspect `CheckInForm.tsx` for fixed heights/min-width and absolute positioned elements that break on zoom.
-- [x] Remove fixed-height regions causing blank gaps/cut-offs (scrollable table height and absolute bottom panel).
-- [x] Replace absolute positioning (`room-charge-checkbox`, `Rate Information` bottom panel) with flex/normal flow while keeping visual placement.
-- [x] Make the wide table wrapper responsive (avoid horizontal scrollbar and prevent overflow leaks).
-- [ ] Ensure main container uses `min-height: 100vh` and `overflow-x: hidden` (already present) and add `min-width: 0` where flex items need it.
-- [ ] Run build/typecheck (if scripts exist) and validate at zoom 90/100/110/125/150 on at least one narrow and one wide resolution.
+- [x] Step 1: Fix backend `checkoutController.js` to store/bind room_no/room_id for **all** `checked_out_rooms` (no `[0]` only).
 
+- [ ] Step 2: For partial checkout, create room-wise bill/cleaning updates only for **selected room numbers**.
+- [ ] Step 3: Ensure `room_master` update uses `room_no IN (selectedRooms)` (not `checkin_id`).
+- [ ] Step 4: Ensure bill rooms expose `ldg_bill_no` per room.
+- [ ] Step 5: Update frontend `HotelBookingPanel.tsx` Occupied tab to show both: `occupied` + `bill`.
+- [ ] Step 6: Update frontend bill tile rendering to display `ldg_bill_no`.
+- [ ] Step 7: Manual test: 6 rooms check-in; settlement checkout for 401 & 402; verify both show in Occupied tab; verify remaining 403-406 show occupied.
 

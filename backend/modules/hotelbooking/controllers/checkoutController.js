@@ -592,9 +592,9 @@ exports.performCheckout = async (req, res) => {
       checkinData.message,
       formatDateTime(checkinData.checkin_datetime), 
       formatDateTime(checkinData.checkout_datetime),
-      (checkedOutRoomNumbers[0] || ''),
-     req.body.room_id || null,   // jo frontend se aa raha hai "94,95"
-      checkinData.category_id, 
+      JSON.stringify(checkedOutRoomNumbers),
+      JSON.stringify(checkedOutRoomIds),
+      checkinData.category_id,
       checkinData.converted_category,
       totalDetailAggregation.adults, 
       totalDetailAggregation.pax, 
