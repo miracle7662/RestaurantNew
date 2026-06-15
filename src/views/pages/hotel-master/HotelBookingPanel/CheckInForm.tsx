@@ -2,7 +2,7 @@
 // UPDATED: Guest history now uses checkout tables only
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Row, Col, Form as BootstrapForm, Button, Card } from 'react-bootstrap'
+import { Container, Row, Col, Form as BootstrapForm, Button, Card } from 'react-bootstrap'
 import { FormikProvider, useFormik } from 'formik'
 import * as Yup from 'yup'
 import Select from 'react-select'
@@ -2464,6 +2464,25 @@ useEffect(() => {
   return (
     <FormikProvider value={formik}>
       <style>{`
+        .main-container {
+          height: 100vh;
+          overflow: hidden;
+        }
+        .content-scroll {
+          flex: 1;
+          overflow-y: auto;
+          overflow-x: hidden;
+          min-height: 0;
+        }
+        .action-section {
+          position: sticky;
+          bottom: 0;
+          z-index: 1000;
+          background: white;
+          border-top: 1px solid #dee2e6;
+          padding: 5px 10px;
+        }
+
         .fs-small { font-size: 0.7rem; }
         .table-sm-compact th, .table-sm-compact td {
           padding: 0.1rem 0.1rem;
@@ -2615,25 +2634,28 @@ useEffect(() => {
         }
       `}</style>
 
-      <div className="vh-100 d-flex flex-column overflow-hidden">
-        <div className="d-flex align-items-center">
-          <span className="d-flex align-items-center me-3">
-            <span className="fw-semibold fs-medium me-1">Reg No:</span>
-            <span className="badge bg-info fs-small">{regNo}</span>
-          </span>
-          <span className="d-flex align-items-center">
-            <h6 className="mb-0 fw-semibold fs-medium me-1">Selected Rooms:</h6>
-            {initialSelectedRooms.length > 0 && (
-              <span className="badge bg-primary fs-small">
-                {initialSelectedRooms.map((r) => r.roomNumber).join(', ')}
-              </span>
-            )}
-          </span>
+      <Container fluid className="p-0 bg-light main-container d-flex flex-column">
+        <div className="p-2">
+          <div className="d-flex align-items-center">
+            <span className="d-flex align-items-center me-3">
+              <span className="fw-semibold fs-medium me-1">Reg No:</span>
+              <span className="badge bg-info fs-small">{regNo}</span>
+            </span>
+            <span className="d-flex align-items-center">
+              <h6 className="mb-0 fw-semibold fs-medium me-1">Selected Rooms:</h6>
+              {initialSelectedRooms.length > 0 && (
+                <span className="badge bg-primary fs-small">
+                  {initialSelectedRooms.map((r) => r.roomNumber).join(', ')}
+                </span>
+              )}
+            </span>
+          </div>
         </div>
 
-        <Card className="flex-grow-1 border-0">
-          <Card.Body className="p-2 overflow-y-auto overflow-x-hidden">
-            <form id="checkin-form" onSubmit={handleSubmit}>
+        <div className="content-scroll">
+          <Card className="border-0">
+            <Card.Body className="p-2">
+              <form id="checkin-form" onSubmit={handleSubmit}>
               <Row className="g-2 mb-2">
                 <Col md={4}>
                   <div className="border p-1 bg-light">
@@ -4025,11 +4047,10 @@ useEffect(() => {
               </Row>
             </form>
           </Card.Body>
-        </Card>
+          </Card>
+        </div>
 
-        <div
-          className="fixed-bottom bg-white border-top"
-          style={{ padding: '5px 10px', zIndex: 1000 }}>
+        <div className="action-section">
           <div className="d-flex justify-content-between align-items-center">
             <div className="d-flex flex-wrap gap-2">
               <Button
@@ -4062,7 +4083,13 @@ useEffect(() => {
             </div>
 
             <div className="d-flex gap-2">
-              <Button variant="secondary" size="sm" onClick={() => { setTempGuestPhoto(null); navigate(-1) }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setTempGuestPhoto(null)
+                  navigate(-1)
+                }}>
                 Cancel
               </Button>
 
@@ -4077,7 +4104,7 @@ useEffect(() => {
             </div>
           </div>
         </div>
-      </div>
+      </Container>
 
       <FormModal
         size="lg"
