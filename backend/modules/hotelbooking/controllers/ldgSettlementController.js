@@ -70,7 +70,6 @@ const nowMySQL = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 //   }
 // };
 exports.createSettlement = async (req, res) => {
-  
   try {
     console.log("Settlement req.body:", req.body);
     const {
@@ -102,7 +101,8 @@ exports.createSettlement = async (req, res) => {
       bill_no = null,
       registration_no = null,
       room_name = '',
-      room_id, // ADD THIS
+      room_id,
+      room_ids,                     // ✅ NEW: array of room ids
       checkinid,
       checkout_id,
       created_by_id,
@@ -110,7 +110,21 @@ exports.createSettlement = async (req, res) => {
       checkout_date = null
     } = req.body;
 
-    // Required fields check
+    // Determine which rooms to settle
+   let roomsToSettle = [];
+
+if (Array.isArray(room_ids) && room_ids.length > 0) {
+  roomsToSettle = room_ids.map(Number);
+} else if (typeof room_id === "string" && room_id.includes(",")) {
+  roomsToSettle = room_id
+    .split(",")
+    .map(id => Number(id.trim()))
+    .filter(id => !Number.isNaN(id));
+} else if (room_id != null) {
+  roomsToSettle = [Number(room_id)];
+}
+
+    // Required fields check (room_id no longer required, but room_ids or room_id must exist)
     if (
       !userid ||
       !PaymentTypeID ||
@@ -120,7 +134,7 @@ exports.createSettlement = async (req, res) => {
       !outletid ||
       !total_amount ||
       !checkinid ||
-      !room_id
+      !checkout_id
     ) {
       return res.status(400).json({
         success: false,
@@ -170,44 +184,37 @@ exports.createSettlement = async (req, res) => {
     await conn.beginTransaction();
 
     try {
-      // INSERT SETTLEMENT
+      // 1. INSERT SETTLEMENT (single record for this payment split)
       const [result] = await conn.query(
         'INSERT INTO ldgsettlement SET ?',
         [insertData]
       );
 
-      // UPDATE CHECKIN/CHECKOUT MASTER
-      // (Assumption: linkage is via checkinid; adjust WHERE if your schema differs)
+      // 2. UPDATE checkin_master (once per checkin)
       await conn.query(
-  `UPDATE checkin_master
-   SET is_settle = 1
-   WHERE checkin_id = ?`,
-  [checkinid]
-);
-
-await conn.query(
-  `UPDATE checkout_master
-   SET is_settle = 1
-   WHERE checkout_id = ?`,
-  [checkout_id] 
-);
-
-await conn.query(
-  `UPDATE checkin_detail_master
-   SET is_settel = 1
-   WHERE checkin_id = ? AND room_id = ?`,
-  [checkinid, room_id]
-);
-
-      // UPDATE ROOM STATUS
-      await conn.query(
-        `UPDATE room_master 
-         SET room_status_id = 4
-         WHERE room_id = ?`,
-        [room_id]
+        `UPDATE checkin_master SET is_settle = 1 WHERE checkin_id = ?`,
+        [checkinid]
       );
 
-      // FETCH INSERTED ROW
+      // 3. UPDATE checkout_master (once per checkout)
+      await conn.query(
+        `UPDATE checkout_master SET is_settle = 1 WHERE checkout_id = ?`,
+        [checkout_id]
+      );
+
+      // 4. UPDATE checkin_detail_master AND room_master FOR EACH ROOM
+      for (const rid of roomsToSettle) {
+        await conn.query(
+          `UPDATE checkin_detail_master SET is_settel = 1 WHERE checkin_id = ? AND room_id = ?`,
+          [checkinid, rid]
+        );
+        await conn.query(
+          `UPDATE room_master SET room_status_id = 4 WHERE room_id = ?`,  // 4 = Clean/Vacant
+          [rid]
+        );
+      }
+
+      // 5. FETCH INSERTED ROW
       const [newRow] = await conn.query(
         'SELECT * FROM ldgsettlement WHERE SettlementID = ?',
         [result.insertId]
@@ -215,11 +222,11 @@ await conn.query(
 
       await conn.commit();
 
-    return res.status(201).json({
-  success: true,
-  message: 'Settlement created',
-  data: newRow[0]
-});
+      return res.status(201).json({
+        success: true,
+        message: `Settlement recorded for ${roomsToSettle.length} room(s)`,
+        data: newRow[0]
+      });
 
     } catch (txErr) {
       await conn.rollback();
@@ -228,10 +235,8 @@ await conn.query(
       conn.release();
     }
 
-  
   } catch (error) {
     console.error('createSettlement error:', error);
-
     res.status(500).json({
       success: false,
       message: 'Failed to create settlement'

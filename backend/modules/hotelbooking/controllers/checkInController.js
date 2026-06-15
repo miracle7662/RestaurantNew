@@ -22,17 +22,17 @@ const formatDate = (date) => date ? new Date(date).toISOString() : null;
 const getValueOrNull = (value) => value !== undefined && value !== null && value !== '' ? value : null;
 
 // Helper to get default room status ID for 'occupied'
-const getOccupiedStatusId = async () => {
-    const [statuses] = await db.execute(
-        "SELECT room_status_id FROM room_status WHERE LOWER(status_name) = 'occupied' LIMIT 1"
-    );
-    if (statuses.length > 0) return statuses[0].room_status_id;
+// const getOccupiedStatusId = async () => {
+//     const [statuses] = await db.execute(
+//         "SELECT room_status_id FROM room_status WHERE LOWER(status_name) = 'occupied' LIMIT 1"
+//     );
+//     if (statuses.length > 0) return statuses[0].room_status_id;
     
-    const [altStatuses] = await db.execute(
-        "SELECT room_status_id FROM room_status WHERE LOWER(status_name) IN ('occupied', 'booked', 'in_house') LIMIT 1"
-    );
-    return altStatuses.length > 0 ? altStatuses[0].room_status_id : 2;
-};
+//     const [altStatuses] = await db.execute(
+//         "SELECT room_status_id FROM room_status WHERE LOWER(status_name) IN ('occupied', 'booked', 'in_house') LIMIT 1"
+//     );
+//     return altStatuses.length > 0 ? altStatuses[0].room_status_id : 2;
+// };
 
 // Helper to get default room status ID for 'available'
 const getAvailableStatusId = async () => {
