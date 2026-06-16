@@ -17,28 +17,14 @@ interface RoomStatusModalProps {
     number: string
     category: string
     floor: string
-    status:
-      | 'available'
-      | 'occupied'
-      | 'cleaning'
-      | 'reserved'
-      | 'maintenance'
-      | 'reservation'
-      | 'bill'
+    status: 'available' | 'occupied' | 'cleaning' |  'Bill' | 'reserved' | 'maintenance' | 'reservation'
   } | null
   rooms?: {
     id: number
     number: string
     category: string
     floor: string
-    status:
-      | 'available'
-      | 'occupied'
-      | 'cleaning'
-      | 'reserved'
-      | 'maintenance'
-      | 'reservation'
-      | 'bill'
+    status: 'available' | 'occupied' | 'cleaning' |  'Bill' | 'reserved' | 'maintenance' | 'reservation'
   }[]
   hotelId: number
   userId?: number
@@ -136,20 +122,9 @@ const RoomStatusModal = ({
   const isMultiRoom = !!(rooms && rooms.length > 0)
   const effectiveRooms = isMultiRoom ? rooms! : (room ? [room] : [])
   
-  // Keep room status type in sync with HotelBookingPanel.
-  type RoomStatus =
-    | 'available'
-    | 'occupied'
-    | 'cleaning'
-    | 'reserved'
-    | 'maintenance'
-    | 'reservation'
-    | 'bill'
-
   const [statusType, setStatusType] = useState<'dirty' | 'block' | 'maint' | 'reservation'>('dirty')
   const [roomNo, setRoomNo] = useState('')
   const [dateTime, setDateTime] = useState('')
-
   const [reservationId, setReservationId] = useState('')
   const [selectedGuestId, setSelectedGuestId] = useState<string>('')
   const [resvDateTime, setResvDateTime] = useState('')
