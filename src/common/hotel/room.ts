@@ -171,22 +171,18 @@ const RoomService = {
 
   // ✅ NAYA LIST FUNCTION - Jo full data return kare
 // ✅ Bas ye function update karo
-list(params?: { hotelid?: number; q?: string }) {
-  return HttpClient.get<ApiResponse<any>>("/rooms/hotelbooking-meta", { params }).then(
-    (res) => {
-      const responseData = res?.data?.data || res?.data || {};
-      return {
+  list(params?: { hotelid?: number; q?: string }) {
+    // Legacy: CheckInForm expects ApiResponse<Room[]> in `.data`.
+    // Backend returns ApiResponse<{ floors, categories, rooms }>.
+    // We reshape it so `.data` becomes the rooms array.
+    return HttpClient.get<ApiResponse<any>>("/rooms/hotelbooking-meta", { params }).then(
+      (res) => ({
         success: res.success,
-        data: {
-          rooms: responseData?.rooms ?? [],
-          floors: responseData?.floors ?? [],
-          categories: responseData?.categories ?? [],
-          statuses: responseData?.statuses ?? [],
-        }
-      };
-    }
-  );
-},
+       
+        data: res.data?.rooms ?? [],
+      }),
+    );
+  },
 
   get(roomId: number) {
     return HttpClient.get<ApiResponse<Room>>(`/rooms/${roomId}`);
