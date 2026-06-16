@@ -73,16 +73,7 @@ type ViewMode = 'floor' | 'category'
 type ActiveSection = 'reserv' | 'checkout' | null
 type HousekeepingTab = 'all' | 'dirty' | 'block' | 'maint' | null
 
-// Map room_status_id to RoomStatus
-const STATUS_ID_MAP: Record<number, RoomStatus> = {
-  1: 'available',      // Available
-  2: 'occupied',       // Occupied
-  3: 'maintenance',    // Maintenance
-  4: 'cleaning',       // Cleaning ← THIS IS DIRTY ROOMS
-  5: 'maintenance',    // Out of Service → Maintenance
-  6: 'reserved',       // Reserved ← THIS IS BLOCKED ROOMS
-  7: 'Bill',           // Bill
-}
+
 
 // Status IDs for filtering
 const STATUS_IDS = {
@@ -198,25 +189,9 @@ interface ContextMenuOption {
 
 // ==================== HELPERS ====================
 
-const normalizeRoomStatus = (raw: unknown): RoomStatus => {
-  if (!raw) return 'available'
-  const s = String(raw).trim().toLowerCase()
-  if (s === 'occupied') return 'occupied'
-  if (s === 'cleaning' || s === 'dirty' || s === 'clean') return 'cleaning'
-  if (s === 'bill') return 'Bill'
-  if (s === 'reserved' || s === 'blocked' || s === 'block') return 'reserved'
-  if (s === 'maintenance' || s === 'under maintenance') return 'maintenance'
-  if (s === 'reservation') return 'reservation'
-  return 'available'
-}
 
-const normalizeRoomStatusFromApi = (apiRoom: ApiRoom): RoomStatus => {
-  if (apiRoom.room_status_id !== undefined && apiRoom.room_status_id !== null) {
-    return STATUS_ID_MAP[apiRoom.room_status_id] || 'available'
-  }
-  if (Number(apiRoom?.room_status_id) === 7) return 'Bill'
-  return normalizeRoomStatus(apiRoom?.room_status)
-}
+
+
 
 // ==================== HELPERS ====================
 
@@ -380,9 +355,9 @@ const HotelBookingPanel = () => {
   const [savingSettings, setSavingSettings] = useState(false)
 
   // --- Occupied rooms ---
-  const [occupiedRooms, setOccupiedRooms] = useState<OccupiedRoomItem[]>([])
-  const [loadingOccupied, setLoadingOccupied] = useState(false)
-  const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
+  const [occupiedRooms, ] = useState<OccupiedRoomItem[]>([])
+  const [loadingOccupied, ] = useState(false)
+  const [errorOccupied, ] = useState<string | null>(null)
 
   // --- Checkout alert ---
   const [checkoutAlertData, setCheckoutAlertData] = useState<CheckoutAlertItem[]>([])
