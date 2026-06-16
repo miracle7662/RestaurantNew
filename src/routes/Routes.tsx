@@ -32,6 +32,7 @@ const fullScreenRoutes = [
     '/hotel/amendments',
     '/hotel/reservation-summary',
     '/hotel/report',
+    '/hotel/SettlementPage',
   ]
 
   return (

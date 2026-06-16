@@ -1,4 +1,4 @@
- import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Form, Button, Modal, Dropdown } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
@@ -25,6 +25,8 @@ import DisplaySettings from './DisplaySettings'
 import DayExtendModal from './DayExtendModal'
 import { OccupiedRoomItem } from '@/types/room'
 import { calculateDayExtensionPrice } from '@/utils/dayExtension'
+import { fetchOccupiedRooms, CheckinFullDetailsRow } from '@/utils/commonfunction'
+
 
 // ==================== CONSTANTS ====================
 
@@ -323,6 +325,7 @@ const HotelBookingPanel = () => {
   const { user } = useAuthContext()
   const hotelId = user?.hotelid
 
+
   // --- Data ---
   const [rawRooms, setRawRooms] = useState<ApiRoom[]>([])
   const [categories, setCategories] = useState<ApiCategory[]>([])
@@ -355,10 +358,10 @@ const HotelBookingPanel = () => {
   const [savingSettings, setSavingSettings] = useState(false)
 
   // --- Occupied rooms ---
-  const [occupiedRooms, ] = useState<OccupiedRoomItem[]>([])
-  const [loadingOccupied, ] = useState(false)
-  const [errorOccupied, ] = useState<string | null>(null)
-
+ // --- Occupied rooms ---
+const [occupiedRooms, setOccupiedRooms] = useState<OccupiedRoomItem[]>([])
+const [loadingOccupied, setLoadingOccupied] = useState(false)
+const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
   // --- Checkout alert ---
   const [checkoutAlertData, setCheckoutAlertData] = useState<CheckoutAlertItem[]>([])
   const [loadingCheckoutAlert, setLoadingCheckoutAlert] = useState(false)
@@ -435,7 +438,7 @@ const HotelBookingPanel = () => {
       if (statusFilter === 'available') {
         matchesStatus = isVacant(room)
       } else if (statusFilter === 'occupied') {
-        matchesStatus = isOccupied(room)
+         matchesStatus = isOccupied(room) || room.status === 'Bill'
       } else if (statusFilter === 'cleaning') {
         matchesStatus = isCleaning(room)
       } else if (statusFilter === 'reserved') {
@@ -465,7 +468,7 @@ const HotelBookingPanel = () => {
   return {
     total: base.length,
     available: base.filter((r) => isVacant(r)).length,
-    occupied: base.filter((r) => isOccupied(r)).length,
+     occupied: base.filter((r) => isOccupied(r) || r.status === 'Bill').length, // ✅ Include both
     cleaning: base.filter((r) => isCleaning(r)).length,  // status_id = 4
     bill: base.filter((r) => r.status === 'Bill').length,
     reserved: base.filter((r) => isReserved(r)).length,  // status_id = 6
@@ -776,6 +779,28 @@ const HotelBookingPanel = () => {
       setLoadingCheckoutAlert(false)
     }
   }
+
+  // ==================== FETCH OCCUPIED ROOMS ====================
+
+const fetchOccupiedRoomsData = useCallback(() => {
+  if (hotelId) {
+    fetchOccupiedRooms(
+      Number(hotelId),
+      getMinutesLeft,
+      setOccupiedRooms,
+      setLoadingOccupied,
+      setErrorOccupied
+    )
+  }
+}, [hotelId])
+// ✅ ADD THE useEffect HERE - RIGHT AFTER fetchOccupiedRoomsData
+useEffect(() => {
+  console.log('📌 useEffect triggered - statusFilter:', statusFilter, 'hotelId:', hotelId);
+  if (statusFilter === 'occupied' && hotelId) {
+    console.log('🔍 Fetching occupied rooms from useEffect');
+    fetchOccupiedRoomsData();
+  }
+}, [statusFilter, hotelId])
 
   const fetchReservTableData = async (filterDate?: string) => {
     if (!hotelId) return
@@ -1129,25 +1154,34 @@ const HotelBookingPanel = () => {
     setShowRoomStatusModal(true)
   }
 
-  const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => {
-    if (!selectedRoom) return
-    setUpdating(true)
-    try {
-      await RoomService.update(roomId, { ...selectedRoom.rawData, room_status: newStatus, updated_by_id: user?.id })
-      setRawRooms((prev) => prev.map((r) => r.room_id === roomId ? { ...r, room_status: newStatus } : r))
-      if (newStatus === 'cleaning') {
-        setActiveHousekeepingTab('dirty')
-        setStatusFilter('cleaning')
-        toast.success(`Room ${selectedRoom.number} checked out and marked as Dirty.`)
-      }
-    } catch (err) {
-      console.error('Failed to update room status:', err)
-    } finally {
-      setUpdating(false)
-      setShowRoomDetails(false)
+const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => {
+  if (!selectedRoom) return
+  setUpdating(true)
+  try {
+    await RoomService.update(roomId, { ...selectedRoom.rawData, room_status: newStatus, updated_by_id: user?.id })
+    setRawRooms((prev) => prev.map((r) => r.room_id === roomId ? { ...r, room_status: newStatus } : r))
+    
+    if (newStatus === 'cleaning') {
+      setActiveHousekeepingTab('dirty')
+      setStatusFilter('cleaning')
+      toast.success(`Room ${selectedRoom.number} checked out and marked as Dirty.`)
+      
+      // Refresh occupied rooms after checkout
+      fetchOccupiedRoomsData()
     }
+    
+    // If we're currently viewing occupied rooms, refresh the list
+    if (statusFilter === 'occupied') {
+      fetchOccupiedRoomsData()
+    }
+  } catch (err) {
+    console.error('Failed to update room status:', err)
+    toast.error('Failed to update room status')
+  } finally {
+    setUpdating(false)
+    setShowRoomDetails(false)
   }
-
+}
   const handleCheckInClick = () => {
     if (selectedRoomIds.length === 0) {
       toast.error('Please select at least one room to check in.')
@@ -1179,14 +1213,22 @@ const HotelBookingPanel = () => {
     setFloorFilter('all')
   }
 
-  const handleStatusFilterClick = (filter: RoomStatus | 'all') => {
-    setStatusFilter(filter)
-    setActiveSection(null)
-    if (!['cleaning', 'reserved', 'maintenance'].includes(filter)) {
-      setActiveHousekeepingTab(null)
-      setSelectedHousekeepingRoomIds([])
-    }
+const handleStatusFilterClick = (filter: RoomStatus | 'all') => {
+  console.log('🔄 Status filter clicked:', filter);
+  setStatusFilter(filter);
+  setActiveSection(null);
+  
+  // ✅ If occupied filter is clicked, fetch data immediately
+  if (filter === 'occupied' && hotelId) {
+    console.log('🔍 Fetching occupied rooms on click');
+    fetchOccupiedRoomsData();
   }
+  
+  if (!['cleaning', 'reserved', 'maintenance'].includes(filter)) {
+    setActiveHousekeepingTab(null);
+    setSelectedHousekeepingRoomIds([]);
+  }
+}
 
   const handleHousekeepingTabClick = (tab: HousekeepingTab) => {
     if (tab === null || activeHousekeepingTab === tab) {
@@ -1391,6 +1433,8 @@ const HotelBookingPanel = () => {
     <>
       <TitleHelmet title="Room Management" />
       <style>{`
+
+
         /* ---- Room tiles ---- */
         .room-tile {
           position: relative; cursor: pointer; display: flex; flex-direction: column;
@@ -1621,7 +1665,7 @@ const HotelBookingPanel = () => {
                   <i className="fi fi-rr-plane-arrival me-1"></i>Arrivals
                 </Button>
                 <Button size="sm" variant="outline-success" className="fw-semibold px-3 same-btn"
-                  onClick={() => navigate('/hotel/settlement')}>
+                  onClick={() => navigate('/hotel/SettlementPage')}>
                   <i className="fi fi-rr-money-check me-1"></i>Settlement
                 </Button>
                 <Button size="sm" variant="outline-secondary" className="fw-semibold px-3 same-btn"
@@ -2006,7 +2050,15 @@ const HotelBookingPanel = () => {
               <div className="text-center py-5">
                 <i className="fi fi-rr-exclamation text-danger fs-4 mb-3 d-block"></i>
                 <p className="text-danger">{errorOccupied}</p>
-                <Button variant="outline-primary" size="sm" onClick={() => setStatusFilter('occupied')}>Retry</Button>
+               <Button 
+  size="sm" 
+  variant={statusFilter === 'occupied' ? 'primary' : 'outline-primary'} 
+  className="fw-semibold px-3 same-btn"
+  onClick={() => handleStatusFilterClick('occupied')}
+>
+  <i className="fi fi-rr-user me-1"></i>
+  Occupied [{stats.occupied + stats.bill}]  {/* ✅ Show combined count */}
+</Button>
               </div>
             ) : occupiedRooms.length === 0 ? (
               <div className="text-center py-5">
@@ -2171,8 +2223,9 @@ const HotelBookingPanel = () => {
           )}
         </div>
 
-        {/* ===== FOOTER ===== */}
+      {/* ===== FOOTER ===== */}
         <div className="flex-shrink-0 bg-white border-top p-2">
+
           <div className="d-flex flex-wrap gap-2 align-items-center">
             <Button size="sm" variant="danger" className="fw-semibold px-4">Summary</Button>
             <Button size="sm" variant="secondary" className="fw-semibold px-4" onClick={() => navigate('/hotel/report')}>

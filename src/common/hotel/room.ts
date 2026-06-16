@@ -219,6 +219,8 @@ const RoomService = {
       params: { hotelid, checkin_id },
     });
   },
+
+  
 };
 
 export default RoomService;

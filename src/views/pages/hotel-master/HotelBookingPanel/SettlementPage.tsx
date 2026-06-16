@@ -4,6 +4,7 @@ import { Button } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
 import TitleHelmet from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
+import HotelBookingShell from './HotelBookingShell'
 
 import CheckInService from '@/common/hotel/checkIn'
 import DetailService from '@/common/hotel/detail'
@@ -604,36 +605,82 @@ const SettlementPage = () => {
   // ─── Settled items (still active in occupiedRooms) ───────────────────────
   const settledItems = occupiedRooms.filter((item) => settledRoomNos.has(item.room_no))
 
+  // ─── Navigation handlers for shell ──────────────────────────────────────
+  const handleCheckInClick = () => navigate('/hotel/checkin')
+  const handleCheckOutClick = () => navigate('/hotel/booking')
+  const handleReservationClick = () => navigate('/hotel/reservation')
+  const handleArrivalsClick = () => navigate('/hotel/arrivals')
+  const handleSettlementClick = () => navigate('/hotel/SettlementPage')
+  const handleAtGlanceClick = () => navigate('/hotel/at-glance')
+  const handleSettingsClick = () => navigate('/hotel/settings')
+  const handleBackClick = () => navigate(-1)
+  const handleReportClick = () => navigate('/hotel/report')
+  const handleCashInClick = () => {/* handle cash in */ }
+  const handleCashOutClick = () => {/* handle cash out */ }
+  const handleMisReportClick = () => navigate('/hotel/mis-report')
+  const handleReservationSummaryClick = () => navigate('/hotel/reservation-summary')
+  const handleSummaryClick = () => {/* handle summary */ }
+  const handleFreeRoomsClick = () => {/* handle free rooms */ }
+  const handleBlockSelectedClick = () => {/* handle block selected */ }
+  const handleHousekeepingToggle = () => {/* handle housekeeping toggle */ }
+  const handleViewModeToggle = () => {/* handle view mode toggle */ }
+
+  // ─── Stats for shell ────────────────────────────────────────────────────
+  const stats = {
+    total: 0,
+    available: 0,
+    occupied: occupiedRooms.length,
+    cleaning: 0,
+    reserved: 0,
+    maintenance: 0,
+    reservation: 0,
+  }
+
   return (
     <>
       <TitleHelmet title="Settlement" />
 
-      <div className="d-flex flex-column vh-100 bg-white">
-        {/* Header */}
-        <div className="flex-shrink-0 px-3 py-2 border-bottom bg-white d-flex align-items-center justify-content-between gap-2">
-          <div className="d-flex align-items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline-secondary"
-              onClick={() => navigate(-1)}
-              title="Back">
-              <i className="fi fi-rr-arrow-left"></i>
-            </Button>
-            <h6 className="mb-0 fw-bold">
-              <i className="fi fi-rr-money-check me-2 text-success"></i>
-              Settlement Records
-            </h6>
-          </div>
+      <HotelBookingShell
+        // Navigation handlers
+        onCheckInClick={handleCheckInClick}
+        onCheckOutClick={handleCheckOutClick}
+        onReservationClick={handleReservationClick}
+        onArrivalsClick={handleArrivalsClick}
+        onSettlementClick={handleSettlementClick}
+        onAtGlanceClick={handleAtGlanceClick}
+        onSettingsClick={handleSettingsClick}
+        onBackClick={handleBackClick}
+        onReportClick={handleReportClick}
+        onCashInClick={handleCashInClick}
+        onCashOutClick={handleCashOutClick}
+        onMisReportClick={handleMisReportClick}
+        onReservationSummaryClick={handleReservationSummaryClick}
+        onSummaryClick={handleSummaryClick}
+        onFreeRoomsClick={handleFreeRoomsClick}
+        onBlockSelectedClick={handleBlockSelectedClick}
+        onHousekeepingToggle={handleHousekeepingToggle}
+        onViewModeToggle={handleViewModeToggle}
+        // Stats
+        stats={stats}
+        todayReservationCount={0}
+        // State
+        statusFilter="all"
+        viewMode="floor"
+        selectedRoomIds={[]}
+        checkInDisabled={true}
+        // Refresh button (via custom footer)
+        footerButtons={
           <Button
             size="sm"
             variant="outline-primary"
             onClick={() => { fetchOccupiedRooms(); fetchCheckoutData() }}
-            title="Refresh">
+            title="Refresh"
+          >
             <i className="fi fi-rr-refresh me-1"></i> Refresh
           </Button>
-        </div>
-
-        {/* Content */}
+        }
+      >
+        {/* ─── Content ──────────────────────────────────────────────────────── */}
         <div className="flex-grow-1 overflow-auto p-3">
           {isLoading ? (
             <div className="d-flex justify-content-center align-items-center" style={{ height: 300 }}>
@@ -651,11 +698,13 @@ const SettlementPage = () => {
                 <div className="mb-4">
                   <div
                     className="d-flex align-items-center justify-content-between mb-2 p-2 rounded"
-                    style={{ background: '#fde8e8', border: '1px solid #e6adad' }}>
+                    style={{ background: '#fde8e8', border: '1px solid #e6adad' }}
+                  >
                     <div className="d-flex align-items-center gap-2 flex-wrap">
                       <span
                         className="fw-bold"
-                        style={{ fontSize: '0.78rem', color: '#6e1a1a' }}>
+                        style={{ fontSize: '0.78rem', color: '#6e1a1a' }}
+                      >
                         <i className="fi fi-rr-check-circle me-1"></i>
                         Settlement Pending — Room Status Change Required
                       </span>
@@ -667,7 +716,8 @@ const SettlementPage = () => {
                       size="sm"
                       variant="outline-secondary"
                       style={{ fontSize: '0.7rem', padding: '2px 8px' }}
-                      onClick={() => setSettledRoomNos(new Set())}>
+                      onClick={() => setSettledRoomNos(new Set())}
+                    >
                       Clear
                     </Button>
                   </div>
@@ -677,7 +727,8 @@ const SettlementPage = () => {
                       display: 'grid',
                       gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
                       gap: '6px',
-                    }}>
+                    }}
+                  >
                     {settledItems.map((item) => (
                       <div
                         key={`settled-${item.checkin_id}-${item.room_no}`}
@@ -687,14 +738,16 @@ const SettlementPage = () => {
                           overflow: 'hidden',
                           fontSize: '0.72rem',
                           cursor: 'default',
-                        }}>
+                        }}
+                      >
                         <div
                           style={{
                             backgroundColor: '#5ba3c9',
                             color: '#fff',
                             padding: '3px 6px',
                             fontWeight: 600,
-                          }}>
+                          }}
+                        >
                           {item.room_no} {item.guest_name}
                           <span
                             style={{
@@ -705,7 +758,8 @@ const SettlementPage = () => {
                               padding: '1px 4px',
                               marginLeft: 4,
                               fontWeight: 700,
-                            }}>
+                            }}
+                          >
                             SETTLEMENT
                           </span>
                         </div>
@@ -714,11 +768,13 @@ const SettlementPage = () => {
                             backgroundColor: '#e6adad',
                             color: '#1a4f6e',
                             padding: '4px 6px',
-                          }}>
+                          }}
+                        >
                           <div>IN : {formatDateTime(item.checkin_datetime)}</div>
                           <div>OUT : {formatDateTime(item.checkout_datetime)}</div>
                           <div
-                            style={{ fontSize: '0.6rem', fontWeight: 600, color: '#0d4f6e', marginTop: 2 }}>
+                            style={{ fontSize: '0.6rem', fontWeight: 600, color: '#0d4f6e', marginTop: 2 }}
+                          >
                             ✅ Checked Out — Pending Room Status
                           </div>
                           <div
@@ -728,7 +784,8 @@ const SettlementPage = () => {
                               marginTop: 2,
                               display: 'flex',
                               justifyContent: 'space-between',
-                            }}>
+                            }}
+                          >
                             <span style={{ color: '#1a4f6e', fontWeight: 600 }}>
                               {formatAmount(item.net_room_amount ?? item.total_charge)}
                             </span>
@@ -755,7 +812,8 @@ const SettlementPage = () => {
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))',
                     gap: '8px',
-                  }}>
+                  }}
+                >
                   {checkoutData.map((co) => {
                     const totalAmt = Number(co.total_amount) || 0
                     const matchedOcc = occupiedRooms.find((o) => o.room_no === co.room_no)
@@ -790,7 +848,8 @@ const SettlementPage = () => {
                         onMouseLeave={(e) => {
                           ;(e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.09)'
                           ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
-                        }}>
+                        }}
+                      >
                         {/* Card Header */}
                         <div
                           style={{
@@ -800,7 +859,8 @@ const SettlementPage = () => {
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             gap: 4,
-                          }}>
+                          }}
+                        >
                           <span
                             style={{
                               color: '#fff',
@@ -810,7 +870,8 @@ const SettlementPage = () => {
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               flex: 1,
-                            }}>
+                            }}
+                          >
                             Bill: {invoiceNo}
                             {isPartial && (
                               <span style={{ fontSize: '0.58rem', marginLeft: 3, opacity: 0.85 }}>
@@ -827,7 +888,8 @@ const SettlementPage = () => {
                               flexShrink: 0,
                               borderLeft: '1px solid rgba(255,255,255,0.4)',
                               paddingLeft: 6,
-                            }}>
+                            }}
+                          >
                             Rm: {co.room_no || '-'}
                           </span>
                         </div>
@@ -841,14 +903,16 @@ const SettlementPage = () => {
                                 width: 18, height: 18, borderRadius: '50%',
                                 background: `${headerBg}18`,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                              }}>
+                              }}
+                            >
                               <i className="fi fi-rr-user" style={{ fontSize: '0.6rem', color: headerBg }}></i>
                             </span>
                             <div
                               style={{
                                 fontWeight: 600, fontSize: '0.7rem', color: '#222',
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
-                              }}>
+                              }}
+                            >
                               {co.guest_name || '-'}
                             </div>
                           </div>
@@ -861,7 +925,8 @@ const SettlementPage = () => {
                               style={{
                                 width: 18, height: 18, borderRadius: '50%', background: '#f3f4f6',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                              }}>
+                              }}
+                            >
                               <i className="fi fi-rr-sign-out-alt" style={{ fontSize: '0.6rem', color: '#555' }}></i>
                             </span>
                             <div style={{ fontWeight: 500, fontSize: '0.65rem', color: '#333', minWidth: 0 }}>
@@ -874,20 +939,23 @@ const SettlementPage = () => {
                             style={{
                               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
                               borderTop: '1px solid #f0f0f0', paddingTop: 4,
-                            }}>
+                            }}
+                          >
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
                               <span
                                 style={{
                                   width: 18, height: 18, borderRadius: '50%', background: '#f3f4f6',
                                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                                }}>
+                                }}
+                              >
                                 <i className="fi fi-rr-credit-card" style={{ fontSize: '0.6rem', color: '#555' }}></i>
                               </span>
                               <div
                                 style={{
                                   fontWeight: 500, fontSize: '0.68rem', color: '#333',
                                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                }}>
+                                }}
+                              >
                                 {payType}
                               </div>
                             </div>
@@ -901,7 +969,8 @@ const SettlementPage = () => {
                             style={{
                               display: 'flex', gap: 4, marginTop: 2,
                               borderTop: '1px solid #f0f0f0', paddingTop: 4,
-                            }}>
+                            }}
+                          >
                             <button
                               onClick={() => handlePrint(co)}
                               style={{
@@ -913,7 +982,8 @@ const SettlementPage = () => {
                               }}
                               onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = '#e7f0ff')}
                               onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = '#fff')}
-                              title="Print invoice">
+                              title="Print invoice"
+                            >
                               <i className="fi fi-rr-print" style={{ fontSize: '0.65rem' }}></i>
                               Print
                             </button>
@@ -928,7 +998,8 @@ const SettlementPage = () => {
                               }}
                               onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = '#e6f4ed')}
                               onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = '#fff')}
-                              title="Settlement">
+                              title="Settlement"
+                            >
                               <i className="fi fi-rr-money-check" style={{ fontSize: '0.65rem' }}></i>
                               Settle
                             </button>
@@ -942,9 +1013,10 @@ const SettlementPage = () => {
             </>
           )}
         </div>
-      </div>
+      </HotelBookingShell>
 
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
+
       {billData && (
         <CheckoutBillModal
           show={showBillModal}
