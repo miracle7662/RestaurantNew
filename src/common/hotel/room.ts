@@ -27,6 +27,25 @@ export interface Room {
   updated_date?: string;
 }
 
+export interface ApiRoom {
+  room_id: number;
+  room_no: string;
+  room_name: string;
+  display_name?: string;
+  room_category_id: number;
+  room_status: string;  // ✅ String hai (backend se aata hai)
+  room_status_id?: number;
+  status_color?: string;
+  status_name?: string;
+  floor_id: number;
+  block_id?: number;
+  hotelid: number;
+  created_by_id?: number;
+  updated_by_id?: number;
+  created_date?: string;
+  updated_date?: string;
+}
+
 export interface RoomPayload {
   room_no: string;
   room_name: string;
@@ -129,33 +148,45 @@ export interface CheckinFullDetailsRow {
 }
 
 const RoomService = {
-  list(params?: { hotelid?: number; q?: string }) {
-    // Legacy: CheckInForm expects ApiResponse<Room[]> in `.data`.
-    // Backend returns ApiResponse<{ floors, categories, rooms }>.
-    // We reshape it so `.data` becomes the rooms array.
-    return HttpClient.get<ApiResponse<any>>("/rooms/hotelbooking-meta", { params }).then(
-      (res) => ({
-        success: res.success,
-       
-        data: res.data?.rooms ?? [],
-      }),
-    );
-  },
-
-  /**
-   * Single API for HotelBookingPanel: floors + categories + rooms
-   * Backend: GET /rooms/hotelbooking-meta?hotelid=...
-   */
-  getHotelBookingMeta(hotelid: string | number) {
+  // ✅ YEH FUNCTION USE KARO - getHotelBookingMeta
+   getHotelBookingMeta(hotelid: string | number) {
     return HttpClient.get<
       ApiResponse<{
         floors: any[]
         categories: any[]
-        rooms: Room[]
+        rooms: ApiRoom[]  // ✅ Yahan Room[] mein status_color aayega
+        statuses: any[] // ✅ Statuses bhi aayenge
       }>
     >('/rooms/hotelbooking-meta', { params: { hotelid } })
   },
+  // ❌ YEH FUNCTION DELETE KARO YA COMMENT KARO - kyunki ye rooms array return karta hai without status_color
+  // list(params?: { hotelid?: number; q?: string }) {
+  //   return HttpClient.get<ApiResponse<any>>("/rooms/hotelbooking-meta", { params }).then(
+  //     (res) => ({
+  //       success: res.success,
+  //       data: res.data?.rooms ?? [],
+  //     }),
+  //   );
+  // },
 
+  // ✅ NAYA LIST FUNCTION - Jo full data return kare
+// ✅ Bas ye function update karo
+list(params?: { hotelid?: number; q?: string }) {
+  return HttpClient.get<ApiResponse<any>>("/rooms/hotelbooking-meta", { params }).then(
+    (res) => {
+      const responseData = res?.data?.data || res?.data || {};
+      return {
+        success: res.success,
+        data: {
+          rooms: responseData?.rooms ?? [],
+          floors: responseData?.floors ?? [],
+          categories: responseData?.categories ?? [],
+          statuses: responseData?.statuses ?? [],
+        }
+      };
+    }
+  );
+},
 
   get(roomId: number) {
     return HttpClient.get<ApiResponse<Room>>(`/rooms/${roomId}`);
@@ -173,18 +204,17 @@ const RoomService = {
     return HttpClient.delete<ApiResponse<null>>(`/rooms/${roomId}`);
   },
 
-  /**
-   * Fetch full check-in details (master, details, folios, room charges) in one request.
-   * Backend endpoint: GET /rooms?hotelid=...&checkin_id=...
-   * (router.get("/", controller.getCheckinFullDetails) mounted under "/rooms")
-   */
-
   getRooms(hotelid: string | number) {
     return HttpClient.get<ApiResponse<any>>("/rooms/hotelbooking-meta", {
       params: { hotelid },
     }).then((res) => ({
       success: res.success,
-      data: res.data?.rooms ?? [],
+      data: {
+        rooms: res.data?.rooms ?? [],
+        floors: res.data?.floors ?? [],
+        categories: res.data?.categories ?? [],
+        statuses: res.data?.statuses ?? [],
+      }
     }));
   },
 
@@ -196,3 +226,5 @@ const RoomService = {
 };
 
 export default RoomService;
+
+

@@ -655,6 +655,27 @@ exports.getHotelBookingMeta = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Hotel ID not found' });
         }
 
+        // ✅ पहले room_status से सारे status और उनके colors fetch करें
+        const statusSql = `
+            SELECT 
+                room_status_id,
+                status_name,
+                status_color
+            FROM room_status 
+            WHERE is_active = 1
+        `;
+        const [statuses] = await db.execute(statusSql, []);
+
+        // ✅ Status का map बनाएं room_status_id के अनुसार
+        const statusMap = {};
+        statuses.forEach(status => {
+            statusMap[status.room_status_id] = {
+                status_name: status.status_name,
+                status_color: status.status_color || '#ffffff'
+            };
+        });
+
+        // ✅ Rooms fetch करें जिसमें room_status_id भी आएगा
         const roomsSql = `
             SELECT
                 rm.room_id,
@@ -664,9 +685,7 @@ exports.getHotelBookingMeta = async (req, res) => {
                 rm.room_category_id,
                 rc.category_name,
                 rm.room_ext_no,
-                rm.room_status_id,
-                rs.status_name AS room_status,
-                rs.status_color,
+                rm.room_status_id,  -- ✅ यह important है
                 rm.department_id,
                 dm.department_name,
                 rm.block_id,
@@ -681,7 +700,6 @@ exports.getHotelBookingMeta = async (req, res) => {
                 rm.updated_by_id
             FROM room_master rm
             LEFT JOIN room_category rc ON rm.room_category_id = rc.room_category_id
-            LEFT JOIN room_status rs ON rm.room_status_id = rs.room_status_id
             LEFT JOIN departmentmaster dm ON rm.department_id = dm.department_id
             LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
             LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
@@ -735,11 +753,22 @@ exports.getHotelBookingMeta = async (req, res) => {
         const [floors] = await db.execute(floorsSql, [hotelId]);
         const [categories] = await db.execute(categoriesSql, [hotelId]);
 
-        const formattedRooms = (rooms || []).map((room) => ({
-            ...room,
-            created_date: formatDate(room.created_date),
-            updated_date: formatDate(room.updated_date),
-        }));
+        // ✅ Rooms को format करें और उनमें status_color add करें
+        const formattedRooms = (rooms || []).map((room) => {
+            // room_status_id के अनुसार color लें
+            const statusInfo = statusMap[room.room_status_id] || {
+                status_name: 'Unknown',
+                status_color: '#ffffff'
+            };
+            
+            return {
+                ...room,
+                status_color: statusInfo.status_color,  // ✅ Database से color
+                status_name: statusInfo.status_name,    // ✅ Database से name
+                created_date: formatDate(room.created_date),
+                updated_date: formatDate(room.updated_date),
+            };
+        });
 
         const formattedFloors = (floors || []).map((f) => ({
             ...f,
@@ -760,6 +789,7 @@ exports.getHotelBookingMeta = async (req, res) => {
                 floors: formattedFloors,
                 categories: formattedCategories,
                 rooms: formattedRooms,
+                statuses: statuses, // ✅ Frontend को statuses भी भेजें
             },
         });
     } catch (error) {
