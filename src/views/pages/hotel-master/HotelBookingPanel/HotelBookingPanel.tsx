@@ -438,7 +438,7 @@ const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
       if (statusFilter === 'available') {
         matchesStatus = isVacant(room)
       } else if (statusFilter === 'occupied') {
-         matchesStatus = isOccupied(room) || room.status === 'Bill'
+        matchesStatus = isOccupied(room)
       } else if (statusFilter === 'cleaning') {
         matchesStatus = isCleaning(room)
       } else if (statusFilter === 'reserved') {
@@ -468,7 +468,7 @@ const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
   return {
     total: base.length,
     available: base.filter((r) => isVacant(r)).length,
-     occupied: base.filter((r) => isOccupied(r) || r.status === 'Bill').length, // ✅ Include both
+    occupied: base.filter((r) => isOccupied(r)).length,
     cleaning: base.filter((r) => isCleaning(r)).length,  // status_id = 4
     bill: base.filter((r) => r.status === 'Bill').length,
     reserved: base.filter((r) => isReserved(r)).length,  // status_id = 6
@@ -793,12 +793,11 @@ const fetchOccupiedRoomsData = useCallback(() => {
     )
   }
 }, [hotelId])
-// ✅ ADD THE useEffect HERE - RIGHT AFTER fetchOccupiedRoomsData
+
+// Add this useEffect to trigger fetch when statusFilter changes to 'occupied'
 useEffect(() => {
-  console.log('📌 useEffect triggered - statusFilter:', statusFilter, 'hotelId:', hotelId);
   if (statusFilter === 'occupied' && hotelId) {
-    console.log('🔍 Fetching occupied rooms from useEffect');
-    fetchOccupiedRoomsData();
+    fetchOccupiedRoomsData()
   }
 }, [statusFilter, hotelId])
 
@@ -1213,22 +1212,14 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
     setFloorFilter('all')
   }
 
-const handleStatusFilterClick = (filter: RoomStatus | 'all') => {
-  console.log('🔄 Status filter clicked:', filter);
-  setStatusFilter(filter);
-  setActiveSection(null);
-  
-  // ✅ If occupied filter is clicked, fetch data immediately
-  if (filter === 'occupied' && hotelId) {
-    console.log('🔍 Fetching occupied rooms on click');
-    fetchOccupiedRoomsData();
+  const handleStatusFilterClick = (filter: RoomStatus | 'all') => {
+    setStatusFilter(filter)
+    setActiveSection(null)
+    if (!['cleaning', 'reserved', 'maintenance'].includes(filter)) {
+      setActiveHousekeepingTab(null)
+      setSelectedHousekeepingRoomIds([])
+    }
   }
-  
-  if (!['cleaning', 'reserved', 'maintenance'].includes(filter)) {
-    setActiveHousekeepingTab(null);
-    setSelectedHousekeepingRoomIds([]);
-  }
-}
 
   const handleHousekeepingTabClick = (tab: HousekeepingTab) => {
     if (tab === null || activeHousekeepingTab === tab) {
@@ -2050,15 +2041,7 @@ const handleStatusFilterClick = (filter: RoomStatus | 'all') => {
               <div className="text-center py-5">
                 <i className="fi fi-rr-exclamation text-danger fs-4 mb-3 d-block"></i>
                 <p className="text-danger">{errorOccupied}</p>
-               <Button 
-  size="sm" 
-  variant={statusFilter === 'occupied' ? 'primary' : 'outline-primary'} 
-  className="fw-semibold px-3 same-btn"
-  onClick={() => handleStatusFilterClick('occupied')}
->
-  <i className="fi fi-rr-user me-1"></i>
-  Occupied [{stats.occupied + stats.bill}]  {/* ✅ Show combined count */}
-</Button>
+                <Button variant="outline-primary" size="sm" onClick={() => setStatusFilter('occupied')}>Retry</Button>
               </div>
             ) : occupiedRooms.length === 0 ? (
               <div className="text-center py-5">
