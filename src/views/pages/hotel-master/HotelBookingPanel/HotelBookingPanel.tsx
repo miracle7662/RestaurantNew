@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+llimport { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {  Form, Button, Modal,  Dropdown } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
@@ -70,12 +70,19 @@ const normalizeRoomStatus = (raw: any): RoomStatus => {
   if (!raw) return 'available'
   const s = raw.trim().toLowerCase()
   if (s === 'occupied') return 'occupied'
+
   if (s === 'cleaning' || s === 'dirty' || s === 'clean') return 'cleaning'
   if (s === 'reserved' || s === 'blocked' || s === 'block') return 'reserved'
   if (s === 'maintenance' || s === 'under maintenance') return 'maintenance'
   if (s === 'reservation') return 'reservation'
+ if (s === 'bill') return 'reservation'
   return 'available'
 }
+
+ if (s === 'bill') return 'reservation'
+  return 'available'
+}
+
 
 interface ApiRoom {
   room_id: number
@@ -109,7 +116,14 @@ interface ApiCategory {
   service_charge?: number
 }
 
-type RoomStatus = 'available' | 'occupied' | 'cleaning' | 'reserved' | 'maintenance' | 'reservation'
+type RoomStatus =
+  | 'available'
+  | 'occupied'
+  | 'cleaning'
+  | 'reserved'
+  | 'maintenance'
+  | 'reservation'
+
 type ViewMode = 'floor' | 'category'
 
 interface Room {
@@ -402,7 +416,9 @@ const HotelBookingPanel = () => {
   color_vacant: DEFAULT_STATUS_BG.available,
   color_occupied: DEFAULT_STATUS_BG.occupied,
   color_cleaning: DEFAULT_STATUS_BG.cleaning,
+  color_bill: '#F3F4F6',
   color_reserved: DEFAULT_STATUS_BG.reserved,
+
   color_maintenance: DEFAULT_STATUS_BG.maintenance,
   color_reservation: DEFAULT_STATUS_BG.reservation,
   text_color_vacant: DEFAULT_STATUS_TEXT.available,
@@ -1327,6 +1343,25 @@ const HotelBookingPanel = () => {
       setActiveHousekeepingTab(null)
       setSelectedHousekeepingRoomIds([])
       fetchCheckoutData()
+
+      // Checkout ke baad Rooms/All tab me room_status immediately refresh hona chahiye.
+      // getHotelBookingMeta rooms/categories/floors ke stale data ko update karne ke liye yahan re-fetch karte hain.
+      if (hotelId) {
+        (async () => {
+          try {
+            const metaRes = await RoomService.getHotelBookingMeta(hotelId)
+            const meta = (metaRes as any)?.data || metaRes
+            setRooms(meta.rooms || [])
+            setCategories(meta.categories || [])
+            setFloors(meta.floors || [])
+          } catch {
+            // ignore
+          }
+        })()
+      }
+
+
+
       window.history.replaceState({}, '')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1906,6 +1941,8 @@ const HotelBookingPanel = () => {
         return 'Vacant'
       case 'occupied':
         return 'Occupied'
+         case 'bill':
+        return 'Occupied'
       case 'cleaning':
         return 'Cleaning'
       case 'reserved':
@@ -2263,7 +2300,7 @@ const HotelBookingPanel = () => {
     }
   }
 
-  const handleSettlementClick = () => {
+const handleSettlementClick = () => {
     if (showSettlementSection) {
       setActiveSection(null)
     } else {
@@ -3603,18 +3640,23 @@ const HotelBookingPanel = () => {
                     }}>
                     {checkoutData.map((co) => {
                       const totalAmt = Number(co.total_amount) || 0
-                      const matchedOcc = occupiedRooms.find((o) => o.room_no === co.room_no)
+
                       const hasMeaningfulTime = (dt: string | undefined | null): boolean => {
                         if (!dt) return false
                         const d = new Date(dt)
                         return d.getHours() !== 0 || d.getMinutes() !== 0
                       }
-                      const bestCheckoutDt = matchedOcc?.checkout_datetime
-                        ? matchedOcc.checkout_datetime
-                        : hasMeaningfulTime(co.checkout_datetime)
-                          ? co.checkout_datetime
-                          : co.checkout_date || co.checkout_datetime || ''
+
+                      // IMPORTANT: after room checkout, occupiedRooms might still contain old data
+                      // until a refresh. For settled/bill tiles we must always use checkout datetime from
+                      // checkout record (co), not from occupiedRooms.
+                      const bestCheckoutDt = hasMeaningfulTime(co.checkout_datetime)
+                        ? co.checkout_datetime
+                        : co.checkout_date || co.checkout_datetime || ''
                       const checkoutDateDisplay = bestCheckoutDt ? formatDateTime(bestCheckoutDt) : '-'
+
+                      // keep matchedOcc only for IN/guest name fallback if needed
+                      // (checkout date display should not depend on occupiedRooms)
 
                       const headerBg = '#198754'
                       const isPartial = co.is_partial_checkout === 1

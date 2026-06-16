@@ -784,11 +784,11 @@ const SettlementPage = () => {
                           cursor: 'default',
                         }}
                         onMouseEnter={(e) => {
-                          ;(e.currentTarget as HTMLElement).style.boxShadow = '0 6px 20px rgba(0,0,0,0.14)'
+                          (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 20px rgba(0,0,0,0.14)'
                           ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
                         }}
                         onMouseLeave={(e) => {
-                          ;(e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.09)'
+                          (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.09)'
                           ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
                         }}>
                         {/* Card Header */}
