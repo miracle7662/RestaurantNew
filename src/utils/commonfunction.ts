@@ -116,8 +116,6 @@ export interface CheckinFullDetailsRow {
   charge_updated_at: string
 }
 
-
-
 // Also extend the CheckIn interface if needed
 export interface ExtendedCheckIn  {
   guest_type?: string
@@ -1035,26 +1033,18 @@ export const fetchOccupiedRooms = async (
     console.log('📡 Fetching all rooms from RoomService...');
     const roomsRes = await RoomService.getRooms(hotelId);
     
+    console.log('📦 Rooms response:', roomsRes);
+    
     const allRooms = (roomsRes.data?.rooms || []) as any[];
     console.log(`✅ Total rooms found: ${allRooms.length}`);
-    console.log('📋 All rooms:', allRooms.map((r: any) => ({ 
-      room_id: r.room_id, 
-      room_no: r.room_no, 
-      status_id: r.room_status_id 
-    })));
     
     // ✅ Filter rooms with status 'occupied' (status_id: 2) or 'Bill' (status_id: 7)
     const occupiedRooms = allRooms.filter((room: any) => {
       const statusId = room.room_status_id;
-      return statusId === 2 || statusId === 7;
+      return statusId === 2 || statusId === 7; // 2 = occupied, 7 = Bill
     });
     
     console.log(`✅ Found ${occupiedRooms.length} occupied/Bill rooms`);
-    console.log('📋 Occupied rooms:', occupiedRooms.map((r: any) => ({ 
-      room_id: r.room_id, 
-      room_no: r.room_no, 
-      status_id: r.room_status_id 
-    })));
     
     if (occupiedRooms.length === 0) {
       console.log('⚠️ No occupied rooms found');
@@ -1063,140 +1053,35 @@ export const fetchOccupiedRooms = async (
       return;
     }
 
-    // ✅ Fetch all check-ins
-    console.log('📡 Fetching all check-ins...');
-    const checkinsRes = await CheckInService.list({ 
-      hotelid: hotelId,
-    });
-    
-    const allCheckins = (checkinsRes.data || []) as any[];
-    console.log(`✅ Total check-ins found: ${allCheckins.length}`);
-    console.log('📋 All check-ins:', allCheckins.map((c: any) => ({ 
-      checkin_id: c.checkin_id, 
-      guest_name: c.guest_name,
-      room_id: c.room_id,
-      room_no: c.room_no,
-      status: c.status,
-      checkin_datetime: c.checkin_datetime
-    })));
-
-    // For each occupied room, find matching check-in
+    // For each occupied room, get check-in details
     const occupiedItems: any[] = [];
     
     for (const room of occupiedRooms) {
-      console.log(`🔍 Finding check-in for room ${room.room_no} (room_id: ${room.room_id})...`);
+      console.log(`🔍 Finding check-in for room ${room.room_no} (${room.room_id})...`);
       
       try {
-        // ✅ Filter check-ins for this room by room_id
-        const roomCheckins = allCheckins.filter((c: any) => {
-          // Check if room_id matches (handle both number and string)
-          return String(c.room_id) === String(room.room_id);
+        // ✅ Get ALL check-ins for this room (not just active ones)
+        const checkinsRes = await CheckInService.list({ 
+          hotelid: hotelId,
+         
         });
         
-        console.log(`📋 Found ${roomCheckins.length} check-ins for room ${room.room_no}`);
+        const allCheckins = (checkinsRes.data || []) as any[];
+        console.log(`📋 Found ${allCheckins.length} check-ins for room ${room.room_no}`);
         
-        if (roomCheckins.length === 0) {
-          // 🔍 Try to find by room_no as fallback
-          const roomCheckinsByNo = allCheckins.filter((c: any) => 
-            String(c.room_no) === String(room.room_no)
-          );
-          console.log(`📋 Found ${roomCheckinsByNo.length} check-ins by room_no for room ${room.room_no}`);
-          
-          if (roomCheckinsByNo.length === 0) {
-            console.log(`⚠️ No check-in found for room ${room.room_no} (by id or number)`);
-            continue;
-          }
-          
-          // Use the check-ins found by room_no
-          const checkin = roomCheckinsByNo.sort((a: any, b: any) => {
-            return new Date(b.checkin_datetime).getTime() - new Date(a.checkin_datetime).getTime();
-          })[0];
-          
-          console.log(`✅ Found check-in by room_no: ${checkin.checkin_id} for room ${room.room_no}`);
-          
-          // Get full details
-          const detailsRes = await RoomService.getCheckinFullDetails(
-            hotelId, 
-            checkin.checkin_id
-          );
-          
-          const rows = (detailsRes.data || []) as any[];
-          console.log(`📋 Found ${rows.length} detail rows for checkin ${checkin.checkin_id}`);
-          
-          if (rows.length === 0) {
-            console.log(`⚠️ No details found for checkin ${checkin.checkin_id}`);
-            continue;
-          }
-          
-          // Process the check-in data...
-          const roomCharges = rows.filter((r: any) => String(r.room_id) === String(room.room_id));
-          const totalCharges = roomCharges.reduce((sum: number, r: any) => sum + (r.total_amount || 0), 0);
-          
-          const folioEntries = rows.filter((r: any) => 
-            r.folio_id && r.transaction_type?.toLowerCase().includes('allowance')
-          );
-          const totalAllowances = folioEntries.reduce(
-            (sum: number, r: any) => sum + (r.credit_amount || 0), 
-            0
-          );
-          
-          const advanceEntries = rows.filter((r: any) => 
-            r.folio_id && 
-            (r.transaction_type === 'Advance Addition' || r.transaction_type === 'Booking Receipt')
-          );
-          const totalAdvance = advanceEntries.reduce(
-            (sum: number, r: any) => sum + (r.credit_amount || 0), 
-            0
-          );
-          
-          const latestDetail = rows.length > 0 ? rows[rows.length - 1] : null;
-          const checkoutDatetime = checkin.checkout_datetime || latestDetail?.checkout_datetime || '';
-          
-          occupiedItems.push({
-            checkin_id: checkin.checkin_id,
-            guest_name: checkin.guest_name,
-            guest_type: checkin.guest_type || 'WALK-IN-GUEST',
-            booking_type: checkin.booking_type || 'WALK-IN-GUEST',
-            agent_name: checkin.agent_name || '',
-            checkin_datetime: checkin.checkin_datetime,
-            checkout_datetime: checkoutDatetime,
-            adults: checkin.adults || 0,
-            pax: checkin.pax || 0,
-            ex_pax: checkin.ex_pax || 0,
-            child_count: (checkin.child_paid || 0) + (checkin.child_unpaid || 0),
-            driver_count: Number(checkin.driver) || 0,
-            original_pax: checkin.pax || 0,
-            payment_method: checkin.payment_method || 'Cash',
-            discount_percent: checkin.discount_percent || 0,
-            detail_id: latestDetail?.detail_id || null,
-            room_id: room.room_id,
-            room_no: room.room_no,
-            room_category_id: room.room_category_id || 0,
-            room_category_name: room.room_category_name || '',
-            converted_category_name: room.converted_category_name || '',
-            room_tariff: room.room_tariff || 0,
-            net_room_amount: totalCharges,
-            total_all_rooms_net: totalCharges,
-            pending_advance_for_room: totalAdvance,
-            total_allowances: totalAllowances,
-            charges: roomCharges,
-            checkin: checkin,
-            latest_charge_checkout_datetime: checkoutDatetime,
-            isExpired: getMinutesLeft(checkoutDatetime) <= 0,
-          });
-          
-          console.log(`✅ Added room ${room.room_no} to occupied list`);
+        if (allCheckins.length === 0) {
+          console.log(`⚠️ No check-in found for room ${room.room_no}`);
           continue;
         }
         
-        // Use the check-in found by room_id
-        const checkin = roomCheckins.sort((a: any, b: any) => {
+        // ✅ Use the most recent check-in (by checkin_datetime)
+        const checkin = allCheckins.sort((a: any, b: any) => {
           return new Date(b.checkin_datetime).getTime() - new Date(a.checkin_datetime).getTime();
         })[0];
         
-        console.log(`✅ Found check-in ${checkin.checkin_id} for room ${room.room_no}`);
+        console.log(`✅ Using check-in ${checkin.checkin_id} for room ${room.room_no}`);
         
-        // Get full details
+        // Get full details for this check-in
         const detailsRes = await RoomService.getCheckinFullDetails(
           hotelId, 
           checkin.checkin_id
@@ -1205,15 +1090,49 @@ export const fetchOccupiedRooms = async (
         const rows = (detailsRes.data || []) as any[];
         console.log(`📋 Found ${rows.length} detail rows for checkin ${checkin.checkin_id}`);
         
+        // If no details found, create basic entry from check-in data
         if (rows.length === 0) {
-          console.log(`⚠️ No details found for checkin ${checkin.checkin_id}`);
+          console.log(`⚠️ No details found for checkin ${checkin.checkin_id}, using check-in data`);
+          occupiedItems.push({
+            checkin_id: checkin.checkin_id,
+            guest_name: checkin.guest_name || 'Unknown Guest',
+            guest_type: checkin.guest_type || 'WALK-IN-GUEST',
+            booking_type: checkin.booking_type || 'WALK-IN-GUEST',
+            agent_name: checkin.agent_name || '',
+            checkin_datetime: checkin.checkin_datetime,
+            checkout_datetime: checkin.checkout_datetime || new Date().toISOString(),
+            adults: checkin.adults || 0,
+            pax: checkin.pax || 0,
+            ex_pax: checkin.ex_pax || 0,
+            child_count: (checkin.child_paid || 0) + (checkin.child_unpaid || 0),
+            driver_count: Number(checkin.driver) || 0,
+            original_pax: checkin.pax || 0,
+            payment_method: checkin.payment_method || 'Cash',
+            discount_percent: checkin.discount_percent || 0,
+            detail_id: null,
+            room_id: room.room_id,
+            room_no: room.room_no,
+            room_category_id: room.room_category_id || 0,
+            room_category_name: room.room_category_name || '',
+            converted_category_name: room.converted_category_name || '',
+            room_tariff: room.room_tariff || 0,
+            net_room_amount: 0,
+            total_all_rooms_net: 0,
+            pending_advance_for_room: 0,
+            total_allowances: 0,
+            charges: [],
+            checkin: checkin,
+            latest_charge_checkout_datetime: checkin.checkout_datetime || new Date().toISOString(),
+            isExpired: getMinutesLeft(checkin.checkout_datetime || new Date().toISOString()) <= 0,
+          });
           continue;
         }
         
-        // Process the check-in data...
-        const roomCharges = rows.filter((r: any) => String(r.room_id) === String(room.room_id));
+        // Calculate totals from charges
+        const roomCharges = rows.filter((r: any) => r.room_id === room.room_id);
         const totalCharges = roomCharges.reduce((sum: number, r: any) => sum + (r.total_amount || 0), 0);
         
+        // Calculate allowances
         const folioEntries = rows.filter((r: any) => 
           r.folio_id && r.transaction_type?.toLowerCase().includes('allowance')
         );
@@ -1222,6 +1141,7 @@ export const fetchOccupiedRooms = async (
           0
         );
         
+        // Calculate advance
         const advanceEntries = rows.filter((r: any) => 
           r.folio_id && 
           (r.transaction_type === 'Advance Addition' || r.transaction_type === 'Booking Receipt')
@@ -1231,8 +1151,8 @@ export const fetchOccupiedRooms = async (
           0
         );
         
+        // Get the latest detail row for checkout datetime
         const latestDetail = rows.length > 0 ? rows[rows.length - 1] : null;
-        const checkoutDatetime = checkin.checkout_datetime || latestDetail?.checkout_datetime || '';
         
         occupiedItems.push({
           checkin_id: checkin.checkin_id,
@@ -1241,7 +1161,7 @@ export const fetchOccupiedRooms = async (
           booking_type: checkin.booking_type || 'WALK-IN-GUEST',
           agent_name: checkin.agent_name || '',
           checkin_datetime: checkin.checkin_datetime,
-          checkout_datetime: checkoutDatetime,
+          checkout_datetime: checkin.checkout_datetime || latestDetail?.checkout_datetime || '',
           adults: checkin.adults || 0,
           pax: checkin.pax || 0,
           ex_pax: checkin.ex_pax || 0,
@@ -1263,11 +1183,9 @@ export const fetchOccupiedRooms = async (
           total_allowances: totalAllowances,
           charges: roomCharges,
           checkin: checkin,
-          latest_charge_checkout_datetime: checkoutDatetime,
-          isExpired: getMinutesLeft(checkoutDatetime) <= 0,
+          latest_charge_checkout_datetime: checkin.checkout_datetime || latestDetail?.checkout_datetime || '',
+          isExpired: getMinutesLeft(checkin.checkout_datetime || latestDetail?.checkout_datetime || '') <= 0,
         });
-        
-        console.log(`✅ Added room ${room.room_no} to occupied list`);
         
       } catch (err) {
         console.error(`❌ Failed to fetch details for room ${room.room_no}:`, err);
@@ -1276,7 +1194,7 @@ export const fetchOccupiedRooms = async (
     
     console.log(`📊 Total occupied items: ${occupiedItems.length}`);
     
-    // Sort occupied rooms
+    // Sort occupied rooms (expired first, then by checkout time)
     const now = Date.now();
     occupiedItems.sort((a, b) => {
       const aTime = new Date(a.latest_charge_checkout_datetime || a.checkout_datetime).getTime();

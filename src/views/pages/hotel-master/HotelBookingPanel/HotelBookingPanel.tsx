@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Form, Button, Modal, Dropdown } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
 import TitleHelmet from '@/components/Common/TitleHelmet'
@@ -25,6 +25,8 @@ import DisplaySettings from './DisplaySettings'
 import DayExtendModal from './DayExtendModal'
 import { OccupiedRoomItem } from '@/types/room'
 import { calculateDayExtensionPrice } from '@/utils/dayExtension'
+import { fetchOccupiedRooms, CheckinFullDetailsRow } from '@/utils/commonfunction'
+
 
 // ==================== CONSTANTS ====================
 
@@ -73,7 +75,18 @@ type ViewMode = 'floor' | 'category'
 type ActiveSection = 'reserv' | 'checkout' | null
 type HousekeepingTab = 'all' | 'dirty' | 'block' | 'maint' | null
 
-// ✅ ISME SIRF status_color ADD KIYA HAI (line ~50)
+
+
+// Status IDs for filtering
+const STATUS_IDS = {
+  VACANT: [1],
+  OCCUPIED: [2, 7],
+  CLEANING: [4],        // ← Cleaning = status_id 4
+  RESERVED: [6],        // ← Reserved = status_id 6
+  MAINTENANCE: [3, 5],  // ← Maintenance + Out of Service
+  BLOCK: [3, 4, 5, 6],  // Maintenance + Cleaning + Out of Service + Reserved
+}
+
 interface ApiRoom {
   room_id: number
   room_no: string
@@ -82,8 +95,8 @@ interface ApiRoom {
   room_category_id: number
   room_status: string
   room_status_id?: number
-  status_color?: string  // ✅ NAYA - Database se color
-  status_name?: string // ✅ NAYA - Database se status
+  status_color?: string
+  status_name?: string
   floor_id: number
   block_id?: number
   hotelid: number
@@ -116,7 +129,6 @@ interface Room {
   floor_id: number
   room_category_id: number
   rawData: ApiRoom
-  // ✅ NAYE FIELDS - Direct database se
   backgroundColor: string
   textColor: string
   borderColor: string
@@ -179,38 +191,43 @@ interface ContextMenuOption {
 
 // ==================== HELPERS ====================
 
-const normalizeRoomStatus = (raw: unknown): RoomStatus => {
-  if (!raw) return 'available'
-  const s = String(raw).trim().toLowerCase()
-  if (s === 'occupied') return 'occupied'
-  if (s === 'cleaning' || s === 'dirty' || s === 'clean') return 'cleaning'
-  if (s === 'bill') return 'Bill'
-  if (s === 'reserved' || s === 'blocked' || s === 'block') return 'reserved'
-  if (s === 'maintenance' || s === 'under maintenance') return 'maintenance'
-  if (s === 'reservation') return 'reservation'
-  return 'available'
+
+
+
+
+// ==================== HELPERS ====================
+
+// Helper functions for filtering by status IDs
+const isVacant = (room: Room): boolean => {
+  const statusId = room.rawData?.room_status_id || 1
+  return STATUS_IDS.VACANT.includes(statusId)
 }
 
-const normalizeRoomStatusFromApi = (apiRoom: ApiRoom): RoomStatus => {
-  if (Number(apiRoom?.room_status_id) === 7) return 'Bill'
-  return normalizeRoomStatus(apiRoom?.room_status)
+const isOccupied = (room: Room): boolean => {
+  const statusId = room.rawData?.room_status_id || 1
+  return STATUS_IDS.OCCUPIED.includes(statusId)
 }
 
-const getBootstrapBgClass = (color: string): string => {
-  const mapping: Record<string, string> = {
-    'danger': 'bg-danger',
-    'secondary': 'bg-secondary',
-    'info': 'bg-info',
-    'warning': 'bg-warning',
-    'success': 'bg-success',
-    'primary': 'bg-primary',
-    'light': 'bg-light',
-    'dark': 'bg-dark',
-  };
-  return mapping[color] || '';
-};
+const isCleaning = (room: Room): boolean => {
+  const statusId = room.rawData?.room_status_id || 1
+  return STATUS_IDS.CLEANING.includes(statusId)  // status_id = 4
+}
 
-// ✅ Helper function - NAYA (toRoom ke pehle add karo)
+const isReserved = (room: Room): boolean => {
+  const statusId = room.rawData?.room_status_id || 1
+  return STATUS_IDS.RESERVED.includes(statusId)  // status_id = 6
+}
+
+const isMaintenance = (room: Room): boolean => {
+  const statusId = room.rawData?.room_status_id || 1
+  return STATUS_IDS.MAINTENANCE.includes(statusId)  // status_id = 3 or 5
+}
+
+const isBlocked = (room: Room): boolean => {
+  const statusId = room.rawData?.room_status_id || 1
+  return STATUS_IDS.BLOCK.includes(statusId)
+}
+
 const getContrastColor = (hexColor: string): string => {
   if (!hexColor) return '#000000'
   const hex = hexColor.replace('#', '')
@@ -221,23 +238,37 @@ const getContrastColor = (hexColor: string): string => {
   const brightness = (r * 299 + g * 587 + b * 114) / 1000
   return brightness > 128 ? '#000000' : '#ffffff'
 }
+
 const toRoom = (
   apiRoom: ApiRoom,
   floorMap: Map<number, string>,
   categoryMap: Map<number, string>,
 ): Room => {
+  const statusId = apiRoom.room_status_id || 1
+  
+  let status: RoomStatus
+  switch (statusId) {
+    case 1: status = 'available'; break
+    case 2: status = 'occupied'; break
+    case 3: status = 'maintenance'; break
+    case 4: status = 'cleaning'; break
+    case 5: status = 'maintenance'; break
+    case 6: status = 'reserved'; break
+    case 7: status = 'Bill'; break
+    default: status = 'available'
+  }
+  
   const bgColor = apiRoom.status_color || '#ffffff'
   
   return {
     id: apiRoom.room_id,
     number: apiRoom.room_no,
     category: categoryMap.get(apiRoom.room_category_id) || 'Uncategorized',
-    status: normalizeRoomStatusFromApi(apiRoom),
+    status: status,
     floor: floorMap.get(apiRoom.floor_id) || `Floor ${apiRoom.floor_id}`,
     floor_id: apiRoom.floor_id,
     room_category_id: apiRoom.room_category_id,
     rawData: apiRoom,
-    // ✅ Database se direct colors
     backgroundColor: bgColor,
     textColor: getContrastColor(bgColor),
     borderColor: bgColor,
@@ -294,6 +325,7 @@ const HotelBookingPanel = () => {
   const { user } = useAuthContext()
   const hotelId = user?.hotelid
 
+
   // --- Data ---
   const [rawRooms, setRawRooms] = useState<ApiRoom[]>([])
   const [categories, setCategories] = useState<ApiCategory[]>([])
@@ -326,10 +358,10 @@ const HotelBookingPanel = () => {
   const [savingSettings, setSavingSettings] = useState(false)
 
   // --- Occupied rooms ---
-  const [occupiedRooms, ] = useState<OccupiedRoomItem[]>([])
-  const [loadingOccupied, ] = useState(false)
-  const [errorOccupied, ] = useState<string | null>(null)
-
+ // --- Occupied rooms ---
+const [occupiedRooms, setOccupiedRooms] = useState<OccupiedRoomItem[]>([])
+const [loadingOccupied, setLoadingOccupied] = useState(false)
+const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
   // --- Checkout alert ---
   const [checkoutAlertData, setCheckoutAlertData] = useState<CheckoutAlertItem[]>([])
   const [loadingCheckoutAlert, setLoadingCheckoutAlert] = useState(false)
@@ -388,7 +420,6 @@ const HotelBookingPanel = () => {
     [categories],
   )
 
-  // All rooms normalized — replaces the old `enrichedRooms` useMemo
   const rooms: Room[] = useMemo(
     () => rawRooms.map((r) => toRoom(r, floorMap, categoryMap)),
     [rawRooms, floorMap, categoryMap],
@@ -402,32 +433,49 @@ const HotelBookingPanel = () => {
         room.category.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesType = typeFilter === 'all' || room.category === typeFilter
       const matchesFloor = floorFilter === 'all' || room.floor === floorFilter
-      const matchesStatus = statusFilter === 'all' || room.status === statusFilter
+      
+      let matchesStatus = true
+      if (statusFilter === 'available') {
+        matchesStatus = isVacant(room)
+      } else if (statusFilter === 'occupied') {
+        matchesStatus = isOccupied(room)
+      } else if (statusFilter === 'cleaning') {
+        matchesStatus = isCleaning(room)
+      } else if (statusFilter === 'reserved') {
+        matchesStatus = isReserved(room)
+      } else if (statusFilter === 'maintenance') {
+        matchesStatus = isMaintenance(room)
+      } else if (statusFilter === 'reservation' || statusFilter === 'Bill') {
+        matchesStatus = room.status === statusFilter
+      } else if (statusFilter === 'all') {
+        matchesStatus = true
+      }
+      
       return matchesSearch && matchesType && matchesFloor && matchesStatus
     })
   }, [rooms, searchQuery, typeFilter, floorFilter, statusFilter])
 
-  const stats = useMemo(() => {
-    const base = rooms.filter((room) => {
-      const matchesSearch =
-        searchQuery === '' ||
-        room.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        room.category.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesType = typeFilter === 'all' || room.category === typeFilter
-      const matchesFloor = floorFilter === 'all' || room.floor === floorFilter
-      return matchesSearch && matchesType && matchesFloor
-    })
-    return {
-      total: base.length,
-      available: base.filter((r) => r.status === 'available').length,
-      occupied: base.filter((r) => r.status === 'occupied').length,
-      cleaning: base.filter((r) => r.status === 'cleaning').length,
-      bill: base.filter((r) => r.status === 'Bill').length,
-      reserved: base.filter((r) => r.status === 'reserved').length,
-      maintenance: base.filter((r) => r.status === 'maintenance').length,
-      reservation: base.filter((r) => r.status === 'reservation').length,
-    }
-  }, [rooms, searchQuery, typeFilter, floorFilter])
+ const stats = useMemo(() => {
+  const base = rooms.filter((room) => {
+    const matchesSearch =
+      searchQuery === '' ||
+      room.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      room.category.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesType = typeFilter === 'all' || room.category === typeFilter
+    const matchesFloor = floorFilter === 'all' || room.floor === floorFilter
+    return matchesSearch && matchesType && matchesFloor
+  })
+  return {
+    total: base.length,
+    available: base.filter((r) => isVacant(r)).length,
+    occupied: base.filter((r) => isOccupied(r)).length,
+    cleaning: base.filter((r) => isCleaning(r)).length,  // status_id = 4
+    bill: base.filter((r) => r.status === 'Bill').length,
+    reserved: base.filter((r) => isReserved(r)).length,  // status_id = 6
+    maintenance: base.filter((r) => isMaintenance(r)).length,  // status_id = 3 or 5
+    reservation: base.filter((r) => r.status === 'reservation').length,
+  }
+}, [rooms, searchQuery, typeFilter, floorFilter])
 
   const groupedByFloor: FloorGroup[] = useMemo(() => {
     const map = new Map<number, Room[]>()
@@ -461,18 +509,42 @@ const HotelBookingPanel = () => {
 
   const activeGroups = viewMode === 'floor' ? groupedByFloor : groupedByCategory
 
-  const housekeepingRoomsForTab = useMemo(() => {
-    if (!activeHousekeepingTab) return []
-    if (activeHousekeepingTab === 'all')
-      return rooms.filter(
-        (r) =>
-          r.status === 'cleaning' || r.status === 'reserved' || r.status === 'maintenance',
-      )
-    if (activeHousekeepingTab === 'dirty') return rooms.filter((r) => r.status === 'cleaning')
-    if (activeHousekeepingTab === 'block') return rooms.filter((r) => r.status === 'reserved')
-    if (activeHousekeepingTab === 'maint') return rooms.filter((r) => r.status === 'maintenance')
-    return []
-  }, [activeHousekeepingTab, rooms])
+ const housekeepingRoomsForTab = useMemo(() => {
+  if (!activeHousekeepingTab) return []
+  
+  if (activeHousekeepingTab === 'all') {
+    return rooms.filter((r) => {
+      const statusId = r.rawData?.room_status_id || 1
+      return [3, 4, 5, 6].includes(statusId) // Maintenance, Cleaning, Out of Service, Reserved
+    })
+  }
+  
+  if (activeHousekeepingTab === 'dirty') {
+    // ✅ ONLY status_id = 4 (Cleaning)
+    return rooms.filter((r) => {
+      const statusId = r.rawData?.room_status_id || 1
+      return statusId === 4
+    })
+  }
+  
+  if (activeHousekeepingTab === 'block') {
+    // ✅ ONLY status_id = 6 (Reserved)
+    return rooms.filter((r) => {
+      const statusId = r.rawData?.room_status_id || 1
+      return statusId === 6
+    })
+  }
+  
+  if (activeHousekeepingTab === 'maint') {
+    // ✅ status_id = 3 (Maintenance) or 5 (Out of Service)
+    return rooms.filter((r) => {
+      const statusId = r.rawData?.room_status_id || 1
+      return statusId === 3 || statusId === 5
+    })
+  }
+  
+  return []
+}, [activeHousekeepingTab, rooms])
 
   const boxSizeClass = useMemo(() => `size${uiSettings.room_box_size}`, [uiSettings.room_box_size])
   const showSubtext = useMemo(
@@ -482,64 +554,6 @@ const HotelBookingPanel = () => {
 
   const showReservSection = activeSection === 'reserv'
   const showCheckoutAlertTable = activeSection === 'checkout'
-
-  // ==================== COLOR HELPERS ====================
-
-  const getStatusBgColor = (status: RoomStatus): string => {
-    const map: Record<RoomStatus, string> = {
-      available: uiSettings.color_vacant,
-      occupied: uiSettings.color_occupied,
-      cleaning: uiSettings.color_cleaning,
-      Bill: uiSettings.color_bill || DEFAULT_UI.color_bill!,
-      reserved: uiSettings.color_reserved,
-      maintenance: uiSettings.color_maintenance || DEFAULT_UI.color_maintenance!,
-      reservation: uiSettings.color_reservation || DEFAULT_UI.color_reservation!,
-    }
-    return map[status] ?? '#ffffff'
-  }
-
-  const getStatusTextColor = (status: RoomStatus): string => {
-    const map: Record<RoomStatus, string> = {
-      available: uiSettings.text_color_vacant || DEFAULT_UI.text_color_vacant!,
-      occupied: uiSettings.text_color_occupied || DEFAULT_UI.text_color_occupied!,
-      cleaning: uiSettings.text_color_cleaning || DEFAULT_UI.text_color_cleaning!,
-      Bill: '#DC2626',
-      reserved: uiSettings.text_color_reserved || DEFAULT_UI.text_color_reserved!,
-      maintenance: uiSettings.text_color_maintenance || DEFAULT_UI.text_color_maintenance!,
-      reservation: uiSettings.text_color_reservation || DEFAULT_UI.text_color_reservation!,
-    }
-    return map[status] ?? '#4B5563'
-  }
-
-  const getStatusBorderColor = (status: RoomStatus): string => {
-    const map: Record<RoomStatus, string> = {
-      available: uiSettings.border_color_vacant || DEFAULT_UI.border_color_vacant!,
-      occupied: uiSettings.border_color_occupied || DEFAULT_UI.border_color_occupied!,
-      cleaning: uiSettings.border_color_cleaning || DEFAULT_UI.border_color_cleaning!,
-      Bill: uiSettings.color_bill || DEFAULT_UI.color_bill!,
-      reserved: uiSettings.border_color_reserved || DEFAULT_UI.border_color_reserved!,
-      maintenance: uiSettings.border_color_maintenance || DEFAULT_UI.border_color_maintenance!,
-      reservation: uiSettings.border_color_reservation || DEFAULT_UI.border_color_reservation!,
-    }
-    return map[status] ?? '#9CA3AF'
-  }
-
-  const getOccupiedTileStyle = (minutesLeft: number, isExpired: boolean) => {
-    if (isExpired)
-      return {
-        backgroundColor: uiSettings.occupied_expired_bg || '#E03F4F',
-        color: uiSettings.occupied_expired_text || '#ffffff',
-      }
-    if (minutesLeft <= 30 && minutesLeft > 0)
-      return {
-        backgroundColor: uiSettings.occupied_warning_bg || '#b96eff',
-        color: uiSettings.occupied_warning_text || '#ffffff',
-      }
-    return {
-      backgroundColor: uiSettings.color_occupied,
-      color: uiSettings.text_color_occupied || DEFAULT_UI.text_color_occupied!,
-    }
-  }
 
   // ==================== EFFECTS ====================
 
@@ -588,58 +602,30 @@ const HotelBookingPanel = () => {
     document.body.classList.toggle('dark-mode', uiSettings.dark_mode)
   }, [uiSettings.dark_mode])
 
-useEffect(() => {
-  if (!hotelId) {
-    setError('No hotel selected')
-    setLoading(false)
-    return
-  }
-  const run = async () => {
-    setLoading(true)
-    try {
-      // ✅ getHotelBookingMeta call karo
-      const response = await RoomService.getHotelBookingMeta(hotelId)
-      
-      // ✅ Response structure handle karo
-      // response = { success: true, data: { floors: [], categories: [], rooms: [], statuses: [] } }
-      const meta = response?.data || {}
-      
-      console.log('=== ROOMS DATA ===');
-      console.log('Meta:', meta);
-      console.log('Rooms count:', meta?.rooms?.length);
-      console.log('First room:', meta?.rooms?.[0]);
-      console.log('Status color:', meta?.rooms?.[0]?.status_color);
-      
-      setRawRooms(meta?.rooms || [])
-      setCategories(meta?.categories || [])
-      setFloors(meta?.floors || [])
-    } catch (error) {
-      console.error('Failed to load room data:', error)
-      setError('Failed to load room data')
-    } finally {
+  useEffect(() => {
+    if (!hotelId) {
+      setError('No hotel selected')
       setLoading(false)
+      return
     }
-  }
-  run()
-}, [hotelId])
-
-// ✅ Hotel name fetch - YE THEEK HAI (koi change nahi)
-useEffect(() => {
-  if (!hotelId) return
-  const run = async () => {
-    try {
-      if (user?.hotel_name) {
-        setHotelName(user.hotel_name)
-      } else {
-        const res = await BrandService.getBrandById(String(hotelId))
-        setHotelName((res?.data || res)?.hotel_name || 'Hotel')
+    const run = async () => {
+      setLoading(true)
+      try {
+        const response = await RoomService.getHotelBookingMeta(hotelId)
+        const meta = response?.data || {}
+        
+        setRawRooms(meta?.rooms || [])
+        setCategories(meta?.categories || [])
+        setFloors(meta?.floors || [])
+      } catch (error) {
+        console.error('Failed to load room data:', error)
+        setError('Failed to load room data')
+      } finally {
+        setLoading(false)
       }
-    } catch {
-      setHotelName('Hotel')
     }
-  }
-  run()
-}, [hotelId, user])
+    run()
+  }, [hotelId])
 
   useEffect(() => {
     if (showCheckoutAlertTable && hotelId) fetchTodayCheckouts()
@@ -793,6 +779,27 @@ useEffect(() => {
       setLoadingCheckoutAlert(false)
     }
   }
+
+  // ==================== FETCH OCCUPIED ROOMS ====================
+
+const fetchOccupiedRoomsData = useCallback(() => {
+  if (hotelId) {
+    fetchOccupiedRooms(
+      Number(hotelId),
+      getMinutesLeft,
+      setOccupiedRooms,
+      setLoadingOccupied,
+      setErrorOccupied
+    )
+  }
+}, [hotelId])
+
+// Add this useEffect to trigger fetch when statusFilter changes to 'occupied'
+useEffect(() => {
+  if (statusFilter === 'occupied' && hotelId) {
+    fetchOccupiedRoomsData()
+  }
+}, [statusFilter, hotelId])
 
   const fetchReservTableData = async (filterDate?: string) => {
     if (!hotelId) return
@@ -1133,7 +1140,7 @@ useEffect(() => {
     if (tileClickTimerRef.current) return
     tileClickTimerRef.current = setTimeout(() => {
       tileClickTimerRef.current = null
-      if (room.status === 'occupied') {
+      if (isOccupied(room)) {
         const occupiedItem = occupiedRooms.find((item) => item.room_no === room.number)
         if (occupiedItem) handleOccupiedRoomClick(occupiedItem)
         else { setSelectedRoom(room); setShowRoomDetails(true) }
@@ -1146,25 +1153,34 @@ useEffect(() => {
     setShowRoomStatusModal(true)
   }
 
-  const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => {
-    if (!selectedRoom) return
-    setUpdating(true)
-    try {
-      await RoomService.update(roomId, { ...selectedRoom.rawData, room_status: newStatus, updated_by_id: user?.id })
-      setRawRooms((prev) => prev.map((r) => r.room_id === roomId ? { ...r, room_status: newStatus } : r))
-      if (newStatus === 'cleaning') {
-        setActiveHousekeepingTab('dirty')
-        setStatusFilter('cleaning')
-        toast.success(`Room ${selectedRoom.number} checked out and marked as Dirty.`)
-      }
-    } catch (err) {
-      console.error('Failed to update room status:', err)
-    } finally {
-      setUpdating(false)
-      setShowRoomDetails(false)
+const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => {
+  if (!selectedRoom) return
+  setUpdating(true)
+  try {
+    await RoomService.update(roomId, { ...selectedRoom.rawData, room_status: newStatus, updated_by_id: user?.id })
+    setRawRooms((prev) => prev.map((r) => r.room_id === roomId ? { ...r, room_status: newStatus } : r))
+    
+    if (newStatus === 'cleaning') {
+      setActiveHousekeepingTab('dirty')
+      setStatusFilter('cleaning')
+      toast.success(`Room ${selectedRoom.number} checked out and marked as Dirty.`)
+      
+      // Refresh occupied rooms after checkout
+      fetchOccupiedRoomsData()
     }
+    
+    // If we're currently viewing occupied rooms, refresh the list
+    if (statusFilter === 'occupied') {
+      fetchOccupiedRoomsData()
+    }
+  } catch (err) {
+    console.error('Failed to update room status:', err)
+    toast.error('Failed to update room status')
+  } finally {
+    setUpdating(false)
+    setShowRoomDetails(false)
   }
-
+}
   const handleCheckInClick = () => {
     if (selectedRoomIds.length === 0) {
       toast.error('Please select at least one room to check in.')
@@ -1178,7 +1194,7 @@ useEffect(() => {
 
   const toggleRoomSelection = (roomId: number) => {
     const room = rooms.find((r) => r.id === roomId)
-    if (room && room.status !== 'available') {
+    if (room && !isVacant(room)) {
       toast.error('Only vacant rooms can be selected for check-in.')
       return
     }
@@ -1249,10 +1265,17 @@ useEffect(() => {
     try {
       for (const roomId of toVacate) {
         const room = rooms.find((r) => r.id === roomId)
-        if (room) await RoomService.update(roomId, { ...room.rawData, room_status: 'available', updated_by_id: user?.id })
+        if (room) {
+          await RoomService.update(roomId, { 
+            ...room.rawData, 
+            room_status_id: 1, 
+            room_status: 'available', 
+            updated_by_id: user?.id 
+          })
+        }
       }
       setRawRooms((prev) =>
-        prev.map((r) => toVacate.includes(r.room_id) ? { ...r, room_status: 'available' } : r),
+        prev.map((r) => toVacate.includes(r.room_id) ? { ...r, room_status_id: 1, room_status: 'available' } : r),
       )
       setSelectedHousekeepingRoomIds((prev) => prev.filter((id) => !toVacate.includes(id)))
       toast.success(`${toVacate.length} room(s) marked as Vacant.`)
@@ -1401,6 +1424,8 @@ useEffect(() => {
     <>
       <TitleHelmet title="Room Management" />
       <style>{`
+
+
         /* ---- Room tiles ---- */
         .room-tile {
           position: relative; cursor: pointer; display: flex; flex-direction: column;
@@ -1466,31 +1491,107 @@ useEffect(() => {
           display: flex; align-items: center; justify-content: space-between;
         }
         .housekeeping-section-header-left { display: flex; align-items: center; gap: 0.5rem; }
-        .housekeeping-section-body {
-          padding: 0.4rem 0.5rem; display: flex; flex-wrap: nowrap; gap: 0.5rem;
-          overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none;
+        
+        /* Housekeeping body containers */
+        .hk-rooms-body {
+          padding: 0.4rem 0.5rem; 
+          height: 130px; 
+          min-height: 130px; 
+          max-height: 130px;
+          display: flex; 
+          flex-wrap: wrap; 
+          gap: 0.3rem; 
+          overflow-x: hidden; 
+          overflow-y: auto;
+          align-content: flex-start; 
+          scrollbar-width: thin; 
+          scrollbar-color: #c8c8c8 #f1f1f1;
         }
-        .housekeeping-section-body::-webkit-scrollbar { display: none; }
-        .housekeeping-section-body > div { flex-shrink: 0; }
-        .dirty-rooms-body {
-          padding: 0.4rem 0.5rem; height: 130px; min-height: 130px; max-height: 130px;
-          display: flex; flex-wrap: wrap; gap: 0.3rem; overflow-x: hidden; overflow-y: auto;
-          align-content: flex-start; scrollbar-width: thin; scrollbar-color: #c8c8c8 #f1f1f1;
+        .hk-rooms-body::-webkit-scrollbar { 
+          width: 5px; 
+          display: block !important; 
         }
-        .dirty-rooms-body::-webkit-scrollbar { width: 5px; display: block !important; }
-        .dirty-rooms-body::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-        .dirty-rooms-body::-webkit-scrollbar-thumb { background: #c8c8c8; border-radius: 4px; }
-        .dirty-rooms-grid-col { display: contents; }
+        .hk-rooms-body::-webkit-scrollbar-track { 
+          background: #f1f1f1; 
+          border-radius: 4px; 
+        }
+        .hk-rooms-body::-webkit-scrollbar-thumb { 
+          background: #c8c8c8; 
+          border-radius: 4px; 
+        }
+        .hk-rooms-grid-col { display: contents; }
+
+        /* Base HK Room Card */
+        .hk-room-card {
+          width: 83px; 
+          height: 50px; 
+          cursor: pointer; 
+          display: flex; 
+          flex-direction: column; 
+          align-items: center;
+          justify-content: center; 
+          gap: 2px; 
+          padding: 4px 6px; 
+          transition: all 0.15s ease; 
+          position: relative;
+        }
+        .hk-room-card .hk-checkbox { 
+          position: absolute; 
+          top: 5px; 
+          left: 6px; 
+          width: 13px; 
+          height: 13px; 
+          cursor: pointer; 
+        }
+        .hk-room-card .room-number { 
+          font-weight: 700; 
+          font-size: 0.9rem; 
+          line-height: 1.1; 
+          text-align: center; 
+          margin-top: 4px; 
+        }
+        .hk-room-card .room-category { 
+          font-size: 0.65rem; 
+          font-weight: 500; 
+          text-align: center; 
+          white-space: nowrap; 
+          overflow: hidden; 
+          text-overflow: ellipsis; 
+          max-width: 80px; 
+        }
+
+        /* Dirty Room Cards - Yellow Theme */
         .dirty-room-card {
-          width: 83px; height: 50px; border: 1.5px solid #FACC15; background: #FFF4CC;
-          cursor: pointer; display: flex; flex-direction: column; align-items: center;
-          justify-content: center; gap: 2px; padding: 4px 6px; transition: all 0.15s ease; position: relative;
+          border: 1.5px solid #FACC15; 
+          background: #FFF4CC;
         }
         .dirty-room-card:hover { border-color: #D4A017; box-shadow: 0 2px 8px rgba(212,160,23,0.3); }
         .dirty-room-card.selected { border-color: #D4A017; background: #FEF08A; box-shadow: 0 0 0 2px #FACC1555; }
-        .dirty-room-card .hk-checkbox { position: absolute; top: 5px; left: 6px; width: 13px; height: 13px; cursor: pointer; accent-color: #D4A017; }
-        .dirty-room-card .room-number { font-weight: 700; font-size: 0.9rem; color: #92610A; line-height: 1.1; text-align: center; margin-top: 4px; }
-        .dirty-room-card .room-category { font-size: 0.65rem; font-weight: 500; color: #92610A; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+        .dirty-room-card .hk-checkbox { accent-color: #D4A017; }
+        .dirty-room-card .room-number { color: #92610A; }
+        .dirty-room-card .room-category { color: #92610A; }
+
+        /* Blocked Room Cards - Blue Theme */
+        .block-room-card {
+          border: 1.5px solid #38BDF8; 
+          background: #D9F1FF;
+        }
+        .block-room-card:hover { border-color: #0284C7; box-shadow: 0 2px 8px rgba(2,132,199,0.3); }
+        .block-room-card.selected { border-color: #0284C7; background: #BAE6FD; box-shadow: 0 0 0 2px #38BDF855; }
+        .block-room-card .hk-checkbox { accent-color: #0284C7; }
+        .block-room-card .room-number { color: #0369A1; }
+        .block-room-card .room-category { color: #0369A1; }
+
+        /* Maintenance Room Cards - Red Theme */
+        .maint-room-card {
+          border: 1.5px solid #F87171; 
+          background: #FFE0E0;
+        }
+        .maint-room-card:hover { border-color: #DC2626; box-shadow: 0 2px 8px rgba(220,38,38,0.3); }
+        .maint-room-card.selected { border-color: #DC2626; background: #FECACA; box-shadow: 0 0 0 2px #F8717155; }
+        .maint-room-card .hk-checkbox { accent-color: #DC2626; }
+        .maint-room-card .room-number { color: #991B1B; }
+        .maint-room-card .room-category { color: #991B1B; }
 
         /* ---- Misc ---- */
         .group-box {
@@ -1519,7 +1620,6 @@ useEffect(() => {
             {/* Top row — status filters + actions */}
             <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
               <div className="d-flex flex-wrap gap-2">
-                {/* Status filter buttons — plain Bootstrap, no color injection */}
                 <Button size="sm" variant={statusFilter === 'all' ? 'dark' : 'outline-dark'} className="fw-semibold px-3 same-btn"
                   onClick={() => handleStatusFilterClick('all')}>
                   <i className="fi fi-rr-apps me-1"></i>All [{stats.total}]
@@ -1556,7 +1656,7 @@ useEffect(() => {
                   <i className="fi fi-rr-plane-arrival me-1"></i>Arrivals
                 </Button>
                 <Button size="sm" variant="outline-success" className="fw-semibold px-3 same-btn"
-                  onClick={() => navigate('/hotel/settlement')}>
+                  onClick={() => navigate('/hotel/SettlementPage')}>
                   <i className="fi fi-rr-money-check me-1"></i>Settlement
                 </Button>
                 <Button size="sm" variant="outline-secondary" className="fw-semibold px-3 same-btn"
@@ -1615,30 +1715,30 @@ useEffect(() => {
                       </div>
                       <div className="d-flex align-items-center gap-1">
                         <Button size="sm" variant="outline-primary" className="fw-semibold px-2 py-1" style={{ fontSize: '0.7rem' }}
-                          onClick={() => handleSelectAllHousekeepingForSection(housekeepingRoomsForTab.filter((r) => r.status === 'cleaning').map((r) => r.id))}>
+                          onClick={() => handleSelectAllHousekeepingForSection(housekeepingRoomsForTab.filter((r) => isCleaning(r)).map((r) => r.id))}>
                           Select All
                         </Button>
                         <Button size="sm" variant="outline-danger" className="fw-semibold px-2 py-1" style={{ fontSize: '0.7rem' }}
-                          onClick={() => handleRemoveSelectionForSection(housekeepingRoomsForTab.filter((r) => r.status === 'cleaning').map((r) => r.id))}>
+                          onClick={() => handleRemoveSelectionForSection(housekeepingRoomsForTab.filter((r) => isCleaning(r)).map((r) => r.id))}>
                           Vacant
                         </Button>
                       </div>
                     </div>
-                    <div className="dirty-rooms-body" ref={dirtyScrollRef}>
+                    <div className="hk-rooms-body" ref={dirtyScrollRef}>
                       {(() => {
-                        const dirtyRooms = housekeepingRoomsForTab.filter((r) => r.status === 'cleaning')
+                        const dirtyRooms = housekeepingRoomsForTab.filter((r) => isCleaning(r))
                         if (dirtyRooms.length === 0)
                           return <div className="text-muted py-1 px-1" style={{ fontSize: '0.75rem' }}>No dirty rooms</div>
 
-                        const columns: (typeof dirtyRooms)[] = []
+                        const columns = []
                         for (let i = 0; i < dirtyRooms.length; i += 2) columns.push(dirtyRooms.slice(i, i + 2))
 
                         return columns.map((col, colIdx) => (
-                          <div key={`col-${colIdx}`} className="dirty-rooms-grid-col">
+                          <div key={`dirty-col-${colIdx}`} className="hk-rooms-grid-col">
                             {col.map((room) => {
                               const isSelected = selectedHousekeepingRoomIds.includes(room.id)
                               return (
-                                <div key={`dirty-${room.id}`} className={`dirty-room-card${isSelected ? ' selected' : ''}`}
+                                <div key={`dirty-${room.id}`} className={`hk-room-card dirty-room-card${isSelected ? ' selected' : ''}`}
                                   onClick={() => toggleHousekeepingRoomSelection(room.id)}>
                                   <input type="checkbox" className="hk-checkbox" checked={isSelected}
                                     onChange={() => toggleHousekeepingRoomSelection(room.id)}
@@ -1655,38 +1755,98 @@ useEffect(() => {
                   </div>
 
                   {/* Blocked Rooms */}
-                  <HousekeepingSection
-                    title="Blocked Rooms"
-                    icon="fi fi-rr-lock"
-                    iconColor="#0284C7"
-                    rooms={housekeepingRoomsForTab.filter((r) => r.status === 'reserved')}
-                    emptyLabel="No blocked rooms"
-                    selectedIds={selectedHousekeepingRoomIds}
-                    scrollRef={blockScrollRef}
-                    getStatusBgColor={getStatusBgColor}
-                    getStatusTextColor={getStatusTextColor}
-                    getStatusBorderColor={getStatusBorderColor}
-                    onToggle={toggleHousekeepingRoomSelection}
-                    onSelectAll={() => handleSelectAllHousekeepingForSection(housekeepingRoomsForTab.filter((r) => r.status === 'reserved').map((r) => r.id))}
-                    onVacant={() => handleRemoveSelectionForSection(housekeepingRoomsForTab.filter((r) => r.status === 'reserved').map((r) => r.id))}
-                  />
+                  <div className="housekeeping-section">
+                    <div className="housekeeping-section-header">
+                      <div className="housekeeping-section-header-left">
+                        <i className="fi fi-rr-lock" style={{ color: '#0284C7' }}></i>Blocked Rooms
+                      </div>
+                      <div className="d-flex align-items-center gap-1">
+                        <Button size="sm" variant="outline-primary" className="fw-semibold px-2 py-1" style={{ fontSize: '0.7rem' }}
+                          onClick={() => handleSelectAllHousekeepingForSection(housekeepingRoomsForTab.filter((r) => isReserved(r)).map((r) => r.id))}>
+                          Select All
+                        </Button>
+                        <Button size="sm" variant="outline-danger" className="fw-semibold px-2 py-1" style={{ fontSize: '0.7rem' }}
+                          onClick={() => handleRemoveSelectionForSection(housekeepingRoomsForTab.filter((r) => isReserved(r)).map((r) => r.id))}>
+                          Vacant
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="hk-rooms-body" ref={blockScrollRef}>
+                      {(() => {
+                        const blockedRooms = housekeepingRoomsForTab.filter((r) => isReserved(r))
+                        if (blockedRooms.length === 0)
+                          return <div className="text-muted py-1 px-1" style={{ fontSize: '0.75rem' }}>No blocked rooms</div>
+
+                        const columns = []
+                        for (let i = 0; i < blockedRooms.length; i += 2) columns.push(blockedRooms.slice(i, i + 2))
+
+                        return columns.map((col, colIdx) => (
+                          <div key={`block-col-${colIdx}`} className="hk-rooms-grid-col">
+                            {col.map((room) => {
+                              const isSelected = selectedHousekeepingRoomIds.includes(room.id)
+                              return (
+                                <div key={`block-${room.id}`} className={`hk-room-card block-room-card${isSelected ? ' selected' : ''}`}
+                                  onClick={() => toggleHousekeepingRoomSelection(room.id)}>
+                                  <input type="checkbox" className="hk-checkbox" checked={isSelected}
+                                    onChange={() => toggleHousekeepingRoomSelection(room.id)}
+                                    onClick={(e) => e.stopPropagation()} />
+                                  <span className="room-number">{room.number}</span>
+                                  <span className="room-category">{room.category}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        ))
+                      })()}
+                    </div>
+                  </div>
 
                   {/* Maintenance Rooms */}
-                  <HousekeepingSection
-                    title="Maintenance Rooms"
-                    icon="fi fi-rr-tools"
-                    iconColor="#DC2626"
-                    rooms={housekeepingRoomsForTab.filter((r) => r.status === 'maintenance')}
-                    emptyLabel="No maintenance rooms"
-                    selectedIds={selectedHousekeepingRoomIds}
-                    scrollRef={maintScrollRef}
-                    getStatusBgColor={getStatusBgColor}
-                    getStatusTextColor={getStatusTextColor}
-                    getStatusBorderColor={getStatusBorderColor}
-                    onToggle={toggleHousekeepingRoomSelection}
-                    onSelectAll={() => handleSelectAllHousekeepingForSection(housekeepingRoomsForTab.filter((r) => r.status === 'maintenance').map((r) => r.id))}
-                    onVacant={() => handleRemoveSelectionForSection(housekeepingRoomsForTab.filter((r) => r.status === 'maintenance').map((r) => r.id))}
-                  />
+                  <div className="housekeeping-section">
+                    <div className="housekeeping-section-header">
+                      <div className="housekeeping-section-header-left">
+                        <i className="fi fi-rr-tools" style={{ color: '#DC2626' }}></i>Maintenance Rooms
+                      </div>
+                      <div className="d-flex align-items-center gap-1">
+                        <Button size="sm" variant="outline-primary" className="fw-semibold px-2 py-1" style={{ fontSize: '0.7rem' }}
+                          onClick={() => handleSelectAllHousekeepingForSection(housekeepingRoomsForTab.filter((r) => isMaintenance(r)).map((r) => r.id))}>
+                          Select All
+                        </Button>
+                        <Button size="sm" variant="outline-danger" className="fw-semibold px-2 py-1" style={{ fontSize: '0.7rem' }}
+                          onClick={() => handleRemoveSelectionForSection(housekeepingRoomsForTab.filter((r) => isMaintenance(r)).map((r) => r.id))}>
+                          Vacant
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="hk-rooms-body" ref={maintScrollRef}>
+                      {(() => {
+                        const maintRooms = housekeepingRoomsForTab.filter((r) => isMaintenance(r))
+                        if (maintRooms.length === 0)
+                          return <div className="text-muted py-1 px-1" style={{ fontSize: '0.75rem' }}>No maintenance rooms</div>
+
+                        const columns = []
+                        for (let i = 0; i < maintRooms.length; i += 2) columns.push(maintRooms.slice(i, i + 2))
+
+                        return columns.map((col, colIdx) => (
+                          <div key={`maint-col-${colIdx}`} className="hk-rooms-grid-col">
+                            {col.map((room) => {
+                              const isSelected = selectedHousekeepingRoomIds.includes(room.id)
+                              return (
+                                <div key={`maint-${room.id}`} className={`hk-room-card maint-room-card${isSelected ? ' selected' : ''}`}
+                                  onClick={() => toggleHousekeepingRoomSelection(room.id)}>
+                                  <input type="checkbox" className="hk-checkbox" checked={isSelected}
+                                    onChange={() => toggleHousekeepingRoomSelection(room.id)}
+                                    onClick={(e) => e.stopPropagation()} />
+                                  <span className="room-number">{room.number}</span>
+                                  <span className="room-category">{room.category}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        ))
+                      })()}
+                    </div>
+                  </div>
                 </>
               )}
             </div>
@@ -1894,21 +2054,28 @@ useEffect(() => {
                   const minutesLeft = getMinutesLeft(item.checkout_datetime)
                   const isNear = minutesLeft <= 30 && minutesLeft > 0
                   const isExpired = minutesLeft <= 0
-                  const tileStyle = getOccupiedTileStyle(minutesLeft, isExpired)
-                  const perDayPrice = item.per_day_base_price || 0
-                  const roomChargesTotal = item.guest_room_charges_total || 0
-                  const isMultiRoom = item.is_multi_room_checkin === true
-                  const netRoomAmount = item.net_room_amount ?? roomChargesTotal
-                  const netAllRoomsAmount = item.total_all_rooms_net ?? roomChargesTotal
+                  
+                  const tileStyle = isExpired
+                    ? {
+                        backgroundColor: uiSettings.occupied_expired_bg || '#E03F4F',
+                        color: uiSettings.occupied_expired_text || '#ffffff',
+                      }
+                    : isNear
+                    ? {
+                        backgroundColor: uiSettings.occupied_warning_bg || '#b96eff',
+                        color: uiSettings.occupied_warning_text || '#ffffff',
+                      }
+                    : {
+                        backgroundColor: uiSettings.color_occupied,
+                        color: uiSettings.text_color_occupied || DEFAULT_UI.text_color_occupied!,
+                      }
+                  
+                  const netRoomAmount = item.net_room_amount ?? 0
+                  const netAllRoomsAmount = item.total_all_rooms_net ?? 0
                   const pendingAdvance = item.pending_advance_for_room || 0
-                  const activeDayKey = item.current_active_day_key || new Date().toISOString().split('T')[0]
-                  const systemTodayKey = new Date().toISOString().split('T')[0]
-                  const postByDate = item.post_charges_by_date || {}
-                  const todayPostChargesAmt = postByDate[activeDayKey] ?? postByDate[systemTodayKey] ?? 0
                   const bookingType = item.booking_type || 'WALK-IN-GUEST'
                   const totalAllowances = item.total_allowances || 0
                   const leftIsNegative = netRoomAmount < 0
-                  const rightIsNegative = netAllRoomsAmount < 0
 
                   return (
                     <div
@@ -1916,7 +2083,15 @@ useEffect(() => {
                       className={`occupied-tile ${isNear ? 'occupied-tile-checkout-near' : ''}`}
                       onClick={() => handleOccupiedRoomClick(item)}
                       onContextMenu={(e) => handleContextMenu(e, item)}
-                      style={{ border: `2px solid ${isExpired ? uiSettings.occupied_expired_bg : isNear ? uiSettings.occupied_warning_bg : getStatusBorderColor('occupied')}` }}>
+                      style={{ 
+                        border: `2px solid ${
+                          isExpired 
+                            ? uiSettings.occupied_expired_bg || '#E03F4F'
+                            : isNear 
+                            ? uiSettings.occupied_warning_bg || '#b96eff'
+                            : '#4ADE80'
+                        }` 
+                      }}>
                       <div className="occupied-header">{item.room_no} {item.guest_name}</div>
                       <div className="occupied-body" style={{ backgroundColor: tileStyle.backgroundColor, color: tileStyle.color }}>
                         <div>IN : {formatDateTime(item.checkin_datetime)}</div>
@@ -1951,7 +2126,6 @@ useEffect(() => {
             )
 
           ) : filteredRooms.length === 0 ? (
-            /* Empty state */
             <div className="text-center py-5">
               <i className="fi fi-rr-search text-muted fs-4 mb-4 d-block"></i>
               <p className="text-muted mb-0">No rooms found</p>
@@ -1960,80 +2134,81 @@ useEffect(() => {
 
           ) : (
             /* Room tiles grid */
-           <div className="d-flex flex-column">
-  {activeGroups.map((group) => (
-    <div key={group.id} className="d-flex align-items-stretch gap-1 p-1 bg-white" style={{ border: '1px solid lightgray' }}>
-      {uiSettings.show_left_category && (
-        <div className="group-box me-1" style={{ minWidth: '100px' }}>
-          <div>
-            <span className="fw-bold">{group.name}</span>
-            <br />
-            <span>{group.rooms.length}</span>
-          </div>
-        </div>
-      )}
-      <div className="d-flex flex-wrap gap-1 flex-grow-1">
-        {group.rooms.map((room) => {
-          const occupiedItem = room.status === 'occupied'
-            ? occupiedRooms.find((occ) => occ.room_no === room.number)
-            : null
-          const isExpiredTile = occupiedItem?.isExpired ?? false
-          
-          // ✅ CHANGE: Direct room se colors lo - getStatusBgColor/TextColor/BorderColor remove
-          const tileBg = room.backgroundColor
-          const tileColor = room.textColor
-          const tileBorder = room.borderColor
+            <div className="d-flex flex-column">
+              {activeGroups.map((group) => (
+                <div key={group.id} className="d-flex align-items-stretch gap-1 p-1 bg-white" style={{ border: '1px solid lightgray' }}>
+                  {uiSettings.show_left_category && (
+                    <div className="group-box me-1" style={{ minWidth: '100px' }}>
+                      <div>
+                        <span className="fw-bold">{group.name}</span>
+                        <br />
+                        <span>{group.rooms.length}</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="d-flex flex-wrap gap-1 flex-grow-1">
+                    {group.rooms.map((room) => {
+                      const occupiedItem = isOccupied(room)
+                        ? occupiedRooms.find((occ) => occ.room_no === room.number)
+                        : null
+                      const isExpiredTile = occupiedItem?.isExpired ?? false
+                      
+                      const tileBg = room.backgroundColor
+                      const tileColor = room.textColor
+                      const tileBorder = room.borderColor
+                      const isSelectable = isVacant(room) && !isExpiredTile
 
-          return (
-            <div
-              key={room.id}
-              className={`d-flex flex-column align-items-center justify-content-center p-1 shadow-sm room-tile room-tile-${boxSizeClass}`}
-              style={{
-                cursor: isExpiredTile ? 'not-allowed' : 'pointer',
-                backgroundColor: tileBg,
-                color: tileColor,
-                border: `1px solid ${tileBorder}`,
-                opacity: isExpiredTile ? 0.85 : 1,
-              }}
-              title={isExpiredTile ? 'Checkout time has expired' : room.statusName}
-              onClick={isExpiredTile ? undefined : () => handleRoomTileClick(room)}
-              onContextMenu={isExpiredTile ? undefined : (e) => {
-                if (room.status === 'occupied') {
-                  if (occupiedItem) { e.preventDefault(); handleContextMenu(e, occupiedItem) }
-                } else {
-                  e.preventDefault()
-                  handleRoomStatusChangeRequest(room)
-                }
-              }}>
-              <input
-                type="checkbox"
-                className="room-checkbox"
-                checked={isRoomSelected(room.id)}
-                disabled={room.status !== 'available' || isExpiredTile}
-                title={
-                  isExpiredTile ? 'Checkout time has expired'
-                  : room.status !== 'available' ? 'Only vacant rooms can be selected for check-in'
-                  : 'Select for check-in'
-                }
-                onChange={(e) => { e.stopPropagation(); toggleRoomSelection(room.id) }}
-                onClick={(e) => e.stopPropagation()}
-              />
-              <div className="fw-bold">{room.number}</div>
-              {showSubtext && (
-                <div className="small">{viewMode === 'category' ? room.floor : room.category}</div>
-              )}
+                      return (
+                        <div
+                          key={room.id}
+                          className={`d-flex flex-column align-items-center justify-content-center p-1 shadow-sm room-tile room-tile-${boxSizeClass}`}
+                          style={{
+                            cursor: isExpiredTile ? 'not-allowed' : 'pointer',
+                            backgroundColor: tileBg,
+                            color: tileColor,
+                            border: `1px solid ${tileBorder}`,
+                            opacity: isExpiredTile ? 0.85 : 1,
+                          }}
+                          title={isExpiredTile ? 'Checkout time has expired' : room.statusName}
+                          onClick={isExpiredTile ? undefined : () => handleRoomTileClick(room)}
+                          onContextMenu={isExpiredTile ? undefined : (e) => {
+                            if (isOccupied(room)) {
+                              if (occupiedItem) { e.preventDefault(); handleContextMenu(e, occupiedItem) }
+                            } else {
+                              e.preventDefault()
+                              handleRoomStatusChangeRequest(room)
+                            }
+                          }}>
+                          <input
+                            type="checkbox"
+                            className="room-checkbox"
+                            checked={isRoomSelected(room.id)}
+                            disabled={!isSelectable}
+                            title={
+                              isExpiredTile ? 'Checkout time has expired'
+                              : !isVacant(room) ? 'Only vacant rooms can be selected for check-in'
+                              : 'Select for check-in'
+                            }
+                            onChange={(e) => { e.stopPropagation(); toggleRoomSelection(room.id) }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="fw-bold">{room.number}</div>
+                          {showSubtext && (
+                            <div className="small">{viewMode === 'category' ? room.floor : room.category}</div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
-          )
-        })}
-      </div>
-    </div>
-  ))}
-</div>
           )}
         </div>
 
-        {/* ===== FOOTER ===== */}
+      {/* ===== FOOTER ===== */}
         <div className="flex-shrink-0 bg-white border-top p-2">
+
           <div className="d-flex flex-wrap gap-2 align-items-center">
             <Button size="sm" variant="danger" className="fw-semibold px-4">Summary</Button>
             <Button size="sm" variant="secondary" className="fw-semibold px-4" onClick={() => navigate('/hotel/report')}>
@@ -2086,9 +2261,9 @@ useEffect(() => {
                 </div>
                 <h5 className="mb-1">{selectedRoom.number}</h5>
                 <span className="badge px-3 py-1" style={{
-                  backgroundColor: getStatusBgColor(selectedRoom.status),
-                  color: getStatusTextColor(selectedRoom.status),
-                  border: `1px solid ${getStatusBorderColor(selectedRoom.status)}`,
+                  backgroundColor: selectedRoom.backgroundColor,
+                  color: selectedRoom.textColor,
+                  border: `1px solid ${selectedRoom.borderColor}`,
                 }}>
                   {getStatusLabel(selectedRoom.status)}
                 </span>
@@ -2104,22 +2279,22 @@ useEffect(() => {
                 </div>
               </div>
               <div className="d-grid gap-2">
-                {selectedRoom.status === 'available' && (
+                {isVacant(selectedRoom) && (
                   <Button variant="success" disabled={updating} onClick={() => handleRoomStatusChange(selectedRoom.id, 'occupied')}>
                     <i className="fi fi-rr-check me-1"></i>Book Now
                   </Button>
                 )}
-                {selectedRoom.status === 'occupied' && (
+                {isOccupied(selectedRoom) && (
                   <Button variant="outline-danger" disabled={updating} onClick={() => handleRoomStatusChange(selectedRoom.id, 'cleaning')}>
                     <i className="fi fi-rr-door-open me-1"></i>Check Out
                   </Button>
                 )}
-                {selectedRoom.status === 'cleaning' && (
+                {isCleaning(selectedRoom) && (
                   <Button variant="warning" disabled={updating} onClick={() => handleRoomStatusChange(selectedRoom.id, 'available')}>
                     <i className="fi fi-rr-cleaning-bucket me-1"></i>Mark Clean
                   </Button>
                 )}
-                {selectedRoom.status === 'reserved' && (
+                {isReserved(selectedRoom) && (
                   <Button variant="primary" disabled={updating} onClick={() => handleRoomStatusChange(selectedRoom.id, 'occupied')}>
                     <i className="fi fi-rr-user me-1"></i>Check In
                   </Button>
@@ -2234,76 +2409,5 @@ useEffect(() => {
     </>
   )
 }
-
-// ==================== HOUSEKEEPING SECTION SUB-COMPONENT ====================
-
-interface HousekeepingSectionProps {
-  title: string
-  icon: string
-  iconColor: string
-  rooms: Room[]
-  emptyLabel: string
-  selectedIds: number[]
-  scrollRef: React.RefObject<HTMLDivElement>
-  getStatusBgColor: (s: RoomStatus) => string
-  getStatusTextColor: (s: RoomStatus) => string
-  getStatusBorderColor: (s: RoomStatus) => string
-  onToggle: (id: number) => void
-  onSelectAll: () => void
-  onVacant: () => void
-}
-
-const HousekeepingSection = ({
-  title, icon, iconColor, rooms, emptyLabel, selectedIds, scrollRef,
-  getStatusBgColor, getStatusTextColor, getStatusBorderColor,
-  onToggle, onSelectAll, onVacant,
-}: HousekeepingSectionProps) => (
-  <div className="housekeeping-section">
-    <div className="housekeeping-section-header">
-      <div className="housekeeping-section-header-left">
-        <i className={icon} style={{ color: iconColor }}></i>{title}
-      </div>
-      <div className="d-flex align-items-center gap-1">
-        <Button size="sm" variant="outline-primary" className="fw-semibold px-2 py-1" style={{ fontSize: '0.7rem' }} onClick={onSelectAll}>
-          Select All
-        </Button>
-        <Button size="sm" variant="outline-danger" className="fw-semibold px-2 py-1" style={{ fontSize: '0.7rem' }} onClick={onVacant}>
-          Vacant
-        </Button>
-      </div>
-    </div>
-    <div className="housekeeping-section-body" ref={scrollRef} style={{ minHeight: 110, height: 110, maxHeight: 110 }}>
-      {rooms.length === 0 ? (
-        <div className="text-muted py-1 px-1" style={{ fontSize: '0.75rem' }}>{emptyLabel}</div>
-      ) : rooms.map((room) => {
-        const isSelected = selectedIds.includes(room.id)
-        const headerBg = getStatusBgColor(room.status)
-        const textColor = getStatusTextColor(room.status)
-        const borderColor = getStatusBorderColor(room.status)
-        return (
-          <div key={`hk-${room.id}`} onClick={() => onToggle(room.id)}
-            style={{
-              width: 140, height: 'auto', minHeight: 70,
-              border: `2px solid ${isSelected ? borderColor : headerBg}`,
-              backgroundColor: isSelected ? `${headerBg}30` : '#ffffff',
-              cursor: 'pointer', display: 'flex', flexDirection: 'column', overflow: 'hidden',
-              boxShadow: isSelected ? `0 0 0 3px ${headerBg}55, 0 2px 8px rgba(0,0,0,0.15)` : '0 1px 4px rgba(0,0,0,0.12)',
-              transition: 'all 0.15s ease',
-            }}>
-            <div style={{ backgroundColor: headerBg, padding: '4px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, minHeight: 28, color: textColor }}>
-              <input type="checkbox" checked={isSelected} onChange={() => onToggle(room.id)} onClick={(e) => e.stopPropagation()}
-                style={{ cursor: 'pointer', accentColor: '#fff', flexShrink: 0, width: 13, height: 13 }} />
-              <span style={{ fontWeight: 700, fontSize: '0.85rem', flex: 1, textAlign: 'left' }}>Room {room.number}</span>
-            </div>
-            <div style={{ padding: '5px 8px 6px', flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: '0.72rem', color: '#555' }}>{room.category}</span>
-              <span style={{ fontSize: '0.68rem', color: '#888' }}>{room.floor}</span>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  </div>
-)
 
 export default HotelBookingPanel
