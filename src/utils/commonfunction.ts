@@ -1189,6 +1189,20 @@ export const fetchOccupiedRooms = async (
       const minutesLeft = getMinutesLeft(checkoutDatetime);
       const isExpired = minutesLeft <= 0;
       
+      // Net Room Amount should be room-detail wise and netAllRoomsAmount should be checkin wise.
+      // Current bug: UI repeats same checkin total on every room card because net_* fields are set per-room identical.
+      // Here we set:
+      // - net_room_amount: only this room detail's total_amount
+      // - total_all_rooms_net: summed total_amount across all room details in the same checkin_id
+
+      // Compute checkin-wise total once per room loop (cheap enough for current panel) using allCheckins.
+      let checkinAllRoomsNet = 0;
+      if (checkinId) {
+        checkinAllRoomsNet = allCheckins
+          .filter((ci: any) => Number(ci.checkin_id) === Number(checkinId) && ci.is_settle === 0)
+          .reduce((s: number, ci: any) => s + (Number(ci.total_amount) || 0), 0);
+      }
+
       occupiedItems.push({
         checkin_id: checkinId,
         guest_name: guestName,
@@ -1212,8 +1226,10 @@ export const fetchOccupiedRooms = async (
         room_category_name: room.room_category_name || '',
         converted_category_name: checkin?.converted_category_name || '',
         room_tariff: checkin?.room_tariff || room.room_tariff || 0,
+        // net_room_amount: room detail wise
         net_room_amount: totalAmount,
-        total_all_rooms_net: totalAmount,
+        // total_all_rooms_net: checkin wise (sum of all rooms under same checkin_id)
+        total_all_rooms_net: checkinAllRoomsNet,
         pending_advance_for_room: 0,
         total_allowances: 0,
         charges: [],
