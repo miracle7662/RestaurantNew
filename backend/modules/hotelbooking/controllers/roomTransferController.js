@@ -55,6 +55,8 @@ exports.transferRoomAndUpdateStayRecords = async (req, res) => {
     // 2) Update active stay details
     // checkout_datetime NULL => treat as current date
     // is_checkout = 0 => active
+    // NOTE: use COALESCE so null keeps existing room_type_id
+    // NOTE: some schemas store checkout_datetime as DATETIME; we compare DATE(...) >= today.
     const detailSql = `
       UPDATE checkin_detail_master
          SET room_number = ?,
@@ -66,8 +68,8 @@ exports.transferRoomAndUpdateStayRecords = async (req, res) => {
          AND room_id = ?
          AND is_checkout = 0
          AND (
-            checkout_datetime >= CONCAT(?, ' 00:00:00')
-            OR checkout_datetime IS NULL
+            checkout_datetime IS NULL
+            OR DATE(checkout_datetime) >= ?
          )
     `;
 
@@ -89,8 +91,8 @@ exports.transferRoomAndUpdateStayRecords = async (req, res) => {
        WHERE checkin_id = ?
          AND room_id = ?
          AND (
-            checkout_datetime >= CONCAT(?, ' 00:00:00')
-            OR checkout_datetime IS NULL
+            checkout_datetime IS NULL
+            OR DATE(checkout_datetime) >= ?
          )
     `;
 
@@ -100,6 +102,7 @@ exports.transferRoomAndUpdateStayRecords = async (req, res) => {
       old_room_id,
       todayStr,
     ]);
+
 
     const detailsCount = detailResult.affectedRows || 0;
     const chargesCount = chargesResult.affectedRows || 0;
