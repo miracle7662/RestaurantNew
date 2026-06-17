@@ -1061,8 +1061,8 @@ export const fetchOccupiedRooms = async (
       return;
     }
 
-    // ✅ Get all check-ins
-    console.log('📡 Fetching all check-ins...');
+    // ✅ Get all check-ins with details
+    console.log('📡 Fetching all check-ins with details...');
     let allCheckins: any[] = [];
     
     try {
@@ -1081,7 +1081,19 @@ export const fetchOccupiedRooms = async (
     
     console.log(`✅ Total check-ins found: ${allCheckins.length}`);
     
-    // ✅ Create a map of room_id to latest check-in
+    // 🔍 Debug: Log the first check-in to see available fields
+    if (allCheckins.length > 0) {
+      console.log('🔍 Sample check-in data:', allCheckins[0]);
+      console.log('🔍 Available detail fields:', {
+        detail_ex_pax: allCheckins[0].detail_ex_pax,
+        detail_child_unpaid: allCheckins[0].detail_child_unpaid,
+        detail_driver: allCheckins[0].detail_driver,
+        detail_adults: allCheckins[0].detail_adults,
+        detail_pax: allCheckins[0].detail_pax,
+      });
+    }
+    
+    // ✅ Group check-ins by room_id, keeping the latest one
     const roomCheckinMap = new Map<number, any>();
     allCheckins.forEach((checkin: any) => {
       const roomId = checkin.room_id;
@@ -1089,8 +1101,9 @@ export const fetchOccupiedRooms = async (
         roomCheckinMap.set(roomId, checkin);
       } else {
         const existing = roomCheckinMap.get(roomId);
-        const existingDate = new Date(existing.checkin_datetime || 0);
-        const newDate = new Date(checkin.checkin_datetime || 0);
+        // Use detail_checkin_datetime if available, otherwise checkin_datetime
+        const existingDate = new Date(existing.detail_checkin_datetime || existing.checkin_datetime || 0);
+        const newDate = new Date(checkin.detail_checkin_datetime || checkin.checkin_datetime || 0);
         if (newDate > existingDate) {
           roomCheckinMap.set(roomId, checkin);
         }
@@ -1128,23 +1141,38 @@ export const fetchOccupiedRooms = async (
       let detailId = null;
       
       if (checkin) {
-        guestName = checkin.guest_name || 'Unknown Guest';
-        checkinDatetime = checkin.checkin_datetime || new Date().toISOString();
-        checkoutDatetime = checkin.checkout_datetime || new Date().toISOString();
+        // ✅ Get guest name from guest_master or fallback
+        guestName = checkin.guest_name || checkin.name || 'Unknown Guest';
+        
+        // ✅ Use detail dates if available (room-specific), otherwise master dates
+        checkinDatetime = checkin.detail_checkin_datetime || checkin.checkin_datetime || new Date().toISOString();
+        checkoutDatetime = checkin.detail_checkout_datetime || checkin.checkout_datetime || new Date().toISOString();
+        
         totalAmount = checkin.total_amount || 0;
-        adults = checkin.adults || 0;
-        pax = checkin.pax || 0;
-        exPax = checkin.ex_pax || 0;
-        childCount = (checkin.child_paid || 0) + (checkin.child_unpaid || 0);
-        driverCount = Number(checkin.driver) || 0;
+        
+        // ✅ FIX: Use detail_ prefixed fields from checkin_detail_master
+        adults = checkin.detail_adults || checkin.adults || 0;
+        pax = checkin.detail_pax || checkin.pax || 0;
+        exPax = checkin.detail_ex_pax || 0;  // ✅ Using detail_ex_pax
+        childCount = checkin.detail_child_unpaid || 0;  // ✅ Using detail_child_unpaid
+        driverCount = Number(checkin.detail_driver) || 0;  // ✅ Using detail_driver
+        
+        // 🔍 Log the values for this room
+        console.log(`  📊 Room ${room.room_no} values from API:`);
+        console.log(`    - detail_ex_pax: ${checkin.detail_ex_pax} → exPax: ${exPax}`);
+        console.log(`    - detail_child_unpaid: ${checkin.detail_child_unpaid} → childCount: ${childCount}`);
+        console.log(`    - detail_driver: ${checkin.detail_driver} → driverCount: ${driverCount}`);
+        console.log(`    - detail_adults: ${checkin.detail_adults}, detail_pax: ${checkin.detail_pax}`);
+        
         paymentMethod = checkin.payment_method || 'Cash';
-        discountPercent = checkin.discount_percent || 0;
+        discountPercent = checkin.discount_percent || checkin.detail_discount_percent || 0;
         totalNights = checkin.total_nights || 0;
         regNo = checkin.reg_no || '';
         booking = checkin.booking || '';
         planName = checkin.plan_name || '';
         checkinId = checkin.checkin_id || 0;
         detailId = checkin.detail_id || null;
+        
       } else if (roomStatusId === 7) {
         guestName = `Bill - Room ${room.room_no}`;
         if (room.guest_name) {
@@ -1182,8 +1210,8 @@ export const fetchOccupiedRooms = async (
         room_no: room.room_no,
         room_category_id: room.room_category_id || 0,
         room_category_name: room.room_category_name || '',
-        converted_category_name: checkin?.converted_category || '',
-        room_tariff: room.room_tariff || 0,
+        converted_category_name: checkin?.converted_category_name || '',
+        room_tariff: checkin?.room_tariff || room.room_tariff || 0,
         net_room_amount: totalAmount,
         total_all_rooms_net: totalAmount,
         pending_advance_for_room: 0,
@@ -1200,15 +1228,20 @@ export const fetchOccupiedRooms = async (
         reg_no: regNo,
         booking: booking,
         plan_name: planName,
-        // ✅ ADD THE STATUS COLOR FROM ROOM DATA
         status_color: room.status_color || '',
         status_name: room.status_name || '',
       });
       
-      console.log(`✅ Added room ${room.room_no} (${roomStatusId === 2 ? 'Occupied' : 'Bill'}) with color: ${room.status_color}`);
+      console.log(`✅ Added room ${room.room_no} - ex_pax: ${exPax}, child: ${childCount}, driver: ${driverCount}`);
     }
     
     setOccupiedRooms(occupiedItems);
+    
+    // 📊 Final summary
+    console.log('📊 Final occupied rooms summary:');
+    occupiedItems.forEach(item => {
+      console.log(`  Room ${item.room_no}: ex_pax=${item.ex_pax}, child=${item.child_count}, driver=${item.driver_count}`);
+    });
     
   } catch (err) {
     console.error('❌ Failed to fetch occupied rooms:', err);

@@ -519,99 +519,106 @@ const RoomDetailSummary = () => {
       const folios: any[] = [];
       const allCharges: any[] = [];
 
-      for (const row of rows) {
-        if (!checkinMap.has(row.checkin_id)) {
-          checkinMap.set(row.checkin_id, {
-            checkin_id: row.checkin_id,
-            guest_id: row.guest_id,
-            guest_name: row.guest_name,
-            mobile: row.mobile,
-            address: row.address,
-            company_name: row.company_name,
-            emailed: row.emailed,
-            booking: row.booking,
-            plan_name: row.plan_name,
-            reg_no: row.reg_no,
-            checkin_datetime: row.checkin_datetime,
-            checkout_datetime: row.checkout_datetime,
-            hotelid: row.hotelid,
-            checkout_id: row.checkout_id,
-          });
-        }
+    // In the fetchData function:
 
-        if (row.detail_id && !detailMap.has(row.detail_id)) {
-          detailMap.set(row.detail_id, {
-            detail_id: row.detail_id,
-            checkin_id: row.checkin_id,
-            room_id: row.room_id,
-            room_number: row.room_number,
-            room_category_name: row.room_category_name,
-            converted_category_name: row.converted_category_name,
-            room_tariff: row.room_tariff,
-            discount_percent: row.discount_percent,
-            cgst_percent: row.cgst_percent,
-            sgst_percent: row.sgst_percent,
-            igst_percent: row.igst_percent,
-            is_settel: row.is_settel,
-            checkin_datetime: row.checkin_datetime,
-            checkout_datetime: row.checkout_datetime,
-            adults: 1,
-            pax: 1,
-            ex_pax: 0,
-            child_unpaid: 0,
-            driver: 0,
-            ex_pax_charge: 0,
-            child_paid_amount: 0,
-            driver_charge: 0,
-          });
-        }
+for (const row of rows) {
+  // Checkin Map - this part is correct
+  if (!checkinMap.has(row.checkin_id)) {
+    checkinMap.set(row.checkin_id, {
+      checkin_id: row.checkin_id,
+      guest_id: row.guest_id,
+      guest_name: row.guest_name,
+      mobile: row.mobile,
+      address: row.address,
+      company_name: row.company_name,
+      emailed: row.emailed,
+      booking: row.booking,
+      plan_name: row.plan_name,
+      reg_no: row.reg_no,
+      checkin_datetime: row.checkin_datetime,
+      checkout_datetime: row.checkout_datetime,
+      hotelid: row.hotelid,
+      checkout_id: row.checkout_id,
+    });
+  }
 
-        if (row.folio_id && !folios.some(f => f.folio_id === row.folio_id)) {
-          folios.push({
-            folio_id: row.folio_id,
-            checkin_id: row.checkin_id,
-            transaction_type: row.transaction_type,
-            payment_method: row.payment_method,
-            debit_amount: row.debit_amount,
-            credit_amount: row.credit_amount,
-            reference_number: row.reference_number,
-          });
-        }
+  // Detail Map - ✅ FIXED: Use detail_* fields
+  if (row.detail_id && !detailMap.has(row.detail_id)) {
+    detailMap.set(row.detail_id, {
+      detail_id: row.detail_id,
+      checkin_id: row.checkin_id,
+      room_id: row.room_id,
+      room_number: row.room_number,
+      room_category_name: row.room_category_name,
+      converted_category_name: row.converted_category_name,
+      room_tariff: row.room_tariff,
+      discount_percent: row.discount_percent,
+      cgst_percent: row.cgst_percent,
+      sgst_percent: row.sgst_percent,
+      igst_percent: row.igst_percent,
+      is_settel: row.is_settel,
+      checkin_datetime: row.detail_checkin_datetime || row.checkin_datetime,
+      checkout_datetime: row.detail_checkout_datetime || row.checkout_datetime,
+      // ✅ FIX: Use detail_* fields from the row
+      adults: row.detail_adults ?? 1,
+      pax: row.detail_pax ?? 1,
+      ex_pax: row.detail_ex_pax ?? 0,
+      child_unpaid: row.detail_child_unpaid ?? 0,
+      driver: row.detail_driver ?? 0,
+      ex_pax_charge: row.detail_ex_pax_charge ?? 0,
+      child_paid_amount: row.detail_child_paid_amount ?? 0,
+      driver_charge: row.detail_driver_charge ?? 0,
+    });
+  }
 
-        if (row.guest_room_charges_id && !allCharges.some(c => c.guest_room_charges_id === row.guest_room_charges_id)) {
-          allCharges.push({
-            guest_room_charges_id: row.guest_room_charges_id,
-            checkin_id: row.checkin_id,
-            room_id: row.room_id,
-            guest_id: row.guest_id,   // ✅ Add this
-            category_id: row.category_id,
-            pax_count: row.pax_count,
-            pax_price: row.pax_price,
-            pax_tax: row.pax_tax,
-            ex_pax_count: row.ex_pax_count,
-            ex_pax_price: row.ex_pax_price,
-            ex_pax_tax: row.ex_pax_tax,
-            ex_pax_tax_percent: row.ex_pax_tax_percent,
-            ex_pax_total: row.ex_pax_total,
-            child_count: row.child_count,
-            child_price: row.child_price,
-            child_tax: row.child_tax,
-            child_tax_percent: row.child_tax_percent,
-            child_total: row.child_total,
-            driver_count: row.driver_count,
-            driver_price: row.driver_price,
-            driver_tax: row.driver_tax,
-            driver_tax_percent: row.driver_tax_percent,
-            driver_total: row.driver_total,
-            total_amount: row.total_amount,
-            checkin_datetime: row.charge_checkin_datetime,
-            checkout_datetime: row.charge_checkout_datetime,
-            created_at: row.charge_created_at || row.checkin_datetime,
-            department_name: row.department_name,
-            particulars: row.particulars,
-          });
-        }
-      }
+  // Folio Map - keep as is
+  if (row.folio_id && !folios.some(f => f.folio_id === row.folio_id)) {
+    folios.push({
+      folio_id: row.folio_id,
+      checkin_id: row.checkin_id,
+      transaction_type: row.transaction_type,
+      payment_method: row.payment_method,
+      debit_amount: row.debit_amount,
+      credit_amount: row.credit_amount,
+      reference_number: row.reference_number,
+    });
+  }
+
+  // Charges Map - keep as is
+  if (row.guest_room_charges_id && !allCharges.some(c => c.guest_room_charges_id === row.guest_room_charges_id)) {
+    allCharges.push({
+      guest_room_charges_id: row.guest_room_charges_id,
+      checkin_id: row.checkin_id,
+      room_id: row.room_id,
+      guest_id: row.guest_id,
+      category_id: row.category_id,
+      pax_count: row.pax_count,
+      pax_price: row.pax_price,
+      pax_tax: row.pax_tax,
+      ex_pax_count: row.ex_pax_count,
+      ex_pax_price: row.ex_pax_price,
+      ex_pax_tax: row.ex_pax_tax,
+      ex_pax_tax_percent: row.ex_pax_tax_percent,
+      ex_pax_total: row.ex_pax_total,
+      child_count: row.child_count,
+      child_price: row.child_price,
+      child_tax: row.child_tax,
+      child_tax_percent: row.child_tax_percent,
+      child_total: row.child_total,
+      driver_count: row.driver_count,
+      driver_price: row.driver_price,
+      driver_tax: row.driver_tax,
+      driver_tax_percent: row.driver_tax_percent,
+      driver_total: row.driver_total,
+      total_amount: row.total_amount,
+      checkin_datetime: row.charge_checkin_datetime,
+      checkout_datetime: row.charge_checkout_datetime,
+      created_at: row.charge_created_at || row.checkin_datetime,
+      department_name: row.department_name,
+      particulars: row.particulars,
+    });
+  }
+}
 
       if (checkinMap.size === 0) {
         navigate('/hotel-master/HotelBookingPanel', { replace: true });
@@ -994,7 +1001,7 @@ const RoomDetailSummary = () => {
             driver: charge.driver!,
             discount_percent: charge.discount_percent!,
             discount_amount: roundToTwo((toNumber(charge.pax_price) * toNumber(charge.discount_percent)) / 100),
-            tax_percent: toNumber(charge.tax_percent) || 18,
+            tax_percent: toNumber(charge.tax_percent) || 0,
             tax_amount: toNumber(charge.pax_tax),
             total_amount: rowTotal,
             is_extension: charge.is_extension_day || false,

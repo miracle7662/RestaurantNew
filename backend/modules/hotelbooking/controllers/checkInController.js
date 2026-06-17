@@ -61,59 +61,62 @@ exports.getCheckins = async (req, res) => {
         const { q, status } = req.query;
 
         let sql = `
-             SELECT
-          -- Checkin Master
-          cm.checkin_id,
-          cm.guest_id,
-          cm.guest_name,
-          cm.mobile,
-          cm.address,
-          cm.company_name,
-          cm.emailed,
-          cm.booking,
-          cm.plan_name,
-          cm.reg_no,
-          cm.checkin_datetime,
-          cm.checkout_datetime,
-          cm.hotelid,
-          cm.checkout_id,
+         SELECT
+-- Checkin Master
+cm.checkin_id,
+cm.reg_no,
+cm.booking,
+cm.plan_name,
+cm.checkin_datetime,
+cm.checkout_datetime,
+cm.hotelid,
+cm.checkout_id,
 
-          -- Checkin Detail
-          cdm.detail_id,
-          cdm.room_id ,
-          cdm.room_number,
-          cdm.room_category_name,
-          cdm.converted_category_name,
-          cdm.room_tariff,
-          cdm.discount_percent,
-          cdm.cgst_percent,
-          cdm.sgst_percent,
-          cdm.igst_percent,
-          cdm.is_settle,
-          cdm.checkin_datetime AS detail_checkin_datetime,
-          cdm.checkout_datetime AS detail_checkout_datetime,
-          cdm.adults AS detail_adults,
-          cdm.pax AS detail_pax,
-          cdm.ex_pax AS detail_ex_pax,
-          cdm.child_unpaid AS detail_child_unpaid,
-          cdm.driver AS detail_driver,
-          cdm.ex_pax_charge AS detail_ex_pax_charge,
-          cdm.child_paid_amount AS detail_child_paid_amount,
-          cdm.driver_charge AS detail_driver_charge,
-          cdm.cess_percent AS detail_cess_percent,
-          cdm.service_charge AS detail_service_charge,
-          cdm.parent_detail_id,
 
-          -- Guest Folio
-          cgfm.folio_id,
-          cgfm.transaction_type,
-          cgfm.payment_method,
-          cgfm.debit_amount,
-          cgfm.credit_amount,
-          cgfm.reference_number,
+-- Room Wise Details
+cdm.detail_id,
+cdm.guest_id,
+cdm.room_id,
+cdm.room_number,
+cdm.room_category_name,
+cdm.converted_category_name,
+cdm.room_tariff,
+cdm.discount_percent,
+cdm.cgst_percent,
+cdm.sgst_percent,
+cdm.igst_percent,
+cdm.is_settle,
+cdm.checkin_datetime AS detail_checkin_datetime,
+cdm.checkout_datetime AS detail_checkout_datetime,
+cdm.adults AS detail_adults,
+cdm.pax AS detail_pax,
+cdm.ex_pax AS detail_ex_pax,
+cdm.child_unpaid AS detail_child_unpaid,
+cdm.driver AS detail_driver,
+cdm.ex_pax_charge AS detail_ex_pax_charge,
+cdm.child_paid_amount AS detail_child_paid_amount,
+cdm.driver_charge AS detail_driver_charge,
+cdm.cess_percent AS detail_cess_percent,
+cdm.service_charge AS detail_service_charge,
+cdm.parent_detail_id,
 
-          -- Guest Room Charges (joined ONLY on checkin_id)
-          cgrc.guest_room_charges_id,
+-- Guest Master (Room Wise Guest)
+gm.name as guest_name,
+gm.mobile,
+gm.address,
+gm.email,
+comp.company_name,
+
+-- Guest Folio
+cgfm.folio_id,
+cgfm.transaction_type,
+cgfm.payment_method,
+cgfm.debit_amount,
+cgfm.credit_amount,
+cgfm.reference_number,
+
+-- Guest Room Charges
+cgrc.guest_room_charges_id,
 cgrc.room_id AS charge_room_id,
 cgrc.category_id,
 cgrc.pax_count,
@@ -140,17 +143,28 @@ cgrc.checkout_datetime AS charge_checkout_datetime,
 cgrc.created_at AS charge_created_at,
 cgrc.updated_at AS charge_updated_at
 
-      FROM checkin_master cm
-      LEFT JOIN checkin_detail_master cdm
-        ON cm.checkin_id = cdm.checkin_id
-       AND cdm.is_settle = 0
-      LEFT JOIN checkin_guest_folio_master cgfm
-        ON cm.checkin_id = cgfm.checkin_id
-     LEFT JOIN checkin_guest_room_charges cgrc
-    ON cgrc.checkin_id = cdm.checkin_id
-   AND cgrc.room_id = cdm.room_id
-      WHERE cm.hotelid = ?
-       
+
+FROM checkin_master cm
+
+LEFT JOIN checkin_detail_master cdm
+ON cm.checkin_id = cdm.checkin_id
+AND cdm.is_settle = 0
+
+LEFT JOIN guest_master gm
+ON gm.guest_id = cdm.guest_id
+
+LEFT JOIN company_master comp
+       ON comp.company_id = gm.company_id
+
+LEFT JOIN checkin_guest_folio_master cgfm
+ON cm.checkin_id = cgfm.checkin_id
+
+LEFT JOIN checkin_guest_room_charges cgrc
+ON cgrc.checkin_id = cdm.checkin_id
+AND cgrc.room_id = cdm.room_id
+
+WHERE cm.hotelid = ?
+
         `;
 
         const params = [hotelId];
@@ -343,6 +357,7 @@ exports.getDetailsByCheckinId = async (req, res) => {
             SELECT 
                 detail_id,
                 checkin_id,
+                guest_id,
                 room_id,
                 room_number,
                 room_category_id,
@@ -538,6 +553,7 @@ exports.addCheckin = async (req, res) => {
     if (body.details && body.details.length) {
       for (const d of body.details) {
         const detailAllowed = [
+          'guest_id',
           'room_id', 'room_number', 'room_category_id', 'room_category_name',
           'converted_category_id', 'converted_category_name', 'no_of_days',
           'adults', 'pax', 'ex_pax', 'child_unpaid', 'driver', 'room_tariff',
@@ -550,6 +566,12 @@ exports.addCheckin = async (req, res) => {
           'checkin_id', 'hotelid', 'created_date', 'updated_date',
           'created_by_id', 'updated_by_id', 'is_settle'
         ];
+        // ensure guest_id is inserted into checkin_detail_master
+        // (details payload may not include it, but body.guest_id should)
+        if (body.guest_id !== undefined && d.guest_id === undefined) {
+          d.guest_id = body.guest_id;
+        }
+
         const detailVals = [checkinId, body.hotelid, now, now, userId, userId, 0];
         detailAllowed.forEach(f => {
           if (d[f] !== undefined) {

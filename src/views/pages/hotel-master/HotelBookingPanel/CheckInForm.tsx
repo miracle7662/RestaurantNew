@@ -1776,6 +1776,7 @@ onSubmit: async (values) => {
       const dailyTotalTax = dailyCgstAmount + dailySgstAmount + dailyIgstAmount + dailyCessAmount
 
       return {
+        guest_id: row.guestId,
         hotelid: hotelId,
         room_id: row.roomId,
         room_number: row.roomNumber,
@@ -1817,7 +1818,7 @@ onSubmit: async (values) => {
       const perDayTotalAmount = (row.totalAmount || 0) / totalNights
 
       return {
-        guest_id: guestId,
+        guest_id: row.guestId,
         room_id: row.roomId,
         room_no: row.roomNumber,
         category_id: catId,
@@ -2251,127 +2252,132 @@ useEffect(() => {
     }),
   }
 
-  const handleAddOrUpdateRow = () => {
-    if (!values.guestId) {
-      toast.error('Please select a guest first')
-      return
-    }
-    const selectedRoomId = values.roomNo
-    if (!selectedRoomId) {
-      toast.error('Please select a room')
-      return
-    }
-    const selectedRoom = initialSelectedRooms.find((r) => r.roomId === selectedRoomId)
-    if (!selectedRoom) return
+ const handleAddOrUpdateRow = () => {
+  // Remove the guestId check here - we'll allow adding rooms with different guests
+  // if (!values.guestId) {
+  //   toast.error('Please select a guest first')
+  //   return
+  // }
+  
+  const selectedRoomId = values.roomNo
+  if (!selectedRoomId) {
+    toast.error('Please select a room')
+    return
+  }
+  const selectedRoom = initialSelectedRooms.find((r) => r.roomId === selectedRoomId)
+  if (!selectedRoom) return
 
-    const selectedCategoryId = values.roomType
-    if (!selectedCategoryId) {
-      toast.error('Please select a room type')
-      return
-    }
+  const selectedCategoryId = values.roomType
+  if (!selectedCategoryId) {
+    toast.error('Please select a room type')
+    return
+  }
 
-    const selectedCategory = roomCategories.find((c) => c.room_category_id === selectedCategoryId)
-    if (!selectedCategory) {
-      toast.error('Invalid room type')
-      return
-    }
-    const selectedCategoryName = selectedCategory.category_name
+  const selectedCategory = roomCategories.find((c) => c.room_category_id === selectedCategoryId)
+  if (!selectedCategory) {
+    toast.error('Invalid room type')
+    return
+  }
+  const selectedCategoryName = selectedCategory.category_name
 
-    const convertedCategoryId = values.convertedCategoryId
-    const convertedCategory = convertedCategoryId
-      ? roomCategories.find((c) => c.room_category_id === convertedCategoryId)
-      : null
+  const convertedCategoryId = values.convertedCategoryId
+  const convertedCategory = convertedCategoryId
+    ? roomCategories.find((c) => c.room_category_id === convertedCategoryId)
+    : null
 
-    let taxTypeId = null
-    const effectiveCategoryId = convertedCategoryId ?? selectedCategoryId
-    const categoryDetails = categoryDetailsMap.get(effectiveCategoryId)
+  let taxTypeId = null
+  const effectiveCategoryId = convertedCategoryId ?? selectedCategoryId
+  const categoryDetails = categoryDetailsMap.get(effectiveCategoryId)
 
-    if (categoryDetails && categoryDetails.tariffs && categoryDetails.tariffs.length > 0) {
-      taxTypeId = categoryDetails.tariffs[0].tax_type
-    }
+  if (categoryDetails && categoryDetails.tariffs && categoryDetails.tariffs.length > 0) {
+    taxTypeId = categoryDetails.tariffs[0].tax_type
+  }
 
-    const taxDetails = taxTypeId ? taxDetailsMap.get(Number(taxTypeId)) : null
-    const cgstPercent  = safeNumber(taxDetails?.hotel_cgst)
-    const sgstPercent  = safeNumber(taxDetails?.hotel_sgst)
-    const igstPercent  = safeNumber(taxDetails?.hotel_igst)
-    const cessPercent  = safeNumber(taxDetails?.hotel_cess)
+  const taxDetails = taxTypeId ? taxDetailsMap.get(Number(taxTypeId)) : null
+  const cgstPercent  = safeNumber(taxDetails?.hotel_cgst)
+  const sgstPercent  = safeNumber(taxDetails?.hotel_sgst)
+  const igstPercent  = safeNumber(taxDetails?.hotel_igst)
+  const cessPercent  = safeNumber(taxDetails?.hotel_cess)
 
-    const rate         = safeNumber(values.roomCharges) || safeNumber(selectedRoomTariff)
-    const nights       = safeNumber(values.nights) || 1
-    const baseAmount   = round2(rate * nights)
+  const rate         = safeNumber(values.roomCharges) || safeNumber(selectedRoomTariff)
+  const nights       = safeNumber(values.nights) || 1
+  const baseAmount   = round2(rate * nights)
 
-    const discountPercent = safeNumber(values.discount)
-    const discountAmt     = round2((baseAmount * discountPercent) / 100)
-    const afterDiscount   = round2(baseAmount - discountAmt)
+  const discountPercent = safeNumber(values.discount)
+  const discountAmt     = round2((baseAmount * discountPercent) / 100)
+  const afterDiscount   = round2(baseAmount - discountAmt)
 
-    const taxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent
-    const taxAmount  = round2((afterDiscount * taxPercent) / 100)
+  const taxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent
+  const taxAmount  = round2((afterDiscount * taxPercent) / 100)
 
-    const cgstAmount = round2((afterDiscount * cgstPercent) / 100)
-    const sgstAmount = round2((afterDiscount * sgstPercent) / 100)
+  const cgstAmount = round2((afterDiscount * cgstPercent) / 100)
+  const sgstAmount = round2((afterDiscount * sgstPercent) / 100)
 
-    const extraDaily = computeExtraCharges(
-      effectiveCategoryId,
-      {
-        exPax:     safeNumber(values.exPax),
-        childPaid: safeNumber(values.childrenPaid),
-        driver:    safeNumber(values.driver),
-      },
-      nights,
-    )
+  const extraDaily = computeExtraCharges(
+    effectiveCategoryId,
+    {
+      exPax:     safeNumber(values.exPax),
+      childPaid: safeNumber(values.childrenPaid),
+      driver:    safeNumber(values.driver),
+    },
+    nights,
+  )
 
-    const extraChargesTotal = round2(
-      (extraDaily.exPaxTotal * nights) + (extraDaily.childTotal * nights) + (extraDaily.driverTotal * nights),
-    )
+  const extraChargesTotal = round2(
+    (extraDaily.exPaxTotal * nights) + (extraDaily.childTotal * nights) + (extraDaily.driverTotal * nights),
+  )
 
-    const totalAmount = round2(afterDiscount + taxAmount + extraChargesTotal)
+  const totalAmount = round2(afterDiscount + taxAmount + extraChargesTotal)
 
-    const guestName = [values.firstName, values.lastName].filter(Boolean).join(' ').trim() || values.firstName || ''
+  // Use the guest ID from the form - allow null/undefined for rooms without guest
+  const guestName = [values.firstName, values.lastName].filter(Boolean).join(' ').trim() || values.firstName || ''
 
-    const rowFields = {
-      guestId:               values.guestId!,
-      guestName,
-      roomCategoryId:        selectedCategoryId,
-      type:                  selectedCategoryName,
-      convertedCategoryId:   convertedCategoryId || null,
-      convertedCategoryName: convertedCategory?.category_name || '',
-      driver:                safeNumber(values.driver),
-      childUnpaid:           safeNumber(values.childrenUnpaid),
-      childPaid:             safeNumber(values.childrenPaid),
-      arrivalDate:           values.arrivalDate,
-      arrivalTime:           values.arrivalTime,
-      departureDate:         values.departureDate,
-      departureTime:         values.departureTime,
-      nights,
-      rate,
-      discount:              discountPercent,
-      discountAmt,
-      taxPercent,
-      taxAmount,
-      pax:                   safeNumber(values.pax),
-      exPax:                 safeNumber(values.exPax),
-      adults:                safeNumber(values.adults),
-      taxTypeId:             taxTypeId ? Number(taxTypeId) : undefined,
-      cgstPercent,
-      sgstPercent,
-      igstPercent,
-      cessPercent,
-      exPaxPrice:            extraDaily.exPaxPrice,
-      exPaxTax:              extraDaily.exPaxTax,
-      exPaxTaxPercent:       extraDaily.exPaxTaxPercent,
-      exPaxTotal:            extraDaily.exPaxTotal,
-      childPrice:            extraDaily.childPrice,
-      childTax:              extraDaily.childTax,
-      childTaxPercent:       extraDaily.childTaxPercent,
-      childTotal:            extraDaily.childTotal,
-      driverPrice:           extraDaily.driverPrice,
-      driverTax:             extraDaily.driverTax,
-      driverTaxPercent:      extraDaily.driverTaxPercent,
-      driverTotal:           extraDaily.driverTotal,
-      totalAmount,
-      cgstAmount,
-      sgstAmount,
-    }
+  const rowFields = {
+    guestId:               values.guestId || null,  // Allow null
+    guestName,
+    roomCategoryId:        selectedCategoryId,
+    type:                  selectedCategoryName,
+    convertedCategoryId:   convertedCategoryId || null,
+    convertedCategoryName: convertedCategory?.category_name || '',
+    driver:                safeNumber(values.driver),
+    childUnpaid:           safeNumber(values.childrenUnpaid),
+    childPaid:             safeNumber(values.childrenPaid),
+    arrivalDate:           values.arrivalDate,
+    arrivalTime:           values.arrivalTime,
+    departureDate:         values.departureDate,
+    departureTime:         values.departureTime,
+    nights,
+    rate,
+    discount:              discountPercent,
+    discountAmt,
+    taxPercent,
+    taxAmount,
+    pax:                   safeNumber(values.pax),
+    exPax:                 safeNumber(values.exPax),
+    adults:                safeNumber(values.adults),
+    taxTypeId:             taxTypeId ? Number(taxTypeId) : undefined,
+    cgstPercent,
+    sgstPercent,
+    igstPercent,
+    cessPercent,
+    exPaxPrice:            extraDaily.exPaxPrice,
+    exPaxTax:              extraDaily.exPaxTax,
+    exPaxTaxPercent:       extraDaily.exPaxTaxPercent,
+    exPaxTotal:            extraDaily.exPaxTotal,
+    childPrice:            extraDaily.childPrice,
+    childTax:              extraDaily.childTax,
+    childTaxPercent:       extraDaily.childTaxPercent,
+    childTotal:            extraDaily.childTotal,
+    driverPrice:           extraDaily.driverPrice,
+    driverTax:             extraDaily.driverTax,
+    driverTaxPercent:      extraDaily.driverTaxPercent,
+    driverTotal:           extraDaily.driverTotal,
+    totalAmount,
+    cgstAmount,
+    sgstAmount,
+  }
+
+ 
 
     if (editingRowId) {
       if (!roomRows.find((row) => row.id === editingRowId)) return
