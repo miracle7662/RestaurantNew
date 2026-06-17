@@ -86,7 +86,7 @@ export interface CheckinFullDetailsRow {
   debit_amount: number
   credit_amount: number
   reference_number: string
-
+  
   // Guest Room Charges
   guest_room_charges_id: number
   charge_room_id: number
