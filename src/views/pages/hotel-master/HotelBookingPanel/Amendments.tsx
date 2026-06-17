@@ -16,7 +16,7 @@ import CompanyService from '@/common/hotel/company'
 import CountryService from '@/common/api/countries'
 import GuestRoomChargesService from '@/common/hotel/guestRoomCharges'
 import RoomCategoryService from '@/common/hotel/roomCategoryService'
-import PaymentMethodService from '@/common/hotel/paymentMethod'
+import PaymentMethodService from '@/common/api/outletpaymentmode'
 import GuestFolioService from '@/common/hotel/guestFolio'
 import taxApi from '@/common/hotel/taxes'
 import RoomService from '@/common/hotel/room'
@@ -36,6 +36,7 @@ interface OccupiedRoom {
   guest?: any
   company?: any
   charges?: any
+  outletid?: number
 }
 
 interface AmendmentFormValues {
@@ -4665,16 +4666,36 @@ const ChangePayModeComponent = ({
   const [loading, setLoading] = useState(false)
   const [previewActive, setPreviewActive] = useState(false)
 
+  // ✅ Get outletId from auth context (like in Advance.tsx)
+  const { user } = useAuthContext();
+  const outletId = user?.outletid ?? user?.outletId;
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
       try {
-        const pmRes = await PaymentMethodService.list({ status: 1 })
+        // ✅ Get outlet ID - prioritize auth context, then fallback to selectedRoom
+        const outletIdFromRoom = selectedRoom?.outletid || selectedRoom?.checkin?.outletid || '';
+        const finalOutletId = outletId || outletIdFromRoom;
+        
+        if (!finalOutletId) {
+          console.warn('No outlet ID found');
+          setPaymentMethods([]);
+          setLoading(false);
+          return;
+        }
+
+        // ✅ Fetch payment methods filtered by outlet ID
+        const pmRes = await PaymentMethodService.list({ 
+          outletid: String(finalOutletId) 
+        })
         const pmData = Array.isArray(pmRes) ? pmRes : pmRes?.data || []
+        
+        // ✅ Map the data - using mode_name as display name
         const mapped = pmData.map((pm: any) => ({
           id: pm.id || pm.payment_method_id,
-          name: pm.name || pm.payment_method_name,
-          payment_method_name: pm.payment_method_name || pm.name,
+          name: pm.mode_name || pm.name || pm.payment_method_name,
+          payment_method_name: pm.mode_name || pm.payment_method_name || pm.name,
         }))
 
         // Step 1: Try payment_method from the prop (already-loaded checkin)
@@ -4725,7 +4746,7 @@ const ChangePayModeComponent = ({
       }
     }
     fetchData()
-  }, [selectedRoom.checkin.checkin_id])
+  }, [selectedRoom.checkin.checkin_id, outletId]) // ✅ Added outletId as dependency
 
   const handleTest = () => {
     if (!selectedPaymentMethod) {
@@ -4906,7 +4927,7 @@ const ChangePayModeComponent = ({
       {paymentMethodOptions.length === 0 && currentPaymentMethod !== 'Not set' && (
         <div className="alert alert-info mb-3 py-1 px-2 fs-small">
           <i className="bi bi-info-circle me-1"></i>
-          No other payment methods available. Current method is "{currentPaymentMethod}".
+          No other payment methods available for this outlet. Current method is "{currentPaymentMethod}".
         </div>
       )}
 

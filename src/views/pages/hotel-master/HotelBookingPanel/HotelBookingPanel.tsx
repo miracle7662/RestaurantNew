@@ -2324,63 +2324,7 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
         onExtend={handleDayExtend}
       />
 
-      <Modal show={showRoomDetails} onHide={() => setShowRoomDetails(false)} centered size="sm"
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-        <Modal.Header closeButton className="border-0 pb-0"><Modal.Title>Room Details</Modal.Title></Modal.Header>
-        <Modal.Body onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-          {selectedRoom && (
-            <div>
-              <div className="text-center mb-3">
-                <div className="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style={{ width: 60, height: 60 }}>
-                  <i className="fi fi-rr-bed fs-4 text-primary"></i>
-                </div>
-                <h5 className="mb-1">{selectedRoom.number}</h5>
-                <span className="badge px-3 py-1" style={{
-                  backgroundColor: selectedRoom.backgroundColor,
-                  color: selectedRoom.textColor,
-                  border: `1px solid ${selectedRoom.borderColor}`,
-                }}>
-                  {getStatusLabel(selectedRoom.status)}
-                </span>
-              </div>
-              <div className="mb-3 small">
-                <div className="d-flex justify-content-between mb-1">
-                  <span className="text-muted">Category:</span>
-                  <span className="fw-semibold">{selectedRoom.category}</span>
-                </div>
-                <div className="d-flex justify-content-between mb-1">
-                  <span className="text-muted">Floor:</span>
-                  <span className="fw-semibold">{selectedRoom.floor}</span>
-                </div>
-              </div>
-              <div className="d-grid gap-2">
-                {isVacant(selectedRoom) && (
-                  <Button variant="success" disabled={updating} onClick={() => handleRoomStatusChange(selectedRoom.id, 'occupied')}>
-                    <i className="fi fi-rr-check me-1"></i>Book Now
-                  </Button>
-                )}
-                {isOccupied(selectedRoom) && (
-                  <Button variant="outline-danger" disabled={updating} onClick={() => handleRoomStatusChange(selectedRoom.id, 'cleaning')}>
-                    <i className="fi fi-rr-door-open me-1"></i>Check Out
-                  </Button>
-                )}
-                {isCleaning(selectedRoom) && (
-                  <Button variant="warning" disabled={updating} onClick={() => handleRoomStatusChange(selectedRoom.id, 'available')}>
-                    <i className="fi fi-rr-cleaning-bucket me-1"></i>Mark Clean
-                  </Button>
-                )}
-                {isReserved(selectedRoom) && (
-                  <Button variant="primary" disabled={updating} onClick={() => handleRoomStatusChange(selectedRoom.id, 'occupied')}>
-                    <i className="fi fi-rr-user me-1"></i>Check In
-                  </Button>
-                )}
-                <Button variant="outline-secondary" onClick={() => setShowRoomDetails(false)}>Close</Button>
-              </div>
-            </div>
-          )}
-        </Modal.Body>
-      </Modal>
-
+    
       <DisplaySettings
         show={showSettings}
         onHide={() => setShowSettings(false)}
