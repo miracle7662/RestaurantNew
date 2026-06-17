@@ -23,16 +23,42 @@ exports.transferRoomAndUpdateStayRecords = async (req, res) => {
       updated_by_id,
     } = req.body || {};
 
-    const userId = updated_by_id || getCurrentUserId(req) || null;
-    const finalHotelId = hotelid || getCurrentUserHotelId(req);
+    // Cast IDs to numbers to avoid MySQL WHERE mismatches (string/undefined issues)
+    const parsedCheckinId = Number(checkin_id);
+    const parsedOldRoomId = Number(old_room_id);
+    const parsedNewRoomId = Number(new_room_id);
+    const parsedHotelId = hotelid !== undefined ? Number(hotelid) : undefined;
 
-    if (!finalHotelId || !checkin_id || !old_room_no || !old_room_id || !new_room_no || !new_room_id) {
+    if (Number.isNaN(parsedCheckinId) || Number.isNaN(parsedOldRoomId) || Number.isNaN(parsedNewRoomId)) {
       await connection.rollback();
       return res.status(400).json({
         success: false,
-        message: 'hotelid (or user hotel), checkin_id, old_room_no, old_room_id, new_room_no, new_room_id are required',
+        message: 'Invalid room transfer IDs. checkin_id, old_room_id and new_room_id must be numbers',
+        received: { checkin_id, old_room_id, new_room_id },
       });
     }
+
+    const userId = updated_by_id || getCurrentUserId(req) || null;
+    const finalHotelId = parsedHotelId || getCurrentUserHotelId(req);
+
+
+    if (
+      !finalHotelId ||
+      !parsedCheckinId ||
+      !old_room_no ||
+      !parsedOldRoomId ||
+      !new_room_no ||
+      !parsedNewRoomId
+    ) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message:
+          'hotelid (or user hotel), checkin_id, old_room_no, old_room_id, new_room_no, new_room_id are required',
+        received: { hotelid, checkin_id, old_room_id, new_room_id },
+      });
+    }
+
 
     console.log('Transfer Start');
     console.log('Old Room:', { room_no: old_room_no, room_id: old_room_id });
@@ -48,9 +74,10 @@ exports.transferRoomAndUpdateStayRecords = async (req, res) => {
              room_id = ?,
              updated_by_id = ?,
              updated_date = NOW()
-       WHERE checkin_id = ? AND hotelid = ?`,
-      [new_room_no, new_room_id, userId, checkin_id, finalHotelId],
+      WHERE checkin_id = ? AND hotelid = ?`,
+      [new_room_no, parsedNewRoomId, userId, parsedCheckinId, finalHotelId],
     );
+
 
     // 2) Update active stay details
     // checkout_datetime NULL => treat as current date
@@ -75,13 +102,14 @@ exports.transferRoomAndUpdateStayRecords = async (req, res) => {
 
     const [detailResult] = await connection.execute(detailSql, [
       new_room_no,
-      new_room_id,
+      parsedNewRoomId,
       new_room_type_id ?? null,
       userId,
-      checkin_id,
-      old_room_id,
+      parsedCheckinId,
+      parsedOldRoomId,
       todayStr,
     ]);
+
 
     // 3) Update active stay charges
     const chargesSql = `
@@ -97,11 +125,12 @@ exports.transferRoomAndUpdateStayRecords = async (req, res) => {
     `;
 
     const [chargesResult] = await connection.execute(chargesSql, [
-      new_room_id,
-      checkin_id,
-      old_room_id,
+      parsedNewRoomId,
+      parsedCheckinId,
+      parsedOldRoomId,
       todayStr,
     ]);
+
 
 
     const detailsCount = detailResult.affectedRows || 0;
