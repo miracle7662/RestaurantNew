@@ -2031,7 +2031,7 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
               )}
             </div>
 
-    ) : statusFilter === 'occupied' ? (
+  ) : statusFilter === 'occupied' ? (
   /* Occupied Rooms Grid */
   loadingOccupied && occupiedRooms.length === 0 ? (
     <div className="d-flex justify-content-center align-items-center py-5">
@@ -2051,48 +2051,40 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
   ) : (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '6px', alignContent: 'start', padding: '0 8px', width: '100%' }}>
       {occupiedRooms.map((item) => {
-        // ✅ Get checkout time
-        const checkoutTime = item.checkout_datetime || item.latest_charge_checkout_datetime;
+        const checkoutTime = item.checkout_datetime || item.latest_charge_checkout_datetime || new Date().toISOString();
         const minutesLeft = getMinutesLeft(checkoutTime);
         
         // ✅ Check if it's a Bill room (status_id: 7)
         const isBillRoom = item.room_status_id === 7;
         
-        // ✅ Check if expired (checkout time passed)
-        const isExpired = minutesLeft <= 0;
-        
-        // ✅ For Bill rooms - ALWAYS show FAINT RED
-        // ✅ For non-Bill rooms - check if within 1 hour
-        const isNear = isBillRoom || (minutesLeft <= 60 && minutesLeft > 0);
-        
-        // ✅ For non-Bill rooms, check if expired
-        const showExpired = !isBillRoom && isExpired;
-        
-        // ✅ Debug log
-        console.log(`Room ${item.room_no}: status_id=${item.room_status_id}, isBillRoom=${isBillRoom}, isNear=${isNear}, showExpired=${showExpired}`);
+        // ✅ For non-Bill rooms - check if within 1 hour or expired
+        const isExpired = !isBillRoom && minutesLeft <= 0;
+        const isNear = !isBillRoom && minutesLeft <= 60 && minutesLeft > 0;
         
         // ✅ Determine colors based on status
         let backgroundColor, borderColor, textColor, headerColor;
         
-        if (showExpired) {
+        if (isBillRoom) {
+          // ✅ For Bill rooms - use status_color from the item (from backend)
+          // If status_color exists, use it; otherwise use default color_bill
+          backgroundColor = item.status_color || uiSettings.color_bill || '#f59999';
+          borderColor = backgroundColor;
+          // ✅ Use contrast color for text based on background
+          textColor = getContrastColor(backgroundColor);
+          headerColor = '#8B0000';
+        } else if (isExpired) {
           // ✅ DARK RED for expired rooms (non-Bill)
-          backgroundColor = '#8b0000';
-          borderColor = '#8B0000';
-          textColor = '#ffffff';
+          backgroundColor = uiSettings.occupied_expired_bg || '#E03F4F';
+          borderColor = uiSettings.occupied_expired_bg || '#E03F4F';
+          textColor = uiSettings.occupied_expired_text || '#ffffff';
           headerColor = '#4a0000';
         } else if (isNear) {
-          // ✅ FAINT RED for Bill rooms AND near checkout (within 1 hour)
-          // Calculate opacity - for Bill rooms use fixed opacity, for near use dynamic
-          let opacity;
-          if (isBillRoom) {
-            opacity = 0.4; // Fixed opacity for Bill rooms
-          } else {
-            opacity = 0.2 + ((60 - minutesLeft) / 60) * 0.5; // Dynamic for near checkout
-          }
+          // ✅ FAINT RED for near checkout (within 1 hour)
+          const opacity = 0.2 + ((60 - minutesLeft) / 60) * 0.5;
           backgroundColor = `rgba(255, 0, 0, ${opacity})`;
-          borderColor = isBillRoom ? '#ff6b00' : '#ff4444';
-          textColor = isBillRoom ? '#8B0000' : '#000000';
-          headerColor = isBillRoom ? '#8B0000' : '#8B0000';
+          borderColor = '#ff4444';
+          textColor = '#000000';
+          headerColor = '#8B0000';
         } else {
           // ✅ NORMAL OCCUPIED - Green
           backgroundColor = uiSettings.color_occupied || '#DFF5E1';
@@ -2111,7 +2103,7 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
         return (
           <div
             key={`${item.checkin_id}-${item.room_no}`}
-            className={`occupied-tile ${isNear ? 'occupied-tile-checkout-near' : ''} ${showExpired ? 'occupied-tile-expired' : ''}`}
+            className={`occupied-tile ${isNear ? 'occupied-tile-checkout-near' : ''} ${isExpired ? 'occupied-tile-expired' : ''}`}
             onClick={() => handleOccupiedRoomClick(item)}
             onContextMenu={(e) => handleContextMenu(e, item)}
             style={{ 
@@ -2125,7 +2117,7 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <span>{item.room_no} {item.guest_name}</span>
+              <span>{item.room_no} {item.guest_name || 'Unknown Guest'}</span>
               {/* ✅ Show BILL badge for Bill rooms */}
               {isBillRoom && (
                 <span className="badge" style={{ 
@@ -2136,7 +2128,7 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
                   borderRadius: '4px'
                 }}>BILL</span>
               )}
-              {showExpired && (
+              {isExpired && !isBillRoom && (
                 <span className="badge" style={{ 
                   backgroundColor: '#ff0000', 
                   color: '#fff',
@@ -2145,7 +2137,7 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
                   borderRadius: '4px'
                 }}>EXPIRED</span>
               )}
-              {isNear && !isBillRoom && !showExpired && (
+              {isNear && !isExpired && !isBillRoom && (
                 <span className="badge" style={{ 
                   backgroundColor: '#ff6600', 
                   color: '#fff',
@@ -2159,24 +2151,24 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
               backgroundColor: backgroundColor, 
               color: textColor 
             }}>
-              <div>IN : {formatDateTime(item.checkin_datetime)}</div>
-              <div>OUT : {formatDateTime(item.checkout_datetime || item.latest_charge_checkout_datetime)}</div>
-              <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : item.guest_type}</div>
+              <div>IN : {formatDateTime(item.checkin_datetime || '')}</div>
+              <div>OUT : {formatDateTime(item.checkout_datetime || item.latest_charge_checkout_datetime || '')}</div>
+              <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : (item.guest_type || 'WALK-IN-GUEST')}</div>
               <div className="charges-line">
                 <span style={{ 
-                  color: showExpired ? '#ffffff' : (isBillRoom ? '#8B0000' : '#000'), 
+                  color: isExpired ? '#ffffff' : (isBillRoom ? getContrastColor(backgroundColor) : '#000'), 
                   fontWeight: leftIsNegative || pendingAdvance > 0 ? 600 : 'normal' 
                 }}>
                   {formatAmount(netRoomAmount)}
                 </span>
-                <span style={{ color: showExpired ? '#ffffff' : (isBillRoom ? '#8B0000' : '#000') }}>
+                <span style={{ color: isExpired ? '#ffffff' : (isBillRoom ? getContrastColor(backgroundColor) : '#000') }}>
                   {formatAmount(netAllRoomsAmount)}
                 </span>
               </div>
               {totalAllowances > 0 && (
                 <div style={{ 
                   fontSize: '0.6rem', 
-                  color: showExpired ? '#ffcccc' : (isBillRoom ? '#8B0000' : '#c0392b'), 
+                  color: isExpired ? '#ffcccc' : (isBillRoom ? getContrastColor(backgroundColor) : '#c0392b'), 
                   fontWeight: 600, 
                   display: 'flex', 
                   justifyContent: 'space-between', 
@@ -2191,15 +2183,15 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
                 justifyContent: 'space-between', 
                 alignItems: 'center', 
                 fontSize: '0.65rem',
-                color: showExpired ? '#ffcccc' : (isBillRoom ? '#8B0000' : 'inherit')
+                color: isExpired ? '#ffcccc' : (isBillRoom ? getContrastColor(backgroundColor) : 'inherit')
               }}>
                 <span>
-                  {item.original_pax ?? item.adults}
-                  <span style={{ opacity: 0.5 }}>:</span>{item.ex_pax}
-                  <span style={{ opacity: 0.5 }}>:</span>{item.child_count}
-                  <span style={{ opacity: 0.5 }}>:</span>{item.driver_count}
+                  {(item.original_pax ?? item.adults) || 0}
+                  <span style={{ opacity: 0.5 }}>:</span>{item.ex_pax || 0}
+                  <span style={{ opacity: 0.5 }}>:</span>{item.child_count || 0}
+                  <span style={{ opacity: 0.5 }}>:</span>{item.driver_count || 0}
                 </span>
-                <span>| {item.payment_method}</span>
+                <span>| {item.payment_method || 'Cash'}</span>
               </div>
             </div>
           </div>

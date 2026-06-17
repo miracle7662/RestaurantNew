@@ -21,6 +21,7 @@ export interface OccupiedRoomItem {
   checkin_id: number;
   detail_id?: number;
   room_id?: number;
+  room_status_id?: number;
   room_category_id?: number;
   isCheckoutNear: boolean;
   minutesLeft: number;
@@ -59,4 +60,5 @@ export interface OccupiedRoomItem {
   net_room_amount?: number;
   total_all_rooms_net?: number;
   total_allowances?: number;
+  status_color?: string;
 }
