@@ -141,8 +141,10 @@ export interface DetailResponse {
 }
 
 const CheckInService = {
-  list: (params?: { hotelid?: number; q?: string }): Promise<ApiResponse<CheckIn[]>> =>
-    HttpClient.get<ApiResponse<CheckIn[]>>('/checkins', { params }),
+ // In src/common/hotel/checkIn.ts
+list(params?: { hotelid?: number; status?: string; q?: string }) {
+  return HttpClient.get<ApiResponse<CheckIn[]>>("/checkins", { params });
+},
 
   get: (id: number): Promise<ApiResponse<CheckIn>> =>
     HttpClient.get<ApiResponse<CheckIn>>(`/checkins/${id}`),

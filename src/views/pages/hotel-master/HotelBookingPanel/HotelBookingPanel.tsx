@@ -25,7 +25,7 @@ import DisplaySettings from './DisplaySettings'
 import DayExtendModal from './DayExtendModal'
 import { OccupiedRoomItem } from '@/types/room'
 import { calculateDayExtensionPrice } from '@/utils/dayExtension'
-import { fetchOccupiedRooms, CheckinFullDetailsRow } from '@/utils/commonfunction'
+import { fetchOccupiedRooms,  } from '@/utils/commonfunction'
 
 
 // ==================== CONSTANTS ====================
