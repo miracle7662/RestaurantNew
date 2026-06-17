@@ -57,7 +57,7 @@ exports.getCheckinFullDetails = async (req, res) => {
           cdm.cgst_percent,
           cdm.sgst_percent,
           cdm.igst_percent,
-          cdm.is_settel,
+          cdm.is_settle,
           cdm.checkin_datetime AS detail_checkin_datetime,
           cdm.checkout_datetime AS detail_checkout_datetime,
           cdm.adults AS detail_adults,
@@ -111,7 +111,7 @@ cgrc.updated_at AS charge_updated_at
       FROM checkin_master cm
       LEFT JOIN checkin_detail_master cdm
         ON cm.checkin_id = cdm.checkin_id
-       AND cdm.is_settel = 0
+       AND cdm.is_settle = 0
       LEFT JOIN checkin_guest_folio_master cgfm
         ON cm.checkin_id = cgfm.checkin_id
      LEFT JOIN checkin_guest_room_charges cgrc
@@ -119,7 +119,7 @@ cgrc.updated_at AS charge_updated_at
    AND cgrc.room_id = cdm.room_id
       WHERE cm.hotelid = ?
         AND cm.checkin_id = ?
-        AND cdm.is_settel = 0
+        AND cdm.is_settle = 0
       ORDER BY cdm.room_number, cgrc.checkin_datetime
     `;
 
