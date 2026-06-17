@@ -115,6 +115,7 @@ const stockRoutes = require('./modules/hotelbooking/routes/stockRoutes');
 const guestHistoryRoutes = require('./modules/hotelbooking/routes/guestHistoryRoutes');
 const roomStatusRoutes = require('./modules/hotelbooking/routes/roomStatusRoutes');
 const ldgSettlementRoutes = require('./modules/hotelbooking/routes/ldgSettlementRoutes');
+const roomTransferRoutes = require('./modules/hotelbooking/routes/roomTransferRoutes');
 
 // ✅ Correct order of middleware
 app.use(cors());
@@ -221,6 +222,10 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/guest-history', guestHistoryRoutes);
 app.use('/api/room-status', roomStatusRoutes);
 app.use('/api/ldg-settlement', ldgSettlementRoutes);
+
+// Room transfer (updates checkin_master + detail + charges)
+app.use('/api/room-transfer', roomTransferRoutes);
+
 
 
 app.get("/get-server-ip", (req, res) => {
