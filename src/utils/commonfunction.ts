@@ -1042,126 +1042,185 @@ export const fetchOccupiedRooms = async (
     });
     
     // ✅ Step 3: Filter rooms with status 'occupied' (2) or 'Bill' (7)
-    const occupiedRoomIds = allRooms
-      .filter((room: any) => {
-        const statusId = room.room_status_id;
-        return statusId === 2 || statusId === 7;
-      })
-      .map((room: any) => room.room_id);
+    const occupiedRooms = allRooms.filter((room: any) => {
+      const statusId = room.room_status_id;
+      return statusId === 2 || statusId === 7;
+    });
     
-    console.log(`✅ Found ${occupiedRoomIds.length} occupied/Bill rooms`);
-    console.log('📋 Occupied room IDs:', occupiedRoomIds);
+    console.log(`✅ Found ${occupiedRooms.length} occupied/Bill rooms`);
     
-    if (occupiedRoomIds.length === 0) {
+    if (occupiedRooms.length === 0) {
       console.log('⚠️ No occupied rooms found');
       setOccupiedRooms([]);
       setLoadingOccupied(false);
       return;
     }
 
-    // ✅ Step 4: Get all check-ins (with status='all' to get checked_out too)
+    // ✅ Step 4: Get all check-ins
     console.log('📡 Fetching all check-ins...');
-    const checkinsRes = await CheckInService.list({ 
-      hotelid: hotelId,
-      status: 'all' // ✅ Get ALL checkins including checked_out
-    });
+    let allCheckins: any[] = [];
     
-    const allCheckins = (checkinsRes.data || []) as any[];
+    try {
+      const checkinsRes = await CheckInService.list({ 
+        hotelid: hotelId,
+        status: 'all'
+      });
+      allCheckins = (checkinsRes.data || []) as any[];
+    } catch (err) {
+      console.log('⚠️ Failed with status=all, trying without status...');
+      const checkinsRes = await CheckInService.list({ 
+        hotelid: hotelId
+      });
+      allCheckins = (checkinsRes.data || []) as any[];
+    }
+    
     console.log(`✅ Total check-ins found: ${allCheckins.length}`);
     
-    if (allCheckins.length === 0) {
-      console.log('⚠️ No check-ins found');
-      setOccupiedRooms([]);
-      setLoadingOccupied(false);
-      return;
-    }
+    // ✅ Step 5: Create a map of room_id to latest check-in
+    const roomCheckinMap = new Map<number, any>();
+    allCheckins.forEach((checkin: any) => {
+      const roomId = checkin.room_id;
+      if (!roomCheckinMap.has(roomId)) {
+        roomCheckinMap.set(roomId, checkin);
+      } else {
+        const existing = roomCheckinMap.get(roomId);
+        const existingDate = new Date(existing.checkin_datetime || 0);
+        const newDate = new Date(checkin.checkin_datetime || 0);
+        if (newDate > existingDate) {
+          roomCheckinMap.set(roomId, checkin);
+        }
+      }
+    });
 
-    // ✅ Step 5: For each occupied room, find the latest check-in
+    // ✅ Step 6: Build occupied items
     const occupiedItems: any[] = [];
     
-    for (const roomId of occupiedRoomIds) {
-      const room = roomMap.get(roomId);
-      if (!room) continue;
+    for (const room of occupiedRooms) {
+      const checkin = roomCheckinMap.get(room.room_id);
+      const roomStatusId = room.room_status_id;
       
-      console.log(`🔍 Finding check-in for room ${room.room_no} (room_id: ${roomId})...`);
+      console.log(`🔍 Processing room ${room.room_no} (status_id: ${roomStatusId})...`);
       
-      // ✅ Find check-ins for this room
-      const roomCheckins = allCheckins.filter((c: any) => {
-        return Number(c.room_id) === Number(roomId);
-      });
+      let guestName = 'Unknown Guest';
+      let checkinDatetime = new Date().toISOString();
+      let checkoutDatetime = new Date().toISOString();
+      let totalAmount = 0;
+      let adults = 0;
+      let pax = 0;
+      let exPax = 0;
+      let childCount = 0;
+      let driverCount = 0;
+      let paymentMethod = 'Cash';
+      let discountPercent = 0;
+      let totalNights = 0;
+      let regNo = '';
+      let booking = '';
+      let planName = '';
+      let checkinId = 0;
+      let detailId = null;
+      let detailCheckoutDatetime = null;
+      let chargeCheckoutDatetime = null;
       
-      console.log(`📋 Found ${roomCheckins.length} check-ins for room ${room.room_no}`);
-      
-      // ✅ Get the latest check-in (by checkin_datetime)
-      let checkin = null;
-      if (roomCheckins.length > 0) {
-        checkin = roomCheckins.sort((a: any, b: any) => {
-          const dateA = new Date(a.checkin_datetime || 0);
-          const dateB = new Date(b.checkin_datetime || 0);
-          return dateB.getTime() - dateA.getTime();
-        })[0];
+      if (checkin) {
+        // ✅ Use data from checkin
+        guestName = checkin.guest_name || 'Unknown Guest';
+        checkinDatetime = checkin.checkin_datetime || new Date().toISOString();
+        
+        // ✅ Get checkout datetime - priority: charge > detail > master
+        chargeCheckoutDatetime = checkin.charge_checkout_datetime || null;
+        detailCheckoutDatetime = checkin.detail_checkout_datetime || null;
+        checkoutDatetime = chargeCheckoutDatetime || 
+                          detailCheckoutDatetime || 
+                          checkin.checkout_datetime || 
+                          new Date().toISOString();
+        
+        totalAmount = checkin.total_amount || 0;
+        adults = checkin.detail_adults || checkin.adults || 0;
+        pax = checkin.detail_pax || checkin.pax || 0;
+        exPax = checkin.detail_ex_pax || checkin.ex_pax || 0;
+        childCount = checkin.detail_child_unpaid || 0;
+        driverCount = checkin.detail_driver || Number(checkin.driver) || 0;
+        paymentMethod = checkin.payment_method || 'Cash';
+        discountPercent = checkin.discount_percent || 0;
+        totalNights = checkin.total_nights || 0;
+        regNo = checkin.reg_no || '';
+        booking = checkin.booking || '';
+        planName = checkin.plan_name || '';
+        checkinId = checkin.checkin_id || 0;
+        detailId = checkin.detail_id || null;
+        
+        console.log(`📋 Room ${room.room_no}: checkout from ${chargeCheckoutDatetime ? 'charges' : detailCheckoutDatetime ? 'details' : 'master'} = ${checkoutDatetime}`);
+      } else if (roomStatusId === 7) {
+        // ✅ For Bill rooms with no check-in, use a past date to show red
+        guestName = room.guest_name || `Bill - Room ${room.room_no}`;
+        // Set checkout to 1 hour ago to show red
+        const pastDate = new Date();
+        pastDate.setHours(pastDate.getHours() - 1);
+        checkoutDatetime = pastDate.toISOString();
+        console.log(`⚠️ No check-in for Bill room ${room.room_no}, using past date for red color`);
+      } else {
+        console.log(`⚠️ No check-in for room ${room.room_no}`);
+        continue;
       }
       
-      // ✅ Create occupied item
-      const checkoutDatetime = checkin?.checkout_datetime || new Date().toISOString();
-      const isExpired = getMinutesLeft(checkoutDatetime) <= 0;
+      // ✅ Calculate minutes left and expiry
+      const minutesLeft = getMinutesLeft(checkoutDatetime);
+      const isExpired = minutesLeft <= 0;
       
       occupiedItems.push({
-        checkin_id: checkin?.checkin_id || 0,
-        guest_name: checkin?.guest_name || 'Unknown Guest',
-        guest_type: checkin?.booking || 'WALK-IN-GUEST',
-        booking_type: checkin?.booking || 'WALK-IN-GUEST',
+        checkin_id: checkinId,
+        guest_name: guestName,
+        guest_type: booking || 'WALK-IN-GUEST',
+        booking_type: booking || 'WALK-IN-GUEST',
         agent_name: checkin?.agent_name || '',
-        checkin_datetime: checkin?.checkin_datetime || new Date().toISOString(),
+        checkin_datetime: checkinDatetime,
         checkout_datetime: checkoutDatetime,
-        adults: checkin?.adults || 0,
-        pax: checkin?.pax || 0,
-        ex_pax: checkin?.ex_pax || 0,
-        child_count: (checkin?.child_paid || 0) + (checkin?.child_unpaid || 0),
-        driver_count: Number(checkin?.driver) || 0,
-        original_pax: checkin?.pax || 0,
-        payment_method: checkin?.payment_method || 'Cash',
-        discount_percent: checkin?.discount_percent || 0,
-        detail_id: checkin?.detail_id || null,
+        detail_checkout_datetime: detailCheckoutDatetime,
+        charge_checkout_datetime: chargeCheckoutDatetime,
+        adults: adults,
+        pax: pax,
+        ex_pax: exPax,
+        child_count: childCount,
+        driver_count: driverCount,
+        original_pax: pax || adults,
+        payment_method: paymentMethod,
+        discount_percent: discountPercent,
+        detail_id: detailId,
         room_id: room.room_id,
         room_no: room.room_no,
         room_category_id: room.room_category_id || 0,
         room_category_name: room.room_category_name || '',
-        converted_category_name: checkin?.converted_category || '',
+        converted_category_name: checkin?.converted_category_name || '',
         room_tariff: room.room_tariff || 0,
-        net_room_amount: checkin?.total_amount || 0,
-        total_all_rooms_net: checkin?.total_amount || 0,
+        net_room_amount: totalAmount,
+        total_all_rooms_net: totalAmount,
         pending_advance_for_room: 0,
         total_allowances: 0,
         charges: [],
         checkin: checkin,
         latest_charge_checkout_datetime: checkoutDatetime,
         isExpired: isExpired,
-        room_status_id: room.room_status_id,
-        status: room.room_status_id === 2 ? 'Occupied' : 'Bill',
-        total_nights: checkin?.total_nights || 0,
-        total_amount: checkin?.total_amount || 0,
-        reg_no: checkin?.reg_no || '',
-        booking: checkin?.booking || '',
-        plan_name: checkin?.plan_name || '',
+        minutesLeft: minutesLeft,
+        room_status_id: roomStatusId,
+        status: roomStatusId === 2 ? 'Occupied' : 'Bill',
+        total_nights: totalNights,
+        total_amount: totalAmount,
+        reg_no: regNo,
+        booking: booking,
+        plan_name: planName,
+        // ✅ For Bill rooms, mark as expired if checkout is in the past
+        isBillExpired: roomStatusId === 7 && new Date(checkoutDatetime) < new Date(),
       });
       
-      console.log(`✅ Added room ${room.room_no} to occupied list (status: ${room.room_status_id === 2 ? 'Occupied' : 'Bill'})`);
+      console.log(`✅ Added room ${room.room_no} (${roomStatusId === 2 ? 'Occupied' : 'Bill'}) - Expired: ${isExpired}, Minutes Left: ${minutesLeft}`);
     }
     
-    // ✅ Step 6: Sort by room number
+    // ✅ Step 7: Sort by room number
     occupiedItems.sort((a, b) => 
       a.room_no.localeCompare(b.room_no, undefined, { numeric: true })
     );
     
     console.log(`📊 Total occupied items: ${occupiedItems.length}`);
-    console.log('📋 Final occupied items:', occupiedItems.map((item: any) => ({
-      room_no: item.room_no,
-      guest: item.guest_name,
-      status: item.status,
-      room_status_id: item.room_status_id
-    })));
-    
     setOccupiedRooms(occupiedItems);
     
   } catch (err) {
@@ -1170,4 +1229,4 @@ export const fetchOccupiedRooms = async (
   } finally {
     setLoadingOccupied(false);
   }
-}
+};

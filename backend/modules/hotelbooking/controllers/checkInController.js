@@ -548,7 +548,7 @@ exports.addCheckin = async (req, res) => {
         ];
         const detailCols = [
           'checkin_id', 'hotelid', 'created_date', 'updated_date',
-          'created_by_id', 'updated_by_id', 'is_settel'
+          'created_by_id', 'updated_by_id', 'is_settle'
         ];
         const detailVals = [checkinId, body.hotelid, now, now, userId, userId, 0];
         detailAllowed.forEach(f => {

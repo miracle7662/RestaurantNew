@@ -438,7 +438,7 @@ const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
       if (statusFilter === 'available') {
         matchesStatus = isVacant(room)
       } else if (statusFilter === 'occupied') {
-        matchesStatus = isOccupied(room)
+        matchesStatus = isOccupied(room) || room.status === 'Bill' // ✅ Include Bill
       } else if (statusFilter === 'cleaning') {
         matchesStatus = isCleaning(room)
       } else if (statusFilter === 'reserved') {
@@ -468,7 +468,7 @@ const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
   return {
     total: base.length,
     available: base.filter((r) => isVacant(r)).length,
-    occupied: base.filter((r) => isOccupied(r)).length,
+    occupied: base.filter((r) => isOccupied(r) || r.status === 'Bill').length, // ✅ Include Bill
     cleaning: base.filter((r) => isCleaning(r)).length,  // status_id = 4
     bill: base.filter((r) => r.status === 'Bill').length,
     reserved: base.filter((r) => isReserved(r)).length,  // status_id = 6
@@ -792,14 +792,14 @@ const fetchOccupiedRoomsData = useCallback(() => {
       setErrorOccupied
     )
   }
-}, [hotelId])
+}, [hotelId, getMinutesLeft, setOccupiedRooms, setLoadingOccupied, setErrorOccupied]) // ✅ Add all dependencies
 
 // Add this useEffect to trigger fetch when statusFilter changes to 'occupied'
 useEffect(() => {
   if (statusFilter === 'occupied' && hotelId) {
     fetchOccupiedRoomsData()
   }
-}, [statusFilter, hotelId])
+}, [statusFilter, hotelId, fetchOccupiedRoomsData]) // ✅ Add fetchOccupiedRoomsData dependency
 
   const fetchReservTableData = async (filterDate?: string) => {
     if (!hotelId) return
@@ -2031,99 +2031,182 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
               )}
             </div>
 
-          ) : statusFilter === 'occupied' ? (
-            /* Occupied Rooms Grid */
-            loadingOccupied && occupiedRooms.length === 0 ? (
-              <div className="d-flex justify-content-center align-items-center py-5">
-                <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
-              </div>
-            ) : errorOccupied ? (
-              <div className="text-center py-5">
-                <i className="fi fi-rr-exclamation text-danger fs-4 mb-3 d-block"></i>
-                <p className="text-danger">{errorOccupied}</p>
-                <Button variant="outline-primary" size="sm" onClick={() => setStatusFilter('occupied')}>Retry</Button>
-              </div>
-            ) : occupiedRooms.length === 0 ? (
-              <div className="text-center py-5">
-                <i className="fi fi-rr-bed-empty text-muted fs-4 mb-4 d-block"></i>
-                <p className="text-muted mb-0">No occupied rooms found.</p>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '6px', alignContent: 'start', padding: '0 8px', width: '100%' }}>
-                {occupiedRooms.map((item) => {
-                  const minutesLeft = getMinutesLeft(item.checkout_datetime)
-                  const isNear = minutesLeft <= 30 && minutesLeft > 0
-                  const isExpired = minutesLeft <= 0
-                  
-                  const tileStyle = isExpired
-                    ? {
-                        backgroundColor: uiSettings.occupied_expired_bg || '#E03F4F',
-                        color: uiSettings.occupied_expired_text || '#ffffff',
-                      }
-                    : isNear
-                    ? {
-                        backgroundColor: uiSettings.occupied_warning_bg || '#b96eff',
-                        color: uiSettings.occupied_warning_text || '#ffffff',
-                      }
-                    : {
-                        backgroundColor: uiSettings.color_occupied,
-                        color: uiSettings.text_color_occupied || DEFAULT_UI.text_color_occupied!,
-                      }
-                  
-                  const netRoomAmount = item.net_room_amount ?? 0
-                  const netAllRoomsAmount = item.total_all_rooms_net ?? 0
-                  const pendingAdvance = item.pending_advance_for_room || 0
-                  const bookingType = item.booking_type || 'WALK-IN-GUEST'
-                  const totalAllowances = item.total_allowances || 0
-                  const leftIsNegative = netRoomAmount < 0
+    ) : statusFilter === 'occupied' ? (
+  /* Occupied Rooms Grid */
+  loadingOccupied && occupiedRooms.length === 0 ? (
+    <div className="d-flex justify-content-center align-items-center py-5">
+      <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
+    </div>
+  ) : errorOccupied ? (
+    <div className="text-center py-5">
+      <i className="fi fi-rr-exclamation text-danger fs-4 mb-3 d-block"></i>
+      <p className="text-danger">{errorOccupied}</p>
+      <Button variant="outline-primary" size="sm" onClick={() => fetchOccupiedRoomsData()}>Retry</Button>
+    </div>
+  ) : occupiedRooms.length === 0 ? (
+    <div className="text-center py-5">
+      <i className="fi fi-rr-bed-empty text-muted fs-4 mb-4 d-block"></i>
+      <p className="text-muted mb-0">No occupied rooms found.</p>
+    </div>
+  ) : (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '6px', alignContent: 'start', padding: '0 8px', width: '100%' }}>
+      {occupiedRooms.map((item) => {
+        // ✅ Get checkout time
+        const checkoutTime = item.checkout_datetime || item.latest_charge_checkout_datetime;
+        const minutesLeft = getMinutesLeft(checkoutTime);
+        
+        // ✅ Check if it's a Bill room (status_id: 7)
+        const isBillRoom = item.room_status_id === 7;
+        
+        // ✅ Check if expired (checkout time passed)
+        const isExpired = minutesLeft <= 0;
+        
+        // ✅ For Bill rooms - ALWAYS show FAINT RED
+        // ✅ For non-Bill rooms - check if within 1 hour
+        const isNear = isBillRoom || (minutesLeft <= 60 && minutesLeft > 0);
+        
+        // ✅ For non-Bill rooms, check if expired
+        const showExpired = !isBillRoom && isExpired;
+        
+        // ✅ Debug log
+        console.log(`Room ${item.room_no}: status_id=${item.room_status_id}, isBillRoom=${isBillRoom}, isNear=${isNear}, showExpired=${showExpired}`);
+        
+        // ✅ Determine colors based on status
+        let backgroundColor, borderColor, textColor, headerColor;
+        
+        if (showExpired) {
+          // ✅ DARK RED for expired rooms (non-Bill)
+          backgroundColor = '#8b0000';
+          borderColor = '#8B0000';
+          textColor = '#ffffff';
+          headerColor = '#4a0000';
+        } else if (isNear) {
+          // ✅ FAINT RED for Bill rooms AND near checkout (within 1 hour)
+          // Calculate opacity - for Bill rooms use fixed opacity, for near use dynamic
+          let opacity;
+          if (isBillRoom) {
+            opacity = 0.4; // Fixed opacity for Bill rooms
+          } else {
+            opacity = 0.2 + ((60 - minutesLeft) / 60) * 0.5; // Dynamic for near checkout
+          }
+          backgroundColor = `rgba(255, 0, 0, ${opacity})`;
+          borderColor = isBillRoom ? '#ff6b00' : '#ff4444';
+          textColor = isBillRoom ? '#8B0000' : '#000000';
+          headerColor = isBillRoom ? '#8B0000' : '#8B0000';
+        } else {
+          // ✅ NORMAL OCCUPIED - Green
+          backgroundColor = uiSettings.color_occupied || '#DFF5E1';
+          borderColor = '#4ADE80';
+          textColor = uiSettings.text_color_occupied || '#16A34A';
+          headerColor = '#000000';
+        }
+        
+        const netRoomAmount = item.net_room_amount ?? 0;
+        const netAllRoomsAmount = item.total_all_rooms_net ?? 0;
+        const pendingAdvance = item.pending_advance_for_room || 0;
+        const bookingType = item.booking_type || 'WALK-IN-GUEST';
+        const totalAllowances = item.total_allowances || 0;
+        const leftIsNegative = netRoomAmount < 0;
 
-                  return (
-                    <div
-                      key={`${item.checkin_id}-${item.room_no}`}
-                      className={`occupied-tile ${isNear ? 'occupied-tile-checkout-near' : ''}`}
-                      onClick={() => handleOccupiedRoomClick(item)}
-                      onContextMenu={(e) => handleContextMenu(e, item)}
-                      style={{ 
-                        border: `2px solid ${
-                          isExpired 
-                            ? uiSettings.occupied_expired_bg || '#E03F4F'
-                            : isNear 
-                            ? uiSettings.occupied_warning_bg || '#b96eff'
-                            : '#4ADE80'
-                        }` 
-                      }}>
-                      <div className="occupied-header">{item.room_no} {item.guest_name}</div>
-                      <div className="occupied-body" style={{ backgroundColor: tileStyle.backgroundColor, color: tileStyle.color }}>
-                        <div>IN : {formatDateTime(item.checkin_datetime)}</div>
-                        <div>OUT : {formatDateTime(item.checkout_datetime)}</div>
-                        <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : item.guest_type}</div>
-                        <div className="charges-line">
-                          <span style={{ color: '#000', fontWeight: leftIsNegative || pendingAdvance > 0 ? 600 : 'normal' }}>
-                            {formatAmount(netRoomAmount)}
-                          </span>
-                          <span style={{ color: '#000' }}>{formatAmount(netAllRoomsAmount)}</span>
-                        </div>
-                        {totalAllowances > 0 && (
-                          <div style={{ fontSize: '0.6rem', color: '#c0392b', fontWeight: 600, display: 'flex', justifyContent: 'space-between', marginTop: '1px' }}>
-                            <span>Alw: -{formatAmount(totalAllowances)}</span>
-                            <span>Net: {formatAmount(netRoomAmount)}</span>
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.65rem' }}>
-                          <span>
-                            {item.original_pax ?? item.adults}
-                            <span style={{ opacity: 0.5 }}>:</span>{item.ex_pax}
-                            <span style={{ opacity: 0.5 }}>:</span>{item.child_count}
-                            <span style={{ opacity: 0.5 }}>:</span>{item.driver_count}
-                          </span>
-                          <span>| {item.payment_method}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+        return (
+          <div
+            key={`${item.checkin_id}-${item.room_no}`}
+            className={`occupied-tile ${isNear ? 'occupied-tile-checkout-near' : ''} ${showExpired ? 'occupied-tile-expired' : ''}`}
+            onClick={() => handleOccupiedRoomClick(item)}
+            onContextMenu={(e) => handleContextMenu(e, item)}
+            style={{ 
+              border: `2px solid ${borderColor}`,
+              backgroundColor: backgroundColor,
+            }}>
+            <div className="occupied-header" style={{ 
+              backgroundColor: headerColor,
+              color: '#ffffff',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span>{item.room_no} {item.guest_name}</span>
+              {/* ✅ Show BILL badge for Bill rooms */}
+              {isBillRoom && (
+                <span className="badge" style={{ 
+                  backgroundColor: '#ff6b00', 
+                  color: '#fff',
+                  fontSize: '0.6rem',
+                  padding: '2px 6px',
+                  borderRadius: '4px'
+                }}>BILL</span>
+              )}
+              {showExpired && (
+                <span className="badge" style={{ 
+                  backgroundColor: '#ff0000', 
+                  color: '#fff',
+                  fontSize: '0.6rem',
+                  padding: '2px 6px',
+                  borderRadius: '4px'
+                }}>EXPIRED</span>
+              )}
+              {isNear && !isBillRoom && !showExpired && (
+                <span className="badge" style={{ 
+                  backgroundColor: '#ff6600', 
+                  color: '#fff',
+                  fontSize: '0.6rem',
+                  padding: '2px 6px',
+                  borderRadius: '4px'
+                }}>{minutesLeft}m</span>
+              )}
+            </div>
+            <div className="occupied-body" style={{ 
+              backgroundColor: backgroundColor, 
+              color: textColor 
+            }}>
+              <div>IN : {formatDateTime(item.checkin_datetime)}</div>
+              <div>OUT : {formatDateTime(item.checkout_datetime || item.latest_charge_checkout_datetime)}</div>
+              <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : item.guest_type}</div>
+              <div className="charges-line">
+                <span style={{ 
+                  color: showExpired ? '#ffffff' : (isBillRoom ? '#8B0000' : '#000'), 
+                  fontWeight: leftIsNegative || pendingAdvance > 0 ? 600 : 'normal' 
+                }}>
+                  {formatAmount(netRoomAmount)}
+                </span>
+                <span style={{ color: showExpired ? '#ffffff' : (isBillRoom ? '#8B0000' : '#000') }}>
+                  {formatAmount(netAllRoomsAmount)}
+                </span>
               </div>
-            )
+              {totalAllowances > 0 && (
+                <div style={{ 
+                  fontSize: '0.6rem', 
+                  color: showExpired ? '#ffcccc' : (isBillRoom ? '#8B0000' : '#c0392b'), 
+                  fontWeight: 600, 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  marginTop: '1px' 
+                }}>
+                  <span>Alw: -{formatAmount(totalAllowances)}</span>
+                  <span>Net: {formatAmount(netRoomAmount)}</span>
+                </div>
+              )}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                fontSize: '0.65rem',
+                color: showExpired ? '#ffcccc' : (isBillRoom ? '#8B0000' : 'inherit')
+              }}>
+                <span>
+                  {item.original_pax ?? item.adults}
+                  <span style={{ opacity: 0.5 }}>:</span>{item.ex_pax}
+                  <span style={{ opacity: 0.5 }}>:</span>{item.child_count}
+                  <span style={{ opacity: 0.5 }}>:</span>{item.driver_count}
+                </span>
+                <span>| {item.payment_method}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  )
 
           ) : filteredRooms.length === 0 ? (
             <div className="text-center py-5">
