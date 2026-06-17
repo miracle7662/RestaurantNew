@@ -34,6 +34,7 @@ import OutletUserService from '@/common/api/outletUser'
 
 import RoomService from '@/common/hotel/room'
 import CheckInService from '@/common/hotel/checkIn'
+import AdvanceTransactionService from '@/common/hotel/advanceTransaction'
 
 // Add this interface after your imports and before any other code
 export interface CheckinFullDetailsRow {
@@ -1112,6 +1113,7 @@ export const fetchOccupiedRooms = async (
 
     // ✅ Build occupied items with status_color from room data
     const occupiedItems: any[] = [];
+    const advanceSummaryCache = new Map<number, number>() // checkin_id -> pending_advance (right side)
     
     for (const roomId of occupiedRoomIds) {
       const room = roomMap.get(roomId);
@@ -1189,18 +1191,96 @@ export const fetchOccupiedRooms = async (
       const minutesLeft = getMinutesLeft(checkoutDatetime);
       const isExpired = minutesLeft <= 0;
       
-      // Net Room Amount should be room-detail wise and netAllRoomsAmount should be checkin wise.
-      // Current bug: UI repeats same checkin total on every room card because net_* fields are set per-room identical.
-      // Here we set:
-      // - net_room_amount: only this room detail's total_amount
-      // - total_all_rooms_net: summed total_amount across all room details in the same checkin_id
+      /**
+       * Amount mapping (fix repetition):
+       * - net_room_amount must be ROOM WISE (room_id/detail_id wise) aggregation
+       * - total_all_rooms_net must be CHECKIN WISE aggregation across all rooms
+       *
+       * allCheckins rows come from checkin_master + checkin_detail_master join,
+       * so each row typically corresponds to a specific detail_id/room_id with total_amount.
+       */
+      /**
+       * Dedupe logic:
+       * `allCheckins` rows come from multiple LEFT JOINs (folio + room charges etc),
+       * so `total_amount` can repeat per charge due to join multiplication.
+       * We dedupe by `guest_room_charges_id` so each charge is counted once.
+       */
+      const chargeTotalById = new Map<number, number>()
+      for (const ci of allCheckins as any[]) {
+        const gid = ci?.guest_room_charges_id
+        if (gid != null) {
+          if (!chargeTotalById.has(Number(gid))) {
+            chargeTotalById.set(Number(gid), Number(ci.total_amount) || 0)
+          }
+        }
+      }
 
-      // Compute checkin-wise total once per room loop (cheap enough for current panel) using allCheckins.
-      let checkinAllRoomsNet = 0;
+      const roomChargeIds = new Set<number>()
       if (checkinId) {
-        checkinAllRoomsNet = allCheckins
-          .filter((ci: any) => Number(ci.checkin_id) === Number(checkinId) && ci.is_settle === 0)
-          .reduce((s: number, ci: any) => s + (Number(ci.total_amount) || 0), 0);
+        for (const ci of allCheckins as any[]) {
+          if (
+            Number(ci.checkin_id) === Number(checkinId) &&
+            Number(ci.room_id) === Number(room.room_id) &&
+            ci.is_settle === 0 &&
+            ci?.guest_room_charges_id != null
+          ) {
+            roomChargeIds.add(Number(ci.guest_room_charges_id))
+          }
+        }
+      }
+
+      let roomNet = 0
+      if (roomChargeIds.size > 0) {
+        for (const id of roomChargeIds) roomNet += chargeTotalById.get(id) || 0
+      } else {
+        // fallback (no dedupe keys present)
+        roomNet = Number(totalAmount) || 0
+      }
+
+      const allChargeIds = new Set<number>()
+      if (checkinId) {
+        for (const ci of allCheckins as any[]) {
+          if (
+            Number(ci.checkin_id) === Number(checkinId) &&
+            ci.is_settle === 0 &&
+            ci?.guest_room_charges_id != null
+          ) {
+            allChargeIds.add(Number(ci.guest_room_charges_id))
+          }
+        }
+      }
+
+      let checkinAllRoomsNet = 0
+      if (allChargeIds.size > 0) {
+        for (const id of allChargeIds) checkinAllRoomsNet += chargeTotalById.get(id) || 0
+      } else {
+        checkinAllRoomsNet = Number(totalAmount) || 0
+      }
+
+      // ✅ Advance subtraction (Left: room-wise, Right: checkin-wise)
+      let pendingAdvanceForRoom = 0
+      if (checkinId) {
+        try {
+          const advRoomRes = await AdvanceTransactionService.getSummaryForRoom(checkinId, Number(room.room_id))
+          pendingAdvanceForRoom = Number(advRoomRes.data?.pending_advance) || 0
+        } catch {
+          pendingAdvanceForRoom = 0
+        }
+      }
+
+      let pendingAdvanceForCheckin = 0
+      if (checkinId) {
+        if (advanceSummaryCache.has(checkinId)) {
+          pendingAdvanceForCheckin = advanceSummaryCache.get(checkinId) || 0
+        } else {
+          try {
+            const advRes = await AdvanceTransactionService.getSummary(checkinId)
+            pendingAdvanceForCheckin = Number(advRes.data?.pending_advance) || 0
+          } catch {
+            pendingAdvanceForCheckin = 0
+          }
+          advanceSummaryCache.set(checkinId, pendingAdvanceForCheckin)
+        }
       }
 
       occupiedItems.push({
@@ -1226,11 +1306,11 @@ export const fetchOccupiedRooms = async (
         room_category_name: room.room_category_name || '',
         converted_category_name: checkin?.converted_category_name || '',
         room_tariff: checkin?.room_tariff || room.room_tariff || 0,
-        // net_room_amount: room detail wise
-        net_room_amount: totalAmount,
-        // total_all_rooms_net: checkin wise (sum of all rooms under same checkin_id)
-        total_all_rooms_net: checkinAllRoomsNet,
-        pending_advance_for_room: 0,
+        // ✅ Room-wise net = room charges - advance(only that room)
+        net_room_amount: roomNet - pendingAdvanceForRoom,
+        // ✅ Checkin-wise net = all rooms charges - advance(total checkin)
+        total_all_rooms_net: checkinAllRoomsNet - pendingAdvanceForCheckin,
+        pending_advance_for_room: pendingAdvanceForRoom,
         total_allowances: 0,
         charges: [],
         checkin: checkin,
@@ -1240,7 +1320,7 @@ export const fetchOccupiedRooms = async (
         room_status_id: roomStatusId,
         status: roomStatusId === 2 ? 'Occupied' : 'Bill',
         total_nights: totalNights,
-        total_amount: totalAmount,
+        total_amount: roomNet - pendingAdvanceForRoom,
         reg_no: regNo,
         booking: booking,
         plan_name: planName,
