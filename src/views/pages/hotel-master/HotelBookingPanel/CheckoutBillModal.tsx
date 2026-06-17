@@ -1,5 +1,5 @@
 // components/CheckoutBillModal.tsx
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect, useState, useMemo } from 'react'
 import { Modal, Button, Spinner } from 'react-bootstrap'
 import BillPrintSettingService, { BillPrintSetting } from '@/common/hotel/billPrintSettingService'
 
@@ -338,28 +338,123 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     if (show) fetchSettings()
   }, [hotelId, show])
 
+  // ========== FILTER: Only use selected rows ==========
   const selectedRows = displayRows.filter((r) => r.selected)
 
-  // Separate charges
+  // ========== FILTER: Create filtered combined summary for selected rooms only ==========
+  const summary = useMemo(() => {
+    if (!combinedSummary) return null
+
+    // Get unique room numbers from selected rows
+    const selectedRoomNumbers = new Set(selectedRows.map((r) => r.room_number))
+
+    // Filter room numbers
+    const filteredRoomNumbers = combinedSummary.room_numbers.filter((r) =>
+      selectedRoomNumbers.has(r)
+    )
+
+    // Filter room categories based on selected rows
+    const filteredRoomCategories = Array.from(
+      new Set(
+        selectedRows
+          .filter((r) => !r.isPostCharge && r.room_category_name && r.room_category_name !== '-')
+          .map((r) => r.room_category_name)
+      )
+    )
+
+    // Filter converted categories
+    const filteredConvertedCategories = Array.from(
+      new Set(
+        selectedRows
+          .filter(
+            (r) => !r.isPostCharge && r.converted_category_name && r.converted_category_name !== '-'
+          )
+          .map((r) => r.converted_category_name)
+      )
+    )
+
+    // Get first selected room charge for dates
+    const firstSelectedRoom = selectedRows.find((r) => !r.isPostCharge)
+
+    return {
+      ...combinedSummary,
+      room_numbers: filteredRoomNumbers,
+      room_numbers_str: filteredRoomNumbers.join(', ') || '-',
+      room_categories: filteredRoomCategories,
+      room_categories_str: filteredRoomCategories.join(', ') || '-',
+      converted_categories: filteredConvertedCategories,
+      converted_categories_str: filteredConvertedCategories.join(', ') || '-',
+      // Override dates with selected room dates
+      original_checkin_datetime:
+        firstSelectedRoom?.checkin_datetime || combinedSummary.original_checkin_datetime,
+      final_checkout_datetime:
+        firstSelectedRoom?.checkout_datetime || combinedSummary.final_checkout_datetime,
+      // Override totals with selected rows only
+      total_room_tariff: selectedRows.reduce((s, r) => s + r.total_room_tariff, 0),
+      total_ex_pax_charge: selectedRows.reduce((s, r) => s + r.ex_pax_total, 0),
+      total_child_paid_amount: selectedRows.reduce((s, r) => s + r.child_total, 0),
+      total_driver_charge: selectedRows.reduce((s, r) => s + r.driver_total, 0),
+      total_tax_amount: selectedRows.reduce((s, r) => s + r.tax_amount, 0),
+      total_amount: selectedRows.reduce((s, r) => s + r.total_amount, 0),
+      total_adults: selectedRows.reduce(
+        (s, r) => s + (r.isPostCharge ? 0 : r.adults || 0),
+        0
+      ),
+      total_pax: selectedRows.reduce(
+        (s, r) => s + (r.isPostCharge ? 0 : r.pax || 0),
+        0
+      ),
+      total_ex_pax: selectedRows.reduce(
+        (s, r) => s + (r.isPostCharge ? 0 : r.ex_pax_count || 0),
+        0
+      ),
+      total_child_paid: selectedRows.reduce(
+        (s, r) => s + (r.isPostCharge ? 0 : r.child_count || 0),
+        0
+      ),
+      total_driver: selectedRows.reduce(
+        (s, r) => s + (r.isPostCharge ? 0 : r.driver_count || 0),
+        0
+      ),
+    }
+  }, [combinedSummary, selectedRows])
+
+  // ========== SEPARATE CHARGES ==========
   const roomCharges = selectedRows.filter((r) => !r.isPostCharge)
   const postCharges = selectedRows.filter((r) => r.isPostCharge && r.total_amount > 0)
   const allowances = selectedRows.filter((r) => r.isPostCharge && r.total_amount < 0)
-  
+
   // Food charges from post charges
   const foodCharges = postCharges.filter((r) => {
     const desc = (r.description || r.particulars || '').toLowerCase()
-    return desc.includes('food') || desc.includes('restaurant') || desc.includes('meal') || 
-           desc.includes('breakfast') || desc.includes('lunch') || desc.includes('dinner') ||
-           desc.includes('coffee') || desc.includes('bar') || desc.includes('snack') ||
-           desc.includes('restro')
+    return (
+      desc.includes('food') ||
+      desc.includes('restaurant') ||
+      desc.includes('meal') ||
+      desc.includes('breakfast') ||
+      desc.includes('lunch') ||
+      desc.includes('dinner') ||
+      desc.includes('coffee') ||
+      desc.includes('bar') ||
+      desc.includes('snack') ||
+      desc.includes('restro')
+    )
   })
-  
+
   const nonFoodPostCharges = postCharges.filter((r) => {
     const desc = (r.description || r.particulars || '').toLowerCase()
-    return !(desc.includes('food') || desc.includes('restaurant') || desc.includes('meal') || 
-             desc.includes('breakfast') || desc.includes('lunch') || desc.includes('dinner') ||
-             desc.includes('coffee') || desc.includes('bar') || desc.includes('snack') ||
-             desc.includes('restro'))
+    return !(
+      desc.includes('food') ||
+      desc.includes('restaurant') ||
+      desc.includes('meal') ||
+      desc.includes('breakfast') ||
+      desc.includes('lunch') ||
+      desc.includes('dinner') ||
+      desc.includes('coffee') ||
+      desc.includes('bar') ||
+      desc.includes('snack') ||
+      desc.includes('restro')
+    )
   })
 
   // Advances (negative amounts that are allowances)
@@ -367,31 +462,34 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const desc = (r.description || r.particulars || '').toLowerCase()
     return desc.includes('advance') || desc.includes('deposit') || desc.includes('prepaid')
   })
-  
+
   const otherAllowances = allowances.filter((r) => {
     const desc = (r.description || r.particulars || '').toLowerCase()
     return !(desc.includes('advance') || desc.includes('deposit') || desc.includes('prepaid'))
   })
 
   // Calculate discount amount
-  const discountAmount = roundToTwo(roomCharges.reduce((s, r) => s + (r.discount_amount || 0), 0))
+  const discountAmount = roundToTwo(
+    roomCharges.reduce((s, r) => s + (r.discount_amount || 0), 0)
+  )
 
+  // ========== DISPLAY VALUES ==========
   const displayCheckedOutRooms =
     checkedOutRooms && checkedOutRooms.length > 0
       ? checkedOutRooms
-      : combinedSummary?.checked_out_rooms || combinedSummary?.room_numbers || []
+      : summary?.checked_out_rooms || summary?.room_numbers || []
 
   const checkedOutRoomsStr =
-    displayCheckedOutRooms.join(', ') || combinedSummary?.room_numbers_str || ''
+    displayCheckedOutRooms.join(', ') || summary?.room_numbers_str || ''
 
-  const checkinDateDisplay = combinedSummary?.original_checkin_datetime
-    ? formatDateLong(combinedSummary.original_checkin_datetime)
+  const checkinDateDisplay = summary?.original_checkin_datetime
+    ? formatDateLong(summary.original_checkin_datetime)
     : '-'
-  const checkoutDateDisplay = combinedSummary?.final_checkout_datetime
-    ? formatDateLong(combinedSummary.final_checkout_datetime)
+  const checkoutDateDisplay = summary?.final_checkout_datetime
+    ? formatDateLong(summary.final_checkout_datetime)
     : '-'
-  const checkinTimeDisplay = combinedSummary?.original_checkin_datetime
-    ? new Date(combinedSummary.original_checkin_datetime).toLocaleTimeString('en-US', {
+  const checkinTimeDisplay = summary?.original_checkin_datetime
+    ? new Date(summary.original_checkin_datetime).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
       })
@@ -400,10 +498,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const invoiceDate = formatDate(new Date().toISOString())
   const generatedBillNo =
     billNumber ||
-    `INV/${new Date().getFullYear()}/${String(combinedSummary?.checkin_id || '0').padStart(4, '0')}`
-  const bookingId = combinedSummary?.reg_no || `BKD${combinedSummary?.checkin_id || '0000'}`
+    `INV/${new Date().getFullYear()}/${String(summary?.checkin_id || '0').padStart(4, '0')}`
+  const bookingId = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
   const paymentStatus = 'Paid'
-  const paymentMode = combinedSummary?.payment_method || 'Credit Card'
+  const paymentMode = summary?.payment_method || 'Credit Card'
 
   const headerBg = printSettings?.table_header_bg_color || '#1a2744'
   const headerText = printSettings?.table_header_text_color || '#ffffff'
@@ -422,16 +520,14 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
   }
 
-  /**
-   * Group charges by date
-   */
+  // ========== GROUP CHARGES BY DATE ==========
   const groupChargesByDate = (): Map<string, GroupedChargeItem> => {
     const grouped = new Map<string, GroupedChargeItem>()
 
     // Process room charges by date
     roomCharges.forEach((charge) => {
       const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
-      
+
       if (!grouped.has(dateKey)) {
         grouped.set(dateKey, {
           date: dateKey,
@@ -442,13 +538,14 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           advances: [],
           foodCharges: [],
           cgstAmount: 0,
-          sgstAmount: 0
+          sgstAmount: 0,
         })
       }
-      
+
       const item = grouped.get(dateKey)!
       item.roomChargeAmount += charge.room_tariff_per_day || 0
-      item.exPaxAmount += (charge.ex_pax_total || 0) + (charge.child_total || 0) + (charge.driver_total || 0)
+      item.exPaxAmount +=
+        (charge.ex_pax_total || 0) + (charge.child_total || 0) + (charge.driver_total || 0)
       item.cgstAmount += charge.cgst_amount || 0
       item.sgstAmount += charge.sgst_amount || 0
     })
@@ -457,7 +554,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     foodCharges.forEach((charge) => {
       const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
       const amount = Math.abs(charge.total_amount)
-      
+
       if (!grouped.has(dateKey)) {
         grouped.set(dateKey, {
           date: dateKey,
@@ -468,15 +565,15 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           advances: [],
           foodCharges: [],
           cgstAmount: 0,
-          sgstAmount: 0
+          sgstAmount: 0,
         })
       }
-      
+
       const item = grouped.get(dateKey)!
-      item.foodCharges.push({ 
-        description: charge.description || charge.particulars || 'Food', 
-        amount, 
-        id: charge.id 
+      item.foodCharges.push({
+        description: charge.description || charge.particulars || 'Food',
+        amount,
+        id: charge.id,
       })
       item.cgstAmount += charge.cgst_amount || 0
       item.sgstAmount += charge.sgst_amount || 0
@@ -486,7 +583,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     nonFoodPostCharges.forEach((charge) => {
       const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
       const amount = Math.abs(charge.total_amount)
-      
+
       if (!grouped.has(dateKey)) {
         grouped.set(dateKey, {
           date: dateKey,
@@ -497,15 +594,15 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           advances: [],
           foodCharges: [],
           cgstAmount: 0,
-          sgstAmount: 0
+          sgstAmount: 0,
         })
       }
-      
+
       const item = grouped.get(dateKey)!
-      item.postCharges.push({ 
-        description: charge.description || charge.particulars || 'Post Charge', 
-        amount, 
-        id: charge.id 
+      item.postCharges.push({
+        description: charge.description || charge.particulars || 'Post Charge',
+        amount,
+        id: charge.id,
       })
       item.cgstAmount += charge.cgst_amount || 0
       item.sgstAmount += charge.sgst_amount || 0
@@ -515,7 +612,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     advances.forEach((charge) => {
       const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
       const amount = Math.abs(charge.total_amount)
-      
+
       if (!grouped.has(dateKey)) {
         grouped.set(dateKey, {
           date: dateKey,
@@ -526,15 +623,15 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           advances: [],
           foodCharges: [],
           cgstAmount: 0,
-          sgstAmount: 0
+          sgstAmount: 0,
         })
       }
-      
+
       const item = grouped.get(dateKey)!
-      item.advances.push({ 
-        description: charge.description || charge.particulars || 'Advance', 
-        amount, 
-        id: charge.id 
+      item.advances.push({
+        description: charge.description || charge.particulars || 'Advance',
+        amount,
+        id: charge.id,
       })
     })
 
@@ -542,7 +639,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     otherAllowances.forEach((charge) => {
       const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
       const amount = Math.abs(charge.total_amount)
-      
+
       if (!grouped.has(dateKey)) {
         grouped.set(dateKey, {
           date: dateKey,
@@ -553,24 +650,22 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           advances: [],
           foodCharges: [],
           cgstAmount: 0,
-          sgstAmount: 0
+          sgstAmount: 0,
         })
       }
-      
+
       const item = grouped.get(dateKey)!
-      item.allowances.push({ 
-        description: charge.description || charge.particulars || 'Allowance', 
-        amount, 
-        id: charge.id 
+      item.allowances.push({
+        description: charge.description || charge.particulars || 'Allowance',
+        amount,
+        id: charge.id,
       })
     })
 
     return grouped
   }
 
-  /**
-   * Generate table rows from grouped data by date
-   */
+  // ========== GENERATE TABLE ROWS ==========
   const generateTableRows = (): TableRowWithIndex[] => {
     const rows: TableRowWithIndex[] = []
     const grouped = groupChargesByDate()
@@ -584,19 +679,26 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
     for (const date of sortedDates) {
       const item = grouped.get(date)!
-      
+
       // Calculate totals for the day
       const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
       const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
       const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
       const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
-      
+
       // POST/ALLOW = postCharges minus allowances (positive means net charge, negative means net allowance)
       const postAllowNet = postTotal - allowanceTotal
-      
+
       // Total for the day = Room + EX.PAX + POST/ALLOW + FOOD + CGST + SGST - ADVANCE
-      const total = item.roomChargeAmount + item.exPaxAmount + postAllowNet + foodTotal + item.cgstAmount + item.sgstAmount - advanceTotal
-      
+      const total =
+        item.roomChargeAmount +
+        item.exPaxAmount +
+        postAllowNet +
+        foodTotal +
+        item.cgstAmount +
+        item.sgstAmount -
+        advanceTotal
+
       rows.push({
         id: `row-${date}`,
         displayIndex: index++,
@@ -615,7 +717,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         allowances: item.allowances,
         advances: item.advances,
         foodCharges: item.foodCharges,
-        sacCode: '996311'
+        sacCode: '996311',
       })
     }
 
@@ -624,17 +726,17 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
   const tableRows = generateTableRows()
 
-  // Calculate totals for summary
-  const totalRoomTariffAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.roomTariff, 0))
+  // ========== CALCULATE TOTALS ==========
+  const totalRoomTariffAmount = roundToTwo(
+    tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
+  )
   const totalExPaxAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.exPax, 0))
   const totalCGSTAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.cgst, 0))
   const totalSGSTAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.sgst, 0))
   const totalFoodAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.food, 0))
-  const totalAdvanceAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.advanceTotal, 0))
-
-  // Kept for backward-compat with older implementations; intentionally unused.
-   
-  // const totalPostAllowNet = roundToTwo(tableRows.reduce((sum, row) => sum + (row as any).postAllowNet, 0))
+  const totalAdvanceAmount = roundToTwo(
+    tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
+  )
 
   const totalAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.total, 0))
   const netTotal = grandTotal
@@ -643,7 +745,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const hasCGSTData = totalCGSTAmount > 0 || totalSGSTAmount > 0
   const hasAdvanceData = totalAdvanceAmount > 0
 
-  // ==================== ALL STYLES ====================
+  // ========== STYLES ==========
   const getBillStyles = () => `
     .bill-wrap * { box-sizing: border-box; }
     .bill-wrap {
@@ -732,7 +834,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       flex: 1;
     }
 
-    /* Compact Charges Table */
     .bill-wrap .bill-charges-table {
       width: 100%;
       border-collapse: collapse;
@@ -767,7 +868,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     .bill-wrap .bct-center { text-align: center; }
     .bill-wrap .bct-left { text-align: left; }
 
-    /* Column widths for compact table */
     .bill-wrap .col-srno { width: 35px; }
     .bill-wrap .col-date { width: 65px; }
     .bill-wrap .col-amount { width: 80px; }
@@ -849,7 +949,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       font-weight: 700;
     }
 
-    /* Horizontal Total Summary */
     .bill-horizontal-summary {
       width: 260px;
       margin-left: auto;
@@ -900,7 +999,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Hotel Bill - ${combinedSummary?.guest_name || 'Guest'}</title>
+          <title>Hotel Bill - ${summary?.guest_name || 'Guest'}</title>
           <style>
             * { 
               box-sizing: border-box; 
@@ -968,7 +1067,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           document.head.appendChild(scriptEl)
         })
 
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+      await loadScript(
+        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+      )
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
 
       const html2canvas = (window as any).html2canvas
@@ -986,10 +1087,13 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       })
 
       const imgData = canvas.toDataURL('image/jpeg', 0.92)
-      const imgW = pdfW - (printSettings?.margin_left_mm || 8) - (printSettings?.margin_right_mm || 8)
+      const imgW =
+        pdfW - (printSettings?.margin_left_mm || 8) - (printSettings?.margin_right_mm || 8)
       const imgH = (canvas.height / canvas.width) * imgW
 
-      const topMargin = !showTopHeaderSection ? printSettings?.top_margin_when_header_hidden || 20 : printSettings?.margin_top_mm || 8
+      const topMargin = !showTopHeaderSection
+        ? printSettings?.top_margin_when_header_hidden || 20
+        : printSettings?.margin_top_mm || 8
       const bottomMargin = printSettings?.margin_bottom_mm || 8
       const leftMargin = printSettings?.margin_left_mm || 8
 
@@ -1001,7 +1105,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         unit: 'mm',
         format: isA4 ? 'a4' : [pdfW, imgH + topMargin + bottomMargin],
       })
-      
+
       if (imgH <= pageContentH) {
         pdf.addImage(imgData, 'JPEG', leftMargin, topMargin, imgW, imgH)
       } else {
@@ -1025,7 +1129,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         }
       }
 
-      const guestName = combinedSummary?.guest_name?.replace(/[^a-zA-Z0-9 ]/g, '') || 'Guest'
+      const guestName = summary?.guest_name?.replace(/[^a-zA-Z0-9 ]/g, '') || 'Guest'
       pdf.save(`Bill_${guestName}_${generatedBillNo.replace(/\//g, '-')}.pdf`)
     } catch (err) {
       console.error('PDF generation failed:', err)
@@ -1035,7 +1139,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
   }
 
-  // ==================== RENDER FUNCTIONS ====================
+  // ========== RENDER FUNCTIONS ==========
 
   const renderHotelHeader = () => {
     if (!showTopHeaderSection) {
@@ -1054,15 +1158,19 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const contactAlign = printSettings?.hotel_contact_position || 'left'
     const logoPosition = printSettings?.hotel_logo_position || 'left'
 
-    const logoEl = printSettings?.show_hotel_logo === 1 && hotelLogo ? (
-      <img src={hotelLogo} alt="Hotel Logo" className="bill-hotel-logo" />
-    ) : null
+    const logoEl =
+      printSettings?.show_hotel_logo === 1 && hotelLogo ? (
+        <img src={hotelLogo} alt="Hotel Logo" className="bill-hotel-logo" />
+      ) : null
 
     return (
       <div className="mb-2">
         {logoEl && <div className={`text-${logoPosition} mb-1`}>{logoEl}</div>}
         {printSettings?.show_hotel_name === 1 && (
-          <div className={`text-${nameAlign}`} style={{ fontSize: '16pt', fontWeight: 800, color: headerBg }}>
+          <div
+            className={`text-${nameAlign}`}
+            style={{ fontSize: '16pt', fontWeight: 800, color: headerBg }}
+          >
             {hotelName}
           </div>
         )}
@@ -1086,7 +1194,15 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const titleAlign = printSettings?.bill_title_position || 'center'
     return (
       <div className={`text-${titleAlign} mb-2`}>
-        <h3 style={{ margin: 0, fontWeight: 800, letterSpacing: '0.5px', color: headerBg, fontSize: '12pt' }}>
+        <h3
+          style={{
+            margin: 0,
+            fontWeight: 800,
+            letterSpacing: '0.5px',
+            color: headerBg,
+            fontSize: '12pt',
+          }}
+        >
           HOTEL BOOKING BILL
         </h3>
       </div>
@@ -1098,23 +1214,35 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       <div className="bill-info-row">
         <div>
           {printSettings?.show_invoice_no === 1 && (
-            <div><strong>Invoice No.</strong> : {generatedBillNo}</div>
+            <div>
+              <strong>Invoice No.</strong> : {generatedBillNo}
+            </div>
           )}
           {printSettings?.show_invoice_date === 1 && (
-            <div><strong>Invoice Date</strong> : {invoiceDate}</div>
+            <div>
+              <strong>Invoice Date</strong> : {invoiceDate}
+            </div>
           )}
           {printSettings?.show_booking_id === 1 && (
-            <div><strong>Booking ID</strong> : {bookingId}</div>
+            <div>
+              <strong>Booking ID</strong> : {bookingId}
+            </div>
           )}
         </div>
         <div>
           {printSettings?.show_payment_status === 1 && (
-            <div><strong>Payment Status</strong> : <span className="status-paid">{paymentStatus}</span></div>
+            <div>
+              <strong>Payment Status</strong> : <span className="status-paid">{paymentStatus}</span>
+            </div>
           )}
           {printSettings?.show_payment_mode === 1 && (
-            <div><strong>Payment Mode</strong> : {paymentMode}</div>
+            <div>
+              <strong>Payment Mode</strong> : {paymentMode}
+            </div>
           )}
-          <div><strong>Guest Name</strong> : {combinedSummary?.guest_name || '-'}</div>
+          <div>
+            <strong>Guest Name</strong> : {summary?.guest_name || '-'}
+          </div>
         </div>
       </div>
     )
@@ -1129,19 +1257,39 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           <table className="bill-detail-table">
             <tbody>
               {printSettings?.show_guest_name === 1 && (
-                <tr><td className="bdt-label">Name</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_name || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Name</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{summary?.guest_name || '-'}</td>
+                </tr>
               )}
               {printSettings?.show_guest_mobile === 1 && (
-                <tr><td className="bdt-label">Phone</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_mobile || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Phone</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{summary?.guest_mobile || '-'}</td>
+                </tr>
               )}
               {printSettings?.show_guest_email === 1 && (
-                <tr><td className="bdt-label">Email</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_email || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Email</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{summary?.guest_email || '-'}</td>
+                </tr>
               )}
               {printSettings?.show_guest_address === 1 && (
-                <tr><td className="bdt-label">Address</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_address || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Address</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{summary?.guest_address || '-'}</td>
+                </tr>
               )}
               {printSettings?.show_guest_id_proof === 1 && (
-                <tr><td className="bdt-label">ID Proof</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.guest_id_proof || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">ID Proof</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{summary?.guest_id_proof || '-'}</td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -1159,29 +1307,60 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           <table className="bill-detail-table">
             <tbody>
               {printSettings?.show_checkin_date === 1 && (
-                <tr><td className="bdt-label">Check-in Date</td><td className="bdt-colon">:</td><td className="bdt-value">{checkinDateDisplay}</td></tr>
+                <tr>
+                  <td className="bdt-label">Check-in Date</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{checkinDateDisplay}</td>
+                </tr>
               )}
               {printSettings?.show_checkout_date === 1 && (
-                <tr><td className="bdt-label">Check-out Date</td><td className="bdt-colon">:</td><td className="bdt-value">{checkoutDateDisplay}</td></tr>
+                <tr>
+                  <td className="bdt-label">Check-out Date</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{checkoutDateDisplay}</td>
+                </tr>
               )}
               {printSettings?.show_nights === 1 && (
-                <tr><td className="bdt-label">No. of Nights</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.total_days || 0}</td></tr>
+                <tr>
+                  <td className="bdt-label">No. of Nights</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{summary?.total_days || 0}</td>
+                </tr>
               )}
               {printSettings?.show_room_type === 1 && (
-                <tr><td className="bdt-label">Room Type</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.room_categories_str || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Room Type</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{summary?.room_categories_str || '-'}</td>
+                </tr>
               )}
               {printSettings?.show_room_numbers === 1 && (
-                <tr><td className="bdt-label">Room No(s).</td><td className="bdt-colon">:</td><td className="bdt-value">{checkedOutRoomsStr || combinedSummary?.room_numbers_str || '-'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Room No(s).</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">
+                    {checkedOutRoomsStr || summary?.room_numbers_str || '-'}
+                  </td>
+                </tr>
               )}
               {printSettings?.show_guests_count === 1 && (
-                <tr><td className="bdt-label">Guests</td><td className="bdt-colon">:</td><td className="bdt-value">
-                  {combinedSummary?.total_adults || 0} Adults
-                  {(combinedSummary?.total_child_paid || 0) > 0 && `, ${combinedSummary?.total_child_paid} Child`}
-                  {(combinedSummary?.total_driver || 0) > 0 && `, ${combinedSummary?.total_driver} Driver`}
-                </td></tr>
+                <tr>
+                  <td className="bdt-label">Guests</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">
+                    {summary?.total_adults || 0} Adults
+                    {(summary?.total_child_paid || 0) > 0 &&
+                      `, ${summary?.total_child_paid} Child`}
+                    {(summary?.total_driver || 0) > 0 && `, ${summary?.total_driver} Driver`}
+                  </td>
+                </tr>
               )}
               {printSettings?.show_tariff_plan === 1 && (
-                <tr><td className="bdt-label">Tariff Plan</td><td className="bdt-colon">:</td><td className="bdt-value">{combinedSummary?.plan_name || 'Room Only'}</td></tr>
+                <tr>
+                  <td className="bdt-label">Tariff Plan</td>
+                  <td className="bdt-colon">:</td>
+                  <td className="bdt-value">{summary?.plan_name || 'Room Only'}</td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -1192,8 +1371,8 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
   const renderChargesTable = () => {
     const showRowNums = printSettings?.show_row_numbers === 1
-    
-    // Build column headers - separate POST and ALLOW columns
+
+    // Build column headers
     const headers: React.ReactElement[] = []
     if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
     headers.push(<th key="date" className="col-date bct-left">DATE</th>)
@@ -1203,7 +1382,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       headers.push(<th key="cgst" className="col-small bct-right">CGST</th>)
       headers.push(<th key="sgst" className="col-small bct-right">SGST</th>)
     }
-    // Separate POST and ALLOW columns
     headers.push(<th key="post" className="col-amount bct-right">POST</th>)
     headers.push(<th key="allow" className="col-amount bct-right">ALLOW</th>)
     if (hasAdvanceData) {
@@ -1214,21 +1392,16 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
     const totalCols = headers.length
 
-    // Build table body rows — one row per day only
+    // Build table body rows
     const bodyRows: React.ReactElement[] = []
     let runningIndex = 1
 
     tableRows.forEach((row) => {
       const mainIndex = runningIndex++
-      
-      // POST column shows positive charges (postCharges total)
+
       const postDisplay = row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'
-      // ALLOW column shows allowances (negative adjustments)
       const allowDisplay = row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'
-      // ADVANCE column shows advances
       const advanceDisplay = row.advanceTotal > 0 ? formatAmtDisplay(row.advanceTotal) : '-'
-      
-      // Food display
       const foodDisplay = row.food > 0 ? formatAmtDisplay(row.food) : '-'
 
       const cells: React.ReactElement[] = []
@@ -1240,38 +1413,97 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst)}</td>)
         cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst)}</td>)
       }
-      cells.push(<td key="post" className="bct-right" style={{ color: '#1a7a3a', fontWeight: 500 }}>{postDisplay}</td>)
-      cells.push(<td key="allow" className="bct-right" style={{ color: '#cc0000', fontWeight: 500 }}>{allowDisplay}</td>)
+      cells.push(
+        <td key="post" className="bct-right" style={{ color: '#1a7a3a', fontWeight: 500 }}>
+          {postDisplay}
+        </td>
+      )
+      cells.push(
+        <td key="allow" className="bct-right" style={{ color: '#cc0000', fontWeight: 500 }}>
+          {allowDisplay}
+        </td>
+      )
       if (hasAdvanceData) {
-        cells.push(<td key="advance" className="bct-right" style={{ color: '#cc0000', fontWeight: 500 }}>{advanceDisplay}</td>)
+        cells.push(
+          <td key="advance" className="bct-right" style={{ color: '#cc0000', fontWeight: 500 }}>
+            {advanceDisplay}
+          </td>
+        )
       }
       cells.push(<td key="food" className="bct-right">{foodDisplay}</td>)
-      cells.push(<td key="total" className="bct-right" style={{ fontWeight: 600 }}>{formatAmtDisplay(row.total)}</td>)
+      cells.push(
+        <td key="total" className="bct-right" style={{ fontWeight: 600 }}>
+          {formatAmtDisplay(row.total)}
+        </td>
+      )
       bodyRows.push(<tr key={row.id}>{cells}</tr>)
     })
 
-    // Calculate totals for separate columns
-    const totalPostAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.postTotal, 0))
-    const totalAllowanceAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0))
+    // Calculate totals
+    const totalPostAmount = roundToTwo(
+      tableRows.reduce((sum, row) => sum + row.postTotal, 0)
+    )
+    const totalAllowanceAmount = roundToTwo(
+      tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
+    )
 
-    // Build footer row
     const labelColSpan = showRowNums ? 2 : 1
 
     const footerCells: React.ReactElement[] = []
-    footerCells.push(<td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ fontWeight: 700 }}>Total</td>)
-    footerCells.push(<td key="total_tariff" className="bct-right" style={{ fontWeight: 700 }}>{formatAmtDisplay(totalRoomTariffAmount)}</td>)
-    footerCells.push(<td key="total_expax" className="bct-right" style={{ fontWeight: 700 }}>{formatAmtDisplay(totalExPaxAmount)}</td>)
+    footerCells.push(
+      <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ fontWeight: 700 }}>
+        Total
+      </td>
+    )
+    footerCells.push(
+      <td key="total_tariff" className="bct-right" style={{ fontWeight: 700 }}>
+        {formatAmtDisplay(totalRoomTariffAmount)}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_expax" className="bct-right" style={{ fontWeight: 700 }}>
+        {formatAmtDisplay(totalExPaxAmount)}
+      </td>
+    )
     if (hasCGSTData) {
-      footerCells.push(<td key="total_cgst" className="bct-right" style={{ fontWeight: 700 }}>{formatAmtDisplay(totalCGSTAmount)}</td>)
-      footerCells.push(<td key="total_sgst" className="bct-right" style={{ fontWeight: 700 }}>{formatAmtDisplay(totalSGSTAmount)}</td>)
+      footerCells.push(
+        <td key="total_cgst" className="bct-right" style={{ fontWeight: 700 }}>
+          {formatAmtDisplay(totalCGSTAmount)}
+        </td>
+      )
+      footerCells.push(
+        <td key="total_sgst" className="bct-right" style={{ fontWeight: 700 }}>
+          {formatAmtDisplay(totalSGSTAmount)}
+        </td>
+      )
     }
-    footerCells.push(<td key="total_post" className="bct-right" style={{ fontWeight: 700, color: '#1a7a3a' }}>{formatAmtDisplay(totalPostAmount)}</td>)
-    footerCells.push(<td key="total_allow" className="bct-right" style={{ fontWeight: 700, color: '#cc0000' }}>{formatAmtDisplay(totalAllowanceAmount)}</td>)
+    footerCells.push(
+      <td key="total_post" className="bct-right" style={{ fontWeight: 700, color: '#1a7a3a' }}>
+        {formatAmtDisplay(totalPostAmount)}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_allow" className="bct-right" style={{ fontWeight: 700, color: '#cc0000' }}>
+        {formatAmtDisplay(totalAllowanceAmount)}
+      </td>
+    )
     if (hasAdvanceData) {
-      footerCells.push(<td key="total_advance" className="bct-right" style={{ fontWeight: 700, color: '#cc0000' }}>{formatAmtDisplay(totalAdvanceAmount)}</td>)
+      footerCells.push(
+        <td key="total_advance" className="bct-right" style={{ fontWeight: 700, color: '#cc0000' }}>
+          {formatAmtDisplay(totalAdvanceAmount)}
+        </td>
+      )
     }
-    footerCells.push(<td key="total_food" className="bct-right" style={{ fontWeight: 700 }}>{totalFoodAmount > 0 ? formatAmtDisplay(totalFoodAmount) : '-'}</td>)
-    footerCells.push(<td key="total_amount" className="bct-right" style={{ fontWeight: 800, background: '#f0f0f0' }}>{formatAmtDisplay(totalAmount)}</td>)
+    footerCells.push(
+      <td key="total_food" className="bct-right" style={{ fontWeight: 700 }}>
+        {totalFoodAmount > 0 ? formatAmtDisplay(totalFoodAmount) : '-'}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_amount" className="bct-right" style={{ fontWeight: 800, background: '#f0f0f0' }}>
+        {formatAmtDisplay(totalAmount)}
+      </td>
+    )
 
     // Summary rows
     const afterDiscountTotal = totalAmount - discountAmount
@@ -1286,9 +1518,16 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             className="bct-right"
             style={{ fontWeight: 600, color: '#cc0000', borderTop: '2px solid #d4d4d4' }}
           >
-            Discount ({combinedSummary?.avg_discount_percent ? `${combinedSummary.avg_discount_percent.toFixed(2)}%` : ''})
+            Discount (
+            {summary?.avg_discount_percent
+              ? `${summary.avg_discount_percent.toFixed(2)}%`
+              : ''}
+            )
           </td>
-          <td className="bct-right" style={{ fontWeight: 600, color: '#cc0000', borderTop: '2px solid #d4d4d4' }}>
+          <td
+            className="bct-right"
+            style={{ fontWeight: 600, color: '#cc0000', borderTop: '2px solid #d4d4d4' }}
+          >
             ₹{formatAmt(discountAmount)}
           </td>
         </tr>
@@ -1297,11 +1536,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
     summaryRows.push(
       <tr key="summary_total" style={{ background: '#e8f0fe' }}>
-        <td
-          colSpan={totalCols - 1}
-          className="bct-right"
-          style={{ fontWeight: 800 }}
-        >
+        <td colSpan={totalCols - 1} className="bct-right" style={{ fontWeight: 800 }}>
           Sub Total
         </td>
         <td className="bct-right" style={{ fontWeight: 800 }}>
@@ -1312,11 +1547,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
     summaryRows.push(
       <tr key="summary_grand_total" style={{ background: headerBg, color: headerText }}>
-        <td
-          colSpan={totalCols - 1}
-          className="bct-right"
-          style={{ fontWeight: 800, fontSize: '9pt' }}
-        >
+        <td colSpan={totalCols - 1} className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
           TOTAL PAID (INR)
         </td>
         <td className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
@@ -1324,16 +1555,14 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         </td>
       </tr>
     )
-    
+
     return (
       <div style={{ overflowX: 'auto' }}>
         <table className="bill-charges-table">
           <thead>
             <tr>{headers}</tr>
           </thead>
-          <tbody>
-            {bodyRows}
-          </tbody>
+          <tbody>{bodyRows}</tbody>
           <tfoot>
             <tr key="footer1">{footerCells}</tr>
             {summaryRows}
@@ -1343,7 +1572,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     )
   }
 
-  // Horizontal Summary Table - now merged into renderChargesTable tfoot
   const renderHorizontalSummary = () => null
 
   const renderAmountInWords = () => {
@@ -1362,10 +1590,28 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         <div className="bill-info-box-body">
           <table className="bill-detail-table">
             <tbody>
-              <tr><td className="bdt-label">Paid Amount</td><td className="bdt-colon">:</td><td className="bdt-value">INR {formatAmt(netTotal)}</td></tr>
-              <tr><td className="bdt-label">Transaction ID</td><td className="bdt-colon">:</td><td className="bdt-value">{paymentTransactionId || `TXN${Date.now().toString().slice(-12)}`}</td></tr>
-              <tr><td className="bdt-label">Payment Date</td><td className="bdt-colon">:</td><td className="bdt-value">{paymentDate || invoiceDate}</td></tr>
-              <tr><td className="bdt-label">Bank / Card</td><td className="bdt-colon">:</td><td className="bdt-value">{paymentBank || paymentMode}</td></tr>
+              <tr>
+                <td className="bdt-label">Paid Amount</td>
+                <td className="bdt-colon">:</td>
+                <td className="bdt-value">INR {formatAmt(netTotal)}</td>
+              </tr>
+              <tr>
+                <td className="bdt-label">Transaction ID</td>
+                <td className="bdt-colon">:</td>
+                <td className="bdt-value">
+                  {paymentTransactionId || `TXN${Date.now().toString().slice(-12)}`}
+                </td>
+              </tr>
+              <tr>
+                <td className="bdt-label">Payment Date</td>
+                <td className="bdt-colon">:</td>
+                <td className="bdt-value">{paymentDate || invoiceDate}</td>
+              </tr>
+              <tr>
+                <td className="bdt-label">Bank / Card</td>
+                <td className="bdt-colon">:</td>
+                <td className="bdt-value">{paymentBank || paymentMode}</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -1380,7 +1626,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '7pt' }}>
           <li>Check-in time: {checkinTimeDisplay}</li>
           <li>Check-out time: {checkoutTimeDisplay}</li>
-          <li>Early check-in or late check-out is subject to availability and may incur additional charges.</li>
+          <li>
+            Early check-in or late check-out is subject to availability and may incur additional
+            charges.
+          </li>
           <li>This is a computer generated invoice. No signature required.</li>
         </ul>
       </div>
@@ -1391,7 +1640,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     return (
       <div className="text-center mt-2">
         {printSettings?.show_thankyou_message === 1 && (
-          <div className="bill-thankyou">{printSettings?.thankyou_message_text || 'Thank You!'}</div>
+          <div className="bill-thankyou">
+            {printSettings?.thankyou_message_text || 'Thank You!'}
+          </div>
         )}
         {printSettings?.show_footer_note === 1 && (
           <div className="mt-1" style={{ fontSize: '8pt', color: '#555' }}>
@@ -1404,7 +1655,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           {printSettings?.show_fssai === 1 && <div>FSSAI: {hotelFSSAI}</div>}
         </div>
         {printSettings?.custom_footer_text && (
-          <div className="mt-1" style={{ fontSize: '7pt', color: '#999' }}>{printSettings.custom_footer_text}</div>
+          <div className="mt-1" style={{ fontSize: '7pt', color: '#999' }}>
+            {printSettings.custom_footer_text}
+          </div>
         )}
       </div>
     )
@@ -1414,20 +1667,30 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const guestPosition = printSettings?.guest_details_position || 'left'
     const bookingPosition = printSettings?.booking_details_position || 'right'
 
-    const topBottom = guestPosition === 'top' || bookingPosition === 'top' || guestPosition === 'bottom' || bookingPosition === 'bottom'
+    const topBottom =
+      guestPosition === 'top' ||
+      bookingPosition === 'top' ||
+      guestPosition === 'bottom' ||
+      bookingPosition === 'bottom'
 
     return (
       <div>
         {renderHotelHeader()}
         {renderBillTitle()}
         {printSettings?.custom_header_text && (
-          <div className="text-center mb-2" style={{ fontSize: '8pt', color: '#666' }}>{printSettings.custom_header_text}</div>
+          <div className="text-center mb-2" style={{ fontSize: '8pt', color: '#666' }}>
+            {printSettings.custom_header_text}
+          </div>
         )}
 
         {topBottom ? (
           <>
-            {guestPosition === 'top' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
-            {bookingPosition === 'top' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
+            {guestPosition === 'top' &&
+              printSettings?.show_guest_details === 1 &&
+              renderGuestDetails()}
+            {bookingPosition === 'top' &&
+              printSettings?.show_booking_details === 1 &&
+              renderBookingDetails()}
             {renderBillInfo()}
             {renderChargesTable()}
             {renderHorizontalSummary()}
@@ -1436,19 +1699,31 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
               {renderPaymentDetails()}
               {renderNoteBox()}
             </div>
-            {guestPosition === 'bottom' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
-            {bookingPosition === 'bottom' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
+            {guestPosition === 'bottom' &&
+              printSettings?.show_guest_details === 1 &&
+              renderGuestDetails()}
+            {bookingPosition === 'bottom' &&
+              printSettings?.show_booking_details === 1 &&
+              renderBookingDetails()}
           </>
         ) : (
           <>
             <div className="two-column-layout">
               <div>
-                {guestPosition === 'left' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
-                {bookingPosition === 'left' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
+                {guestPosition === 'left' &&
+                  printSettings?.show_guest_details === 1 &&
+                  renderGuestDetails()}
+                {bookingPosition === 'left' &&
+                  printSettings?.show_booking_details === 1 &&
+                  renderBookingDetails()}
               </div>
               <div>
-                {guestPosition === 'right' && printSettings?.show_guest_details === 1 && renderGuestDetails()}
-                {bookingPosition === 'right' && printSettings?.show_booking_details === 1 && renderBookingDetails()}
+                {guestPosition === 'right' &&
+                  printSettings?.show_guest_details === 1 &&
+                  renderGuestDetails()}
+                {bookingPosition === 'right' &&
+                  printSettings?.show_booking_details === 1 &&
+                  renderBookingDetails()}
               </div>
             </div>
             {renderBillInfo()}
@@ -1468,7 +1743,13 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
   if (settingsLoading) {
     return (
-      <Modal show={show} onHide={onHide} dialogClassName="bill-modal-dialog" backdrop="static" centered>
+      <Modal
+        show={show}
+        onHide={onHide}
+        dialogClassName="bill-modal-dialog"
+        backdrop="static"
+        centered
+      >
         <Modal.Body className="text-center py-5">
           <Spinner animation="border" variant="primary" />
           <p className="mt-2">Loading bill settings...</p>
@@ -1553,18 +1834,36 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         ${getBillStyles()}
       `}</style>
 
-      <Modal show={show} onHide={onHide} dialogClassName="bill-modal-dialog" backdrop="static" centered>
-        <Modal.Header closeButton className="py-2" style={{ background: headerBg, borderBottom: 'none' }}>
+      <Modal
+        show={show}
+        onHide={onHide}
+        dialogClassName="bill-modal-dialog"
+        backdrop="static"
+        centered
+      >
+        <Modal.Header
+          closeButton
+          className="py-2"
+          style={{ background: headerBg, borderBottom: 'none' }}
+        >
           <Modal.Title className="text-white fw-bold" style={{ fontSize: '0.85rem' }}>
-            🧾 Hotel Booking Bill — {combinedSummary?.guest_name || 'Guest'}
+            🧾 Hotel Booking Bill — {summary?.guest_name || 'Guest'}
           </Modal.Title>
         </Modal.Header>
 
         <Modal.Body className="bill-modal-body p-0">
           <div className="bill-modal-action-bar no-print">
-            <Button className="btn-bill-print" onClick={handlePrint}>🖨️ Print Bill</Button>
+            <Button className="btn-bill-print" onClick={handlePrint}>
+              🖨️ Print Bill
+            </Button>
             <Button className="btn-bill-pdf" onClick={handleDownloadPDF} disabled={pdfLoading}>
-              {pdfLoading ? <><Spinner animation="border" size="sm" className="me-1" /> Generating PDF...</> : <>📄 Download PDF</>}
+              {pdfLoading ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-1" /> Generating PDF...
+                </>
+              ) : (
+                <>📄 Download PDF</>
+              )}
             </Button>
           </div>
           <div style={{ padding: '15px', background: '#e8eaed' }}>
