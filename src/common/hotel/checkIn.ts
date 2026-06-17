@@ -43,6 +43,7 @@ export interface CheckIn {
   status: string;
   total_nights?: number;
   total_amount?: number;
+  outletid?: number;
 }
 
 export interface TodayCheckout {
