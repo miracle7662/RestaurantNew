@@ -1,5 +1,5 @@
 // backend/controllers/advanceTransactionController.js
-// COMPLETE UPDATED VERSION - Guest moves with their advance during room swap
+// COMPLETE UPDATED VERSION - Fixed table names (guest_folio_master → checkin_guest_folio_master)
 
 const db = require('../../../config/db');
 
@@ -98,7 +98,7 @@ const calculatePendingAdvanceForRoom = async (checkinId, roomId) => {
     const [rows] = await db.query(`
       SELECT 
         COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt', 'Advance Addition') THEN credit_amount ELSE 0 END), 0) as total_credit,
-        COALESCE(SUM(CASE WHEN transaction_type IN ('Advance Posting', 'Advance Refund', 'Advance Cancel') THEN debit_amount ELSE 0 END), 0) as total_debit
+        COALESCE(SUM(CASE WHEN transaction_type IN ('Advance Posting', 'Advance Refund') THEN debit_amount ELSE 0 END), 0) as total_debit
       FROM advance_transactions
       WHERE checkin_id = ? 
         AND room_id = ?
@@ -120,7 +120,7 @@ const calculatePendingAdvance = async (checkinId) => {
     const [rows] = await db.query(`
       SELECT 
         COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt', 'Advance Addition') THEN credit_amount ELSE 0 END), 0) as total_credit,
-        COALESCE(SUM(CASE WHEN transaction_type IN ('Advance Posting', 'Advance Refund', 'Advance Cancel') THEN debit_amount ELSE 0 END), 0) as total_debit
+        COALESCE(SUM(CASE WHEN transaction_type IN ('Advance Posting', 'Advance Refund') THEN debit_amount ELSE 0 END), 0) as total_debit
       FROM advance_transactions 
       WHERE checkin_id = ? AND status = 'active'
     `, [checkinId]);
@@ -145,12 +145,12 @@ const determinePaymentMethod = (items, defaultMethod = 'Cash') => {
 // ==================== GET ALL ====================
 exports.getAdvanceTransactions = async (req, res) => {
   try {
-    const { checkin_id, hotelid, room_id } = req.query;
+    const { checkin_id, hotel_id, room_id } = req.query;
     let query = `SELECT * FROM advance_transactions WHERE 1=1`;
     const params = [];
 
     if (checkin_id) { query += ` AND checkin_id = ?`; params.push(checkin_id); }
-    if (hotelid)   { query += ` AND hotelid = ?`;   params.push(hotelid); }
+    if (hotel_id)   { query += ` AND hotel_id = ?`;   params.push(hotel_id); }
     if (room_id)    { query += ` AND room_id = ?`;     params.push(room_id); }
 
     query += ` ORDER BY transaction_datetime DESC`;
@@ -193,7 +193,7 @@ exports.getAdvanceSummary = async (req, res) => {
         COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt', 'Advance Addition') THEN credit_amount ELSE 0 END), 0) as total_advance_received,
         COALESCE(SUM(CASE WHEN transaction_type = 'Advance Posting' THEN debit_amount ELSE 0 END), 0) as total_advance_used,
         COALESCE(SUM(CASE WHEN transaction_type = 'Advance Refund'  THEN debit_amount ELSE 0 END), 0) as total_advance_refunded,
-        COALESCE(SUM(CASE WHEN transaction_type = 'Advance Cancel'  THEN debit_amount ELSE 0 END), 0) as total_advance_cancelled
+        0 as total_advance_cancelled
       FROM advance_transactions 
       WHERE checkin_id = ? AND status = 'active'
     `, [checkinId]);
@@ -201,7 +201,7 @@ exports.getAdvanceSummary = async (req, res) => {
     const totalReceived   = parseDecimal(rows[0]?.total_advance_received);
     const totalUsed       = parseDecimal(rows[0]?.total_advance_used);
     const totalRefunded   = parseDecimal(rows[0]?.total_advance_refunded);
-    const totalCancelled  = parseDecimal(rows[0]?.total_advance_cancelled);
+    const totalCancelled  = 0;
     const pendingAdvance  = totalReceived - totalUsed - totalRefunded - totalCancelled;
 
     res.json({
@@ -230,7 +230,7 @@ exports.getAdvanceSummaryForRoom = async (req, res) => {
         COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt', 'Advance Addition') THEN credit_amount ELSE 0 END), 0) as total_advance_received,
         COALESCE(SUM(CASE WHEN transaction_type = 'Advance Posting' THEN debit_amount ELSE 0 END), 0) as total_advance_used,
         COALESCE(SUM(CASE WHEN transaction_type = 'Advance Refund'  THEN debit_amount ELSE 0 END), 0) as total_advance_refunded,
-        COALESCE(SUM(CASE WHEN transaction_type = 'Advance Cancel'  THEN debit_amount ELSE 0 END), 0) as total_advance_cancelled
+        0 as total_advance_cancelled
       FROM advance_transactions 
       WHERE checkin_id = ? AND room_id = ? AND status = 'active'
     `, [checkinId, roomId]);
@@ -238,7 +238,7 @@ exports.getAdvanceSummaryForRoom = async (req, res) => {
     const totalReceived   = parseDecimal(rows[0]?.total_advance_received);
     const totalUsed       = parseDecimal(rows[0]?.total_advance_used);
     const totalRefunded   = parseDecimal(rows[0]?.total_advance_refunded);
-    const totalCancelled  = parseDecimal(rows[0]?.total_advance_cancelled);
+    const totalCancelled  = 0;
     const pendingAdvance  = totalReceived - totalUsed - totalRefunded - totalCancelled;
 
     res.json({
@@ -345,7 +345,6 @@ exports.addAdvanceTransaction = async (req, res) => {
     await connection.beginTransaction();
 
     const {
-      // Support both naming conventions: hotelid (frontend payload) and hotel_id (some older clients)
       hotelid,
       hotel_id,
       checkin_id,
@@ -371,17 +370,24 @@ exports.addAdvanceTransaction = async (req, res) => {
       refund_items
     } = req.body;
 
-    // Normalize hotel id (column is hotel_id in DB error)
+
+    // Normalize hotel id (DB column is hotel_id)
     const normalizedHotelId = hotelid ?? hotel_id ?? null;
 
     if (!normalizedHotelId) {
       await connection.rollback();
       return res.status(400).json({
         success: false,
-        message: "hotel_id is required (or send 'hotelid' from frontend)",
-        error: 'MISSING_HOTEL_ID'
+        message: "hotel_id is required (send 'hotelid' or 'hotel_id' from frontend)",
+        error: 'MISSING_HOTEL_ID',
+        debug: { hotelid, hotel_id }
       });
     }
+
+    // IMPORTANT: use normalizedHotelId in all DB inserts
+    // (prevents ER_BAD_NULL_ERROR: Column 'hotel_id' cannot be null)
+    const hotelIdForDb = normalizedHotelId;
+
 
 
     const userId = created_by_id || getCurrentUserId(req) || 1;
@@ -393,7 +399,7 @@ exports.addAdvanceTransaction = async (req, res) => {
 
     let finalReceiptNo = receipt_no;
     if (!finalReceiptNo) {
-      finalReceiptNo = await generateReceiptNo(normalizedHotelId, transaction_type);
+      finalReceiptNo = await generateReceiptNo(hotelIdForDb, transaction_type);
     }
 
 
@@ -426,13 +432,13 @@ exports.addAdvanceTransaction = async (req, res) => {
 
     const [result] = await connection.query(`
       INSERT INTO advance_transactions (
-        hotelid, checkin_id, detail_id, room_id, guest_name, room_no,
+        hotel_id, checkin_id, detail_id, room_id, guest_name, room_no,
         transaction_type, receipt_no, payment_method, amount,
         debit_amount, credit_amount, balance_amount, reason, narration,
         reference_no, transaction_datetime, status, created_by_id, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW())
     `, [
-      normalizedHotelId,
+      hotelIdForDb,
       checkin_id,
 
       detail_id || null,
@@ -524,15 +530,17 @@ exports.addAdvanceTransaction = async (req, res) => {
         break;
     }
 
+    // FIXED: Use the correct table name 'checkin_guest_folio_master' instead of 'guest_folio_master'
     await connection.query(`
-      INSERT INTO guest_folio_master (
-        checkin_id, hotelid, detail_id, transaction_type, transaction_datetime,
+      INSERT INTO checkin_guest_folio_master (
+        checkin_id, hotel_id, detail_id, transaction_type, transaction_datetime,
         description, debit_amount, credit_amount, reference_number, payment_method,
         created_by_id, created_date
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `, [
       checkin_id,
-      hotelid,
+      hotelIdForDb,
+
       detail_id || null,
       folioTransactionType,
       formattedTransactionDateTime,
@@ -692,7 +700,7 @@ exports.deleteAdvanceTransaction = async (req, res) => {
 //   - Rohit's ₹1000 advance: keep checkin_id (Rohit's), update room_id/room_no to Room 102
 //   - Prasad's ₹2000 advance: keep checkin_id (Prasad's), update room_id/room_no to Room 101
 //
-// ALSO: guest_folio_master rows for these advances are linked via reference_number = receipt_no.
+// ALSO: checkin_guest_folio_master rows for these advances are linked via reference_number = receipt_no.
 //       Their checkin_id must NOT change (the guest hasn't changed), but the description is
 //       updated to note the room change for the audit trail.
 //
@@ -782,7 +790,6 @@ exports.swapAdvanceBetweenRooms = async (req, res) => {
     console.log(`Guest B advances (${idsB.length}):`, rowsB.map(r => ({ id: r.advance_id, credit: r.credit_amount, room: r.room_no })));
 
     if (idsA.length === 0 && idsB.length === 0) {
-      // Nothing to swap — commit empty transaction and return success
       await connection.commit();
       return res.json({
         success: true,
@@ -853,7 +860,7 @@ exports.swapAdvanceBetweenRooms = async (req, res) => {
       console.log(`Step 3: Moved ${idsA.length} advances for Guest A to Room ${room_b_room_no} (their new room)`);
     }
 
-    // ── Update guest_folio_master — AUDIT TRAIL ONLY ─────────────────────────
+    // ── Update checkin_guest_folio_master — AUDIT TRAIL ONLY ─────────────────────────
     //
     // The folio rows for advance transactions are linked via reference_number = receipt_no.
     // checkin_id stays the same (guest hasn't changed); we only append a description note
@@ -865,7 +872,7 @@ exports.swapAdvanceBetweenRooms = async (req, res) => {
     if (receiptNosA.length > 0) {
       const ph = receiptNosA.map(() => '?').join(',');
       await connection.query(
-        `UPDATE guest_folio_master
+        `UPDATE checkin_guest_folio_master
          SET description  = CONCAT('[Room Swap] Guest "${guestNameA}" moved ${room_a_room_no}→${room_b_room_no}. ', description),
              updated_date = NOW()
          WHERE reference_number IN (${ph})
@@ -878,7 +885,7 @@ exports.swapAdvanceBetweenRooms = async (req, res) => {
     if (receiptNosB.length > 0) {
       const ph = receiptNosB.map(() => '?').join(',');
       await connection.query(
-        `UPDATE guest_folio_master
+        `UPDATE checkin_guest_folio_master
          SET description  = CONCAT('[Room Swap] Guest "${guestNameB}" moved ${room_b_room_no}→${room_a_room_no}. ', description),
              updated_date = NOW()
          WHERE reference_number IN (${ph})
@@ -904,7 +911,6 @@ exports.swapAdvanceBetweenRooms = async (req, res) => {
       success: true,
       message,
       data: { swapped_a: idsA.length, swapped_b: idsB.length },
-      // Keep top-level keys for backwards-compatibility with frontend
       swapped_a: idsA.length,
       swapped_b: idsB.length,
     });
@@ -965,7 +971,7 @@ exports.transferAdvanceToRoom = async (req, res) => {
     if (receiptNos.length > 0) {
       const ph = receiptNos.map(() => '?').join(',');
       await connection.query(
-        `UPDATE guest_folio_master
+        `UPDATE checkin_guest_folio_master
          SET description  = CONCAT('[Transferred to Room ${new_room_no}] ', description),
              updated_date = NOW()
          WHERE reference_number IN (${ph})
