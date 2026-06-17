@@ -64,7 +64,7 @@ export interface CheckinFullDetailsRow {
   cgst_percent: number
   sgst_percent: number
   igst_percent: number
-  is_settel: number
+  is_settle: number
   detail_checkin_datetime: string
   detail_checkout_datetime: string
   detail_adults: number

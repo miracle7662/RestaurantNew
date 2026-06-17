@@ -584,7 +584,9 @@ const SettlementPage = () => {
       guestName: co.guest_name || '-',
       guestid: co.guest_id || 0,
       roomNo: co.room_no || '-',
-      room_id: co.room_id || 0,
+     room_id: typeof co.room_id === 'string'
+  ? JSON.parse(co.room_id)
+  : co.room_id,
       totalPrice: Number(co.total_amount) || 0,
       checkoutId: co.checkout_id,
       checkinId: co.checkin_id,
@@ -842,11 +844,11 @@ const SettlementPage = () => {
                           cursor: 'default',
                         }}
                         onMouseEnter={(e) => {
-                          ;(e.currentTarget as HTMLElement).style.boxShadow = '0 6px 20px rgba(0,0,0,0.14)'
+                          (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 20px rgba(0,0,0,0.14)'
                           ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
                         }}
                         onMouseLeave={(e) => {
-                          ;(e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.09)'
+                          (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.09)'
                           ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
                         }}
                       >
@@ -1066,7 +1068,9 @@ const SettlementPage = () => {
                   checkinid: settlementPayData.checkinId || 0,
                   checkout_id: settlementPayData.checkoutId,
                   room_name: settlementPayData.roomNo,
-                  room_id: settlementPayData.room_id || 0,
+                  room_ids: Array.isArray(settlementPayData.room_id)
+  ? settlementPayData.room_id
+  : [settlementPayData.room_id],
                   bill_no: settlementPayData.billNo,
                   registration_no: settlementPayData.regNo,
                   OrderNo: settlementPayData.orderNo,

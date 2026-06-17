@@ -131,8 +131,7 @@ FROM Checkout_Master cm
 LEFT JOIN room_master rm
     ON rm.room_id = cm.room_id
 WHERE
-    cm.hotelid = ?
-    AND rm.room_status_id = 7
+    cm.hotelid = ?   
     AND cm.is_settle = 0
     AND cm.checkout_datetime = (
         SELECT MAX(c2.checkout_datetime)
@@ -592,9 +591,9 @@ exports.performCheckout = async (req, res) => {
       checkinData.message,
       formatDateTime(checkinData.checkin_datetime), 
       formatDateTime(checkinData.checkout_datetime),
-      (checkedOutRoomNumbers[0] || ''),
-     req.body.room_id || null,   // jo frontend se aa raha hai "94,95"
-      checkinData.category_id, 
+      JSON.stringify(checkedOutRoomNumbers),
+      JSON.stringify(checkedOutRoomIds),
+      checkinData.category_id,
       checkinData.converted_category,
       totalDetailAggregation.adults, 
       totalDetailAggregation.pax, 

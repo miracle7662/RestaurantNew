@@ -205,7 +205,7 @@ if (Array.isArray(room_ids) && room_ids.length > 0) {
       // 4. UPDATE checkin_detail_master AND room_master FOR EACH ROOM
       for (const rid of roomsToSettle) {
         await conn.query(
-          `UPDATE checkin_detail_master SET is_settel = 1 WHERE checkin_id = ? AND room_id = ?`,
+          `UPDATE checkin_detail_master SET is_settle = 1 WHERE checkin_id = ? AND room_id = ?`,
           [checkinid, rid]
         );
         await conn.query(
