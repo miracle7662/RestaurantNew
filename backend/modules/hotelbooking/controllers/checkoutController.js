@@ -131,8 +131,7 @@ FROM Checkout_Master cm
 LEFT JOIN room_master rm
     ON rm.room_id = cm.room_id
 WHERE
-    cm.hotelid = ?
-    AND rm.room_status_id = 7
+    cm.hotelid = ?   
     AND cm.is_settle = 0
     AND cm.checkout_datetime = (
         SELECT MAX(c2.checkout_datetime)
