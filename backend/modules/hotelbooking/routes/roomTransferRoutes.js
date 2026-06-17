@@ -1,9 +1,9 @@
 // routes/roomTransferRoutes.js
 const express = require('express');
 const router = express.Router();
-const controller = require('../controllers/roomTransferController');
+const roomTransferController = require('../controllers/roomTransferController');
 
-router.post('/transfer-room', controller.transferRoomAndUpdateStayRecords);
+// POST: Transfer room only
+router.post('/transfer', roomTransferController.transferRoom);
 
 module.exports = router;
-

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Form, Button, Modal, Dropdown } from 'react-bootstrap'
+import { Form, Button,  Dropdown } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
 import TitleHelmet from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
@@ -341,9 +341,8 @@ const HotelBookingPanel = () => {
   const [floorFilter, setFloorFilter] = useState('all')
   const [viewMode, setViewMode] = useState<ViewMode>('floor')
   const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([])
-  const [updating, setUpdating] = useState(false)
-  const [showRoomDetails, setShowRoomDetails] = useState(false)
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
+  const [, setShowRoomDetails] = useState(false)
+  const [, setSelectedRoom] = useState<Room | null>(null)
   const [activeSection, setActiveSection] = useState<ActiveSection>(null)
   const [activeHousekeepingTab, setActiveHousekeepingTab] = useState<HousekeepingTab>(null)
   const [selectedHousekeepingRoomIds, setSelectedHousekeepingRoomIds] = useState<number[]>([])
@@ -1153,34 +1152,7 @@ useEffect(() => {
     setShowRoomStatusModal(true)
   }
 
-const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => {
-  if (!selectedRoom) return
-  setUpdating(true)
-  try {
-    await RoomService.update(roomId, { ...selectedRoom.rawData, room_status: newStatus, updated_by_id: user?.id })
-    setRawRooms((prev) => prev.map((r) => r.room_id === roomId ? { ...r, room_status: newStatus } : r))
-    
-    if (newStatus === 'cleaning') {
-      setActiveHousekeepingTab('dirty')
-      setStatusFilter('cleaning')
-      toast.success(`Room ${selectedRoom.number} checked out and marked as Dirty.`)
-      
-      // Refresh occupied rooms after checkout
-      fetchOccupiedRoomsData()
-    }
-    
-    // If we're currently viewing occupied rooms, refresh the list
-    if (statusFilter === 'occupied') {
-      fetchOccupiedRoomsData()
-    }
-  } catch (err) {
-    console.error('Failed to update room status:', err)
-    toast.error('Failed to update room status')
-  } finally {
-    setUpdating(false)
-    setShowRoomDetails(false)
-  }
-}
+
   const handleCheckInClick = () => {
     if (selectedRoomIds.length === 0) {
       toast.error('Please select at least one room to check in.')
@@ -1381,18 +1353,7 @@ const handleRoomStatusChange = async (roomId: number, newStatus: RoomStatus) => 
     printWindow.print()
   }
 
-  const getStatusLabel = (status: RoomStatus): string => {
-    const labels: Record<RoomStatus, string> = {
-      available: 'Vacant',
-      occupied: 'Occupied',
-      cleaning: 'Cleaning',
-      Bill: 'Bill',
-      reserved: 'Reserved',
-      maintenance: 'Maintenance',
-      reservation: 'Reservation',
-    }
-    return labels[status] ?? 'Unknown'
-  }
+  
 
   // ==================== LOADING / ERROR STATES ====================
 

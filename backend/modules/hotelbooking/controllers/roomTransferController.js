@@ -7,7 +7,16 @@ const getCurrentUserId = (req) => req.user?.id || null;
 // Helper to get current user's hotel ID
 const getCurrentUserHotelId = (req) => req.user?.hotelid || null;
 
-exports.transferRoomAndUpdateStayRecords = async (req, res) => {
+/**
+ * SINGLE API: Transfer Room Only
+ * 
+ * This API handles:
+ * 1. checkin_master - room_no, room_id
+ * 2. checkin_detail_master - room_number, room_id (active/future records)
+ * 3. checkin_guest_room_charges - room_id (active/future records)
+ * 4. Room status update (old room → available, new room → occupied)
+ */
+exports.transferRoom = async (req, res) => {
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
@@ -19,16 +28,16 @@ exports.transferRoomAndUpdateStayRecords = async (req, res) => {
       old_room_id,
       new_room_no,
       new_room_id,
-      new_room_type_id,
       updated_by_id,
     } = req.body || {};
 
-    // Cast IDs to numbers to avoid MySQL WHERE mismatches (string/undefined issues)
+    // Parse IDs to numbers
     const parsedCheckinId = Number(checkin_id);
     const parsedOldRoomId = Number(old_room_id);
     const parsedNewRoomId = Number(new_room_id);
     const parsedHotelId = hotelid !== undefined ? Number(hotelid) : undefined;
 
+    // Validation
     if (Number.isNaN(parsedCheckinId) || Number.isNaN(parsedOldRoomId) || Number.isNaN(parsedNewRoomId)) {
       await connection.rollback();
       return res.status(400).json({
@@ -41,118 +50,134 @@ exports.transferRoomAndUpdateStayRecords = async (req, res) => {
     const userId = updated_by_id || getCurrentUserId(req) || null;
     const finalHotelId = parsedHotelId || getCurrentUserHotelId(req);
 
-
-    if (
-      !finalHotelId ||
-      !parsedCheckinId ||
-      !old_room_no ||
-      !parsedOldRoomId ||
-      !new_room_no ||
-      !parsedNewRoomId
-    ) {
+    if (!finalHotelId || !parsedCheckinId || !old_room_no || !parsedOldRoomId || !new_room_no || !parsedNewRoomId) {
       await connection.rollback();
       return res.status(400).json({
         success: false,
-        message:
-          'hotelid (or user hotel), checkin_id, old_room_no, old_room_id, new_room_no, new_room_id are required',
-        received: { hotelid, checkin_id, old_room_id, new_room_id },
+        message: 'hotelid, checkin_id, old_room_no, old_room_id, new_room_no, new_room_id are required',
       });
     }
 
-
-    console.log('Transfer Start');
-    console.log('Old Room:', { room_no: old_room_no, room_id: old_room_id });
-    console.log('New Room:', { room_no: new_room_no, room_id: new_room_id });
-
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
-
-    // 1) Update checkin_master
+    // ================================================================
+    // 1. UPDATE checkin_master
+    // ================================================================
     const [masterResult] = await connection.execute(
       `UPDATE checkin_master
-         SET room_no = ?,
-             room_id = ?,
-             updated_by_id = ?,
-             updated_date = NOW()
-      WHERE checkin_id = ? AND hotelid = ?`,
-      [new_room_no, parsedNewRoomId, userId, parsedCheckinId, finalHotelId],
+       SET room_no = ?,
+           room_id = ?,
+           updated_by_id = ?,
+           updated_date = NOW()
+       WHERE checkin_id = ? AND hotelid = ?`,
+      [new_room_no, parsedNewRoomId, userId, parsedCheckinId, finalHotelId]
     );
 
+    if (masterResult.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Checkin not found',
+      });
+    }
 
-    // 2) Update active stay details
-    // checkout_datetime NULL => treat as current date
-    // is_checkout = 0 => active
-    // NOTE: use COALESCE so null keeps existing room_type_id
-    // NOTE: some schemas store checkout_datetime as DATETIME; we compare DATE(...) >= today.
-    const detailSql = `
-      UPDATE checkin_detail_master
-         SET room_number = ?,
-             room_id = ?,
-             room_type_id = COALESCE(?, room_type_id),
-             updated_by_id = ?,
-             updated_date = NOW()
+    // ================================================================
+    // 2. UPDATE checkin_detail_master (active/future records)
+    // ================================================================
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const [detailResult] = await connection.execute(
+      `UPDATE checkin_detail_master
+       SET room_number = ?,
+           room_id = ?,
+           updated_by_id = ?,
+           updated_date = NOW()
        WHERE checkin_id = ?
          AND room_id = ?
          AND is_checkout = 0
-         AND (
-            checkout_datetime IS NULL
-            OR DATE(checkout_datetime) >= ?
-         )
-    `;
+         AND (checkout_datetime IS NULL OR DATE(checkout_datetime) >= ?)`,
+      [new_room_no, parsedNewRoomId, userId, parsedCheckinId, parsedOldRoomId, todayStr]
+    );
 
-    const [detailResult] = await connection.execute(detailSql, [
-      new_room_no,
-      parsedNewRoomId,
-      new_room_type_id ?? null,
-      userId,
-      parsedCheckinId,
-      parsedOldRoomId,
-      todayStr,
-    ]);
-
-
-    // 3) Update active stay charges
-    const chargesSql = `
-      UPDATE checkin_guest_room_charges
-         SET room_id = ?,
-             updated_at = NOW()
+    // ================================================================
+    // 3. UPDATE checkin_guest_room_charges (active/future records)
+    // ================================================================
+    const [chargesResult] = await connection.execute(
+      `UPDATE checkin_guest_room_charges
+       SET room_id = ?,
+           updated_at = NOW()
        WHERE checkin_id = ?
          AND room_id = ?
-         AND (
-            checkout_datetime IS NULL
-            OR DATE(checkout_datetime) >= ?
-         )
-    `;
+         AND (checkout_datetime IS NULL OR DATE(checkout_datetime) >= ?)`,
+      [parsedNewRoomId, parsedCheckinId, parsedOldRoomId, todayStr]
+    );
 
-    const [chargesResult] = await connection.execute(chargesSql, [
-      parsedNewRoomId,
-      parsedCheckinId,
-      parsedOldRoomId,
-      todayStr,
-    ]);
+    // ================================================================
+    // 4. UPDATE ROOM STATUS
+    // ================================================================
+    
+    // 4a. Check if old room has any other active stays
+    const [otherActiveInOldRoom] = await connection.execute(
+      `SELECT cd.detail_id 
+       FROM checkin_detail_master cd
+       JOIN checkin_master cm ON cd.checkin_id = cm.checkin_id
+       WHERE cd.room_id = ?
+         AND cd.is_checkout = 0
+         AND cd.checkin_id != ?
+         AND cm.hotelid = ?`,
+      [parsedOldRoomId, parsedCheckinId, finalHotelId]
+    );
 
+    // If no other active stays, mark old room as available
+    if (otherActiveInOldRoom.length === 0) {
+      await connection.execute(
+        `UPDATE room_master 
+         SET room_status_id = 1, -- 1 = Available
+             updated_by_id = ?,
+             updated_date = NOW()
+         WHERE room_id = ? AND hotelid = ?`,
+        [userId, parsedOldRoomId, finalHotelId]
+      );
+    }
 
+    // 4b. Mark new room as occupied
+    await connection.execute(
+      `UPDATE room_master 
+       SET room_status_id = 2, -- 2 = Occupied
+           updated_by_id = ?,
+           updated_date = NOW()
+       WHERE room_id = ? AND hotelid = ?`,
+      [userId, parsedNewRoomId, finalHotelId]
+    );
 
-    const detailsCount = detailResult.affectedRows || 0;
-    const chargesCount = chargesResult.affectedRows || 0;
-
-    console.log('Details Updated:', detailsCount);
-    console.log('Charges Updated:', chargesCount);
-
+    // ================================================================
+    // COMMIT TRANSACTION
+    // ================================================================
     await connection.commit();
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-      message: 'Room transferred successfully',
+      message: `Room transferred from ${old_room_no} to ${new_room_no} successfully`,
       data: {
-        master_affectedRows: masterResult.affectedRows || 0,
-        details_updated: detailsCount,
-        charges_updated: chargesCount,
+        checkin_id: parsedCheckinId,
+        old_room: {
+          room_id: parsedOldRoomId,
+          room_no: old_room_no,
+        },
+        new_room: {
+          room_id: parsedNewRoomId,
+          room_no: new_room_no,
+        },
+        updates: {
+          master_updated: masterResult.affectedRows || 0,
+          details_updated: detailResult.affectedRows || 0,
+          charges_updated: chargesResult.affectedRows || 0,
+        },
       },
     });
+
   } catch (error) {
     await connection.rollback();
-    console.error('transferRoomAndUpdateStayRecords error:', error);
+    console.error('transferRoom Error:', error);
+    
     return res.status(500).json({
       success: false,
       message: 'Failed to transfer room',
@@ -162,4 +187,3 @@ exports.transferRoomAndUpdateStayRecords = async (req, res) => {
     connection.release();
   }
 };
-

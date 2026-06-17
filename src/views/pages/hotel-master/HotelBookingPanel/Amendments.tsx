@@ -23,6 +23,8 @@ import RoomService from '@/common/hotel/room'
 import PostChargesService from '@/common/hotel/postCharges'
 import AdvanceTransactionService from '@/common/hotel/advanceTransaction'
 import DocumentTypeService from '@/common/hotel/documentType'
+import RoomTransferService from '@/common/hotel/roomTransferService';
+
 
 // Components for modals
 import GuestForm from '../Guest/GuestForm'
@@ -3894,6 +3896,7 @@ const ChangeGuestInfoComponent = ({
 }
 
 // ================== Transfer Room Component (FIXED - No database query in frontend) ==================
+// ================== Transfer Room Component (UPDATED - Single API) ==================
 interface TransferRoomProps {
   selectedRoom: OccupiedRoom
   allRoomsDetails: Detail[]
@@ -3917,52 +3920,6 @@ const TransferRoomComponent = ({
   const [showTestPreview, setShowTestPreview] = useState(false)
   const [modeCharges, setModeCharges] = useState<any[]>([])
   const [taxMap, setTaxMap] = useState<Map<number, number>>(new Map())
-
-  // Store records for each day
-  const [dayRecords, setDayRecords] = useState<{
-    details: Detail[]
-    charges: any[]
-  }>({ details: [], charges: [] })
-
-  // Fetch all details and charges for this checkin and organize by day
-  useEffect(() => {
-    const fetchAllRecords = async () => {
-      if (!selectedRoom) return
-
-      try {
-        // Fetch all details for this checkin
-        const detailsRes = await DetailService.list({ checkin_id: selectedRoom.checkin.checkin_id })
-        const allDetails: Detail[] = detailsRes.data || []
-
-        // Fetch all charges for this checkin
-        const chargesRes = await GuestRoomChargesService.list({
-          checkin_id: selectedRoom.checkin.checkin_id,
-        })
-        const allCharges: any[] = chargesRes.data || []
-
-        // Filter records for this specific room and sort by checkin_datetime
-        const roomDetails = allDetails
-          .filter((d: Detail) => d.room_id === selectedRoom.detail.room_id)
-          .sort(
-            (a, b) =>
-              new Date(a.checkin_datetime).getTime() - new Date(b.checkin_datetime).getTime(),
-          )
-
-        const roomCharges = allCharges
-          .filter((c: any) => c.room_id === selectedRoom.detail.room_id)
-          .sort(
-            (a, b) =>
-              new Date(a.checkin_datetime).getTime() - new Date(b.checkin_datetime).getTime(),
-          )
-
-        setDayRecords({ details: roomDetails, charges: roomCharges })
-      } catch (err) {
-        console.error('Failed to fetch day records:', err)
-      }
-    }
-
-    fetchAllRecords()
-  }, [selectedRoom])
 
   // Fetch category data for tax calculations
   useEffect(() => {
@@ -4121,179 +4078,48 @@ const TransferRoomComponent = ({
     toast.success('Preview ready')
   }
 
-  // Helper function to check if a date is today or future
-  const isTodayOrFuture = (dateStr: string): boolean => {
-    const date = new Date(dateStr)
-    date.setHours(0, 0, 0, 0)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    return date >= today
-  }
-
+  // ================================================================
+  // UPDATED: Single API call for room transfer
+  // ================================================================
   const handleUpdate = async () => {
     if (!targetRoom) {
       toast.error('Please select a target room')
       return
     }
 
+    if (!hotelId) {
+      toast.error('Hotel ID not found')
+      return
+    }
+
     setLoadingUpdate(true)
+
     try {
-      const oldRoomId = selectedRoom.detail.room_id
-      const newRoomId = targetRoom.room_id
-      const updatedById = selectedRoom.checkin.created_by_id
+      // Import the service
+     
 
-      // Separate records into past and future based on checkout date
-      const futureDetails: Detail[] = []
-      const pastDetails: Detail[] = []
-      const futureCharges: any[] = []
-      const pastCharges: any[] = []
-
-      // Separate details
-      for (const detail of dayRecords.details) {
-        if (isTodayOrFuture(detail.checkout_datetime)) {
-          futureDetails.push(detail)
-        } else {
-          pastDetails.push(detail)
-        }
-      }
-
-      // Separate charges
-      for (const charge of dayRecords.charges) {
-        const chargeDate = charge.checkout_datetime || charge.checkin_datetime
-        if (chargeDate && isTodayOrFuture(chargeDate)) {
-          futureCharges.push(charge)
-        } else {
-          pastCharges.push(charge)
-        }
-      }
-
-      console.log('=== Transfer Room Debug ===')
-      console.log('Total details:', dayRecords.details.length)
-      console.log('Future details to update:', futureDetails.length)
-      console.log('Past details (unchanged):', pastDetails.length)
-      console.log('Total charges:', dayRecords.charges.length)
-      console.log('Future charges to update:', futureCharges.length)
-      console.log('Past charges (unchanged):', pastCharges.length)
-
-      // 1. Update all FUTURE details (today and future days)
-      for (const detail of futureDetails) {
-        await DetailService.update(detail.detail_id, {
-          room_number: targetRoom.room_no,
-          room_id: newRoomId,
-        })
-        console.log(`Updated detail ${detail.detail_id} to room ${targetRoom.room_no}`)
-      }
-
-      // 2. Update checkin master room_no (this is just for display)
-      await CheckInService.update(selectedRoom.checkin.checkin_id, {
-        room_no: targetRoom.room_no,
+      const response = await RoomTransferService.transferRoom({
+        hotelid: hotelId,
+        checkin_id: selectedRoom.checkin.checkin_id,
+        old_room_no: selectedRoom.roomNo,
+        old_room_id: selectedRoom.detail.room_id,
+        new_room_no: targetRoom.room_no,
+        new_room_id: targetRoom.room_id,
+        updated_by_id: user?.id,
       })
 
-      // 3. Update FUTURE checkin_guest_room_charges ONLY (today and future)
-      //    IMPORTANT: DO NOT update past charges!
-      for (const charge of futureCharges) {
-        await GuestRoomChargesService.update(charge.guest_room_charges_id, {
-          room_id: newRoomId,
-        } as any)
-        console.log(`Updated charge ${charge.guest_room_charges_id} to room_id ${newRoomId}`)
+      if (!response.success) {
+        throw new Error(response.message || 'Transfer failed')
       }
 
-      // 4. Check if there are any other active details in the old room
-      //    Fetch all details for this hotel to check other checkins in the same room
-      try {
-        const allDetailsRes = await DetailService.list({ hotelid: hotelId })
-        const allHotelDetails: Detail[] = allDetailsRes.data || []
+      toast.success(response.message)
 
-        const otherActiveInOldRoom = allHotelDetails.filter(
-          (d: Detail) =>
-            d.room_id === oldRoomId &&
-            d.is_checkout === 0 &&
-            d.detail_id !== selectedRoom.detail.detail_id,
-        )
-
-        const hasOtherActive = otherActiveInOldRoom.length > 0
-
-        // Only mark old room as available if no other active checkins
-        if (!hasOtherActive) {
-          const oldRoomRes = await RoomService.get(oldRoomId)
-          const oldRoom = oldRoomRes.data
-          await RoomService.update(oldRoomId, {
-            ...oldRoom,
-            room_status: 'available',
-            updated_by_id: updatedById,
-          })
-          console.log(`Marked old room ${oldRoomId} as available`)
-        } else {
-          console.log(`Old room ${oldRoomId} still has other active checkins, keeping as occupied`)
-        }
-      } catch (err) {
-        console.warn('Could not check other active rooms:', err)
-        // Non-fatal error, continue with transfer
-      }
-
-      // 5. Mark new room as occupied
-      const newRoomRes = await RoomService.get(newRoomId)
-      const newRoom = newRoomRes.data
-      await RoomService.update(newRoomId, {
-        ...newRoom,
-        room_status: 'occupied',
-        updated_by_id: updatedById,
-      })
-
-      // 6. Transfer all active advance transactions from old room to new room
-      //    This ensures any advance added to room 101 automatically shows under room 102 after transfer.
-      let advanceTransferred = 0
-      try {
-        const advTransferRes = await AdvanceTransactionService.transferToRoom({
-          checkin_id: selectedRoom.checkin.checkin_id,
-          old_room_id: oldRoomId,
-          new_room_id: newRoomId,
-          new_room_no: targetRoom.room_no,
-        })
-        advanceTransferred = advTransferRes?.data?.transferred ?? 0
-        if (advanceTransferred > 0) {
-          console.log(
-            `Transferred ${advanceTransferred} advance transaction(s) to room ${targetRoom.room_no}`,
-          )
-        }
-      } catch (advErr) {
-        // Non-fatal: log but don't block the transfer
-        console.warn('Could not transfer advance transactions (non-fatal):', advErr)
-      }
-
-      // 7. Transfer all post charges (CHARGE + ALLOWANCE) from old room to new room
-      //    This ensures any post charge/allowance added to room 101 automatically shows under room 102 after transfer.
-      let postChargesTransferred = 0
-      try {
-        const pcTransferRes = await PostChargesService.transferToRoom({
-          checkin_id: selectedRoom.checkin.checkin_id,
-          old_room_id: oldRoomId,
-          new_room_id: newRoomId,
-        })
-        postChargesTransferred = pcTransferRes?.data?.transferred ?? 0
-        if (postChargesTransferred > 0) {
-          console.log(
-            `Transferred ${postChargesTransferred} post charge(s) to room ${targetRoom.room_no}`,
-          )
-        }
-      } catch (pcErr) {
-        // Non-fatal: log but don't block the transfer
-        console.warn('Could not transfer post charges (non-fatal):', pcErr)
-      }
-
-      toast.success(
-        `Room transferred from ${selectedRoom.roomNo} to ${targetRoom.room_no}\n` +
-          `${futureDetails.length} future day(s) updated, ${pastDetails.length} past day(s) unchanged.` +
-          (advanceTransferred > 0
-            ? `\n${advanceTransferred} advance transaction(s) moved to new room.`
-            : '') +
-          (postChargesTransferred > 0
-            ? `\n${postChargesTransferred} post charge(s) moved to new room.`
-            : ''),
-      )
       setTargetRoomNo('')
       setShowTestPreview(false)
-      onRefresh()
+      
+      // Refresh the room list and selected room data
+      await onRefresh()
+      onClose()
     } catch (error) {
       console.error('Transfer failed:', error)
       toast.error('Failed to transfer room: ' + (error as Error).message)
@@ -4382,10 +4208,6 @@ const TransferRoomComponent = ({
     </tr>
   )
 
-
-
-
-
   return (
     <ActionBox title="Transfer Room" onClose={onClose}>
       <Row className="mb-3">
@@ -4434,6 +4256,7 @@ const TransferRoomComponent = ({
           )}
         </Col>
       </Row>
+      
       <div className="action-table-container mb-2">
         <div className="small fw-bold mb-1">
           {showTestPreview ? 'Transfer Preview (After Transfer)' : 'Current Room Details'}
