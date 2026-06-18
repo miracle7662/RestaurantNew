@@ -79,7 +79,7 @@ export interface CheckinFullDetailsRow {
   checkout_datetime: string;
   hotelid: number;
   room_id: number;
-  is_settle: number;
+  // is_settle: number;
   checkout_id: number | null;
 
   // Checkin Detail
@@ -93,7 +93,8 @@ export interface CheckinFullDetailsRow {
   cgst_percent: number | null;
   sgst_percent: number | null;
   igst_percent: number | null;
-  is_settel: number | null;
+    
+   is_settle: number | null;
   detail_checkin_datetime?: string;
   detail_checkout_datetime?: string;
   detail_adults?: number;
