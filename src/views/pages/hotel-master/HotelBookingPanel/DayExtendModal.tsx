@@ -185,7 +185,7 @@ const DayExtendModal: React.FC<DayExtendModalProps> = ({
 
               <p className="total-line">
                 <span>Day Extension Total:</span>
-                <span>₹{calculatedPrice.totalPrice.toFixed(2)}</span>
+                <span>₹{Number(calculatedPrice?.totalPrice ?? 0).toFixed(2)}</span>
               </p>
 
               <p style={{ fontSize: '0.72rem', color: '#6c757d', marginTop: 4 }}>

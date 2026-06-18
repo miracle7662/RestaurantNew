@@ -1036,12 +1036,33 @@ export const fetchOccupiedRooms = async (
     const allRooms = (roomsRes.data?.rooms || []) as any[];
     console.log(`✅ Total rooms found: ${allRooms.length}`);
     
+    // ✅ Get room categories with tariff and tax data using the meta endpoint
+    console.log('📡 Fetching room categories...');
+    const metaRes = await RoomService.getHotelBookingMeta(hotelId);
+    const categories = (metaRes.data?.categories || []) as any[];
+    const categoryMap = new Map<number, any>();
+    categories.forEach((cat: any) => {
+      categoryMap.set(cat.room_category_id, cat);
+    });
+    console.log(`✅ Total categories found: ${categories.length}`);
+    
     // ✅ Create a map of room_id to room details (including status_color)
     const roomMap = new Map<number, any>();
     allRooms.forEach((room: any) => {
+      // ✅ Attach category data to room
+      const categoryData = categoryMap.get(room.room_category_id) || {};
       roomMap.set(room.room_id, {
         ...room,
         status_color: room.status_color || '',
+        room_tariff: room.room_tariff || categoryData.room_tariff || 0,
+        cgst_percent: categoryData.cgst_percent || 0,
+        sgst_percent: categoryData.sgst_percent || 0,
+        igst_percent: categoryData.igst_percent || 0,
+        cess_percent: categoryData.cess_percent || 0,
+        service_charge: categoryData.service_charge || 0,
+        ex_pax_charge: categoryData.ex_pax_charge || 0,
+        child_charge: categoryData.child_charge || 0,
+        driver_charge: categoryData.driver_charge || 0,
       });
     });
     
@@ -1082,18 +1103,6 @@ export const fetchOccupiedRooms = async (
     
     console.log(`✅ Total check-ins found: ${allCheckins.length}`);
     
-    // 🔍 Debug: Log the first check-in to see available fields
-    if (allCheckins.length > 0) {
-      console.log('🔍 Sample check-in data:', allCheckins[0]);
-      console.log('🔍 Available detail fields:', {
-        detail_ex_pax: allCheckins[0].detail_ex_pax,
-        detail_child_unpaid: allCheckins[0].detail_child_unpaid,
-        detail_driver: allCheckins[0].detail_driver,
-        detail_adults: allCheckins[0].detail_adults,
-        detail_pax: allCheckins[0].detail_pax,
-      });
-    }
-    
     // ✅ Group check-ins by room_id, keeping the latest one
     const roomCheckinMap = new Map<number, any>();
     allCheckins.forEach((checkin: any) => {
@@ -1102,7 +1111,6 @@ export const fetchOccupiedRooms = async (
         roomCheckinMap.set(roomId, checkin);
       } else {
         const existing = roomCheckinMap.get(roomId);
-        // Use detail_checkin_datetime if available, otherwise checkin_datetime
         const existingDate = new Date(existing.detail_checkin_datetime || existing.checkin_datetime || 0);
         const newDate = new Date(checkin.detail_checkin_datetime || checkin.checkin_datetime || 0);
         if (newDate > existingDate) {
@@ -1111,9 +1119,9 @@ export const fetchOccupiedRooms = async (
       }
     });
 
-    // ✅ Build occupied items with status_color from room data
+    // ✅ Build occupied items with tariff and tax data
     const occupiedItems: any[] = [];
-    const advanceSummaryCache = new Map<number, number>() // checkin_id -> pending_advance (right side)
+    const advanceSummaryCache = new Map<number, number>();
     
     for (const roomId of occupiedRoomIds) {
       const room = roomMap.get(roomId);
@@ -1141,31 +1149,18 @@ export const fetchOccupiedRooms = async (
       let planName = '';
       let checkinId = 0;
       let detailId = null;
+      let roomTariff = room.room_tariff || 0;
       
       if (checkin) {
-        // ✅ Get guest name from guest_master or fallback
         guestName = checkin.guest_name || checkin.name || 'Unknown Guest';
-        
-        // ✅ Use detail dates if available (room-specific), otherwise master dates
         checkinDatetime = checkin.detail_checkin_datetime || checkin.checkin_datetime || new Date().toISOString();
         checkoutDatetime = checkin.detail_checkout_datetime || checkin.checkout_datetime || new Date().toISOString();
-        
         totalAmount = checkin.total_amount || 0;
-        
-        // ✅ FIX: Use detail_ prefixed fields from checkin_detail_master
         adults = checkin.detail_adults || checkin.adults || 0;
         pax = checkin.detail_pax || checkin.pax || 0;
-        exPax = checkin.detail_ex_pax || 0;  // ✅ Using detail_ex_pax
-        childCount = checkin.detail_child_unpaid || 0;  // ✅ Using detail_child_unpaid
-        driverCount = Number(checkin.detail_driver) || 0;  // ✅ Using detail_driver
-        
-        // 🔍 Log the values for this room
-        console.log(`  📊 Room ${room.room_no} values from API:`);
-        console.log(`    - detail_ex_pax: ${checkin.detail_ex_pax} → exPax: ${exPax}`);
-        console.log(`    - detail_child_unpaid: ${checkin.detail_child_unpaid} → childCount: ${childCount}`);
-        console.log(`    - detail_driver: ${checkin.detail_driver} → driverCount: ${driverCount}`);
-        console.log(`    - detail_adults: ${checkin.detail_adults}, detail_pax: ${checkin.detail_pax}`);
-        
+        exPax = checkin.detail_ex_pax || 0;
+        childCount = checkin.detail_child_unpaid || 0;
+        driverCount = Number(checkin.detail_driver) || 0;
         paymentMethod = checkin.payment_method || 'Cash';
         discountPercent = checkin.discount_percent || checkin.detail_discount_percent || 0;
         totalNights = checkin.total_nights || 0;
@@ -1174,6 +1169,9 @@ export const fetchOccupiedRooms = async (
         planName = checkin.plan_name || '';
         checkinId = checkin.checkin_id || 0;
         detailId = checkin.detail_id || null;
+        
+        // ✅ Use checkin's room_tariff if available, otherwise fallback to room's tariff
+        roomTariff = checkin.room_tariff || room.room_tariff || 0;
         
       } else if (roomStatusId === 7) {
         guestName = `Bill - Room ${room.room_no}`;
@@ -1191,31 +1189,26 @@ export const fetchOccupiedRooms = async (
       const minutesLeft = getMinutesLeft(checkoutDatetime);
       const isExpired = minutesLeft <= 0;
       
-      /**
-       * Amount mapping (fix repetition):
-       * - net_room_amount must be ROOM WISE (room_id/detail_id wise) aggregation
-       * - total_all_rooms_net must be CHECKIN WISE aggregation across all rooms
-       *
-       * allCheckins rows come from checkin_master + checkin_detail_master join,
-       * so each row typically corresponds to a specific detail_id/room_id with total_amount.
-       */
-      /**
-       * Dedupe logic:
-       * `allCheckins` rows come from multiple LEFT JOINs (folio + room charges etc),
-       * so `total_amount` can repeat per charge due to join multiplication.
-       * We dedupe by `guest_room_charges_id` so each charge is counted once.
-       */
-      const chargeTotalById = new Map<number, number>()
+      // ✅ Get tax data from room (which now has category data)
+      const cgstPercent = room.cgst_percent || 0;
+      const sgstPercent = room.sgst_percent || 0;
+      const igstPercent = room.igst_percent || 0;
+      const cessPercent = room.cess_percent || 0;
+      const serviceCharge = room.service_charge || 0;
+      const totalTaxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent + serviceCharge;
+      
+      // ✅ Calculate charges with tax
+      const chargeTotalById = new Map<number, number>();
       for (const ci of allCheckins as any[]) {
-        const gid = ci?.guest_room_charges_id
+        const gid = ci?.guest_room_charges_id;
         if (gid != null) {
           if (!chargeTotalById.has(Number(gid))) {
-            chargeTotalById.set(Number(gid), Number(ci.total_amount) || 0)
+            chargeTotalById.set(Number(gid), Number(ci.total_amount) || 0);
           }
         }
       }
 
-      const roomChargeIds = new Set<number>()
+      const roomChargeIds = new Set<number>();
       if (checkinId) {
         for (const ci of allCheckins as any[]) {
           if (
@@ -1224,20 +1217,19 @@ export const fetchOccupiedRooms = async (
             ci.is_settle === 0 &&
             ci?.guest_room_charges_id != null
           ) {
-            roomChargeIds.add(Number(ci.guest_room_charges_id))
+            roomChargeIds.add(Number(ci.guest_room_charges_id));
           }
         }
       }
 
-      let roomNet = 0
+      let roomNet = 0;
       if (roomChargeIds.size > 0) {
-        for (const id of roomChargeIds) roomNet += chargeTotalById.get(id) || 0
+        for (const id of roomChargeIds) roomNet += chargeTotalById.get(id) || 0;
       } else {
-        // fallback (no dedupe keys present)
-        roomNet = Number(totalAmount) || 0
+        roomNet = Number(totalAmount) || 0;
       }
 
-      const allChargeIds = new Set<number>()
+      const allChargeIds = new Set<number>();
       if (checkinId) {
         for (const ci of allCheckins as any[]) {
           if (
@@ -1245,45 +1237,47 @@ export const fetchOccupiedRooms = async (
             ci.is_settle === 0 &&
             ci?.guest_room_charges_id != null
           ) {
-            allChargeIds.add(Number(ci.guest_room_charges_id))
+            allChargeIds.add(Number(ci.guest_room_charges_id));
           }
         }
       }
 
-      let checkinAllRoomsNet = 0
+      let checkinAllRoomsNet = 0;
       if (allChargeIds.size > 0) {
-        for (const id of allChargeIds) checkinAllRoomsNet += chargeTotalById.get(id) || 0
+        for (const id of allChargeIds) checkinAllRoomsNet += chargeTotalById.get(id) || 0;
       } else {
-        checkinAllRoomsNet = Number(totalAmount) || 0
+        checkinAllRoomsNet = Number(totalAmount) || 0;
       }
 
-      // ✅ Advance subtraction (Left: room-wise, Right: checkin-wise)
-      let pendingAdvanceForRoom = 0
+      // ✅ Advance subtraction
+      let pendingAdvanceForRoom = 0;
       if (checkinId) {
         try {
-          const advRoomRes = await AdvanceTransactionService.getSummaryForRoom(checkinId, Number(room.room_id))
-          pendingAdvanceForRoom = Number(advRoomRes.data?.pending_advance) || 0
+          const advRoomRes = await AdvanceTransactionService.getSummaryForRoom(checkinId, Number(room.room_id));
+          pendingAdvanceForRoom = Number(advRoomRes.data?.pending_advance) || 0;
         } catch {
-          pendingAdvanceForRoom = 0
+          pendingAdvanceForRoom = 0;
         }
       }
 
-      let pendingAdvanceForCheckin = 0
+      let pendingAdvanceForCheckin = 0;
       if (checkinId) {
         if (advanceSummaryCache.has(checkinId)) {
-          pendingAdvanceForCheckin = advanceSummaryCache.get(checkinId) || 0
+          pendingAdvanceForCheckin = advanceSummaryCache.get(checkinId) || 0;
         } else {
           try {
-            const advRes = await AdvanceTransactionService.getSummary(checkinId)
-            pendingAdvanceForCheckin = Number(advRes.data?.pending_advance) || 0
+            const advRes = await AdvanceTransactionService.getSummary(checkinId);
+            pendingAdvanceForCheckin = Number(advRes.data?.pending_advance) || 0;
           } catch {
-            pendingAdvanceForCheckin = 0
+            pendingAdvanceForCheckin = 0;
           }
-          advanceSummaryCache.set(checkinId, pendingAdvanceForCheckin)
+          advanceSummaryCache.set(checkinId, pendingAdvanceForCheckin);
         }
       }
 
+      // ✅ Create occupied item with ALL required fields for price calculation
       occupiedItems.push({
+        // Basic info
         checkin_id: checkinId,
         guest_name: guestName,
         guest_type: booking || 'WALK-IN-GUEST',
@@ -1291,29 +1285,55 @@ export const fetchOccupiedRooms = async (
         agent_name: checkin?.agent_name || '',
         checkin_datetime: checkinDatetime,
         checkout_datetime: checkoutDatetime,
+        
+        // Pax counts
         adults: adults,
         pax: pax,
         ex_pax: exPax,
         child_count: childCount,
         driver_count: driverCount,
         original_pax: pax || adults,
+        
+        // Payment and discount
         payment_method: paymentMethod,
         discount_percent: discountPercent,
+        
+        // Room details
         detail_id: detailId,
         room_id: room.room_id,
         room_no: room.room_no,
         room_category_id: room.room_category_id || 0,
         room_category_name: room.room_category_name || '',
         converted_category_name: checkin?.converted_category_name || '',
-        room_tariff: checkin?.room_tariff || room.room_tariff || 0,
-        // ✅ Room-wise net = room charges - advance(only that room)
+        
+        // ✅ CRITICAL: Room tariff for price calculation
+        room_tariff: roomTariff,
+        
+        // ✅ CRITICAL: Tax percentages for price calculation
+        cgst_percent: cgstPercent,
+        sgst_percent: sgstPercent,
+        igst_percent: igstPercent,
+        cess_percent: cessPercent,
+        service_charge: serviceCharge,
+        total_tax_percent: totalTaxPercent,
+        
+        // Extra charges per person
+        ex_pax_charge: room.ex_pax_charge || 0,
+        child_charge: room.child_charge || 0,
+        driver_charge: room.driver_charge || 0,
+        
+        // Financials
         net_room_amount: roomNet - pendingAdvanceForRoom,
-        // ✅ Checkin-wise net = all rooms charges - advance(total checkin)
         total_all_rooms_net: checkinAllRoomsNet - pendingAdvanceForCheckin,
         pending_advance_for_room: pendingAdvanceForRoom,
         total_allowances: 0,
         charges: [],
+        
+        // Checkin reference
         checkin: checkin,
+        detail: checkin, // ✅ Include detail for extra data
+        
+        // Status and dates
         latest_charge_checkout_datetime: checkoutDatetime,
         isExpired: isExpired,
         minutesLeft: minutesLeft,
@@ -1324,11 +1344,13 @@ export const fetchOccupiedRooms = async (
         reg_no: regNo,
         booking: booking,
         plan_name: planName,
+        
+        // Colors
         status_color: room.status_color || '',
         status_name: room.status_name || '',
       });
       
-      console.log(`✅ Added room ${room.room_no} - ex_pax: ${exPax}, child: ${childCount}, driver: ${driverCount}`);
+      console.log(`✅ Added room ${room.room_no}: tariff=${roomTariff}, tax=${totalTaxPercent}%, ex_pax=${exPax}, child=${childCount}, driver=${driverCount}`);
     }
     
     setOccupiedRooms(occupiedItems);
@@ -1336,7 +1358,7 @@ export const fetchOccupiedRooms = async (
     // 📊 Final summary
     console.log('📊 Final occupied rooms summary:');
     occupiedItems.forEach(item => {
-      console.log(`  Room ${item.room_no}: ex_pax=${item.ex_pax}, child=${item.child_count}, driver=${item.driver_count}`);
+      console.log(`  Room ${item.room_no}: tariff=${item.room_tariff}, tax=${item.total_tax_percent}%`);
     });
     
   } catch (err) {

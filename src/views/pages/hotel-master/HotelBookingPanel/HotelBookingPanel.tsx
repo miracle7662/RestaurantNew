@@ -2369,15 +2369,7 @@ useEffect(() => {
         />
       )}
 
-      <RoomStatusModal
-        show={showRoomStatusModal}
-        onHide={() => { setShowRoomStatusModal(false); setSelectedRoomForStatus(null) }}
-        room={selectedRoomForStatus}
-        hotelId={hotelId || 0}
-        userId={user?.id}
-        onSuccess={async () => { setShowRoomStatusModal(false); setSelectedRoomForStatus(null) }}
-      />
-
+      
       <RoomStatusModal
         show={showMultiRoomStatusModal}
         onHide={() => setShowMultiRoomStatusModal(false)}
