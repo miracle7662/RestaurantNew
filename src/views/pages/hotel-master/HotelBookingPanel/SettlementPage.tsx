@@ -1017,28 +1017,22 @@ const SettlementPage = () => {
         </div>
       </HotelBookingShell>
 
-      {/* ── Modals ─────────────────────────────────────────────────────────── */}
+    {/* ── Modals ─────────────────────────────────────────────────────────── */}
 
-      {billData && (
-        <CheckoutBillModal
-          show={showBillModal}
-          onHide={() => { setShowBillModal(false); setBillData(null) }}
-          combinedSummary={billData.combinedSummary}
-          displayRows={billData.displayRows}
-          grandTotal={billData.grandTotal}
-          hotelName={hotelName}
-          hotelAddress={hotelAddress}
-          hotelPhone={hotelPhone}
-          hotelEmail={hotelEmail}
-          hotelWebsite={hotelWebsite}
-          hotelGSTIN={hotelGSTIN}
-          hotelFSSAI={hotelFSSAI}
-          hotelPAN={hotelPAN}
-          billNumber={billData.billNumber}
-          paymentBank={billData.paymentMode}
-          hotelId={hotelId}
-        />
-      )}
+{billData && (
+  <CheckoutBillModal
+    show={showBillModal}
+    onHide={() => { setShowBillModal(false); setBillData(null) }}
+    checkoutId={0} // You need to pass a valid checkout ID
+    ldgBillNo={billData.billNumber}
+    hotelId={hotelId}
+    billNumber={billData.billNumber}
+    paymentTransactionId={billData.billNumber}
+    paymentDate={new Date().toISOString()}
+    paymentBank={billData.paymentMode}
+    
+  />
+)}
 
       {settlementPayData && (
         <SettlementModal

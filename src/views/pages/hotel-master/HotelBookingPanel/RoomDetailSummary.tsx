@@ -2603,6 +2603,8 @@ const handleConfirmCheckout = async () => {
   paymentTransactionId={paymentTransactionId}
   paymentDate={paymentDate}
   paymentBank={paymentBank}
+  selectedRooms={Array.from(selectedRooms)}  // ✅ Pass selected rooms
+
 />
     </>
   )

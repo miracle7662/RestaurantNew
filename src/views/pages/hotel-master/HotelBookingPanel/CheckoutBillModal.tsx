@@ -2,7 +2,7 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react'
 import { Modal, Button, Spinner } from 'react-bootstrap'
 import BillPrintSettingService, { BillPrintSetting } from '@/common/hotel/billPrintSettingService'
-import CheckoutService, { BillPreviewResponse } from '@/common/hotel/checkout'
+import CheckoutService from '@/common/hotel/checkout'
 
 // ==================== INTERFACES ====================
 
@@ -271,7 +271,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const [printSettings, setPrintSettings] = useState<BillPrintSetting | null>(null)
   const [settingsLoading, setSettingsLoading] = useState(true)
   const [pdfLoading, setPdfLoading] = useState(false)
-  const [billData, setBillData] = useState<BillPreviewResponse[]>([])
+  const [billData, setBillData] = useState<any[]>([])
   const [billLoading, setBillLoading] = useState(false)
   const [billError, setBillError] = useState<string | null>(null)
 
@@ -317,7 +317,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         )
         
         if (response.success && response.data) {
-          console.log('📊 Bill Preview Data:', response.data)
+          console.log('📊 ===== BILL PREVIEW API RESPONSE =====')
+          console.log('📊 Total rows:', response.data.length)
+          console.log('📊 First row fields:', Object.keys(response.data[0] || {}))
+          console.log('📊 First row sample:', response.data[0])
           setBillData(response.data)
         } else {
           setBillError(response.message || 'Failed to fetch bill data')
@@ -335,18 +338,152 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
   }, [show, checkoutId, ldgBillNo])
 
-  // ========== BUILD COMBINED SUMMARY FROM API DATA ==========
+  // ========== BUILD DISPLAY ROWS FROM API DATA ==========
+  const displayRows = useMemo(() => {
+    if (!billData.length) return []
+
+    console.log('🔍 ===== BUILDING DISPLAY ROWS FROM API =====')
+    console.log('🔍 Total rows from API:', billData.length)
+
+    const rows: DisplayDetailRow[] = []
+    const cumulativeMap = new Map<string, number>()
+
+    billData.forEach((row, index) => {
+      const roomNumber = row.room_number || `Room-${row.room_id}`
+      
+      // Determine if this is a room charge or post charge
+      const isRoomCharge = !row.transaction_type || row.transaction_type === 'Room Charge'
+      const isPostCharge = row.transaction_type === 'Post Charge' || 
+                          row.transaction_type === 'Allowance' || 
+                          row.transaction_type === 'Advance'
+      
+      let roomTariff = 0
+      let exPaxTotal = 0
+      let childTotal = 0
+      let driverTotal = 0
+      let taxAmount = 0
+      let totalAmount = 0
+
+      if (isRoomCharge) {
+        // 🔥 DIRECTLY MAP FROM API FIELDS
+        roomTariff = toNumber(row.room_tariff || row.pax_price || 0)
+        exPaxTotal = toNumber(row.ex_pax_total || 0)
+        childTotal = toNumber(row.child_total || 0)
+        driverTotal = toNumber(row.driver_total || 0)
+        taxAmount = toNumber(row.pax_tax || 0)
+        
+        // 🔥 Calculate total
+        totalAmount = roomTariff + exPaxTotal + childTotal + driverTotal + taxAmount
+        
+        console.log(`🏠 Row ${index}: room=${roomNumber}, tariff=${roomTariff}, exPax=${exPaxTotal}, total=${totalAmount}`)
+      } else if (isPostCharge) {
+        totalAmount = toNumber(row.debit_amount || row.credit_amount || 0)
+        console.log(`📝 Row ${index} (Post): ${row.transaction_type}, amount=${totalAmount}`)
+      } else {
+        // Fallback
+        roomTariff = toNumber(row.room_tariff || 0)
+        exPaxTotal = toNumber(row.ex_pax_total || 0)
+        childTotal = toNumber(row.child_total || 0)
+        driverTotal = toNumber(row.driver_total || 0)
+        taxAmount = toNumber(row.pax_tax || 0)
+        totalAmount = roomTariff + exPaxTotal + childTotal + driverTotal + taxAmount
+      }
+      
+      const prevCumulative = cumulativeMap.get(roomNumber) || 0
+      const cumulativeTotal = roundToTwo(prevCumulative + totalAmount)
+      cumulativeMap.set(roomNumber, cumulativeTotal)
+
+      const billDateFormatted = row.transaction_datetime 
+        ? formatBillDate(row.transaction_datetime) 
+        : formatBillDate(row.checkin_datetime)
+
+      rows.push({
+        id: `row-${row.charge_id || row.folio_id || index}-${index}`,
+        guest_room_charges_id: row.charge_id || 0,
+        checkin_id: row.checkin_id,
+        guest_id: row.guest_id,
+        detail_id: row.detail_id,
+        room_id: row.room_id,
+        room_number: roomNumber,
+        room_category_name: row.room_category_name || '-',
+        converted_category_name: row.converted_category_name || '-',
+        bill_date: row.transaction_datetime || row.checkin_datetime,
+        bill_date_formatted: billDateFormatted,
+        checkin_datetime: row.checkin_datetime,
+        checkout_datetime: row.checkout_datetime,
+        no_of_days: row.no_of_days || 1,
+        day_number: 1,
+        original_day_number: 1,
+        room_tariff_per_day: roomTariff,
+        total_room_tariff: roomTariff,
+        ex_pax_count: row.ex_pax_count || 0,
+        ex_pax_price: row.ex_pax_price || 0,
+        ex_pax_tax: row.ex_pax_tax || 0,
+        ex_pax_tax_percent: row.ex_pax_tax_percent || 0,
+        ex_pax_total: exPaxTotal,
+        child_count: row.child_count || 0,
+        child_unpaid: row.child_unpaid || 0,
+        child_price: row.child_price || 0,
+        child_tax: row.child_tax || 0,
+        child_tax_percent: row.child_tax_percent || 0,
+        child_total: childTotal,
+        driver_count: row.driver_count || 0,
+        driver_price: row.driver_price || 0,
+        driver_tax: row.driver_tax || 0,
+        driver_tax_percent: row.driver_tax_percent || 0,
+        driver_total: driverTotal,
+        cgst_amount: row.cgst_amount || 0,
+        sgst_amount: row.sgst_amount || 0,
+        igst_amount: row.igst_amount || 0,
+        cess_amount: row.cess_amount || 0,
+        service_charge_amount: row.service_charge_amount || 0,
+        adults: row.room_adults || 0,
+        pax: row.room_pax || 0,
+        ex_pax: row.ex_pax || 0,
+        child_paid: row.child_paid || 0,
+        driver: row.driver || 0,
+        discount_percent: row.discount_percent || 0,
+        discount_amount: row.room_discount || 0,
+        tax_percent: row.tax || 18,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+        is_extension: false,
+        isPostCharge: isPostCharge || !isRoomCharge,
+        parent_detail_id: null,
+        selected: true,
+        cumulative_total: cumulativeTotal,
+        guest_name: row.guest_name,
+        payment_method: row.payment_method || row.payment_mode || 'Cash',
+        created_at: row.transaction_datetime || row.checkin_datetime,
+        has_checkout_datetime: !!row.checkout_datetime,
+        checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
+        description: row.description || row.transaction_type || 'Room Charges',
+        particulars: row.description || '',
+        department_name: row.transaction_type || '',
+        cgst_percent: row.cgst_percent,
+        sgst_percent: row.sgst_percent,
+        igst_percent: row.igst_percent,
+        cess_percent: row.cess_percent,
+        service_charge_percent: row.service_charge,
+      })
+    })
+
+    console.log('📊 Generated displayRows count:', rows.length)
+    console.log('📊 Room Charges:', rows.filter(r => !r.isPostCharge).length)
+    console.log('📊 Post Charges:', rows.filter(r => r.isPostCharge).length)
+    
+    return rows
+  }, [billData])
+
+  // ========== BUILD SUMMARY FROM API DATA ==========
   const summary = useMemo(() => {
     if (!billData.length) return null
 
     const firstRow = billData[0]
     
-    const roomNumbers = Array.from(new Set(billData.map(r => r.room_number).filter(Boolean)))
+    const roomNumbers = Array.from(new Set(displayRows.map(r => r.room_number).filter(Boolean)))
     const roomCategories = Array.from(
-      new Set(billData.map(r => r.room_category_name).filter(Boolean))
-    )
-    const convertedCategories = Array.from(
-      new Set(billData.map(r => r.converted_category_name).filter(Boolean))
+      new Set(displayRows.map(r => r.room_category_name).filter(Boolean))
     )
 
     let totalRoomTariff = 0
@@ -361,18 +498,20 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     let totalChildPaid = 0
     let totalDriver = 0
 
-    billData.forEach(row => {
-      totalRoomTariff += row.room_tariff || 0
-      totalExPaxCharge += row.ex_pax_charge || 0
-      totalChildPaidAmount += row.child_paid_amount || 0
-      totalDriverCharge += row.driver_charge || 0
-      totalTaxAmount += (row.cgst_amount || 0) + (row.sgst_amount || 0) + (row.igst_amount || 0)
-      totalAmount += row.room_total || 0
-      totalAdults += row.room_adults || 0
-      totalPax += row.room_pax || 0
-      totalExPax += row.ex_pax || 0
-      totalChildPaid += row.child_paid || 0
-      totalDriver += row.driver || 0
+    displayRows.forEach(row => {
+      if (!row.isPostCharge) {
+        totalRoomTariff += row.room_tariff_per_day || 0
+        totalExPaxCharge += row.ex_pax_total || 0
+        totalChildPaidAmount += row.child_total || 0
+        totalDriverCharge += row.driver_total || 0
+        totalTaxAmount += row.tax_amount || 0
+        totalAmount += row.total_amount || 0
+        totalAdults += row.adults || 0
+        totalPax += row.pax || 0
+        totalExPax += row.ex_pax_count || 0
+        totalChildPaid += row.child_count || 0
+        totalDriver += row.driver_count || 0
+      }
     })
 
     return {
@@ -381,10 +520,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       guest_name: firstRow.guest_name,
       room_numbers: roomNumbers,
       room_categories: roomCategories,
-      converted_categories: convertedCategories,
+      converted_categories: [],
       room_numbers_str: roomNumbers.join(', ') || '-',
       room_categories_str: roomCategories.join(', ') || '-',
-      converted_categories_str: convertedCategories.join(', ') || '-',
+      converted_categories_str: '-',
       total_room_tariff: totalRoomTariff,
       total_ex_pax_charge: totalExPaxCharge,
       total_child_paid_amount: totalChildPaidAmount,
@@ -418,112 +557,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       plan_name: firstRow.plan_name,
       checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [],
     }
-  }, [billData])
-
-  // ========== BUILD DISPLAY ROWS FROM API DATA ==========
-  const displayRows = useMemo(() => {
-    if (!billData.length) return []
-
-    const rows: DisplayDetailRow[] = []
-    const cumulativeMap = new Map<string, number>()
-
-    billData.forEach((row, index) => {
-      const roomNumber = row.room_number || `Room-${row.room_id}`
-      const isPostCharge = row.transaction_type === 'Post Charge' || row.transaction_type === 'Allowance'
-      
-      // Calculate total amount - use room_total or calculate from components
-      let totalAmount = row.room_total || 0
-      
-      // If room_total is 0 but we have other charges, calculate properly
-      if (totalAmount === 0) {
-        totalAmount = (row.room_tariff || 0) + 
-                      (row.ex_pax_total || 0) + 
-                      (row.child_total || 0) + 
-                      (row.driver_total || 0) +
-                      (row.pax_tax || 0)
-      }
-      
-      const prevCumulative = cumulativeMap.get(roomNumber) || 0
-      const cumulativeTotal = roundToTwo(prevCumulative + totalAmount)
-      cumulativeMap.set(roomNumber, cumulativeTotal)
-
-      const billDateFormatted = row.transaction_datetime 
-        ? formatBillDate(row.transaction_datetime) 
-        : formatBillDate(row.checkin_datetime)
-
-      rows.push({
-        id: `row-${row.charge_id || row.folio_id || index}-${index}`,
-        guest_room_charges_id: row.charge_id || 0,
-        checkin_id: row.checkin_id,
-        guest_id: row.guest_id,
-        detail_id: row.detail_id,
-        room_id: row.room_id,
-        room_number: roomNumber,
-        room_category_name: row.room_category_name || '-',
-        converted_category_name: row.converted_category_name || '-',
-        bill_date: row.transaction_datetime || row.checkin_datetime,
-        bill_date_formatted: billDateFormatted,
-        checkin_datetime: row.checkin_datetime,
-        checkout_datetime: row.checkout_datetime,
-        no_of_days: row.no_of_days || 1,
-        day_number: 1,
-        original_day_number: 1,
-        room_tariff_per_day: row.room_tariff || 0,
-        total_room_tariff: row.room_tariff || 0,
-        ex_pax_count: row.ex_pax_count || 0,
-        ex_pax_price: row.ex_pax_price || 0,
-        ex_pax_tax: row.ex_pax_tax || 0,
-        ex_pax_tax_percent: row.ex_pax_tax_percent || 0,
-        ex_pax_total: row.ex_pax_total || 0,
-        child_count: row.child_count || 0,
-        child_unpaid: row.child_unpaid || 0,
-        child_price: row.child_price || 0,
-        child_tax: row.child_tax || 0,
-        child_tax_percent: row.child_tax_percent || 0,
-        child_total: row.child_total || 0,
-        driver_count: row.driver_count || 0,
-        driver_price: row.driver_price || 0,
-        driver_tax: row.driver_tax || 0,
-        driver_tax_percent: row.driver_tax_percent || 0,
-        driver_total: row.driver_total || 0,
-        cgst_amount: row.cgst_amount || 0,
-        sgst_amount: row.sgst_amount || 0,
-        igst_amount: row.igst_amount || 0,
-        cess_amount: row.cess_amount || 0,
-        service_charge_amount: row.service_charge_amount || 0,
-        adults: row.room_adults || 0,
-        pax: row.room_pax || 0,
-        ex_pax: row.ex_pax || 0,
-        child_paid: row.child_paid || 0,
-        driver: row.driver || 0,
-        discount_percent: row.discount_percent || 0,
-        discount_amount: row.room_discount || 0,
-        tax_percent: row.tax || 18,
-        tax_amount: row.pax_tax || 0,
-        total_amount: totalAmount,
-        is_extension: false,
-        isPostCharge: isPostCharge,
-        parent_detail_id: null,
-        selected: true,
-        cumulative_total: cumulativeTotal,
-        guest_name: row.guest_name,
-        payment_method: row.payment_method || row.payment_mode || 'Cash',
-        created_at: row.transaction_datetime || row.checkin_datetime,
-        has_checkout_datetime: !!row.checkout_datetime,
-        checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
-        description: row.description || row.transaction_type || 'Room Charges',
-        particulars: row.description || '',
-        department_name: row.transaction_type || '',
-        cgst_percent: row.cgst_percent,
-        sgst_percent: row.sgst_percent,
-        igst_percent: row.igst_percent,
-        cess_percent: row.cess_percent,
-        service_charge_percent: row.service_charge,
-      })
-    })
-
-    return rows
-  }, [billData])
+  }, [displayRows, billData])
 
   // ========== SEPARATE CHARGES ==========
   const roomCharges = displayRows.filter((r) => !r.isPostCharge)
@@ -621,7 +655,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const groupChargesByDate = (): Map<string, GroupedChargeItem> => {
     const grouped = new Map<string, GroupedChargeItem>()
 
-    // Process room charges by date
+    console.log('📊 ===== GROUPING CHARGES BY DATE =====')
+    console.log('📊 Room Charges to group:', roomCharges.length)
+
     roomCharges.forEach((charge) => {
       const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
 
@@ -640,14 +676,17 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       }
 
       const item = grouped.get(dateKey)!
+      // 🔥 TARIFF: room_tariff_per_day
       item.roomChargeAmount += charge.room_tariff_per_day || 0
-      item.exPaxAmount +=
-        (charge.ex_pax_total || 0) + (charge.child_total || 0) + (charge.driver_total || 0)
+      // 🔥 EX.PAX: ex_pax_total + child_total + driver_total
+      const exPaxTotal = charge.ex_pax_total || 0
+      const childTotal = charge.child_total || 0
+      const driverTotal = charge.driver_total || 0
+      item.exPaxAmount += exPaxTotal + childTotal + driverTotal
       item.cgstAmount += charge.cgst_amount || 0
       item.sgstAmount += charge.sgst_amount || 0
     })
 
-    // Process food charges by date
     foodCharges.forEach((charge) => {
       const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
       const amount = Math.abs(charge.total_amount)
@@ -676,7 +715,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       item.sgstAmount += charge.sgst_amount || 0
     })
 
-    // Process other post charges by date
     nonFoodPostCharges.forEach((charge) => {
       const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
       const amount = Math.abs(charge.total_amount)
@@ -701,11 +739,8 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         amount,
         id: charge.id,
       })
-      item.cgstAmount += charge.cgst_amount || 0
-      item.sgstAmount += charge.sgst_amount || 0
     })
 
-    // Process advances by date
     advances.forEach((charge) => {
       const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
       const amount = Math.abs(charge.total_amount)
@@ -732,7 +767,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       })
     })
 
-    // Process other allowances by date
     otherAllowances.forEach((charge) => {
       const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
       const amount = Math.abs(charge.total_amount)
@@ -759,6 +793,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       })
     })
 
+    console.log('📊 Grouped Charges - Dates:', Array.from(grouped.keys()))
     return grouped
   }
 
@@ -782,16 +817,14 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
       const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
 
-      // POST/ALLOW = postCharges minus allowances
-      const postAllowNet = postTotal - allowanceTotal
-
-      // Total for the day = Room + EX.PAX + POST/ALLOW + FOOD - ADVANCE
-      const total =
-        item.roomChargeAmount +
-        item.exPaxAmount +
-        postAllowNet +
-        foodTotal -
-        advanceTotal
+      // 🔥 POST = postCharges + foodCharges
+      const totalPost = postTotal + foodTotal
+      
+      // 🔥 ALLOW = allowances + advances
+      const totalAllow = allowanceTotal + advanceTotal
+      
+      // 🔥 TOTAL = RoomTariff + EX.PAX + POST - ALLOW
+      const total = item.roomChargeAmount + item.exPaxAmount + totalPost - totalAllow
 
       rows.push({
         id: `row-${date}`,
@@ -804,9 +837,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         food: foodTotal,
         total: total,
         advanceTotal: advanceTotal,
-        postTotal: postTotal,
-        allowanceTotal: allowanceTotal,
-        postAllowNet: postAllowNet,
+        postTotal: totalPost,
+        allowanceTotal: totalAllow,
+        postAllowNet: totalPost - totalAllow,
         postCharges: item.postCharges,
         allowances: item.allowances,
         advances: item.advances,
@@ -815,7 +848,18 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       })
     }
 
-    console.log('📊 Generated Table Rows:', rows)
+    console.log('📊 ===== GENERATED TABLE ROWS =====')
+    console.log('📊 Rows count:', rows.length)
+    console.log('📊 Row details:', rows.map(r => ({
+      date: r.date,
+      roomTariff: r.roomTariff,
+      exPax: r.exPax,
+      postTotal: r.postTotal,
+      allowanceTotal: r.allowanceTotal,
+      food: r.food,
+      total: r.total
+    })))
+    
     return rows
   }
 
@@ -826,8 +870,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
   )
   const totalExPaxAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.exPax, 0))
-  const totalCGSTAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.cgst, 0))
-  const totalSGSTAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.sgst, 0))
   const totalFoodAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.food, 0))
   const totalAdvanceAmount = roundToTwo(
     tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
@@ -843,8 +885,17 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   // Use netTotal from API or calculated
   const netTotal = billData[0]?.net_payable || totalAmount
 
-  const hasCGSTData = totalCGSTAmount > 0 || totalSGSTAmount > 0
   const hasAdvanceData = totalAdvanceAmount > 0
+
+  console.log('📊 ===== FINAL TOTALS =====')
+  console.log('📊 Room Tariff Total:', totalRoomTariffAmount)
+  console.log('📊 EX.PAX Total:', totalExPaxAmount)
+  console.log('📊 POST Total:', totalPostAmount)
+  console.log('📊 ALLOW Total:', totalAllowanceAmount)
+  console.log('📊 FOOD Total:', totalFoodAmount)
+  console.log('📊 ADVANCE Total:', totalAdvanceAmount)
+  console.log('📊 Total Amount:', totalAmount)
+  console.log('📊 Net Payable:', netTotal)
 
   // ========== STYLES ==========
   const getBillStyles = () => `
@@ -973,34 +1024,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     .bill-wrap .col-date { width: 65px; }
     .bill-wrap .col-amount { width: 80px; }
     .bill-wrap .col-small { width: 65px; }
-
-    .bill-wrap .subcharge-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 4px;
-      margin-bottom: 2px;
-      font-size: 6.5pt;
-    }
-    .bill-wrap .subcharge-table td {
-      padding: 1px 3px;
-      border: none;
-    }
-    .bill-wrap .subcharge-label {
-      color: #666;
-      font-style: italic;
-      padding-left: 12px;
-    }
-    .bill-wrap .subcharge-amount {
-      text-align: right;
-      color: #555;
-    }
-
-    .bill-wrap .sac-code-row td {
-      background: #f5f5f5 !important;
-      font-size: 6.5pt;
-      color: #666;
-      padding: 3px 6px !important;
-    }
 
     .bill-wrap .bill-amount-words {
       border: 1px solid #d4d4d4;
