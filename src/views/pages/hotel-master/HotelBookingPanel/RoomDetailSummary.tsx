@@ -11,7 +11,6 @@ import CheckoutBillModal from './CheckoutBillModal'
 
 // API Services (only those actually used)
 import CheckoutService from '@/common/hotel/checkout'
-import BrandService from '@/common/hotel/brand'
 import RoomService from '@/common/hotel/room'
 import AdvanceTransactionService from '@/common/hotel/advanceTransaction'
 
@@ -339,18 +338,12 @@ const RoomDetailSummary = () => {
   const [checkoutDone, setCheckoutDone] = useState(false)
   const [showBillModal, setShowBillModal] = useState(false)
 
-  const [hotelName, setHotelName] = useState<string>('GRAND VIEW HOTEL')
-  const [hotelAddress, setHotelAddress] = useState<string>('')
-  const [hotelPhone, setHotelPhone] = useState<string>('')
-  const [hotelEmail, setHotelEmail] = useState<string>('')
-  const [hotelWebsite, setHotelWebsite] = useState<string>('')
-  const [hotelGSTIN, setHotelGSTIN] = useState<string>('')
-  const [hotelFSSAI, setHotelFSSAI] = useState<string>('')
-  const [hotelPAN, setHotelPAN] = useState<string>('')
+ 
   const [generatedBillNumber, setGeneratedBillNumber] = useState<string>('')
   const [paymentTransactionId, setPaymentTransactionId] = useState<string>('')
   const [paymentDate, setPaymentDate] = useState<string>('')
   const [paymentBank, setPaymentBank] = useState<string>('')
+  const [checkoutId, setCheckoutId] = useState<number | null>(null);
 
   const [selectedPaymentModeId] = useState<number | null>(null)
   const [selectedPaymentModeName] = useState<string>('Cash')
@@ -378,29 +371,7 @@ const RoomDetailSummary = () => {
   }, [hotelId, checkinIdFromState]);
 
   // Fetch hotel details
-  useEffect(() => {
-    const fetchHotelDetails = async () => {
-      if (hotelId) {
-        try {
-          const response = await BrandService.getBrandById(String(hotelId))
-          const hotel = response.data || response
-          setHotelName(hotel?.hotel_name || 'GRAND VIEW HOTEL')
-          setHotelAddress(
-            hotel?.address || '123, Park Avenue, City Center, New Delhi - 110001, India',
-          )
-          setHotelPhone(hotel?.phone || '+91 11 4567 8900')
-          setHotelEmail(hotel?.email || 'info@grandviewhotel.com')
-          setHotelGSTIN(hotel?.trn_gstno || '07AABCG1234F1Z5')
-          setHotelWebsite(hotel?.website || 'www.grandviewhotel.com')
-          setHotelFSSAI(hotel?.fssai_no || '12345678901234')
-          setHotelPAN(hotel?.panno || 'AABCG1234F')
-        } catch (err) {
-          console.error('Failed to fetch hotel details:', err)
-        }
-      }
-    }
-    fetchHotelDetails()
-  }, [hotelId])
+
 
   // Auto-refresh time
   useEffect(() => {
@@ -1428,6 +1399,11 @@ const handleConfirmCheckout = async () => {
     });
 
     if (response.success) {
+
+  if (response.data?.checkout_id) {
+        setCheckoutId(response.data.checkout_id);
+      }
+
       if (response.data?.ldg_bill_no) {
         setGeneratedBillNumber(response.data.ldg_bill_no);
       } else if (invoiceNo) {
@@ -2605,36 +2581,29 @@ const handleConfirmCheckout = async () => {
         </Modal.Footer>
       </Modal>
 
-      <CheckoutBillModal
-        show={showBillModal}
-        onHide={() => {
-          setShowBillModal(false)
-          setCheckoutDone(false)
-          navigate('/hotel-master/HotelBookingPanel', {
-            state: {
-              checkoutSuccess: true,
-              checkedOutRooms: Array.from(selectedRooms),
-              checkin_id: combinedSummary?.checkin_id,
-            }
-          })
-        }}
-        combinedSummary={combinedSummary}
-        displayRows={selectedRowsForCheckout}
-        grandTotal={grandTotal}
-        hotelName={hotelName}
-        hotelAddress={hotelAddress}
-        hotelPhone={hotelPhone}
-        hotelEmail={hotelEmail}
-        hotelWebsite={hotelWebsite}
-        hotelGSTIN={hotelGSTIN}
-        hotelFSSAI={hotelFSSAI}
-        hotelPAN={hotelPAN}
-        billNumber={generatedBillNumber}
-        paymentTransactionId={paymentTransactionId}
-        paymentDate={paymentDate}
-        paymentBank={paymentBank}
-        hotelId={hotelId}
-      />
+   
+
+<CheckoutBillModal
+  show={showBillModal}
+  onHide={() => {
+    setShowBillModal(false)
+    setCheckoutDone(false)
+    navigate('/hotel-master/HotelBookingPanel', {
+      state: {
+        checkoutSuccess: true,
+        checkedOutRooms: Array.from(selectedRooms),
+        checkin_id: combinedSummary?.checkin_id,
+      }
+    })
+  }}
+  checkoutId={checkoutId || 0}  // Use checkoutId from state
+  ldgBillNo={generatedBillNumber}
+  hotelId={hotelId}
+  billNumber={generatedBillNumber}
+  paymentTransactionId={paymentTransactionId}
+  paymentDate={paymentDate}
+  paymentBank={paymentBank}
+/>
     </>
   )
 }
