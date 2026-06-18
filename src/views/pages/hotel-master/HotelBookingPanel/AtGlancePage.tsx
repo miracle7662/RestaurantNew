@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Button } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
@@ -51,6 +51,57 @@ const formatAmount = (amt: number): string => {
   return `Rs.${sign}${Math.abs(n).toFixed(2)}/-`
 }
 
+const getContrastColor = (hexColor: string): string => {
+  if (!hexColor) return '#000000'
+  const hex = hexColor.replace('#', '')
+  if (hex.length !== 6) return '#000000'
+  const r = parseInt(hex.substring(0, 2), 16)
+  const g = parseInt(hex.substring(2, 4), 16)
+  const b = parseInt(hex.substring(4, 6), 16)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000
+  return brightness > 128 ? '#000000' : '#ffffff'
+}
+
+const getStatusStyle = (status: string, statusColor?: string): React.CSSProperties => {
+  const normalizedStatus = (status || '').trim().toLowerCase()
+
+  // Prefer backend-provided color (status_color)
+  const bg = statusColor?.trim() || undefined
+  if (bg) {
+    return {
+      backgroundColor: bg,
+      color: getContrastColor(bg),
+    }
+  }
+
+  // Fallback colors by status name
+  // (These can be adjusted if your exact status names differ)
+  switch (normalizedStatus) {
+    case 'available':
+    case 'vacant':
+    case 'free':
+    case 'vacant room':
+      return { backgroundColor: '#ffffff', color: '#111827' }
+    case 'occupied':
+    case 'in_house':
+      return { backgroundColor: '#DFF5E1', color: '#16A34A' }
+    case 'cleaning':
+    case 'dirty':
+      return { backgroundColor: '#FFF4CC', color: '#92400E' }
+    case 'reserved':
+    case 'block':
+      return { backgroundColor: '#D9F1FF', color: '#0284C7' }
+    case 'maintenance':
+    case 'out of service':
+    case 'maint':
+      return { backgroundColor: '#FFE0E0', color: '#DC2626' }
+    case 'bill':
+      return { backgroundColor: '#f59999', color: '#8B0000' }
+    default:
+      return {}
+  }
+}
+
 const AtGlance = () => {
   const navigate = useNavigate()
   const { user } = useAuthContext()
@@ -59,6 +110,36 @@ const AtGlance = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [atGlanceData, setAtGlanceData] = useState<AtGlanceItem[]>([])
+  const [selectedStatus, setSelectedStatus] = useState<string>('All')
+
+  const statusCounts = useMemo(() => {
+    const map = new Map<
+      string,
+      { status: string; count: number; statusColor?: string }
+    >()
+
+    for (const item of atGlanceData) {
+      const status = (item.status || '').trim()
+      if (!status) continue
+
+      const existing = map.get(status)
+      if (existing) {
+        existing.count += 1
+        // keep existing color (prefer first non-empty)
+        if (!existing.statusColor && (item as any).status_color) {
+          existing.statusColor = (item as any).status_color
+        }
+      } else {
+        map.set(status, {
+          status,
+          count: 1,
+          statusColor: (item as any).status_color,
+        })
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.status.localeCompare(b.status))
+  }, [atGlanceData])
 
   const fetchAtGlanceData = async () => {
     if (!hotelId) return
@@ -66,9 +147,13 @@ const AtGlance = () => {
     setError(null)
     try {
       const atGlanceRes = await CheckInService.getAtGlance({ hotelid: hotelId })
+      console.log('getAtGlance raw response (atGlanceRes.data):', atGlanceRes.data)
       const checkins = atGlanceRes.data || []
+      console.log('API Count', checkins.length)
+      console.log('atGlanceRes.data.slice(0,5):', checkins.slice(0, 5))
 
       const items: AtGlanceItem[] = checkins.map((c: CheckIn) => {
+
         const checkinDatetime = (c as any).checkin_datetime || ''
         const checkoutDatetime = (c as any).checkout_datetime || ''
 
@@ -88,8 +173,14 @@ const AtGlance = () => {
           floorNo: (c as any).floorNo || (c as any).floor_name || '',
           floorId: (c as any).floor_id || (c as any).floorId || 0,
 
-          // backend: cdm.room_number AS room_no
-          roomNo: (c as any).room_no || (c as any).roomNumber || (c as any).roomNo || '',
+          // backend: rm.room_no (available rooms) and cdm.room_number AS occupied_room_number (occupied rooms)
+          roomNo:
+            (c as any).room_no ||
+            (c as any).occupied_room_number ||
+            (c as any).roomNumber ||
+            (c as any).roomNo ||
+            '',
+
 
           guest: (c as any).guest_name || '',
 
@@ -145,8 +236,10 @@ const AtGlance = () => {
         }
       })
 
+      console.log('UI Count', items.length)
       items.sort((a, b) => a.roomNo.localeCompare(b.roomNo, undefined, { numeric: true }))
       setAtGlanceData(items)
+
     } catch (err) {
       console.error('Failed to fetch at a glance data:', err)
       setError('Could not load at a glance data. Please try again.')
@@ -194,7 +287,7 @@ const AtGlance = () => {
         <body>
           <div class="report-header">
             <div class="hotel-name-row">Hotel name: ${hotel}</div>
-            <div class="report-subheader"><div>At a Glance Report</div><div>Filter: ${''} | Date & Time: ${dateTimeStr}</div></div>
+            <div class="report-subheader"><div>At a Glance Report</div><div>Filter: ${selectedStatus || 'All'} | Date & Time: ${dateTimeStr}</div></div>
           </div>
           ${tableElement.outerHTML}
         </body>
@@ -241,14 +334,14 @@ const AtGlance = () => {
 
       headerDiv.innerHTML = `
         <div class="hotel-name-row">Hotel name: ${hotel}</div>
-        <div class="report-subheader"><div>At a Glance Report</div><div>Filter: ${''} | Date & Time: ${dateTimeStr}</div></div>
+        <div class="report-subheader"><div>At a Glance Report</div><div>Filter: ${selectedStatus || 'All'} | Date & Time: ${dateTimeStr}</div></div>
       `
 
       wrapper.appendChild(headerDiv)
 
       const tableClone = table.cloneNode(true) as HTMLElement
       tableClone.querySelectorAll('thead tr, tfoot tr').forEach((el) => {
-        ;(el as HTMLElement).style.position = 'static'
+        (el as HTMLElement).style.position = 'static'
       })
 
       wrapper.appendChild(tableClone)
@@ -301,11 +394,33 @@ const AtGlance = () => {
     <>
       <TitleHelmet title="At a Glance - Room Status" />
       <div className="container-fluid p-3">
-        <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-          <h4 className="mb-0">
-            <i className="fi fi-rr-eye me-2"></i> At a Glance
+        <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2"> 
+          <h4 className="mb-0"> 
+            <i className="fi fi-rr-eye me-2"></i> At a Glance 
           </h4>
-          <div className="d-flex align-items-center gap-2">
+
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <div className="d-flex align-items-center gap-2">
+              <label className="fw-semibold mb-0" style={{ fontSize: '0.9rem' }}>
+                Filter by Status:
+              </label>
+              <select
+                className="form-select form-select-sm"
+                style={{ width: 200 }}
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+              >
+                <option value="All">All</option>
+                {Array.from(new Set(atGlanceData.map((x) => (x.status || '').trim()).filter(Boolean)))
+                  .sort((a, b) => a.localeCompare(b))
+                  .map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
             <Button variant="success" size="sm" onClick={handlePrint}>
               <i className="fi fi-rr-print me-1"></i> Print
             </Button>
@@ -318,53 +433,125 @@ const AtGlance = () => {
           </div>
         </div>
 
+    <div className="d-flex justify-content-between align-items-center" style={{ marginBottom: 8 }}>
+  <div className="text-muted" style={{ fontSize: '0.85rem' }}>
+    Showing {
+      atGlanceData.filter(
+        (x) => selectedStatus === 'All' || (x.status || '') === selectedStatus
+      ).length
+    } rows
+  </div>
+
+  <div className="d-flex align-items-center gap-4">
+    {statusCounts.map((sc) => (
+      <div
+        key={sc.status}
+        className="d-flex align-items-center gap-2"
+        style={{ fontSize: '0.9rem', fontWeight: 600 }}
+      >
+        <span
+          style={{
+            width: 12,
+            height: 12,
+            borderRadius: 3,
+            background: sc.statusColor || '#ddd',
+            border: '1px solid rgba(0,0,0,0.15)',
+            display: 'inline-block',
+          }}
+        />
+        <span>{sc.status}</span>
+        <span>{sc.count}</span>
+      </div>
+    ))}
+  </div>
+</div>
+
+        {/* Ensure this table never looks like DataTable (width/design reset) */}
+
+        <style>{`
+          .at-glance-table {
+            width: 100% !important;
+            table-layout: auto;
+            font-size: 0.75rem;
+          }
+          .at-glance-table thead th {
+            background: #f2f2f2 !important;
+            font-weight: 600;
+            color: inherit;
+          }
+          .at-glance-table td {
+            vertical-align: top;
+          }
+          /* If any DataTables CSS is present globally, neutralize the most common parts */
+          table.dataTable,
+          .dataTables_wrapper,
+          .dataTables_scroll,
+          .dataTables_paginate,
+          .dataTables_info,
+          .dataTables_length {
+            all: unset !important;
+          }
+          table.dataTable td,
+          table.dataTable th {
+            all: revert !important;
+          }
+        `}</style>
+
         <div className="table-responsive">
           <table className="at-glance-table table table-bordered table-sm">
             <thead className="table-light">
               <tr>
-                <th>Floor No</th>
-                <th>Room No</th>
-                <th>Status</th>
-                <th>Room Category</th>
-                <th>Converted Category</th>
-                <th>Guest</th>
-                <th>Total Days</th>
-                <th>Total Amt</th>
-                <th>Discount %</th>
-                <th>Pay Type</th>
-                <th>Plan Name</th>
-                <th>Check-in Date & Time</th>
-                <th>Check-out Date & Time</th>
-                <th>Adults</th>
-                <th>Pax</th>
-                <th>Ex-Pax</th>
-                <th>Child</th>
-                <th>Driver</th>
+                <th>FLOOR</th>
+                <th>ROOM</th>
+                 <th>GUEST NAME</th>
+                <th>DAYS</th>
+                <th>ARRIVAL/DEPAR DATE</th>
+                <th>TERIFF</th>
+                <th>DISCOUNT</th>
+                <th>ROOM CATEGORY</th>
+                <th>CONV. CATEGORY</th>               
+                <th>PAYMENT</th>
+                <th>PLAN</th>               
+                <th>ADULTS</th>
+                <th>PAX</th>
+                <th>EX-PAX</th>
+                <th>CHILD</th>
+                <th>DRIVER</th>
+                <th>STATUS</th>
               </tr>
             </thead>
             <tbody>
-              {atGlanceData.map((item, idx) => (
-                <tr key={`${item.roomNo || 'room'}-${idx}`}>
-                  <td>{item.floorNo}</td>
-                  <td>{item.roomNo}</td>
-                  <td>{item.status || '-'}</td>
-                  <td>{item.roomCategory}</td>
-                  <td>{item.convertedCategory || '-'}</td>
-                  <td>{item.guest}</td>
-                  <td>{item.totalDays ?? '-'}</td>
-                  <td>{formatAmount(item.totalAmt)}</td>
-                  <td>{item.discountPercent}%</td>
-                  <td>{item.payType}</td>
-                  <td>{item.planName || '-'}</td>
-                  <td>{item.checkinDatetime ? formatDateTime(item.checkinDatetime) : '-'}</td>
-                  <td>{item.checkoutDatetime ? formatDateTime(item.checkoutDatetime) : '-'}</td>
-                  <td>{item.adults}</td>
-                  <td>{item.pax}</td>
-                  <td>{item.exPax}</td>
-                  <td>{item.child}</td>
-                  <td>{item.driver}</td>
-                </tr>
-              ))}
+              {atGlanceData
+                .filter((item) => selectedStatus === 'All' || (item.status || '') === selectedStatus)
+                .map((item, idx) => {
+                  const rowStyle = getStatusStyle(item.status || '', (item as any).status_color)
+                  return (
+                    <tr key={`${item.roomNo || 'room'}-${idx}`} style={rowStyle}>
+                      <td>{item.floorNo}</td>
+                      <td>{item.roomNo}</td>
+                      <td>{item.guest}</td>
+                      <td>{item.totalDays ?? '-'}</td>
+                      <td>
+                        <div>{item.checkinDatetime ? formatDateTime(item.checkinDatetime) : '-'}</div>
+                        <div>{item.checkoutDatetime ? formatDateTime(item.checkoutDatetime) : '-'}</div>
+                      </td>
+                      <td>{formatAmount(item.totalAmt)}</td>
+                      <td>{item.discountPercent}%</td>
+                      <td>{item.roomCategory}</td>
+                      <td>{item.convertedCategory || '-'}</td>
+
+                      <td>{item.payType}</td>
+                      <td>{item.planName || '-'}</td>
+
+                      <td>{item.adults}</td>
+                      <td>{item.pax}</td>
+                      <td>{item.exPax}</td>
+                      <td>{item.child}</td>
+                      <td>{item.driver}</td>
+                      <td>{item.status || '-'}</td>
+                    </tr>
+                  )
+                })}
             </tbody>
           </table>
         </div>

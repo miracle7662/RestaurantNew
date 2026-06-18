@@ -1118,6 +1118,7 @@ exports.getAtGlance = async (req, res) => {
     rm.room_id,
     rm.room_no,
     rs.status_name AS status,
+        rs.status_color,
 
     fm.floor_name as floorNo,
     rm.room_status_id,
@@ -1137,7 +1138,8 @@ exports.getAtGlance = async (req, res) => {
     cdm.room_number,
     cdm.room_category_name AS roomCategory,
     cdm.converted_category_name AS convertedCategory,
-    cdm.room_number AS room_no,
+    cdm.room_number AS occupied_room_number,
+
 
     cdm.room_tariff AS totalAmt,
     cdm.room_tariff AS total_amount,

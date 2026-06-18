@@ -223,10 +223,11 @@ const isMaintenance = (room: Room): boolean => {
   return STATUS_IDS.MAINTENANCE.includes(statusId)  // status_id = 3 or 5
 }
 
-const isBlocked = (room: Room): boolean => {
-  const statusId = room.rawData?.room_status_id || 1
-  return STATUS_IDS.BLOCK.includes(statusId)
-}
+// const isBlocked = (room: Room): boolean => {
+//   const statusId = room.rawData?.room_status_id || 1
+//   return STATUS_IDS.BLOCK.includes(statusId)
+// }
+
 
 const getContrastColor = (hexColor: string): string => {
   if (!hexColor) return '#000000'
