@@ -74,6 +74,11 @@ export interface CheckoutMaster {
   checked_out_rooms?: string;
 }
 
+export interface BillPreviewResponse {
+  // Define the structure based on your API response
+  [key: string]: any;
+}
+
 export interface PerformCheckoutPayload {
   checkin_id: number;
   checkout_reason?: string;
@@ -174,6 +179,14 @@ const CheckoutService = {
 
     updateRoomsToAvailable: (payload: UpdateRoomsPayload) => 
     HttpClient.put<ApiResponse<UpdateRoomsResponse>>( "/checkouts/rooms/available", payload ),
+
+     getBillPreview: (checkoutId?: number, ldgBillNo?: string): Promise<ApiResponse<BillPreviewResponse[]>> => {
+    const params: any = {};
+    if (checkoutId) params.checkout_id = checkoutId;
+    if (ldgBillNo) params.ldg_bill_no = ldgBillNo;
+    
+    return HttpClient.get<ApiResponse<BillPreviewResponse[]>>('/checkouts/bill-preview', { params });
+  },
 
 };
 
