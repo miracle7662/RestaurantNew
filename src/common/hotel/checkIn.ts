@@ -159,6 +159,9 @@ list(params?: { hotelid?: number; status?: string; q?: string }) {
   getTodayCheckouts: (params?: { hotelid?: number }): Promise<ApiResponse<TodayCheckout[]>> =>
     HttpClient.get<ApiResponse<TodayCheckout[]>>('/checkins/today-checkouts', { params }),
 
+  getAtGlance: (params?: { hotelid?: number }): Promise<ApiResponse<any[]>> =>
+    HttpClient.get<ApiResponse<any[]>>('/checkins/at-glance', { params }),
+
   create: (payload: CheckInPayload): Promise<ApiResponse<CheckIn>> =>
     HttpClient.post<ApiResponse<CheckIn>>('/checkins', payload),
 

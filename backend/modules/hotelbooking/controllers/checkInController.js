@@ -1103,6 +1103,122 @@ exports.extendStay = async (req, res) => {
 };
 
 // ----------------------------------------------------------------------
+// GET /checkins/at-glance – room-wise at a glance data
+// ----------------------------------------------------------------------
+exports.getAtGlance = async (req, res) => {
+    try {
+        let hotelId = req.query.hotelid || getCurrentUserHotelId(req);
+        if (!hotelId) {
+            return res.status(400).json({ success: false, message: 'Hotel ID not found' });
+        }
+
+        const sql = `
+         SELECT
+    -- Room Master
+    rm.room_id,
+    rm.room_no,
+    rs.status_name AS status,
+
+    fm.floor_name as floorNo,
+    rm.room_status_id,
+
+    -- Checkin Master
+    cm.checkin_id,
+    cm.reg_no,
+    cm.booking,
+    cm.plan_name,
+    cm.checkin_datetime,
+    cm.checkout_datetime,
+    cm.checkout_id,
+
+    -- Checkin Detail
+    cdm.detail_id,
+    cdm.guest_id,
+    cdm.room_number,
+    cdm.room_category_name AS roomCategory,
+    cdm.converted_category_name AS convertedCategory,
+    cdm.room_number AS room_no,
+
+    cdm.room_tariff AS totalAmt,
+    cdm.room_tariff AS total_amount,
+    cdm.adults,
+    cdm.ex_pax AS ex_pax,
+    cdm.child_unpaid AS child_unpaid,
+    cdm.child_paid_amount AS child_paid,
+    cdm.driver AS driver,
+    cdm.pax AS pax,
+
+
+
+    cdm.ex_pax_charge,
+    cdm.child_paid_amount,
+    cdm.driver_charge,
+
+    cdm.discount_percent as discountPercent,
+    cdm.cgst_percent,
+    cdm.sgst_percent,
+    cdm.igst_percent,
+    cdm.service_charge,
+
+    -- Total Room Amount
+    (
+        IFNULL(cdm.room_tariff, 0)
+        + IFNULL(cdm.ex_pax_charge, 0)
+        + IFNULL(cdm.child_paid_amount, 0)
+        + IFNULL(cdm.driver_charge, 0)
+    ) AS total_room_amount,
+
+    -- Guest Details
+    gm.name AS guest_name,
+    gm.mobile,
+    gm.address,
+    gm.email,
+
+    -- Company
+    comp.company_name
+
+FROM room_master rm
+
+LEFT JOIN checkin_detail_master cdm
+       ON rm.room_id = cdm.room_id
+      AND cdm.is_settle = 0
+
+LEFT JOIN checkin_master cm
+       ON cm.checkin_id = cdm.checkin_id
+      AND cm.hotelid = rm.hotelid
+
+LEFT JOIN guest_master gm
+       ON gm.guest_id = cdm.guest_id
+
+LEFT JOIN company_master comp
+       ON comp.company_id = gm.company_id
+       left join room_status rs on rs.room_status_id =rm.room_status_id
+       left join floormaster fm on fm.floor_id = rm.floor_id
+
+WHERE rm.hotelid = ?
+
+ORDER BY CAST(rm.room_no AS UNSIGNED), rm.room_no;
+        `;
+
+        const [rows] = await db.execute(sql, [hotelId]);
+
+        const formatted = rows.map((r) => ({
+            ...r,
+            checkin_datetime: formatDate(r.checkin_datetime),
+            checkout_datetime: formatDate(r.checkout_datetime),
+            totalAmt: Number(r.total_room_amount ?? 0) || 0,
+            // For UI convenience
+            child: (Number(r.child_unpaid ?? 0) + Number(r.child_paid_amount ?? 0)) || 0
+        }));
+
+        res.json({ success: true, data: formatted });
+    } catch (error) {
+        console.error('Error fetching at-glance:', error);
+        res.status(500).json({ success: false, message: 'Database error', error: error.message });
+    }
+};
+
+// ----------------------------------------------------------------------
 // DELETE /checkins/:id – delete checkin
 // ----------------------------------------------------------------------
 exports.deleteCheckin = async (req, res) => {

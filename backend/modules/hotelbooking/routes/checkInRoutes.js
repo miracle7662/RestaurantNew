@@ -4,6 +4,7 @@ const router = express.Router();
 const controller = require('../controllers/checkInController');
 
 router.get('/', controller.getCheckins);
+router.get('/at-glance', controller.getAtGlance);
 router.post('/', controller.addCheckin);
 router.get('/next-reg-number', controller.getNextRegNumber);
 router.get('/details/:checkinId', controller.getDetailsByCheckinId);
