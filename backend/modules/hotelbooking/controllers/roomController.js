@@ -48,7 +48,7 @@ exports.getCheckinFullDetails = async (req, res) => {
 
           -- Checkin Detail
           cdm.detail_id,
-          cdm.room_id,
+          cdm.room_id ,
           cdm.room_number,
           cdm.room_category_name,
           cdm.converted_category_name,
@@ -71,13 +71,6 @@ exports.getCheckinFullDetails = async (req, res) => {
           cdm.cess_percent AS detail_cess_percent,
           cdm.service_charge AS detail_service_charge,
           cdm.parent_detail_id,
-          
-          -- Guest Master (Room Wise Guest) - ✅ ADDED
-          gm.name AS guest_name,
-          gm.mobile AS detail_mobile,
-          gm.address AS detail_address,
-          gm.email AS detail_email,
-          gm.guest_id AS detail_guest_id,
 
           -- Guest Folio
           cgfm.folio_id,
@@ -87,50 +80,43 @@ exports.getCheckinFullDetails = async (req, res) => {
           cgfm.credit_amount,
           cgfm.reference_number,
 
-          -- Guest Room Charges
+          -- Guest Room Charges (joined ONLY on checkin_id)
           cgrc.guest_room_charges_id,
-          cgrc.room_id AS charge_room_id,
-          cgrc.category_id,
-          cgrc.pax_count,
-          cgrc.pax_price,
-          cgrc.pax_tax,
-          cgrc.ex_pax_count,
-          cgrc.ex_pax_price,
-          cgrc.ex_pax_tax,
-          cgrc.ex_pax_tax_percent,
-          cgrc.ex_pax_total,
-          cgrc.child_count,
-          cgrc.child_price,
-          cgrc.child_tax,
-          cgrc.child_tax_percent,
-          cgrc.child_total,
-          cgrc.driver_count,
-          cgrc.driver_price,
-          cgrc.driver_tax,
-          cgrc.driver_tax_percent,
-          cgrc.driver_total,
-          cgrc.total_amount,
-          cgrc.checkin_datetime AS charge_checkin_datetime,
-          cgrc.checkout_datetime AS charge_checkout_datetime,
-          cgrc.created_at AS charge_created_at,
-          cgrc.updated_at AS charge_updated_at
+cgrc.room_id AS charge_room_id,
+cgrc.category_id,
+cgrc.pax_count,
+cgrc.pax_price,
+cgrc.pax_tax,
+cgrc.ex_pax_count,
+cgrc.ex_pax_price,
+cgrc.ex_pax_tax,
+cgrc.ex_pax_tax_percent,
+cgrc.ex_pax_total,
+cgrc.child_count,
+cgrc.child_price,
+cgrc.child_tax,
+cgrc.child_tax_percent,
+cgrc.child_total,
+cgrc.driver_count,
+cgrc.driver_price,
+cgrc.driver_tax,
+cgrc.driver_tax_percent,
+cgrc.driver_total,
+cgrc.total_amount,
+cgrc.checkin_datetime AS charge_checkin_datetime,
+cgrc.checkout_datetime AS charge_checkout_datetime,
+cgrc.created_at AS charge_created_at,
+cgrc.updated_at AS charge_updated_at
 
       FROM checkin_master cm
       LEFT JOIN checkin_detail_master cdm
         ON cm.checkin_id = cdm.checkin_id
        AND cdm.is_settle = 0
-      
-      -- ✅ ADD THIS JOIN - Guest Master for room-wise guest
-      LEFT JOIN guest_master gm
-        ON gm.guest_id = cdm.guest_id
-      
       LEFT JOIN checkin_guest_folio_master cgfm
         ON cm.checkin_id = cgfm.checkin_id
-      
-      LEFT JOIN checkin_guest_room_charges cgrc
-        ON cgrc.checkin_id = cdm.checkin_id
-       AND cgrc.room_id = cdm.room_id
-      
+     LEFT JOIN checkin_guest_room_charges cgrc
+    ON cgrc.checkin_id = cdm.checkin_id
+   AND cgrc.room_id = cdm.room_id
       WHERE cm.hotelid = ?
         AND cm.checkin_id = ?
         AND cdm.is_settle = 0
