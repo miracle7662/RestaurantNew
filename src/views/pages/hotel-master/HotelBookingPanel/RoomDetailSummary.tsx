@@ -541,6 +541,7 @@ for (const row of rows) {
       ex_pax_charge: row.detail_ex_pax_charge ?? 0,
       child_paid_amount: row.detail_child_paid_amount ?? 0,
       driver_charge: row.detail_driver_charge ?? 0,
+      detail_guest_name: row.guest_name || row.guest_name,
     });
   }
 
@@ -711,6 +712,14 @@ for (const row of rows) {
 
         // ---- REGULAR ROOM CHARGE ----
         if (!associatedDetail) continue;
+
+
+        // ✅ NEW - Get the guest name from detail
+const detailGuestName = associatedDetail.detail_guest_name || 
+                        associatedDetail.guest_name || 
+                        checkin.guest_name || 
+                        'Guest';
+
 
         // Day number calculation
         let dayNumber = 1;
