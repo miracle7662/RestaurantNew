@@ -130,13 +130,14 @@ const AtGlance = () => {
           existing.statusColor = (item as any).status_color
         }
       } else {
-        map.set(status, {
-          status,
-          count: 1,
-          statusColor: (item as any).status_color,
-        })
+       map.set(status, {
+  status,
+  count: 1,
+  statusColor: (item as any).status_color,
+})
       }
     }
+
 
     return Array.from(map.values()).sort((a, b) => a.status.localeCompare(b.status))
   }, [atGlanceData])
@@ -153,8 +154,15 @@ const AtGlance = () => {
       console.log('atGlanceRes.data.slice(0,5):', checkins.slice(0, 5))
 
       const items: AtGlanceItem[] = checkins.map((c: CheckIn) => {
+        // Normalize possible backend color keys so status wise blocks show correctly
+        const statusColor =
+          (c as any).status_color ??
+          (c as any).statusColor ??
+          (c as any).color ??
+          (c as any).statusColorHex
 
         const checkinDatetime = (c as any).checkin_datetime || ''
+
         const checkoutDatetime = (c as any).checkout_datetime || ''
 
         const computedTotalDays =
@@ -527,6 +535,7 @@ const AtGlance = () => {
                   const rowStyle = getStatusStyle(item.status || '', (item as any).status_color)
                   return (
                     <tr key={`${item.roomNo || 'room'}-${idx}`} style={rowStyle}>
+
                       <td>{item.floorNo}</td>
                       <td>{item.roomNo}</td>
                       <td>{item.guest}</td>
