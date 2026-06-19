@@ -1234,6 +1234,485 @@ ORDER BY CAST(rm.room_no AS UNSIGNED), rm.room_no;
     }
 };
 
+
+// ----------------------------------------------------------------------
+// POST /checkins/:checkinId/extend-day – EXTEND DAY SINGLE API
+// FIXED: Proper cumulative calculation for day extensions
+// ----------------------------------------------------------------------
+exports.extendDay = async (req, res) => {
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        const { checkinId } = req.params;
+        const id = parseInt(checkinId);
+        const userId = getCurrentUserId(req);
+        const now = new Date();
+
+        if (isNaN(id)) {
+            await connection.rollback();
+            return res.status(400).json({ success: false, message: 'Invalid checkin ID' });
+        }
+
+        const { roomId, extensionDays } = req.body;
+
+        if (!roomId || !extensionDays || extensionDays < 1) {
+            await connection.rollback();
+            return res.status(400).json({
+                success: false,
+                message: 'Room ID and extension days (>= 1) are required'
+            });
+        }
+
+        // ========== 1. FETCH CURRENT CHECKIN DATA ==========
+        const [checkinRows] = await connection.execute(
+            `SELECT 
+                cm.checkin_id,
+                cm.guest_id,
+                cm.guest_name,
+                cm.checkin_datetime,
+                cm.checkout_datetime,
+                cm.total_nights,
+                cm.total_amount,
+                cm.hotelid,
+                cm.reg_no,
+                cm.booking,
+                cm.plan_name,
+                cm.adults,
+                cm.pax,
+                cm.ex_pax,
+                cm.child_paid,
+                cm.child_unpaid,
+                cm.driver,
+                cm.pax_charges,
+                cm.ex_pax_charge,
+                cm.child_charge,
+                cm.driver_charge,
+                cm.converted_category
+            FROM checkin_master cm
+            WHERE cm.checkin_id = ? AND cm.status = 'active'
+            FOR UPDATE`,
+            [id]
+        );
+
+        if (checkinRows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'Active checkin not found' });
+        }
+
+        const checkin = checkinRows[0];
+
+        // ========== 2. FETCH CURRENT DETAIL FOR THE ROOM ==========
+        const [detailRows] = await connection.execute(
+            `SELECT 
+                cdm.detail_id,
+                cdm.room_id,
+                cdm.room_number,
+                cdm.room_category_id,
+                cdm.room_category_name,
+                cdm.converted_category_id,
+                cdm.converted_category_name,
+                cdm.room_tariff,
+                cdm.discount_percent,
+                cdm.discount_amount,
+                cdm.cgst_percent,
+                cdm.cgst_amount,
+                cdm.sgst_percent,
+                cdm.sgst_amount,
+                cdm.igst_percent,
+                cdm.igst_amount,
+                cdm.cess_percent,
+                cdm.cess_amount,
+                cdm.service_charge,
+                cdm.service_charge_amount,
+                cdm.ex_pax_charge AS detail_ex_pax_charge,
+                cdm.child_paid_amount AS detail_child_paid_amount,
+                cdm.driver_charge AS detail_driver_charge,
+                cdm.adults AS detail_adults,
+                cdm.pax AS detail_pax,
+                cdm.ex_pax AS detail_ex_pax,
+                cdm.child_unpaid AS detail_child_unpaid,
+                cdm.driver AS detail_driver,
+                cdm.tax AS detail_tax,
+                cdm.checkin_datetime AS detail_checkin_datetime,
+                cdm.checkout_datetime AS detail_checkout_datetime,
+                cdm.is_checkout,
+                cdm.parent_detail_id,
+                cdm.no_of_days AS detail_no_of_days
+            FROM checkin_detail_master cdm
+            WHERE cdm.checkin_id = ? AND cdm.room_id = ? AND cdm.is_checkout = 0
+            ORDER BY cdm.detail_id DESC
+            LIMIT 1
+            FOR UPDATE`,
+            [id, roomId]
+        );
+
+        if (detailRows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({
+                success: false,
+                message: 'Active detail record not found for this room'
+            });
+        }
+
+        const detail = detailRows[0];
+
+        // ========== 3. FETCH LATEST FOLIO ROW FOR THE CHECKIN ==========
+        // We only read this to carry forward payment_method / reference_number
+        // onto the NEW folio row we insert in step 11. We do not update this row.
+        const [folioRows] = await connection.execute(
+            `SELECT
+                cgfm.folio_id,
+                cgfm.payment_method,
+                cgfm.reference_number
+            FROM checkin_guest_folio_master cgfm
+            WHERE cgfm.checkin_id = ?
+            ORDER BY cgfm.folio_id DESC
+            LIMIT 1
+            FOR UPDATE`,
+            [id]
+        );
+
+        const latestFolioPaymentMethod = folioRows.length > 0 ? folioRows[0].payment_method : null;
+        const latestFolioReferenceNumber = folioRows.length > 0 ? folioRows[0].reference_number : `CHK-${id}`;
+
+        // ========== 4. CALCULATE SINGLE DAY CHARGE ==========
+        // IMPORTANT: Calculate what ONE DAY costs for this room
+        // This should be the room tariff + taxes + extras for ONE day
+        
+        const roomTariff = Number(detail.room_tariff) || 0;
+        const discountPercent = Number(detail.discount_percent) || 0;
+        const discountAmount = (roomTariff * discountPercent) / 100;
+        const roomPriceAfterDiscount = roomTariff - discountAmount;
+
+        const cgstPercent = Number(detail.cgst_percent) || 0;
+        const sgstPercent = Number(detail.sgst_percent) || 0;
+        const igstPercent = Number(detail.igst_percent) || 0;
+        const cessPercent = Number(detail.cess_percent) || 0;
+        const serviceChargePercent = Number(detail.service_charge) || 0;
+
+        const totalTaxPercent = igstPercent > 0 ? igstPercent : cgstPercent + sgstPercent;
+
+        let cgstAmount = 0, sgstAmount = 0, igstAmount = 0;
+        if (igstPercent > 0) {
+            igstAmount = (roomPriceAfterDiscount * igstPercent) / 100;
+        } else {
+            cgstAmount = (roomPriceAfterDiscount * cgstPercent) / 100;
+            sgstAmount = (roomPriceAfterDiscount * sgstPercent) / 100;
+        }
+        const gstAmount = igstAmount + cgstAmount + sgstAmount;
+        const cessAmount = (roomPriceAfterDiscount * cessPercent) / 100;
+        const serviceChargeAmount = (roomPriceAfterDiscount * serviceChargePercent) / 100;
+        const taxAmount = gstAmount + cessAmount + serviceChargeAmount;
+
+        // Get extra person counts
+        const exPaxCount = Number(detail.detail_ex_pax) || 0;
+        const childCount = Number(detail.detail_child_unpaid) || 0;
+        const driverCount = Number(detail.detail_driver) || 0;
+
+        // Calculate per-day extra charges from the current detail
+        const currentNoOfDays = Number(detail.detail_no_of_days) || 1;
+        const currentExPaxTotal = Number(detail.detail_ex_pax_charge) || 0;
+        const currentChildTotal = Number(detail.detail_child_paid_amount) || 0;
+        const currentDriverTotal = Number(detail.detail_driver_charge) || 0;
+
+        // Per-day extra charges
+        let exPaxChargePerDay = 0;
+        let childChargePerDay = 0;
+        let driverChargePerDay = 0;
+
+        if (currentNoOfDays > 0) {
+            if (exPaxCount > 0) {
+                exPaxChargePerDay = currentExPaxTotal / currentNoOfDays;
+            }
+            if (childCount > 0) {
+                childChargePerDay = currentChildTotal / currentNoOfDays;
+            }
+            if (driverCount > 0) {
+                driverChargePerDay = currentDriverTotal / currentNoOfDays;
+            }
+        }
+
+        // DAILY RATE = room + tax + extras for ONE day
+        const dailyRoomTotal = roomPriceAfterDiscount + taxAmount;
+        const dailyExPaxTotal = exPaxChargePerDay;
+        const dailyChildTotal = childChargePerDay;
+        const dailyDriverTotal = driverChargePerDay;
+        
+        // Total daily rate (this is what should be added for each extension day)
+        const dailyRate = dailyRoomTotal + dailyExPaxTotal + dailyChildTotal + dailyDriverTotal;
+
+        console.log(`[EXTEND-DAY] Daily rate calculation:`);
+        console.log(`[EXTEND-DAY] Room daily: ${dailyRoomTotal}, ExPax daily: ${dailyExPaxTotal}, Child daily: ${dailyChildTotal}, Driver daily: ${dailyDriverTotal}`);
+        console.log(`[EXTEND-DAY] TOTAL DAILY RATE: ${dailyRate}`);
+
+        // ========== 5. CALCULATE EXTENSION AMOUNT ==========
+        const extensionAmount = dailyRate * extensionDays;
+
+        // ========== 6. CALCULATE NEW CHECKOUT DATETIME ==========
+        const currentCheckoutDate = new Date(detail.detail_checkout_datetime || checkin.checkout_datetime);
+        const newCheckoutDate = new Date(currentCheckoutDate);
+        newCheckoutDate.setDate(currentCheckoutDate.getDate() + extensionDays);
+
+        // ========== 7. MARK CURRENT DETAIL AS CHECKED OUT ==========
+        await connection.execute(
+            `UPDATE checkin_detail_master 
+             SET is_checkout = 1, 
+                 merged = 1, 
+                 updated_by_id = ?, 
+                 updated_date = ?
+             WHERE detail_id = ? AND checkin_id = ?`,
+            [userId, now, detail.detail_id, id]
+        );
+
+        // ========== 8. INSERT NEW DETAIL RECORD ==========
+        const newNoOfDays = currentNoOfDays + extensionDays;
+
+        const newExPaxTotal = currentExPaxTotal + (dailyExPaxTotal * extensionDays);
+        const newChildTotal = currentChildTotal + (dailyChildTotal * extensionDays);
+        const newDriverTotal = currentDriverTotal + (dailyDriverTotal * extensionDays);
+
+        const detailInsertCols = [
+            'checkin_id', 'hotelid', 'guest_id', 'room_id', 'room_number',
+            'room_category_id', 'room_category_name', 'converted_category_id',
+            'converted_category_name', 'checkin_datetime', 'checkout_datetime',
+            'no_of_days', 'adults', 'pax', 'ex_pax', 'child_unpaid', 'driver',
+            'room_tariff', 'discount_percent', 'discount_amount',
+            'ex_pax_charge', 'child_paid_amount', 'driver_charge',
+            'cgst_percent', 'cgst_amount', 'sgst_percent', 'sgst_amount',
+            'igst_percent', 'igst_amount', 'cess_percent', 'cess_amount',
+            'service_charge', 'service_charge_amount', 'tax',
+            'parent_detail_id', 'is_checkout', 'is_settle',
+            'created_by_id', 'created_date', 'updated_by_id', 'updated_date'
+        ];
+
+        const detailInsertVals = [
+            id, checkin.hotelid, checkin.guest_id, roomId, detail.room_number,
+            detail.room_category_id, detail.room_category_name, detail.converted_category_id,
+            detail.converted_category_name,
+            formatDateTime(newCheckoutDate),
+            formatDateTime(new Date(newCheckoutDate.getTime() + 24 * 60 * 60 * 1000)),
+            newNoOfDays,
+            detail.detail_adults || checkin.adults,
+            detail.detail_pax || checkin.pax,
+            exPaxCount,
+            childCount,
+            driverCount,
+            roomTariff,
+            discountPercent,
+            discountAmount * newNoOfDays,
+            newExPaxTotal,
+            newChildTotal,
+            newDriverTotal,
+            cgstPercent,
+            cgstAmount * newNoOfDays,
+            sgstPercent,
+            sgstAmount * newNoOfDays,
+            igstPercent,
+            igstAmount * newNoOfDays,
+            cessPercent,
+            cessAmount * newNoOfDays,
+            serviceChargePercent,
+            serviceChargeAmount * newNoOfDays,
+            taxAmount * newNoOfDays,
+            detail.detail_id,
+            0,
+            0,
+            userId, now, userId, now
+        ];
+
+        const [detailInsertResult] = await connection.execute(
+            `INSERT INTO checkin_detail_master (${detailInsertCols.join(',')}) 
+             VALUES (${detailInsertCols.map(() => '?').join(',')})`,
+            detailInsertVals
+        );
+
+        const newDetailId = detailInsertResult.insertId;
+
+        // ========== 9. INSERT GUEST ROOM CHARGES (ONE ROW PER EXTENSION DAY) ==========
+        const chargesCols = [
+            'guest_id', 'room_id', 'category_id', 'checkin_id',
+            'pax_count', 'pax_price', 'pax_tax',
+            'ex_pax_count', 'ex_pax_price', 'ex_pax_tax', 'ex_pax_tax_percent', 'ex_pax_total',
+            'child_count', 'child_price', 'child_tax', 'child_tax_percent', 'child_total',
+            'driver_count', 'driver_price', 'driver_tax', 'driver_tax_percent', 'driver_total',
+            'total_amount', 'checkin_datetime', 'checkout_datetime',
+            'created_at', 'updated_at'
+        ];
+
+        for (let dayIndex = 0; dayIndex < extensionDays; dayIndex++) {
+            const chargeCheckinDate = new Date(currentCheckoutDate);
+            chargeCheckinDate.setDate(currentCheckoutDate.getDate() + dayIndex);
+            const chargeCheckoutDate = new Date(currentCheckoutDate);
+            chargeCheckoutDate.setDate(currentCheckoutDate.getDate() + dayIndex + 1);
+
+            const chargesVals = [
+                checkin.guest_id,
+                roomId,
+                detail.room_category_id,
+                id,
+                detail.detail_pax || checkin.pax || 0,
+                roomTariff,
+                taxAmount,
+                exPaxCount,
+                exPaxChargePerDay * exPaxCount,
+                0,
+                totalTaxPercent,
+                dailyExPaxTotal,
+                childCount,
+                childChargePerDay * childCount,
+                0,
+                totalTaxPercent,
+                dailyChildTotal,
+                driverCount,
+                driverChargePerDay * driverCount,
+                0,
+                totalTaxPercent,
+                dailyDriverTotal,
+                dailyRate,
+                formatDateTime(chargeCheckinDate),
+                formatDateTime(chargeCheckoutDate),
+                now,
+                now
+            ];
+
+            await connection.execute(
+                `INSERT INTO checkin_guest_room_charges (${chargesCols.join(',')}) 
+                 VALUES (${chargesCols.map(() => '?').join(',')})`,
+                chargesVals
+            );
+        }
+
+        // ========== 10. UPDATE CHECKIN MASTER ==========
+        const oldTotalNights = Number(checkin.total_nights) || 0;
+        const oldTotalAmount = Number(checkin.total_amount) || 0;
+
+        const newTotalNights = oldTotalNights + extensionDays;
+        const newTotalAmount = oldTotalAmount + extensionAmount;
+
+        await connection.execute(
+            `UPDATE checkin_master 
+             SET checkout_datetime = ?,
+                 total_nights = ?,
+                 total_amount = ?,
+                 updated_by_id = ?,
+                 updated_date = ?
+             WHERE checkin_id = ?`,
+            [
+                formatDateTime(newCheckoutDate),
+                newTotalNights,
+                newTotalAmount,
+                userId,
+                now,
+                id
+            ]
+        );
+
+        // ========== 11. INSERT NEW CHECKIN GUEST FOLIO MASTER ROW ==========
+        // Each extension creates its own folio ledger entry (debit) for the
+        // extension amount, rather than mutating a prior row's debit_amount.
+        // This keeps the folio history auditable: one row per charge event,
+        // mirroring how checkin_detail_master and checkin_guest_room_charges
+        // already get a new row per extension.
+        const folioInsertCols = [
+            'checkin_id', 'hotel_id', 'detail_id',  'room_id', 'transaction_type',
+            'transaction_datetime', 'description', 'debit_amount', 'credit_amount',
+            'reference_number', 'payment_method', 'created_by_id', 'created_date'
+        ];
+        const folioInsertVals = [
+            id,
+            checkin.hotelid,
+            newDetailId,
+            detail.room_id,
+            'Room Extension',
+            formatDateTime(now),
+            `Extended ${extensionDays} day(s) - Room ${detail.room_number}`,
+            extensionAmount,
+            0,
+            latestFolioReferenceNumber,
+            latestFolioPaymentMethod,
+            userId,
+            now
+        ];
+
+        const [folioInsertResult] = await connection.execute(
+            `INSERT INTO checkin_guest_folio_master (${folioInsertCols.join(',')})
+             VALUES (${folioInsertCols.map(() => '?').join(',')})`,
+            folioInsertVals
+        );
+
+        const newFolioId = folioInsertResult.insertId;
+
+        // ========== 12. UPDATE ROOM STATUS TO OCCUPIED ==========
+        await connection.execute(
+            `UPDATE room_master 
+             SET room_status_id = 2,
+                 updated_by_id = ?,
+                 updated_date = ?
+             WHERE room_id = ? AND hotelid = ?`,
+            [userId, now, roomId, checkin.hotelid]
+        );
+
+        // ========== 13. COMMIT TRANSACTION ==========
+        await connection.commit();
+
+        // ========== 14. FETCH UPDATED DATA ==========
+        const [updatedCheckin] = await connection.execute(
+            `SELECT 
+                checkin_id, guest_id, guest_name, address, mobile, company_name,
+                emailed, booking, plan_name, reg_no, special_instruction, message,
+                checkin_datetime, checkout_datetime, room_no, category_id,
+                converted_category, adults, pax, pax_charges, ex_pax, ex_pax_charge,
+                child_paid, child_unpaid, child_charge, driver, driver_charge,
+                hotelid, id_type, id_number, department_id, department_name,
+                status, total_nights, total_amount, created_by_id, created_date,
+                updated_by_id, updated_date, room_id, is_settle, checkout_id
+            FROM checkin_master 
+            WHERE checkin_id = ?`,
+            [id]
+        );
+
+        console.log(`[EXTEND-DAY] Checkin ${id} extended by ${extensionDays} day(s).`);
+        console.log(`[EXTEND-DAY] Old total_amount: ${oldTotalAmount}, Daily rate: ${dailyRate}, Extension amount: ${extensionAmount}, New total_amount: ${newTotalAmount}`);
+        console.log(`[EXTEND-DAY] Old total_nights: ${oldTotalNights}, New total_nights: ${newTotalNights}`);
+        console.log(`[EXTEND-DAY] New detail_id: ${newDetailId}, New folio_id: ${newFolioId}`);
+
+        const formattedCheckin = updatedCheckin.length > 0 ? {
+            ...updatedCheckin[0],
+            checkin_datetime: formatDate(updatedCheckin[0].checkin_datetime),
+            checkout_datetime: formatDate(updatedCheckin[0].checkout_datetime),
+            created_date: formatDate(updatedCheckin[0].created_date),
+            updated_date: formatDate(updatedCheckin[0].updated_date)
+        } : null;
+
+        res.json({
+            success: true,
+            message: `Stay extended by ${extensionDays} day(s) successfully`,
+            data: {
+                checkin_id: id,
+                new_checkout_datetime: formatDateTime(newCheckoutDate),
+                new_total_amount: newTotalAmount,
+                new_total_nights: newTotalNights,
+                extension_amount: extensionAmount,
+                daily_rate: dailyRate,
+                new_detail_id: newDetailId,
+                new_folio_id: newFolioId,
+                checkin: formattedCheckin
+            }
+        });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error extending day:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to extend stay',
+            error: error.message
+        });
+    } finally {
+        connection.release();
+    }
+};
 // ----------------------------------------------------------------------
 // DELETE /checkins/:id – delete checkin
 // ----------------------------------------------------------------------

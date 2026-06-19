@@ -13,6 +13,7 @@ router.get('/:id', controller.getCheckin);
 router.put('/:id', controller.updateCheckin);
 router.patch('/:id/partial', controller.updatePartialCheckin);
 router.post('/:id/extend', controller.extendStay);
+router.post('/:checkinId/extend-day', controller.extendDay);
 router.delete('/:id', controller.deleteCheckin);
 
 module.exports = router;

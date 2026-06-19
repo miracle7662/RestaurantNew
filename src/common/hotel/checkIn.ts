@@ -141,6 +141,21 @@ export interface DetailResponse {
   [key: string]: any;
 }
 
+// ===== NEW: Extend Day Types =====
+export interface ExtendDayPayload {
+  roomId: number;
+  extensionDays: number;
+}
+
+export interface ExtendDayResponse {
+  checkin_id: number;
+  new_checkout_datetime: string;
+  new_total_amount: number;
+  new_total_nights: number;
+  checkin: CheckIn | null;
+}
+
+
 const CheckInService = {
  // In src/common/hotel/checkIn.ts
 list(params?: { hotelid?: number; status?: string; q?: string }) {
@@ -175,6 +190,9 @@ list(params?: { hotelid?: number; status?: string; q?: string }) {
   // Extend stay - updates checkout_datetime in CheckIn_Master
   extendStay: (id: number, payload: ExtendStayPayload): Promise<ApiResponse<CheckIn>> =>
     HttpClient.post<ApiResponse<CheckIn>>(`/checkins/${id}/extend`, payload),
+
+  extendDay: (checkinId: number, payload: ExtendDayPayload): Promise<ApiResponse<ExtendDayResponse>> =>
+    HttpClient.post<ApiResponse<ExtendDayResponse>>(`/checkins/${checkinId}/extend-day`, payload),
 
   remove: (id: number): Promise<ApiResponse<null>> =>
     HttpClient.delete<ApiResponse<null>>(`/checkins/${id}`)
