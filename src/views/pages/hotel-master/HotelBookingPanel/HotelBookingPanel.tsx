@@ -26,9 +26,17 @@ import DayExtendModal from './DayExtendModal'
 import { OccupiedRoomItem } from '@/types/room'
 import { calculateDayExtensionPrice } from '@/utils/dayExtension'
 import { fetchOccupiedRooms,  } from '@/utils/commonfunction'
+import SettlementPage from './SettlementPage'
+// Add these imports after your existing imports
+import ArrivalsPage from './Arrivals'  // Adjust path as needed
+import AtGlancePage from './AtGlancePage'  // Adjust path as needed
+import ReservationFormPage from './HotelReservation'  // Adjust path as needed
+import ReservationSummaryPage from './ReservationSummary'  // Adjust path as needed
+
 
 
 // ==================== CONSTANTS ====================
+
 
 const DEFAULT_UI: Omit<HotelUiSettings, 'hotelid'> = {
   show_left_category: true,
@@ -345,6 +353,8 @@ const HotelBookingPanel = () => {
   const [, setShowRoomDetails] = useState(false)
   const [, setSelectedRoom] = useState<Room | null>(null)
   const [activeSection, setActiveSection] = useState<ActiveSection>(null)
+  const [showSettlementPage, setShowSettlementPage] = useState(false)
+
   const [activeHousekeepingTab, setActiveHousekeepingTab] = useState<HousekeepingTab>(null)
   const [selectedHousekeepingRoomIds, setSelectedHousekeepingRoomIds] = useState<number[]>([])
   const [todayReservationCount, setTodayReservationCount] = useState(0)
@@ -386,6 +396,13 @@ const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
     occupiedItem: OccupiedRoomItem | null
     siblingRooms: OccupiedRoomItem[]
   }>({ show: false, occupiedItem: null, siblingRooms: [] })
+
+
+  // Add these after your existing state declarations
+const [showArrivals, setShowArrivals] = useState(false)
+const [showAtGlance, setShowAtGlance] = useState(false)
+const [showReservationForm, setShowReservationForm] = useState(false)
+const [showReservationSummary, setShowReservationSummary] = useState(false)
 
   // --- Modal states ---
   const [showPostChargesModal, setShowPostChargesModal] = useState(false)
@@ -1613,25 +1630,54 @@ useEffect(() => {
                   }}>
                   <i className="fi fi-rr-calendar me-1"></i>Reservation [{stats.reservation}]
                 </Button>
-                <Button size="sm" variant="outline-info" className="fw-semibold px-3 same-btn text-nowrap"
-                  onClick={() => navigate('/hotel/arrivals')}>
-                  <i className="fi fi-rr-plane-arrival me-1"></i>Arrivals
-                </Button>
-                <Button size="sm" variant="outline-success" className="fw-semibold px-3 same-btn"
-                  onClick={() => navigate('/hotel/SettlementPage')}>
+                <Button 
+  size="sm" 
+  variant="outline-info" 
+  className="fw-semibold px-3 same-btn text-nowrap"
+  onClick={() => {
+    setShowArrivals(true)           // Show Arrivals
+    setActiveSection(null)          // Hide Reservations/Checkout
+  }}
+>
+  <i className="fi fi-rr-plane-arrival me-1"></i>Arrivals
+</Button>
+                <Button
+                  size="sm"
+                  variant="outline-success"
+                  className="fw-semibold px-3 same-btn"
+                  onClick={() => {
+                    setShowSettlementPage(true)
+                    setActiveSection(null)
+                  }}
+                >
                   <i className="fi fi-rr-money-check me-1"></i>Settlement
                 </Button>
-                <Button size="sm" variant="outline-secondary" className="fw-semibold px-3 same-btn"
-                  onClick={() => navigate('/hotel/reservation')}>
-                  Reservation Form
-                </Button>
+
+                <Button 
+  size="sm" 
+  variant="outline-secondary" 
+  className="fw-semibold px-3 same-btn"
+  onClick={() => {
+    setShowReservationForm(true)    // Show Reservation Form
+    setActiveSection(null)
+  }}
+>
+  Reservation Form
+</Button>
               </div>
 
               <div className="d-flex flex-wrap gap-2">
-                <Button size="sm" variant="outline-primary" className="fw-semibold text-nowrap px-3"
-                  onClick={() => navigate('/hotel/at-glance')}>
-                  At Glance
-                </Button>
+                <Button 
+  size="sm" 
+  variant="outline-primary" 
+  className="fw-semibold text-nowrap px-3"
+  onClick={() => {
+    setShowAtGlance(true)           // Show At Glance
+    setActiveSection(null)
+  }}
+>
+  At Glance
+</Button>
                 <Button size="sm" variant="outline-success" className="d-flex align-items-center justify-content-center same-btn"
                   onClick={() => setShowSettings(true)} title="Settings">
                   <i className="fi fi-rr-settings"></i>
@@ -1819,7 +1865,30 @@ useEffect(() => {
         <div className={`${activeHousekeepingTab ? '' : 'flex-grow-1 overflow-auto'} bg-white`} style={{ width: '100%' }}>
 
           {activeHousekeepingTab ? null
-            : showReservSection ? (
+            : showSettlementPage ? (
+              <div style={{ height: '100%' }}>
+                <SettlementPage />
+              </div>
+          
+
+               ) : showArrivals ? (
+      <div style={{ height: '100%', padding: '16px' }}>
+        <ArrivalsPage />
+      </div>
+    ) : showAtGlance ? (
+      <div style={{ height: '100%', padding: '16px' }}>
+        <AtGlancePage />
+      </div>
+    ) : showReservationForm ? (
+      <div style={{ height: '100%', padding: '16px' }}>
+        <ReservationFormPage />
+      </div>
+    ) : showReservationSummary ? (
+      <div style={{ height: '100%', padding: '16px' }}>
+        <ReservationSummaryPage />
+      </div>
+    ) : showReservSection ? (
+
             /* Reservations Table */
             <div className="checkout-table-container d-flex flex-column" style={{ width: '100%' }}>
               <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
@@ -2254,13 +2323,22 @@ useEffect(() => {
             <Button size="sm" variant="danger" className="fw-semibold px-4">Cash In</Button>
             <Button size="sm" variant="danger" className="fw-semibold px-4">Cash Out</Button>
             <Button size="sm" variant="danger" className="fw-semibold px-4">MIS Report</Button>
-            <Button size="sm" variant="success" className="fw-semibold px-4"
+            <Button
+              size="sm"
+              variant={showSettlementPage ? 'secondary' : 'success'}
+              className="fw-semibold px-4"
               onClick={() => {
+                if (showSettlementPage) {
+                  setShowSettlementPage(false)
+                  return
+                }
                 if (showCheckoutAlertTable) setActiveSection(null)
                 else { setActiveSection('checkout'); fetchTodayCheckouts() }
-              }}>
-              {showCheckoutAlertTable ? 'Back to Rooms' : 'Today Check Out'}
+              }}
+            >
+              {showSettlementPage ? 'Back to Rooms' : showCheckoutAlertTable ? 'Back to Rooms' : 'Today Check Out'}
             </Button>
+
             <Button size="sm" variant="primary" className="fw-semibold px-4 position-relative"
               onClick={() => navigate('/hotel/reservation-summary')}>
               Reservation Summary
