@@ -584,7 +584,7 @@ exports.performCheckout = async (req, res) => {
 
     let folioQuery = `
       SELECT transaction_type, debit_amount, credit_amount, detail_id,
-             folio_id, checkin_id, hotel_id, description, reference_number, 
+             folio_id, checkin_id, hotel_id, room_id, description, reference_number, 
              payment_method, created_by_id, created_date, updated_by_id, updated_date
       FROM checkin_guest_folio_master 
       WHERE checkin_id = ?
@@ -886,7 +886,7 @@ exports.performCheckout = async (req, res) => {
         INSERT INTO Checkout_Folio_Master (
           checkin_id, checkout_id, hotel_id, detail_id, room_id, transaction_type, transaction_datetime,
           description, debit_amount, credit_amount, reference_number, payment_method,
-          created_by_id, created_date, updated_by_id, updated_date,
+          created_by_id, created_date, updated_by_id, updated_date
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         folio.checkin_id || checkin_id,
