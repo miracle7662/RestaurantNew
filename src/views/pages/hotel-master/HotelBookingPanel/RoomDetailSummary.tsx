@@ -1172,27 +1172,51 @@ const fetchData = async () => {
     setBillDateSummary(billSummaryItems);
 
     // Build Combined Summary - Show all guest names per room
-    const roomNumbersSet = new Set(rows_display.map(r => r.room_number));
-    
-    // Get unique guest names for each room
-    const roomGuestNames = new Map<string, string>();
-    for (const room of roomNumbersSet) {
-      const roomRows = rows_display.filter(r => r.room_number === room);
-      const guestName = roomRows.find(r => r.guest_name)?.guest_name || 'Guest';
-      roomGuestNames.set(room, guestName);
-    }
-    
-    // Format guest names: if all rooms have same guest, show one name; otherwise show room-wise
-    const uniqueGuestNames = new Set(roomGuestNames.values());
-    let displayGuestName = '';
-    if (uniqueGuestNames.size === 1) {
-      displayGuestName = Array.from(uniqueGuestNames)[0];
-    } else {
-      displayGuestName = Array.from(roomGuestNames.entries())
-        .map(([room, name]) => `${room}: ${name}`)
-        .join(', ');
-    }
+const roomNumbersSet = new Set(rows_display.map(r => r.room_number));
 
+// Get unique guest names and IDs for each room
+const roomGuestNames = new Map<string, Set<string>>();
+const roomGuestIds = new Map<string, Set<number>>();
+
+for (const room of roomNumbersSet) {
+  const roomRows = rows_display.filter(r => r.room_number === room);
+  const guestNames = new Set<string>();
+  const guestIds = new Set<number>();
+  
+  roomRows.forEach(r => {
+    if (r.guest_name && r.guest_name !== 'Guest') {
+      guestNames.add(r.guest_name);
+    }
+    if (r.guest_id && r.guest_id > 0) {
+      guestIds.add(r.guest_id);
+    }
+  });
+  
+  roomGuestNames.set(room, guestNames);
+  roomGuestIds.set(room, guestIds);
+}
+
+// Collect all unique guest names and IDs
+const allGuestNames = new Set<string>();
+const allGuestIds = new Set<number>();
+
+
+// Format display
+let displayGuestName = '';
+if (allGuestNames.size === 1) {
+  displayGuestName = Array.from(allGuestNames)[0];
+} else {
+  displayGuestName = Array.from(allGuestNames).join(', ');
+}
+
+let displayGuestId = '';
+if (allGuestIds.size === 1) {
+  displayGuestId = String(Array.from(allGuestIds)[0]);
+} else if (allGuestIds.size > 1) {
+  displayGuestId = Array.from(allGuestIds).join(', ');
+} else {
+  displayGuestId = String(currentCheckin?.guest_id || '');
+}
     const combinedSummaryData: CombinedGuestSummary = {
       checkin_id: checkinIdFromState,
       guest_id: currentCheckin?.guest_id || 0,
@@ -1317,92 +1341,117 @@ const fetchData = async () => {
     selectedRowsForCheckout.reduce((sum, row) => sum + row.total_amount, 0),
   )
 
-  const selectedRoomSummary = (() => {
-    if (!combinedSummary) return null
+ const selectedRoomSummary = (() => {
+  if (!combinedSummary) return null
 
-    const seenRooms = new Set<string>()
-    const roomCats = new Set<string>()
-    const convCats = new Set<string>()
+  const seenRooms = new Set<string>()
+  const roomCats = new Set<string>()
+  const convCats = new Set<string>()
+  const uniqueGuestNames = new Set<string>()
+  const uniqueGuestIds = new Set<number>() // ✅ Collect guest IDs
 
-    let adults = 0,
-      pax = 0,
-      exPax = 0,
-      childPaid = 0,
-      childUnpaid = 0,
-      driver = 0
-    let roomTariff = 0,
-      exPaxCharge = 0,
-      childCharge = 0,
-      driverCharge = 0
-    let taxAmt = 0,
-      discountSum = 0,
-      taxPctSum = 0,
-      roomChargeCount = 0
-    let minCI = '',
-      maxCO = ''
+  let adults = 0,
+    pax = 0,
+    exPax = 0,
+    childPaid = 0,
+    childUnpaid = 0,
+    driver = 0
+  let roomTariff = 0,
+    exPaxCharge = 0,
+    childCharge = 0,
+    driverCharge = 0
+  let taxAmt = 0,
+    discountSum = 0,
+    taxPctSum = 0,
+    roomChargeCount = 0
+  let minCI = '',
+    maxCO = ''
 
-    for (const row of filteredRowsByRoom) {
-      if (!row.isPostCharge && row.department_name !== 'Advance') {
-        if (row.room_category_name && row.room_category_name !== '-')
-          roomCats.add(row.room_category_name)
-        if (row.converted_category_name && row.converted_category_name !== '-')
-          convCats.add(row.converted_category_name)
+  for (const row of filteredRowsByRoom) {
+    // ✅ Collect unique guest names and IDs
+    if (row.guest_name && row.guest_name !== 'Guest') {
+      uniqueGuestNames.add(row.guest_name)
+    }
+    if (row.guest_id && row.guest_id > 0) {
+      uniqueGuestIds.add(row.guest_id)
+    }
+
+    if (!row.isPostCharge && row.department_name !== 'Advance') {
+      if (row.room_category_name && row.room_category_name !== '-')
+        roomCats.add(row.room_category_name)
+      if (row.converted_category_name && row.converted_category_name !== '-')
+        convCats.add(row.converted_category_name)
+    }
+
+    if (!row.isPostCharge && row.department_name !== 'Advance') {
+      roomTariff += row.total_room_tariff
+      exPaxCharge += row.ex_pax_total
+      childCharge += row.child_total
+      driverCharge += row.driver_total
+      taxAmt += row.tax_amount
+      discountSum += row.discount_percent
+      taxPctSum += row.tax_percent
+      roomChargeCount++
+      if (!minCI || row.checkin_datetime < minCI) minCI = row.checkin_datetime
+      if (!maxCO || row.checkout_datetime > maxCO) maxCO = row.checkout_datetime
+
+      if (!seenRooms.has(row.room_number)) {
+        seenRooms.add(row.room_number)
+        adults += row.adults
+        pax += row.pax
+        exPax += row.ex_pax_count
+        childPaid += row.child_count
+        childUnpaid += !row.is_extension ? row.child_unpaid : 0
+        driver += row.driver_count
       }
-
-      if (!row.isPostCharge && row.department_name !== 'Advance') {
-        roomTariff += row.total_room_tariff
-        exPaxCharge += row.ex_pax_total
-        childCharge += row.child_total
-        driverCharge += row.driver_total
-        taxAmt += row.tax_amount
-        discountSum += row.discount_percent
-        taxPctSum += row.tax_percent
-        roomChargeCount++
-        if (!minCI || row.checkin_datetime < minCI) minCI = row.checkin_datetime
-        if (!maxCO || row.checkout_datetime > maxCO) maxCO = row.checkout_datetime
-
-        if (!seenRooms.has(row.room_number)) {
-          seenRooms.add(row.room_number)
-          adults += row.adults
-          pax += row.pax
-          exPax += row.ex_pax_count
-          childPaid += row.child_count
-          childUnpaid += !row.is_extension ? row.child_unpaid : 0
-          driver += row.driver_count
-        }
-      }
     }
+  }
 
-    let stayDays = 0
-    if (minCI && maxCO) {
-      stayDays = Math.ceil(
-        Math.abs(new Date(maxCO).getTime() - new Date(minCI).getTime()) / (1000 * 60 * 60 * 24),
-      )
-      stayDays = stayDays > 0 ? stayDays : 1
-    }
+  let stayDays = 0
+  if (minCI && maxCO) {
+    stayDays = Math.ceil(
+      Math.abs(new Date(maxCO).getTime() - new Date(minCI).getTime()) / (1000 * 60 * 60 * 24),
+    )
+    stayDays = stayDays > 0 ? stayDays : 1
+  }
 
-    return {
-      guest_name: combinedSummary.guest_name,
-      guest_id: combinedSummary.guest_id,
-      payment_method: combinedSummary.payment_method,
-      room_categories_str: Array.from(roomCats).join(', '),
-      converted_categories_str: Array.from(convCats).join(', ') || '-',
-      total_days: stayDays,
-      total_adults: adults,
-      total_pax: pax,
-      total_ex_pax: exPax,
-      total_child_paid: childPaid,
-      total_child_unpaid: 0,
-      total_driver: driver,
-      total_room_tariff: roundToTwo(roomTariff),
-      total_ex_pax_charge: roundToTwo(exPaxCharge),
-      total_child_paid_amount: roundToTwo(childCharge),
-      total_driver_charge: roundToTwo(driverCharge),
-      total_tax_amount: roundToTwo(taxAmt),
-      avg_tax_percent: roomChargeCount > 0 ? roundToTwo(taxPctSum / roomChargeCount) : 0,
-      selected: combinedSummary.selected,
-    }
-  })()
+  // ✅ Create comma-separated guest names and IDs
+  let guestNamesDisplay = '';
+  if (uniqueGuestNames.size > 0) {
+    guestNamesDisplay = Array.from(uniqueGuestNames).join(', ');
+  } else {
+    guestNamesDisplay = combinedSummary.guest_name;
+  }
+
+  let guestIdsDisplay = '';
+  if (uniqueGuestIds.size > 0) {
+    guestIdsDisplay = Array.from(uniqueGuestIds).join(', ');
+  } else {
+    guestIdsDisplay = String(combinedSummary.guest_id || '');
+  }
+
+  return {
+    guest_name: guestNamesDisplay,
+    guest_id: guestIdsDisplay, // ✅ Now comma-separated guest IDs
+    payment_method: combinedSummary.payment_method,
+    room_categories_str: Array.from(roomCats).join(', '),
+    converted_categories_str: Array.from(convCats).join(', ') || '-',
+    total_days: stayDays,
+    total_adults: adults,
+    total_pax: pax,
+    total_ex_pax: exPax,
+    total_child_paid: childPaid,
+    total_child_unpaid: 0,
+    total_driver: driver,
+    total_room_tariff: roundToTwo(roomTariff),
+    total_ex_pax_charge: roundToTwo(exPaxCharge),
+    total_child_paid_amount: roundToTwo(childCharge),
+    total_driver_charge: roundToTwo(driverCharge),
+    total_tax_amount: roundToTwo(taxAmt),
+    avg_tax_percent: roomChargeCount > 0 ? roundToTwo(taxPctSum / roomChargeCount) : 0,
+    selected: combinedSummary.selected,
+  }
+})()
 
   const handleCheckoutClick = () => {
     if (!combinedSummary) {
