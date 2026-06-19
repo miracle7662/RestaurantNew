@@ -884,15 +884,16 @@ exports.performCheckout = async (req, res) => {
     for (const folio of folioRows) {
       await connection.query(`
         INSERT INTO Checkout_Folio_Master (
-          checkin_id, checkout_id, hotel_id, detail_id, transaction_type, transaction_datetime,
+          checkin_id, checkout_id, hotel_id, detail_id, room_id, transaction_type, transaction_datetime,
           description, debit_amount, credit_amount, reference_number, payment_method,
-          created_by_id, created_date, updated_by_id, updated_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          created_by_id, created_date, updated_by_id, updated_date,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         folio.checkin_id || checkin_id,
         checkoutId,
         folio.hotel_id || checkinData.hotelid,
         safeValue(folio.detail_id),
+        safeValue(folio.room_id), 
         safeValue(folio.transaction_type),
         safeValue(folio.transaction_datetime),
         safeValue(folio.description),

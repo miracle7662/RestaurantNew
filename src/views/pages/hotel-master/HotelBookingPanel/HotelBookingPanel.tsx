@@ -7,8 +7,6 @@ import { useAuthContext } from '@/common/context/useAuthContext'
 import RoomService from '@/common/hotel/room'
 import hotelSettingsApi, { HotelUiSettings } from '@/common/hotel/hotelSettings'
 import CheckInService, { CheckIn } from '@/common/hotel/checkIn'
-import DetailService from '@/common/hotel/detail'
-import GuestFolioService from '@/common/hotel/guestFolio'
 import GuestRoomChargesService, { GuestRoomCharge } from '@/common/hotel/guestRoomCharges'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
@@ -24,7 +22,6 @@ import RoomStatusModal from './RoomStatusModal'
 import DisplaySettings from './DisplaySettings'
 import DayExtendModal from './DayExtendModal'
 import { OccupiedRoomItem } from '@/types/room'
-import { calculateDayExtensionPrice } from '@/utils/dayExtension'
 import { fetchOccupiedRooms,  } from '@/utils/commonfunction'
 import SettlementPage from './SettlementPage'
 // Add these imports after your existing imports
@@ -67,6 +64,9 @@ const DEFAULT_UI: Omit<HotelUiSettings, 'hotelid'> = {
   occupied_expired_text: '#ffffff',
   dark_mode: false,
 }
+
+
+
 
 // ==================== TYPES ====================
 
@@ -296,10 +296,7 @@ const formatDateTime = (isoString: string): string => {
   return `${day}-${month}-${year} ${hours}:${minutes}`
 }
 
-const formatDateTimeForMySQL = (date: Date): string => {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-}
+
 
 const getLocalYMD = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -390,12 +387,22 @@ const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
   const tileClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // --- Day extend ---
-  const [extendingDay, setExtendingDay] = useState(false)
-  const [extendModal, setExtendModal] = useState<{
-    show: boolean
-    occupiedItem: OccupiedRoomItem | null
-    siblingRooms: OccupiedRoomItem[]
-  }>({ show: false, occupiedItem: null, siblingRooms: [] })
+  // Replace the existing extendDayModal state type (around line 396)
+const [extendDayModal, setExtendDayModal] = useState<{
+  show: boolean
+  occupiedItem: OccupiedRoomItem | null
+  siblingRooms: OccupiedRoomItem[]
+  room: { id: number; number: string } | null  // Add this
+  checkin: any | null  // Add this
+  loading?: boolean  // Add this
+}>({ 
+  show: false, 
+  occupiedItem: null, 
+  siblingRooms: [],
+  room: null,
+  checkin: null,
+  loading: false
+})
 
 
   // Add these after your existing state declarations
@@ -619,30 +626,33 @@ const [showReservationSummary, setShowReservationSummary] = useState(false)
     document.body.classList.toggle('dark-mode', uiSettings.dark_mode)
   }, [uiSettings.dark_mode])
 
-  useEffect(() => {
-    if (!hotelId) {
-      setError('No hotel selected')
-      setLoading(false)
-      return
-    }
-    const run = async () => {
-      setLoading(true)
-      try {
-        const response = await RoomService.getHotelBookingMeta(hotelId)
-        const meta = response?.data || {}
-        
-        setRawRooms(meta?.rooms || [])
-        setCategories(meta?.categories || [])
-        setFloors(meta?.floors || [])
-      } catch (error) {
-        console.error('Failed to load room data:', error)
-        setError('Failed to load room data')
-      } finally {
-        setLoading(false)
-      }
-    }
-    run()
-  }, [hotelId])
+// Add this after your state declarations (around line 400-500)
+const fetchHotelBookingMetaData = useCallback(async () => {
+  if (!hotelId) {
+    setError('No hotel selected')
+    setLoading(false)
+    return
+  }
+  setLoading(true)
+  try {
+    const response = await RoomService.getHotelBookingMeta(hotelId)
+    const meta = response?.data || {}
+    
+    setRawRooms(meta?.rooms || [])
+    setCategories(meta?.categories || [])
+    setFloors(meta?.floors || [])
+  } catch (error) {
+    console.error('Failed to load room data:', error)
+    setError('Failed to load room data')
+  } finally {
+    setLoading(false)
+  }
+}, [hotelId])
+
+// Then update the useEffect to use this function
+useEffect(() => {
+  fetchHotelBookingMetaData()
+}, [fetchHotelBookingMetaData])
 
   useEffect(() => {
     if (showCheckoutAlertTable && hotelId) fetchTodayCheckouts()
@@ -904,220 +914,85 @@ useEffect(() => {
 
   // ==================== EXTEND ROOM ====================
 
-  const extendSingleRoom = async (
-    item: OccupiedRoomItem,
-    extensionDays: number,
-    price: ReturnType<typeof calculateDayExtensionPrice>,
-    exPaxCount: number,
-    childCount: number,
-    driverCount: number,
-    hotelIdVal: number,
-    userId: number | undefined,
-  ) => {
-    const {
-      totalPrice, exPaxCharge, childCharge, driverCharge, discountAmount,
-      perDayBasePrice, roomPriceAfterDiscount, roomTaxAmount, totalTaxPercent,
-      exPaxBaseAmount, childBaseAmount, driverBaseAmount, exPaxTaxAmount, childTaxAmount,
-      driverTaxAmount, exPaxRatePerPerson, childRatePerPerson, driverRatePerPerson,
-      cgstPercent, sgstPercent, igstPercent, cessPercent, serviceChargePercent,
-      roomCgstAmount, roomSgstAmount, roomIgstAmount, paxCount,
-    } = price
+  
 
-    const currentCheckoutDate = new Date(item.latest_charge_checkout_datetime || item.checkout_datetime)
-    const newCheckoutDate = new Date(currentCheckoutDate)
-    newCheckoutDate.setDate(currentCheckoutDate.getDate() + extensionDays)
+ const handleExtendDay = async () => {
+  if (!extendDayModal.room || !extendDayModal.checkin) return
 
-    if (item.detail_id) await DetailService.update(item.detail_id, { is_checkout: 1, merged: 1 })
+  const { room, checkin } = extendDayModal
 
-    const detailRes = await DetailService.create({
-      checkin_id: item.checkin_id,
-      hotelid: hotelIdVal,
-      room_id: item.room_id,
-      room_number: item.room_no,
-      room_category_id: item.room_category_id,
-      room_category_name: item.detail?.room_category_name || '',
-      converted_category_id: item.detail?.converted_category_id ?? undefined,
-      converted_category_name: item.detail?.converted_category_name || '',
-      checkin_datetime: formatDateTimeForMySQL(new Date(item.checkin_datetime)),
-      checkout_datetime: formatDateTimeForMySQL(newCheckoutDate),
-      no_of_days: extensionDays,
-      adults: item.adults,
-      pax: paxCount,
-      ex_pax: exPaxCount,
-      child_unpaid: item.child_count,
-      driver: driverCount,
-      room_tariff: perDayBasePrice,
-      discount_percent: item.discount_percent || 0,
-      discount_amount: discountAmount,
-      ex_pax_charge: Number((exPaxBaseAmount / extensionDays).toFixed(2)),
-      child_paid_amount: Number((childBaseAmount / extensionDays).toFixed(2)),
-      driver_charge: Number((driverBaseAmount / extensionDays).toFixed(2)),
-      cgst_percent: cgstPercent,
-      cgst_amount: roomCgstAmount,
-      sgst_percent: sgstPercent,
-      sgst_amount: roomSgstAmount,
-      igst_percent: igstPercent,
-      igst_amount: roomIgstAmount,
-      cess_percent: cessPercent,
-      cess_amount: ((roomPriceAfterDiscount * cessPercent) / 100) * extensionDays,
-      service_charge: serviceChargePercent,
-      service_charge_amount: ((roomPriceAfterDiscount * serviceChargePercent) / 100) * extensionDays,
-      parent_detail_id: item.detail_id,
-      tax: roomTaxAmount,
-    })
+  setExtendDayModal((prev) => ({ ...prev, loading: true }))
 
-    const newDetailId = detailRes.data?.detail_id
-    if (!newDetailId) throw new Error(`Failed to create extension detail for room ${item.room_no}`)
+  try {
+    const checkinId = checkin.checkin_id
+    const clickedRoomId = room.id
 
-    const perDay = {
-      exPaxBase: exPaxBaseAmount / extensionDays,
-      childBase: childBaseAmount / extensionDays,
-      driverBase: driverBaseAmount / extensionDays,
-      exPax: exPaxCharge / extensionDays,
-      child: childCharge / extensionDays,
-      driver: driverCharge / extensionDays,
-      exPaxTax: exPaxTaxAmount / extensionDays,
-      childTax: childTaxAmount / extensionDays,
-      driverTax: driverTaxAmount / extensionDays,
-      total: totalPrice / extensionDays,
-    }
-
-    const chargeRows = Array.from({ length: extensionDays }, (_, i) => {
-      const dayIn = new Date(currentCheckoutDate)
-      dayIn.setDate(currentCheckoutDate.getDate() + i)
-      const dayOut = new Date(currentCheckoutDate)
-      dayOut.setDate(currentCheckoutDate.getDate() + i + 1)
-      return {
-        guest_id: Number(item.checkin?.guest_id) || 0,
-        room_id: Number(item.room_id) || 0,
-        category_id: item.room_category_id ? Number(item.room_category_id) : null,
-        checkin_id: Number(item.checkin_id) || 0,
-        pax_count: paxCount,
-        pax_price: perDayBasePrice,
-        pax_tax: roomTaxAmount / extensionDays,
-        ex_pax_count: item.ex_pax,
-        ex_pax_price: perDay.exPaxBase,
-        ex_pax_total: perDay.exPax,
-        ex_pax_tax: perDay.exPaxTax,
-        ex_pax_tax_percent: totalTaxPercent,
-        child_count: item.child_count,
-        child_price: perDay.childBase,
-        child_total: perDay.child,
-        child_tax: perDay.childTax,
-        child_tax_percent: totalTaxPercent,
-        driver_count: item.driver_count,
-        driver_price: perDay.driverBase,
-        driver_total: perDay.driver,
-        driver_tax: perDay.driverTax,
-        driver_tax_percent: totalTaxPercent,
-        total_amount: perDay.total,
-        checkin_datetime: formatDateTimeForMySQL(dayIn),
-        checkout_datetime: formatDateTimeForMySQL(dayOut),
-      }
-    })
-
-    await GuestRoomChargesService.createBulk({ charges: chargeRows })
-
-    const fmt = (v: number) => (isNaN(Number(v)) ? '0.00' : Number(v).toFixed(2))
-    const descParts = [`Day extension +${extensionDays} day(s) Room ${item.room_no}`]
-    descParts.push(`Room: ₹${fmt(perDayBasePrice * extensionDays)}`)
-    if ((item.discount_percent || 0) > 0) descParts.push(`-${item.discount_percent}% disc`)
-    descParts.push(`+Tax ₹${fmt(roomTaxAmount)}`)
-    if (exPaxCount > 0 && exPaxRatePerPerson > 0) descParts.push(`|ExPax(${exPaxCount}):₹${fmt(exPaxCharge)}`)
-    if (childCount > 0 && childRatePerPerson > 0) descParts.push(`|Child(${childCount}):₹${fmt(childCharge)}`)
-    if (driverCount > 0 && driverRatePerPerson > 0) descParts.push(`|Driver(${driverCount}):₹${fmt(driverCharge)}`)
-
-    await GuestFolioService.create({
-      checkin_id: item.checkin_id,
-      hotelid: hotelIdVal,
-      detail_id: newDetailId,
-      transaction_type: 'Room Charge',
-      transaction_datetime: formatDateTimeForMySQL(new Date()),
-      description: descParts.join(' '),
-      debit_amount: totalPrice,
-      credit_amount: 0,
-      reference_number: `EXT-${item.checkin_id}-${item.room_id}-${Date.now()}`,
-      payment_method: item.payment_method,
-    })
-
-    await CheckInService.updatePartial(item.checkin_id, {
-      checkout_datetime: formatDateTimeForMySQL(newCheckoutDate),
-      additional_amount: totalPrice,
-      additional_nights: extensionDays,
-    })
-
-    return { newDetailId, totalPrice, newCheckoutDate }
-  }
-
-  const handleDayExtend = async (params: {
-    extensionDays: number
-    exPaxCount: number
-    childCount: number
-    driverCount: number
-    autoExtendSiblings: boolean
-  }) => {
-    const { extensionDays, exPaxCount, childCount, driverCount, autoExtendSiblings } = params
-    const item = extendModal.occupiedItem
-    if (!item || !hotelId) return
-    if (!item.detail_id || !item.room_id) {
-      toast.error('Missing room detail information')
+    if (!checkinId || !clickedRoomId) {
+      toast.error('Missing checkin or room information')
       return
     }
 
-    const price = calculateDayExtensionPrice(item, exPaxCount, childCount, driverCount, extensionDays, item.original_pax ?? item.adults)
-    setExtendingDay(true)
+    // ✅ FIX: Use occupiedRooms instead of undefined 'checkins'
+    const allRoomIdsForCheckin = Array.from(
+      new Set(
+        occupiedRooms
+          .filter((c: any) => String(c.checkin_id) === String(checkinId))
+          .map((c: any) => c.room_id ?? c.charge_room_id)
+          .filter(Boolean)
+          .map(Number)
+      )
+    )
 
-    try {
-      const { totalPrice: primaryTotal, newCheckoutDate: primaryNewCheckoutDate } =
-        await extendSingleRoom(item, extensionDays, price, exPaxCount, childCount, driverCount, hotelId, user?.id)
+    const roomIdsToExtend =
+      allRoomIdsForCheckin.length > 0 ? allRoomIdsForCheckin : [clickedRoomId]
 
-      let siblingTotal = 0
-      const extendedRoomNos = new Set<string>([item.room_no])
-
-      if (autoExtendSiblings && extendModal.siblingRooms.length > 0) {
-        for (const sibling of extendModal.siblingRooms) {
-          const siblingPrice = calculateDayExtensionPrice(sibling, sibling.ex_pax, sibling.child_count, sibling.driver_count, extensionDays, sibling.original_pax ?? sibling.adults)
-          const { totalPrice: sTot } = await extendSingleRoom(sibling, extensionDays, siblingPrice, sibling.ex_pax, sibling.child_count, sibling.driver_count, hotelId, user?.id)
-          siblingTotal += sTot
-          extendedRoomNos.add(sibling.room_no)
-
-          if (sibling.room_id) {
-            const current = rawRooms.find((r) => r.room_id === sibling.room_id)
-            if (current && current.room_status !== 'occupied') {
-              await RoomService.update(sibling.room_id, { ...current, room_status: 'occupied', updated_by_id: user?.id })
-              setRawRooms((prev) => prev.map((r) => r.room_id === sibling.room_id ? { ...r, room_status: 'occupied' } : r))
-            }
-          }
-        }
-      }
-
-      if (item.room_id) {
-        const current = rawRooms.find((r) => r.room_id === item.room_id)
-        if (current && current.room_status !== 'occupied') {
-          await RoomService.update(item.room_id, { ...current, room_status: 'occupied', updated_by_id: user?.id })
-          setRawRooms((prev) => prev.map((r) => r.room_id === item.room_id ? { ...r, room_status: 'occupied' } : r))
-        }
-      }
-
-      const siblingMsg = extendModal.siblingRooms.length > 0 && autoExtendSiblings
-        ? ` + ${extendModal.siblingRooms.length} sibling room(s) auto-extended.`
-        : ''
-      toast.success(`Room ${item.room_no} extended by ${extensionDays} day(s). Charges: ${formatAmount(primaryTotal + siblingTotal)}${siblingMsg}`)
-      setExtendModal({ show: false, occupiedItem: null, siblingRooms: [] })
-
-      const todayStr = new Date().toISOString().split('T')[0]
-      const newCheckoutStr = primaryNewCheckoutDate.toISOString().split('T')[0]
-      if (newCheckoutStr !== todayStr) {
-        setCheckoutAlertData((prev) => prev.filter((row) => !extendedRoomNos.has(row.roomNo)))
-      }
-      if (showCheckoutAlertTable) await fetchTodayCheckouts()
-    } catch (err) {
-      console.error('Failed to extend day:', err)
-      toast.error((err as Error).message || 'Failed to extend day')
-    } finally {
-      setExtendingDay(false)
+    if (!roomIdsToExtend.includes(clickedRoomId)) {
+      roomIdsToExtend.push(clickedRoomId)
     }
+
+    let anySuccess = false
+    for (const roomId of roomIdsToExtend) {
+      const response = await CheckInService.extendDay(checkinId, {
+        roomId: roomId,
+        extensionDays: 1,
+      })
+      if (response.success) {
+        anySuccess = true
+      } else {
+        console.warn(`Failed to extend room ${roomId}:`, response.message)
+      }
+    }
+
+    if (anySuccess) {
+      const roomCount = roomIdsToExtend.length
+      toast.success(
+        roomCount > 1
+          ? `All ${roomCount} rooms extended by 1 day successfully`
+          : `Room ${room.number} extended by 1 day successfully`
+      )
+
+      // ✅ FIX: Use proper fetch functions
+      await fetchHotelBookingMetaData()
+      await fetchOccupiedRoomsData()
+
+      setExtendDayModal({
+        show: false,
+        occupiedItem: null,
+        siblingRooms: [],
+        room: null,
+        checkin: null,
+        loading: false,
+      })
+    } else {
+      toast.error('Failed to extend stay')
+    }
+  } catch (error) {
+    console.error('Error extending day:', error)
+    toast.error('Failed to extend stay. Please try again.')
+  } finally {
+    setExtendDayModal((prev) => ({ ...prev, loading: false }))
   }
+}
 
   // ==================== EVENT HANDLERS ====================
 
@@ -1142,17 +1017,23 @@ useEffect(() => {
     }, 0)
   }
 
-  const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
-    if (item.isExpired) {
-      const siblings = occupiedRooms.filter(
-        (r) => r.checkin_id === item.checkin_id && r.detail_id !== item.detail_id,
-      )
-      setExtendModal({ show: true, occupiedItem: item, siblingRooms: siblings })
-      return
-    }
-    navigate('/hotel/room-detail', { state: { occupiedItem: item } })
+const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
+  if (item.isExpired) {
+    const siblings = occupiedRooms.filter(
+      (r) => r.checkin_id === item.checkin_id && r.detail_id !== item.detail_id,
+    )
+    setExtendDayModal({ 
+      show: true, 
+      occupiedItem: item, 
+      siblingRooms: siblings,
+      room: item.room_id && item.room_no ? { id: item.room_id, number: item.room_no } : null,
+      checkin: item.checkin || null,
+      loading: false
+    })
+    return
   }
-
+  navigate('/hotel/room-detail', { state: { occupiedItem: item } })
+}
   const handleRoomTileClick = (room: Room) => {
     if (tileClickTimerRef.current) return
     tileClickTimerRef.current = setTimeout(() => {
@@ -2429,13 +2310,20 @@ useEffect(() => {
       {/* ===== MODALS ===== */}
 
       <DayExtendModal
-        show={extendModal.show}
-        occupiedItem={extendModal.occupiedItem}
-        siblingRooms={extendModal.siblingRooms}
-        extending={extendingDay}
-        onHide={() => setExtendModal({ show: false, occupiedItem: null, siblingRooms: [] })}
-        onExtend={handleDayExtend}
-      />
+  show={extendDayModal.show}
+  occupiedItem={extendDayModal.occupiedItem}
+  siblingRooms={extendDayModal.siblingRooms}
+  extending={extendDayModal.loading || false}
+  onHide={() => setExtendDayModal({ 
+    show: false, 
+    occupiedItem: null, 
+    siblingRooms: [],
+    room: null,
+    checkin: null,
+    loading: false 
+  })}
+  onExtend={handleExtendDay}
+/>
 
     
       <DisplaySettings
