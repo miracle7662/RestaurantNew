@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Form, Button,  Dropdown } from 'react-bootstrap'
+import {  Button, Dropdown } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
 import TitleHelmet from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
@@ -13,7 +13,6 @@ import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import BrandService from '@/common/hotel/brand'
 import ReservationService from '@/common/hotel/reservation'
-import ReservationRoomService from '@/common/hotel/reservationRooms'
 import AdvanceTransactionService from '@/common/hotel/advanceTransaction'
 import PostChargesModal from './PostChargesModal'
 import ReceiptAgainstBillsModal from './ReceiptAgainstBillsModal'
@@ -22,18 +21,15 @@ import RoomStatusModal from './RoomStatusModal'
 import DisplaySettings from './DisplaySettings'
 import DayExtendModal from './DayExtendModal'
 import { OccupiedRoomItem } from '@/types/room'
-import { fetchOccupiedRooms,  } from '@/utils/commonfunction'
+import { fetchOccupiedRooms } from '@/utils/commonfunction'
 import SettlementPage from './SettlementPage'
-// Add these imports after your existing imports
-import ArrivalsPage from './Arrivals'  // Adjust path as needed
-import AtGlancePage from './AtGlancePage'  // Adjust path as needed
-import ReservationFormPage from './HotelReservation'  // Adjust path as needed
-import ReservationSummaryPage from './ReservationSummary'  // Adjust path as needed
-
-
+import ArrivalsPage from './Arrivals'
+import AtGlancePage from './AtGlancePage'
+import ReservationFormPage from './HotelReservation'
+import ReservationSummaryPage from './ReservationSummary'
+import ReservationPage from './ReservationPage'  // ✅ Add this import
 
 // ==================== CONSTANTS ====================
-
 
 const DEFAULT_UI: Omit<HotelUiSettings, 'hotelid'> = {
   show_left_category: true,
@@ -65,9 +61,6 @@ const DEFAULT_UI: Omit<HotelUiSettings, 'hotelid'> = {
   dark_mode: false,
 }
 
-
-
-
 // ==================== TYPES ====================
 
 type RoomStatus =
@@ -80,19 +73,17 @@ type RoomStatus =
   | 'reservation'
 
 type ViewMode = 'floor' | 'category'
-type ActiveSection = 'reserv' | 'checkout' | null
+type ActiveSection = 'checkout' | null
 type HousekeepingTab = 'all' | 'dirty' | 'block' | 'maint' | null
-
-
 
 // Status IDs for filtering
 const STATUS_IDS = {
   VACANT: [1],
   OCCUPIED: [2, 7],
-  CLEANING: [4],        // ← Cleaning = status_id 4
-  RESERVED: [6],        // ← Reserved = status_id 6
-  MAINTENANCE: [3, 5],  // ← Maintenance + Out of Service
-  BLOCK: [3, 4, 5, 6],  // Maintenance + Cleaning + Out of Service + Reserved
+  CLEANING: [4],
+  RESERVED: [6],
+  MAINTENANCE: [3, 5],
+  BLOCK: [3, 4, 5, 6],
 }
 
 interface ApiRoom {
@@ -171,27 +162,6 @@ interface CheckoutAlertItem {
   status?: string
 }
 
-interface ReservTableRow {
-  reservation_id: number
-  reservation_no: string
-  guest_name: string
-  phone1: string
-  room_category_name: string
-  converted_category_name: string
-  arrival_date: string
-  arrival_time: string
-  departure_date: string
-  departure_time: string
-  total_rooms: number
-  pax_price: number
-  pax_count: number
-  ex_pax_count: number
-  child_count: number
-  driver_count: number
-  total_amount: number
-  nights: number
-}
-
 interface ContextMenuOption {
   label: string
   icon?: string
@@ -199,13 +169,6 @@ interface ContextMenuOption {
 
 // ==================== HELPERS ====================
 
-
-
-
-
-// ==================== HELPERS ====================
-
-// Helper functions for filtering by status IDs
 const isVacant = (room: Room): boolean => {
   const statusId = room.rawData?.room_status_id || 1
   return STATUS_IDS.VACANT.includes(statusId)
@@ -218,24 +181,18 @@ const isOccupied = (room: Room): boolean => {
 
 const isCleaning = (room: Room): boolean => {
   const statusId = room.rawData?.room_status_id || 1
-  return STATUS_IDS.CLEANING.includes(statusId)  // status_id = 4
+  return STATUS_IDS.CLEANING.includes(statusId)
 }
 
 const isReserved = (room: Room): boolean => {
   const statusId = room.rawData?.room_status_id || 1
-  return STATUS_IDS.RESERVED.includes(statusId)  // status_id = 6
+  return STATUS_IDS.RESERVED.includes(statusId)
 }
 
 const isMaintenance = (room: Room): boolean => {
   const statusId = room.rawData?.room_status_id || 1
-  return STATUS_IDS.MAINTENANCE.includes(statusId)  // status_id = 3 or 5
+  return STATUS_IDS.MAINTENANCE.includes(statusId)
 }
-
-// const isBlocked = (room: Room): boolean => {
-//   const statusId = room.rawData?.room_status_id || 1
-//   return STATUS_IDS.BLOCK.includes(statusId)
-// }
-
 
 const getContrastColor = (hexColor: string): string => {
   if (!hexColor) return '#000000'
@@ -296,8 +253,6 @@ const formatDateTime = (isoString: string): string => {
   return `${day}-${month}-${year} ${hours}:${minutes}`
 }
 
-
-
 const getLocalYMD = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -331,7 +286,6 @@ const HotelBookingPanel = () => {
   const { user } = useAuthContext()
   const hotelId = user?.hotelid
 
-
   // --- Data ---
   const [rawRooms, setRawRooms] = useState<ApiRoom[]>([])
   const [categories, setCategories] = useState<ApiCategory[]>([])
@@ -351,6 +305,12 @@ const HotelBookingPanel = () => {
   const [, setSelectedRoom] = useState<Room | null>(null)
   const [activeSection, setActiveSection] = useState<ActiveSection>(null)
   const [showSettlementPage, setShowSettlementPage] = useState(false)
+  const [showArrivals, setShowArrivals] = useState(false)
+  const [showAtGlance, setShowAtGlance] = useState(false)
+  const [showReservationForm, setShowReservationForm] = useState(false)
+  const [showReservationSummary, setShowReservationSummary] = useState(false)
+  const [showReservationPage, setShowReservationPage] = useState(false)  // ✅ Add this state
+
 
   const [activeHousekeepingTab, setActiveHousekeepingTab] = useState<HousekeepingTab>(null)
   const [selectedHousekeepingRoomIds, setSelectedHousekeepingRoomIds] = useState<number[]>([])
@@ -365,19 +325,14 @@ const HotelBookingPanel = () => {
   const [savingSettings, setSavingSettings] = useState(false)
 
   // --- Occupied rooms ---
- // --- Occupied rooms ---
-const [occupiedRooms, setOccupiedRooms] = useState<OccupiedRoomItem[]>([])
-const [loadingOccupied, setLoadingOccupied] = useState(false)
-const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
+  const [occupiedRooms, setOccupiedRooms] = useState<OccupiedRoomItem[]>([])
+  const [loadingOccupied, setLoadingOccupied] = useState(false)
+  const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
+
   // --- Checkout alert ---
   const [checkoutAlertData, setCheckoutAlertData] = useState<CheckoutAlertItem[]>([])
   const [loadingCheckoutAlert, setLoadingCheckoutAlert] = useState(false)
   const [errorCheckoutAlert, setErrorCheckoutAlert] = useState<string | null>(null)
-
-  // --- Reservation table ---
-  const [reservTableData, setReservTableData] = useState<ReservTableRow[]>([])
-  const [loadingReservTable, setLoadingReservTable] = useState(false)
-  const [reservDate, setReservDate] = useState(new Date().toISOString().slice(0, 10))
 
   // --- Context menu ---
   const [showContextMenu, setShowContextMenu] = useState(false)
@@ -387,29 +342,21 @@ const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
   const tileClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // --- Day extend ---
-  // Replace the existing extendDayModal state type (around line 396)
-const [extendDayModal, setExtendDayModal] = useState<{
-  show: boolean
-  occupiedItem: OccupiedRoomItem | null
-  siblingRooms: OccupiedRoomItem[]
-  room: { id: number; number: string } | null  // Add this
-  checkin: any | null  // Add this
-  loading?: boolean  // Add this
-}>({ 
-  show: false, 
-  occupiedItem: null, 
-  siblingRooms: [],
-  room: null,
-  checkin: null,
-  loading: false
-})
-
-
-  // Add these after your existing state declarations
-const [showArrivals, setShowArrivals] = useState(false)
-const [showAtGlance, setShowAtGlance] = useState(false)
-const [showReservationForm, setShowReservationForm] = useState(false)
-const [showReservationSummary, setShowReservationSummary] = useState(false)
+  const [extendDayModal, setExtendDayModal] = useState<{
+    show: boolean
+    occupiedItem: OccupiedRoomItem | null
+    siblingRooms: OccupiedRoomItem[]
+    room: { id: number; number: string } | null
+    checkin: any | null
+    loading?: boolean
+  }>({ 
+    show: false, 
+    occupiedItem: null, 
+    siblingRooms: [],
+    room: null,
+    checkin: null,
+    loading: false
+  })
 
   // --- Modal states ---
   const [showPostChargesModal, setShowPostChargesModal] = useState(false)
@@ -462,7 +409,7 @@ const [showReservationSummary, setShowReservationSummary] = useState(false)
       if (statusFilter === 'available') {
         matchesStatus = isVacant(room)
       } else if (statusFilter === 'occupied') {
-        matchesStatus = isOccupied(room) || room.status === 'Bill' // ✅ Include Bill
+        matchesStatus = isOccupied(room) || room.status === 'Bill'
       } else if (statusFilter === 'cleaning') {
         matchesStatus = isCleaning(room)
       } else if (statusFilter === 'reserved') {
@@ -479,27 +426,27 @@ const [showReservationSummary, setShowReservationSummary] = useState(false)
     })
   }, [rooms, searchQuery, typeFilter, floorFilter, statusFilter])
 
- const stats = useMemo(() => {
-  const base = rooms.filter((room) => {
-    const matchesSearch =
-      searchQuery === '' ||
-      room.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      room.category.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesType = typeFilter === 'all' || room.category === typeFilter
-    const matchesFloor = floorFilter === 'all' || room.floor === floorFilter
-    return matchesSearch && matchesType && matchesFloor
-  })
-  return {
-    total: base.length,
-    available: base.filter((r) => isVacant(r)).length,
-    occupied: base.filter((r) => isOccupied(r) || r.status === 'Bill').length, // ✅ Include Bill
-    cleaning: base.filter((r) => isCleaning(r)).length,  // status_id = 4
-    bill: base.filter((r) => r.status === 'Bill').length,
-    reserved: base.filter((r) => isReserved(r)).length,  // status_id = 6
-    maintenance: base.filter((r) => isMaintenance(r)).length,  // status_id = 3 or 5
-    reservation: base.filter((r) => r.status === 'reservation').length,
-  }
-}, [rooms, searchQuery, typeFilter, floorFilter])
+  const stats = useMemo(() => {
+    const base = rooms.filter((room) => {
+      const matchesSearch =
+        searchQuery === '' ||
+        room.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        room.category.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesType = typeFilter === 'all' || room.category === typeFilter
+      const matchesFloor = floorFilter === 'all' || room.floor === floorFilter
+      return matchesSearch && matchesType && matchesFloor
+    })
+    return {
+      total: base.length,
+      available: base.filter((r) => isVacant(r)).length,
+      occupied: base.filter((r) => isOccupied(r) || r.status === 'Bill').length,
+      cleaning: base.filter((r) => isCleaning(r)).length,
+      bill: base.filter((r) => r.status === 'Bill').length,
+      reserved: base.filter((r) => isReserved(r)).length,
+      maintenance: base.filter((r) => isMaintenance(r)).length,
+      reservation: base.filter((r) => r.status === 'reservation').length,
+    }
+  }, [rooms, searchQuery, typeFilter, floorFilter])
 
   const groupedByFloor: FloorGroup[] = useMemo(() => {
     const map = new Map<number, Room[]>()
@@ -533,42 +480,39 @@ const [showReservationSummary, setShowReservationSummary] = useState(false)
 
   const activeGroups = viewMode === 'floor' ? groupedByFloor : groupedByCategory
 
- const housekeepingRoomsForTab = useMemo(() => {
-  if (!activeHousekeepingTab) return []
-  
-  if (activeHousekeepingTab === 'all') {
-    return rooms.filter((r) => {
-      const statusId = r.rawData?.room_status_id || 1
-      return [3, 4, 5, 6].includes(statusId) // Maintenance, Cleaning, Out of Service, Reserved
-    })
-  }
-  
-  if (activeHousekeepingTab === 'dirty') {
-    // ✅ ONLY status_id = 4 (Cleaning)
-    return rooms.filter((r) => {
-      const statusId = r.rawData?.room_status_id || 1
-      return statusId === 4
-    })
-  }
-  
-  if (activeHousekeepingTab === 'block') {
-    // ✅ ONLY status_id = 6 (Reserved)
-    return rooms.filter((r) => {
-      const statusId = r.rawData?.room_status_id || 1
-      return statusId === 6
-    })
-  }
-  
-  if (activeHousekeepingTab === 'maint') {
-    // ✅ status_id = 3 (Maintenance) or 5 (Out of Service)
-    return rooms.filter((r) => {
-      const statusId = r.rawData?.room_status_id || 1
-      return statusId === 3 || statusId === 5
-    })
-  }
-  
-  return []
-}, [activeHousekeepingTab, rooms])
+  const housekeepingRoomsForTab = useMemo(() => {
+    if (!activeHousekeepingTab) return []
+    
+    if (activeHousekeepingTab === 'all') {
+      return rooms.filter((r) => {
+        const statusId = r.rawData?.room_status_id || 1
+        return [3, 4, 5, 6].includes(statusId)
+      })
+    }
+    
+    if (activeHousekeepingTab === 'dirty') {
+      return rooms.filter((r) => {
+        const statusId = r.rawData?.room_status_id || 1
+        return statusId === 4
+      })
+    }
+    
+    if (activeHousekeepingTab === 'block') {
+      return rooms.filter((r) => {
+        const statusId = r.rawData?.room_status_id || 1
+        return statusId === 6
+      })
+    }
+    
+    if (activeHousekeepingTab === 'maint') {
+      return rooms.filter((r) => {
+        const statusId = r.rawData?.room_status_id || 1
+        return statusId === 3 || statusId === 5
+      })
+    }
+    
+    return []
+  }, [activeHousekeepingTab, rooms])
 
   const boxSizeClass = useMemo(() => `size${uiSettings.room_box_size}`, [uiSettings.room_box_size])
   const showSubtext = useMemo(
@@ -576,21 +520,9 @@ const [showReservationSummary, setShowReservationSummary] = useState(false)
     [uiSettings.room_box_size, uiSettings.show_room_text],
   )
 
-  const showReservSection = activeSection === 'reserv'
   const showCheckoutAlertTable = activeSection === 'checkout'
 
   // ==================== EFFECTS ====================
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const todayStr = new Date().toISOString().slice(0, 10)
-      setReservDate((prev) => {
-        if (prev !== todayStr && activeSection === 'reserv') fetchReservTableData(todayStr)
-        return prev
-      })
-    }, 60000)
-    return () => clearInterval(timer)
-  }, [activeSection])
 
   useEffect(() => {
     if (!hotelId) return
@@ -626,33 +558,31 @@ const [showReservationSummary, setShowReservationSummary] = useState(false)
     document.body.classList.toggle('dark-mode', uiSettings.dark_mode)
   }, [uiSettings.dark_mode])
 
-// Add this after your state declarations (around line 400-500)
-const fetchHotelBookingMetaData = useCallback(async () => {
-  if (!hotelId) {
-    setError('No hotel selected')
-    setLoading(false)
-    return
-  }
-  setLoading(true)
-  try {
-    const response = await RoomService.getHotelBookingMeta(hotelId)
-    const meta = response?.data || {}
-    
-    setRawRooms(meta?.rooms || [])
-    setCategories(meta?.categories || [])
-    setFloors(meta?.floors || [])
-  } catch (error) {
-    console.error('Failed to load room data:', error)
-    setError('Failed to load room data')
-  } finally {
-    setLoading(false)
-  }
-}, [hotelId])
+  const fetchHotelBookingMetaData = useCallback(async () => {
+    if (!hotelId) {
+      setError('No hotel selected')
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    try {
+      const response = await RoomService.getHotelBookingMeta(hotelId)
+      const meta = response?.data || {}
+      
+      setRawRooms(meta?.rooms || [])
+      setCategories(meta?.categories || [])
+      setFloors(meta?.floors || [])
+    } catch (error) {
+      console.error('Failed to load room data:', error)
+      setError('Failed to load room data')
+    } finally {
+      setLoading(false)
+    }
+  }, [hotelId])
 
-// Then update the useEffect to use this function
-useEffect(() => {
-  fetchHotelBookingMetaData()
-}, [fetchHotelBookingMetaData])
+  useEffect(() => {
+    fetchHotelBookingMetaData()
+  }, [fetchHotelBookingMetaData])
 
   useEffect(() => {
     if (showCheckoutAlertTable && hotelId) fetchTodayCheckouts()
@@ -807,192 +737,101 @@ useEffect(() => {
     }
   }
 
-  // ==================== FETCH OCCUPIED ROOMS ====================
-
-const fetchOccupiedRoomsData = useCallback(() => {
-  if (hotelId) {
-    fetchOccupiedRooms(
-      Number(hotelId),
-      getMinutesLeft,
-      setOccupiedRooms,
-      setLoadingOccupied,
-      setErrorOccupied
-    )
-  }
-}, [hotelId, getMinutesLeft, setOccupiedRooms, setLoadingOccupied, setErrorOccupied]) // ✅ Add all dependencies
-
-// Add this useEffect to trigger fetch when statusFilter changes to 'occupied'
-useEffect(() => {
-  if (statusFilter === 'occupied' && hotelId) {
-    fetchOccupiedRoomsData()
-  }
-}, [statusFilter, hotelId, fetchOccupiedRoomsData]) // ✅ Add fetchOccupiedRoomsData dependency
-
-  const fetchReservTableData = async (filterDate?: string) => {
-    if (!hotelId) return
-    setLoadingReservTable(true)
-    try {
-      const todayStr = filterDate || new Date().toISOString().slice(0, 10)
-      const reservations: any[] = (await ReservationService.list({ hotelid: hotelId })).data || []
-
-      const todayReservs = reservations.filter((r: any) => {
-        const arrival = String(r.arrival_date || '').slice(0, 10)
-        const status = String(r.status || '').toLowerCase()
-        return (
-          arrival === todayStr &&
-          !['checkin', 'checkout', 'checked_in', 'checked_out'].includes(status)
-        )
-      })
-
-      const rows: ReservTableRow[] = []
-
-      for (const r of todayReservs) {
-        try {
-          const roomRows: any[] = (await ReservationRoomService.list({ reservation_id: r.reservation_id })).data || []
-
-          const baseRow = {
-            reservation_id: r.reservation_id,
-            reservation_no: r.reservation_no || '-',
-            guest_name: r.reservation_name || r.guest_name || '-',
-            phone1: r.phone1 || '-',
-            arrival_date: r.arrival_date || '',
-            arrival_time: r.arrival_time || '',
-            departure_date: r.departure_date || '',
-            departure_time: r.departure_time || '',
-            nights: r.nights || 0,
-          }
-
-          if (roomRows.length === 0) {
-            rows.push({ ...baseRow, room_category_name: '-', converted_category_name: '-', total_rooms: 0, pax_price: 0, pax_count: 0, ex_pax_count: 0, child_count: 0, driver_count: 0, total_amount: 0 })
-          } else {
-            for (const rm of roomRows) {
-              rows.push({
-                ...baseRow,
-                room_category_name: rm.room_category_name || '-',
-                converted_category_name: rm.converted_category_name || '-',
-                total_rooms: rm.total_rooms || 1,
-                pax_price: rm.pax_price || 0,
-                pax_count: rm.pax_count || 0,
-                ex_pax_count: rm.ex_pax_count || 0,
-                child_count: rm.child_count || 0,
-                driver_count: rm.driver_count || 0,
-                total_amount: rm.total_amount || 0,
-              })
-            }
-          }
-        } catch {
-          rows.push({
-            reservation_id: r.reservation_id,
-            reservation_no: r.reservation_no || '-',
-            guest_name: r.reservation_name || r.guest_name || '-',
-            phone1: r.phone1 || '-',
-            room_category_name: '-',
-            converted_category_name: '-',
-            arrival_date: r.arrival_date || '',
-            arrival_time: r.arrival_time || '',
-            departure_date: r.departure_date || '',
-            departure_time: r.departure_time || '',
-            total_rooms: 0,
-            pax_price: 0,
-            pax_count: 0,
-            ex_pax_count: 0,
-            child_count: 0,
-            driver_count: 0,
-            total_amount: 0,
-            nights: r.nights || 0,
-          })
-        }
-      }
-
-      setReservTableData(rows)
-    } catch (err) {
-      console.error('Failed to fetch reserv data', err)
-    } finally {
-      setLoadingReservTable(false)
+  const fetchOccupiedRoomsData = useCallback(() => {
+    if (hotelId) {
+      fetchOccupiedRooms(
+        Number(hotelId),
+        getMinutesLeft,
+        setOccupiedRooms,
+        setLoadingOccupied,
+        setErrorOccupied
+      )
     }
-  }
+  }, [hotelId])
+
+  useEffect(() => {
+    if (statusFilter === 'occupied' && hotelId) {
+      fetchOccupiedRoomsData()
+    }
+  }, [statusFilter, hotelId, fetchOccupiedRoomsData])
 
   // ==================== EXTEND ROOM ====================
 
-  
+  const handleExtendDay = async () => {
+    if (!extendDayModal.room || !extendDayModal.checkin) return
 
- const handleExtendDay = async () => {
-  if (!extendDayModal.room || !extendDayModal.checkin) return
+    const { room, checkin } = extendDayModal
 
-  const { room, checkin } = extendDayModal
+    setExtendDayModal((prev) => ({ ...prev, loading: true }))
 
-  setExtendDayModal((prev) => ({ ...prev, loading: true }))
+    try {
+      const checkinId = checkin.checkin_id
+      const clickedRoomId = room.id
 
-  try {
-    const checkinId = checkin.checkin_id
-    const clickedRoomId = room.id
-
-    if (!checkinId || !clickedRoomId) {
-      toast.error('Missing checkin or room information')
-      return
-    }
-
-    // ✅ FIX: Use occupiedRooms instead of undefined 'checkins'
-    const allRoomIdsForCheckin = Array.from(
-      new Set(
-        occupiedRooms
-          .filter((c: any) => String(c.checkin_id) === String(checkinId))
-          .map((c: any) => c.room_id ?? c.charge_room_id)
-          .filter(Boolean)
-          .map(Number)
-      )
-    )
-
-    const roomIdsToExtend =
-      allRoomIdsForCheckin.length > 0 ? allRoomIdsForCheckin : [clickedRoomId]
-
-    if (!roomIdsToExtend.includes(clickedRoomId)) {
-      roomIdsToExtend.push(clickedRoomId)
-    }
-
-    let anySuccess = false
-    for (const roomId of roomIdsToExtend) {
-      const response = await CheckInService.extendDay(checkinId, {
-        roomId: roomId,
-        extensionDays: 1,
-      })
-      if (response.success) {
-        anySuccess = true
-      } else {
-        console.warn(`Failed to extend room ${roomId}:`, response.message)
+      if (!checkinId || !clickedRoomId) {
+        toast.error('Missing checkin or room information')
+        return
       }
-    }
 
-    if (anySuccess) {
-      const roomCount = roomIdsToExtend.length
-      toast.success(
-        roomCount > 1
-          ? `All ${roomCount} rooms extended by 1 day successfully`
-          : `Room ${room.number} extended by 1 day successfully`
+      const allRoomIdsForCheckin = Array.from(
+        new Set(
+          occupiedRooms
+            .filter((c: any) => String(c.checkin_id) === String(checkinId))
+            .map((c: any) => c.room_id ?? c.charge_room_id)
+            .filter(Boolean)
+            .map(Number)
+        )
       )
 
-      // ✅ FIX: Use proper fetch functions
-      await fetchHotelBookingMetaData()
-      await fetchOccupiedRoomsData()
+      const roomIdsToExtend =
+        allRoomIdsForCheckin.length > 0 ? allRoomIdsForCheckin : [clickedRoomId]
 
-      setExtendDayModal({
-        show: false,
-        occupiedItem: null,
-        siblingRooms: [],
-        room: null,
-        checkin: null,
-        loading: false,
-      })
-    } else {
-      toast.error('Failed to extend stay')
+      if (!roomIdsToExtend.includes(clickedRoomId)) {
+        roomIdsToExtend.push(clickedRoomId)
+      }
+
+      let anySuccess = false
+      for (const roomId of roomIdsToExtend) {
+        const response = await CheckInService.extendDay(checkinId, {
+          roomId: roomId,
+          extensionDays: 1,
+        })
+        if (response.success) {
+          anySuccess = true
+        } else {
+          console.warn(`Failed to extend room ${roomId}:`, response.message)
+        }
+      }
+
+      if (anySuccess) {
+        const roomCount = roomIdsToExtend.length
+        toast.success(
+          roomCount > 1
+            ? `All ${roomCount} rooms extended by 1 day successfully`
+            : `Room ${room.number} extended by 1 day successfully`
+        )
+
+        await fetchHotelBookingMetaData()
+        await fetchOccupiedRoomsData()
+
+        setExtendDayModal({
+          show: false,
+          occupiedItem: null,
+          siblingRooms: [],
+          room: null,
+          checkin: null,
+          loading: false,
+        })
+      } else {
+        toast.error('Failed to extend stay')
+      }
+    } catch (error) {
+      console.error('Error extending day:', error)
+      toast.error('Failed to extend stay. Please try again.')
+    } finally {
+      setExtendDayModal((prev) => ({ ...prev, loading: false }))
     }
-  } catch (error) {
-    console.error('Error extending day:', error)
-    toast.error('Failed to extend stay. Please try again.')
-  } finally {
-    setExtendDayModal((prev) => ({ ...prev, loading: false }))
   }
-}
 
   // ==================== EVENT HANDLERS ====================
 
@@ -1017,23 +856,24 @@ useEffect(() => {
     }, 0)
   }
 
-const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
-  if (item.isExpired) {
-    const siblings = occupiedRooms.filter(
-      (r) => r.checkin_id === item.checkin_id && r.detail_id !== item.detail_id,
-    )
-    setExtendDayModal({ 
-      show: true, 
-      occupiedItem: item, 
-      siblingRooms: siblings,
-      room: item.room_id && item.room_no ? { id: item.room_id, number: item.room_no } : null,
-      checkin: item.checkin || null,
-      loading: false
-    })
-    return
+  const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
+    if (item.isExpired) {
+      const siblings = occupiedRooms.filter(
+        (r) => r.checkin_id === item.checkin_id && r.detail_id !== item.detail_id,
+      )
+      setExtendDayModal({ 
+        show: true, 
+        occupiedItem: item, 
+        siblingRooms: siblings,
+        room: item.room_id && item.room_no ? { id: item.room_id, number: item.room_no } : null,
+        checkin: item.checkin || null,
+        loading: false
+      })
+      return
+    }
+    navigate('/hotel/room-detail', { state: { occupiedItem: item } })
   }
-  navigate('/hotel/room-detail', { state: { occupiedItem: item } })
-}
+
   const handleRoomTileClick = (room: Room) => {
     if (tileClickTimerRef.current) return
     tileClickTimerRef.current = setTimeout(() => {
@@ -1050,7 +890,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
     setSelectedRoomForStatus({ id: room.id, number: room.number, category: room.category, floor: room.floor, status: room.status })
     setShowRoomStatusModal(true)
   }
-
 
   const handleCheckInClick = () => {
     if (selectedRoomIds.length === 0) {
@@ -1083,22 +922,22 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
     setFloorFilter('all')
   }
 
- const handleStatusFilterClick = (filter: RoomStatus | 'all') => {
-  setStatusFilter(filter)
-  setActiveSection(null)
-  
-  // ✅ Close all other pages when clicking any status filter
-  setShowSettlementPage(false)
-  setShowArrivals(false)
-  setShowAtGlance(false)
-  setShowReservationForm(false)
-  setShowReservationSummary(false)
-  
-  if (!['cleaning', 'reserved', 'maintenance'].includes(filter)) {
-    setActiveHousekeepingTab(null)
-    setSelectedHousekeepingRoomIds([])
+  const handleStatusFilterClick = (filter: RoomStatus | 'all') => {
+    setStatusFilter(filter)
+    setActiveSection(null)
+    
+    setShowSettlementPage(false)
+    setShowArrivals(false)
+    setShowAtGlance(false)
+    setShowReservationForm(false)
+    setShowReservationSummary(false)
+    setShowReservationPage(false)  // ✅ Add this line
+    
+    if (!['cleaning', 'reserved', 'maintenance'].includes(filter)) {
+      setActiveHousekeepingTab(null)
+      setSelectedHousekeepingRoomIds([])
+    }
   }
-}
 
   const handleHousekeepingTabClick = (tab: HousekeepingTab) => {
     if (tab === null || activeHousekeepingTab === tab) {
@@ -1124,7 +963,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
     }
   }
 
-  // Housekeeping helpers
   const toggleHousekeepingRoomSelection = (roomId: number) => {
     setSelectedHousekeepingRoomIds((prev) =>
       prev.includes(roomId) ? prev.filter((id) => id !== roomId) : [...prev, roomId],
@@ -1162,35 +1000,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
       console.error('Failed to make rooms vacant:', err)
       toast.error('Failed to update room status.')
     }
-  }
-
-  // Export helpers
-  const exportReservTableToExcel = (data: ReservTableRow[], filename: string) => {
-    const ws = XLSX.utils.json_to_sheet(
-      data.map((r, i) => ({
-        'Sr.No': i + 1,
-        'Reservation No': r.reservation_no,
-        'Guest Name': r.guest_name,
-        'Mobile No': r.phone1,
-        'Room Category': r.room_category_name,
-        'Convert Category': r.converted_category_name,
-        'Arrival Date': r.arrival_date,
-        'Arrival Time': r.arrival_time,
-        'Departure Date': r.departure_date,
-        'Departure Time': r.departure_time,
-        'Total Rooms': r.total_rooms,
-        'Room Price': r.pax_price,
-        'Pax Count': r.pax_count,
-        'Ex-Pax Count': r.ex_pax_count,
-        'Child Count': r.child_count,
-        'Driver Count': r.driver_count,
-        'Total Price': r.total_amount,
-        'Total Days': r.nights,
-      })),
-    )
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
-    XLSX.writeFile(wb, filename)
   }
 
   const exportCheckoutToExcel = (data: CheckoutAlertItem[], filename: string) => {
@@ -1260,8 +1069,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
     printWindow.print()
   }
 
-  
-
   // ==================== LOADING / ERROR STATES ====================
 
   if (loading) {
@@ -1292,9 +1099,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
     <>
       <TitleHelmet title="Room Management" />
       <style>{`
-
-
-        /* ---- Room tiles ---- */
         .room-tile {
           position: relative; cursor: pointer; display: flex; flex-direction: column;
           align-items: stretch; justify-content: flex-start; padding: 0;
@@ -1314,7 +1118,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
         }
         .room-checkbox:disabled { cursor: not-allowed; opacity: 0.5; }
 
-        /* ---- Occupied tiles ---- */
         .occupied-tile {
           height: auto !important; min-height: 110px; font-size: 0.72rem; line-height: 1.3;
           display: flex; flex-direction: column; padding: 0;
@@ -1339,19 +1142,13 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
         .occupied-body .charges-line span { font-size: 0.68rem; }
         .occupied-body .charges-line span:last-child { font-weight: 700; }
 
-        /* ---- Tables ---- */
-        .checkout-table, .reserv-section-table { width: 100%; border-collapse: collapse; font-size: 0.70rem; }
+        .checkout-table { width: 100%; border-collapse: collapse; font-size: 0.70rem; }
         .checkout-table th { position: sticky; top: 0; background-color: #dfdfdf; font-weight: 550; z-index: 10; padding: 0.35rem; }
         .checkout-table td { border: 1px solid #dee2e6; padding: 0.35rem; text-align: left; }
-        .reserv-section-table th, .reserv-section-table td { border: 1px solid #dee2e6; padding: 4px 7px; white-space: nowrap; }
-        .reserv-section-table thead tr { background: #f1f5fb; font-weight: 600; position: sticky; top: 0; z-index: 1; }
-        .reserv-section-table tbody tr:hover { background: #f8f9fa; }
-        .reserv-section-table tfoot tr td { background: #f1f5fb; }
         body.dark-mode th { background-color: #2c2c2c; color: #eee; }
         body.dark-mode .checkout-table td { border-color: #444; }
         .text-red { color: red !important; font-weight: bold; }
 
-        /* ---- Housekeeping ---- */
         .housekeeping-section { border: 1px solid #e0e0e0; margin-bottom: 0.3rem; background-color: #fff; }
         .housekeeping-section-header {
           background-color: #f8f9fa; padding: 0.3rem 0.5rem; font-weight: 500;
@@ -1360,7 +1157,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
         }
         .housekeeping-section-header-left { display: flex; align-items: center; gap: 0.5rem; }
         
-        /* Housekeeping body containers */
         .hk-rooms-body {
           padding: 0.4rem 0.5rem; 
           height: 130px; 
@@ -1389,7 +1185,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
         }
         .hk-rooms-grid-col { display: contents; }
 
-        /* Base HK Room Card */
         .hk-room-card {
           width: 83px; 
           height: 50px; 
@@ -1428,7 +1223,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
           max-width: 80px; 
         }
 
-        /* Dirty Room Cards - Yellow Theme */
         .dirty-room-card {
           border: 1.5px solid #FACC15; 
           background: #FFF4CC;
@@ -1439,7 +1233,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
         .dirty-room-card .room-number { color: #92610A; }
         .dirty-room-card .room-category { color: #92610A; }
 
-        /* Blocked Room Cards - Blue Theme */
         .block-room-card {
           border: 1.5px solid #38BDF8; 
           background: #D9F1FF;
@@ -1450,7 +1243,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
         .block-room-card .room-number { color: #0369A1; }
         .block-room-card .room-category { color: #0369A1; }
 
-        /* Maintenance Room Cards - Red Theme */
         .maint-room-card {
           border: 1.5px solid #F87171; 
           background: #FFE0E0;
@@ -1461,7 +1253,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
         .maint-room-card .room-number { color: #991B1B; }
         .maint-room-card .room-category { color: #991B1B; }
 
-        /* ---- Misc ---- */
         .group-box {
           width: 90px; background-color: #E5E7EB !important; border: 1px solid #5e5e5e !important;
           color: #606060 !important; display: flex; justify-content: center; align-items: center;
@@ -1471,7 +1262,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
         .status-footer { position: sticky; bottom: 0; background-color: #f8f9fa; border-top: 2px solid #dee2e6; font-weight: bold; }
         body.dark-mode .status-footer { background-color: #2a2a2a; border-top-color: #444; }
 
-        /* ---- Scrollbar ---- */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #c8c8c8; border-radius: 4px; }
@@ -1486,162 +1276,131 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
           <div className="border-bottom pb-2 mb-2">
 
             {/* Top row — status filters + actions */}
-           <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-  <div className="d-flex flex-wrap gap-2">
-    {/* Left side buttons - Status filters */}
-    <Button size="sm" variant={statusFilter === 'all' ? 'dark' : 'outline-dark'} className="fw-semibold px-3 same-btn"
-      onClick={() => handleStatusFilterClick('all')}>
-      <i className="fi fi-rr-apps me-1"></i>All [{stats.total}]
-    </Button>
-    <Button size="sm" variant={statusFilter === 'available' ? 'success' : 'outline-success'} className="fw-semibold px-3 same-btn"
-      onClick={() => handleStatusFilterClick('available')}>
-      <i className="fi fi-rr-bed-empty me-1"></i>Vacant [{stats.available}]
-    </Button>
-    <Button size="sm" variant={statusFilter === 'occupied' ? 'primary' : 'outline-primary'} className="fw-semibold px-3 same-btn"
-      onClick={() => handleStatusFilterClick('occupied')}>
-      <i className="fi fi-rr-user me-1"></i>Occupied [{stats.occupied}]
-    </Button>
-    <Button size="sm" variant={activeHousekeepingTab ? 'warning' : 'outline-warning'} className="fw-semibold px-3 same-btn"
-      onClick={() => {
-        // ✅ Close all pages when Block is clicked
-        setShowSettlementPage(false)
-        setShowArrivals(false)
-        setShowAtGlance(false)
-        setShowReservationForm(false)
-        setShowReservationSummary(false)
-        
-        if (activeHousekeepingTab) {
-          handleHousekeepingTabClick(null)
-          handleStatusFilterClick('all')
-        } else {
-          handleStatusFilterClick('cleaning')
-          handleHousekeepingTabClick('all')
-        }
-      }}>
-      <i className="fi fi-rr-lock me-1"></i>Block [{stats.cleaning + stats.reserved + stats.maintenance}]
-    </Button>
-   <Button 
+            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+              <div className="d-flex flex-wrap gap-2">
+                <Button size="sm" variant={statusFilter === 'all' ? 'dark' : 'outline-dark'} className="fw-semibold px-3 same-btn"
+                  onClick={() => handleStatusFilterClick('all')}>
+                  <i className="fi fi-rr-apps me-1"></i>All [{stats.total}]
+                </Button>
+                <Button size="sm" variant={statusFilter === 'available' ? 'success' : 'outline-success'} className="fw-semibold px-3 same-btn"
+                  onClick={() => handleStatusFilterClick('available')}>
+                  <i className="fi fi-rr-bed-empty me-1"></i>Vacant [{stats.available}]
+                </Button>
+                <Button size="sm" variant={statusFilter === 'occupied' ? 'primary' : 'outline-primary'} className="fw-semibold px-3 same-btn"
+                  onClick={() => handleStatusFilterClick('occupied')}>
+                  <i className="fi fi-rr-user me-1"></i>Occupied [{stats.occupied}]
+                </Button>
+                <Button size="sm" variant={activeHousekeepingTab ? 'warning' : 'outline-warning'} className="fw-semibold px-3 same-btn"
+                  onClick={() => {
+                    setShowSettlementPage(false)
+                    setShowArrivals(false)
+                    setShowAtGlance(false)
+                    setShowReservationForm(false)
+                    setShowReservationSummary(false)
+                    
+                    if (activeHousekeepingTab) {
+                      handleHousekeepingTabClick(null)
+                      handleStatusFilterClick('all')
+                    } else {
+                      handleStatusFilterClick('cleaning')
+                      handleHousekeepingTabClick('all')
+                    }
+                  }}>
+                  <i className="fi fi-rr-lock me-1"></i>Block [{stats.cleaning + stats.reserved + stats.maintenance}]
+                </Button>
+               <Button 
   size="sm" 
-  variant={showReservSection ? 'secondary' : 'outline-secondary'} 
+  variant={showReservationPage ? 'secondary' : 'outline-secondary'} 
   className="fw-semibold px-3 same-btn"
   onClick={() => {
-    // ✅ Clear housekeeping tab
     setActiveHousekeepingTab(null)
     setSelectedHousekeepingRoomIds([])
     
+    // Close all other pages
     setShowSettlementPage(false)
     setShowArrivals(false)
     setShowAtGlance(false)
     setShowReservationForm(false)
     setShowReservationSummary(false)
+    setActiveSection(null)
     
-    if (showReservSection) {
-      setActiveSection(null)
-      setStatusFilter('all')
-    } else { 
-      setActiveSection('reserv')
-      setStatusFilter('all')
-      fetchReservTableData(reservDate)
-    }
+    // ✅ Simply toggle reservation page without changing status filter
+    setShowReservationPage(!showReservationPage)
   }}
 >
   <i className="fi fi-rr-calendar me-1"></i>Reservation [{stats.reservation}]
 </Button>
-   <Button 
-  size="sm" 
-  variant="outline-info" 
-  className="fw-semibold px-3 same-btn text-nowrap"
-  onClick={() => {
-    // ✅ Clear housekeeping tab
-    setActiveHousekeepingTab(null)
-    setSelectedHousekeepingRoomIds([])
-    
-    setShowArrivals(true)
-    setShowSettlementPage(false)
-    setShowAtGlance(false)
-    setShowReservationForm(false)
-    setShowReservationSummary(false)
-    setActiveSection(null)
-    setStatusFilter('all')
-  }}
->
-  <i className="fi fi-rr-plane-arrival me-1"></i>Arrivals
-</Button>
-   <Button
-  size="sm"
-  variant="outline-success"
-  className="fw-semibold px-3 same-btn"
-  onClick={() => {
-    // ✅ Clear housekeeping tab first
-    setActiveHousekeepingTab(null)
-    setSelectedHousekeepingRoomIds([])
-    
-    setShowSettlementPage(true)
-    setShowArrivals(false)
-    setShowAtGlance(false)
-    setShowReservationForm(false)
-    setShowReservationSummary(false)
-    setActiveSection(null)
-    setStatusFilter('all')
-  }}
->
-  <i className="fi fi-rr-money-check me-1"></i>Settlement
-</Button>
-    {/* ✅ "Reservation Form" moved to left side as per your image */}
-   <Button 
-  size="sm" 
-  variant="outline-secondary" 
-  className="fw-semibold px-3 same-btn"
-  onClick={() => {
-    // ✅ Clear housekeeping tab
-    setActiveHousekeepingTab(null)
-    setSelectedHousekeepingRoomIds([])
-    
-    setShowReservationForm(true)
-    setShowSettlementPage(false)
-    setShowArrivals(false)
-    setShowAtGlance(false)
-    setShowReservationSummary(false)
-    setActiveSection(null)
-    setStatusFilter('all')
-  }}
->
-  Reservation Form
-</Button>
-  </div>
+                <Button 
+                  size="sm" 
+                  variant="outline-info" 
+                  className="fw-semibold px-3 same-btn text-nowrap"
+                  onClick={() => {
+                    setActiveHousekeepingTab(null)
+                    setSelectedHousekeepingRoomIds([])
+                    
+                    setShowArrivals(true)
+                    setShowSettlementPage(false)
+                    setShowAtGlance(false)
+                    setShowReservationForm(false)
+                    setShowReservationSummary(false)
+                    setActiveSection(null)
+                    setStatusFilter('all')
+                  }}
+                >
+                  <i className="fi fi-rr-plane-arrival me-1"></i>Arrivals
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline-success"
+                  className="fw-semibold px-3 same-btn"
+                  onClick={() => {
+                    setActiveHousekeepingTab(null)
+                    setSelectedHousekeepingRoomIds([])
+                    
+                    setShowSettlementPage(true)
+                    setShowArrivals(false)
+                    setShowAtGlance(false)
+                    setShowReservationForm(false)
+                    setShowReservationSummary(false)
+                    setActiveSection(null)
+                    setStatusFilter('all')
+                  }}
+                >
+                  <i className="fi fi-rr-money-check me-1"></i>Settlement
+                </Button>
+                
+              </div>
 
-  <div className="d-flex flex-wrap gap-2">
-    {/* Right side buttons */}
-   <Button 
-  size="sm" 
-  variant="outline-primary" 
-  className="fw-semibold text-nowrap px-3"
-  onClick={() => {
-    // ✅ Clear housekeeping tab
-    setActiveHousekeepingTab(null)
-    setSelectedHousekeepingRoomIds([])
-    
-    setShowAtGlance(true)
-    setShowSettlementPage(false)
-    setShowArrivals(false)
-    setShowReservationForm(false)
-    setShowReservationSummary(false)
-    setActiveSection(null)
-    setStatusFilter('all')
-  }}
->
-  At Glance
-</Button>
-    <Button size="sm" variant="outline-success" className="d-flex align-items-center justify-content-center same-btn"
-      onClick={() => setShowSettings(true)} title="Settings">
-      <i className="fi fi-rr-settings"></i>
-    </Button>
-    <Button size="sm" variant="outline-danger" className="d-flex align-items-center justify-content-center same-btn"
-      onClick={() => navigate(-1)} title="Close">
-      <i className="fi fi-rr-cross"></i>
-    </Button>
-  </div>
-</div>
+              <div className="d-flex flex-wrap gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline-primary" 
+                  className="fw-semibold text-nowrap px-3"
+                  onClick={() => {
+                    setActiveHousekeepingTab(null)
+                    setSelectedHousekeepingRoomIds([])
+                    
+                    setShowAtGlance(true)
+                    setShowSettlementPage(false)
+                    setShowArrivals(false)
+                    setShowReservationForm(false)
+                    setShowReservationSummary(false)
+                    setActiveSection(null)
+                    setStatusFilter('all')
+                  }}
+                >
+                  At Glance
+                </Button>
+                <Button size="sm" variant="outline-success" className="d-flex align-items-center justify-content-center same-btn"
+                  onClick={() => setShowSettings(true)} title="Settings">
+                  <i className="fi fi-rr-settings"></i>
+                </Button>
+                <Button size="sm" variant="outline-danger" className="d-flex align-items-center justify-content-center same-btn"
+                  onClick={() => navigate(-1)} title="Close">
+                  <i className="fi fi-rr-cross"></i>
+                </Button>
+              </div>
+            </div>
 
             {/* Second row — view controls */}
             <div className="d-flex gap-2 flex-wrap align-items-center">
@@ -1669,7 +1428,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
             <div className="border-top pt-0 pb-0 px-0">
               {activeHousekeepingTab === 'all' && (
                 <>
-                  {/* Dirty Rooms */}
                   <div className="housekeeping-section">
                     <div className="housekeeping-section-header">
                       <div className="housekeeping-section-header-left">
@@ -1716,7 +1474,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
                     </div>
                   </div>
 
-                  {/* Blocked Rooms */}
                   <div className="housekeeping-section">
                     <div className="housekeeping-section-header">
                       <div className="housekeeping-section-header-left">
@@ -1763,7 +1520,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
                     </div>
                   </div>
 
-                  {/* Maintenance Rooms */}
                   <div className="housekeeping-section">
                     <div className="housekeeping-section-header">
                       <div className="housekeeping-section-header-left">
@@ -1823,452 +1579,356 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
               <div style={{ height: '100%' }}>
                 <SettlementPage />
               </div>
-          
-
-               ) : showArrivals ? (
-      <div style={{ height: '100%', padding: '16px' }}>
-        <ArrivalsPage />
-      </div>
-    ) : showAtGlance ? (
-      <div style={{ height: '100%', padding: '16px' }}>
-        <AtGlancePage />
-      </div>
-    ) : showReservationForm ? (
-      <div style={{ height: '100%', padding: '16px' }}>
-        <ReservationFormPage />
-      </div>
-    ) : showReservationSummary ? (
-      <div style={{ height: '100%', padding: '16px' }}>
-        <ReservationSummaryPage />
-      </div>
-    ) : showReservSection ? (
-
-            /* Reservations Table */
-            <div className="checkout-table-container d-flex flex-column" style={{ width: '100%' }}>
-              <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                <h6 className="mb-0 fw-bold">
-                  <i className="fi fi-rr-calendar me-2 text-primary"></i>
-                  Today's Reservations —{' '}
-                  {new Date(reservDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </h6>
-                <div className="d-flex align-items-center gap-2">
-                  <Form.Control type="date" size="sm" value={reservDate} style={{ width: 'auto' }}
-                    onChange={(e) => { setReservDate(e.target.value); fetchReservTableData(e.target.value) }} />
-                  <Button variant="success" size="sm" className="fw-normal px-3"
-                    onClick={() => handlePrintTable('.reserv-section-table', "Today's Reservations")}>
-                    <i className="fi fi-rr-print me-1"></i>Print
-                  </Button>
-                  <Dropdown>
-                    <Dropdown.Toggle variant="primary" size="sm" className="fw-normal px-2">
-                      <i className="fi fi-rr-download me-1"></i>Export
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      <Dropdown.Item onClick={() => exportTableToPdf('.reserv-section-table', "Today's Reservations", 'todays-reservations.pdf')}>
-                        <i className="fi fi-rr-file-pdf me-2"></i>PDF
-                      </Dropdown.Item>
-                      <Dropdown.Item onClick={() => exportReservTableToExcel(reservTableData, 'reservations.xlsx')}>
-                        <i className="fi fi-rr-file-excel me-2"></i>Excel
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
-                </div>
+            ) : showArrivals ? (
+              <div style={{ height: '100%', padding: '16px' }}>
+                <ArrivalsPage />
+              </div>
+            ) : showAtGlance ? (
+              <div style={{ height: '100%', padding: '16px' }}>
+                <AtGlancePage />
               </div>
 
-              {loadingReservTable ? (
-                <div className="d-flex justify-content-center py-5">
-                  <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading…</span></div>
-                </div>
-              ) : reservTableData.length === 0 ? (
-                <div className="text-center py-5">
-                  <i className="fi fi-rr-calendar text-muted fs-4 mb-3 d-block"></i>
-                  <p className="text-muted mb-0">No reservations for today.</p>
-                </div>
-              ) : (
-                <div className="flex-grow-1 overflow-auto">
-                  <table className="reserv-section-table">
-                    <thead>
-                      <tr>
-                        <th>#</th><th>Res. No</th><th>Guest Name</th><th>Mobile No</th>
-                        <th>Room Category</th><th>Convert Category</th><th>Total Days</th>
-                        <th>Arrival Date & Time</th><th>Departure Date & Time</th>
-                        <th>Rooms</th><th>Room Tariff</th><th>Pax</th><th>Ex-Pax</th>
-                        <th>Child</th><th>Driver</th><th>Total Price</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reservTableData.map((r, idx) => (
-                        <tr key={`${r.reservation_id}-${idx}`}>
-                          <td className="text-center">{idx + 1}</td>
-                          <td>{r.reservation_no}</td>
-                          <td>{r.guest_name}</td>
-                          <td>{r.phone1}</td>
-                          <td>{r.room_category_name}</td>
-                          <td>{r.converted_category_name}</td>
-                          <td className="text-center">{r.nights || '-'}</td>
-                          <td>{r.arrival_date} {r.arrival_time}</td>
-                          <td>{r.departure_date} {r.departure_time}</td>
-                          <td className="text-center">{r.total_rooms}</td>
-                          <td className="text-end">{formatAmount(r.pax_price)}</td>
-                          <td className="text-center">{r.pax_count}</td>
-                          <td className="text-center">{r.ex_pax_count}</td>
-                          <td className="text-center">{r.child_count}</td>
-                          <td className="text-center">{r.driver_count}</td>
-                          <td className="text-end fw-semibold">{formatAmount(r.total_amount)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-          ) : showCheckoutAlertTable ? (
-            /* Checkout Table */
-            <div className="checkout-table-container d-flex flex-column" style={{ width: '100%' }}>
-              <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                <h6 className="mb-0 fw-bold">
-                  <i className="fi fi-rr-calendar-check me-2 text-warning"></i>
-                  Today's Checkouts —{' '}
-                  {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </h6>
-                <div className="d-flex align-items-center gap-2">
-                  <Button variant="success" size="sm" className="fw-normal px-3"
-                    onClick={() => handlePrintTable('.checkout-table', "Today's Checkouts")}>
-                    <i className="fi fi-rr-print me-1"></i>Print
-                  </Button>
-                  <Dropdown>
-                    <Dropdown.Toggle variant="primary" size="sm" className="fw-normal px-2">
-                      <i className="fi fi-rr-download me-1"></i>Export
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      <Dropdown.Item onClick={() => exportTableToPdf('.checkout-table', "Today's Checkouts", 'todays-checkouts.pdf')}>
-                        <i className="fi fi-rr-file-pdf me-2"></i>PDF
-                      </Dropdown.Item>
-                      <Dropdown.Item onClick={() => exportCheckoutToExcel(checkoutAlertData, 'todays_checkouts.xlsx')}>
-                        <i className="fi fi-rr-file-excel me-2"></i>Excel
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
-                </div>
+               ) : showReservationPage ? (  
+      <div style={{ height: '100%', padding: '16px' }}>
+        <ReservationPage />
+      </div>
+            ) : showReservationForm ? (
+              <div style={{ height: '100%', padding: '16px' }}>
+                <ReservationFormPage />
               </div>
-
-              {loadingCheckoutAlert ? (
-                <div className="d-flex justify-content-center py-5">
-                  <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
-                </div>
-              ) : errorCheckoutAlert ? (
-                <div className="text-center py-5">
-                  <i className="fi fi-rr-exclamation text-danger fs-4 mb-3 d-block"></i>
-                  <p className="text-danger">{errorCheckoutAlert}</p>
-                  <Button variant="outline-primary" onClick={fetchTodayCheckouts}>Retry</Button>
-                </div>
-              ) : checkoutAlertData.length === 0 ? (
-                <div className="text-center py-5">
-                  <i className="fi fi-rr-calendar text-muted fs-4 mb-3 d-block"></i>
-                  <p className="text-muted mb-0">No checkouts scheduled for today.</p>
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="checkout-table">
-                    <thead>
-                      <tr>
-                        <th>Sr. No.</th><th>Room No</th><th>Guest Name</th><th>Category</th>
-                        <th>Adults</th><th>Pax</th><th>Ex-Pax</th><th>Child</th><th>Driver</th>
-                        <th>Total Days</th><th>Total Amount</th><th>Reg No</th>
-                        <th>Booking Ref</th><th>Plan Name</th>
-                        <th>Check-out Date & Time</th><th>Check-in Date & Time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {checkoutAlertData.map((item) => {
-                        const minutesLeft = item.minutesLeft ?? getMinutesLeft(item.checkoutDatetime)
-                        const isNear = minutesLeft <= 30 && minutesLeft > 0
-                        const isExpired = minutesLeft <= 0
-                        const cellClass = isExpired ? '' : isNear ? 'text-red' : ''
-                        return (
-                          <tr key={item.srNo}>
-                            <td className={cellClass}>{item.srNo}</td>
-                            <td className={cellClass}>{item.roomNo}</td>
-                            <td className={cellClass}>{item.guestName}</td>
-                            <td className={cellClass}>{item.category}</td>
-                            <td className={cellClass}>{item.adults}</td>
-                            <td className={cellClass}>{item.pax}</td>
-                            <td className={cellClass}>{item.exPax}</td>
-                            <td className={cellClass}>{item.child}</td>
-                            <td className={cellClass}>{item.driver}</td>
-                            <td className={cellClass}>{item.totalNights ?? '-'}</td>
-                            <td className={cellClass}>{formatAmount(item.totalAmount || item.totalPrice)}</td>
-                            <td className={cellClass}>{item.regNo || '-'}</td>
-                            <td className={cellClass}>{item.booking || '-'}</td>
-                            <td className={cellClass}>{item.planName || '-'}</td>
-                            <td className={cellClass}>
-                              {formatDateTime(item.checkoutDatetime)}
-                              {isExpired && ' ⚠️ Expired'}
-                              {isNear && !isExpired && ` (${minutesLeft} min left)`}
-                            </td>
-                            <td className={cellClass}>{formatDateTime(item.checkinDatetime)}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-  ) : statusFilter === 'occupied' ? (
-  /* Occupied Rooms Grid */
-  loadingOccupied && occupiedRooms.length === 0 ? (
-    <div className="d-flex justify-content-center align-items-center py-5">
-      <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
-    </div>
-  ) : errorOccupied ? (
-    <div className="text-center py-5">
-      <i className="fi fi-rr-exclamation text-danger fs-4 mb-3 d-block"></i>
-      <p className="text-danger">{errorOccupied}</p>
-      <Button variant="outline-primary" size="sm" onClick={() => fetchOccupiedRoomsData()}>Retry</Button>
-    </div>
-  ) : occupiedRooms.length === 0 ? (
-    <div className="text-center py-5">
-      <i className="fi fi-rr-bed-empty text-muted fs-4 mb-4 d-block"></i>
-      <p className="text-muted mb-0">No occupied rooms found.</p>
-    </div>
-  ) : (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '6px', alignContent: 'start', padding: '0 8px', width: '100%' }}>
-      {occupiedRooms.map((item) => {
-        const checkoutTime = item.checkout_datetime || item.latest_charge_checkout_datetime || new Date().toISOString();
-        const minutesLeft = getMinutesLeft(checkoutTime);
-        
-        // ✅ Check if it's a Bill room (status_id: 7)
-        const isBillRoom = item.room_status_id === 7;
-        
-        // ✅ For non-Bill rooms - check if within 1 hour or expired
-        const isExpired = !isBillRoom && minutesLeft <= 0;
-        const isNear = !isBillRoom && minutesLeft <= 60 && minutesLeft > 0;
-        
-        // ✅ Determine colors based on status
-        let backgroundColor, borderColor, textColor, headerColor;
-        
-        if (isBillRoom) {
-          // ✅ For Bill rooms - use status_color from the item (from backend)
-          // If status_color exists, use it; otherwise use default color_bill
-          backgroundColor = item.status_color || uiSettings.color_bill || '#f59999';
-          borderColor = backgroundColor;
-          // ✅ Use contrast color for text based on background
-          textColor = getContrastColor(backgroundColor);
-          headerColor = '#8B0000';
-        } else if (isExpired) {
-          // ✅ DARK RED for expired rooms (non-Bill)
-          backgroundColor = uiSettings.occupied_expired_bg || '#E03F4F';
-          borderColor = uiSettings.occupied_expired_bg || '#E03F4F';
-          textColor = uiSettings.occupied_expired_text || '#ffffff';
-          headerColor = '#4a0000';
-        } else if (isNear) {
-          // ✅ FAINT RED for near checkout (within 1 hour)
-          const opacity = 0.2 + ((60 - minutesLeft) / 60) * 0.5;
-          backgroundColor = `rgba(255, 0, 0, ${opacity})`;
-          borderColor = '#ff4444';
-          textColor = '#000000';
-          headerColor = '#8B0000';
-        } else {
-          // ✅ NORMAL OCCUPIED - Green
-          backgroundColor = uiSettings.color_occupied || '#DFF5E1';
-          borderColor = '#4ADE80';
-          textColor = uiSettings.text_color_occupied || '#16A34A';
-          headerColor = '#000000';
-        }
-        
-        const netRoomAmount = item.net_room_amount ?? 0;
-        const netAllRoomsAmount = item.total_all_rooms_net ?? 0;
-        const pendingAdvance = item.pending_advance_for_room || 0;
-        const bookingType = item.booking_type || 'WALK-IN-GUEST';
-        const totalAllowances = item.total_allowances || 0;
-        const leftIsNegative = netRoomAmount < 0;
-
-        return (
-          <div
-            key={`${item.checkin_id}-${item.room_no}`}
-            className={`occupied-tile ${isNear ? 'occupied-tile-checkout-near' : ''} ${isExpired ? 'occupied-tile-expired' : ''}`}
-            onClick={() => handleOccupiedRoomClick(item)}
-            onContextMenu={(e) => handleContextMenu(e, item)}
-            style={{ 
-              border: `2px solid ${borderColor}`,
-              backgroundColor: backgroundColor,
-            }}>
-            <div className="occupied-header" style={{ 
-              backgroundColor: headerColor,
-              color: '#ffffff',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <span>{item.room_no} {item.guest_name || 'Unknown Guest'}</span>
-              {/* ✅ Show BILL badge for Bill rooms */}
-              {isBillRoom && (
-                <span className="badge" style={{ 
-                  backgroundColor: '#ff6b00', 
-                  color: '#fff',
-                  fontSize: '0.6rem',
-                  padding: '2px 6px',
-                  borderRadius: '4px'
-                }}>BILL</span>
-              )}
-              {isExpired && !isBillRoom && (
-                <span className="badge" style={{ 
-                  backgroundColor: '#ff0000', 
-                  color: '#fff',
-                  fontSize: '0.6rem',
-                  padding: '2px 6px',
-                  borderRadius: '4px'
-                }}>EXPIRED</span>
-              )}
-              {isNear && !isExpired && !isBillRoom && (
-                <span className="badge" style={{ 
-                  backgroundColor: '#ff6600', 
-                  color: '#fff',
-                  fontSize: '0.6rem',
-                  padding: '2px 6px',
-                  borderRadius: '4px'
-                }}>{minutesLeft}m</span>
-              )}
-            </div>
-            <div className="occupied-body" style={{ 
-              backgroundColor: backgroundColor, 
-              color: textColor 
-            }}>
-              <div>IN : {formatDateTime(item.checkin_datetime || '')}</div>
-              <div>OUT : {formatDateTime(item.checkout_datetime || item.latest_charge_checkout_datetime || '')}</div>
-              <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : (item.guest_type || 'WALK-IN-GUEST')}</div>
-              <div className="charges-line">
-                <span style={{ 
-                  color: isExpired ? '#ffffff' : (isBillRoom ? getContrastColor(backgroundColor) : '#000'), 
-                  fontWeight: leftIsNegative || pendingAdvance > 0 ? 600 : 'normal' 
-                }}>
-                  {formatAmount(netRoomAmount)}
-                </span>
-                <span style={{ color: isExpired ? '#ffffff' : (isBillRoom ? getContrastColor(backgroundColor) : '#000') }}>
-                  {formatAmount(netAllRoomsAmount)}
-                </span>
+            ) : showReservationSummary ? (
+              <div style={{ height: '100%', padding: '16px' }}>
+                <ReservationSummaryPage />
               </div>
-              {totalAllowances > 0 && (
-                <div style={{ 
-                  fontSize: '0.6rem', 
-                  color: isExpired ? '#ffcccc' : (isBillRoom ? getContrastColor(backgroundColor) : '#c0392b'), 
-                  fontWeight: 600, 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  marginTop: '1px' 
-                }}>
-                  <span>Alw: -{formatAmount(totalAllowances)}</span>
-                  <span>Net: {formatAmount(netRoomAmount)}</span>
-                </div>
-              )}
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                fontSize: '0.65rem',
-                color: isExpired ? '#ffcccc' : (isBillRoom ? getContrastColor(backgroundColor) : 'inherit')
-              }}>
-                <span>
-                  {(item.original_pax ?? item.adults) || 0}
-                  <span style={{ opacity: 0.5 }}>:</span>{item.ex_pax || 0}
-                  <span style={{ opacity: 0.5 }}>:</span>{item.child_count || 0}
-                  <span style={{ opacity: 0.5 }}>:</span>{item.driver_count || 0}
-                </span>
-                <span>| {item.payment_method || 'Cash'}</span>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  )
-
-          ) : filteredRooms.length === 0 ? (
-            <div className="text-center py-5">
-              <i className="fi fi-rr-search text-muted fs-4 mb-4 d-block"></i>
-              <p className="text-muted mb-0">No rooms found</p>
-              <Button variant="outline-primary" size="sm" onClick={resetFilters} className="mt-2">Reset Filters</Button>
-            </div>
-
-          ) : (
-            /* Room tiles grid */
-            <div className="d-flex flex-column">
-              {activeGroups.map((group) => (
-                <div key={group.id} className="d-flex align-items-stretch gap-1 p-1 bg-white" style={{ border: '1px solid lightgray' }}>
-                  {uiSettings.show_left_category && (
-                    <div className="group-box me-1" style={{ minWidth: '100px' }}>
-                      <div>
-                        <span className="fw-bold">{group.name}</span>
-                        <br />
-                        <span>{group.rooms.length}</span>
-                      </div>
-                    </div>
-                  )}
-                  <div className="d-flex flex-wrap gap-1 flex-grow-1">
-                    {group.rooms.map((room) => {
-                      const occupiedItem = isOccupied(room)
-                        ? occupiedRooms.find((occ) => occ.room_no === room.number)
-                        : null
-                      const isExpiredTile = occupiedItem?.isExpired ?? false
-                      
-                      const tileBg = room.backgroundColor
-                      const tileColor = room.textColor
-                      const tileBorder = room.borderColor
-                      const isSelectable = isVacant(room) && !isExpiredTile
-
-                      return (
-                        <div
-                          key={room.id}
-                          className={`d-flex flex-column align-items-center justify-content-center p-1 shadow-sm room-tile room-tile-${boxSizeClass}`}
-                          style={{
-                            cursor: isExpiredTile ? 'not-allowed' : 'pointer',
-                            backgroundColor: tileBg,
-                            color: tileColor,
-                            border: `1px solid ${tileBorder}`,
-                            opacity: isExpiredTile ? 0.85 : 1,
-                          }}
-                          title={isExpiredTile ? 'Checkout time has expired' : room.statusName}
-                          onClick={isExpiredTile ? undefined : () => handleRoomTileClick(room)}
-                          onContextMenu={isExpiredTile ? undefined : (e) => {
-                            if (isOccupied(room)) {
-                              if (occupiedItem) { e.preventDefault(); handleContextMenu(e, occupiedItem) }
-                            } else {
-                              e.preventDefault()
-                              handleRoomStatusChangeRequest(room)
-                            }
-                          }}>
-                          <input
-                            type="checkbox"
-                            className="room-checkbox"
-                            checked={isRoomSelected(room.id)}
-                            disabled={!isSelectable}
-                            title={
-                              isExpiredTile ? 'Checkout time has expired'
-                              : !isVacant(room) ? 'Only vacant rooms can be selected for check-in'
-                              : 'Select for check-in'
-                            }
-                            onChange={(e) => { e.stopPropagation(); toggleRoomSelection(room.id) }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <div className="fw-bold">{room.number}</div>
-                          {showSubtext && (
-                            <div className="small">{viewMode === 'category' ? room.floor : room.category}</div>
-                          )}
-                        </div>
-                      )
-                    })}
+            ) : showCheckoutAlertTable ? (
+              <div className="checkout-table-container d-flex flex-column" style={{ width: '100%' }}>
+                <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                  <h6 className="mb-0 fw-bold">
+                    <i className="fi fi-rr-calendar-check me-2 text-warning"></i>
+                    Today's Checkouts —{' '}
+                    {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </h6>
+                  <div className="d-flex align-items-center gap-2">
+                    <Button variant="success" size="sm" className="fw-normal px-3"
+                      onClick={() => handlePrintTable('.checkout-table', "Today's Checkouts")}>
+                      <i className="fi fi-rr-print me-1"></i>Print
+                    </Button>
+                    <Dropdown>
+                      <Dropdown.Toggle variant="primary" size="sm" className="fw-normal px-2">
+                        <i className="fi fi-rr-download me-1"></i>Export
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item onClick={() => exportTableToPdf('.checkout-table', "Today's Checkouts", 'todays-checkouts.pdf')}>
+                          <i className="fi fi-rr-file-pdf me-2"></i>PDF
+                        </Dropdown.Item>
+                        <Dropdown.Item onClick={() => exportCheckoutToExcel(checkoutAlertData, 'todays_checkouts.xlsx')}>
+                          <i className="fi fi-rr-file-excel me-2"></i>Excel
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+
+                {loadingCheckoutAlert ? (
+                  <div className="d-flex justify-content-center py-5">
+                    <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
+                  </div>
+                ) : errorCheckoutAlert ? (
+                  <div className="text-center py-5">
+                    <i className="fi fi-rr-exclamation text-danger fs-4 mb-3 d-block"></i>
+                    <p className="text-danger">{errorCheckoutAlert}</p>
+                    <Button variant="outline-primary" onClick={fetchTodayCheckouts}>Retry</Button>
+                  </div>
+                ) : checkoutAlertData.length === 0 ? (
+                  <div className="text-center py-5">
+                    <i className="fi fi-rr-calendar text-muted fs-4 mb-3 d-block"></i>
+                    <p className="text-muted mb-0">No checkouts scheduled for today.</p>
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="checkout-table">
+                      <thead>
+                        <tr>
+                          <th>Sr. No.</th><th>Room No</th><th>Guest Name</th><th>Category</th>
+                          <th>Adults</th><th>Pax</th><th>Ex-Pax</th><th>Child</th><th>Driver</th>
+                          <th>Total Days</th><th>Total Amount</th><th>Reg No</th>
+                          <th>Booking Ref</th><th>Plan Name</th>
+                          <th>Check-out Date & Time</th><th>Check-in Date & Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {checkoutAlertData.map((item) => {
+                          const minutesLeft = item.minutesLeft ?? getMinutesLeft(item.checkoutDatetime)
+                          const isNear = minutesLeft <= 30 && minutesLeft > 0
+                          const isExpired = minutesLeft <= 0
+                          const cellClass = isExpired ? '' : isNear ? 'text-red' : ''
+                          return (
+                            <tr key={item.srNo}>
+                              <td className={cellClass}>{item.srNo}</td>
+                              <td className={cellClass}>{item.roomNo}</td>
+                              <td className={cellClass}>{item.guestName}</td>
+                              <td className={cellClass}>{item.category}</td>
+                              <td className={cellClass}>{item.adults}</td>
+                              <td className={cellClass}>{item.pax}</td>
+                              <td className={cellClass}>{item.exPax}</td>
+                              <td className={cellClass}>{item.child}</td>
+                              <td className={cellClass}>{item.driver}</td>
+                              <td className={cellClass}>{item.totalNights ?? '-'}</td>
+                              <td className={cellClass}>{formatAmount(item.totalAmount || item.totalPrice)}</td>
+                              <td className={cellClass}>{item.regNo || '-'}</td>
+                              <td className={cellClass}>{item.booking || '-'}</td>
+                              <td className={cellClass}>{item.planName || '-'}</td>
+                              <td className={cellClass}>
+                                {formatDateTime(item.checkoutDatetime)}
+                                {isExpired && ' ⚠️ Expired'}
+                                {isNear && !isExpired && ` (${minutesLeft} min left)`}
+                              </td>
+                              <td className={cellClass}>{formatDateTime(item.checkinDatetime)}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : statusFilter === 'occupied' ? (
+              loadingOccupied && occupiedRooms.length === 0 ? (
+                <div className="d-flex justify-content-center align-items-center py-5">
+                  <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
+                </div>
+              ) : errorOccupied ? (
+                <div className="text-center py-5">
+                  <i className="fi fi-rr-exclamation text-danger fs-4 mb-3 d-block"></i>
+                  <p className="text-danger">{errorOccupied}</p>
+                  <Button variant="outline-primary" size="sm" onClick={() => fetchOccupiedRoomsData()}>Retry</Button>
+                </div>
+              ) : occupiedRooms.length === 0 ? (
+                <div className="text-center py-5">
+                  <i className="fi fi-rr-bed-empty text-muted fs-4 mb-4 d-block"></i>
+                  <p className="text-muted mb-0">No occupied rooms found.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '6px', alignContent: 'start', padding: '0 8px', width: '100%' }}>
+                  {occupiedRooms.map((item) => {
+                    const checkoutTime = item.checkout_datetime || item.latest_charge_checkout_datetime || new Date().toISOString();
+                    const minutesLeft = getMinutesLeft(checkoutTime);
+                    
+                    const isBillRoom = item.room_status_id === 7;
+                    const isExpired = !isBillRoom && minutesLeft <= 0;
+                    const isNear = !isBillRoom && minutesLeft <= 60 && minutesLeft > 0;
+                    
+                    let backgroundColor, borderColor, textColor, headerColor;
+                    
+                    if (isBillRoom) {
+                      backgroundColor = item.status_color || uiSettings.color_bill || '#f59999';
+                      borderColor = backgroundColor;
+                      textColor = getContrastColor(backgroundColor);
+                      headerColor = '#8B0000';
+                    } else if (isExpired) {
+                      backgroundColor = uiSettings.occupied_expired_bg || '#E03F4F';
+                      borderColor = uiSettings.occupied_expired_bg || '#E03F4F';
+                      textColor = uiSettings.occupied_expired_text || '#ffffff';
+                      headerColor = '#4a0000';
+                    } else if (isNear) {
+                      const opacity = 0.2 + ((60 - minutesLeft) / 60) * 0.5;
+                      backgroundColor = `rgba(255, 0, 0, ${opacity})`;
+                      borderColor = '#ff4444';
+                      textColor = '#000000';
+                      headerColor = '#8B0000';
+                    } else {
+                      backgroundColor = uiSettings.color_occupied || '#DFF5E1';
+                      borderColor = '#4ADE80';
+                      textColor = uiSettings.text_color_occupied || '#16A34A';
+                      headerColor = '#000000';
+                    }
+                    
+                    const netRoomAmount = item.net_room_amount ?? 0;
+                    const netAllRoomsAmount = item.total_all_rooms_net ?? 0;
+                    const pendingAdvance = item.pending_advance_for_room || 0;
+                    const bookingType = item.booking_type || 'WALK-IN-GUEST';
+                    const totalAllowances = item.total_allowances || 0;
+                    const leftIsNegative = netRoomAmount < 0;
+
+                    return (
+                      <div
+                        key={`${item.checkin_id}-${item.room_no}`}
+                        className={`occupied-tile ${isNear ? 'occupied-tile-checkout-near' : ''} ${isExpired ? 'occupied-tile-expired' : ''}`}
+                        onClick={() => handleOccupiedRoomClick(item)}
+                        onContextMenu={(e) => handleContextMenu(e, item)}
+                        style={{ 
+                          border: `2px solid ${borderColor}`,
+                          backgroundColor: backgroundColor,
+                        }}>
+                        <div className="occupied-header" style={{ 
+                          backgroundColor: headerColor,
+                          color: '#ffffff',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <span>{item.room_no} {item.guest_name || 'Unknown Guest'}</span>
+                          {isBillRoom && (
+                            <span className="badge" style={{ 
+                              backgroundColor: '#ff6b00', 
+                              color: '#fff',
+                              fontSize: '0.6rem',
+                              padding: '2px 6px',
+                              borderRadius: '4px'
+                            }}>BILL</span>
+                          )}
+                          {isExpired && !isBillRoom && (
+                            <span className="badge" style={{ 
+                              backgroundColor: '#ff0000', 
+                              color: '#fff',
+                              fontSize: '0.6rem',
+                              padding: '2px 6px',
+                              borderRadius: '4px'
+                            }}>EXPIRED</span>
+                          )}
+                          {isNear && !isExpired && !isBillRoom && (
+                            <span className="badge" style={{ 
+                              backgroundColor: '#ff6600', 
+                              color: '#fff',
+                              fontSize: '0.6rem',
+                              padding: '2px 6px',
+                              borderRadius: '4px'
+                            }}>{minutesLeft}m</span>
+                          )}
+                        </div>
+                        <div className="occupied-body" style={{ 
+                          backgroundColor: backgroundColor, 
+                          color: textColor 
+                        }}>
+                          <div>IN : {formatDateTime(item.checkin_datetime || '')}</div>
+                          <div>OUT : {formatDateTime(item.checkout_datetime || item.latest_charge_checkout_datetime || '')}</div>
+                          <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : (item.guest_type || 'WALK-IN-GUEST')}</div>
+                          <div className="charges-line">
+                            <span style={{ 
+                              color: isExpired ? '#ffffff' : (isBillRoom ? getContrastColor(backgroundColor) : '#000'), 
+                              fontWeight: leftIsNegative || pendingAdvance > 0 ? 600 : 'normal' 
+                            }}>
+                              {formatAmount(netRoomAmount)}
+                            </span>
+                            <span style={{ color: isExpired ? '#ffffff' : (isBillRoom ? getContrastColor(backgroundColor) : '#000') }}>
+                              {formatAmount(netAllRoomsAmount)}
+                            </span>
+                          </div>
+                          {totalAllowances > 0 && (
+                            <div style={{ 
+                              fontSize: '0.6rem', 
+                              color: isExpired ? '#ffcccc' : (isBillRoom ? getContrastColor(backgroundColor) : '#c0392b'), 
+                              fontWeight: 600, 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              marginTop: '1px' 
+                            }}>
+                              <span>Alw: -{formatAmount(totalAllowances)}</span>
+                              <span>Net: {formatAmount(netRoomAmount)}</span>
+                            </div>
+                          )}
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            fontSize: '0.65rem',
+                            color: isExpired ? '#ffcccc' : (isBillRoom ? getContrastColor(backgroundColor) : 'inherit')
+                          }}>
+                            <span>
+                              {(item.original_pax ?? item.adults) || 0}
+                              <span style={{ opacity: 0.5 }}>:</span>{item.ex_pax || 0}
+                              <span style={{ opacity: 0.5 }}>:</span>{item.child_count || 0}
+                              <span style={{ opacity: 0.5 }}>:</span>{item.driver_count || 0}
+                            </span>
+                            <span>| {item.payment_method || 'Cash'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : filteredRooms.length === 0 ? (
+              <div className="text-center py-5">
+                <i className="fi fi-rr-search text-muted fs-4 mb-4 d-block"></i>
+                <p className="text-muted mb-0">No rooms found</p>
+                <Button variant="outline-primary" size="sm" onClick={resetFilters} className="mt-2">Reset Filters</Button>
+              </div>
+            ) : (
+              <div className="d-flex flex-column">
+                {activeGroups.map((group) => (
+                  <div key={group.id} className="d-flex align-items-stretch gap-1 p-1 bg-white" style={{ border: '1px solid lightgray' }}>
+                    {uiSettings.show_left_category && (
+                      <div className="group-box me-1" style={{ minWidth: '100px' }}>
+                        <div>
+                          <span className="fw-bold">{group.name}</span>
+                          <br />
+                          <span>{group.rooms.length}</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="d-flex flex-wrap gap-1 flex-grow-1">
+                      {group.rooms.map((room) => {
+                        const occupiedItem = isOccupied(room)
+                          ? occupiedRooms.find((occ) => occ.room_no === room.number)
+                          : null
+                        const isExpiredTile = occupiedItem?.isExpired ?? false
+                        
+                        const tileBg = room.backgroundColor
+                        const tileColor = room.textColor
+                        const tileBorder = room.borderColor
+                        const isSelectable = isVacant(room) && !isExpiredTile
+
+                        return (
+                          <div
+                            key={room.id}
+                            className={`d-flex flex-column align-items-center justify-content-center p-1 shadow-sm room-tile room-tile-${boxSizeClass}`}
+                            style={{
+                              cursor: isExpiredTile ? 'not-allowed' : 'pointer',
+                              backgroundColor: tileBg,
+                              color: tileColor,
+                              border: `1px solid ${tileBorder}`,
+                              opacity: isExpiredTile ? 0.85 : 1,
+                            }}
+                            title={isExpiredTile ? 'Checkout time has expired' : room.statusName}
+                            onClick={isExpiredTile ? undefined : () => handleRoomTileClick(room)}
+                            onContextMenu={isExpiredTile ? undefined : (e) => {
+                              if (isOccupied(room)) {
+                                if (occupiedItem) { e.preventDefault(); handleContextMenu(e, occupiedItem) }
+                              } else {
+                                e.preventDefault()
+                                handleRoomStatusChangeRequest(room)
+                              }
+                            }}>
+                            <input
+                              type="checkbox"
+                              className="room-checkbox"
+                              checked={isRoomSelected(room.id)}
+                              disabled={!isSelectable}
+                              title={
+                                isExpiredTile ? 'Checkout time has expired'
+                                : !isVacant(room) ? 'Only vacant rooms can be selected for check-in'
+                                : 'Select for check-in'
+                              }
+                              onChange={(e) => { e.stopPropagation(); toggleRoomSelection(room.id) }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div className="fw-bold">{room.number}</div>
+                            {showSubtext && (
+                              <div className="small">{viewMode === 'category' ? room.floor : room.category}</div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
         </div>
 
-      {/* ===== FOOTER ===== */}
+        {/* ===== FOOTER ===== */}
         <div className="flex-shrink-0 bg-white border-top p-2">
-
           <div className="d-flex flex-wrap gap-2 align-items-center">
             <Button size="sm" variant="danger" className="fw-semibold px-4">Summary</Button>
             <Button size="sm" variant="secondary" className="fw-semibold px-4" onClick={() => navigate('/hotel/report')}>
@@ -2310,22 +1970,21 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
       {/* ===== MODALS ===== */}
 
       <DayExtendModal
-  show={extendDayModal.show}
-  occupiedItem={extendDayModal.occupiedItem}
-  siblingRooms={extendDayModal.siblingRooms}
-  extending={extendDayModal.loading || false}
-  onHide={() => setExtendDayModal({ 
-    show: false, 
-    occupiedItem: null, 
-    siblingRooms: [],
-    room: null,
-    checkin: null,
-    loading: false 
-  })}
-  onExtend={handleExtendDay}
-/>
+        show={extendDayModal.show}
+        occupiedItem={extendDayModal.occupiedItem}
+        siblingRooms={extendDayModal.siblingRooms}
+        extending={extendDayModal.loading || false}
+        onHide={() => setExtendDayModal({ 
+          show: false, 
+          occupiedItem: null, 
+          siblingRooms: [],
+          room: null,
+          checkin: null,
+          loading: false 
+        })}
+        onExtend={handleExtendDay}
+      />
 
-    
       <DisplaySettings
         show={showSettings}
         onHide={() => setShowSettings(false)}
@@ -2335,7 +1994,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
         savingSettings={savingSettings}
       />
 
-      {/* Context Menu */}
       {showContextMenu && contextMenuItem && (
         <div id="custom-context-menu" ref={contextMenuRef}
           style={{ position: 'fixed', top: contextMenuPos.y, left: contextMenuPos.x, backgroundColor: '#eeeeee', border: '1px solid #ccc', boxShadow: '0 2px 10px rgba(0,0,0,0.2)', zIndex: 1050, minWidth: 200, padding: '4px 0', borderRadius: 4 }}
@@ -2408,7 +2066,6 @@ const handleOccupiedRoomClick = (item: OccupiedRoomItem) => {
         />
       )}
 
-      
       <RoomStatusModal
         show={showMultiRoomStatusModal}
         onHide={() => setShowMultiRoomStatusModal(false)}

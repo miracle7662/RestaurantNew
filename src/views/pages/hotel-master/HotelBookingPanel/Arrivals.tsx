@@ -7,8 +7,8 @@ import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import TitleHelmet from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
-import CheckInService from '@/common/hotel/checkIn'
-import DetailService from '@/common/hotel/detail'
+import ReservationService from '@/common/hotel/reservation'
+import ReservationRoomService from '@/common/hotel/reservationRooms'
 
 interface ArrivalTableRow {
   reservation_id: number
@@ -29,6 +29,13 @@ interface ArrivalTableRow {
   driver_count: number
   total_amount: number
   nights: number
+  // Additional fields from reservation
+  reservation_name?: string
+  email?: string
+  booking_source?: string
+  status?: string
+  room_id?: number
+  room_no?: string
 }
 
 const formatAmount = (amt: number): string => {
@@ -48,100 +55,137 @@ const Arrivals = () => {
   const [loading, setLoading] = useState(false)
 
   const fetchArrivalTableData = async (filterDate?: string) => {
-    if (!hotelId) return
+    if (!hotelId) {
+      toast.error('Hotel ID not found')
+      return
+    }
+    
     setLoading(true)
     try {
-      const todayStr = filterDate || new Date().toISOString().slice(0, 10)
-      console.log('[Arrivals] fetchArrivalTableData hotelId=', hotelId, 'arrivalDate=', todayStr)
-
-
-      // Check-ins = only active check-ins where DATE(checkin_datetime) matches selected date
-      const res = await CheckInService.list({ hotelid: hotelId })
-      const checkins: any[] = res.data || []
-      console.log('[Arrivals] total checkins=', checkins.length)
-
-
-      const activeTodayCheckins = checkins.filter((c: any) => {
-        const dt = c.checkin_datetime ? String(c.checkin_datetime) : ''
-        const datePart = dt.length >= 10 ? dt.slice(0, 10) : ''
-        return datePart === todayStr && c.status === 'active'
+      // Fetch all reservations for the hotel
+      const res = await ReservationService.list({ 
+        hotelid: hotelId,
+        // Add any additional filters if needed
       })
-      const dateMatchCount = checkins.filter((c: any) => {
-        const dt = c.checkin_datetime ? String(c.checkin_datetime) : ''
-        const datePart = dt.length >= 10 ? dt.slice(0, 10) : ''
-        return datePart === todayStr
-      }).length
-      const statusActiveCount = checkins.filter((c: any) => c.status === 'active').length
-      console.log('[Arrivals] dateMatchCount=', dateMatchCount, 'statusActiveCount=', statusActiveCount, 'activeTodayCheckins=', activeTodayCheckins.length)
+      
+      const reservations: any[] = res.data || []
+      const todayStr = filterDate || new Date().toISOString().slice(0, 10)
 
+      // Filter reservations by arrival date
+      const todayArrivals = reservations.filter((r: any) => {
+        const arrival = r.arrival_date ? String(r.arrival_date).slice(0, 10) : ''
+        return arrival === todayStr
+      })
+
+      if (todayArrivals.length === 0) {
+        setArrivalTableData([])
+        setLoading(false)
+        return
+      }
 
       const rows: ArrivalTableRow[] = []
 
-      for (const ci of activeTodayCheckins) {
-        // Room-wise rows from details table
-        const detailsRes = await DetailService.list({ checkin_id: ci.checkin_id, hotelid: hotelId })
-        const details: any[] = detailsRes.data || []
-
-        // Exclude checked-out detail rows if present
-        const activeDetails = details.filter((d: any) => d.is_checkout === 0 || d.is_checkout === null || d.is_checkout === undefined)
-
-        if (activeDetails.length === 0) {
-          // still show master info as 1 row
-          rows.push({
-            reservation_id: ci.checkin_id,
-            reservation_no: ci.reg_no || '-',
-            guest_name: ci.guest_name || '-',
-            phone1: ci.mobile || '-',
-            room_category_name: '-',
-            converted_category_name: ci.converted_category || '-',
-            arrival_date: ci.checkin_datetime ? String(ci.checkin_datetime).slice(0, 10) : '',
-            arrival_time: ci.checkin_datetime ? String(ci.checkin_datetime).slice(11, 16) : '',
-            departure_date: ci.checkout_datetime ? String(ci.checkout_datetime).slice(0, 10) : '',
-            departure_time: ci.checkout_datetime ? String(ci.checkout_datetime).slice(11, 16) : '',
-            total_rooms: 0,
-            pax_price: 0,
-            pax_count: ci.pax || ci.adults || 0,
-            ex_pax_count: ci.ex_pax || 0,
-            child_count: (ci.child_paid || 0) + (ci.child_unpaid || 0),
-            driver_count: ci.driver || 0,
-            total_amount: ci.total_amount || 0,
-            nights: ci.total_nights || 0,
+      // Process each reservation
+      for (const r of todayArrivals) {
+        try {
+          // Fetch room details for each reservation
+          const roomRes = await ReservationRoomService.list({ 
+            reservation_id: r.reservation_id 
           })
-          continue
-        }
+          
+          const roomRows: any[] = roomRes?.data || []
 
-        for (const d of activeDetails) {
-          const noOfDays = Number(d.no_of_days) || 0
-          const roomTariff = Number(d.room_tariff) || 0
-          const totalAmt = Number(d.room_tariff) && noOfDays ? roomTariff * noOfDays : (Number(ci.total_amount) || 0)
-
+          if (roomRows.length === 0) {
+            // If no room data, create a row with reservation data only
+            rows.push({
+              reservation_id: r.reservation_id,
+              reservation_no: r.reservation_no || '-',
+              guest_name: r.reservation_name || r.guest_name || '-',
+              phone1: r.phone1 || r.phone || '-',
+              room_category_name: r.room_category_name || r.category_name || '-',
+              converted_category_name: r.converted_category_name || '-',
+              arrival_date: r.arrival_date || '',
+              arrival_time: r.arrival_time || '',
+              departure_date: r.departure_date || '',
+              departure_time: r.departure_time || '',
+              total_rooms: r.total_rooms || 1,
+              pax_price: r.pax_price || r.price || 0,
+              pax_count: r.pax_count || 0,
+              ex_pax_count: r.ex_pax_count || 0,
+              child_count: r.child_count || 0,
+              driver_count: r.driver_count || 0,
+              total_amount: r.total_amount || 0,
+              nights: r.nights || 0,
+              reservation_name: r.reservation_name || r.guest_name,
+              email: r.email,
+              booking_source: r.booking_source,
+              status: r.status,
+            })
+          } else {
+            // Process each room in the reservation
+            for (const rm of roomRows) {
+              rows.push({
+                reservation_id: r.reservation_id,
+                reservation_no: r.reservation_no || '-',
+                guest_name: r.reservation_name || r.guest_name || '-',
+                phone1: r.phone1 || r.phone || '-',
+                room_category_name: rm.room_category_name || rm.category_name || '-',
+                converted_category_name: rm.converted_category_name || '-',
+                arrival_date: r.arrival_date || '',
+                arrival_time: r.arrival_time || '',
+                departure_date: r.departure_date || '',
+                departure_time: r.departure_time || '',
+                total_rooms: rm.total_rooms || 1,
+                pax_price: rm.pax_price || rm.price || 0,
+                pax_count: rm.pax_count || 0,
+                ex_pax_count: rm.ex_pax_count || 0,
+                child_count: rm.child_count || 0,
+                driver_count: rm.driver_count || 0,
+                total_amount: rm.total_amount || 0,
+                nights: r.nights || 0,
+                room_id: rm.room_id,
+                room_no: rm.room_no,
+                reservation_name: r.reservation_name || r.guest_name,
+                email: r.email,
+                booking_source: r.booking_source,
+                status: r.status,
+              })
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching room data for reservation ${r.reservation_id}:`, error)
+          // Still add reservation data even if room fetch fails
           rows.push({
-            reservation_id: ci.checkin_id,
-            reservation_no: ci.reg_no || '-',
-            guest_name: ci.guest_name || '-',
-            phone1: ci.mobile || '-',
-            room_category_name: d.room_category_name || '-',
-            converted_category_name: d.converted_category_name || ci.converted_category || '-',
-            arrival_date: ci.checkin_datetime ? String(ci.checkin_datetime).slice(0, 10) : '',
-            arrival_time: ci.checkin_datetime ? String(ci.checkin_datetime).slice(11, 16) : '',
-            departure_date: ci.checkout_datetime ? String(ci.checkout_datetime).slice(0, 10) : '',
-            departure_time: ci.checkout_datetime ? String(ci.checkout_datetime).slice(11, 16) : '',
-            total_rooms: 1,
-            pax_price: roomTariff,
-            pax_count: ci.pax || ci.adults || 0,
-            ex_pax_count: ci.ex_pax || 0,
-            child_count: (ci.child_paid || 0) + (ci.child_unpaid || 0),
-            driver_count: ci.driver || 0,
-            total_amount: totalAmt,
-            nights: noOfDays,
+            reservation_id: r.reservation_id,
+            reservation_no: r.reservation_no || '-',
+            guest_name: r.reservation_name || r.guest_name || '-',
+            phone1: r.phone1 || r.phone || '-',
+            room_category_name: r.room_category_name || r.category_name || '-',
+            converted_category_name: r.converted_category_name || '-',
+            arrival_date: r.arrival_date || '',
+            arrival_time: r.arrival_time || '',
+            departure_date: r.departure_date || '',
+            departure_time: r.departure_time || '',
+            total_rooms: r.total_rooms || 1,
+            pax_price: r.pax_price || r.price || 0,
+            pax_count: r.pax_count || 0,
+            ex_pax_count: r.ex_pax_count || 0,
+            child_count: r.child_count || 0,
+            driver_count: r.driver_count || 0,
+            total_amount: r.total_amount || 0,
+            nights: r.nights || 0,
           })
         }
       }
 
+      // Sort by reservation_no if needed
+      rows.sort((a, b) => a.reservation_no.localeCompare(b.reservation_no))
+      
       setArrivalTableData(rows)
+      
     } catch (err) {
-      console.error('Failed to fetch arrival data', err)
-      toast.error('Failed to load arrivals')
+      console.error('Failed to fetch arrival data:', err)
+      toast.error('Failed to load arrivals. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -150,6 +194,11 @@ const Arrivals = () => {
   useEffect(() => {
     fetchArrivalTableData(arrivalDate)
   }, [arrivalDate, hotelId])
+
+  // Add refresh functionality
+  const handleRefresh = () => {
+    fetchArrivalTableData(arrivalDate)
+  }
 
   const exportToExcel = (data: ArrivalTableRow[], filename: string) => {
     const ws = XLSX.utils.json_to_sheet(
@@ -198,16 +247,19 @@ const Arrivals = () => {
     })
     printWindow.document.write(`
       <html>
-        <head><title>${hotel} - Arrivals</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .report-header { margin-bottom: 16px; }
-          .hotel-name-row { font-size: 18px; font-weight: bold; margin-bottom: 6px; }
-          .report-subheader { font-size: 13px; color: #555; }
-          table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-          th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-          th { background-color: #f2f2f2; }
-        </style>
+        <head>
+          <title>${hotel} - Arrivals</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .report-header { margin-bottom: 16px; }
+            .hotel-name-row { font-size: 18px; font-weight: bold; margin-bottom: 6px; }
+            .report-subheader { font-size: 13px; color: #555; }
+            table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+            th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .text-end { text-align: right; }
+            .text-center { text-align: center; }
+          </style>
         </head>
         <body>
           <div class="report-header">
@@ -239,7 +291,7 @@ const Arrivals = () => {
       wrapper.style.cssText =
         'background:#fff;padding:20px;width:1400px;margin:auto;font-family:Arial,sans-serif;'
       const style = document.createElement('style')
-      style.textContent = `table{width:100%;border-collapse:collapse;font-size:0.7rem;}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;}thead tr{background-color:#dfdfdf;font-weight:600;}.report-header{margin-bottom:16px;}.hotel-name-row{font-size:18px;font-weight:bold;margin-bottom:6px;}.report-subheader{font-size:13px;color:#555;}`
+      style.textContent = `table{width:100%;border-collapse:collapse;font-size:0.7rem;}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;}thead tr{background-color:#dfdfdf;font-weight:600;}.report-header{margin-bottom:16px;}.hotel-name-row{font-size:18px;font-weight:bold;margin-bottom:6px;}.report-subheader{font-size:13px;color:#555;}.text-end{text-align:right;}.text-center{text-align:center;}`
       wrapper.appendChild(style)
       const headerDiv = document.createElement('div')
       headerDiv.className = 'report-header'
@@ -251,6 +303,8 @@ const Arrivals = () => {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
+        width: 1400,
+        height: wrapper.scrollHeight,
       })
       document.body.removeChild(wrapper)
       const imgData = canvas.toDataURL('image/png')
@@ -280,8 +334,9 @@ const Arrivals = () => {
       <TitleHelmet title="Arrivals" />
       <div className="container-fluid p-3">
         <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <h4 className="mb-0">
-            <i className="fi fi-rr-plane-arrival me-2"></i> Today's Check-Ins
+          <h4 className="mb-0">
+            <i className="fi fi-rr-plane-arrival me-2"></i> Today's Arrivals
+            <span className="badge bg-primary ms-2">{arrivalTableData.length}</span>
           </h4>
           <div className="d-flex align-items-center gap-2">
             <Form.Control
@@ -291,6 +346,9 @@ const Arrivals = () => {
               onChange={(e) => setArrivalDate(e.target.value)}
               style={{ width: 'auto' }}
             />
+            <Button variant="outline-secondary" size="sm" onClick={handleRefresh}>
+              <i className="fi fi-rr-refresh me-1"></i> Refresh
+            </Button>
             <Button variant="success" size="sm" onClick={handlePrint}>
               <i className="fi fi-rr-print me-1"></i> Print
             </Button>
@@ -299,9 +357,11 @@ const Arrivals = () => {
                 <i className="fi fi-rr-download me-1"></i> Export
               </Dropdown.Toggle>
               <Dropdown.Menu>
-                <Dropdown.Item onClick={handlePdf}>PDF</Dropdown.Item>
+                <Dropdown.Item onClick={handlePdf}>
+                  <i className="fi fi-rr-file-pdf me-2"></i> PDF
+                </Dropdown.Item>
                 <Dropdown.Item onClick={() => exportToExcel(arrivalTableData, 'arrivals.xlsx')}>
-                  Excel
+                  <i className="fi fi-rr-file-excel me-2"></i> Excel
                 </Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown>
@@ -314,11 +374,14 @@ const Arrivals = () => {
         {arrivalTableData.length === 0 ? (
           <div className="text-center py-5">
             <i className="fi fi-rr-calendar text-muted fs-4 mb-3 d-block"></i>
-            <p className="text-muted mb-0">No arrivals for this date.</p>
+            <p className="text-muted mb-0">No arrivals found for {new Date(arrivalDate).toLocaleDateString('en-IN')}</p>
+            <Button variant="outline-primary" size="sm" className="mt-3" onClick={handleRefresh}>
+              Refresh Data
+            </Button>
           </div>
         ) : (
           <div className="table-responsive">
-            <table className="arrivals-table table table-bordered table-sm">
+            <table className="arrivals-table table table-bordered table-sm table-hover">
               <thead className="table-light">
                 <tr>
                   <th>#</th>
@@ -341,16 +404,28 @@ const Arrivals = () => {
               </thead>
               <tbody>
                 {arrivalTableData.map((r, idx) => (
-                  <tr key={`${r.reservation_id}-${idx}`}>
+                  <tr 
+                    key={`${r.reservation_id}-${idx}`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/reservations/${r.reservation_id}`)}
+                  >
                     <td>{idx + 1}</td>
-                    <td>{r.reservation_no}</td>
-                    <td>{r.guest_name}</td>
+                    <td>
+                      <span className="badge bg-secondary">{r.reservation_no}</span>
+                    </td>
+                    <td className="fw-semibold">{r.guest_name}</td>
                     <td>{r.phone1}</td>
                     <td>{r.room_category_name}</td>
                     <td>{r.converted_category_name}</td>
                     <td className="text-center">{r.nights || '-'}</td>
-                    <td>{r.arrival_date} {r.arrival_time}</td>
-                    <td>{r.departure_date} {r.departure_time}</td>
+                    <td>
+                      <div>{r.arrival_date}</div>
+                      <small className="text-muted">{r.arrival_time}</small>
+                    </td>
+                    <td>
+                      <div>{r.departure_date}</div>
+                      <small className="text-muted">{r.departure_time}</small>
+                    </td>
                     <td className="text-center">{r.total_rooms}</td>
                     <td className="text-end">{formatAmount(r.pax_price)}</td>
                     <td className="text-center">{r.pax_count}</td>
