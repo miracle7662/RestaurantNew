@@ -1074,7 +1074,7 @@ exports.extendStay = async (req, res) => {
         if (detailId) {
             await connection.execute(`
                 UPDATE checkin_detail_master 
-                SET is_checkout = 1, merged = 1, updated_by_id = ?, updated_date = ?
+                SET is_checkout = 0, merged = 1, updated_by_id = ?, updated_date = ?
                 WHERE detail_id = ? AND checkin_id = ?
             `, [userId, now, detailId, checkinId]);
             console.log(`[EXTEND] Marked detail ${detailId} as checked out`);
@@ -1505,7 +1505,7 @@ exports.extendDay = async (req, res) => {
         // ========== 7. MARK CURRENT DETAIL AS CHECKED OUT ==========
         await connection.execute(
             `UPDATE checkin_detail_master 
-             SET is_checkout = 1, 
+             SET is_checkout = 0, 
                  merged = 1, 
                  updated_by_id = ?, 
                  updated_date = ?
