@@ -1280,7 +1280,7 @@ const HotelBookingPanel = () => {
               <div className="d-flex flex-wrap gap-2">
                 <Button size="sm" variant={statusFilter === 'all' ? 'dark' : 'outline-dark'} className="fw-semibold px-3 same-btn"
                   onClick={() => handleStatusFilterClick('all')}>
-                  <i className="fi fi-rr-apps me-1"></i>ALL [{stats.total}]
+                  <i className="fi fi-rr-apps me-1"></i>ALL[{stats.total}]
                 </Button>
                 <Button size="sm" variant={statusFilter === 'available' ? 'success' : 'outline-success'} className="fw-semibold px-3 same-btn"
                   onClick={() => handleStatusFilterClick('available')}>
@@ -1308,10 +1308,8 @@ const HotelBookingPanel = () => {
                   }}>
                   <i className="fi fi-rr-lock me-1"></i>Block [{stats.cleaning + stats.reserved + stats.maintenance}]
                 </Button>
-  
-              
-
-
+             
+                
                 <Button
                   size="sm"
                   variant="outline-success"
@@ -1331,14 +1329,35 @@ const HotelBookingPanel = () => {
                 >
                   <i className="fi fi-rr-money-check me-1"></i>SETTLEMENT
                 </Button>
-
+                
               </div>
 
-              {/* Right-side quick actions */}
-              <div className="d-flex flex-wrap gap-2 align-items-center ms-auto">
-                <Button
-                  size="sm"
-                  variant="outline-info"
+              <div className="d-flex flex-wrap gap-2">
+                  <Button 
+  size="sm" 
+  variant={showReservationPage ? 'secondary' : 'outline-secondary'} 
+  className="fw-semibold px-3 same-btn"
+  onClick={() => {
+    setActiveHousekeepingTab(null)
+    setSelectedHousekeepingRoomIds([])
+    
+    // Close all other pages
+    setShowSettlementPage(false)
+    setShowArrivals(false)
+    setShowAtGlance(false)
+    setShowReservationForm(false)
+    setShowReservationSummary(false)
+    setActiveSection(null)
+    
+    // ✅ Simply toggle reservation page without changing status filter
+    setShowReservationPage(!showReservationPage)
+  }}
+>
+  <i className="fi fi-rr-calendar me-1"></i>RESERVATION [{stats.reservation}]
+</Button>
+                <Button 
+                  size="sm" 
+                  variant="outline-info" 
                   className="fw-semibold px-3 same-btn text-nowrap"
                   onClick={() => {
                     setActiveHousekeepingTab(null)
@@ -1355,32 +1374,6 @@ const HotelBookingPanel = () => {
                 >
                   <i className="fi fi-rr-plane-arrival me-1"></i>ARRIVALS
                 </Button>
-
-                <Button
-                  size="sm"
-                  variant={showReservationPage ? 'secondary' : 'outline-secondary'}
-                  className="fw-semibold px-3 same-btn text-nowrap"
-                  onClick={() => {
-                    setActiveHousekeepingTab(null)
-                    setSelectedHousekeepingRoomIds([])
-                    
-                    // Close all other pages
-                    setShowSettlementPage(false)
-                    setShowArrivals(false)
-                    setShowAtGlance(false)
-                    setShowReservationForm(false)
-                    setShowReservationSummary(false)
-                    setActiveSection(null)
-                    
-                    // ✅ Simply toggle reservation page without changing status filter
-                    setShowReservationPage(!showReservationPage)
-                  }}
-                >
-                  <i className="fi fi-rr-calendar me-1"></i>RESERVATION [{stats.reservation}]
-                </Button>
-
-                <div className="d-flex flex-wrap gap-2">
-
                 <Button 
                   size="sm" 
                   variant="outline-primary" 
@@ -1398,7 +1391,7 @@ const HotelBookingPanel = () => {
                     setStatusFilter('all')
                   }}
                 >
-                  AT GLANCE
+                  At Glance
                 </Button>
                 <Button size="sm" variant="outline-success" className="d-flex align-items-center justify-content-center same-btn"
                   onClick={() => setShowSettings(true)} title="Settings">
