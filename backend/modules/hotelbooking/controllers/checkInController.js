@@ -12,11 +12,30 @@ const formatDateTime = (dateTimeStr) => {
     if (!dateTimeStr) return null;
     const d = new Date(dateTimeStr);
     if (isNaN(d.getTime())) return null;
-    return d.toISOString().slice(0, 19).replace('T', ' ');
+    
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-// Helper to format date for MySQL
-const formatDate = (date) => date ? new Date(date).toISOString() : null;
+// Helper to format date for MySQL (KEEPS LOCAL DATE)
+const formatDate = (date) => {
+    if (!date) return null;
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return null;
+    
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+};
+
 
 // Helper to get value or null
 const getValueOrNull = (value) => value !== undefined && value !== null && value !== '' ? value : null;
