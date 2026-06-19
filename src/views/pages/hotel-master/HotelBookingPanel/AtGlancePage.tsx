@@ -15,6 +15,7 @@ interface AtGlanceItem {
   roomNo: string
   guest: string
   status: string
+  status_color?: string
   totalAmt: number
   groupAmt: number
   discountPercent: number
@@ -126,18 +127,17 @@ const AtGlance = () => {
       if (existing) {
         existing.count += 1
         // keep existing color (prefer first non-empty)
-        if (!existing.statusColor && (item as any).status_color) {
-          existing.statusColor = (item as any).status_color
+        if (!existing.statusColor && item.status_color) {
+          existing.statusColor = item.status_color
         }
       } else {
-       map.set(status, {
-  status,
-  count: 1,
-  statusColor: (item as any).status_color,
-})
+        map.set(status, {
+          status,
+          count: 1,
+          statusColor: item.status_color,
+        })
       }
     }
-
 
     return Array.from(map.values()).sort((a, b) => a.status.localeCompare(b.status))
   }, [atGlanceData])
@@ -189,11 +189,12 @@ const AtGlance = () => {
             (c as any).roomNo ||
             '',
 
-
           guest: (c as any).guest_name || '',
 
           // backend: rs.status_name AS status
           status: (c as any).status || (c as any).room_status || '',
+          
+          status_color: statusColor,
 
           // backend: total_room_amount as totalAmt (controller maps totalAmt)
           totalAmt:
@@ -532,7 +533,7 @@ const AtGlance = () => {
               {atGlanceData
                 .filter((item) => selectedStatus === 'All' || (item.status || '') === selectedStatus)
                 .map((item, idx) => {
-                  const rowStyle = getStatusStyle(item.status || '', (item as any).status_color)
+                  const rowStyle = getStatusStyle(item.status || '', item.status_color)
                   return (
                     <tr key={`${item.roomNo || 'room'}-${idx}`} style={rowStyle}>
 
@@ -570,4 +571,3 @@ const AtGlance = () => {
 }
 
 export default AtGlance
-

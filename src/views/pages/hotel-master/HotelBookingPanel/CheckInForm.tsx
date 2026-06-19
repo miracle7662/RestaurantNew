@@ -1847,20 +1847,38 @@ onSubmit: async (values) => {
     })
 
     // ---------- 4. Build folio_entries array ----------
-    const folioEntries = []
+  // ---------- 4. Build folio_entries array ----------
+const folioEntries: any[] = []
 
-    // Room charge folio entry (first day total)
-    const firstDayTotal = roomRows.reduce((sum, row) => sum + (row.totalAmount || 0) / totalNights, 0)
-    folioEntries.push({
-      hotel_id: hotelId,
-      transaction_type: 'Room Charges',
-      transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
-      description: `Room charges for Day 1 of ${totalNights} night(s)`,
-      debit_amount: firstDayTotal,
-      credit_amount: 0,
-      reference_number: null,
-      payment_method: values.paymentMethod,
-    })
+// One folio entry for each room
+roomRows.forEach((row) => {
+  folioEntries.push({
+    hotel_id: hotelId,
+    room_id: row.roomId, // ✅ Send room_id
+    transaction_type: 'Room Charges',
+    transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    description: `Room Charges - Room ${row.roomNumber} (Day 1 of ${totalNights} night(s))`,
+    debit_amount: (row.totalAmount || 0) / totalNights,
+    credit_amount: 0,
+    reference_number: null,
+    payment_method: values.paymentMethod,
+  })
+})
+
+// Payment entry (optional)
+if (values.receivedAmount && Number(values.receivedAmount) > 0) {
+  folioEntries.push({
+    hotel_id: hotelId,
+    room_id: roomRows[0].roomId, // or null if payment is common
+    transaction_type: 'Payment',
+    transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    description: 'Payment received at check-in',
+    debit_amount: 0,
+    credit_amount: Number(values.receivedAmount),
+    reference_number: '',
+    payment_method: values.paymentMethod,
+  })
+}
 
     // Payment folio entry if received amount > 0
     if (values.receivedAmount && Number(values.receivedAmount) > 0) {

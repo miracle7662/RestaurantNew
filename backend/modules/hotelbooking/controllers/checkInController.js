@@ -627,33 +627,47 @@ exports.addCheckin = async (req, res) => {
     }
 
     // ========== 4. FOLIO ENTRIES ==========
-    if (body.folio_entries && body.folio_entries.length) {
-      for (const fe of body.folio_entries) {
-        const folioCols = [
-          'checkin_id', 'hotel_id', 'detail_id', 'transaction_type',
-          'transaction_datetime', 'description', 'debit_amount', 'credit_amount',
-          'reference_number', 'payment_method', 'created_by_id', 'created_date'
-        ];
-        const folioVals = [
-          checkinId,
-          body.hotelid,
-          firstDetailId,
-          fe.transaction_type || 'Room Charges',
-          formatDateTime(fe.transaction_datetime) || now,
-          fe.description || '',
-          fe.debit_amount || 0,
-          fe.credit_amount || 0,
-          fe.reference_number || `CHK-${checkinId}`,
-          fe.payment_method || null,
-          userId,
-          now
-        ];
-        await connection.execute(
-          `INSERT INTO checkin_guest_folio_master (${folioCols.join(',')}) VALUES (${folioCols.map(()=>'?').join(',')})`,
-          folioVals
-        );
-      }
-    }
+   if (body.folio_entries && body.folio_entries.length) {
+  for (const fe of body.folio_entries) {
+    const folioCols = [
+      'checkin_id',
+      'hotel_id',
+      'detail_id',
+      'room_id',               // Added
+      'transaction_type',
+      'transaction_datetime',
+      'description',
+      'debit_amount',
+      'credit_amount',
+      'reference_number',
+      'payment_method',
+      'created_by_id',
+      'created_date'
+    ];
+
+    const folioVals = [
+      checkinId,
+      body.hotelid,
+      firstDetailId,
+      fe.room_id || body.room_id || null,   // Added
+      fe.transaction_type || 'Room Charges',
+      formatDateTime(fe.transaction_datetime) || now,
+      fe.description || '',
+      fe.debit_amount || 0,
+      fe.credit_amount || 0,
+      fe.reference_number || `CHK-${checkinId}`,
+      fe.payment_method || null,
+      userId,
+      now
+    ];
+
+    await connection.execute(
+      `INSERT INTO checkin_guest_folio_master (${folioCols.join(',')})
+       VALUES (${folioCols.map(() => '?').join(',')})`,
+      folioVals
+    );
+  }
+}
 
     await connection.commit();
 
