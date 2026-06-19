@@ -1202,14 +1202,22 @@ useEffect(() => {
     setFloorFilter('all')
   }
 
-  const handleStatusFilterClick = (filter: RoomStatus | 'all') => {
-    setStatusFilter(filter)
-    setActiveSection(null)
-    if (!['cleaning', 'reserved', 'maintenance'].includes(filter)) {
-      setActiveHousekeepingTab(null)
-      setSelectedHousekeepingRoomIds([])
-    }
+ const handleStatusFilterClick = (filter: RoomStatus | 'all') => {
+  setStatusFilter(filter)
+  setActiveSection(null)
+  
+  // ✅ Close all other pages when clicking any status filter
+  setShowSettlementPage(false)
+  setShowArrivals(false)
+  setShowAtGlance(false)
+  setShowReservationForm(false)
+  setShowReservationSummary(false)
+  
+  if (!['cleaning', 'reserved', 'maintenance'].includes(filter)) {
+    setActiveHousekeepingTab(null)
+    setSelectedHousekeepingRoomIds([])
   }
+}
 
   const handleHousekeepingTabClick = (tab: HousekeepingTab) => {
     if (tab === null || activeHousekeepingTab === tab) {
@@ -1597,97 +1605,138 @@ useEffect(() => {
           <div className="border-bottom pb-2 mb-2">
 
             {/* Top row — status filters + actions */}
-            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-              <div className="d-flex flex-wrap gap-2">
-                <Button size="sm" variant={statusFilter === 'all' ? 'dark' : 'outline-dark'} className="fw-semibold px-3 same-btn"
-                  onClick={() => handleStatusFilterClick('all')}>
-                  <i className="fi fi-rr-apps me-1"></i>All [{stats.total}]
-                </Button>
-                <Button size="sm" variant={statusFilter === 'available' ? 'success' : 'outline-success'} className="fw-semibold px-3 same-btn"
-                  onClick={() => handleStatusFilterClick('available')}>
-                  <i className="fi fi-rr-bed-empty me-1"></i>Vacant [{stats.available}]
-                </Button>
-                <Button size="sm" variant={statusFilter === 'occupied' ? 'primary' : 'outline-primary'} className="fw-semibold px-3 same-btn"
-                  onClick={() => handleStatusFilterClick('occupied')}>
-                  <i className="fi fi-rr-user me-1"></i>Occupied [{stats.occupied}]
-                </Button>
-                <Button size="sm" variant={activeHousekeepingTab ? 'warning' : 'outline-warning'} className="fw-semibold px-3 same-btn"
-                  onClick={() => {
-                    if (activeHousekeepingTab) {
-                      handleHousekeepingTabClick(null)
-                      handleStatusFilterClick('all')
-                    } else {
-                      handleStatusFilterClick('cleaning')
-                      handleHousekeepingTabClick('all')
-                    }
-                  }}>
-                  <i className="fi fi-rr-lock me-1"></i>Block [{stats.cleaning + stats.reserved + stats.maintenance}]
-                </Button>
-                <Button size="sm" variant={showReservSection ? 'secondary' : 'outline-secondary'} className="fw-semibold px-3 same-btn"
-                  onClick={() => {
-                    if (showReservSection) setActiveSection(null)
-                    else { setActiveSection('reserv'); fetchReservTableData(reservDate) }
-                  }}>
-                  <i className="fi fi-rr-calendar me-1"></i>Reservation [{stats.reservation}]
-                </Button>
-                <Button 
-  size="sm" 
-  variant="outline-info" 
-  className="fw-semibold px-3 same-btn text-nowrap"
-  onClick={() => {
-    setShowArrivals(true)           // Show Arrivals
-    setActiveSection(null)          // Hide Reservations/Checkout
-  }}
->
-  <i className="fi fi-rr-plane-arrival me-1"></i>Arrivals
-</Button>
-                <Button
-                  size="sm"
-                  variant="outline-success"
-                  className="fw-semibold px-3 same-btn"
-                  onClick={() => {
-                    setShowSettlementPage(true)
-                    setActiveSection(null)
-                  }}
-                >
-                  <i className="fi fi-rr-money-check me-1"></i>Settlement
-                </Button>
+           <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+  <div className="d-flex flex-wrap gap-2">
+    {/* Left side buttons - Status filters */}
+    <Button size="sm" variant={statusFilter === 'all' ? 'dark' : 'outline-dark'} className="fw-semibold px-3 same-btn"
+      onClick={() => handleStatusFilterClick('all')}>
+      <i className="fi fi-rr-apps me-1"></i>All [{stats.total}]
+    </Button>
+    <Button size="sm" variant={statusFilter === 'available' ? 'success' : 'outline-success'} className="fw-semibold px-3 same-btn"
+      onClick={() => handleStatusFilterClick('available')}>
+      <i className="fi fi-rr-bed-empty me-1"></i>Vacant [{stats.available}]
+    </Button>
+    <Button size="sm" variant={statusFilter === 'occupied' ? 'primary' : 'outline-primary'} className="fw-semibold px-3 same-btn"
+      onClick={() => handleStatusFilterClick('occupied')}>
+      <i className="fi fi-rr-user me-1"></i>Occupied [{stats.occupied}]
+    </Button>
+    <Button size="sm" variant={activeHousekeepingTab ? 'warning' : 'outline-warning'} className="fw-semibold px-3 same-btn"
+      onClick={() => {
+        // ✅ Close all pages when Block is clicked
+        setShowSettlementPage(false)
+        setShowArrivals(false)
+        setShowAtGlance(false)
+        setShowReservationForm(false)
+        setShowReservationSummary(false)
+        
+        if (activeHousekeepingTab) {
+          handleHousekeepingTabClick(null)
+          handleStatusFilterClick('all')
+        } else {
+          handleStatusFilterClick('cleaning')
+          handleHousekeepingTabClick('all')
+        }
+      }}>
+      <i className="fi fi-rr-lock me-1"></i>Block [{stats.cleaning + stats.reserved + stats.maintenance}]
+    </Button>
+    <Button 
+      size="sm" 
+      variant={showReservSection ? 'secondary' : 'outline-secondary'} 
+      className="fw-semibold px-3 same-btn"
+      onClick={() => {
+        // ✅ Close all pages
+        setShowSettlementPage(false)
+        setShowArrivals(false)
+        setShowAtGlance(false)
+        setShowReservationForm(false)
+        setShowReservationSummary(false)
+        
+        if (showReservSection) {
+          setActiveSection(null)
+          setStatusFilter('all')
+        } else { 
+          setActiveSection('reserv')
+          setStatusFilter('all')
+          fetchReservTableData(reservDate)
+        }
+      }}>
+      <i className="fi fi-rr-calendar me-1"></i>Reservation [{stats.reservation}]
+    </Button>
+    <Button 
+      size="sm" 
+      variant="outline-info" 
+      className="fw-semibold px-3 same-btn text-nowrap"
+      onClick={() => {
+        setShowArrivals(true)
+        setShowSettlementPage(false)
+        setShowAtGlance(false)
+        setShowReservationForm(false)
+        setShowReservationSummary(false)
+        setActiveSection(null)
+        setStatusFilter('all')
+      }}>
+      <i className="fi fi-rr-plane-arrival me-1"></i>Arrivals
+    </Button>
+    <Button
+      size="sm"
+      variant="outline-success"
+      className="fw-semibold px-3 same-btn"
+      onClick={() => {
+        setShowSettlementPage(true)
+        setShowArrivals(false)
+        setShowAtGlance(false)
+        setShowReservationForm(false)
+        setShowReservationSummary(false)
+        setActiveSection(null)
+        setStatusFilter('all')
+      }}>
+      <i className="fi fi-rr-money-check me-1"></i>Settlement
+    </Button>
+    {/* ✅ "Reservation Form" moved to left side as per your image */}
+    <Button 
+      size="sm" 
+      variant="outline-secondary" 
+      className="fw-semibold px-3 same-btn"
+      onClick={() => {
+        setShowReservationForm(true)
+        setShowSettlementPage(false)
+        setShowArrivals(false)
+        setShowAtGlance(false)
+        setShowReservationSummary(false)
+        setActiveSection(null)
+        setStatusFilter('all')
+      }}>
+      Reservation Form
+    </Button>
+  </div>
 
-                <Button 
-  size="sm" 
-  variant="outline-secondary" 
-  className="fw-semibold px-3 same-btn"
-  onClick={() => {
-    setShowReservationForm(true)    // Show Reservation Form
-    setActiveSection(null)
-  }}
->
-  Reservation Form
-</Button>
-              </div>
-
-              <div className="d-flex flex-wrap gap-2">
-                <Button 
-  size="sm" 
-  variant="outline-primary" 
-  className="fw-semibold text-nowrap px-3"
-  onClick={() => {
-    setShowAtGlance(true)           // Show At Glance
-    setActiveSection(null)
-  }}
->
-  At Glance
-</Button>
-                <Button size="sm" variant="outline-success" className="d-flex align-items-center justify-content-center same-btn"
-                  onClick={() => setShowSettings(true)} title="Settings">
-                  <i className="fi fi-rr-settings"></i>
-                </Button>
-                <Button size="sm" variant="outline-danger" className="d-flex align-items-center justify-content-center same-btn"
-                  onClick={() => navigate(-1)} title="Close">
-                  <i className="fi fi-rr-cross"></i>
-                </Button>
-              </div>
-            </div>
+  <div className="d-flex flex-wrap gap-2">
+    {/* Right side buttons */}
+    <Button 
+      size="sm" 
+      variant="outline-primary" 
+      className="fw-semibold text-nowrap px-3"
+      onClick={() => {
+        setShowAtGlance(true)
+        setShowSettlementPage(false)
+        setShowArrivals(false)
+        setShowReservationForm(false)
+        setShowReservationSummary(false)
+        setActiveSection(null)
+        setStatusFilter('all')
+      }}>
+      At Glance
+    </Button>
+    <Button size="sm" variant="outline-success" className="d-flex align-items-center justify-content-center same-btn"
+      onClick={() => setShowSettings(true)} title="Settings">
+      <i className="fi fi-rr-settings"></i>
+    </Button>
+    <Button size="sm" variant="outline-danger" className="d-flex align-items-center justify-content-center same-btn"
+      onClick={() => navigate(-1)} title="Close">
+      <i className="fi fi-rr-cross"></i>
+    </Button>
+  </div>
+</div>
 
             {/* Second row — view controls */}
             <div className="d-flex gap-2 flex-wrap align-items-center">
