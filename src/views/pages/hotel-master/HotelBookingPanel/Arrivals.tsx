@@ -7,8 +7,8 @@ import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import TitleHelmet from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
-import ReservationService from '@/common/hotel/reservation'
-import ReservationRoomService from '@/common/hotel/reservationRooms'
+import CheckInService from '@/common/hotel/checkIn'
+import DetailService from '@/common/hotel/detail'
 
 interface ArrivalTableRow {
   reservation_id: number
@@ -51,88 +51,89 @@ const Arrivals = () => {
     if (!hotelId) return
     setLoading(true)
     try {
-      const res = await ReservationService.list({ hotelid: hotelId })
-      const reservations: any[] = res.data || []
       const todayStr = filterDate || new Date().toISOString().slice(0, 10)
+      console.log('[Arrivals] fetchArrivalTableData hotelId=', hotelId, 'arrivalDate=', todayStr)
 
-      // Arrivals = ALL reservations with arrival date = today (regardless of status)
-      const todayArrivals = reservations.filter((r: any) => {
-        const arrival = r.arrival_date ? String(r.arrival_date).slice(0, 10) : ''
-        return arrival === todayStr
+
+      // Check-ins = only active check-ins where DATE(checkin_datetime) matches selected date
+      const res = await CheckInService.list({ hotelid: hotelId })
+      const checkins: any[] = res.data || []
+      console.log('[Arrivals] total checkins=', checkins.length)
+
+
+      const activeTodayCheckins = checkins.filter((c: any) => {
+        const dt = c.checkin_datetime ? String(c.checkin_datetime) : ''
+        const datePart = dt.length >= 10 ? dt.slice(0, 10) : ''
+        return datePart === todayStr && c.status === 'active'
       })
+      const dateMatchCount = checkins.filter((c: any) => {
+        const dt = c.checkin_datetime ? String(c.checkin_datetime) : ''
+        const datePart = dt.length >= 10 ? dt.slice(0, 10) : ''
+        return datePart === todayStr
+      }).length
+      const statusActiveCount = checkins.filter((c: any) => c.status === 'active').length
+      console.log('[Arrivals] dateMatchCount=', dateMatchCount, 'statusActiveCount=', statusActiveCount, 'activeTodayCheckins=', activeTodayCheckins.length)
+
 
       const rows: ArrivalTableRow[] = []
 
-      for (const r of todayArrivals) {
-        try {
-          const roomRes = await ReservationRoomService.list({ reservation_id: r.reservation_id })
-          const roomRows: any[] = roomRes?.data || []
+      for (const ci of activeTodayCheckins) {
+        // Room-wise rows from details table
+        const detailsRes = await DetailService.list({ checkin_id: ci.checkin_id, hotelid: hotelId })
+        const details: any[] = detailsRes.data || []
 
-          if (roomRows.length === 0) {
-            rows.push({
-              reservation_id: r.reservation_id,
-              reservation_no: r.reservation_no || '-',
-              guest_name: r.reservation_name || r.guest_name || '-',
-              phone1: r.phone1 || '-',
-              room_category_name: '-',
-              converted_category_name: '-',
-              arrival_date: r.arrival_date || '',
-              arrival_time: r.arrival_time || '',
-              departure_date: r.departure_date || '',
-              departure_time: r.departure_time || '',
-              total_rooms: 0,
-              pax_price: 0,
-              pax_count: 0,
-              ex_pax_count: 0,
-              child_count: 0,
-              driver_count: 0,
-              total_amount: 0,
-              nights: r.nights || 0,
-            })
-          } else {
-            for (const rm of roomRows) {
-              rows.push({
-                reservation_id: r.reservation_id,
-                reservation_no: r.reservation_no || '-',
-                guest_name: r.reservation_name || r.guest_name || '-',
-                phone1: r.phone1 || '-',
-                room_category_name: (rm as any).room_category_name || '-',
-                converted_category_name: (rm as any).converted_category_name || '-',
-                arrival_date: r.arrival_date || '',
-                arrival_time: r.arrival_time || '',
-                departure_date: r.departure_date || '',
-                departure_time: r.departure_time || '',
-                total_rooms: rm.total_rooms || 1,
-                pax_price: rm.pax_price || 0,
-                pax_count: rm.pax_count || 0,
-                ex_pax_count: rm.ex_pax_count || 0,
-                child_count: rm.child_count || 0,
-                driver_count: rm.driver_count || 0,
-                total_amount: rm.total_amount || 0,
-                nights: r.nights || 0,
-              })
-            }
-          }
-        } catch {
+        // Exclude checked-out detail rows if present
+        const activeDetails = details.filter((d: any) => d.is_checkout === 0 || d.is_checkout === null || d.is_checkout === undefined)
+
+        if (activeDetails.length === 0) {
+          // still show master info as 1 row
           rows.push({
-            reservation_id: r.reservation_id,
-            reservation_no: r.reservation_no || '-',
-            guest_name: r.reservation_name || r.guest_name || '-',
-            phone1: r.phone1 || '-',
+            reservation_id: ci.checkin_id,
+            reservation_no: ci.reg_no || '-',
+            guest_name: ci.guest_name || '-',
+            phone1: ci.mobile || '-',
             room_category_name: '-',
-            converted_category_name: '-',
-            arrival_date: r.arrival_date || '',
-            arrival_time: r.arrival_time || '',
-            departure_date: r.departure_date || '',
-            departure_time: r.departure_time || '',
+            converted_category_name: ci.converted_category || '-',
+            arrival_date: ci.checkin_datetime ? String(ci.checkin_datetime).slice(0, 10) : '',
+            arrival_time: ci.checkin_datetime ? String(ci.checkin_datetime).slice(11, 16) : '',
+            departure_date: ci.checkout_datetime ? String(ci.checkout_datetime).slice(0, 10) : '',
+            departure_time: ci.checkout_datetime ? String(ci.checkout_datetime).slice(11, 16) : '',
             total_rooms: 0,
             pax_price: 0,
-            pax_count: 0,
-            ex_pax_count: 0,
-            child_count: 0,
-            driver_count: 0,
-            total_amount: 0,
-            nights: r.nights || 0,
+            pax_count: ci.pax || ci.adults || 0,
+            ex_pax_count: ci.ex_pax || 0,
+            child_count: (ci.child_paid || 0) + (ci.child_unpaid || 0),
+            driver_count: ci.driver || 0,
+            total_amount: ci.total_amount || 0,
+            nights: ci.total_nights || 0,
+          })
+          continue
+        }
+
+        for (const d of activeDetails) {
+          const noOfDays = Number(d.no_of_days) || 0
+          const roomTariff = Number(d.room_tariff) || 0
+          const totalAmt = Number(d.room_tariff) && noOfDays ? roomTariff * noOfDays : (Number(ci.total_amount) || 0)
+
+          rows.push({
+            reservation_id: ci.checkin_id,
+            reservation_no: ci.reg_no || '-',
+            guest_name: ci.guest_name || '-',
+            phone1: ci.mobile || '-',
+            room_category_name: d.room_category_name || '-',
+            converted_category_name: d.converted_category_name || ci.converted_category || '-',
+            arrival_date: ci.checkin_datetime ? String(ci.checkin_datetime).slice(0, 10) : '',
+            arrival_time: ci.checkin_datetime ? String(ci.checkin_datetime).slice(11, 16) : '',
+            departure_date: ci.checkout_datetime ? String(ci.checkout_datetime).slice(0, 10) : '',
+            departure_time: ci.checkout_datetime ? String(ci.checkout_datetime).slice(11, 16) : '',
+            total_rooms: 1,
+            pax_price: roomTariff,
+            pax_count: ci.pax || ci.adults || 0,
+            ex_pax_count: ci.ex_pax || 0,
+            child_count: (ci.child_paid || 0) + (ci.child_unpaid || 0),
+            driver_count: ci.driver || 0,
+            total_amount: totalAmt,
+            nights: noOfDays,
           })
         }
       }
@@ -279,8 +280,8 @@ const Arrivals = () => {
       <TitleHelmet title="Arrivals" />
       <div className="container-fluid p-3">
         <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-          <h4 className="mb-0">
-            <i className="fi fi-rr-plane-arrival me-2"></i> Today's Arrivals
+      <h4 className="mb-0">
+            <i className="fi fi-rr-plane-arrival me-2"></i> Today's Check-Ins
           </h4>
           <div className="d-flex align-items-center gap-2">
             <Form.Control
