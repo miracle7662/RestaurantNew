@@ -484,6 +484,15 @@ exports.addCheckin = async (req, res) => {
     const body = req.body;
     const userId = body.created_by_id || 1;
 
+    // ✅ ADD DEBUG LOGGING
+    console.log('📥 ===== ADD CHECKIN REQUEST =====');
+    console.log('📥 Body keys:', Object.keys(body));
+    console.log('📥 checkin_datetime:', body.checkin_datetime);
+    console.log('📥 checkout_datetime:', body.checkout_datetime);
+    console.log('📥 Details count:', body.details?.length || 0);
+    console.log('📥 First detail:', body.details?.[0] ? JSON.stringify(body.details[0], null, 2) : 'No details');
+    console.log('📥 ================================');
+
     const { hotelid } = body;
     if (!hotelid) {
       throw new Error("hotelid is required");
@@ -548,54 +557,74 @@ exports.addCheckin = async (req, res) => {
       [nextRegNo, hotelid]
     );
 
-    // ========== 2. CHECKIN DETAIL MASTER + UPDATE ROOM STATUS ==========
-    let firstDetailId = null;
-    if (body.details && body.details.length) {
-      for (const d of body.details) {
-        const detailAllowed = [
-          'guest_id',
-          'room_id', 'room_number', 'room_category_id', 'room_category_name',
-          'converted_category_id', 'converted_category_name', 'no_of_days',
-          'adults', 'pax', 'ex_pax', 'child_unpaid', 'driver', 'room_tariff',
-          'ex_pax_charge', 'child_paid_amount', 'driver_charge', 'discount_percent',
-          'discount_amount', 'cgst_percent', 'cgst_amount', 'sgst_percent',
-          'sgst_amount', 'igst_percent', 'igst_amount', 'cess_percent',
-          'cess_amount', 'service_charge', 'service_charge_amount', 'tax'
-        ];
-        const detailCols = [
-          'checkin_id', 'hotelid', 'created_date', 'updated_date',
-          'created_by_id', 'updated_by_id', 'is_settle'
-        ];
-        // ensure guest_id is inserted into checkin_detail_master
-        // (details payload may not include it, but body.guest_id should)
-        if (body.guest_id !== undefined && d.guest_id === undefined) {
-          d.guest_id = body.guest_id;
-        }
-
-        const detailVals = [checkinId, body.hotelid, now, now, userId, userId, 0];
-        detailAllowed.forEach(f => {
-          if (d[f] !== undefined) {
-            detailCols.push(f);
-            detailVals.push(d[f]);
-          }
-        });
-        const [detailRes] = await connection.execute(
-          `INSERT INTO checkin_detail_master (${detailCols.join(',')}) VALUES (${detailCols.map(()=>'?').join(',')})`,
-          detailVals
-        );
-        if (firstDetailId === null) firstDetailId = detailRes.insertId;
-
-        // ✅ UPDATE ROOM STATUS TO OCCUPIED (room_status_id = 2)
-        if (d.room_id) {
-          await connection.execute(
-            `UPDATE room_master 
-             SET room_status_id = 2
-             WHERE room_id = ?`,
-            [d.room_id]
-          );
-        }
-      }
+  // ========== 2. CHECKIN DETAIL MASTER + UPDATE ROOM STATUS ==========
+let firstDetailId = null;
+if (body.details && body.details.length) {
+  // Get master datetime values
+  const masterCheckin = body.checkin_datetime || now;
+  const masterCheckout = body.checkout_datetime || null;
+  
+  for (const d of body.details) {
+    const detailAllowed = [
+      'guest_id',
+      'room_id', 'room_number', 'room_category_id', 'room_category_name',
+      'converted_category_id', 'converted_category_name', 'no_of_days',
+      'adults', 'pax', 'ex_pax', 'child_unpaid', 'driver', 'room_tariff',
+      'ex_pax_charge', 'child_paid_amount', 'driver_charge', 'discount_percent',
+      'discount_amount', 'cgst_percent', 'cgst_amount', 'sgst_percent',
+      'sgst_amount', 'igst_percent', 'igst_amount', 'cess_percent',
+      'cess_amount', 'service_charge', 'service_charge_amount', 'tax'
+    ];
+    
+    // ✅ Add checkin_datetime and checkout_datetime to columns
+    const detailCols = [
+      'checkin_id', 'hotelid', 'created_date', 'updated_date',
+      'created_by_id', 'updated_by_id', 'is_settle',
+      'checkin_datetime', 'checkout_datetime'  // ✅ ADD THESE
+    ];
+    
+    // ensure guest_id is inserted into checkin_detail_master
+    if (body.guest_id !== undefined && d.guest_id === undefined) {
+      d.guest_id = body.guest_id;
     }
+
+    // ✅ Use master datetimes for all detail records
+    const detailVals = [
+      checkinId, 
+      body.hotelid, 
+      now, 
+      now, 
+      userId, 
+      userId, 
+      0,
+      formatDateTime(masterCheckin),   // ✅ checkin_datetime
+      formatDateTime(masterCheckout)   // ✅ checkout_datetime
+    ];
+    
+    detailAllowed.forEach(f => {
+      if (d[f] !== undefined) {
+        detailCols.push(f);
+        detailVals.push(d[f]);
+      }
+    });
+    
+    const [detailRes] = await connection.execute(
+      `INSERT INTO checkin_detail_master (${detailCols.join(',')}) VALUES (${detailCols.map(()=>'?').join(',')})`,
+      detailVals
+    );
+    if (firstDetailId === null) firstDetailId = detailRes.insertId;
+
+    // UPDATE ROOM STATUS TO OCCUPIED
+    if (d.room_id) {
+      await connection.execute(
+        `UPDATE room_master 
+         SET room_status_id = 2
+         WHERE room_id = ?`,
+        [d.room_id]
+      );
+    }
+  }
+}
 
     // ========== 3. GUEST ROOM CHARGES ==========
     if (body.room_charges && body.room_charges.length) {
