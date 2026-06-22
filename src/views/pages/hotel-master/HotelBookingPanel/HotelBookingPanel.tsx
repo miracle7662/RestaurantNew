@@ -522,7 +522,18 @@ const HotelBookingPanel = () => {
 
   const showCheckoutAlertTable = activeSection === 'checkout'
 
+const hideCheckinSection =
+  statusFilter === 'occupied' ||
+  activeHousekeepingTab !== null ||
+  showSettlementPage ||
+  showReservationPage ||
+  showArrivals ||
+  showAtGlance ||
+  showReservationForm ||
+  showReservationSummary
+
   // ==================== EFFECTS ====================
+
 
   useEffect(() => {
     if (!hotelId) return
@@ -1405,24 +1416,27 @@ const HotelBookingPanel = () => {
             </div>
 
             {/* Second row — view controls */}
-            <div className="d-flex gap-2 flex-wrap align-items-center">
-              <Button size="sm" variant={viewMode === 'floor' ? 'danger' : 'primary'} className="same-btn d-flex align-items-center justify-content-center"
-                title={viewMode === 'floor' ? 'Switch to Category View' : 'Switch to Floor View'}
-                onClick={() => setViewMode(viewMode === 'floor' ? 'category' : 'floor')}>
-                <i className={viewMode === 'floor' ? 'fi fi-rr-building' : 'fi fi-rr-apps'}></i>
-              </Button>
-              <Button size="sm" variant="outline-success" className="fw-semibold px-3 same-btn" onClick={handleCheckInClick}>
-                <i className="fi fi-rr-check me-1"></i>Check In F9
-              </Button>
-              {selectedRoomIds.length > 0 && (
-                <Button size="sm" variant="outline-warning" className="fw-semibold px-3 same-btn"
-                  onClick={() => setShowMultiRoomStatusModal(true)}
-                  title="Apply Dirty / Block / Maintenance to all selected rooms">
-                  <i className="fi fi-rr-lock me-1"></i>Block ({selectedRoomIds.length})
+            {!hideCheckinSection && (
+              <div className="d-flex gap-2 flex-wrap align-items-center">
+                <Button size="sm" variant={viewMode === 'floor' ? 'danger' : 'primary'} className="same-btn d-flex align-items-center justify-content-center"
+                  title={viewMode === 'floor' ? 'Switch to Category View' : 'Switch to Floor View'}
+                  onClick={() => setViewMode(viewMode === 'floor' ? 'category' : 'floor')}>
+                  <i className={viewMode === 'floor' ? 'fi fi-rr-building' : 'fi fi-rr-apps'}></i>
                 </Button>
-              )}
-              <Button size="sm" variant="outline-danger" className="fw-semibold px-4">Free Rooms</Button>
-            </div>
+                <Button size="sm" variant="outline-success" className="fw-semibold px-3 same-btn" onClick={handleCheckInClick}>
+                  <i className="fi fi-rr-check me-1"></i>Check In F9
+                </Button>
+                {selectedRoomIds.length > 0 && (
+                  <Button size="sm" variant="outline-warning" className="fw-semibold px-3 same-btn"
+                    onClick={() => setShowMultiRoomStatusModal(true)}
+                    title="Apply Dirty / Block / Maintenance to all selected rooms">
+                    <i className="fi fi-rr-lock me-1"></i>Block ({selectedRoomIds.length})
+                  </Button>
+                )}
+                <Button size="sm" variant="outline-danger" className="fw-semibold px-4">Free Rooms</Button>
+              </div>
+            )}
+
           </div>
 
           {/* ===== HOUSEKEEPING PANEL ===== */}
