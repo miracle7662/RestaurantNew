@@ -80,132 +80,162 @@ exports.getCheckins = async (req, res) => {
         const { q, status } = req.query;
 
         let sql = `
-         SELECT
--- Checkin Master
-cm.checkin_id,
-cm.reg_no,
-cm.booking,
-cm.plan_name,
-cm.checkin_datetime,
-cm.checkout_datetime,
-cm.hotelid,
-cm.checkout_id,
+      SELECT
+    -- Checkin Master
+    cm.checkin_id,
+    cm.reg_no,
+    cm.booking,
+    cm.plan_name,
+    cm.checkin_datetime,
+    cm.checkout_datetime,
+    cm.hotelid,
+    cm.checkout_id,
 
+    -- Room Details
+    cdm.detail_id,
+    cdm.guest_id,
+    cdm.room_id,
+    cdm.room_number,
+    cdm.room_category_name,
+    cdm.converted_category_name,
+    cdm.room_tariff,
+    cdm.discount_percent,
+    cdm.cgst_percent,
+    cdm.sgst_percent,
+    cdm.igst_percent,
+    cdm.cess_percent AS detail_cess_percent,
+    cdm.service_charge AS detail_service_charge,
+    cdm.is_settle,
+    cdm.parent_detail_id,
 
--- Room Wise Details
-cdm.detail_id,
-cdm.guest_id,
-cdm.room_id,
-cdm.room_number,
-cdm.room_category_name,
-cdm.converted_category_name,
-cdm.room_tariff,
-cdm.discount_percent,
-cdm.cgst_percent,
-cdm.sgst_percent,
-cdm.igst_percent,
-cdm.is_settle,
-cdm.checkin_datetime AS detail_checkin_datetime,
-cdm.checkout_datetime AS detail_checkout_datetime,
-cdm.adults AS detail_adults,
-cdm.pax AS detail_pax,
-cdm.ex_pax AS detail_ex_pax,
-cdm.child_unpaid AS detail_child_unpaid,
-cdm.driver AS detail_driver,
-cdm.ex_pax_charge AS detail_ex_pax_charge,
-cdm.child_paid_amount AS detail_child_paid_amount,
-cdm.driver_charge AS detail_driver_charge,
-cdm.cess_percent AS detail_cess_percent,
-cdm.service_charge AS detail_service_charge,
-cdm.parent_detail_id,
+    cdm.checkin_datetime AS detail_checkin_datetime,
+    cdm.checkout_datetime AS detail_checkout_datetime,
 
--- Guest Master (Room Wise Guest)
-gm.name as guest_name,
-gm.mobile,
-gm.address,
-gm.email,
-comp.company_name,
+    cdm.adults AS detail_adults,
+    cdm.pax AS detail_pax,
+    cdm.ex_pax AS detail_ex_pax,
+    cdm.child_unpaid AS detail_child_unpaid,
+    cdm.driver AS detail_driver,
 
--- Guest Folio
-cgfm.folio_id,
-cgfm.transaction_type,
-cgfm.payment_method,
-cgfm.debit_amount,
-cgfm.credit_amount,
-cgfm.reference_number,
+    cdm.ex_pax_charge AS detail_ex_pax_charge,
+    cdm.child_paid_amount AS detail_child_paid_amount,
+    cdm.driver_charge AS detail_driver_charge,
 
--- Guest Room Charges
-cgrc.guest_room_charges_id,
-cgrc.room_id AS charge_room_id,
-cgrc.category_id,
-cgrc.pax_count,
-cgrc.pax_price,
-cgrc.pax_tax,
-cgrc.ex_pax_count,
-cgrc.ex_pax_price,
-cgrc.ex_pax_tax,
-cgrc.ex_pax_tax_percent,
-cgrc.ex_pax_total,
-cgrc.child_count,
-cgrc.child_price,
-cgrc.child_tax,
-cgrc.child_tax_percent,
-cgrc.child_total,
-cgrc.driver_count,
-cgrc.driver_price,
-cgrc.driver_tax,
-cgrc.driver_tax_percent,
-cgrc.driver_total,
-cgrc.total_amount,
-cgrc.checkin_datetime AS charge_checkin_datetime,
-cgrc.checkout_datetime AS charge_checkout_datetime,
-cgrc.created_at AS charge_created_at,
-cgrc.updated_at AS charge_updated_at
+    -- Guest
+    gm.name AS guest_name,
+    gm.mobile,
+    gm.address,
+    gm.email,
+    comp.company_name,
 
+    -- Folio Summary
+    COALESCE(cgfm.total_debit,0)  AS total_debit,
+    COALESCE(cgfm.total_credit,0) AS total_credit,
+
+    -- Room Charges Summary
+    COALESCE(cgrc.total_amount,0) AS total_amount,
+    COALESCE(cgrc.pax_count,0) AS pax_count,
+    COALESCE(cgrc.pax_price,0) AS pax_price,
+    COALESCE(cgrc.pax_tax,0) AS pax_tax,
+
+    COALESCE(cgrc.ex_pax_count,0) AS ex_pax_count,
+    COALESCE(cgrc.ex_pax_price,0) AS ex_pax_price,
+    COALESCE(cgrc.ex_pax_tax,0) AS ex_pax_tax,
+
+    COALESCE(cgrc.child_count,0) AS child_count,
+    COALESCE(cgrc.child_price,0) AS child_price,
+    COALESCE(cgrc.child_tax,0) AS child_tax,
+
+    COALESCE(cgrc.driver_count,0) AS driver_count,
+    COALESCE(cgrc.driver_price,0) AS driver_price,
+    COALESCE(cgrc.driver_tax,0) AS driver_tax
 
 FROM checkin_master cm
 
 LEFT JOIN checkin_detail_master cdm
-ON cm.checkin_id = cdm.checkin_id
-AND cdm.is_settle = 0
+    ON cm.checkin_id = cdm.checkin_id
+   AND cdm.is_settle = 0
 
 LEFT JOIN guest_master gm
-ON gm.guest_id = cdm.guest_id
+    ON gm.guest_id = cdm.guest_id
 
 LEFT JOIN company_master comp
-       ON comp.company_id = gm.company_id
+    ON comp.company_id = gm.company_id
 
-LEFT JOIN checkin_guest_folio_master cgfm
-ON cm.checkin_id = cgfm.checkin_id
+-- Folio Aggregate
+LEFT JOIN (
+    SELECT
+        checkin_id,
+        room_id,
+        SUM(debit_amount)  AS total_debit,
+        SUM(credit_amount) AS total_credit
+    FROM checkin_guest_folio_master
+    GROUP BY checkin_id, room_id
+) cgfm
+ON cgfm.checkin_id = cdm.checkin_id
+AND cgfm.room_id = cdm.room_id
 
-LEFT JOIN checkin_guest_room_charges cgrc
+-- Room Charges Aggregate
+LEFT JOIN (
+    SELECT
+        checkin_id,
+        room_id,
+
+        SUM(total_amount) AS total_amount,
+
+        SUM(pax_count) AS pax_count,
+        SUM(pax_price) AS pax_price,
+        SUM(pax_tax) AS pax_tax,
+
+        SUM(ex_pax_count) AS ex_pax_count,
+        SUM(ex_pax_price) AS ex_pax_price,
+        SUM(ex_pax_tax) AS ex_pax_tax,
+
+        SUM(child_count) AS child_count,
+        SUM(child_price) AS child_price,
+        SUM(child_tax) AS child_tax,
+
+        SUM(driver_count) AS driver_count,
+        SUM(driver_price) AS driver_price,
+        SUM(driver_tax) AS driver_tax
+
+    FROM checkin_guest_room_charges
+    GROUP BY checkin_id, room_id
+) cgrc
 ON cgrc.checkin_id = cdm.checkin_id
 AND cgrc.room_id = cdm.room_id
 
-WHERE cm.hotelid = ?
-
-        `;
+WHERE cm.hotelid = ?`;
 
         const params = [hotelId];
 
+        // Build WHERE conditions
+        let whereConditions = [];
+
         if (!status) {
-            sql += ` AND cm.status = 'active'`;
+            whereConditions.push(`cm.status = 'active'`);
         } else if (status === 'checked_out') {
-            sql += ` AND cm.status = 'checked_out'`;
+            whereConditions.push(`cm.status = 'checked_out'`);
         } else if (status === 'all') {
-            // Show all checkins including checked_out
+            // Show all checkins including checked_out - no status filter needed
         } else {
-            sql += ` AND cm.status = ?`;
+            whereConditions.push(`cm.status = ?`);
             params.push(status);
         }
 
         if (q) {
-            sql += ` AND (cm.guest_name LIKE ? OR cm.reg_no LIKE ? OR cm.mobile LIKE ?)`;
+            whereConditions.push(`(cm.guest_name LIKE ? OR cm.reg_no LIKE ? OR cm.mobile LIKE ?)`);
             const like = `%${q}%`;
             params.push(like, like, like);
         }
 
-        sql += ` ORDER BY cm.checkin_id DESC`;
+        // Add WHERE conditions if any
+        if (whereConditions.length > 0) {
+            sql += ` AND ${whereConditions.join(' AND ')}`;
+        }
+
+        // Add ORDER BY at the end
+        sql += ` ORDER BY cm.checkin_id DESC, cdm.room_number`;
 
         const [checkins] = await db.execute(sql, params);
 
@@ -1514,11 +1544,11 @@ exports.extendDay = async (req, res) => {
         );
 
         // ========== 8. INSERT NEW DETAIL RECORD ==========
-        const newNoOfDays = currentNoOfDays + extensionDays;
+        const newNoOfDays =  extensionDays;
 
-        const newExPaxTotal = currentExPaxTotal + (dailyExPaxTotal * extensionDays);
-        const newChildTotal = currentChildTotal + (dailyChildTotal * extensionDays);
-        const newDriverTotal = currentDriverTotal + (dailyDriverTotal * extensionDays);
+        const newExPaxTotal =  (dailyExPaxTotal * extensionDays);
+        const newChildTotal =  (dailyChildTotal * extensionDays);
+        const newDriverTotal =  (dailyDriverTotal * extensionDays);
 
         const detailInsertCols = [
             'checkin_id', 'hotelid', 'guest_id', 'room_id', 'room_number',
@@ -1538,8 +1568,8 @@ exports.extendDay = async (req, res) => {
             id, checkin.hotelid, checkin.guest_id, roomId, detail.room_number,
             detail.room_category_id, detail.room_category_name, detail.converted_category_id,
             detail.converted_category_name,
-            formatDateTime(newCheckoutDate),
-            formatDateTime(new Date(newCheckoutDate.getTime() + 24 * 60 * 60 * 1000)),
+            formatDateTime(currentCheckoutDate),   // <-- checkin_datetime: was the OLD checkout date
+            formatDateTime(newCheckoutDate),      
             newNoOfDays,
             detail.detail_adults || checkin.adults,
             detail.detail_pax || checkin.pax,
