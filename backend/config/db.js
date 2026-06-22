@@ -17,7 +17,7 @@ if (process.env.ELECTRON_USER_DATA_PATH) {
       process.env.DB_HOST = config.dbHost || process.env.DB_HOST || 'localhost';
       process.env.DB_USER = config.dbUser || process.env.DB_USER || 'root';
       process.env.DB_PASSWORD = config.dbPass || process.env.DB_PASSWORD || 'sharmin';
-      process.env.DB_NAME = config.dbName || process.env.DB_NAME || 'restaurant_db';
+      process.env.DB_NAME = config.dbName || process.env.DB_NAME || 'hotelbooking_db';
       process.env.DB_PORT = config.dbPort?.toString() || process.env.DB_PORT || '3306';
     } catch (error) {
       console.error('❌ Failed to load config.json:', error.message);
@@ -33,7 +33,7 @@ const dbConfig = {
   port: parseInt(process.env.DB_PORT || '3306'),
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'sharmin',
-  database: process.env.DB_NAME || 'restaurant_db',
+  database: process.env.DB_NAME || 'hotelbooking_db',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0

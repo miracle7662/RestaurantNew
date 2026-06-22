@@ -136,45 +136,6 @@ const DayExtendModal: React.FC<DayExtendModalProps> = ({
           {/* Price Breakdown */}
           {calculatedPrice && (
             <div className="extend-charge-breakdown mb-3">
-              <p>
-                <span>Room Tariff (per day):</span>
-                <span>₹{calculatedPrice.perDayBasePrice.toFixed(2)}</span>
-              </p>
-
-              {(calculatedPrice.discountAmount || 0) > 0 && (
-                <p className="extend-discount-text">
-                  <span>Discount:</span>
-                  <span>-₹{calculatedPrice.discountAmount.toFixed(2)}</span>
-                </p>
-              )}
-
-              {(calculatedPrice.exPaxCharge || 0) > 0 && (
-                <p>
-                  <span>Ex-Pax Charge{editableExPax > 0 ? ` (×${editableExPax})` : ''}:</span>
-                  <span>₹{calculatedPrice.exPaxCharge.toFixed(2)}</span>
-                </p>
-              )}
-
-              {(calculatedPrice.childCharge || 0) > 0 && (
-                <p>
-                  <span>Child Charge{editableChild > 0 ? ` (×${editableChild})` : ''}:</span>
-                  <span>₹{calculatedPrice.childCharge.toFixed(2)}</span>
-                </p>
-              )}
-
-              {(calculatedPrice.driverCharge || 0) > 0 && (
-                <p>
-                  <span>Driver Charge{editableDriver > 0 ? ` (×${editableDriver})` : ''}:</span>
-                  <span>₹{calculatedPrice.driverCharge.toFixed(2)}</span>
-                </p>
-              )}
-
-              {(calculatedPrice.taxAmount || 0) > 0 && (
-                <p className="extend-tax-text">
-                  <span>Tax{calculatedPrice.totalTaxPercent > 0 ? ` (${calculatedPrice.totalTaxPercent}%)` : ''}:</span>
-                  <span>+₹{calculatedPrice.taxAmount.toFixed(2)}</span>
-                </p>
-              )}
 
               {extensionDays > 1 && (
                 <p style={{ fontSize: '0.75rem', color: '#6c757d' }}>
@@ -206,38 +167,7 @@ const DayExtendModal: React.FC<DayExtendModalProps> = ({
               onChange={(e) => setExtensionDays(Math.max(1, parseInt(e.target.value) || 1))}
             />
           </div>
-          <div className="row g-2 mb-3">
-            <div className="col-4">
-              <label className="form-label">Ex-Pax</label>
-              <input
-                type="number"
-                className="form-control form-control-sm"
-                min="0"
-                value={editableExPax}
-                onChange={(e) => setEditableExPax(Math.max(0, parseInt(e.target.value) || 0))}
-              />
-            </div>
-            <div className="col-4">
-              <label className="form-label">Child</label>
-              <input
-                type="number"
-                className="form-control form-control-sm"
-                min="0"
-                value={editableChild}
-                onChange={(e) => setEditableChild(Math.max(0, parseInt(e.target.value) || 0))}
-              />
-            </div>
-            <div className="col-4">
-              <label className="form-label">Driver</label>
-              <input
-                type="number"
-                className="form-control form-control-sm"
-                min="0"
-                value={editableDriver}
-                onChange={(e) => setEditableDriver(Math.max(0, parseInt(e.target.value) || 0))}
-              />
-            </div>
-          </div>
+         
 
           {siblingRooms.length > 0 && (
             <div className="form-check mb-3">
