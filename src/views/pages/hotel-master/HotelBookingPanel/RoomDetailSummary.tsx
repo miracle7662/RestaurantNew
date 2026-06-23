@@ -617,6 +617,8 @@ const fetchData = async () => {
           created_at: row.charge_created_at || row.checkin_datetime,
           department_name: row.department_name,
           particulars: row.particulars,
+          // ✅ Carry transaction_type from backend row so description mapping works for multiple folios per room
+          transaction_type: row.transaction_type,
         });
       }
     }
@@ -653,7 +655,6 @@ const fetchData = async () => {
       }
     });
 
-    // Folio description map: checkin_id-room_id → description
 // Folio description map: checkin_id-room_id-transaction_type → description
 const folioDescriptionMap = new Map<string, string>();
 folios.forEach((folio: any) => {
@@ -664,6 +665,8 @@ folios.forEach((folio: any) => {
     }
   }
 });
+
+
 
     // Filter charges
     let filteredCharges = allCharges.filter(c => Number(c.checkin_id) === Number(checkinIdFromState));
@@ -969,7 +972,7 @@ folios.forEach((folio: any) => {
           has_checkout_datetime: !!charge.checkout_datetime,
           checkout_time_formatted: charge.checkout_datetime ? formatDateTime(charge.checkout_datetime) : '-',
           description:
-            folioDescriptionMap.get(`${charge.checkin_id}-${charge.room_id}`) ||
+            folioDescriptionMap.get(`${charge.checkin_id}-${charge.room_id}-${(charge as any).transaction_type || ''}`) ||
             charge.particulars ||
             charge.postChargeDescription ||
             (isAllowance ? 'Allowances' : 'Past Changes'),
