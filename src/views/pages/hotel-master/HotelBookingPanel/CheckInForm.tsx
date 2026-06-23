@@ -1857,7 +1857,7 @@ roomRows.forEach((row) => {
     room_id: row.roomId, // ✅ Send room_id
     transaction_type: 'Room Charges',
     transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
-    description: `Room Charges - Room ${row.roomNumber} (Day 1 of ${totalNights} night(s))`,
+    description: `Check-in Day `,
     debit_amount: (row.totalAmount || 0) / totalNights,
     credit_amount: 0,
     reference_number: null,

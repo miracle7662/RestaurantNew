@@ -1,4 +1,4 @@
-b// backend/controllers/advanceTransactionController.js
+// backend/controllers/advanceTransactionController.js
 // COMPLETE UPDATED VERSION - Fixed table names (guest_folio_master → checkin_guest_folio_master)
 
 const db = require('../../../config/db');
@@ -502,20 +502,7 @@ exports.addAdvanceTransaction = async (req, res) => {
     let folioDebit           = 0;
     let folioCredit          = 0;
 
-    // ✅ UI mapping (RoomDetailSummary.tsx):
-    // - check-in on day 1 should show: "Check-in Day"
-    // - day extension usage should show: "Day Extend"
-    //
-    // Backend source of truth for Advance description is advance_transactions.reason/narration;
-    // but RoomDetailSummary uses advance_transactions.transaction_type to label.
-    // So we standardize narration so UI gets consistent string.
-    const normalizedReason = reason || narration || null;
-
-    const setNarrationForDay = (type) => {
-      if (type === 'Checkin Day') return 'Check-in Day';
-      if (type === 'Day Extend') return 'Day Extend';
-      return normalizedReason;
-    };
+  
 
 
     switch (transaction_type) {

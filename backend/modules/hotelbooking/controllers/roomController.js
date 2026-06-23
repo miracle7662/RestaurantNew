@@ -76,6 +76,7 @@ exports.getCheckinFullDetails = async (req, res) => {
     -- Guest Folio
     cgfm.folio_id,
     cgfm.transaction_type,
+    cgfm.description AS folio_description,  -- ✅ ADD THIS
     cgfm.payment_method,
     cgfm.debit_amount,
     cgfm.credit_amount,

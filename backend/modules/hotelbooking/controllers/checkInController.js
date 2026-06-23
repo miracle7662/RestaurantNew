@@ -1704,7 +1704,7 @@ exports.extendDay = async (req, res) => {
             detail.room_id,
             'Room Extension',
             formatDateTime(now),
-            `Extended ${extensionDays} day(s) - Room ${detail.room_number}`,
+            `Extended `,
             extensionAmount,
             0,
             latestFolioReferenceNumber,

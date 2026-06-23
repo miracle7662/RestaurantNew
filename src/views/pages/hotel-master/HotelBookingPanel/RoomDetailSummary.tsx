@@ -61,6 +61,7 @@ interface ExtendedGuestRoomCharge extends GuestRoomCharge {
   sortDate?: Date
   chargeType?: 'original' | 'extension' | 'postcharge' | 'allowance'
   original_day_number?: number
+  description?: string
 }
 
 interface DisplayDetailRow {
@@ -472,10 +473,17 @@ const fetchData = async () => {
 
     // 2. Single API call
     const fullDetailsRes = await RoomService.getCheckinFullDetails(hotelId, checkinIdFromState);
-    console.log('🔍 fullDetailsRes:', fullDetailsRes);
-    console.log('📦 rows count:', fullDetailsRes.data?.length);
-    console.log('📝 first row sample:', fullDetailsRes.data?.[0]);
-    console.log('API Response:', fullDetailsRes);
+
+    console.log('🧾 RAW folio check:', fullDetailsRes.data?.map((r: any) => ({
+  folio_id: r.folio_id,
+  room_id: r.room_id,
+  checkin_id: r.checkin_id,
+  folio_description: r.folio_description,
+})));
+    // console.log('🔍 fullDetailsRes:', fullDetailsRes);
+    // console.log('📦 rows count:', fullDetailsRes.data?.length);
+    // console.log('📝 first row sample:', fullDetailsRes.data?.[0]);
+    // console.log('API Response:', fullDetailsRes);
     const rows = fullDetailsRes.data || [];
 
     if (!rows.length) {
@@ -573,6 +581,7 @@ const fetchData = async () => {
           debit_amount: row.debit_amount,
           credit_amount: row.credit_amount,
           reference_number: row.reference_number,
+          description: row.folio_description, // ← ADD THIS
         });
       }
 
@@ -643,6 +652,18 @@ const fetchData = async () => {
         paymentMethodMap.set(folio.checkin_id, folio.payment_method || 'Cash');
       }
     });
+
+    // Folio description map: checkin_id-room_id → description
+// Folio description map: checkin_id-room_id-transaction_type → description
+const folioDescriptionMap = new Map<string, string>();
+folios.forEach((folio: any) => {
+  if (folio.description) {
+    const key = `${folio.checkin_id}-${folio.room_id}-${folio.transaction_type || ''}`;
+    if (!folioDescriptionMap.has(key)) {
+      folioDescriptionMap.set(key, folio.description.trim());
+    }
+  }
+});
 
     // Filter charges
     let filteredCharges = allCharges.filter(c => Number(c.checkin_id) === Number(checkinIdFromState));
@@ -739,7 +760,7 @@ const fetchData = async () => {
           child_tax: 0,
           driver_tax: 0,
           isPostCharge: true,
-          postChargeDescription: charge.particulars || charge.department_name || (isAllowance ? 'Allowance' : 'Post Charge'),
+          description: folioDescriptionMap.get(`${charge.checkin_id}-${charge.room_id}`) || '',
           postChargeParticulars: charge.particulars || '',
           department_name: charge.department_name || '',
         });
@@ -947,8 +968,12 @@ const fetchData = async () => {
           created_at: charge.created_at,
           has_checkout_datetime: !!charge.checkout_datetime,
           checkout_time_formatted: charge.checkout_datetime ? formatDateTime(charge.checkout_datetime) : '-',
-          description: isAllowance ? 'Allowances' : 'Past Changes',
-          particulars: charge.postChargeParticulars || '',
+          description:
+            folioDescriptionMap.get(`${charge.checkin_id}-${charge.room_id}`) ||
+            charge.particulars ||
+            charge.postChargeDescription ||
+            (isAllowance ? 'Allowances' : 'Past Changes'),
+          particulars: charge.postChargeParticulars || charge.particulars || charge.postChargeDescription || '',
           department_name: charge.department_name || '',
         });
       } else {
@@ -1017,7 +1042,7 @@ const fetchData = async () => {
           created_at: charge.created_at,
           has_checkout_datetime: !!charge.checkout_datetime,
           checkout_time_formatted: charge.checkout_datetime ? formatDateTime(charge.checkout_datetime) : '-',
-          description: charge.is_extension_day ? 'Day Extend' : toNumber(charge.day_number) === 1 ? 'Check-in Day' : 'Room Charges',
+          description: charge.description || '',
           particulars: '',
           department_name: '',
         });

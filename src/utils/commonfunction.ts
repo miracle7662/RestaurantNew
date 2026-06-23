@@ -87,6 +87,8 @@ export interface CheckinFullDetailsRow {
   debit_amount: number
   credit_amount: number
   reference_number: string
+  description: string
+  folio_description: string | null;
   
   // Guest Room Charges
   guest_room_charges_id: number
