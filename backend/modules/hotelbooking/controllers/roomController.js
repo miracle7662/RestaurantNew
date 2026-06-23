@@ -76,7 +76,7 @@ exports.getCheckinFullDetails = async (req, res) => {
     -- Guest Folio
     cgfm.folio_id,
     cgfm.transaction_type,
-    cgfm.description,  -- ✅ ADD THIS
+    cgfm.description ,  -- ✅ ADD THIS
     cgfm.payment_method,
     cgfm.debit_amount,
     cgfm.credit_amount,
@@ -141,14 +141,15 @@ ORDER BY cdm.room_number,
       data: rows,
     });
   } catch (error) {
-    console.error("getCheckinFullDetails Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-      error: error.message,
-    });
+    console.log(rows.map(r => ({
+  guest_room_charges_id: r.guest_room_charges_id,
+  folio_id: r.folio_id,
+  transaction_type: r.transaction_type,
+  description: r.description
+})));
   }
 };
+
 
 // exports.getRooms = async (req, res) => {
 //     try {

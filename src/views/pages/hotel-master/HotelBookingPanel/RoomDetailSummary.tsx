@@ -478,7 +478,7 @@ const fetchData = async () => {
   folio_id: r.folio_id,
   room_id: r.room_id,
   checkin_id: r.checkin_id,
-  folio_description: r.folio_description,
+  charge_description: r.charge_description,
 })));
     // console.log('🔍 fullDetailsRes:', fullDetailsRes);
     // console.log('📦 rows count:', fullDetailsRes.data?.length);
@@ -581,10 +581,10 @@ const fetchData = async () => {
           debit_amount: row.debit_amount,
           credit_amount: row.credit_amount,
           reference_number: row.reference_number,
-          description: row.folio_description, // ← ADD THIS
+          description: row.description, // ← ADD THIS
         });
       }
-
+console.log('ROW DESCRIPTION =>', row.description);
       // Charges Map - Use room-specific guest_id
       if (row.guest_room_charges_id && !allCharges.some(c => c.guest_room_charges_id === row.guest_room_charges_id)) {
         allCharges.push({
@@ -617,6 +617,7 @@ const fetchData = async () => {
           created_at: row.charge_created_at || row.checkin_datetime,
           department_name: row.department_name,
           particulars: row.particulars,
+          description: row.description,
           // ✅ Carry transaction_type from backend row so description mapping works for multiple folios per room
           transaction_type: row.transaction_type,
         });
@@ -655,16 +656,7 @@ const fetchData = async () => {
       }
     });
 
-// Folio description map: checkin_id-room_id-transaction_type → description
-const folioDescriptionMap = new Map<string, string>();
-folios.forEach((folio: any) => {
-  if (folio.description) {
-    const key = `${folio.checkin_id}-${folio.room_id}-${folio.transaction_type || ''}`;
-    if (!folioDescriptionMap.has(key)) {
-      folioDescriptionMap.set(key, folio.description.trim());
-    }
-  }
-});
+
 
 
 
@@ -763,7 +755,7 @@ folios.forEach((folio: any) => {
           child_tax: 0,
           driver_tax: 0,
           isPostCharge: true,
-          description: folioDescriptionMap.get(`${charge.checkin_id}-${charge.room_id}`) || '',
+          description: charge.description || '',
           postChargeParticulars: charge.particulars || '',
           department_name: charge.department_name || '',
         });
@@ -971,11 +963,7 @@ folios.forEach((folio: any) => {
           created_at: charge.created_at,
           has_checkout_datetime: !!charge.checkout_datetime,
           checkout_time_formatted: charge.checkout_datetime ? formatDateTime(charge.checkout_datetime) : '-',
-          description:
-            folioDescriptionMap.get(`${charge.checkin_id}-${charge.room_id}-${(charge as any).transaction_type || ''}`) ||
-            charge.particulars ||
-            charge.postChargeDescription ||
-            (isAllowance ? 'Allowances' : 'Past Changes'),
+          description: charge.description || '',
           particulars: charge.postChargeParticulars || charge.particulars || charge.postChargeDescription || '',
           department_name: charge.department_name || '',
         });
