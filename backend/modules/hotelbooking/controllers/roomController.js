@@ -119,7 +119,7 @@ LEFT JOIN guest_master gm
 LEFT JOIN checkin_guest_folio_master cgfm
        ON cgfm.checkin_id = cdm.checkin_id
       AND cgfm.room_id = cdm.room_id
-      AND cgfm.detail_id = cdm.detail_id
+      
 
 LEFT JOIN checkin_guest_room_charges cgrc
        ON cgrc.checkin_id = cdm.checkin_id
