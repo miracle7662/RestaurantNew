@@ -65,6 +65,7 @@ export interface Outlet {
   bill_printsetting_id?: number
   general_setting_id?: number
   online_ordersetting_id?: number
+  hotel_departmentid?: number
 }
 
 /** Outlet payload for create/update */
