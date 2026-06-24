@@ -25,6 +25,7 @@ export interface AdvanceTransaction {
   created_by_id: number;
   created_at: string;
   updated_at: string;
+  description: string | null;
 }
 
 export interface AdvanceTransactionPayload {

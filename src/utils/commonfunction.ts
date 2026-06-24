@@ -1015,6 +1015,9 @@ export const getTaxesByOutletAndDepartment = async (params: { outletid?: number;
 
 
 // ADD THIS NEW FUNCTION AT THE END OF THE FILE
+// Add this at the top of the file, outside the function
+const originalCheckinCache = new Map<string, string>();
+
 export const fetchOccupiedRooms = async (
   hotelId: number,
   getMinutesLeft: (checkoutDatetime: string) => number,
@@ -1051,7 +1054,6 @@ export const fetchOccupiedRooms = async (
     // ✅ Create a map of room_id to room details (including status_color)
     const roomMap = new Map<number, any>();
     allRooms.forEach((room: any) => {
-      // ✅ Attach category data to room
       const categoryData = categoryMap.get(room.room_category_id) || {};
       roomMap.set(room.room_id, {
         ...room,
@@ -1152,11 +1154,23 @@ export const fetchOccupiedRooms = async (
       let checkinId = 0;
       let detailId = null;
       let roomTariff = room.room_tariff || 0;
+      let originalCheckinDatetime = '';
+      let masterCheckinDatetime = '';
       
       if (checkin) {
         guestName = checkin.guest_name || checkin.name || 'Unknown Guest';
-        checkinDatetime = checkin.detail_checkin_datetime || checkin.checkin_datetime || new Date().toISOString();
+        
+        // ✅ CRITICAL FIX: Use master checkin_datetime (never changes)
+        // The master checkin_datetime is the original check-in date
+        masterCheckinDatetime = checkin.checkin_datetime || new Date().toISOString();
+        
+        // ✅ Use detail checkout datetime (updated on extension)
         checkoutDatetime = checkin.detail_checkout_datetime || checkin.checkout_datetime || new Date().toISOString();
+        
+        // ✅ For display, ALWAYS use master checkin_datetime
+        checkinDatetime = masterCheckinDatetime;
+        originalCheckinDatetime = masterCheckinDatetime;
+        
         totalAmount = checkin.total_amount || 0;
         adults = checkin.detail_adults || checkin.adults || 0;
         pax = checkin.detail_pax || checkin.pax || 0;
@@ -1175,6 +1189,8 @@ export const fetchOccupiedRooms = async (
         // ✅ Use checkin's room_tariff if available, otherwise fallback to room's tariff
         roomTariff = checkin.room_tariff || room.room_tariff || 0;
         
+        console.log(`📝 Room ${room.room_no}: Master IN=${masterCheckinDatetime}, Detail OUT=${checkoutDatetime}`);
+        
       } else if (roomStatusId === 7) {
         guestName = `Bill - Room ${room.room_no}`;
         if (room.guest_name) {
@@ -1183,6 +1199,8 @@ export const fetchOccupiedRooms = async (
         const pastDate = new Date();
         pastDate.setHours(pastDate.getHours() - 1);
         checkoutDatetime = pastDate.toISOString();
+        checkinDatetime = pastDate.toISOString();
+        originalCheckinDatetime = checkinDatetime;
       } else {
         console.log(`⚠️ No check-in for room ${room.room_no}`);
         continue;
@@ -1285,8 +1303,10 @@ export const fetchOccupiedRooms = async (
         guest_type: booking || 'WALK-IN-GUEST',
         booking_type: booking || 'WALK-IN-GUEST',
         agent_name: checkin?.agent_name || '',
-        checkin_datetime: checkinDatetime,
-        checkout_datetime: checkoutDatetime,
+        checkin_datetime: checkinDatetime, // ✅ Master checkin date (never changes)
+        checkout_datetime: checkoutDatetime, // ✅ Detail checkout date (updated on extension)
+        original_checkin_datetime: originalCheckinDatetime, // ✅ Same as master
+        master_checkin_datetime: masterCheckinDatetime, // ✅ Explicit master date
         
         // Pax counts
         adults: adults,
@@ -1333,7 +1353,7 @@ export const fetchOccupiedRooms = async (
         
         // Checkin reference
         checkin: checkin,
-        detail: checkin, // ✅ Include detail for extra data
+        detail: checkin,
         
         // Status and dates
         latest_charge_checkout_datetime: checkoutDatetime,
@@ -1352,7 +1372,7 @@ export const fetchOccupiedRooms = async (
         status_name: room.status_name || '',
       });
       
-      console.log(`✅ Added room ${room.room_no}: tariff=${roomTariff}, tax=${totalTaxPercent}%, ex_pax=${exPax}, child=${childCount}, driver=${driverCount}`);
+      console.log(`✅ Added room ${room.room_no}: IN=${checkinDatetime}, OUT=${checkoutDatetime}`);
     }
     
     setOccupiedRooms(occupiedItems);
@@ -1360,7 +1380,7 @@ export const fetchOccupiedRooms = async (
     // 📊 Final summary
     console.log('📊 Final occupied rooms summary:');
     occupiedItems.forEach(item => {
-      console.log(`  Room ${item.room_no}: tariff=${item.room_tariff}, tax=${item.total_tax_percent}%`);
+      console.log(`  Room ${item.room_no}: IN=${item.checkin_datetime}, OUT=${item.checkout_datetime}`);
     });
     
   } catch (err) {
