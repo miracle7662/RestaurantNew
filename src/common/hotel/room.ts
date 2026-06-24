@@ -117,7 +117,7 @@ export interface CheckinFullDetailsRow {
   credit_amount: number | null;
   reference_number: string | null;
   description: string | null;
-  folio_description: string | null;
+  charge_description: string | null;
   transaction_datetime: string | null;
 
   // Guest Room Charges (all fields from backend)
