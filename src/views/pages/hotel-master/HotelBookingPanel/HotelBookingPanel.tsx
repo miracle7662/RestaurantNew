@@ -1817,7 +1817,7 @@ const hideCheckinSection =
                           color: textColor 
                         }}>
                           <div>IN : {formatDateTime(item.checkin_datetime || '')}</div>
-                          <div>OUT : {formatDateTime(item.checkout_datetime || item.latest_charge_checkout_datetime || '')}</div>
+                          <div>OUT : {formatDateTime(item.checkout_datetime ||  '')}</div>
                           <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : (item.guest_type || 'WALK-IN-GUEST')}</div>
                           <div className="charges-line">
                             <span style={{ 

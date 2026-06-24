@@ -1606,7 +1606,7 @@ const handleHistoryClick = () => {
       gst: '',
 
       arrivalDate: new Date().toISOString().split('T')[0],
-      arrivalTime: '12:00',
+      arrivalTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
       departureDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
       departureTime: '10:00',
       adults: 1,
@@ -3298,6 +3298,16 @@ useEffect(() => {
                               className="w-100 fs-small"
                             />
                           </Col>
+
+                          {/* <Col md={3}>
+  <label className="fs-small mb-1">Arrival Date</label>
+  <input
+    type="date"
+    className="form-control form-control-sm fs-small"
+    {...formik.getFieldProps('arrivalDate')}
+    min={new Date().toISOString().split('T')[0]}
+  />
+</Col> */}
                           <Col md={2}>
                             <label className="fs-small mb-1">Time</label>
                             <FormikTextInput

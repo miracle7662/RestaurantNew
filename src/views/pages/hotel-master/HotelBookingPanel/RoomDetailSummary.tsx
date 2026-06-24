@@ -1131,7 +1131,7 @@ console.log('ROW DESCRIPTION =>', row.description);
           created_at: adv.created_at,
           has_checkout_datetime: false,
           checkout_time_formatted: '-',
-          description: adv.transaction_type === 'Booking Receipt' ? `Booking Receipt (${adv.receipt_no})` : 'Advance',
+          description:  adv.description || '',
           particulars: adv.narration || adv.reason || '',
           department_name: 'Advance',
         });
