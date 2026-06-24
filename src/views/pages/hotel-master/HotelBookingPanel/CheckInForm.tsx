@@ -1,4 +1,4 @@
-// CheckInForm.tsx (MySQL Compatible Version - With Inventory Auto-Assign Integration)
+// CheckInForm.tsx (MySQL Compatible Version - With Front Desk Settings Integration)
 // UPDATED: Guest history now uses checkout tables only
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -24,6 +24,7 @@ import taxApi from '@/common/hotel/taxes'
 import FragmentService from '@/common/hotel/fragments'
 import DocumentTypeService from '@/common/hotel/documentType'
 import CheckInService from '@/common/hotel/checkIn'
+import FrontdeskSettingAPI from '@/common/hotel/frontdeskSettings' // Import Front Desk Settings API
 
 // Removed unused imports:
 // import DetailService from '@/common/hotel/detail'
@@ -212,6 +213,14 @@ interface GuestDocument {
   guest_photo_url?: string | null
 }
 
+// Front Desk Settings Interface
+interface FrontDeskSettings {
+  hotelid: number
+  outletid: number
+  checkout_time_setting: '12_NOON' | '24_HOURS'
+  fixed_checkout_time: string | null
+}
+
 const defaultCompanyForm = {
   company_name: '',
   gst_no: '',
@@ -237,6 +246,40 @@ const CheckInForm = () => {
   } | null
 
   const hotelId = state?.hotelId || loggedInUser?.hotelid
+
+  // Front Desk Settings State
+  const [frontDeskSettings, setFrontDeskSettings] = useState<FrontDeskSettings | null>(null)
+
+   // Fetch Front Desk Settings
+    // Fetch Front Desk Settings - UPDATED to handle response structure correctly
+  const fetchFrontDeskSettings = async () => {
+    if (!hotelId) return
+    try {
+      // Use the getByOutlet method to fetch settings for the specific outlet
+      const outletId = user?.outletid || 1
+      const response = await FrontdeskSettingAPI.getByOutlet(outletId)
+      
+      // Check if response is successful and has data
+      if (response && response.success && response.data) {
+        setFrontDeskSettings(response.data)
+        console.log('Front desk settings loaded:', response.data)
+      } else {
+        // If no settings found or response is empty, use defaults
+        console.log('No front desk settings found, using defaults')
+        setFrontDeskSettings(null)
+      }
+    } catch (error: any) {
+      // 404 means no settings found - that's fine, use defaults
+      if (error?.response?.status === 404) {
+        console.log('No front desk settings configured, using defaults')
+        setFrontDeskSettings(null)
+      } else {
+        console.error('Failed to fetch front desk settings:', error)
+        // Don't show error toast - use default behavior
+        setFrontDeskSettings(null)
+      }
+    }
+  }
 
   // Escape key → go back; Enter key → move to next focusable field
   useEffect(() => {
@@ -379,6 +422,16 @@ const CheckInForm = () => {
   // Temporary guest photo — stored in memory only until F9 (Check In) is confirmed.
   // Never written to DB or uploads folder until onSubmit succeeds.
   const [tempGuestPhoto, setTempGuestPhoto] = useState<string | null>(null)
+
+  // ==================== FRONT DESK SETTINGS EFFECT ====================
+  // Fetch front desk settings when hotelId changes
+  useEffect(() => {
+    if (hotelId) {
+      fetchFrontDeskSettings()
+    }
+  }, [hotelId])
+
+
 
   // ==================== INVENTORY AUTO-ASSIGN FUNCTION (kept but not used now) ====================
   // const autoAssignAmenities = async (checkinId: number, roomId: number, guestCount: number) => {
@@ -1936,23 +1989,65 @@ if (values.receivedAmount && Number(values.receivedAmount) > 0) {
 
   const { handleSubmit, setFieldValue, values } = formik
 
+    // ==================== FRONT DESK SETTINGS EFFECT ====================
+  // Fetch front desk settings when hotelId changes
   useEffect(() => {
+    if (hotelId) {
+      fetchFrontDeskSettings()
+    }
+  }, [hotelId, user?.outletid])
+
+   // ==================== APPLY FRONT DESK SETTINGS TO DEPARTURE TIME ====================
+  // This effect runs when front desk settings are loaded or when arrival date/time changes
+  useEffect(() => {
+    if (!frontDeskSettings) return
+
     const { arrivalDate, arrivalTime, nights } = values
+    
+    // Calculate departure date based on nights
+    let departureDateStr = ''
     if (arrivalDate && nights && nights > 0) {
       const arrival = new Date(arrivalDate)
       const departure = new Date(arrival)
       departure.setDate(departure.getDate() + Number(nights))
-      const departureDateStr = departure.toISOString().split('T')[0]
-      if (values.departureDate !== departureDateStr) {
-        setFieldValue('departureDate', departureDateStr)
-      }
+      departureDateStr = departure.toISOString().split('T')[0]
+    } else {
+      // Fallback: default to next day if no arrival date
+      const today = new Date()
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      departureDateStr = tomorrow.toISOString().split('T')[0]
     }
-    if (arrivalTime) {
-      if (values.departureTime !== arrivalTime) {
-        setFieldValue('departureTime', arrivalTime)
-      }
+
+    // Determine departure time based on front desk settings
+    let departureTimeStr = '12:00' // Default fallback
+
+    if (frontDeskSettings.checkout_time_setting === '12_NOON') {
+      // Use fixed checkout time from settings
+      departureTimeStr = frontDeskSettings.fixed_checkout_time || '12:00'
+    } else if (frontDeskSettings.checkout_time_setting === '24_HOURS') {
+      // 24-hour checkout: departure time = arrival time
+      departureTimeStr = arrivalTime || '12:00'
     }
-  }, [values.arrivalDate, values.arrivalTime, values.nights, setFieldValue])
+
+    // Only update if values differ to avoid unnecessary re-renders
+    if (values.departureDate !== departureDateStr) {
+      setFieldValue('departureDate', departureDateStr)
+    }
+    if (values.departureTime !== departureTimeStr) {
+      setFieldValue('departureTime', departureTimeStr)
+    }
+
+    console.log('Applied front desk settings:', {
+      checkoutType: frontDeskSettings.checkout_time_setting,
+      departureTime: departureTimeStr,
+      departureDate: departureDateStr
+    })
+
+  }, [frontDeskSettings, values.arrivalDate, values.arrivalTime, values.nights, values.departureDate, values.departureTime, setFieldValue])
+
+  // Remove the old departure date effect and replace with front desk settings effect above
+  // The old effect that calculated departure date from nights is now handled by the front desk settings effect
 
   useEffect(() => {
     formik.setFieldValue('settDisc', totalDiscount)
@@ -2673,6 +2768,16 @@ useEffect(() => {
                 </span>
               )}
             </span>
+            {/* Front Desk Settings Status */}
+            {frontDeskSettings && (
+              <span className="ms-3 d-flex align-items-center">
+                <span className="badge bg-secondary fs-small">
+                  Checkout: {frontDeskSettings.checkout_time_setting === '12_NOON' 
+                    ? `Fixed (${frontDeskSettings.fixed_checkout_time || '12:00'})` 
+                    : '24 Hours'}
+                </span>
+              </span>
+            )}
           </div>
         </div>
 

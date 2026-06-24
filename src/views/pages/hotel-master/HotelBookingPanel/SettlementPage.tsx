@@ -10,7 +10,6 @@ import DetailService from '@/common/hotel/detail'
 import GuestFolioService from '@/common/hotel/guestFolio'
 import GuestRoomChargesService, { GuestRoomCharge } from '@/common/hotel/guestRoomCharges'
 import PostChargesService, { PostCharge } from '@/common/hotel/postCharges'
-import BrandService from '@/common/hotel/brand'
 import AgentRoomCheckinService, { AgentRoomCheckin } from '@/common/hotel/agentRoomCheckin'
 import AdvanceTransactionService from '@/common/hotel/advanceTransaction'
 import CheckoutService, { CheckoutMaster } from '@/common/hotel/checkout'
@@ -120,14 +119,7 @@ const SettlementPage = () => {
   const hotelId = user?.hotelid
 
   // Hotel info
-  const [hotelName, setHotelName] = useState('')
-  const [hotelAddress, setHotelAddress] = useState('')
-  const [hotelPhone, setHotelPhone] = useState('')
-  const [hotelEmail, setHotelEmail] = useState('')
-  const [hotelWebsite, setHotelWebsite] = useState('')
-  const [hotelGSTIN, setHotelGSTIN] = useState('')
-  const [hotelFSSAI, setHotelFSSAI] = useState('')
-  const [hotelPAN, setHotelPAN] = useState('')
+ 
 
   // Data
   const [occupiedRooms, setOccupiedRooms] = useState<OccupiedRoomItem[]>([])
@@ -169,27 +161,7 @@ const SettlementPage = () => {
   // ─── Fetch hotel info ────────────────────────────────────────────────────
   useEffect(() => {
     if (!hotelId) return
-    const fetchHotelInfo = async () => {
-      try {
-        if (user?.hotel_name) {
-          setHotelName(user.hotel_name)
-        } else {
-          const response = await BrandService.getBrandById(String(hotelId))
-          const hotelData = response?.data || response
-          setHotelName(hotelData?.hotel_name || 'Hotel')
-          setHotelAddress(hotelData?.address || '')
-          setHotelPhone(hotelData?.phone || '')
-          setHotelEmail(hotelData?.email || '')
-          setHotelWebsite(hotelData?.website || '')
-          setHotelGSTIN(hotelData?.trn_gstno || '')
-          setHotelFSSAI(hotelData?.fssai_no || '')
-          setHotelPAN(hotelData?.panno || '')
-        }
-      } catch {
-        setHotelName('Hotel')
-      }
-    }
-    fetchHotelInfo()
+    
 
     const fetchPaymentModes = async () => {
       try {
@@ -199,11 +171,11 @@ const SettlementPage = () => {
           setOutletPaymentModes(res.data)
         }
       } catch {
-        setOutletPaymentModes([
-          { id: 1, mode_name: 'Cash', outletid: 0 },
-          { id: 2, mode_name: 'Card', outletid: 0 },
-          { id: 3, mode_name: 'UPI', outletid: 0 },
-        ])
+        // setOutletPaymentModes([
+        //   { id: 1, mode_name: 'Cash', outletid: 0 },
+        //   { id: 2, mode_name: 'Card', outletid: 0 },
+        //   { id: 3, mode_name: 'UPI', outletid: 0 },
+        // ])
       }
     }
     fetchPaymentModes()

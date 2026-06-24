@@ -3,8 +3,10 @@ import { Button, Modal, Form, Row, Col, Card, Stack, Table } from 'react-bootstr
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'react-hot-toast';
 import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import AddOutlet from './AddOutlet';
 import ModifyOutletSettingsModal from './ModifyoutletSettings'; // Import the modal component
+import FrontDeskSettingsModal from './FrontdeskSetting'; // Import Front Desk Settings Modal
 import outletService, { OutletData } from '@/common/api/outlet';
 import masterDataService, { Country, Timezone, TimeOption } from '@/common/api/masterData';
 import WarehouseService from '@/common/api/warehouses';
@@ -66,6 +68,7 @@ const OutletList: React.FC = () => {
   const { user } = useAuthContext();
   const [showModal, setShowModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showFrontDeskSettingsModal, setShowFrontDeskSettingsModal] = useState(false); // State for Front Desk Settings Modal
   const [modalType, setModalType] = useState('');
   const [selectedOutlet, setSelectedOutlet] = useState<OutletData | null>(null);
   const [showAddOutlet, setShowAddOutlet] = useState(false);
@@ -294,6 +297,11 @@ const fetchDepartments = async (hotelId: number) => {
       setShowSettingsModal(true);
       return;
     }
+    // Handle Front Desk Settings
+    if (type === 'Front Desk Settings' && outlet) {
+      setShowFrontDeskSettingsModal(true);
+      return;
+    }
     if (outlet && type === 'Edit Item') {
       loadOutletDataIntoForm(outlet);
     } else {
@@ -342,6 +350,12 @@ const fetchDepartments = async (hotelId: number) => {
 
   const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
+    setSelectedOutlet(null);
+  };
+
+  // Close Front Desk Settings Modal
+  const handleCloseFrontDeskSettingsModal = () => {
+    setShowFrontDeskSettingsModal(false);
     setSelectedOutlet(null);
   };
 
@@ -573,7 +587,7 @@ const fetchDepartments = async (hotelId: number) => {
     {
       id: 'actions',
       header: () => <div style={{ textAlign: 'center' }}>Action</div>,
-      size: 200,
+      size: 250,
       cell: ({ row }) => (
         <div className="btn-group" role="group" style={{ justifyContent: 'center', display: 'flex' }}>
           <button
@@ -599,6 +613,15 @@ const fetchDepartments = async (hotelId: number) => {
             style={{ marginRight: '5px' }}
           >
             <i className="fi fi-rr-settings"></i>
+          </button>
+          {/* Front Desk Settings Button */}
+          <button
+          className="btn btn-sm btn-primary"
+          title="Front Desk Settings"
+          onClick={() => handleShowModal('Front Desk Settings', row.original)}
+          style={{ marginRight: '5px' }}
+        >
+          <i className="fi fi-rr-bell-concierge"></i>
           </button>
           <button
             className="btn btn-sm btn-secondary"
@@ -1317,6 +1340,13 @@ const fetchDepartments = async (hotelId: number) => {
         onHide={handleCloseSettingsModal}
         selectedOutlet={selectedOutlet}
         handleUpdate={handleUpdate}
+      />
+
+      {/* Add FrontDeskSettingsModal */}
+      <FrontDeskSettingsModal
+        show={showFrontDeskSettingsModal}
+        onHide={handleCloseFrontDeskSettingsModal}
+        selectedOutlet={selectedOutlet}
       />
     </div>
   );
