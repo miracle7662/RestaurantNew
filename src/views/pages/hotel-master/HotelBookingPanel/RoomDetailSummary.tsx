@@ -449,6 +449,9 @@ const RoomDetailSummary = () => {
 
   // Fetch data
 const fetchData = async () => {
+  // NOTE: “matching”/rebuild logic कमी करून DB/Backend जे fields देतो तेच display करायचे.
+  // विशेषतः `description` जे backend ला checkin_guest_folio_master मध्ये stored आहे तेच show करायचे.
+
   if (!hotelId) {
     setError('Hotel ID not found');
     setLoading(false);
