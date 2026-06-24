@@ -6,6 +6,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AddOutlet from './AddOutlet';
 import ModifyOutletSettingsModal from './ModifyoutletSettings'; // Import the modal component
+import FrontDeskSettingsModal from './FrontdeskSetting'; // Import Front Desk Settings Modal
 import outletService, { OutletData } from '@/common/api/outlet';
 import masterDataService, { Country, Timezone, TimeOption } from '@/common/api/masterData';
 import WarehouseService from '@/common/api/warehouses';
@@ -22,6 +23,7 @@ import {
 import { Preloader } from '@/components/Misc/Preloader';
 import Swal from 'sweetalert2';
 import PaginationComponent from '@/components/Common/PaginationComponent';
+import DepartmentService from '@/common/hotel/departments';
 
 interface warehouseItem {
   warehouse_name: string;
@@ -36,6 +38,13 @@ interface warehouseItem {
   hotelid: number;
   client_code: number;
   marketid: number;
+}
+
+interface Department {
+  hotel_departmentid: number;
+  hotel_department_name: string;
+  hotelid: number;
+  status: number;
 }
 
 // Debounce utility function
@@ -59,6 +68,7 @@ const OutletList: React.FC = () => {
   const { user } = useAuthContext();
   const [showModal, setShowModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showFrontDeskSettingsModal, setShowFrontDeskSettingsModal] = useState(false); // State for Front Desk Settings Modal
   const [modalType, setModalType] = useState('');
   const [selectedOutlet, setSelectedOutlet] = useState<OutletData | null>(null);
   const [showAddOutlet, setShowAddOutlet] = useState(false);
@@ -78,6 +88,11 @@ const OutletList: React.FC = () => {
   const [loadingTimezones, setLoadingTimezones] = useState<boolean>(false);
   const [countryId, setCountryId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
+
+  // Department related state
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState<number | null>(null);
+  const [loadingDepartments, setLoadingDepartments] = useState<boolean>(false);
 
   // Additional form fields state
   const [contactPhone, setContactPhone] = useState<string>('');
@@ -113,6 +128,25 @@ const fetchWarehouses = async () => {
     }
   } catch (error) {
     toast.error("Failed to fetch warehouses");
+  }
+};
+
+  // Fetch departments when brand changes
+// Fetch departments when brand changes
+const fetchDepartments = async (hotelId: number) => {
+  try {
+    setLoadingDepartments(true);
+    // Use the imported DepartmentService instead of fetch
+    const response = await DepartmentService.list({ hotelid: hotelId });
+    if (response && response.data) {
+      setDepartments(response.data);
+      setSelectedDepartment(null);
+    }
+  } catch (error) {
+    console.error('Error fetching departments:', error);
+    toast.error('Failed to fetch departments');
+  } finally {
+    setLoadingDepartments(false);
   }
 };
 
@@ -215,6 +249,7 @@ const fetchWarehouses = async () => {
     setSelectedTimezone(null);
     setSelectedStartTime(outlet.start_day_time || '');
     setSelectedCloseTime(outlet.close_day_time || '');
+    setSelectedDepartment(outlet.hotel_departmentid || null); // Load department
     setContactPhone(outlet.contact_phone || '');
     setNotificationEmail(outlet.notification_email || '');
     setCity(outlet.city || '');
@@ -239,6 +274,11 @@ const fetchWarehouses = async () => {
     setStartTime(outlet.start_time || 0);
     setEndTime(outlet.end_time || 6);
 
+    // Fetch departments for the selected brand
+    if (outlet.hotelid) {
+      fetchDepartments(outlet.hotelid);
+    }
+
     if (outlet.country_code) {
       fetchTimezones(outlet.country_code).then(() => {
         const timezone = timezones.find(t => t.timezone_name === outlet.timezone);
@@ -257,6 +297,11 @@ const fetchWarehouses = async () => {
       setShowSettingsModal(true);
       return;
     }
+    // Handle Front Desk Settings
+    if (type === 'Front Desk Settings' && outlet) {
+      setShowFrontDeskSettingsModal(true);
+      return;
+    }
     if (outlet && type === 'Edit Item') {
       loadOutletDataIntoForm(outlet);
     } else {
@@ -270,6 +315,7 @@ const fetchWarehouses = async () => {
     setSelectedBrand(null);
     setSelectedCountry(null);
     setSelectedTimezone(null);
+    setSelectedDepartment(null); // Reset department
     setSelectedStartTime('');
     setSelectedCloseTime('');
     setContactPhone('');
@@ -292,6 +338,7 @@ const fetchWarehouses = async () => {
     setEndTime(6);
     setAddCustomQr(false);
     setSelectedWarehouseForm('');
+    setDepartments([]); // Clear departments
   };
 
   const handleCloseModal = () => {
@@ -303,6 +350,12 @@ const fetchWarehouses = async () => {
 
   const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
+    setSelectedOutlet(null);
+  };
+
+  // Close Front Desk Settings Modal
+  const handleCloseFrontDeskSettingsModal = () => {
+    setShowFrontDeskSettingsModal(false);
     setSelectedOutlet(null);
   };
 
@@ -382,6 +435,7 @@ const fetchWarehouses = async () => {
     const outletData: OutletData = {
       outlet_name: formDataFromElement.get('outletName') as string,
       hotelid: selectedBrand,
+      hotel_departmentid: selectedDepartment || undefined, // Add department
       country: selectedCountry.toString(),
       country_code: selectedCountryData?.country_code || '',
       timezone: selectedTimezoneData?.timezone_name || '',
@@ -477,6 +531,12 @@ const fetchWarehouses = async () => {
       cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
     },
     {
+      accessorKey: 'department_name', // Add department column
+      header: 'Department',
+      size: 120,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'N/A'}</div>,
+    },
+    {
       accessorKey: 'phone',
       header: 'Phone',
       size: 120,
@@ -527,7 +587,7 @@ const fetchWarehouses = async () => {
     {
       id: 'actions',
       header: () => <div style={{ textAlign: 'center' }}>Action</div>,
-      size: 200,
+      size: 250,
       cell: ({ row }) => (
         <div className="btn-group" role="group" style={{ justifyContent: 'center', display: 'flex' }}>
           <button
@@ -553,6 +613,15 @@ const fetchWarehouses = async () => {
             style={{ marginRight: '5px' }}
           >
             <i className="fi fi-rr-settings"></i>
+          </button>
+          {/* Front Desk Settings Button */}
+          <button
+          className="btn btn-sm btn-primary"
+          title="Front Desk Settings"
+          onClick={() => handleShowModal('Front Desk Settings', row.original)}
+          style={{ marginRight: '5px' }}
+        >
+          <i className="fi fi-rr-bell-concierge"></i>
           </button>
           <button
             className="btn btn-sm btn-secondary"
@@ -748,7 +817,16 @@ const fetchWarehouses = async () => {
                     </Form.Label>
                     <Form.Select
                       value={selectedBrand || ''}
-                      onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
+                      onChange={(e) => {
+                        const brandId = e.target.value ? Number(e.target.value) : null;
+                        setSelectedBrand(brandId);
+                        if (brandId) {
+                          fetchDepartments(brandId); // Fetch departments when brand changes
+                        } else {
+                          setDepartments([]);
+                          setSelectedDepartment(null);
+                        }
+                      }}
                     >
                       <option value="">Select Brand</option>
                       {brands.map((brand) => (
@@ -805,6 +883,34 @@ const fetchWarehouses = async () => {
                   </Form.Group>
                 </Col>
                 <Col md={6}>
+                  <Form.Group controlId="department">
+                    <Form.Label>Department</Form.Label>
+                    <Form.Select
+                      value={selectedDepartment || ''}
+                      onChange={(e) => setSelectedDepartment(e.target.value ? Number(e.target.value) : null)}
+                      disabled={!selectedBrand || loadingDepartments}
+                    >
+                      <option value="">
+                        {loadingDepartments ? 'Loading departments...' :
+                          selectedBrand ? 'Select Department' : 'Please select a brand first'}
+                      </option>
+                      {departments.map((dept) => (
+                        <option key={dept.hotel_departmentid} value={dept.hotel_departmentid}>
+                          {dept.hotel_department_name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                    {!selectedBrand && (
+                      <small className="text-muted">
+                        <i className="fi fi-rr-info me-1"></i>
+                        Please select a brand first to see available departments
+                      </small>
+                    )}
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Row className="mb-3">
+                <Col md={6}>
                   <Form.Group controlId="timezone">
                     <Form.Label>
                       Timezone <span className="text-danger">*</span>
@@ -832,8 +938,6 @@ const fetchWarehouses = async () => {
                     )}
                   </Form.Group>
                 </Col>
-              </Row>
-              <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="startDayTime">
                     <Form.Label>
@@ -852,6 +956,8 @@ const fetchWarehouses = async () => {
                     </Form.Select>
                   </Form.Group>
                 </Col>
+              </Row>
+              <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="closeDayTime">
                     <Form.Label>
@@ -870,9 +976,6 @@ const fetchWarehouses = async () => {
                     </Form.Select>
                   </Form.Group>
                 </Col>
-              </Row>
-              <Row className="mb-3">
-
                 <Col md={6}>
                   <Form.Group controlId="nextResetBillDate">
                     <Form.Label>Next Reset Bill Date</Form.Label>
@@ -891,7 +994,8 @@ const fetchWarehouses = async () => {
                     />
                   </Form.Group>
                 </Col>
-
+              </Row>
+              <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="nextResetBillDays">
                     <Form.Label>Next Reset Bill (In Days)</Form.Label>
@@ -906,8 +1010,6 @@ const fetchWarehouses = async () => {
                     </Form.Select>
                   </Form.Group>
                 </Col>
-              </Row>
-              <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="nextResetKOTDate">
                     <Form.Label>Next Reset KOT Date</Form.Label>
@@ -926,6 +1028,8 @@ const fetchWarehouses = async () => {
                     />
                   </Form.Group>
                 </Col>
+              </Row>
+              <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="nextResetKOTDays">
                     <Form.Label>Next Reset KOT (In Days)</Form.Label>
@@ -940,8 +1044,6 @@ const fetchWarehouses = async () => {
                     </Form.Select>
                   </Form.Group>
                 </Col>
-              </Row>
-              <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="contactPhone">
                     <Form.Label>Contact Phone</Form.Label>
@@ -953,6 +1055,8 @@ const fetchWarehouses = async () => {
                     />
                   </Form.Group>
                 </Col>
+              </Row>
+              <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="notificationEmail">
                     <Form.Label>Notification Email</Form.Label>
@@ -964,8 +1068,6 @@ const fetchWarehouses = async () => {
                     />
                   </Form.Group>
                 </Col>
-              </Row>
-              <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="city">
                     <Form.Label>City</Form.Label>
@@ -977,6 +1079,8 @@ const fetchWarehouses = async () => {
                     />
                   </Form.Group>
                 </Col>
+              </Row>
+              <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="zipCode">
                     <Form.Label>Zip Code</Form.Label>
@@ -988,8 +1092,6 @@ const fetchWarehouses = async () => {
                     />
                   </Form.Group>
                 </Col>
-              </Row>
-              <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="outletCode">
                     <Form.Label>Outlet Code</Form.Label>
@@ -1000,7 +1102,7 @@ const fetchWarehouses = async () => {
                       onChange={(e) => setOutletCode(e.target.value)}
                     />
                   </Form.Group>
-                </Col>             
+                </Col>
               </Row>
               <Row className="mb-3">
                 <Col md={12}>
@@ -1098,7 +1200,6 @@ const fetchWarehouses = async () => {
                     />
                   </Form.Group>
                 </Col>
-
                 <Col md={6}>
                   <Form.Group controlId="fssaiNo">
                     <Form.Label>FSSAI No.</Form.Label>
@@ -1110,7 +1211,6 @@ const fetchWarehouses = async () => {
                     />
                   </Form.Group>
                 </Col>
-               
               </Row>
               <Row className="mb-3">
                 <Col md={6}>
@@ -1240,6 +1340,13 @@ const fetchWarehouses = async () => {
         onHide={handleCloseSettingsModal}
         selectedOutlet={selectedOutlet}
         handleUpdate={handleUpdate}
+      />
+
+      {/* Add FrontDeskSettingsModal */}
+      <FrontDeskSettingsModal
+        show={showFrontDeskSettingsModal}
+        onHide={handleCloseFrontDeskSettingsModal}
+        selectedOutlet={selectedOutlet}
       />
     </div>
   );

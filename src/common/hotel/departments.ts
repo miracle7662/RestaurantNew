@@ -2,8 +2,9 @@ import HttpClient from '../helpers/httpClient';
 import { ApiResponse } from '@/types/api';
 
 export interface Department {
-  department_id: number;
-  department_name: string;
+  hotel_departmentid: number;  // Changed from department_id
+  hotel_department_name: string; // Changed from department_name
+  hotelid: number;
   status: number;
   mst_hotelid?: number;
   created_by_id?: number;
@@ -13,19 +14,17 @@ export interface Department {
 }
 
 export interface DepartmentPayload {
-  department_name: string;
+  hotel_department_name: string; // Changed from department_name
   status?: number;
-  mst_hotelid?: number;
+  hotelid?: number;
 }
 
 const DepartmentService = {
-  list: (params?: { mst_hotelid?: number }): Promise<ApiResponse<Department[]>> =>
+  list: (params?: { hotelid?: number }): Promise<ApiResponse<Department[]>> =>
     HttpClient.get<ApiResponse<Department[]>>('/departments', { params }),
 
   get: (id: number): Promise<ApiResponse<Department>> =>
     HttpClient.get<ApiResponse<Department>>(`/departments/${id}`),
-
- 
 };
 
 export default DepartmentService;

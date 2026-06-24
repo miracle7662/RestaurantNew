@@ -114,6 +114,8 @@ exports.addOutlet = async (req, res) => {
     const {
       outlet_name,
       hotelid,
+       hotel_departmentid,
+       hotel_department_name,
       market_id,
       outlet_code,
       phone,
@@ -160,18 +162,20 @@ exports.addOutlet = async (req, res) => {
 
     const outletQuery = `
             INSERT INTO mst_outlets (
-                outlet_name, hotelid, market_id, outlet_code, phone, email, website,
+                outlet_name, hotelid, hotel_departmentid, hotel_department_name, market_id, outlet_code, phone, email, website,
                 address, city, zip_code, country, timezone, start_day_time, close_day_time,
                 next_reset_bill_date, next_reset_bill_days, next_reset_kot_date, next_reset_kot_days,
                 contact_phone, notification_email, description, logo, gst_no, fssai_no,
                 status, digital_order, created_by_id, created_date,
                 logout_pos, password_protection, send_payment_link, send_ebill_whatsapp, add_custom_qr, start_time, end_time, warehouseid, reduce_inventory
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
 
     const [outletResult] = await db.query(outletQuery, [
       outlet_name,
       hotelid,
+       hotel_departmentid || null, // ADD DEPARTMENT ID HERE
+       hotel_department_name,
       market_id,
       outlet_code,
       phone,
@@ -747,6 +751,8 @@ await db.query('COMMIT');
         id: outletId,
         outlet_name,
         hotelid,
+        hotel_departmentid,
+        hotel_department_name,
         market_id,
         outlet_code,
         phone,
@@ -797,6 +803,8 @@ exports.updateOutlet = async (req, res) => {
     const {
       outlet_name,
       hotelid,
+      hotel_departmentid,
+      hotel_department_name,
       market_id,
       outlet_code,
       phone,
@@ -840,7 +848,7 @@ exports.updateOutlet = async (req, res) => {
 
     await db.query(`
             UPDATE mst_outlets SET
-                outlet_name = ?, hotelid = ?, market_id = ?, outlet_code = ?, phone = ?,
+                outlet_name = ?, hotelid = ?,  hotel_departmentid = ?, hotel_department_name = ?, market_id = ?, outlet_code = ?, phone = ?,
                 email = ?, website = ?, address = ?, city = ?, zip_code = ?, country = ?,
                 timezone = ?, start_day_time = ?, close_day_time = ?, next_reset_bill_date = ?,
                 next_reset_bill_days = ?, next_reset_kot_date = ?, next_reset_kot_days = ?,
@@ -853,6 +861,8 @@ exports.updateOutlet = async (req, res) => {
         `, [
       outlet_name,
       hotelid,
+      hotel_departmentid,
+      hotel_department_name,
       market_id,
       outlet_code,
       phone,
@@ -898,6 +908,8 @@ exports.updateOutlet = async (req, res) => {
         id,
         outlet_name,
         hotelid,
+        hotel_departmentid,
+        hotel_department_name,
         market_id,
         outlet_code,
         phone,

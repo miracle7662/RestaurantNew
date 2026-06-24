@@ -1,88 +1,24 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Button } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
 import TitleHelmet from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
 
-import CheckInService from '@/common/hotel/checkIn'
-import DetailService from '@/common/hotel/detail'
-import GuestFolioService from '@/common/hotel/guestFolio'
-import GuestRoomChargesService, { GuestRoomCharge } from '@/common/hotel/guestRoomCharges'
-import PostChargesService, { PostCharge } from '@/common/hotel/postCharges'
-import BrandService from '@/common/hotel/brand'
-import AgentRoomCheckinService, { AgentRoomCheckin } from '@/common/hotel/agentRoomCheckin'
-import AdvanceTransactionService from '@/common/hotel/advanceTransaction'
+
 import CheckoutService, { CheckoutMaster } from '@/common/hotel/checkout'
 import CheckoutBillModal from './CheckoutBillModal'
 import SettlementModal from './SettelmentModel'
 import OutletPaymentModeService from '@/common/api/outletpaymentmode'
 import LdgSettlementService from '@/common/hotel/ldgsettlement'
+// Import the common fetch function
+import { fetchOccupiedRooms } from '@/utils/commonfunction'
+import { OccupiedRoomItem } from '@/types/room'
 
 // ─── Types (same as HotelBookingPanel) ─────────────────────────────────────
 
-interface GuestRoomChargeExtended extends GuestRoomCharge {
-  per_day_total?: number
-}
 
-interface OccupiedRoomItem {
-  room_no: string
-  guest_name: string
-  checkin_datetime: string
-  checkout_datetime: string
-  guest_type: string
-  original_charge: number
-  folio_total: number
-  total_charge: number
-  adults: number
-  child_count: number
-  driver_count: number
-  ex_pax: number
-  payment_method: string
-  checkin?: any
-  detail?: any
-  checkin_id: number
-  detail_id?: number
-  room_id?: number
-  room_category_id?: number
-  isCheckoutNear: boolean
-  minutesLeft: number
-  isExpired: boolean
-  ex_pax_charge?: number
-  child_paid_amount?: number
-  driver_charge?: number
-  cgst_percent?: number
-  sgst_percent?: number
-  igst_percent?: number
-  cess_percent?: number
-  service_charge?: number
-  tax?: number
-  discount_percent?: number
-  previous_folio_total?: number
-  total_days?: number
-  per_day_base_price?: number
-  guest_room_charges_total?: number
-  checkin_total_amount?: number
-  guest_room_charges_per_day?: GuestRoomChargeExtended[]
-  room_tariff_from_category?: number
-  room_category_name?: string
-  converted_category_name?: string
-  original_pax?: number
-  is_multi_room_checkin?: boolean
-  agent_name?: string
-  booking_type?: string
-  is_agent_checkin?: boolean
-  post_charges_by_date?: Record<string, number>
-  today_combined_total?: number
-  current_active_day_key?: string
-  individual_room_charges_total?: number
-  latest_charge_checkout_datetime?: string
-  pending_advance?: number
-  pending_advance_for_room?: number
-  net_room_amount?: number
-  total_all_rooms_net?: number
-  total_allowances?: number
-}
+
+
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -115,23 +51,13 @@ const getMinutesLeft = (checkoutDatetime: string): number => {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 const SettlementPage = () => {
-  const navigate = useNavigate()
   const { user } = useAuthContext()
   const hotelId = user?.hotelid
-
-  // Hotel info
-  const [hotelName, setHotelName] = useState('')
-  const [hotelAddress, setHotelAddress] = useState('')
-  const [hotelPhone, setHotelPhone] = useState('')
-  const [hotelEmail, setHotelEmail] = useState('')
-  const [hotelWebsite, setHotelWebsite] = useState('')
-  const [hotelGSTIN, setHotelGSTIN] = useState('')
-  const [hotelFSSAI, setHotelFSSAI] = useState('')
-  const [hotelPAN, setHotelPAN] = useState('')
 
   // Data
   const [occupiedRooms, setOccupiedRooms] = useState<OccupiedRoomItem[]>([])
   const [loadingOccupied, setLoadingOccupied] = useState(false)
+  const [errorOccupied, setErrorOccupied] = useState<string | null>(null)
   const [checkoutData, setCheckoutData] = useState<CheckoutMaster[]>([])
   const [loadingCheckout, setLoadingCheckout] = useState(false)
   const [checkoutPaymentMap, setCheckoutPaymentMap] = useState<Map<number, string>>(new Map())
@@ -169,27 +95,6 @@ const SettlementPage = () => {
   // ─── Fetch hotel info ────────────────────────────────────────────────────
   useEffect(() => {
     if (!hotelId) return
-    const fetchHotelInfo = async () => {
-      try {
-        if (user?.hotel_name) {
-          setHotelName(user.hotel_name)
-        } else {
-          const response = await BrandService.getBrandById(String(hotelId))
-          const hotelData = response?.data || response
-          setHotelName(hotelData?.hotel_name || 'Hotel')
-          setHotelAddress(hotelData?.address || '')
-          setHotelPhone(hotelData?.phone || '')
-          setHotelEmail(hotelData?.email || '')
-          setHotelWebsite(hotelData?.website || '')
-          setHotelGSTIN(hotelData?.trn_gstno || '')
-          setHotelFSSAI(hotelData?.fssai_no || '')
-          setHotelPAN(hotelData?.panno || '')
-        }
-      } catch {
-        setHotelName('Hotel')
-      }
-    }
-    fetchHotelInfo()
 
     const fetchPaymentModes = async () => {
       try {
@@ -199,11 +104,7 @@ const SettlementPage = () => {
           setOutletPaymentModes(res.data)
         }
       } catch {
-        setOutletPaymentModes([
-          { id: 1, mode_name: 'Cash', outletid: 0 },
-          { id: 2, mode_name: 'Card', outletid: 0 },
-          { id: 3, mode_name: 'UPI', outletid: 0 },
-        ])
+        // Silently fail - fallback to empty array
       }
     }
     fetchPaymentModes()
@@ -212,256 +113,21 @@ const SettlementPage = () => {
   // ─── Initial data load ───────────────────────────────────────────────────
   useEffect(() => {
     if (!hotelId) return
-    fetchOccupiedRooms()
+    fetchOccupiedRoomsData()
     fetchCheckoutData()
   }, [hotelId])
 
-  // ─── Fetch occupied rooms ────────────────────────────────────────────────
-  const fetchAgentRoomCheckin = async (checkinId: number): Promise<AgentRoomCheckin | null> => {
-    try {
-      const response = await AgentRoomCheckinService.getByCheckinId(checkinId)
-      if (response.success && response.data && response.data.length > 0) return response.data[0]
-      return null
-    } catch {
-      return null
-    }
-  }
-
-  const fetchOccupiedRooms = async () => {
+  // ─── Fetch occupied rooms using common function ─────────────────────────
+  const fetchOccupiedRoomsData = async () => {
     if (!hotelId) return
-    setLoadingOccupied(true)
-    try {
-      const checkinsRes = await CheckInService.list({ hotelid: hotelId })
-      const checkins = (checkinsRes.data || []).filter((c: any) => c.status === 'active')
-      const checkinMap = new Map(checkins.map((c: any) => [c.checkin_id, c]))
-
-      const detailsRes = await DetailService.list({ hotelid: hotelId })
-      const activeDetails = (detailsRes.data || []).filter(
-        (d: any) => checkinMap.has(d.checkin_id) && d.is_checkout === 0,
-      )
-
-      const foliosRes = await GuestFolioService.list({ hotelid: hotelId })
-      const paymentMethodMap = new Map<number, string>()
-      ;(foliosRes.data || []).forEach((folio: any) => {
-        if (folio.checkin_id && !paymentMethodMap.has(folio.checkin_id))
-          paymentMethodMap.set(folio.checkin_id, folio.payment_method || 'Cash')
-      })
-
-      const activeCheckinIds = [...new Set(activeDetails.map((d: any) => d.checkin_id))] as number[]
-      const chargesMap = new Map<number, GuestRoomChargeExtended[]>()
-      const postChargesMap = new Map<number, PostCharge[]>()
-      const advancePerRoomMap = new Map<number, Map<number, number>>()
-      const agentMap = new Map<number, AgentRoomCheckin>()
-
-      for (const cid of activeCheckinIds) {
-        try {
-          const res = await GuestRoomChargesService.list({ checkin_id: cid })
-          if (res.success && res.data) chargesMap.set(cid, res.data)
-        } catch {}
-
-        try {
-          const res = await PostChargesService.list({ checkin_id: cid, hotelid: hotelId })
-          if (res.success && res.data) postChargesMap.set(cid, res.data)
-        } catch {}
-
-        const roomAdvanceMap = new Map<number, number>()
-        try {
-          const advRes = await AdvanceTransactionService.list({ checkin_id: cid })
-          if (advRes.success && advRes.data) {
-            const roomCredits = new Map<number, number>()
-            const roomDebits = new Map<number, number>()
-            let globalCredits = 0, globalDebits = 0
-            advRes.data.forEach((t: any) => {
-              const rid = t.room_id
-              const isCredit = t.transaction_type === 'Booking Receipt' || t.transaction_type === 'Advance Addition'
-              const isDebit = t.transaction_type === 'Advance Posting' || t.transaction_type === 'Advance Refund'
-              if (t.status !== 'active') return
-              if (!rid) {
-                if (isCredit) globalCredits += Number(t.credit_amount) || 0
-                if (isDebit) globalDebits += Number(t.debit_amount) || 0
-              } else {
-                if (isCredit) roomCredits.set(rid, (roomCredits.get(rid) || 0) + (Number(t.credit_amount) || 0))
-                if (isDebit) roomDebits.set(rid, (roomDebits.get(rid) || 0) + (Number(t.debit_amount) || 0))
-              }
-            })
-            for (const [rid, credit] of roomCredits) roomAdvanceMap.set(rid, credit - (roomDebits.get(rid) || 0))
-            if (roomAdvanceMap.size === 0 && (globalCredits > 0 || globalDebits > 0))
-              roomAdvanceMap.set(0, globalCredits - globalDebits)
-          }
-        } catch {}
-        advancePerRoomMap.set(cid, roomAdvanceMap)
-
-        const agentData = await fetchAgentRoomCheckin(cid)
-        if (agentData) agentMap.set(cid, agentData)
-      }
-
-      // Consolidate details per room+checkin
-      const roomGroupMap = new Map<string, any[]>()
-      activeDetails.forEach((detail: any) => {
-        const key = `${detail.checkin_id}__${detail.room_id}`
-        const group = roomGroupMap.get(key) || []
-        group.push(detail)
-        roomGroupMap.set(key, group)
-      })
-
-      const consolidatedDetails: Array<{ detail: any; originalCheckinDatetime: string; finalCheckoutDatetime: string }> = []
-      roomGroupMap.forEach((group) => {
-        const sorted = [...group].sort(
-          (a, b) => new Date(b.checkout_datetime || 0).getTime() - new Date(a.checkout_datetime || 0).getTime(),
-        )
-        const latestDetail = sorted[0]
-        const earliestCheckin = group.reduce((earliest, d) => {
-          const t = new Date(d.checkin_datetime || 0).getTime()
-          return t < new Date(earliest || 0).getTime() ? d.checkin_datetime : earliest
-        }, latestDetail.checkin_datetime)
-        const latestCheckout = group.reduce((latest, d) => {
-          const t = new Date(d.checkout_datetime || 0).getTime()
-          return t > new Date(latest || 0).getTime() ? d.checkout_datetime : latest
-        }, latestDetail.checkout_datetime)
-        consolidatedDetails.push({ detail: latestDetail, originalCheckinDatetime: earliestCheckin, finalCheckoutDatetime: latestCheckout })
-      })
-
-      const items: OccupiedRoomItem[] = await Promise.all(
-        consolidatedDetails.map(async ({ detail, originalCheckinDatetime, finalCheckoutDatetime }) => {
-          const checkin = checkinMap.get(detail.checkin_id) as any
-          const allChargesForCheckin = chargesMap.get(detail.checkin_id) || []
-          const roomCharges = allChargesForCheckin.filter((c) => c.room_id === detail.room_id)
-          const sortedCharges = [...roomCharges].sort(
-            (a, b) => new Date(b.checkout_datetime || 0).getTime() - new Date(a.checkout_datetime || 0).getTime(),
-          )
-          const latestCharge = sortedCharges[0]
-          const latestChargeCheckoutDatetime = latestCharge?.checkout_datetime || finalCheckoutDatetime
-
-          const minutesLeft = getMinutesLeft(latestChargeCheckoutDatetime)
-          const isNear = minutesLeft <= 30 && minutesLeft > 0
-          const isExpired = minutesLeft <= 0
-          const masterTotal = checkin.total_amount || 0
-
-          const bookingType = checkin.booking || 'WALK-IN-GUEST'
-          let agentName: string | undefined
-          let isAgentCheckin = false
-          const agentData = agentMap.get(detail.checkin_id)
-          if (agentData && (bookingType === 'AGENT' || agentData.agent_name)) {
-            isAgentCheckin = true
-            agentName = agentData.agent_name || undefined
-          }
-
-          const regularRoomCharges = roomCharges.filter((c) => c.category_id !== null && c.category_id !== undefined)
-          const guestRoomChargesTotal = regularRoomCharges.reduce((sum, c) => sum + (Number(c.total_amount) || 0), 0)
-          let perDayPriceFromCharges = detail.room_tariff || 0
-          if (regularRoomCharges.length > 0) {
-            const latestReg = [...regularRoomCharges].sort(
-              (a, b) => new Date(b.checkin_datetime || 0).getTime() - new Date(a.checkin_datetime || 0).getTime(),
-            )[0]
-            if (latestReg.total_amount) perDayPriceFromCharges = Number(latestReg.total_amount)
-          }
-
-          const postChargesByDate: Record<string, number> = {}
-          const allPostChargesForCheckin = postChargesMap.get(detail.checkin_id) || []
-          const roomPostCharges = allPostChargesForCheckin.filter((c: PostCharge) => c.room_id === detail.room_id)
-          roomPostCharges.forEach((c: PostCharge) => {
-            const rawDate = c.post_datetime ?? ''
-            const dateKey = rawDate.length >= 10 ? rawDate.substring(0, 10) : new Date().toISOString().split('T')[0]
-            postChargesByDate[dateKey] = (postChargesByDate[dateKey] || 0) + (Number(c.total_amount) || 0)
-          })
-          const allRoomPostChargesNetTotal = roomPostCharges.reduce((sum, c) => sum + (Number(c.total_amount) || 0), 0)
-          const totalAllowancesForRoom = roomPostCharges.reduce((sum, c) => (c.transaction_type === 'ALLOWANCE' ? sum + (Number(c.total_amount) || 0) : sum), 0)
-
-          const currentActiveDayKey = detail.checkin_datetime ? String(detail.checkin_datetime).substring(0, 10) : new Date().toISOString().split('T')[0]
-          const systemTodayKey = new Date().toISOString().split('T')[0]
-          const activePostChargesForDay = postChargesByDate[currentActiveDayKey] ?? postChargesByDate[systemTodayKey] ?? 0
-          const todayCombinedTotal = perDayPriceFromCharges + activePostChargesForDay
-
-          const perRoomAdvanceMap = advancePerRoomMap.get(detail.checkin_id) || new Map()
-          const pendingAdvanceForRoom = perRoomAdvanceMap.get(detail.room_id) ?? perRoomAdvanceMap.get(0) ?? 0
-          const individualRoomChargesTotal = guestRoomChargesTotal + allRoomPostChargesNetTotal
-          const netRoomAmount = individualRoomChargesTotal - pendingAdvanceForRoom
-
-          let totalAllRoomsCharges = 0
-          let totalAllRoomsAdvance = 0
-          const checkinRooms = consolidatedDetails.filter((d) => d.detail.checkin_id === detail.checkin_id)
-          for (const roomDetail of checkinRooms) {
-            const roomAdv = perRoomAdvanceMap.get(roomDetail.detail.room_id) ?? 0
-            totalAllRoomsAdvance += roomAdv
-            const rCharges = allChargesForCheckin.filter((c) => c.room_id === roomDetail.detail.room_id && c.category_id !== null && c.category_id !== undefined)
-            const rPostCharges = (postChargesMap.get(detail.checkin_id) || []).filter((c: PostCharge) => c.room_id === roomDetail.detail.room_id)
-            totalAllRoomsCharges += rCharges.reduce((sum, c) => sum + (Number(c.total_amount) || 0), 0)
-            totalAllRoomsCharges += rPostCharges.reduce((sum, c) => sum + (Number(c.total_amount) || 0), 0)
-          }
-          const hasRoomSpecificAdvances = [...perRoomAdvanceMap.keys()].some((k) => k !== 0)
-          const effectiveTotalAdvance = hasRoomSpecificAdvances ? totalAllRoomsAdvance : (perRoomAdvanceMap.get(0) ?? 0)
-          const totalAllRoomsNet = totalAllRoomsCharges - effectiveTotalAdvance
-
-          const roomCount = consolidatedDetails.filter((d) => d.detail.checkin_id === detail.checkin_id).length
-
-          return {
-            room_no: detail.room_number,
-            guest_name: checkin.guest_name,
-            checkin_datetime: originalCheckinDatetime || checkin.checkin_datetime,
-            checkout_datetime: latestChargeCheckoutDatetime,
-            guest_type: bookingType,
-            original_charge: detail.room_tariff,
-            folio_total: masterTotal,
-            total_charge: masterTotal,
-            adults: detail.adults,
-            child_count: (() => {
-              const rcs = (chargesMap.get(detail.checkin_id) || []).filter((c) => c.room_id === detail.room_id).sort((a, b) => new Date(b.checkin_datetime || 0).getTime() - new Date(a.checkin_datetime || 0).getTime())
-              return rcs[0] != null ? Number(rcs[0].child_count) || 0 : Number(detail.child_unpaid) || 0
-            })(),
-            driver_count: detail.driver,
-            ex_pax: detail.ex_pax,
-            payment_method: paymentMethodMap.get(detail.checkin_id) || 'Cash',
-            checkin,
-            detail,
-            checkin_id: detail.checkin_id,
-            detail_id: detail.detail_id,
-            room_id: detail.room_id,
-            room_category_id: detail.room_category_id,
-            isCheckoutNear: isNear,
-            minutesLeft,
-            isExpired,
-            ex_pax_charge: detail.ex_pax_charge,
-            child_paid_amount: detail.child_paid_amount,
-            driver_charge: detail.driver_charge,
-            cgst_percent: detail.cgst_percent,
-            sgst_percent: detail.sgst_percent,
-            igst_percent: detail.igst_percent,
-            cess_percent: detail.cess_percent,
-            service_charge: detail.service_charge,
-            tax: detail.tax,
-            discount_percent: detail.discount_percent,
-            total_days: Math.max(1, Math.ceil((new Date(latestChargeCheckoutDatetime).getTime() - new Date(originalCheckinDatetime || detail.checkin_datetime).getTime()) / (1000 * 3600 * 24))),
-            per_day_base_price: perDayPriceFromCharges,
-            individual_room_charges_total: individualRoomChargesTotal,
-            net_room_amount: netRoomAmount,
-            total_all_rooms_net: totalAllRoomsNet,
-            pending_advance_for_room: pendingAdvanceForRoom,
-            guest_room_charges_total: roomCount > 1 ? (guestRoomChargesTotal + allRoomPostChargesNetTotal) : (guestRoomChargesTotal + allRoomPostChargesNetTotal),
-            checkin_total_amount: masterTotal,
-            room_category_name: detail.room_category_name,
-            converted_category_name: detail.converted_category_name,
-            original_pax: detail.pax || detail.adults,
-            booking_type: bookingType,
-            agent_name: agentName,
-            is_agent_checkin: isAgentCheckin,
-            post_charges_by_date: postChargesByDate,
-            today_combined_total: todayCombinedTotal,
-            current_active_day_key: currentActiveDayKey,
-            latest_charge_checkout_datetime: latestChargeCheckoutDatetime,
-            pending_advance: totalAllRoomsAdvance,
-            total_allowances: totalAllowancesForRoom,
-            is_multi_room_checkin: roomCount > 1,
-          }
-        }),
-      )
-
-      items.sort((a, b) => a.room_no.localeCompare(b.room_no, undefined, { numeric: true }))
-      setOccupiedRooms(items)
-    } catch (err) {
-      console.error('Failed to fetch occupied rooms:', err)
-    } finally {
-      setLoadingOccupied(false)
-    }
+    
+    await fetchOccupiedRooms(
+      hotelId,
+      getMinutesLeft,
+      setOccupiedRooms,
+      setLoadingOccupied,
+      setErrorOccupied
+    )
   }
 
   // ─── Fetch checkout records ──────────────────────────────────────────────
@@ -583,9 +249,9 @@ const SettlementPage = () => {
       guestName: co.guest_name || '-',
       guestid: co.guest_id || 0,
       roomNo: co.room_no || '-',
-     room_id: typeof co.room_id === 'string'
-  ? JSON.parse(co.room_id)
-  : co.room_id,
+      room_id: typeof co.room_id === 'string'
+        ? JSON.parse(co.room_id)
+        : co.room_id,
       totalPrice: Number(co.total_amount) || 0,
       checkoutId: co.checkout_id,
       checkinId: co.checkin_id,
@@ -619,6 +285,21 @@ const SettlementPage = () => {
                 <span className="visually-hidden">Loading...</span>
               </div>
               <p className="text-muted mt-2 small">Loading settlement data...</p>
+            </div>
+          </div>
+        ) : errorOccupied ? (
+          <div className="text-center py-5">
+            <div className="alert alert-danger">
+              <i className="fi fi-rr-exclamation-triangle me-2"></i>
+              {errorOccupied}
+              <Button 
+                variant="outline-danger" 
+                size="sm" 
+                className="ms-3"
+                onClick={fetchOccupiedRoomsData}
+              >
+                Retry
+              </Button>
             </div>
           </div>
         ) : (
@@ -950,7 +631,7 @@ const SettlementPage = () => {
         <CheckoutBillModal
           show={showBillModal}
           onHide={() => { setShowBillModal(false); setBillData(null) }}
-          checkoutId={0} // You need to pass a valid checkout ID
+          checkoutId={0}
           ldgBillNo={billData.billNumber}
           hotelId={hotelId}
           billNumber={billData.billNumber}
@@ -990,8 +671,8 @@ const SettlementPage = () => {
                   checkout_id: settlementPayData.checkoutId,
                   room_name: settlementPayData.roomNo,
                   room_ids: Array.isArray(settlementPayData.room_id)
-    ? settlementPayData.room_id
-    : [settlementPayData.room_id],
+                    ? settlementPayData.room_id
+                    : [settlementPayData.room_id],
                   bill_no: settlementPayData.billNo,
                   registration_no: settlementPayData.regNo,
                   OrderNo: settlementPayData.orderNo,
@@ -1013,7 +694,7 @@ const SettlementPage = () => {
               setShowSettlementPayModal(false)
               setSettlementPayData(null)
               await fetchCheckoutData()
-              await fetchOccupiedRooms()
+              await fetchOccupiedRoomsData()
             } catch (err) {
               console.error(err)
               toast.error('Settlement failed')
