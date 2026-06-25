@@ -275,7 +275,7 @@ const PostChargesModal = ({
       }
 
       try {
-        const res = await departmentApi.list({ mst_hotelid: hotelId })
+        const res = await departmentApi.list({ hotelid: hotelId })
         const payload = res as any
         setDepartments(Array.isArray(payload) ? payload : (payload?.data ?? []))
       } catch {

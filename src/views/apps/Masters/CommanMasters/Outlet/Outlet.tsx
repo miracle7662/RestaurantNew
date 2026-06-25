@@ -136,10 +136,21 @@ const fetchWarehouses = async () => {
 const fetchDepartments = async (hotelId: number) => {
   try {
     setLoadingDepartments(true);
-    // Use the imported DepartmentService instead of fetch
+
     const response = await DepartmentService.list({ hotelid: hotelId });
+
     if (response && response.data) {
-      setDepartments(response.data);
+      setDepartments(
+        response.data.map((dept: any) => ({
+          hotel_departmentid:
+            dept.hotel_departmentid ?? dept.department_id,
+          hotel_department_name:
+            dept.hotel_department_name ?? dept.department_name,
+          hotelid: dept.hotelid,
+          status: dept.status,
+        }))
+      );
+
       setSelectedDepartment(null);
     }
   } catch (error) {

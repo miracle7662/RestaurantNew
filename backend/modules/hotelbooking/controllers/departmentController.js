@@ -4,12 +4,7 @@ const db = require('../../../config/db');
 exports.getDepartments = async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT 
-        department_id as hotel_departmentid, 
-        department_name as hotel_department_name,
-        status
-      FROM departmentmaster 
-      ORDER BY department_name ASC`
+      `SELECT * FROM departmentmaster ORDER BY department_name ASC`
     );
 
     res.json({ success: true, data: rows });

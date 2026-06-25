@@ -17,6 +17,7 @@ const getValueOrNull = (value) => value !== undefined && value !== null && value
 // GET /rooms – list rooms (filter by hotel, optional search)
 // ----------------------------------------------------------------------
 
+// roomController.js
 exports.getCheckinFullDetails = async (req, res) => {
   try {
     const { hotelid, checkin_id } = req.query;
@@ -28,125 +29,32 @@ exports.getCheckinFullDetails = async (req, res) => {
       });
     }
 
-    const sql = `
-      SELECT
-    -- Checkin Master
-    cm.checkin_id,
-    cm.booking,
-    cm.plan_name,
-    cm.reg_no,
-    cm.checkin_datetime,
-    cm.checkout_datetime,
-    cm.hotelid,
-    cm.checkout_id,
+    // 🔥 Option 1: Use Stored Procedure
+    const sql = `CALL sp_get_checkin_details_summary(?, ?)`;
+    const [results] = await db.query(sql, [hotelid, checkin_id]);
+    
+    // MySQL returns stored procedure results as array of arrays
+    // The first element contains the actual data
+    const rows = results[0] || [];
 
-    -- Room Details
-    cdm.detail_id,
-    cdm.guest_id ,
-    cdm.room_id,
-    cdm.room_number,
-    cdm.room_category_name,
-    cdm.converted_category_name,
-    cdm.room_tariff,
-    cdm.discount_percent,
-    cdm.cgst_percent,
-    cdm.sgst_percent,
-    cdm.igst_percent,
-    cdm.is_settle,
-    cdm.checkin_datetime AS detail_checkin_datetime,
-    cdm.checkout_datetime AS detail_checkout_datetime,
-    cdm.adults,
-    cdm.pax,
-    cdm.ex_pax,
-    cdm.child_unpaid,
-    cdm.driver,
-    cdm.ex_pax_charge,
-    cdm.child_paid_amount,
-    cdm.driver_charge,
-    cdm.cess_percent,
-    cdm.service_charge,
-    cdm.parent_detail_id,
-
-    -- Room-wise Guest
-    gm.name AS guest_name,
-    gm.mobile,
-    gm.address,
-    gm.email,
-
-    -- Guest Folio
-    cgfm.folio_id,
-    cgfm.transaction_type,
-    cgfm.description ,  -- ✅ ADD THIS
-    cgfm.payment_method,
-    cgfm.debit_amount,
-    cgfm.credit_amount,
-    cgfm.reference_number,
-
-    -- Room Charges
-    cgrc.guest_room_charges_id,
-    cgrc.category_id,
-    cgrc.pax_count,
-    cgrc.pax_price,
-    cgrc.pax_tax,
-    cgrc.ex_pax_count,
-    cgrc.ex_pax_price,
-    cgrc.ex_pax_tax,
-    cgrc.ex_pax_tax_percent,
-    cgrc.ex_pax_total,
-    cgrc.child_count,
-    cgrc.child_price,
-    cgrc.child_tax,
-    cgrc.child_tax_percent,
-    cgrc.child_total,
-    cgrc.driver_count,
-    cgrc.driver_price,
-    cgrc.driver_tax,
-    cgrc.driver_tax_percent,
-    cgrc.driver_total,
-    cgrc.total_amount,
-    cgrc.checkin_datetime AS charge_checkin_datetime,
-    cgrc.checkout_datetime AS charge_checkout_datetime
-
-FROM checkin_master cm
-
-LEFT JOIN checkin_detail_master cdm
-       ON cm.checkin_id = cdm.checkin_id
-      AND cdm.is_settle = 0
-
-LEFT JOIN guest_master gm
-       ON gm.guest_id = cdm.guest_id
-
-LEFT JOIN checkin_guest_folio_master cgfm
-       ON cgfm.checkin_id = cdm.checkin_id
-      AND cgfm.room_id = cdm.room_id
-      
-
-LEFT JOIN checkin_guest_room_charges cgrc
-       ON cgrc.checkin_id = cdm.checkin_id
-      AND cgrc.room_id = cdm.room_id
-
-WHERE cm.hotelid = ?
-  AND cm.checkin_id = ?
-  AND cdm.is_settle = 0
-
-ORDER BY cdm.room_number,
-         cgrc.checkin_datetime;
-    `;
-
-    const [rows] = await db.query(sql, [hotelid, checkin_id]);
+    console.log(`✅ Stored procedure returned ${rows.length} rows`);
 
     return res.status(200).json({
       success: true,
       count: rows.length,
       data: rows,
     });
+
   } catch (error) {
-    console.log(rows.map(r => ({
-  guest_room_charges_id: r.guest_room_charges_id,
-  folio_id: r.folio_id,
-  transaction_type: r.transaction_type,
-  description: r.description
-})));
+    console.error('❌ Error in getCheckinFullDetails:', error);
+    
+    // Option 2: Fallback to original query if stored procedure fails
+    // You can add fallback logic here
+    
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch check-in details',
+    });
   }
 };
 
