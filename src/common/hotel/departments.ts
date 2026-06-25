@@ -4,6 +4,8 @@ import { ApiResponse } from '@/types/api';
 export interface Department {
   hotel_departmentid: number;  // Changed from department_id
   hotel_department_name: string; // Changed from department_name
+department_id: number; // Changed from departmentid
+  department_name?: string;
   hotelid: number;
   status: number;
   mst_hotelid?: number;

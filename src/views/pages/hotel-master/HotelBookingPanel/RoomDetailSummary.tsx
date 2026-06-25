@@ -1,4 +1,4 @@
-// pages/RoomDetailSummary.tsx - Complete with missing type imports restored
+// pages/RoomDetailSummary.tsx - Refactored with Stored Procedure
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Row, Col, Button, Card, Tabs, Tab, Form, Nav, Modal } from 'react-bootstrap'
@@ -9,60 +9,12 @@ import { useAuthContext } from '@/common/context/useAuthContext'
 // Bill Modal
 import CheckoutBillModal from './CheckoutBillModal'
 
-// API Services (only those actually used)
+// API Services
 import CheckoutService from '@/common/hotel/checkout'
 import RoomService from '@/common/hotel/room'
-import AdvanceTransactionService from '@/common/hotel/advanceTransaction'
 
-// Type imports (restored because they are used in interfaces and function signatures)
-import { GuestRoomCharge } from '@/common/hotel/guestRoomCharges'
-import { CheckIn } from '@/common/hotel/checkIn'
-import { Detail } from '@/common/hotel/detail'
 
 // ==================== INTERFACES ====================
-
-interface ExtendedGuestRoomCharge extends GuestRoomCharge {
-  room_number?: string
-  room_category_name?: string
-  converted_category_name?: string
-  checkin_datetime_from_detail?: string
-  checkout_datetime_from_detail?: string
-  guest_name?: string
-  adults?: number
-  pax?: number
-  ex_pax?: number
-  child_paid?: number
-  child_unpaid?: number
-  driver?: number
-  discount_percent?: number
-  payment_method?: string
-  day_number?: number
-  is_extension_day?: boolean
-  bill_date_formatted?: string
-  detail_id?: number
-  actual_room_category_name?: string
-  actual_converted_category_name?: string
-  cgst_amount?: number
-  sgst_amount?: number
-  igst_amount?: number
-  cess_amount?: number
-  service_charge_amount?: number
-  tax_percent?: number
-  ex_pax_tax_percent: number | null
-  child_tax_percent: number | null
-  driver_tax_percent: number | null
-  ex_pax_tax: number | null
-  child_tax: number | null
-  driver_tax: number | null
-  isPostCharge?: boolean
-  postChargeDescription?: string
-  postChargeParticulars?: string
-  department_name?: string
-  sortDate?: Date
-  chargeType?: 'original' | 'extension' | 'postcharge' | 'allowance'
-  original_day_number?: number
-  description?: string
-}
 
 interface DisplayDetailRow {
   id: string
@@ -127,7 +79,8 @@ interface DisplayDetailRow {
   description: string
   particulars: string
   department_name: string
-  sortKey?: string
+  charge_type: 'room' | 'extension' | 'postcharge' | 'allowance' | 'advance'
+  transaction_type?: string
 }
 
 interface CombinedGuestSummary {
@@ -171,22 +124,7 @@ interface CombinedGuestSummary {
   reg_no?: string
   booking_ref?: string
   plan_name?: string
-}
-
-interface BillDateSummaryItem {
-  billDate: string
-  billDateFormatted: string
-  roomNumber: string
-  roomCategory: string
-  convertedCategory: string
-  billNo: number
-  dayNumber: number
-  description: string
-  amount: number
-  total: number
-  isExtension: boolean
-  isPostCharge: boolean
-  originalDayNumber: number
+  pending_advance?: number
 }
 
 // ==================== HELPER FUNCTIONS ====================
@@ -231,46 +169,6 @@ const formatBillDate = (dateString: string): string => {
   return `${day}-${month}-${year}`
 }
 
-const getChargeTypePriority = (charge: ExtendedGuestRoomCharge): number => {
-  if ((charge as any).department_name === 'Advance') return 4
-  if (charge.isPostCharge) {
-    const totalAmount = toNumber(charge.total_amount)
-    return totalAmount < 0 ? 3 : 2
-  }
-  if (charge.is_extension_day) return 1
-  return 0
-}
-
-const sortChargesByDateAndPriority = (
-  charges: ExtendedGuestRoomCharge[],
-): ExtendedGuestRoomCharge[] => {
-  return [...charges].sort((a, b) => {
-    const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0)
-    const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0)
-    const dateCompare = dateA.getTime() - dateB.getTime()
-    if (dateCompare !== 0) return dateCompare
-
-    const priorityA = getChargeTypePriority(a)
-    const priorityB = getChargeTypePriority(b)
-    if (priorityA !== priorityB) return priorityA - priorityB
-
-    const roomA = String(a.room_number || a.room_no || '').trim()
-    const roomB = String(b.room_number || b.room_no || '').trim()
-    const roomCompare = roomA.localeCompare(roomB, undefined, { numeric: true })
-    if (roomCompare !== 0) return roomCompare
-
-    if (!a.isPostCharge && !b.isPostCharge) {
-      return (
-        (a.original_day_number || a.day_number || 0) - (b.original_day_number || b.day_number || 0)
-      )
-    }
-
-    const timeA = new Date(a.created_at || a.checkin_datetime || 0).getTime()
-    const timeB = new Date(b.created_at || b.checkin_datetime || 0).getTime()
-    return timeA - timeB
-  })
-}
-
 const parseBillDateToDate = (billDateFormatted: string): Date => {
   if (!billDateFormatted) return new Date(0)
   const parts = billDateFormatted.split('-')
@@ -283,40 +181,26 @@ const parseBillDateToDate = (billDateFormatted: string): Date => {
   return new Date(0)
 }
 
-const isPostChargeType = (charge: GuestRoomCharge): boolean => {
-  if (charge.category_id === null || charge.category_id === undefined) {
-    return true
-  }
-  const hasExtraData =
-    toNumber(charge.ex_pax_count) > 0 ||
-    toNumber(charge.child_count) > 0 ||
-    toNumber(charge.driver_count) > 0
-  if (!hasExtraData && charge.category_id === null) {
-    return true
-  }
-  return false
-}
-
 // ==================== MAIN COMPONENT ====================
 
 const RoomDetailSummary = () => {
-  console.log('🚀 RoomDetailSummary component mounted');
+  console.log('🚀 RoomDetailSummary component mounted')
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuthContext()
   const hotelId = user?.hotelid
-  console.log('🏨 hotelId:', hotelId);
+  console.log('🏨 hotelId:', hotelId)
 
+  // State
   const [displayRows, setDisplayRows] = useState<DisplayDetailRow[]>([])
   const [combinedSummary, setCombinedSummary] = useState<CombinedGuestSummary | null>(null)
-  const [, setBillDateSummary] = useState<BillDateSummaryItem[]>([])
   const [pendingAdvanceAmount, setPendingAdvanceAmount] = useState<number>(0)
   const [activeTab, setActiveTab] = useState('bill')
   const [currentDateTime, setCurrentDateTime] = useState(new Date())
-  // loading state is used only for setLoading in fetchData; the value itself is not read
-  const [, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Sub-tabs and checkboxes
   const [activeSubTab, setActiveSubTab] = useState<'billForDay' | 'gracePeriod'>('billForDay')
   const [billForDaysChecked, setBillForDaysChecked] = useState(false)
   const [graceCheckboxes, setGraceCheckboxes] = useState({
@@ -330,57 +214,49 @@ const RoomDetailSummary = () => {
   })
   const [dateWiseChecked, setDateWiseChecked] = useState(false)
   const [billWiseChecked, setBillWiseChecked] = useState(false)
-  const [selectedRoomFilter] = useState<string>('all')
   const [viewType, setViewType] = useState<'datawise' | 'billtype'>('datawise')
 
+  // Checkout state
   const [showCheckoutModal, setShowCheckoutModal] = useState(false)
   const [checkoutReason, setCheckoutReason] = useState('')
   const [checkoutProcessing, setCheckoutProcessing] = useState(false)
   const [checkoutDone, setCheckoutDone] = useState(false)
   const [showBillModal, setShowBillModal] = useState(false)
-
- 
   const [generatedBillNumber, setGeneratedBillNumber] = useState<string>('')
   const [paymentTransactionId, setPaymentTransactionId] = useState<string>('')
   const [paymentDate, setPaymentDate] = useState<string>('')
   const [paymentBank, setPaymentBank] = useState<string>('')
-  const [checkoutId, setCheckoutId] = useState<number | null>(null);
+  const [checkoutId, setCheckoutId] = useState<number | null>(null)
 
   const [selectedPaymentModeId] = useState<number | null>(null)
   const [selectedPaymentModeName] = useState<string>('Cash')
-
-  const [, setRoomNumberMap] = useState<Map<number, string>>(new Map())
   const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set())
-  const [, setTransferredRooms] = useState<Set<string>>(new Set())
 
   const { occupiedItem } = (location.state as any) || {}
   const checkinIdFromState = occupiedItem?.checkin_id
-  console.log('🔑 checkinIdFromState:', checkinIdFromState);
+  console.log('🔑 checkinIdFromState:', checkinIdFromState)
+
+  // ==================== EFFECTS ====================
 
   useEffect(() => {
     if (!checkinIdFromState) {
-      console.log('❌ No checkinId, redirecting to panel');
-      navigate('/hotel-master/HotelBookingPanel', { replace: true });
+      console.log('❌ No checkinId, redirecting to panel')
+      navigate('/hotel-master/HotelBookingPanel', { replace: true })
     }
-  }, []);
+  }, [checkinIdFromState, navigate])
 
   useEffect(() => {
     if (hotelId && checkinIdFromState) {
-      console.log('🔥 Calling fetchData...');
-      fetchData();
+      console.log('🔥 Calling fetchData...')
+      fetchData()
     }
-  }, [hotelId, checkinIdFromState]);
+  }, [hotelId, checkinIdFromState])
 
-  // Fetch hotel details
-
-
-  // Auto-refresh time
   useEffect(() => {
     const timer = setInterval(() => setCurrentDateTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
-  // Escape key → go back
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -391,908 +267,374 @@ const RoomDetailSummary = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [navigate])
 
-  // Fetch room numbers map
-  const fetchRoomNumbers = async () => {
-    if (!hotelId) return new Map<number, string>()
+  // ==================== FETCH DATA ====================
+
+  const fetchData = async () => {
+    if (!hotelId) {
+      setError('Hotel ID not found')
+      setLoading(false)
+      return
+    }
+
+    if (!checkinIdFromState) {
+      navigate('/hotel-master/HotelBookingPanel', { replace: true })
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
     try {
-      const res = await RoomService.list({ hotelid: hotelId })
-      const rooms = res.data || []
-      const map = new Map<number, string>()
-      rooms.forEach((room: any) => {
-        if (room.room_id && room.room_no) {
-          map.set(room.room_id, String(room.room_no))
-        }
-      })
-      return map
-    } catch (err) {
-      console.error('Failed to fetch room numbers:', err)
-      return new Map<number, string>()
-    }
-  }
+      // Call the stored procedure
+      const response = await RoomService.getCheckinFullDetails(hotelId, checkinIdFromState)
+      const rows = response.data || []
 
-  const getRoomNumber = (
-    charge: GuestRoomCharge,
-    roomMap: Map<number, string>,
-    checkin: CheckIn | undefined,
-    detail: Detail | undefined,
-  ): string => {
-    if ((charge as any).room_no && String((charge as any).room_no).trim() !== '') {
-      const roomNo = String((charge as any).room_no).trim()
-      if (/^\d+$/.test(roomNo) && roomMap.has(Number(roomNo))) {
-        return roomMap.get(Number(roomNo)) || roomNo
-      }
-      return roomNo
-    }
+      console.log('📊 Data from stored procedure:', rows.length, 'rows')
 
-    if ((charge as any).room_number && String((charge as any).room_number).trim() !== '') {
-      const roomNo = String((charge as any).room_number).trim()
-      if (/^\d+$/.test(roomNo) && roomMap.has(Number(roomNo))) {
-        return roomMap.get(Number(roomNo)) || roomNo
-      }
-      return roomNo
-    }
-
-    if (charge.room_id && roomMap.has(charge.room_id)) {
-      return roomMap.get(charge.room_id)!
-    }
-
-    if (detail?.room_number) {
-      return String(detail.room_number)
-    }
-
-    if (checkin?.room_no) {
-      return String(checkin.room_no)
-    }
-
-    return `Room ${charge.room_id || 'N/A'}`
-  }
-
-  // Fetch data
-const fetchData = async () => {
-  if (!hotelId) {
-    setError('Hotel ID not found');
-    setLoading(false);
-    return;
-  }
-
-  if (!checkinIdFromState) {
-    navigate('/hotel-master/HotelBookingPanel', { replace: true });
-    return;
-  }
-
-  setLoading(true);
-  setError(null);
-
-  console.log('Location State:', location.state);
-  console.log('Received Checkin ID:', checkinIdFromState);
-
-  try {
-    // 1. Fetch room number mapping
-    const roomMap = await fetchRoomNumbers();
-    setRoomNumberMap(roomMap);
-
-    // 2. Single API call
-    const fullDetailsRes = await RoomService.getCheckinFullDetails(hotelId, checkinIdFromState);
-
-    console.log('🧾 RAW folio check:', fullDetailsRes.data?.map((r: any) => ({
-  folio_id: r.folio_id,
-  room_id: r.room_id,
-  checkin_id: r.checkin_id,
-  charge_description: r.charge_description,
-})));
-    // console.log('🔍 fullDetailsRes:', fullDetailsRes);
-    // console.log('📦 rows count:', fullDetailsRes.data?.length);
-    // console.log('📝 first row sample:', fullDetailsRes.data?.[0]);
-    // console.log('API Response:', fullDetailsRes);
-    const rows = fullDetailsRes.data || [];
-
-    if (!rows.length) {
-      console.warn('No rows returned from API');
-      navigate('/hotel-master/HotelBookingPanel', { replace: true });
-      return;
-    }
-
-    // 3. Reconstruct maps
-    const checkinMap = new Map<number, any>();
-    const detailMap = new Map<number, any>();
-    const roomGuestMap = new Map<number, any>();
-    const folios: any[] = [];
-    const allCharges: any[] = [];
-
-    // Process each row with room-specific guest info
-    for (const row of rows) {
-      // Checkin Map - use room-specific guest info
-      if (!checkinMap.has(row.checkin_id)) {
-        checkinMap.set(row.checkin_id, {
-          checkin_id: row.checkin_id,
-          // Use room-specific guest_id from detail master
-          guest_id: row.guest_id || row.guest_id,
-          // Use room-specific guest_name from guest master
-          guest_name: row.guest_name || 'Guest',
-          mobile: row.mobile,
-          address: row.address,
-          company_name: row.company_name,
-          emailed: row.emailed,
-          booking: row.booking,
-          plan_name: row.plan_name,
-          reg_no: row.reg_no,
-          checkin_datetime: row.checkin_datetime,
-          checkout_datetime: row.checkout_datetime,
-          hotelid: row.hotelid,
-          checkout_id: row.checkout_id,
-        });
+      if (!rows.length) {
+        console.warn('No data returned from stored procedure')
+        navigate('/hotel-master/HotelBookingPanel', { replace: true })
+        return
       }
 
-      // Detail Map - store room-specific guest info
-      if (row.detail_id && !detailMap.has(row.detail_id)) {
-        const detailData = {
-          detail_id: row.detail_id,
-          checkin_id: row.checkin_id,
-          room_id: row.room_id,
-          room_number: row.room_number,
-          room_category_name: row.room_category_name,
-          converted_category_name: row.converted_category_name,
-          room_tariff: row.room_tariff,
-          discount_percent: row.discount_percent,
-          cgst_percent: row.cgst_percent,
-          sgst_percent: row.sgst_percent,
-          igst_percent: row.igst_percent,
-          is_settle: row.is_settle,
-          checkin_datetime: row.detail_checkin_datetime || row.checkin_datetime,
-          checkout_datetime: row.detail_checkout_datetime || row.checkout_datetime,
-          // Use detail_* fields from the row (these exist in the type)
-          adults: row.detail_adults ?? 1,
-          pax: row.detail_pax ?? 1,
-          ex_pax: row.detail_ex_pax ?? 0,
-          child_unpaid: row.detail_child_unpaid ?? 0,
-          driver: row.detail_driver ?? 0,
-          ex_pax_charge: row.detail_ex_pax_charge ?? 0,
-          child_paid_amount: row.detail_child_paid_amount ?? 0,
-          driver_charge: row.detail_driver_charge ?? 0,
-          parent_detail_id: row.parent_detail_id,
-          // Store room-specific guest info
-          guest_id: row.guest_id,
-          guest_name: row.guest_name || 'Guest',
-          mobile: row.mobile,
-          address: row.address,
-          // Note: 'emailed' is the field name in the type, not 'email'
-          email: row.emailed,
-        };
-        detailMap.set(row.detail_id, detailData);
-        
-        // Store in room guest map for quick lookup
-        roomGuestMap.set(row.room_id, {
-          guest_id: row.guest_id,
-          guest_name: row.guest_name || 'Guest',
-          mobile: row.mobile,
-          address: row.address,
-          email: row.emailed,
-        });
-      }
-
-      // Folio Map
-      if (row.folio_id && !folios.some(f => f.folio_id === row.folio_id)) {
-        folios.push({
-          folio_id: row.folio_id,
-          checkin_id: row.checkin_id,
-          room_id: row.room_id,
-          transaction_type: row.transaction_type,
-          payment_method: row.payment_method,
-          debit_amount: row.debit_amount,
-          credit_amount: row.credit_amount,
-          reference_number: row.reference_number,
-          description: row.description, // ← ADD THIS
-        });
-      }
-console.log('ROW DESCRIPTION =>', row.description);
-      // Charges Map - Use room-specific guest_id
-      if (row.guest_room_charges_id && !allCharges.some(c => c.guest_room_charges_id === row.guest_room_charges_id)) {
-        allCharges.push({
-          guest_room_charges_id: row.guest_room_charges_id,
-          checkin_id: row.checkin_id,
-          room_id: row.room_id,
-          guest_id: row.guest_id,
-          category_id: row.category_id,
-          pax_count: row.pax_count,
-          pax_price: row.pax_price,
-          pax_tax: row.pax_tax,
-          ex_pax_count: row.ex_pax_count,
-          ex_pax_price: row.ex_pax_price,
-          ex_pax_tax: row.ex_pax_tax,
-          ex_pax_tax_percent: row.ex_pax_tax_percent,
-          ex_pax_total: row.ex_pax_total,
-          child_count: row.child_count,
-          child_price: row.child_price,
-          child_tax: row.child_tax,
-          child_tax_percent: row.child_tax_percent,
-          child_total: row.child_total,
-          driver_count: row.driver_count,
-          driver_price: row.driver_price,
-          driver_tax: row.driver_tax,
-          driver_tax_percent: row.driver_tax_percent,
-          driver_total: row.driver_total,
-          total_amount: row.total_amount,
-          checkin_datetime: row.charge_checkin_datetime,
-          checkout_datetime: row.charge_checkout_datetime,
-          created_at: row.charge_created_at || row.checkin_datetime,
-          department_name: row.department_name,
-          particulars: row.particulars,
-          description: row.description,
-          // ✅ Carry transaction_type from backend row so description mapping works for multiple folios per room
-          transaction_type: row.transaction_type,
-        });
-      }
-    }
-
-    if (checkinMap.size === 0) {
-      navigate('/hotel-master/HotelBookingPanel', { replace: true });
-      return;
-    }
-
-    // Get the first checkin reference
-    const currentCheckin = Array.from(checkinMap.values())[0];
-    const relevantDetails = Array.from(detailMap.values());
-
-    // Transferred rooms detection
-    const transferredRoomNumbers = new Set<string>();
-    relevantDetails.forEach((d: any) => {
-      if (d.parent_detail_id) {
-        const toRoomNo = d.room_number ? String(d.room_number) : '';
-        if (toRoomNo) transferredRoomNumbers.add(toRoomNo);
-        const parentDetail = detailMap.get(d.parent_detail_id);
-        if (parentDetail) {
-          const fromRoomNo = parentDetail.room_number ? String(parentDetail.room_number) : '';
-          if (fromRoomNo) transferredRoomNumbers.add(fromRoomNo);
-        }
-      }
-    });
-    setTransferredRooms(transferredRoomNumbers);
-
-    // Payment method map
-    const paymentMethodMap = new Map<number, string>();
-    folios.forEach((folio: any) => {
-      if (folio.checkin_id && !paymentMethodMap.has(folio.checkin_id)) {
-        paymentMethodMap.set(folio.checkin_id, folio.payment_method || 'Cash');
-      }
-    });
-
-
-
-
-
-    // Filter charges
-    let filteredCharges = allCharges.filter(c => Number(c.checkin_id) === Number(checkinIdFromState));
-    filteredCharges = filteredCharges.filter(
-      (c: any) => c.department_name !== 'Advance Addition' && c.department_name !== 'Advance Cancel'
-    );
-
-    console.log('Filtered charges count:', filteredCharges.length);
-    if (filteredCharges.length === 0) {
-      navigate('/hotel-master/HotelBookingPanel', { replace: true });
-      return;
-    }
-
-    // ========== PROCESS EACH CHARGE ==========
-    const processedCharges: ExtendedGuestRoomCharge[] = [];
-
-    for (const charge of filteredCharges) {
-      const checkin = checkinMap.get(charge.checkin_id);
-      if (!checkin) continue;
-
-      const isPostCharge = isPostChargeType(charge);
-
-      let associatedDetail: any = undefined;
-      if (charge.detail_id) {
-        associatedDetail = detailMap.get(charge.detail_id);
-      }
-      if (!associatedDetail) {
-        associatedDetail = relevantDetails.find(
-          (d: any) => d.checkin_id === charge.checkin_id && d.room_id === charge.room_id,
-        );
-      }
-
-      // Get room-specific guest name
-      let roomGuestName = checkin.guest_name;
-      let roomGuestId = checkin.guest_id;
+      // Process the data
+      const { displayRows: processedRows, summary, advanceAmount } = processStoredProcedureData(rows, checkinIdFromState)
       
-      // If we have a room ID, try to get the specific guest for that room
-      if (charge.room_id && roomGuestMap.has(charge.room_id)) {
-        const roomGuest = roomGuestMap.get(charge.room_id);
-        roomGuestName = roomGuest.guest_name;
-        roomGuestId = roomGuest.guest_id;
-      }
-      // If we have a detail, use the guest from the detail
-      else if (associatedDetail && associatedDetail.guest_name) {
-        roomGuestName = associatedDetail.guest_name;
-        roomGuestId = associatedDetail.guest_id;
-      }
+      setDisplayRows(processedRows)
+      setCombinedSummary(summary)
+      setPendingAdvanceAmount(advanceAmount)
 
-      const roomNumber = getRoomNumber(charge, roomMap, checkin, associatedDetail);
+      // Set selected rooms
+      const allRooms = Array.from(new Set(processedRows.map(r => r.room_number)))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      setSelectedRooms(new Set(allRooms))
 
-      // ---- POST CHARGE (including allowances) ----
-      if (isPostCharge) {
-        const totalAmount = toNumber(charge.total_amount);
-        const isAllowance = totalAmount < 0;
-        const billDateFormatted = charge.checkin_datetime
-          ? formatBillDate(charge.checkin_datetime)
-          : formatBillDate(charge.created_at || new Date().toISOString());
+      // Generate payment info
+      setGeneratedBillNumber('')
+      setPaymentTransactionId(`TXN${Date.now().toString().slice(-12)}`)
+      setPaymentDate(formatBillDate(new Date().toISOString()))
+      setPaymentBank('Cash')
 
-        processedCharges.push({
-          ...charge,
-          room_no: roomNumber,
-          room_number: roomNumber,
-          room_category_name: charge.department_name || (isAllowance ? 'Allowance' : 'Post Charge'),
-          converted_category_name: '',
-          checkin_datetime_from_detail: charge.checkin_datetime || charge.created_at,
-          checkout_datetime_from_detail: charge.checkout_datetime || charge.created_at,
-          guest_name: roomGuestName,
-          guest_id: roomGuestId,
-          adults: 0,
-          pax: 0,
-          ex_pax: 0,
-          child_paid: 0,
-          child_unpaid: 0,
-          driver: 0,
-          discount_percent: 0,
-          payment_method: paymentMethodMap.get(charge.checkin_id) || 'Cash',
-          day_number: 0,
-          original_day_number: 0,
-          is_extension_day: false,
-          bill_date_formatted: billDateFormatted,
-          detail_id: undefined,
-          actual_room_category_name: charge.department_name || (isAllowance ? 'Allowance' : 'Post Charge'),
-          actual_converted_category_name: '',
-          cgst_amount: 0,
-          sgst_amount: 0,
-          igst_amount: 0,
-          cess_amount: 0,
-          service_charge_amount: 0,
-          tax_percent: 0,
-          ex_pax_tax_percent: 0,
-          child_tax_percent: 0,
-          driver_tax_percent: 0,
-          ex_pax_tax: 0,
-          child_tax: 0,
-          driver_tax: 0,
-          isPostCharge: true,
-          description: charge.description || '',
-          postChargeParticulars: charge.particulars || '',
-          department_name: charge.department_name || '',
-        });
-        continue;
-      }
+      console.log('✅ Data loaded successfully')
 
-      // ---- REGULAR ROOM CHARGE ----
-      if (!associatedDetail) continue;
-
-      // Day number calculation
-      let dayNumber = 1;
-      let isExtension = false;
-      let originalDayNumber = 1;
-      let chargeDateForDay = charge.checkin_datetime;
-      if (!chargeDateForDay && charge.created_at) {
-        chargeDateForDay = charge.created_at;
-      }
-      if (chargeDateForDay && associatedDetail.checkin_datetime) {
-        const chargeDate = new Date(chargeDateForDay);
-        const checkinDate = new Date(associatedDetail.checkin_datetime);
-        const diffDays = Math.floor((chargeDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24));
-        dayNumber = diffDays + 1;
-        originalDayNumber = dayNumber;
-        isExtension = diffDays > 0;
-      }
-
-      const roomTariffPerDay = toNumber(charge.pax_price) || toNumber(associatedDetail.room_tariff) || 0;
-      const discountPercent = toNumber(charge.discount_percent || associatedDetail.discount_percent || 0);
-      const roomTariffAfterDiscount = roundToTwo(roomTariffPerDay - (roomTariffPerDay * discountPercent) / 100);
-
-      const paxTaxFromDB = toNumber(charge.pax_tax);
-      const cgstPercent = toNumber(associatedDetail.cgst_percent);
-      const sgstPercent = toNumber(associatedDetail.sgst_percent);
-      const igstPercent = toNumber(associatedDetail.igst_percent);
-
-      let roomCgst = 0, roomSgst = 0, roomIgst = 0;
-
-      if (paxTaxFromDB > 0) {
-        let rawIgst = 0, rawCgst = 0, rawSgst = 0;
-        if (igstPercent > 0) {
-          rawIgst = roundToTwo((roomTariffAfterDiscount * igstPercent) / 100);
-        } else {
-          rawCgst = roundToTwo((roomTariffAfterDiscount * cgstPercent) / 100);
-          rawSgst = roundToTwo((roomTariffAfterDiscount * sgstPercent) / 100);
-        }
-        const rawTotal = roundToTwo(rawIgst + rawCgst + rawSgst);
-        if (rawTotal > 0) {
-          const scale = paxTaxFromDB / rawTotal;
-          roomIgst = roundToTwo(rawIgst * scale);
-          roomCgst = roundToTwo(rawCgst * scale);
-          roomSgst = roundToTwo(rawSgst * scale);
-        } else {
-          roomIgst = paxTaxFromDB;
-        }
-      } else {
-        if (igstPercent > 0) {
-          roomIgst = roundToTwo((roomTariffAfterDiscount * igstPercent) / 100);
-        } else {
-          roomCgst = roundToTwo((roomTariffAfterDiscount * cgstPercent) / 100);
-          roomSgst = roundToTwo((roomTariffAfterDiscount * sgstPercent) / 100);
-        }
-      }
-
-      const taxPercent = roomTariffAfterDiscount > 0 ? roundToTwo((paxTaxFromDB / roomTariffAfterDiscount) * 100) : 18;
-
-      const exPaxCount = toNumber(charge.ex_pax_count) || toNumber(associatedDetail.ex_pax) || 0;
-      const exPaxPrice = exPaxCount > 0 ? toNumber(charge.ex_pax_price || associatedDetail.ex_pax_charge) || 0 : 0;
-      const exPaxTaxPercent = exPaxCount > 0 ? toNumber(charge.ex_pax_tax_percent || taxPercent) : 0;
-      const exPaxTax = exPaxCount > 0 ? (charge.ex_pax_tax != null ? toNumber(charge.ex_pax_tax) : roundToTwo((exPaxPrice * exPaxTaxPercent) / 100)) : 0;
-
-      const childPaidCount = toNumber(charge.child_count) || 0;
-      const childUnpaidCount = toNumber(associatedDetail.child_unpaid) || 0;
-      const childPrice = childPaidCount > 0 ? toNumber(charge.child_price || associatedDetail.child_paid_amount) || 0 : 0;
-      const childTaxPercent = childPaidCount > 0 ? toNumber(charge.child_tax_percent || taxPercent) : 0;
-      const childTax = childPaidCount > 0 ? (charge.child_tax != null ? toNumber(charge.child_tax) : roundToTwo((childPrice * childTaxPercent) / 100)) : 0;
-
-      const driverCount = toNumber(charge.driver_count) || toNumber(associatedDetail.driver) || 0;
-      const driverPrice = driverCount > 0 ? toNumber(charge.driver_price || associatedDetail.driver_charge) || 0 : 0;
-      const driverTaxPercent = driverCount > 0 ? toNumber(charge.driver_tax_percent || taxPercent) : 0;
-      const driverTax = driverCount > 0 ? (charge.driver_tax != null ? toNumber(charge.driver_tax) : roundToTwo((driverPrice * driverTaxPercent) / 100)) : 0;
-
-      const billDateFormatted = charge.checkin_datetime ? formatBillDate(charge.checkin_datetime) : formatBillDate(associatedDetail.checkin_datetime);
-
-      const roomCategoryForThisDay = charge.room_category_name || associatedDetail.room_category_name || '-';
-      const convertedCategoryForThisDay = charge.converted_category_name || associatedDetail.converted_category_name || '-';
-
-      processedCharges.push({
-        ...charge,
-        room_no: roomNumber,
-        room_number: roomNumber,
-        room_category_name: roomCategoryForThisDay,
-        converted_category_name: convertedCategoryForThisDay,
-        actual_room_category_name: roomCategoryForThisDay,
-        actual_converted_category_name: convertedCategoryForThisDay,
-        checkin_datetime_from_detail: associatedDetail.checkin_datetime,
-        checkout_datetime_from_detail: associatedDetail.checkout_datetime,
-        guest_name: roomGuestName,
-        guest_id: roomGuestId,
-        adults: toNumber(associatedDetail.adults) || 1,
-        pax: toNumber(associatedDetail.pax) || toNumber(associatedDetail.adults) || 1,
-        ex_pax: exPaxCount,
-        child_paid: childPaidCount,
-        child_unpaid: childUnpaidCount,
-        driver: driverCount,
-        discount_percent: discountPercent,
-        payment_method: paymentMethodMap.get(charge.checkin_id) || 'Cash',
-        day_number: dayNumber,
-        original_day_number: originalDayNumber,
-        is_extension_day: isExtension,
-        bill_date_formatted: billDateFormatted,
-        detail_id: charge.detail_id || associatedDetail.detail_id,
-        cgst_amount: roomCgst,
-        sgst_amount: roomSgst,
-        igst_amount: roomIgst,
-        cess_amount: 0,
-        service_charge_amount: 0,
-        tax_percent: taxPercent,
-        ex_pax_tax_percent: exPaxTaxPercent,
-        child_tax_percent: childTaxPercent,
-        driver_tax_percent: driverTaxPercent,
-        ex_pax_tax: exPaxTax,
-        child_tax: childTax,
-        driver_tax: driverTax,
-        isPostCharge: false,
-      });
+    } catch (err) {
+      console.error('fetchData error:', err)
+      setError('Failed to load data. Please try again.')
+      toast.error('Failed to load room details')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    console.log('Processed charges count:', processedCharges.length);
+  // ==================== DATA PROCESSING ====================
 
-    // Sort charges
-    const sortedCharges = sortChargesByDateAndPriority(processedCharges);
-
-    // Build display rows and cumulative totals
-    const rows_display: DisplayDetailRow[] = [];
-    const roomCumulativeMap = new Map<string, number>();
-
-    for (let idx = 0; idx < sortedCharges.length; idx++) {
-      const charge = sortedCharges[idx];
-      const roomNumber = charge.room_number || `Room-${charge.room_id}`;
-
-      if (charge.isPostCharge) {
-        const totalAmount = toNumber(charge.total_amount);
-        const isAllowance = totalAmount < 0;
-        const prevCumulative = roomCumulativeMap.get(roomNumber) || 0;
-        const cumulativeTotal = roundToTwo(prevCumulative + totalAmount);
-        roomCumulativeMap.set(roomNumber, cumulativeTotal);
-
-        rows_display.push({
-          id: `post-${charge.guest_room_charges_id}-${idx}`,
-          guest_room_charges_id: charge.guest_room_charges_id,
-          checkin_id: charge.checkin_id ?? 0,
-          guest_id: charge.guest_id,
-          detail_id: undefined,
-          room_id: charge.room_id,
-          room_number: roomNumber,
-          room_category_name: charge.department_name || (isAllowance ? 'Allowance' : 'Post Charge'),
-          converted_category_name: '-',
-          bill_date: charge.checkin_datetime || charge.checkin_datetime_from_detail || '',
-          bill_date_formatted: charge.bill_date_formatted!,
-          checkin_datetime: charge.checkin_datetime_from_detail || '',
-          checkout_datetime: charge.checkout_datetime_from_detail || '',
-          no_of_days: 0,
-          day_number: 0,
-          original_day_number: 0,
-          room_tariff_per_day: totalAmount,
-          total_room_tariff: totalAmount,
-          ex_pax_count: 0,
-          ex_pax_price: 0,
-          ex_pax_tax: 0,
-          ex_pax_tax_percent: 0,
-          ex_pax_total: 0,
-          child_count: 0,
-          child_unpaid: 0,
-          child_price: 0,
-          child_tax: 0,
-          child_tax_percent: 0,
-          child_total: 0,
-          driver_count: 0,
-          driver_price: 0,
-          driver_tax: 0,
-          driver_tax_percent: 0,
-          driver_total: 0,
-          cgst_amount: 0,
-          sgst_amount: 0,
-          igst_amount: 0,
-          cess_amount: 0,
-          service_charge_amount: 0,
-          adults: 0,
-          pax: 0,
-          ex_pax: 0,
-          child_paid: 0,
-          driver: 0,
-          discount_percent: 0,
-          discount_amount: 0,
-          tax_percent: 0,
-          tax_amount: 0,
-          total_amount: totalAmount,
-          is_extension: false,
-          isPostCharge: true,
-          parent_detail_id: null,
-          selected: true,
-          cumulative_total: cumulativeTotal,
-          guest_name: charge.guest_name!,
-          payment_method: charge.payment_method!,
-          created_at: charge.created_at,
-          has_checkout_datetime: !!charge.checkout_datetime,
-          checkout_time_formatted: charge.checkout_datetime ? formatDateTime(charge.checkout_datetime) : '-',
-          description: charge.description || '',
-          particulars: charge.postChargeParticulars || charge.particulars || charge.postChargeDescription || '',
-          department_name: charge.department_name || '',
-        });
-      } else {
-        const rowTotal = roundToTwo(toNumber(charge.total_amount));
-        const prevCumulative = roomCumulativeMap.get(roomNumber) || 0;
-        const cumulativeTotal = roundToTwo(prevCumulative + rowTotal);
-        roomCumulativeMap.set(roomNumber, cumulativeTotal);
-
-        rows_display.push({
-          id: `room-${charge.guest_room_charges_id}-${idx}`,
-          guest_room_charges_id: charge.guest_room_charges_id,
-          checkin_id: charge.checkin_id ?? 0,
-          guest_id: charge.guest_id,
-          detail_id: charge.detail_id,
-          room_id: charge.room_id,
-          room_number: roomNumber,
-          room_category_name: charge.actual_room_category_name || charge.room_category_name || '-',
-          converted_category_name: charge.actual_converted_category_name || charge.converted_category_name || '-',
-          bill_date: charge.checkin_datetime || charge.checkin_datetime_from_detail || '',
-          bill_date_formatted: charge.bill_date_formatted!,
-          checkin_datetime: charge.checkin_datetime_from_detail || '',
-          checkout_datetime: charge.checkout_datetime_from_detail || '',
-          no_of_days: 1,
-          day_number: charge.day_number!,
-          original_day_number: charge.original_day_number || charge.day_number!,
-          room_tariff_per_day: toNumber(charge.pax_price) || 0,
-          total_room_tariff: toNumber(charge.pax_price) || 0,
-          ex_pax_count: toNumber(charge.ex_pax_count),
-          ex_pax_price: toNumber(charge.ex_pax_price),
-          ex_pax_tax: toNumber(charge.ex_pax_tax),
-          ex_pax_tax_percent: toNumber(charge.ex_pax_tax_percent),
-          ex_pax_total: toNumber(charge.ex_pax_total),
-          child_count: toNumber(charge.child_count),
-          child_unpaid: toNumber(charge.child_unpaid),
-          child_price: toNumber(charge.child_price),
-          child_tax: toNumber(charge.child_tax),
-          child_tax_percent: toNumber(charge.child_tax_percent),
-          child_total: toNumber(charge.child_total),
-          driver_count: toNumber(charge.driver_count),
-          driver_price: toNumber(charge.driver_price),
-          driver_tax: toNumber(charge.driver_tax),
-          driver_tax_percent: toNumber(charge.driver_tax_percent),
-          driver_total: toNumber(charge.driver_total),
-          cgst_amount: toNumber(charge.cgst_amount),
-          sgst_amount: toNumber(charge.sgst_amount),
-          igst_amount: toNumber(charge.igst_amount),
-          cess_amount: toNumber(charge.cess_amount),
-          service_charge_amount: toNumber(charge.service_charge_amount),
-          adults: charge.adults!,
-          pax: charge.pax!,
-          ex_pax: charge.ex_pax!,
-          child_paid: charge.child_paid!,
-          driver: charge.driver!,
-          discount_percent: charge.discount_percent!,
-          discount_amount: roundToTwo((toNumber(charge.pax_price) * toNumber(charge.discount_percent)) / 100),
-          tax_percent: toNumber(charge.tax_percent) || 0,
-          tax_amount: toNumber(charge.pax_tax),
-          total_amount: rowTotal,
-          is_extension: charge.is_extension_day || false,
-          isPostCharge: false,
-          parent_detail_id: null,
-          selected: true,
-          cumulative_total: cumulativeTotal,
-          guest_name: charge.guest_name!,
-          payment_method: charge.payment_method!,
-          created_at: charge.created_at,
-          has_checkout_datetime: !!charge.checkout_datetime,
-          checkout_time_formatted: charge.checkout_datetime ? formatDateTime(charge.checkout_datetime) : '-',
-          description: charge.description || '',
-          particulars: '',
-          department_name: '',
-        });
-      }
-    }
-
-    setDisplayRows(rows_display);
-    console.log('Display rows count:', rows_display.length);
-
-    // ---- Advance transactions ----
-    try {
-      const advRes = await AdvanceTransactionService.list({ checkin_id: checkinIdFromState });
-      const advTransactions = advRes.data || [];
-      const advanceDisplayRows: DisplayDetailRow[] = [];
-      const advanceAdditions = advTransactions.filter(
-        (t: any) =>
-          (t.transaction_type === 'Advance Addition' || t.transaction_type === 'Booking Receipt') &&
-          t.status === 'active' &&
-          t.credit_amount > 0,
-      );
-      for (const adv of advanceAdditions) {
-        const netAmount = adv.credit_amount;
-        const billDateFormatted = adv.transaction_datetime ? formatBillDate(adv.transaction_datetime) : formatBillDate(new Date().toISOString());
-        const advRoomNo = adv.room_no || (adv.room_id ? roomMap.get(adv.room_id) || `Room-${adv.room_id}` : 'All Rooms');
-        
-        // Get guest name for this advance (room-specific if available)
-        let advGuestName = adv.guest_name || currentCheckin?.guest_name || 'Guest';
-        // guest_id doesn't exist on AdvanceTransaction, use currentCheckin's guest_id
-        let advGuestId = currentCheckin?.guest_id || 0;
-        
-        // If advance has a room_id, try to get the room-specific guest
-        if (adv.room_id && roomGuestMap.has(adv.room_id)) {
-          const roomGuest = roomGuestMap.get(adv.room_id);
-          advGuestName = roomGuest.guest_name;
-          advGuestId = roomGuest.guest_id;
-        }
-        
-        advanceDisplayRows.push({
-          id: `adv-${adv.advance_id}`,
-          guest_room_charges_id: adv.advance_id,
-          checkin_id: adv.checkin_id,
-          guest_id: advGuestId,
-          detail_id: adv.detail_id || undefined,
-          room_id: adv.room_id || 0,
-          room_number: advRoomNo,
-          room_category_name: 'Advance',
-          converted_category_name: '-',
-          bill_date: adv.transaction_datetime,
-          bill_date_formatted: billDateFormatted,
-          checkin_datetime: adv.transaction_datetime,
-          checkout_datetime: adv.transaction_datetime,
-          no_of_days: 0,
-          day_number: 0,
-          original_day_number: 0,
-          room_tariff_per_day: -netAmount,
-          total_room_tariff: -netAmount,
-          ex_pax_count: 0,
-          ex_pax_price: 0,
-          ex_pax_tax: 0,
-          ex_pax_tax_percent: 0,
-          ex_pax_total: 0,
-          child_count: 0,
-          child_unpaid: 0,
-          child_price: 0,
-          child_tax: 0,
-          child_tax_percent: 0,
-          child_total: 0,
-          driver_count: 0,
-          driver_price: 0,
-          driver_tax: 0,
-          driver_tax_percent: 0,
-          driver_total: 0,
-          cgst_amount: 0,
-          sgst_amount: 0,
-          igst_amount: 0,
-          cess_amount: 0,
-          service_charge_amount: 0,
-          adults: 0,
-          pax: 0,
-          ex_pax: 0,
-          child_paid: 0,
-          driver: 0,
-          discount_percent: 0,
-          discount_amount: 0,
-          tax_percent: 0,
-          tax_amount: 0,
-          total_amount: -netAmount,
-          is_extension: false,
-          isPostCharge: true,
-          parent_detail_id: null,
-          selected: true,
-          cumulative_total: 0,
-          guest_name: advGuestName,
-          payment_method: adv.payment_method || 'Cash',
-          created_at: adv.created_at,
-          has_checkout_datetime: false,
-          checkout_time_formatted: '-',
-          description:  adv.description || '',
-          particulars: adv.narration || adv.reason || '',
-          department_name: 'Advance',
-        });
-      }
-      if (advanceDisplayRows.length > 0) {
-        const allRows = [...rows_display, ...advanceDisplayRows];
-        allRows.sort((a, b) => {
-          const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0);
-          const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0);
-          if (dateA.getTime() !== dateB.getTime()) return dateA.getTime() - dateB.getTime();
-          const getPriority = (row: DisplayDetailRow) => {
-            if (row.department_name === 'Advance') return 4;
-            if (row.isPostCharge) return row.total_amount < 0 ? 3 : 2;
-            if (row.is_extension) return 1;
-            return 0;
-          };
-          const pDiff = getPriority(a) - getPriority(b);
-          if (pDiff !== 0) return pDiff;
-          return a.room_number.localeCompare(b.room_number, undefined, { numeric: true });
-        });
-        const recalcMap = new Map<string, number>();
-        const recalced = allRows.map((row) => {
-          const prev = recalcMap.get(row.room_number) || 0;
-          const newCumul = roundToTwo(prev + row.total_amount);
-          recalcMap.set(row.room_number, newCumul);
-          return { ...row, cumulative_total: newCumul };
-        });
-        setDisplayRows(recalced);
-      }
-      const summaryRes = await AdvanceTransactionService.getSummary(checkinIdFromState);
-      if (summaryRes.success && summaryRes.data) {
-        setPendingAdvanceAmount(summaryRes.data.pending_advance || 0);
-      }
-    } catch (advErr) {
-      console.warn('Advance transactions error:', advErr);
-    }
-
-    // Bill summary
-    const billSummaryItems: BillDateSummaryItem[] = rows_display.map((row, idx) => ({
-      billDate: row.bill_date,
-      billDateFormatted: row.bill_date_formatted,
-      roomNumber: row.room_number,
-      roomCategory: row.room_category_name,
-      convertedCategory: row.converted_category_name,
-      billNo: idx + 1,
-      dayNumber: row.day_number,
-      description: row.description,
-      amount: row.room_tariff_per_day,
-      total: row.total_amount,
-      isExtension: row.is_extension,
-      isPostCharge: row.isPostCharge,
-      originalDayNumber: row.original_day_number,
-    }));
-    setBillDateSummary(billSummaryItems);
-
-    // Build Combined Summary - Show all guest names per room
-const roomNumbersSet = new Set(rows_display.map(r => r.room_number));
-
-// Get unique guest names and IDs for each room
-const roomGuestNames = new Map<string, Set<string>>();
-const roomGuestIds = new Map<string, Set<number>>();
-
-for (const room of roomNumbersSet) {
-  const roomRows = rows_display.filter(r => r.room_number === room);
-  const guestNames = new Set<string>();
-  const guestIds = new Set<number>();
+  const processStoredProcedureData = (rows: any[], checkinId: number) => {
   
-  roomRows.forEach(r => {
-    if (r.guest_name && r.guest_name !== 'Guest') {
-      guestNames.add(r.guest_name);
+  const roomCumulativeMap = new Map<string, number>()
+  const checkinData = rows[0] || {}
+  let totalAdvance = 0
+
+  // First pass: Identify and process all transactions
+  const processedItems: any[] = []
+
+  for (const row of rows) {
+    // Determine transaction type and amount
+    let amount = toNumber(row.total_amount)
+    let chargeType: 'room' | 'extension' | 'postcharge' | 'allowance' | 'advance' = 'room'
+    let isPostCharge = false
+    let isExtension = false
+    let isAdvance = false
+    let isAllowance = false
+    let dayNumber = 0
+    let originalDayNumber = 0
+    let description = row.description || ''
+    let departmentName = ''
+    let roomTariffPerDay = 0
+    let taxAmount = 0
+
+    // Check if it's a folio transaction
+    if (row.folio_id) {
+      const transactionType = row.transaction_type || ''
+      
+      if (transactionType === 'Advance Addition') {
+        isAdvance = true
+        chargeType = 'advance'
+        amount = -toNumber(row.credit_amount)  // Negative amount for advance
+        totalAdvance += Math.abs(amount)
+        description = 'Advance Payment'
+        departmentName = 'Advance'
+        isPostCharge = true
+        roomTariffPerDay = amount  // Set to the actual advance amount
+        // Don't set taxAmount for advance
+      } else if (transactionType === 'Allowance') {
+        isAllowance = true
+        chargeType = 'allowance'
+        amount = -toNumber(row.credit_amount)
+        description = row.description || 'Allowance/Discount'
+        departmentName = 'Allowance'
+        isPostCharge = true
+        roomTariffPerDay = amount
+      } else if (transactionType === 'Post Charges') {
+        isPostCharge = true
+        chargeType = 'postcharge'
+        amount = toNumber(row.debit_amount)
+        description = row.description || 'Post Charge'
+        departmentName = 'Post Charge'
+        roomTariffPerDay = amount
+        taxAmount = toNumber(row.tax_amount) || 0
+      } else {
+        // Other folio transactions
+        isPostCharge = true
+        chargeType = 'postcharge'
+        amount = toNumber(row.debit_amount) - toNumber(row.credit_amount)
+        description = row.description || transactionType
+        departmentName = transactionType
+        roomTariffPerDay = amount
+        taxAmount = toNumber(row.tax_amount) || 0
+      }
+    } else {
+      // It's a room charge
+      roomTariffPerDay = toNumber(row.pax_price) || 0
+      taxAmount = toNumber(row.pax_tax) || 0
+      
+      // Determine if it's an extension
+      const checkinDate = new Date(checkinData.checkin_datetime)
+      const chargeDate = new Date(row.charge_checkin_datetime || row.checkin_datetime)
+      const diffDays = Math.floor((chargeDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24))
+      
+      if (diffDays > 0) {
+        isExtension = true
+        chargeType = 'extension'
+      }
+      
+      dayNumber = diffDays + 1
+      originalDayNumber = dayNumber
     }
-    if (r.guest_id && r.guest_id > 0) {
-      guestIds.add(r.guest_id);
+
+    // Get room number
+    const roomNumber = row.room_number || `Room-${row.room_id || 0}`
+
+    // Calculate cumulative total
+    const prevCumulative = roomCumulativeMap.get(roomNumber) || 0
+    const cumulativeTotal = roundToTwo(prevCumulative + amount)
+    roomCumulativeMap.set(roomNumber, cumulativeTotal)
+
+    // Build display row
+    const displayRow: DisplayDetailRow = {
+      id: `${row.folio_id || row.guest_room_charges_id || 'row'}-${Date.now()}-${Math.random()}`,
+      guest_room_charges_id: row.guest_room_charges_id || 0,
+      checkin_id: row.checkin_id || checkinId,
+      guest_id: row.guest_id || 0,
+      detail_id: row.detail_id,
+      room_id: row.room_id || 0,
+      room_number: roomNumber,
+      room_category_name: isAdvance ? 'Advance' : 
+                          isPostCharge ? (isAllowance ? 'Allowance' : departmentName || 'Post Charge') :
+                          row.room_category_name || '-',
+      converted_category_name: row.converted_category_name || '-',
+      bill_date: row.charge_checkin_datetime || row.checkin_datetime || row.transaction_datetime || new Date().toISOString(),
+      bill_date_formatted: formatBillDate(row.charge_checkin_datetime || row.checkin_datetime || row.transaction_datetime || new Date().toISOString()),
+      checkin_datetime: row.charge_checkin_datetime || row.checkin_datetime || row.transaction_datetime || '',
+      checkout_datetime: row.charge_checkout_datetime || row.checkout_datetime || '',
+      no_of_days: isExtension ? 1 : 0,
+      day_number: dayNumber,
+      original_day_number: originalDayNumber,
+      room_tariff_per_day: roomTariffPerDay,  // This will show the actual amount in the Amount column
+      total_room_tariff: isAdvance ? amount : isPostCharge ? (isAllowance ? amount : amount) : roomTariffPerDay,
+      ex_pax_count: isAdvance ? 0 : (toNumber(row.ex_pax_count) || 0),
+      ex_pax_price: isAdvance ? 0 : (toNumber(row.ex_pax_price) || 0),
+      ex_pax_tax: isAdvance ? 0 : (toNumber(row.ex_pax_tax) || 0),
+      ex_pax_tax_percent: isAdvance ? 0 : (toNumber(row.ex_pax_tax_percent) || 0),
+      ex_pax_total: isAdvance ? 0 : (toNumber(row.ex_pax_total) || 0),
+      child_count: isAdvance ? 0 : (toNumber(row.child_count) || 0),
+      child_unpaid: isAdvance ? 0 : (toNumber(row.child_unpaid) || 0),
+      child_price: isAdvance ? 0 : (toNumber(row.child_price) || 0),
+      child_tax: isAdvance ? 0 : (toNumber(row.child_tax) || 0),
+      child_tax_percent: isAdvance ? 0 : (toNumber(row.child_tax_percent) || 0),
+      child_total: isAdvance ? 0 : (toNumber(row.child_total) || 0),
+      driver_count: isAdvance ? 0 : (toNumber(row.driver_count) || 0),
+      driver_price: isAdvance ? 0 : (toNumber(row.driver_price) || 0),
+      driver_tax: isAdvance ? 0 : (toNumber(row.driver_tax) || 0),
+      driver_tax_percent: isAdvance ? 0 : (toNumber(row.driver_tax_percent) || 0),
+      driver_total: isAdvance ? 0 : (toNumber(row.driver_total) || 0),
+      cgst_amount: isAdvance ? 0 : (toNumber(row.cgst_amount) || 0),
+      sgst_amount: isAdvance ? 0 : (toNumber(row.sgst_amount) || 0),
+      igst_amount: isAdvance ? 0 : (toNumber(row.igst_amount) || 0),
+      cess_amount: isAdvance ? 0 : (toNumber(row.cess_amount) || 0),
+      service_charge_amount: isAdvance ? 0 : (toNumber(row.service_charge_amount) || 0),
+      adults: isAdvance ? 0 : (toNumber(row.adults) || 0),
+      pax: isAdvance ? 0 : (toNumber(row.pax) || toNumber(row.adults) || 0),
+      ex_pax: isAdvance ? 0 : (toNumber(row.ex_pax) || 0),
+      child_paid: isAdvance ? 0 : (toNumber(row.child_paid) || 0),
+      driver: isAdvance ? 0 : (toNumber(row.driver) || 0),
+      discount_percent: isAdvance ? 0 : (toNumber(row.discount_percent) || 0),
+      discount_amount: 0,
+      tax_percent: isAdvance ? 0 : (toNumber(row.tax_percent) || 0),
+      tax_amount: isAdvance ? 0 : taxAmount,
+      total_amount: amount,
+      is_extension: isExtension,
+      isPostCharge: isPostCharge,
+      parent_detail_id: row.parent_detail_id || null,
+      selected: true,
+      cumulative_total: cumulativeTotal,
+      guest_name: row.guest_name || checkinData.guest_name || 'Guest',
+      payment_method: row.payment_method || 'Cash',
+      created_at: row.created_at || row.checkin_datetime || new Date().toISOString(),
+      has_checkout_datetime: !!row.checkout_datetime,
+      checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
+      description: description,
+      particulars: row.particulars || row.narration || '',
+      department_name: departmentName || (isAdvance ? 'Advance' : ''),
+      charge_type: chargeType,
+      transaction_type: row.transaction_type,
     }
-  });
-  
-  roomGuestNames.set(room, guestNames);
-  roomGuestIds.set(room, guestIds);
+
+    processedItems.push(displayRow)
+  }
+
+  // Sort the processed items
+  const sortedRows = sortDisplayRows(processedItems)
+
+  // Recalculate cumulative totals after sorting
+  const sortedWithCumulative = calculateCumulativeTotals(sortedRows)
+
+  // Build summary
+  const summary = buildCombinedSummary(sortedWithCumulative, checkinData)
+
+  return {
+    displayRows: sortedWithCumulative,
+    summary,
+    advanceAmount: totalAdvance,
+  }
 }
 
-// Collect all unique guest names and IDs
-const allGuestNames = new Set<string>();
-const allGuestIds = new Set<number>();
+  const sortDisplayRows = (rows: DisplayDetailRow[]): DisplayDetailRow[] => {
+    return [...rows].sort((a, b) => {
+      // First by date
+      const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0)
+      const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0)
+      const dateCompare = dateA.getTime() - dateB.getTime()
+      if (dateCompare !== 0) return dateCompare
 
+      // Then by priority
+      const getPriority = (row: DisplayDetailRow): number => {
+        if (row.charge_type === 'advance') return 4
+        if (row.charge_type === 'allowance') return 3
+        if (row.charge_type === 'postcharge') return 2
+        if (row.charge_type === 'extension') return 1
+        return 0
+      }
+      const priorityDiff = getPriority(a) - getPriority(b)
+      if (priorityDiff !== 0) return priorityDiff
 
-// Format display
-let displayGuestName = '';
-if (allGuestNames.size === 1) {
-  displayGuestName = Array.from(allGuestNames)[0];
-} else {
-  displayGuestName = Array.from(allGuestNames).join(', ');
-}
+      // Then by room number
+      const roomCompare = a.room_number.localeCompare(b.room_number, undefined, { numeric: true })
+      if (roomCompare !== 0) return roomCompare
 
-let displayGuestId = '';
-if (allGuestIds.size === 1) {
-  displayGuestId = String(Array.from(allGuestIds)[0]);
-} else if (allGuestIds.size > 1) {
-  displayGuestId = Array.from(allGuestIds).join(', ');
-} else {
-  displayGuestId = String(currentCheckin?.guest_id || '');
-}
-    const combinedSummaryData: CombinedGuestSummary = {
-      checkin_id: checkinIdFromState,
-      guest_id: currentCheckin?.guest_id || 0,
-      guest_name: displayGuestName || currentCheckin?.guest_name || 'Guest',
-      room_numbers: Array.from(roomNumbersSet),
+      // Finally by day number
+      return (a.day_number || 0) - (b.day_number || 0)
+    })
+  }
+
+  const calculateCumulativeTotals = (rows: DisplayDetailRow[]): DisplayDetailRow[] => {
+    const roomCumulativeMap = new Map<string, number>()
+    
+    return rows.map((row) => {
+      const prevCumulative = roomCumulativeMap.get(row.room_number) || 0
+      const newCumulative = roundToTwo(prevCumulative + row.total_amount)
+      roomCumulativeMap.set(row.room_number, newCumulative)
+      return { ...row, cumulative_total: newCumulative }
+    })
+  }
+
+  const buildCombinedSummary = (rows: DisplayDetailRow[], checkinData: any): CombinedGuestSummary => {
+    const roomNumbers = Array.from(new Set(rows.map(r => r.room_number)))
+    const guestNames = Array.from(new Set(rows.map(r => r.guest_name).filter(name => name && name !== 'Guest')))
+    const guestIds = Array.from(new Set(rows.map(r => r.guest_id).filter(id => id > 0)))
+    
+    // Calculate totals
+    let totalRoomTariff = 0
+    let totalExPax = 0
+    let totalChildPaid = 0
+    let totalDriver = 0
+    let totalTax = 0
+    let totalAmount = 0
+    let totalAdults = 0
+    let totalPax = 0
+    let totalExPaxCount = 0
+    let totalChildPaidCount = 0
+    let totalDriverCount = 0
+    let hasExtensions = false
+    let extensionCount = 0
+
+    for (const row of rows) {
+      if (row.charge_type !== 'advance' && row.charge_type !== 'allowance') {
+        totalRoomTariff += row.total_room_tariff
+        totalExPax += row.ex_pax_total
+        totalChildPaid += row.child_total
+        totalDriver += row.driver_total
+        totalTax += row.tax_amount
+        totalAmount += row.total_amount
+        
+        if (!row.isPostCharge) {
+          totalAdults += row.adults
+          totalPax += row.pax
+          totalExPaxCount += row.ex_pax_count
+          totalChildPaidCount += row.child_count
+          totalDriverCount += row.driver_count
+        }
+        
+        if (row.is_extension) {
+          hasExtensions = true
+          extensionCount++
+        }
+      }
+    }
+
+    return {
+      checkin_id: checkinData.checkin_id || 0,
+      guest_id: guestIds.length > 0 ? guestIds[0] : 0,
+      guest_name: guestNames.length > 0 ? guestNames.join(', ') : checkinData.guest_name || 'Guest',
+      room_numbers: roomNumbers,
       room_categories: [],
       converted_categories: [],
-      room_numbers_str: Array.from(roomNumbersSet).join(', '),
+      room_numbers_str: roomNumbers.join(', '),
       room_categories_str: '',
       converted_categories_str: '',
-      total_room_tariff: rows_display.reduce((s, r) => s + r.total_room_tariff, 0),
-      total_ex_pax_charge: rows_display.reduce((s, r) => s + r.ex_pax_total, 0),
-      total_child_paid_amount: rows_display.reduce((s, r) => s + r.child_total, 0),
-      total_driver_charge: rows_display.reduce((s, r) => s + r.driver_total, 0),
-      total_tax_amount: rows_display.reduce((s, r) => s + r.tax_amount, 0),
-      total_amount: rows_display.reduce((s, r) => s + r.total_amount, 0),
+      total_room_tariff: roundToTwo(totalRoomTariff),
+      total_ex_pax_charge: roundToTwo(totalExPax),
+      total_child_paid_amount: roundToTwo(totalChildPaid),
+      total_driver_charge: roundToTwo(totalDriver),
+      total_tax_amount: roundToTwo(totalTax),
+      total_amount: roundToTwo(totalAmount),
       total_days: 1,
-      total_adults: 0,
-      total_pax: 0,
-      total_ex_pax: 0,
-      total_child_paid: 0,
+      total_adults: totalAdults,
+      total_pax: totalPax,
+      total_ex_pax: totalExPaxCount,
+      total_child_paid: totalChildPaidCount,
       total_child_unpaid: 0,
-      total_driver: 0,
+      total_driver: totalDriverCount,
       avg_discount_percent: 0,
       avg_tax_percent: 0,
-      has_extensions: false,
-      extension_count: 0,
-      extension_days: 0,
+      has_extensions: hasExtensions,
+      extension_count: extensionCount,
+      extension_days: extensionCount,
       payment_methods: ['Cash'],
       payment_method: 'Cash',
       charges_ids: [],
       selected: true,
-      original_checkin_datetime: '',
-      final_checkout_datetime: '',
-      guest_mobile: currentCheckin?.mobile,
-      guest_address: currentCheckin?.address,
-      guest_email: currentCheckin?.emailed,
+      original_checkin_datetime: checkinData.checkin_datetime || '',
+      final_checkout_datetime: checkinData.checkout_datetime || '',
+      guest_mobile: checkinData.mobile,
+      guest_address: checkinData.address,
+      guest_email: checkinData.email,
       guest_id_proof: '-',
-      reg_no: currentCheckin?.reg_no,
-      booking_ref: currentCheckin?.booking,
-      plan_name: currentCheckin?.plan_name,
-    };
-    setCombinedSummary(combinedSummaryData);
-
-    setGeneratedBillNumber('');
-    setPaymentTransactionId(`TXN${Date.now().toString().slice(-12)}`);
-    setPaymentDate(formatBillDate(new Date().toISOString()));
-    setPaymentBank(combinedSummaryData.payment_method === 'Credit Card' ? 'HDFC Bank Credit Card' : 'Cash');
-
-    const allRooms = Array.from(roomNumbersSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    setSelectedRooms(new Set(allRooms));
-
-  } catch (err) {
-    console.error('fetchData error:', err);
-    setError('Failed to load data. Please try again.');
-    toast.error('Failed to load room details');
-  } finally {
-    setLoading(false);
+      reg_no: checkinData.reg_no,
+      booking_ref: checkinData.booking,
+      plan_name: checkinData.plan_name,
+      pending_advance: 0,
+    }
   }
-};
 
   // ==================== HANDLER FUNCTIONS ====================
 
@@ -1336,9 +678,10 @@ if (allGuestIds.size === 1) {
         if (dateCompare !== 0) return dateCompare
 
         const getPriority = (row: DisplayDetailRow): number => {
-          if ((row.department_name || '').toLowerCase().includes('advance')) return 4
-          if (row.isPostCharge) return row.total_amount < 0 ? 3 : 2
-          if (row.is_extension) return 1
+          if (row.charge_type === 'advance') return 4
+          if (row.charge_type === 'allowance') return 3
+          if (row.charge_type === 'postcharge') return 2
+          if (row.charge_type === 'extension') return 1
           return 0
         }
         const priorityDiff = getPriority(a) - getPriority(b)
@@ -1357,117 +700,107 @@ if (allGuestIds.size === 1) {
     selectedRowsForCheckout.reduce((sum, row) => sum + row.total_amount, 0),
   )
 
- const selectedRoomSummary = (() => {
-  if (!combinedSummary) return null
-
-  const seenRooms = new Set<string>()
-  const roomCats = new Set<string>()
-  const convCats = new Set<string>()
-  const uniqueGuestNames = new Set<string>()
-  const uniqueGuestIds = new Set<number>() // ✅ Collect guest IDs
-
-  let adults = 0,
-    pax = 0,
-    exPax = 0,
-    childPaid = 0,
-    childUnpaid = 0,
-    driver = 0
-  let roomTariff = 0,
-    exPaxCharge = 0,
-    childCharge = 0,
-    driverCharge = 0
-  let taxAmt = 0,
-    discountSum = 0,
-    taxPctSum = 0,
-    roomChargeCount = 0
-  let minCI = '',
-    maxCO = ''
-
-  for (const row of filteredRowsByRoom) {
-    // ✅ Collect unique guest names and IDs
-    if (row.guest_name && row.guest_name !== 'Guest') {
-      uniqueGuestNames.add(row.guest_name)
+  const getRowClass = (row: DisplayDetailRow): string => {
+    switch (row.charge_type) {
+      case 'advance': return 'advance-row'
+      case 'allowance': return 'allowance-row'
+      case 'postcharge': return 'postcharge-row'
+      case 'extension': return 'extension-row'
+      default: return 'original-row'
     }
-    if (row.guest_id && row.guest_id > 0) {
-      uniqueGuestIds.add(row.guest_id)
-    }
+  }
 
-    if (!row.isPostCharge && row.department_name !== 'Advance') {
-      if (row.room_category_name && row.room_category_name !== '-')
-        roomCats.add(row.room_category_name)
-      if (row.converted_category_name && row.converted_category_name !== '-')
-        convCats.add(row.converted_category_name)
-    }
+  const selectedRoomSummary = (() => {
+    if (!combinedSummary) return null
 
-    if (!row.isPostCharge && row.department_name !== 'Advance') {
-      roomTariff += row.total_room_tariff
-      exPaxCharge += row.ex_pax_total
-      childCharge += row.child_total
-      driverCharge += row.driver_total
-      taxAmt += row.tax_amount
-      discountSum += row.discount_percent
-      taxPctSum += row.tax_percent
-      roomChargeCount++
-      if (!minCI || row.checkin_datetime < minCI) minCI = row.checkin_datetime
-      if (!maxCO || row.checkout_datetime > maxCO) maxCO = row.checkout_datetime
+    const seenRooms = new Set<string>()
+    const roomCats = new Set<string>()
+    const convCats = new Set<string>()
+    const uniqueGuestNames = new Set<string>()
+    const uniqueGuestIds = new Set<number>()
 
-      if (!seenRooms.has(row.room_number)) {
-        seenRooms.add(row.room_number)
-        adults += row.adults
-        pax += row.pax
-        exPax += row.ex_pax_count
-        childPaid += row.child_count
-        childUnpaid += !row.is_extension ? row.child_unpaid : 0
-        driver += row.driver_count
+    let adults = 0, pax = 0, exPax = 0, childPaid = 0, childUnpaid = 0, driver = 0
+    let roomTariff = 0, exPaxCharge = 0, childCharge = 0, driverCharge = 0
+    let taxAmt = 0, taxPctSum = 0, roomChargeCount = 0
+    let minCI = '', maxCO = ''
+
+    for (const row of filteredRowsByRoom) {
+      if (row.guest_name && row.guest_name !== 'Guest') {
+        uniqueGuestNames.add(row.guest_name)
+      }
+      if (row.guest_id > 0) {
+        uniqueGuestIds.add(row.guest_id)
+      }
+
+      if (row.charge_type !== 'advance' && row.charge_type !== 'allowance' && row.charge_type !== 'postcharge') {
+        if (row.room_category_name && row.room_category_name !== '-')
+          roomCats.add(row.room_category_name)
+        if (row.converted_category_name && row.converted_category_name !== '-')
+          convCats.add(row.converted_category_name)
+      }
+
+      if (row.charge_type !== 'advance' && row.charge_type !== 'allowance' && row.charge_type !== 'postcharge') {
+        roomTariff += row.total_room_tariff
+        exPaxCharge += row.ex_pax_total
+        childCharge += row.child_total
+        driverCharge += row.driver_total
+        taxAmt += row.tax_amount
+        taxPctSum += row.tax_percent
+        roomChargeCount++
+        
+        if (!minCI || row.checkin_datetime < minCI) minCI = row.checkin_datetime
+        if (!maxCO || row.checkout_datetime > maxCO) maxCO = row.checkout_datetime
+
+        if (!seenRooms.has(row.room_number)) {
+          seenRooms.add(row.room_number)
+          adults += row.adults
+          pax += row.pax
+          exPax += row.ex_pax_count
+          childPaid += row.child_count
+          childUnpaid += !row.is_extension ? row.child_unpaid : 0
+          driver += row.driver_count
+        }
       }
     }
-  }
 
-  let stayDays = 0
-  if (minCI && maxCO) {
-    stayDays = Math.ceil(
-      Math.abs(new Date(maxCO).getTime() - new Date(minCI).getTime()) / (1000 * 60 * 60 * 24),
-    )
-    stayDays = stayDays > 0 ? stayDays : 1
-  }
+    let stayDays = 0
+    if (minCI && maxCO) {
+      stayDays = Math.ceil(
+        Math.abs(new Date(maxCO).getTime() - new Date(minCI).getTime()) / (1000 * 60 * 60 * 24),
+      )
+      stayDays = stayDays > 0 ? stayDays : 1
+    }
 
-  // ✅ Create comma-separated guest names and IDs
-  let guestNamesDisplay = '';
-  if (uniqueGuestNames.size > 0) {
-    guestNamesDisplay = Array.from(uniqueGuestNames).join(', ');
-  } else {
-    guestNamesDisplay = combinedSummary.guest_name;
-  }
+    const guestNamesDisplay = uniqueGuestNames.size > 0 
+      ? Array.from(uniqueGuestNames).join(', ') 
+      : combinedSummary.guest_name
 
-  let guestIdsDisplay = '';
-  if (uniqueGuestIds.size > 0) {
-    guestIdsDisplay = Array.from(uniqueGuestIds).join(', ');
-  } else {
-    guestIdsDisplay = String(combinedSummary.guest_id || '');
-  }
+    const guestIdsDisplay = uniqueGuestIds.size > 0
+      ? Array.from(uniqueGuestIds).join(', ')
+      : String(combinedSummary.guest_id || '')
 
-  return {
-    guest_name: guestNamesDisplay,
-    guest_id: guestIdsDisplay, // ✅ Now comma-separated guest IDs
-    payment_method: combinedSummary.payment_method,
-    room_categories_str: Array.from(roomCats).join(', '),
-    converted_categories_str: Array.from(convCats).join(', ') || '-',
-    total_days: stayDays,
-    total_adults: adults,
-    total_pax: pax,
-    total_ex_pax: exPax,
-    total_child_paid: childPaid,
-    total_child_unpaid: 0,
-    total_driver: driver,
-    total_room_tariff: roundToTwo(roomTariff),
-    total_ex_pax_charge: roundToTwo(exPaxCharge),
-    total_child_paid_amount: roundToTwo(childCharge),
-    total_driver_charge: roundToTwo(driverCharge),
-    total_tax_amount: roundToTwo(taxAmt),
-    avg_tax_percent: roomChargeCount > 0 ? roundToTwo(taxPctSum / roomChargeCount) : 0,
-    selected: combinedSummary.selected,
-  }
-})()
+    return {
+      guest_name: guestNamesDisplay,
+      guest_id: guestIdsDisplay,
+      payment_method: combinedSummary.payment_method,
+      room_categories_str: Array.from(roomCats).join(', '),
+      converted_categories_str: Array.from(convCats).join(', ') || '-',
+      total_days: stayDays,
+      total_adults: adults,
+      total_pax: pax,
+      total_ex_pax: exPax,
+      total_child_paid: childPaid,
+      total_child_unpaid: 0,
+      total_driver: driver,
+      total_room_tariff: roundToTwo(roomTariff),
+      total_ex_pax_charge: roundToTwo(exPaxCharge),
+      total_child_paid_amount: roundToTwo(childCharge),
+      total_driver_charge: roundToTwo(driverCharge),
+      total_tax_amount: roundToTwo(taxAmt),
+      avg_tax_percent: roomChargeCount > 0 ? roundToTwo(taxPctSum / roomChargeCount) : 0,
+      selected: combinedSummary.selected,
+    }
+  })()
 
   const handleCheckoutClick = () => {
     if (!combinedSummary) {
@@ -1481,105 +814,94 @@ if (allGuestIds.size === 1) {
     setShowCheckoutModal(true)
   }
 
-const handleConfirmCheckout = async () => {
-  if (!combinedSummary) return;
-  setCheckoutProcessing(true);
-  try {
-    const finalTotalAmount = grandTotal || combinedSummary.total_amount;
+  const handleConfirmCheckout = async () => {
+    if (!combinedSummary) return
+    setCheckoutProcessing(true)
 
-    let invoiceNo = '';
     try {
-      const invoiceRes = await CheckoutService.getNextInvoiceNo();
-      if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
-        invoiceNo = invoiceRes.data.ldg_bill_no;
-        console.log('Fetched invoice number:', invoiceNo);
-      }
-    } catch (invoiceErr) {
-      console.warn('Could not fetch invoice number; server will auto-assign one', invoiceErr);
-    }
+      const finalTotalAmount = grandTotal || combinedSummary.total_amount
 
-    // ✅ Get ALL selected room IDs (not just the first one)
-    const selectedRoomIds = Array.from(selectedRooms)
-      .map(roomNo => {
-        const row = displayRows.find(r => r.room_number === roomNo);
-        return row?.room_id;
-    
+      let invoiceNo = ''
+      try {
+        const invoiceRes = await CheckoutService.getNextInvoiceNo()
+        if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
+          invoiceNo = invoiceRes.data.ldg_bill_no
+        }
+      } catch (invoiceErr) {
+        console.warn('Could not fetch invoice number', invoiceErr)
+      }
+
+      const selectedRoomIds = Array.from(selectedRooms)
+        .map(roomNo => {
+          const row = displayRows.find(r => r.room_number === roomNo)
+          return row?.room_id
+        })
+        .filter((id): id is number => id !== null && id !== undefined)
+
+      const roomIdsCommaString = selectedRoomIds.join(',')
+
+      const response = await CheckoutService.performCheckout({
+        checkin_id: combinedSummary.checkin_id,
+        checkout_reason: checkoutReason || 'Regular checkout',
+        payment_id: selectedPaymentModeId ?? undefined,
+        payment_mode: selectedPaymentModeName,
+        payment_method: selectedPaymentModeName,
+        total_amount: finalTotalAmount,
+        room_id: roomIdsCommaString,
+        round_off_amount: 0,
+        net_payable: finalTotalAmount,
+        selected_rooms: Array.from(selectedRooms),
+        invoiceNoFromBody: invoiceNo,
+        is_settle: 0,
+        is_print: 1,
       })
-      .filter((id): id is number => id !== null && id !== undefined);
 
-    // ✅ Join multiple IDs with comma (e.g., "94,95,96")
-    const roomIdsCommaString = selectedRoomIds.join(',');
+      if (response.success) {
+        if (response.data?.checkout_id) {
+          setCheckoutId(response.data.checkout_id)
+        }
 
-    const response = await CheckoutService.performCheckout({
-      checkin_id: combinedSummary.checkin_id,
-      checkout_reason: checkoutReason || 'Regular checkout',
-      payment_id: selectedPaymentModeId ?? undefined,
-      payment_mode: selectedPaymentModeName,
-      payment_method: selectedPaymentModeName,
-      total_amount: finalTotalAmount,
-      room_id: roomIdsCommaString,        // ✅ now sends multiple IDs
-      round_off_amount: 0,
-      net_payable: finalTotalAmount,
-      selected_rooms: Array.from(selectedRooms),
-      invoiceNoFromBody: invoiceNo,
-      is_settle: 0,
-      is_print: 1,
-    });
+        if (response.data?.ldg_bill_no) {
+          setGeneratedBillNumber(response.data.ldg_bill_no)
+        } else if (invoiceNo) {
+          setGeneratedBillNumber(invoiceNo)
+        }
 
-    if (response.success) {
-
-  if (response.data?.checkout_id) {
-        setCheckoutId(response.data.checkout_id);
+        toast.success(`Checkout completed for ${selectedRooms.size} room(s)`)
+        setShowCheckoutModal(false)
+        setCheckoutReason('')
+        setCheckoutDone(true)
+        setShowBillModal(true)
+      } else {
+        toast.error(response.message || 'Checkout failed')
       }
-
-      if (response.data?.ldg_bill_no) {
-        setGeneratedBillNumber(response.data.ldg_bill_no);
-      } else if (invoiceNo) {
-        setGeneratedBillNumber(invoiceNo);
-      }
-
-      // ✅ Show comma-separated room IDs from response (backup if response doesn't have it)
-      const roomIdsCommaFromResponse = response.data?.checked_out_room_ids_comma ||
-                                       (response.data?.checked_out_room_ids || []).join(', ');
-      
-      toast.success(`Checkout completed for room ID(s): ${roomIdsCommaFromResponse}`);
-
-      setShowCheckoutModal(false);
-      setCheckoutReason('');
-      setCheckoutDone(true);
-      setShowBillModal(true);
-    } else {
-      toast.error(response.message || 'Checkout failed');
-      
+    } catch (error: any) {
+      console.error('Checkout failed:', error)
+      toast.error(error.response?.data?.message || 'Failed to process checkout')
+    } finally {
+      setCheckoutProcessing(false)
     }
-  } catch (error: any) {
-    console.error('Checkout failed:', error);
-    toast.error(error.response?.data?.message || 'Failed to process checkout');
-  } finally {
-    setCheckoutProcessing(false);
   }
-};
 
   const handleCancelCheckout = () => {
     setShowCheckoutModal(false)
     setCheckoutReason('')
   }
 
-  const uniqueRooms = Array.from(new Set(displayRows.map((row) => row.room_number))).sort((a, b) =>
-    a.localeCompare(b, undefined, { numeric: true }),
-  )
+  const uniqueRooms = Array.from(new Set(displayRows.map((row) => row.room_number)))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 
-  const filteredDisplayRowsForTable =
-    selectedRoomFilter === 'all'
-      ? filteredRowsByRoom
-      : filteredRowsByRoom.filter((row) => row.room_number === selectedRoomFilter)
+  // ==================== RENDER ====================
 
-  const getRowClass = (row: DisplayDetailRow): string => {
-    const dept = (row.department_name || '').toLowerCase()
-    if (dept.includes('advance')) return 'advance-row'
-    if (row.isPostCharge) return row.total_amount < 0 ? 'allowance-row' : 'postcharge-row'
-    if (row.is_extension) return 'extension-row'
-    return 'original-row'
+  if (loading) {
+    return (
+      <div className="d-flex flex-column align-items-center justify-content-center vh-100">
+        <div className="spinner-border text-primary mb-3" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+        <p className="text-muted">Loading room details...</p>
+      </div>
+    )
   }
 
   if (error) {
@@ -1616,7 +938,6 @@ const handleConfirmCheckout = async () => {
         }
         .bg-fo-header {
           background-color: #bfcdf0 !important;
-          color:white;
         }
         .info-box {
           border: 1px solid #dee2e6;
@@ -1654,9 +975,9 @@ const handleConfirmCheckout = async () => {
         .scrollable-table { overflow-x: auto; overflow-y: auto; border: 1px solid #dee2e6; background: white; height: auto; max-height: 150px; }
         .scrollable-table table { min-width: 50px; margin-bottom: 0; }
         .first-table-container { height: 240px; max-height: 500px; overflow: auto; border: 1px solid #dee2e6; background: white; }
-        .first-table-container thead th { position: sticky; top: 0; background-color: #3d5eac; z-index: 10; }
+        .first-table-container thead th { position: sticky; top: 0; background-color: #3d5eac; z-index: 10; color: white; }
         .bill-date-table-container { max-height: 200px; overflow: auto; border: 1px solid #dee2e6; background: white; }
-        .bill-date-table-container thead th { position: sticky; top: 0; background-color: #3d5eac; z-index: 10; }
+        .bill-date-table-container thead th { position: sticky; top: 0; background-color: #3d5eac; z-index: 10; color: white; }
         .content-with-fixed-footer { padding-bottom: 60px; }
         .fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #dee2e6; padding: 8px 16px; z-index: 1000; }
         .checkbox-grid { display: flex; flex-wrap: wrap; gap: 8px 12px; }
@@ -1673,14 +994,6 @@ const handleConfirmCheckout = async () => {
         .postcharge-row { background-color: #e8eaf6 !important; border-left: 3px solid #3949ab !important; }
         .allowance-row { background-color: #fce4ec !important; border-left: 3px solid #e91e63 !important; }
         .advance-row { background-color: #e0f2f1 !important; border-left: 3px solid #00897b !important; }
-        .color-legend { display: flex; flex-wrap: wrap; gap: 10px; padding: 6px 12px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; font-size: 0.7rem; align-items: center; }
-        .legend-item { display: flex; align-items: center; gap: 5px; font-weight: 500; }
-        .legend-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.1); }
-        .legend-dot-original { background-color: #ffffff; border: 1px solid #dee2e6; }
-        .legend-dot-extension { background-color: #fff8e1; border-left: 3px solid #f9a825; }
-        .legend-dot-postcharge { background-color: #e8eaf6; border-left: 3px solid #3949ab; }
-        .legend-dot-allowance { background-color: #fce4ec; border-left: 3px solid #e91e63; }
-        .legend-dot-advance { background-color: #e0f2f1; border-left: 3px solid #00897b; }
         .combined-row-summary { background-color: #f0f8ff !important; font-weight: 500; }
         .room-no-scroll-container { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 8px 8px 8px; min-height: 0; }
         .room-count-badge { background-color: #17a2b8; color: white; font-size: 0.6rem; padding: 2px 6px; border-radius: 10px; margin-left: 8px; }
@@ -1739,6 +1052,7 @@ const handleConfirmCheckout = async () => {
       `}</style>
 
       <div className="vh-100 d-flex flex-column overflow-hidden bg-white">
+        {/* Header Tabs */}
         <div className="d-flex justify-content-between align-items-center bg-white border-bottom px-3">
           <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'bill')} className="mb-0">
             <Tab eventKey="bill" title="Front Office Bill" />
@@ -1751,6 +1065,7 @@ const handleConfirmCheckout = async () => {
 
         {activeTab === 'bill' ? (
           <>
+            {/* Control Panel */}
             <div className="px-3 py-2 bg-white border-bottom">
               <Row className="g-2">
                 <Col md={2}>
@@ -1801,8 +1116,7 @@ const handleConfirmCheckout = async () => {
                       </Nav>
                     </div>
                     <div className="info-box-content" style={{ position: 'relative' }}>
-                      <div
-                        style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', minHeight: 0 }}>
+                      <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', minHeight: 0 }}>
                         {activeSubTab === 'billForDay' && (
                           <div className="checkbox-grid p-2">
                             <label className="checkbox-label">
@@ -1835,10 +1149,7 @@ const handleConfirmCheckout = async () => {
                                 type="checkbox"
                                 checked={graceCheckboxes.exPax}
                                 onChange={(e) =>
-                                  setGraceCheckboxes({
-                                    ...graceCheckboxes,
-                                    exPax: e.target.checked,
-                                  })
+                                  setGraceCheckboxes({ ...graceCheckboxes, exPax: e.target.checked })
                                 }
                               />
                               ExPax
@@ -1848,10 +1159,7 @@ const handleConfirmCheckout = async () => {
                                 type="checkbox"
                                 checked={graceCheckboxes.child}
                                 onChange={(e) =>
-                                  setGraceCheckboxes({
-                                    ...graceCheckboxes,
-                                    child: e.target.checked,
-                                  })
+                                  setGraceCheckboxes({ ...graceCheckboxes, child: e.target.checked })
                                 }
                               />
                               Child
@@ -1861,10 +1169,7 @@ const handleConfirmCheckout = async () => {
                                 type="checkbox"
                                 checked={graceCheckboxes.driver}
                                 onChange={(e) =>
-                                  setGraceCheckboxes({
-                                    ...graceCheckboxes,
-                                    driver: e.target.checked,
-                                  })
+                                  setGraceCheckboxes({ ...graceCheckboxes, driver: e.target.checked })
                                 }
                               />
                               Driver
@@ -1932,9 +1237,7 @@ const handleConfirmCheckout = async () => {
                     </div>
                     <div className="info-box-content p-0">
                       {selectedRowsForCheckout.length > 0 ? (
-                        <div
-                          className="date-wise-scroll"
-                          style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                        <div className="date-wise-scroll" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                           <table className="mini-table">
                             <thead>
                               <tr>
@@ -1956,9 +1259,7 @@ const handleConfirmCheckout = async () => {
                                   </td>
                                   <td>{idx + 1}</td>
                                   <td>
-                                    <span className="bill-date-highlight">
-                                      {row.bill_date_formatted}
-                                    </span>
+                                    <span className="bill-date-highlight">{row.bill_date_formatted}</span>
                                   </td>
                                 </tr>
                               ))}
@@ -1966,15 +1267,7 @@ const handleConfirmCheckout = async () => {
                           </table>
                         </div>
                       ) : (
-                        <div
-                          className="info-box-value p-2 text-center"
-                          style={{
-                            fontSize: '12px',
-                            flex: 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}>
+                        <div className="info-box-value p-2 text-center" style={{ fontSize: '12px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           No item selected
                         </div>
                       )}
@@ -1993,9 +1286,7 @@ const handleConfirmCheckout = async () => {
                     </div>
                     <div className="info-box-content p-0">
                       {selectedRowsForCheckout.length > 0 ? (
-                        <div
-                          className="date-wise-scroll"
-                          style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                        <div className="date-wise-scroll" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                           <table className="mini-table">
                             <tbody>
                               {selectedRowsForCheckout.map((r, idx) => (
@@ -2007,10 +1298,7 @@ const handleConfirmCheckout = async () => {
                                       : r.is_extension
                                         ? ` (Ext Day ${r.day_number})`
                                         : ` (Day ${r.day_number})`}{' '}
-                                    -{' '}
-                                    <span className="bill-date-highlight">
-                                      {r.bill_date_formatted}
-                                    </span>
+                                    - <span className="bill-date-highlight">{r.bill_date_formatted}</span>
                                   </td>
                                 </tr>
                               ))}
@@ -2018,15 +1306,7 @@ const handleConfirmCheckout = async () => {
                           </table>
                         </div>
                       ) : (
-                        <div
-                          className="info-box-value p-2 text-center"
-                          style={{
-                            fontSize: '12px',
-                            flex: 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}>
+                        <div className="info-box-value p-2 text-center" style={{ fontSize: '12px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           No item selected
                         </div>
                       )}
@@ -2045,6 +1325,8 @@ const handleConfirmCheckout = async () => {
                 </Col>
               </Row>
             </div>
+
+            {/* Main Content */}
             <div className="px-3 py-2 flex-grow-1 overflow-auto content-with-fixed-footer">
               <Row className="mb-2 g-0">
                 <Col md={12} className="pe-0">
@@ -2055,7 +1337,7 @@ const handleConfirmCheckout = async () => {
                     <Card.Body className="p-0">
                       <div className="first-table-container">
                         <table className="table-fo mb-0 w-100">
-                          <thead className="bg-fo-header ">
+                          <thead className="bg-fo-header">
                             <tr>
                               <th>#</th>
                               <th>Bill Date</th>
@@ -2088,98 +1370,50 @@ const handleConfirmCheckout = async () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredDisplayRowsForTable.map((row, idx) => {
+                            {filteredRowsByRoom.map((row, idx) => {
                               const rowClass = getRowClass(row)
                               return (
                                 <tr key={row.id} className={rowClass}>
                                   <td className="text-center">{idx + 1}</td>
-                                  <td className="bill-date-highlight text-center">
-                                    {row.bill_date_formatted}
-                                  </td>
+                                  <td className="bill-date-highlight text-center">{row.bill_date_formatted}</td>
                                   <td>{row.guest_name}</td>
                                   <td className="text-center">{row.guest_id}</td>
                                   <td className="fw-bold text-center">{row.room_number}</td>
                                   <td>{row.room_category_name}</td>
-                                  <td>
-                                    {row.converted_category_name !== '-'
-                                      ? row.converted_category_name
-                                      : '-'}
-                                  </td>
+                                  <td>{row.converted_category_name !== '-' ? row.converted_category_name : '-'}</td>
                                   <td>
                                     {row.isPostCharge ? (
-                                      <span
-                                        className={
-                                          row.department_name === 'Advance'
-                                            ? 'text-warning fw-bold'
-                                            : row.total_amount < 0
-                                              ? 'text-danger-bold'
-                                              : 'text-primary'
-                                        }>
+                                      <span className={
+                                        row.charge_type === 'advance' ? 'text-warning fw-bold' :
+                                        row.charge_type === 'allowance' ? 'text-danger-bold' :
+                                        'text-primary'
+                                      }>
                                         {row.description}
                                       </span>
                                     ) : (
                                       row.description
                                     )}
                                   </td>
-                                  <td className="text-center">
-                                    {row.isPostCharge ? '-' : row.adults}
-                                  </td>
-                                  <td className="text-center">
-                                    {row.isPostCharge ? '-' : row.pax}
-                                  </td>
-                                  <td className="text-end">
-                                    {formatAmountClean(row.room_tariff_per_day)}
-                                  </td>
-                                  <td className="text-center">
-                                    {row.isPostCharge ? '-' : `${row.discount_percent}%`}
-                                  </td>
-                                  <td className="text-center">
-                                    {row.isPostCharge ? '-' : `${row.tax_percent.toFixed(2)}%`}
-                                  </td>
-                                  <td className="text-end">
-                                    {row.isPostCharge ? '-' : formatAmountClean(row.tax_amount)}
-                                  </td>
-                                  <td className="text-center">
-                                    {row.isPostCharge ? '-' : row.ex_pax_count}
-                                  </td>
-                                  <td className="text-end">
-                                    {row.isPostCharge ? '-' : formatAmountClean(row.ex_pax_price)}
-                                  </td>
-                                  <td className="text-center">
-                                    {row.isPostCharge ? '-' : `${row.ex_pax_tax_percent}%`}
-                                  </td>
-                                  <td className="text-end">
-                                    {row.isPostCharge ? '-' : formatAmountClean(row.ex_pax_total)}
-                                  </td>
-                                  <td className="text-center">
-                                    {row.isPostCharge ? '-' : row.child_count}
-                                  </td>
-                                  <td className="text-end">
-                                    {row.isPostCharge ? '-' : formatAmountClean(row.child_price)}
-                                  </td>
-                                  <td className="text-center">
-                                    {row.isPostCharge ? '-' : `${row.child_tax_percent}%`}
-                                  </td>
-                                  <td className="text-end">
-                                    {row.isPostCharge ? '-' : formatAmountClean(row.child_total)}
-                                  </td>
-                                  <td className="text-center">
-                                    {row.isPostCharge ? '-' : row.driver_count}
-                                  </td>
-                                  <td className="text-end">
-                                    {row.isPostCharge ? '-' : formatAmountClean(row.driver_price)}
-                                  </td>
-                                  <td className="text-center">
-                                    {row.isPostCharge ? '-' : `${row.driver_tax_percent}%`}
-                                  </td>
-                                  <td className="text-end">
-                                    {row.isPostCharge ? '-' : formatAmountClean(row.driver_total)}
-                                  </td>
+                                  <td className="text-center">{row.isPostCharge ? '-' : row.adults}</td>
+                                  <td className="text-center">{row.isPostCharge ? '-' : row.pax}</td>
+                                  <td className="text-end">{formatAmountClean(row.room_tariff_per_day)}</td>
+                                  <td className="text-center">{row.isPostCharge ? '-' : `${row.discount_percent}%`}</td>
+                                  <td className="text-center">{row.isPostCharge ? '-' : `${row.tax_percent.toFixed(2)}%`}</td>
+                                  <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.tax_amount)}</td>
+                                  <td className="text-center">{row.isPostCharge ? '-' : row.ex_pax_count}</td>
+                                  <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.ex_pax_price)}</td>
+                                  <td className="text-center">{row.isPostCharge ? '-' : `${row.ex_pax_tax_percent}%`}</td>
+                                  <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.ex_pax_total)}</td>
+                                  <td className="text-center">{row.isPostCharge ? '-' : row.child_count}</td>
+                                  <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.child_price)}</td>
+                                  <td className="text-center">{row.isPostCharge ? '-' : `${row.child_tax_percent}%`}</td>
+                                  <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.child_total)}</td>
+                                  <td className="text-center">{row.isPostCharge ? '-' : row.driver_count}</td>
+                                  <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.driver_price)}</td>
+                                  <td className="text-center">{row.isPostCharge ? '-' : `${row.driver_tax_percent}%`}</td>
+                                  <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.driver_total)}</td>
                                   <td className="fw-bold text-end">
-                                    <span
-                                      className={
-                                        row.total_amount < 0 ? 'text-danger' : 'text-primary'
-                                      }>
+                                    <span className={row.total_amount < 0 ? 'text-danger' : 'text-primary'}>
                                       {formatAmountClean(row.total_amount)}
                                     </span>
                                   </td>
@@ -2189,11 +1423,10 @@ const handleConfirmCheckout = async () => {
                                 </tr>
                               )
                             })}
-                            {filteredDisplayRowsForTable.length === 0 && (
+                            {filteredRowsByRoom.length === 0 && (
                               <tr>
                                 <td colSpan={28} className="text-center py-4 text-muted">
-                                  No rooms selected. Please select at least one room from the Room
-                                  No. panel.
+                                  No rooms selected. Please select at least one room from the Room No. panel.
                                 </td>
                               </tr>
                             )}
@@ -2205,14 +1438,13 @@ const handleConfirmCheckout = async () => {
                 </Col>
               </Row>
 
+              {/* Summary Card */}
               <Card className="shadow-sm mb-3">
                 <Card.Header className="bg-fo-header text-black py-1">
                   <span className="fw-bold">Room Summary - Total Charges</span>
                 </Card.Header>
                 <Card.Body className="p-0">
-                  <div
-                    className="scrollable-table"
-                    style={{ maxHeight: '150px', overflow: 'auto' }}>
+                  <div className="scrollable-table" style={{ maxHeight: '150px', overflow: 'auto' }}>
                     <table className="table-fo mb-0">
                       <thead className="bg-fo-header text-black">
                         <tr>
@@ -2256,12 +1488,8 @@ const handleConfirmCheckout = async () => {
                                 .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
                                 .join(', ') || '-'}
                             </td>
-                            <td className="text-wrap-cell">
-                              {selectedRoomSummary.room_categories_str}
-                            </td>
-                            <td className="text-wrap-cell">
-                              {selectedRoomSummary.converted_categories_str}
-                            </td>
+                            <td className="text-wrap-cell">{selectedRoomSummary.room_categories_str}</td>
+                            <td className="text-wrap-cell">{selectedRoomSummary.converted_categories_str}</td>
                             <td>{selectedRoomSummary.total_days}</td>
                             <td>{selectedRoomSummary.total_adults}</td>
                             <td>{selectedRoomSummary.total_pax}</td>
@@ -2269,16 +1497,12 @@ const handleConfirmCheckout = async () => {
                             <td>{selectedRoomSummary.total_ex_pax}</td>
                             <td>{formatAmountClean(selectedRoomSummary.total_ex_pax_charge)}</td>
                             <td>{selectedRoomSummary.total_child_paid}</td>
-                            <td>
-                              {formatAmountClean(selectedRoomSummary.total_child_paid_amount)}
-                            </td>
+                            <td>{formatAmountClean(selectedRoomSummary.total_child_paid_amount)}</td>
                             <td>{selectedRoomSummary.total_driver}</td>
                             <td>{formatAmountClean(selectedRoomSummary.total_driver_charge)}</td>
                             <td>{selectedRoomSummary.avg_tax_percent.toFixed(2)}%</td>
                             <td>{formatAmountClean(selectedRoomSummary.total_tax_amount)}</td>
-                            <td className="fw-bold text-primary">
-                              {formatAmountClean(grandTotal)}
-                            </td>
+                            <td className="fw-bold text-primary">{formatAmountClean(grandTotal)}</td>
                           </tr>
                         )}
                         {!selectedRoomSummary || selectedRooms.size === 0 ? (
@@ -2296,28 +1520,15 @@ const handleConfirmCheckout = async () => {
             </div>
           </>
         ) : (
+          // Summary Tab
           <>
             <div className="guest-company-row d-flex flex-wrap gap-4 align-items-center">
-              <div>
-                <strong>Guest:</strong> {combinedSummary?.guest_name || 'N/A'}
-              </div>
-              <div>
-                <strong>Guest ID:</strong> {combinedSummary?.guest_id || 'N/A'}
-              </div>
-              <div>
-                <strong>Selected Rooms:</strong> {Array.from(selectedRooms).join(', ') || 'None'}
-              </div>
-              <div>
-                <strong>Room Numbers:</strong> {combinedSummary?.room_numbers_str || '-'}
-              </div>
-              <div>
-                <strong>From:</strong>{' '}
-                {displayRows.length ? displayRows[0].bill_date_formatted : '-'}
-              </div>
-              <div>
-                <strong>To:</strong>{' '}
-                {displayRows.length ? displayRows[displayRows.length - 1].bill_date_formatted : '-'}
-              </div>
+              <div><strong>Guest:</strong> {combinedSummary?.guest_name || 'N/A'}</div>
+              <div><strong>Guest ID:</strong> {combinedSummary?.guest_id || 'N/A'}</div>
+              <div><strong>Selected Rooms:</strong> {Array.from(selectedRooms).join(', ') || 'None'}</div>
+              <div><strong>Room Numbers:</strong> {combinedSummary?.room_numbers_str || '-'}</div>
+              <div><strong>From:</strong> {displayRows.length ? displayRows[0].bill_date_formatted : '-'}</div>
+              <div><strong>To:</strong> {displayRows.length ? displayRows[displayRows.length - 1].bill_date_formatted : '-'}</div>
               <div className="radio-group ms-auto">
                 <label className="radio-label">
                   <input
@@ -2326,8 +1537,7 @@ const handleConfirmCheckout = async () => {
                     value="datawise"
                     checked={viewType === 'datawise'}
                     onChange={() => setViewType('datawise')}
-                  />{' '}
-                  Datewise
+                  /> Datewise
                 </label>
                 <label className="radio-label">
                   <input
@@ -2336,24 +1546,20 @@ const handleConfirmCheckout = async () => {
                     value="billtype"
                     checked={viewType === 'billtype'}
                     onChange={() => setViewType('billtype')}
-                  />{' '}
-                  Bill Type Wise
+                  /> Bill Type Wise
                 </label>
               </div>
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                className="refresh-btn"
-                onClick={fetchData}>
+              <Button variant="outline-secondary" size="sm" className="refresh-btn" onClick={fetchData}>
                 <i className="fi fi-rr-refresh me-1"></i> Refresh
               </Button>
             </div>
+
             <div className="px-3 py-2 overflow-auto" style={{ paddingBottom: '60px' }}>
               <Row className="mb-2 g-0">
                 <Col md={12} className="pe-0">
                   <Card className="shadow-sm h-100">
-                    <Card.Header className="bg-fo-header text-white py-1">
-                      <span className="fw-bold text-black">Bill Date Summary</span>
+                    <Card.Header className="bg-fo-header text-black py-1">
+                      <span className="fw-bold">Bill Date Summary</span>
                     </Card.Header>
                     <Card.Body className="p-0">
                       <div className="bill-date-table-container">
@@ -2374,34 +1580,22 @@ const handleConfirmCheckout = async () => {
                               const rowClass = getRowClass(item)
                               return (
                                 <tr key={`bill-summary-${idx}`} className={rowClass}>
-                                  <td className="bill-date-highlight">
-                                    {item.bill_date_formatted}
-                                  </td>
+                                  <td className="bill-date-highlight">{item.bill_date_formatted}</td>
                                   <td className="fw-bold">{item.room_number}</td>
                                   <td>{idx + 1}</td>
                                   <td>{item.isPostCharge ? '-' : item.day_number}</td>
                                   <td>
                                     {item.isPostCharge ? (
-                                      <span
-                                        className={
-                                          item.total_amount < 0
-                                            ? 'text-danger-bold'
-                                            : 'text-primary'
-                                        }>
+                                      <span className={item.total_amount < 0 ? 'text-danger-bold' : 'text-primary'}>
                                         {item.description}
                                       </span>
                                     ) : (
                                       item.description
                                     )}
                                   </td>
-                                  <td className="text-end">
-                                    {formatAmountClean(item.room_tariff_per_day)}
-                                  </td>
+                                  <td className="text-end">{formatAmountClean(item.room_tariff_per_day)}</td>
                                   <td className="fw-bold text-end">
-                                    <span
-                                      className={
-                                        item.total_amount < 0 ? 'text-danger' : 'text-primary'
-                                      }>
+                                    <span className={item.total_amount < 0 ? 'text-danger' : 'text-primary'}>
                                       {formatAmountClean(item.total_amount)}
                                     </span>
                                   </td>
@@ -2410,19 +1604,13 @@ const handleConfirmCheckout = async () => {
                             })}
                             {filteredRowsByRoom.length === 0 && (
                               <tr>
-                                <td colSpan={7} className="text-center">
-                                  No rooms selected
-                                </td>
+                                <td colSpan={7} className="text-center">No rooms selected</td>
                               </tr>
                             )}
                             <tfoot>
                               <tr className="bg-light fw-bold">
-                                <td colSpan={6} className="text-end">
-                                  Total:
-                                </td>
-                                <td className="text-danger text-end">
-                                  {formatAmountClean(grandTotal)}
-                                </td>
+                                <td colSpan={6} className="text-end">Total:</td>
+                                <td className="text-danger text-end">{formatAmountClean(grandTotal)}</td>
                               </tr>
                             </tfoot>
                           </tbody>
@@ -2432,9 +1620,7 @@ const handleConfirmCheckout = async () => {
                   </Card>
                 </Col>
               </Row>
-            </div>
 
-            <div className="px-3 py-2 overflow-auto" style={{ paddingBottom: '60px' }}>
               <Card className="shadow-sm mb-3">
                 <Card.Header className="bg-fo-header text-black py-1">
                   <strong>Room Details - Selected Rooms</strong>
@@ -2472,55 +1658,26 @@ const handleConfirmCheckout = async () => {
                           return (
                             <tr key={`summary-${row.id}`} className={rowClass}>
                               <td className="text-center">{idx + 1}</td>
-                              <td className="bill-date-highlight text-center">
-                                {row.bill_date_formatted}
-                              </td>
+                              <td className="bill-date-highlight text-center">{row.bill_date_formatted}</td>
                               <td className="fw-bold text-center">{row.room_number}</td>
                               <td>{row.payment_method || 'Cash'}</td>
                               <td>{row.room_category_name}</td>
-                              <td className="text-center">
-                                {row.isPostCharge ? '-' : row.day_number}
-                              </td>
+                              <td className="text-center">{row.isPostCharge ? '-' : row.day_number}</td>
                               <td className="text-center">{row.isPostCharge ? '-' : row.adults}</td>
-                              <td className="text-center">
-                                {row.isPostCharge ? '-' : row.ex_pax_count}
-                              </td>
-                              <td className="text-end">
-                                {row.isPostCharge ? '-' : formatAmountClean(row.ex_pax_price)}
-                              </td>
-                              <td className="text-end">
-                                {row.isPostCharge ? '-' : formatAmountClean(row.ex_pax_total)}
-                              </td>
-                              <td className="text-center">
-                                {row.isPostCharge ? '-' : row.child_count}
-                              </td>
-                              <td className="text-end">
-                                {row.isPostCharge ? '-' : formatAmountClean(row.child_price)}
-                              </td>
-                              <td className="text-end">
-                                {row.isPostCharge ? '-' : formatAmountClean(row.child_total)}
-                              </td>
-                              <td className="text-center">
-                                {row.isPostCharge ? '-' : row.driver_count}
-                              </td>
-                              <td className="text-end">
-                                {row.isPostCharge ? '-' : formatAmountClean(row.driver_price)}
-                              </td>
-                              <td className="text-end">
-                                {row.isPostCharge ? '-' : formatAmountClean(row.driver_total)}
-                              </td>
-                              <td className="text-end">
-                                {formatAmountClean(row.room_tariff_per_day)}
-                              </td>
-                              <td className="text-center">
-                                {row.isPostCharge ? '-' : `${row.tax_percent.toFixed(2)}%`}
-                              </td>
-                              <td className="text-end">
-                                {row.isPostCharge ? '-' : formatAmountClean(row.tax_amount)}
-                              </td>
+                              <td className="text-center">{row.isPostCharge ? '-' : row.ex_pax_count}</td>
+                              <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.ex_pax_price)}</td>
+                              <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.ex_pax_total)}</td>
+                              <td className="text-center">{row.isPostCharge ? '-' : row.child_count}</td>
+                              <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.child_price)}</td>
+                              <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.child_total)}</td>
+                              <td className="text-center">{row.isPostCharge ? '-' : row.driver_count}</td>
+                              <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.driver_price)}</td>
+                              <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.driver_total)}</td>
+                              <td className="text-end">{formatAmountClean(row.room_tariff_per_day)}</td>
+                              <td className="text-center">{row.isPostCharge ? '-' : `${row.tax_percent.toFixed(2)}%`}</td>
+                              <td className="text-end">{row.isPostCharge ? '-' : formatAmountClean(row.tax_amount)}</td>
                               <td className="fw-bold text-end">
-                                <span
-                                  className={row.total_amount < 0 ? 'text-danger' : 'text-primary'}>
+                                <span className={row.total_amount < 0 ? 'text-danger' : 'text-primary'}>
                                   {formatAmountClean(row.total_amount)}
                                 </span>
                               </td>
@@ -2530,17 +1687,14 @@ const handleConfirmCheckout = async () => {
                         {filteredRowsByRoom.length === 0 && (
                           <tr>
                             <td colSpan={20} className="text-center py-4 text-muted">
-                              No rooms selected. Please select at least one room from the Room No.
-                              panel.
+                              No rooms selected. Please select at least one room from the Room No. panel.
                             </td>
                           </tr>
                         )}
                       </tbody>
                       <tfoot>
                         <tr className="bg-light fw-bold">
-                          <td colSpan={19} className="text-end">
-                            Grand Total:
-                          </td>
+                          <td colSpan={19} className="text-end">Grand Total:</td>
                           <td className="text-danger text-end">{formatAmountClean(grandTotal)}</td>
                         </tr>
                       </tfoot>
@@ -2552,6 +1706,7 @@ const handleConfirmCheckout = async () => {
           </>
         )}
 
+        {/* Fixed Footer */}
         <div className="fixed-footer d-flex justify-content-between align-items-center">
           <div>
             {pendingAdvanceAmount > 0 ? (
@@ -2566,9 +1721,7 @@ const handleConfirmCheckout = async () => {
                     -{formatAmountClean(pendingAdvanceAmount)}
                   </span>
                 </div>
-                <div
-                  className="fw-bold fs-5"
-                  style={{ color: grandTotal < 0 ? '#00897b' : '#dc3545' }}>
+                <div className="fw-bold fs-5" style={{ color: grandTotal < 0 ? '#00897b' : '#dc3545' }}>
                   {grandTotal < 0
                     ? `Credit Balance: ${formatAmountClean(Math.abs(grandTotal))}`
                     : `Net Payable: ${formatAmountClean(grandTotal)}`}
@@ -2598,6 +1751,7 @@ const handleConfirmCheckout = async () => {
         </div>
       </div>
 
+      {/* Checkout Modal */}
       <Modal show={showCheckoutModal} onHide={handleCancelCheckout} centered size="sm">
         <Modal.Header closeButton className="py-3 bg-primary text-white">
           <Modal.Title className="fs-5 fw-bold text-white">Confirm Checkout</Modal.Title>
@@ -2616,45 +1770,31 @@ const handleConfirmCheckout = async () => {
               <>
                 Gross: <strong>{formatAmountClean(grandTotal + pendingAdvanceAmount)}</strong>
                 <br />
-                Advance:{' '}
-                <strong style={{ color: '#00897b' }}>
-                  -{formatAmountClean(pendingAdvanceAmount)}
-                </strong>
+                Advance: <strong style={{ color: '#00897b' }}>-{formatAmountClean(pendingAdvanceAmount)}</strong>
                 <br />
-                Net Payable:{' '}
-                <strong style={{ color: grandTotal < 0 ? '#00897b' : '#dc3545' }}>
-                  {grandTotal < 0
-                    ? `Credit: ${formatAmountClean(Math.abs(grandTotal))}`
-                    : formatAmountClean(grandTotal)}
+                Net Payable: <strong style={{ color: grandTotal < 0 ? '#00897b' : '#dc3545' }}>
+                  {grandTotal < 0 ? `Credit: ${formatAmountClean(Math.abs(grandTotal))}` : formatAmountClean(grandTotal)}
                 </strong>
               </>
             ) : (
               <>
-                Total Amount:{' '}
-                <strong className="text-danger">{formatAmountClean(grandTotal)}</strong>
+                Total Amount: <strong className="text-danger">{formatAmountClean(grandTotal)}</strong>
               </>
             )}
           </p>
         </Modal.Body>
         <Modal.Footer className="justify-content-center border-0 pb-3 pt-0 gap-1">
-          <Button
-            variant="success"
-            onClick={handleConfirmCheckout}
-            disabled={checkoutProcessing}
-            style={{ minWidth: '100px' }}>
+          <Button variant="success" onClick={handleConfirmCheckout} disabled={checkoutProcessing} style={{ minWidth: '100px' }}>
             <i className="fi fi-rr-sign-out-alt me-1"></i>
             {checkoutProcessing ? 'Processing...' : 'Checkout'}
           </Button>
-          <Button
-            variant="secondary"
-            onClick={handleCancelCheckout}
-            disabled={checkoutProcessing}
-            style={{ minWidth: '50px' }}>
+          <Button variant="secondary" onClick={handleCancelCheckout} disabled={checkoutProcessing} style={{ minWidth: '50px' }}>
             <i className="fi fi-rr-cross me-1"></i>Cancel
           </Button>
         </Modal.Footer>
       </Modal>
 
+      {/* Checkout Success Modal */}
       <Modal
         show={checkoutDone && !showBillModal}
         onHide={() => {
@@ -2680,15 +1820,11 @@ const handleConfirmCheckout = async () => {
             Checked out Rooms: {Array.from(selectedRooms).join(', ')}
           </p>
           <p className="mt-2 mb-0">
-            Amount Collected:{' '}
-            <strong className="text-danger">{formatAmountClean(grandTotal)}</strong>
+            Amount Collected: <strong className="text-danger">{formatAmountClean(grandTotal)}</strong>
           </p>
         </Modal.Body>
         <Modal.Footer className="justify-content-center border-0 pb-3 pt-0 gap-2">
-          <Button
-            variant="primary"
-            onClick={() => setShowBillModal(true)}
-            style={{ minWidth: '120px' }}>
+          <Button variant="primary" onClick={() => setShowBillModal(true)} style={{ minWidth: '120px' }}>
             🧾 Show Bill
           </Button>
           <Button
@@ -2709,31 +1845,29 @@ const handleConfirmCheckout = async () => {
         </Modal.Footer>
       </Modal>
 
-   
-
-<CheckoutBillModal
-  show={showBillModal}
-  onHide={() => {
-    setShowBillModal(false)
-    setCheckoutDone(false)
-    navigate('/hotel-master/HotelBookingPanel', {
-      state: {
-        checkoutSuccess: true,
-        checkedOutRooms: Array.from(selectedRooms),
-        checkin_id: combinedSummary?.checkin_id,
-      }
-    })
-  }}
-  checkoutId={checkoutId || 0}  // Use checkoutId from state
-  ldgBillNo={generatedBillNumber}
-  hotelId={hotelId}
-  billNumber={generatedBillNumber}
-  paymentTransactionId={paymentTransactionId}
-  paymentDate={paymentDate}
-  paymentBank={paymentBank}
-  selectedRooms={Array.from(selectedRooms)}  // ✅ Pass selected rooms
-
-/>
+      {/* Bill Modal */}
+      <CheckoutBillModal
+        show={showBillModal}
+        onHide={() => {
+          setShowBillModal(false)
+          setCheckoutDone(false)
+          navigate('/hotel-master/HotelBookingPanel', {
+            state: {
+              checkoutSuccess: true,
+              checkedOutRooms: Array.from(selectedRooms),
+              checkin_id: combinedSummary?.checkin_id,
+            }
+          })
+        }}
+        checkoutId={checkoutId || 0}
+        ldgBillNo={generatedBillNumber}
+        hotelId={hotelId}
+        billNumber={generatedBillNumber}
+        paymentTransactionId={paymentTransactionId}
+        paymentDate={paymentDate}
+        paymentBank={paymentBank}
+        selectedRooms={Array.from(selectedRooms)}
+      />
     </>
   )
 }
