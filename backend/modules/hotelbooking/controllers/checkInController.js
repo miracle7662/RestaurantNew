@@ -533,103 +533,320 @@ exports.addCheckin = async (req, res) => {
     const userId = body.created_by_id || 1;
 
     console.log('📥 ===== ADD CHECKIN REQUEST =====');
-    console.log('📥 Body keys:', Object.keys(body));
-    console.log('📥 checkin_datetime:', body.checkin_datetime);
-    console.log('📥 checkout_datetime:', body.checkout_datetime);
-    console.log('📥 Details count:', body.details?.length || 0);
-    console.log('📥 First detail:', body.details?.[0] ? JSON.stringify(body.details[0], null, 2) : 'No details');
-    console.log('📥 ================================');
+    console.log('📥 Guest Name:', body.guest_name);
+    console.log('📥 Hotel ID:', body.hotelid);
 
-    const { hotelid } = body;
-    if (!hotelid) {
-      throw new Error("hotelid is required");
-    }
-
-    // ========== CALL STORED PROCEDURE ==========
-    try {
-      await connection.execute(
-        `CALL sp_add_checkin(
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-          @p_checkin_id, @p_out_message
-        )`,
-        [
-          hotelid, body.guest_id || null, body.guest_name || null,
-          body.address || null, body.mobile || null, body.company_name || null,
-          body.emailed || null, body.booking || null, body.plan_name || null,
-          body.special_instruction || null, body.message || null,
-          formatDateTime(body.checkin_datetime) || null,
-          formatDateTime(body.checkout_datetime) || null,
-          body.room_no || null, body.room_id || null, body.category_id || null,
-          body.converted_category || null, body.adults || 0, body.pax || 0,
-          body.pax_charges || 0, body.ex_pax || 0, body.ex_pax_charge || 0,
-          body.child_paid || 0, body.child_unpaid || 0, body.child_charge || 0,
-          body.driver || null, body.driver_charge || 0,
-          body.outletid || null, body.userid || null,
-          body.id_type || null, body.id_number || null,
-          body.department_id || null, body.department_name || null,
-          body.total_nights || 0, body.total_amount || 0,
-          body.status || 'active', userId,
-          JSON.stringify(body.details || []),
-          JSON.stringify(body.room_charges || []),
-          JSON.stringify(body.folio_entries || [])
-        ]
-      );
-      console.log('✅ Procedure executed successfully');
-    } catch (procError) {
-      console.error('❌ Procedure execution error:', procError);
-      throw procError;
-    }
-
-    // ========== GET OUTPUT PARAMETERS ==========
-    const [outputResult] = await connection.execute(
-      'SELECT @p_checkin_id AS checkin_id, @p_out_message AS message'
-    );
+    // ✅ LOG THE JSON PAYLOADS FOR DEBUGGING
+    console.log('📥 Details JSON length:', body.details?.length || 0);
+    console.log('📥 Room Charges JSON length:', body.room_charges?.length || 0);
+    console.log('📥 Folio Entries JSON length:', body.folio_entries?.length || 0);
     
-    console.log('📤 Output result:', outputResult);
-    
-    const checkinId = outputResult[0]?.checkin_id;
-    const message = outputResult[0]?.message;
-
-    if (!checkinId || checkinId === 0) {
-      throw new Error(message || 'Failed to create check-in');
+    if (body.room_charges && body.room_charges.length > 0) {
+      console.log('📥 First room charge:', JSON.stringify(body.room_charges[0], null, 2));
     }
 
-    // ========== FETCH THE COMPLETE CHECKIN DATA ==========
-    const [masterRow] = await connection.execute(
-      'SELECT * FROM checkin_master WHERE checkin_id = ?',
-      [checkinId]
+    const formatDateTime = (val) => {
+      if (!val) return null;
+      if (val instanceof Date) return val;
+      if (typeof val === 'string') {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) {
+          return d.toISOString().slice(0, 19).replace('T', ' ');
+        }
+        return val;
+      }
+      return val;
+    };
+
+    // Convert driver properly
+    const driverValue = (body.driver !== undefined && body.driver !== null && body.driver !== 0 && body.driver !== '0' && body.driver !== '') 
+      ? String(body.driver) 
+      : null;
+
+    const specialInstruction = body.special_instruction !== undefined && body.special_instruction !== null && body.special_instruction !== ''
+      ? String(body.special_instruction)
+      : null;
+      
+    const message = body.message !== undefined && body.message !== null && body.message !== ''
+      ? String(body.message)
+      : null;
+
+    const idType = body.id_type !== undefined && body.id_type !== null && body.id_type !== ''
+      ? String(body.id_type)
+      : null;
+      
+    const idNumber = body.id_number !== undefined && body.id_number !== null && body.id_number !== ''
+      ? String(body.id_number)
+      : null;
+
+    const roomNo = body.room_no !== undefined && body.room_no !== null && body.room_no !== ''
+      ? String(body.room_no)
+      : null;
+
+    const convertedCategory = body.converted_category !== undefined && body.converted_category !== null && body.converted_category !== ''
+      ? String(body.converted_category)
+      : null;
+
+    // ✅ ENSURE JSON DATA IS PROPERLY STRINGIFIED WITH NULL CHECKS
+    let detailsJson = null;
+    let roomChargesJson = null;
+    let folioEntriesJson = null;
+
+    if (body.details && Array.isArray(body.details) && body.details.length > 0) {
+      // Ensure all required fields have values
+      const cleanedDetails = body.details.map(d => ({
+        ...d,
+        guest_id: d.guest_id || 0,
+        room_id: d.room_id || 0,
+        room_category_id: d.room_category_id || 0,
+        no_of_days: d.no_of_days || 1,
+        adults: d.adults || 0,
+        pax: d.pax || 0,
+        ex_pax: d.ex_pax || 0,
+        child_unpaid: d.child_unpaid || 0,
+        driver: d.driver || 0,
+        room_tariff: d.room_tariff || 0,
+        ex_pax_charge: d.ex_pax_charge || 0,
+        child_paid_amount: d.child_paid_amount || 0,
+        driver_charge: d.driver_charge || 0,
+        discount_percent: d.discount_percent || 0,
+        discount_amount: d.discount_amount || 0,
+        cgst_percent: d.cgst_percent || 0,
+        cgst_amount: d.cgst_amount || 0,
+        sgst_percent: d.sgst_percent || 0,
+        sgst_amount: d.sgst_amount || 0,
+        igst_percent: d.igst_percent || 0,
+        igst_amount: d.igst_amount || 0,
+        cess_percent: d.cess_percent || 0,
+        cess_amount: d.cess_amount || 0,
+        service_charge: d.service_charge || 0,
+        service_charge_amount: d.service_charge_amount || 0,
+        tax: d.tax || 0
+      }));
+      detailsJson = JSON.stringify(cleanedDetails);
+      console.log('📥 Cleaned details:', JSON.stringify(cleanedDetails[0], null, 2));
+    }
+
+    if (body.room_charges && Array.isArray(body.room_charges) && body.room_charges.length > 0) {
+      // Ensure all required fields have values
+      const cleanedCharges = body.room_charges.map(c => ({
+        ...c,
+        guest_id: c.guest_id || 0,
+        room_id: c.room_id || 0,
+        category_id: c.category_id || 0,
+        pax_count: c.pax_count || 0,
+        pax_price: c.pax_price || 0,
+        pax_tax: c.pax_tax || 0,
+        ex_pax_count: c.ex_pax_count || 0,
+        ex_pax_price: c.ex_pax_price || 0,
+        ex_pax_tax: c.ex_pax_tax || 0,
+        ex_pax_tax_percent: c.ex_pax_tax_percent || 0,
+        ex_pax_total: c.ex_pax_total || 0,
+        child_count: c.child_count || 0,
+        child_price: c.child_price || 0,
+        child_tax: c.child_tax || 0,
+        child_tax_percent: c.child_tax_percent || 0,
+        child_total: c.child_total || 0,
+        driver_count: c.driver_count || 0,
+        driver_price: c.driver_price || 0,
+        driver_tax: c.driver_tax || 0,
+        driver_tax_percent: c.driver_tax_percent || 0,
+        driver_total: c.driver_total || 0,
+        total_amount: c.total_amount || 0,
+        checkin_datetime: c.checkin_datetime || body.checkin_datetime,
+        checkout_datetime: c.checkout_datetime || body.checkout_datetime
+      }));
+      roomChargesJson = JSON.stringify(cleanedCharges);
+      console.log('📥 Cleaned room charge:', JSON.stringify(cleanedCharges[0], null, 2));
+    }
+
+    if (body.folio_entries && Array.isArray(body.folio_entries) && body.folio_entries.length > 0) {
+      const cleanedFolio = body.folio_entries.map(f => ({
+        ...f,
+        hotel_id: f.hotel_id || body.hotelid,
+        room_id: f.room_id || body.room_id || 0,
+        debit_amount: f.debit_amount || 0,
+        credit_amount: f.credit_amount || 0
+      }));
+      folioEntriesJson = JSON.stringify(cleanedFolio);
+      console.log('📥 Cleaned folio entry:', JSON.stringify(cleanedFolio[0], null, 2));
+    }
+
+    // ✅ BUILD ALL 40 PARAMETERS
+    const params = [
+      // 1-10: Personal Info
+      body.guest_id ? Number(body.guest_id) : null,
+      body.guest_name ? String(body.guest_name) : null,
+      body.address ? String(body.address) : null,
+      body.mobile ? String(body.mobile) : null,
+      body.company_name ? String(body.company_name) : null,
+      body.emailed ? String(body.emailed) : null,
+      body.booking ? String(body.booking) : null,
+      body.plan_name ? String(body.plan_name) : null,
+      specialInstruction,
+      message,
+      
+      // 11-12: Dates
+      formatDateTime(body.checkin_datetime),
+      formatDateTime(body.checkout_datetime),
+      
+      // 13-16: Room Info
+      roomNo,
+      body.room_id ? Number(body.room_id) : null,
+      body.category_id ? Number(body.category_id) : null,
+      convertedCategory,
+      
+      // 17-26: Counts
+      Number(body.adults) || 0,
+      Number(body.pax) || 0,
+      Number(body.pax_charges) || 0,
+      Number(body.ex_pax) || 0,
+      Number(body.ex_pax_charge) || 0,
+      Number(body.child_paid) || 0,
+      Number(body.child_unpaid) || 0,
+      Number(body.child_charge) || 0,
+      driverValue,
+      Number(body.driver_charge) || 0,
+      
+      // 27-29: IDs
+      Number(body.hotelid),
+      Number(body.outletid) || 1,
+      Number(body.userid) || userId,
+      
+      // 30-31: ID Details
+      idType,
+      idNumber,
+      
+      // 32-33: Department
+      body.department_id ? Number(body.department_id) : null,
+      body.department_name ? String(body.department_name) : null,
+      
+      // 34-35: Totals
+      Number(body.total_nights) || 0,
+      Number(body.total_amount) || 0,
+      
+      // 36: Status
+      body.status || 'active',
+      
+      // 37: Created By
+      Number(userId),
+      
+      // 38-40: JSON Data (with cleaned values)
+      detailsJson,
+      roomChargesJson,
+      folioEntriesJson
+    ];
+
+    // ✅ Verify parameter count
+    console.log(`📊 Total parameters: ${params.length}`);
+    
+    if (params.length !== 40) {
+      console.error(`❌ Expected 40 parameters, got ${params.length}`);
+      throw new Error(`Expected 40 parameters, got ${params.length}`);
+    }
+
+    // ✅ Check if any parameter is undefined
+    const undefinedParams = params.map((p, i) => p === undefined ? i+1 : null).filter(p => p !== null);
+    if (undefinedParams.length > 0) {
+      console.error(`❌ Undefined parameters at positions: ${undefinedParams.join(', ')}`);
+      throw new Error(`Undefined parameters at positions: ${undefinedParams.join(', ')}`);
+    }
+
+    // ✅ Log parameter summary
+    console.log('📊 Parameter summary:');
+    console.log(`  - Driver: ${driverValue}`);
+    console.log(`  - Details JSON length: ${detailsJson ? detailsJson.length : 0}`);
+    console.log(`  - Room Charges JSON length: ${roomChargesJson ? roomChargesJson.length : 0}`);
+    console.log(`  - Folio Entries JSON length: ${folioEntriesJson ? folioEntriesJson.length : 0}`);
+
+    // Execute stored procedure
+    const placeholders = params.map(() => '?').join(',');
+    console.log(`📊 Executing: CALL sp_add_checkin(${placeholders})`);
+    
+    const [results] = await connection.execute(
+      `CALL sp_add_checkin(${placeholders})`,
+      params
     );
 
     await connection.commit();
 
-    res.status(201).json({
-      success: true,
-      message: message || 'Check-in created successfully',
-      data: masterRow[0] || { checkin_id: checkinId }
-    });
+    // Process the result
+    let result = null;
+    if (results && results.length > 0 && results[0] && results[0].length > 0) {
+      result = results[0][0];
+      console.log('📊 Stored procedure result:', JSON.stringify(result, null, 2));
+    }
+
+    if (result && result.result) {
+      let parsedResult;
+      try {
+        if (typeof result.result === 'string') {
+          parsedResult = JSON.parse(result.result);
+        } else {
+          parsedResult = result.result;
+        }
+        console.log('📊 Parsed result:', JSON.stringify(parsedResult, null, 2));
+      } catch (e) {
+        console.error('Error parsing result:', e);
+        parsedResult = { success: false, message: 'Invalid result format' };
+      }
+
+      if (parsedResult.success) {
+        const [masterRow] = await connection.execute(
+          'SELECT * FROM checkin_master WHERE checkin_id = ?',
+          [parsedResult.checkin_id]
+        );
+
+        return res.status(201).json({
+          success: true,
+          message: parsedResult.message || 'Check-in created successfully',
+          data: masterRow[0],
+          checkin_id: parsedResult.checkin_id,
+          reg_no: parsedResult.reg_no,
+          debug: parsedResult.debug
+        });
+      } else {
+        const errorMsg = parsedResult.message || 'Unknown error from stored procedure';
+        const sqlError = parsedResult.sql_error || '';
+        const debug = parsedResult.debug || '';
+        console.error('❌ Stored procedure error:', errorMsg);
+        console.error('❌ SQL Error:', sqlError);
+        console.error('❌ Debug info:', debug);
+        throw new Error(errorMsg + (sqlError ? ` (SQL: ${sqlError})` : ''));
+      }
+    } else {
+      throw new Error('No result from stored procedure');
+    }
 
   } catch (err) {
     if (connection) await connection.rollback();
-    console.error('❌ addCheckin error:', err);
+    
+    console.error('❌ addCheckin error:');
+    console.error('  Message:', err.message);
+    console.error('  Stack:', err.stack);
+    
+    // Check for SQL specific error
+    if (err.sqlMessage) {
+      console.error('  SQL Message:', err.sqlMessage);
+    }
+    if (err.sql) {
+      console.error('  SQL:', err.sql);
+    }
+    
     res.status(500).json({ 
       success: false, 
-      message: err.message 
+      message: err.message || 'Internal server error',
+      ...(process.env.NODE_ENV === 'development' && {
+        stack: err.stack,
+        code: err.code,
+        sqlMessage: err.sqlMessage,
+        sqlState: err.sqlState
+      })
     });
   } finally {
     if (connection) connection.release();
   }
 };
-
-
-
-
-
-
-
-
 // ----------------------------------------------------------------------
 // PUT /checkins/:id – update checkin
 // ----------------------------------------------------------------------

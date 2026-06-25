@@ -1820,94 +1820,93 @@ onSubmit: async (values) => {
 
     // ---------- 2. Build details array (one per room) ----------
     const detailsPayload = roomRows.map((row) => {
-      const catId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id
-      const dailyDiscountedTariff = row.rate - ((row.rate * (row.discount || 0)) / 100)
-      const dailyCgstAmount = (dailyDiscountedTariff * (row.cgstPercent || 0)) / 100
-      const dailySgstAmount = (dailyDiscountedTariff * (row.sgstPercent || 0)) / 100
-      const dailyIgstAmount = (dailyDiscountedTariff * (row.igstPercent || 0)) / 100
-      const dailyCessAmount = (dailyDiscountedTariff * (row.cessPercent || 0)) / 100
-      const dailyTotalTax = dailyCgstAmount + dailySgstAmount + dailyIgstAmount + dailyCessAmount
+  const catId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id || 0
+  const dailyDiscountedTariff = row.rate - ((row.rate * (row.discount || 0)) / 100)
+  const dailyCgstAmount = (dailyDiscountedTariff * (row.cgstPercent || 0)) / 100
+  const dailySgstAmount = (dailyDiscountedTariff * (row.sgstPercent || 0)) / 100
+  const dailyIgstAmount = (dailyDiscountedTariff * (row.igstPercent || 0)) / 100
+  const dailyCessAmount = (dailyDiscountedTariff * (row.cessPercent || 0)) / 100
+  const dailyTotalTax = dailyCgstAmount + dailySgstAmount + dailyIgstAmount + dailyCessAmount
 
-      return {
-        guest_id: row.guestId,
-        hotelid: hotelId,
-        room_id: row.roomId,
-        room_number: row.roomNumber,
-        room_category_id: catId,
-        room_category_name: row.type,
-        converted_category_id: row.convertedCategoryId,
-        converted_category_name: row.convertedCategoryName || '',
-        checkin_datetime: checkinDateTime,
-        checkout_datetime: checkoutDateTime,
-        no_of_days: 1,
-        adults: row.adults,
-        pax: row.pax,
-        ex_pax: row.exPax,
-        child_unpaid: row.childUnpaid,
-        driver: row.driver,
-        room_tariff: row.rate,
-        ex_pax_charge: row.exPaxPrice || 0,
-        child_paid_amount: row.childPrice || 0,
-        driver_charge: row.driverPrice || 0,
-        discount_percent: row.discount || 0,
-        discount_amount: (row.rate * (row.discount || 0)) / 100,
-        cgst_percent: row.cgstPercent || 0,
-        cgst_amount: dailyCgstAmount,
-        sgst_percent: row.sgstPercent || 0,
-        sgst_amount: dailySgstAmount,
-        igst_percent: row.igstPercent || 0,
-        igst_amount: dailyIgstAmount,
-        cess_percent: row.cessPercent || 0,
-        cess_amount: dailyCessAmount,
-        service_charge: 0,
-        service_charge_amount: 0,
-        tax: dailyTotalTax,
-      }
-    })
+  return {
+    guest_id: row.guestId || 0,           // ✅ Ensure NOT NULL
+    hotelid: hotelId,
+    room_id: row.roomId || 0,             // ✅ Ensure NOT NULL
+    room_number: row.roomNumber || '',
+    room_category_id: catId || 0,         // ✅ Ensure NOT NULL
+    room_category_name: row.type || '',
+    converted_category_id: row.convertedCategoryId || 0,
+    converted_category_name: row.convertedCategoryName || '',
+    checkin_datetime: checkinDateTime,
+    checkout_datetime: checkoutDateTime,
+    no_of_days: 1,
+    adults: row.adults || 0,
+    pax: row.pax || 0,
+    ex_pax: row.exPax || 0,
+    child_unpaid: row.childUnpaid || 0,
+    driver: row.driver || 0,
+    room_tariff: row.rate || 0,
+    ex_pax_charge: row.exPaxPrice || 0,
+    child_paid_amount: row.childPrice || 0,
+    driver_charge: row.driverPrice || 0,
+    discount_percent: row.discount || 0,
+    discount_amount: (row.rate * (row.discount || 0)) / 100,
+    cgst_percent: row.cgstPercent || 0,
+    cgst_amount: dailyCgstAmount,
+    sgst_percent: row.sgstPercent || 0,
+    sgst_amount: dailySgstAmount,
+    igst_percent: row.igstPercent || 0,
+    igst_amount: dailyIgstAmount,
+    cess_percent: row.cessPercent || 0,
+    cess_amount: dailyCessAmount,
+    service_charge: 0,
+    service_charge_amount: 0,
+    tax: dailyTotalTax,
+  }
+})
 
     // ---------- 3. Build room_charges array (one per room) ----------
     const roomChargesPayload = roomRows.map((row) => {
-      const catId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id
-      const perDayTotalAmount = (row.totalAmount || 0) / totalNights
+  const catId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id
+  const perDayTotalAmount = (row.totalAmount || 0) / totalNights
 
-      return {
-        guest_id: row.guestId,
-        room_id: row.roomId,
-        room_no: row.roomNumber,
-        category_id: catId,
-        pax_count: row.pax,
-        pax_price: row.rate,
-        pax_tax: (row.taxAmount || 0) / totalNights,
-        ex_pax_count: row.exPax,
-        ex_pax_price: row.exPaxPrice || 0,
-        ex_pax_tax: row.exPaxTax || 0,
-        ex_pax_tax_percent: row.exPaxTaxPercent || 0,
-        ex_pax_total: row.exPaxTotal || 0,
-        child_count: row.childPaid,
-        child_price: row.childPrice || 0,
-        child_tax: row.childTax || 0,
-        child_tax_percent: row.childTaxPercent || 0,
-        child_total: row.childTotal || 0,
-        driver_count: row.driver,
-        driver_price: row.driverPrice || 0,
-        driver_tax: row.driverTax || 0,
-        driver_tax_percent: row.driverTaxPercent || 0,
-        driver_total: row.driverTotal || 0,
-        total_amount: perDayTotalAmount,
-        checkin_datetime: checkinDateTime,
-        checkout_datetime: checkoutDateTime,
-      }
-    })
+  return {
+    guest_id: row.guestId || 0,           // ✅ Ensure NOT NULL
+    room_id: row.roomId || 0,             // ✅ Ensure NOT NULL
+    room_no: row.roomNumber || '',
+    category_id: catId || 0,              // ✅ Ensure NOT NULL (use 0 as default)
+    pax_count: row.pax || 0,
+    pax_price: row.rate || 0,
+    pax_tax: (row.taxAmount || 0) / totalNights,
+    ex_pax_count: row.exPax || 0,
+    ex_pax_price: row.exPaxPrice || 0,
+    ex_pax_tax: row.exPaxTax || 0,
+    ex_pax_tax_percent: row.exPaxTaxPercent || 0,
+    ex_pax_total: row.exPaxTotal || 0,
+    child_count: row.childPaid || 0,
+    child_price: row.childPrice || 0,
+    child_tax: row.childTax || 0,
+    child_tax_percent: row.childTaxPercent || 0,
+    child_total: row.childTotal || 0,
+    driver_count: row.driver || 0,
+    driver_price: row.driverPrice || 0,
+    driver_tax: row.driverTax || 0,
+    driver_tax_percent: row.driverTaxPercent || 0,
+    driver_total: row.driverTotal || 0,
+    total_amount: perDayTotalAmount || 0,
+    checkin_datetime: checkinDateTime,
+    checkout_datetime: checkoutDateTime,
+  }
+})
 
     // ---------- 4. Build folio_entries array ----------
   // ---------- 4. Build folio_entries array ----------
 const folioEntries: any[] = []
 
-// One folio entry for each room
 roomRows.forEach((row) => {
   folioEntries.push({
     hotel_id: hotelId,
-    room_id: row.roomId, // ✅ Send room_id
+    room_id: row.roomId || 0,  // ✅ Ensure NOT NULL
     transaction_type: 'Room Charges',
     transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
     description: `Check-in Day `,
