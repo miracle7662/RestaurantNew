@@ -535,6 +535,8 @@ exports.addCheckin = async (req, res) => {
     console.log('📥 ===== ADD CHECKIN REQUEST =====');
     console.log('📥 Guest Name:', body.guest_name);
     console.log('📥 Hotel ID:', body.hotelid);
+    console.log('📥 Room IDs received:', body.room_ids);
+    console.log('📥 Room ID string:', body.room_id);
 
     // ✅ LOG THE JSON PAYLOADS FOR DEBUGGING
     console.log('📥 Details JSON length:', body.details?.length || 0);
@@ -557,6 +559,31 @@ exports.addCheckin = async (req, res) => {
       }
       return val;
     };
+
+    // ✅ FIX: Handle room_ids properly - comma-separated string
+    let roomIdsString = null;
+    if (body.room_ids && Array.isArray(body.room_ids) && body.room_ids.length > 0) {
+      roomIdsString = body.room_ids.join(',');
+    } else if (body.room_id && typeof body.room_id === 'string' && body.room_id.includes(',')) {
+      roomIdsString = body.room_id;
+    } else if (body.room_id) {
+      roomIdsString = String(body.room_id);
+    }
+
+    // ✅ If still null, use first room from details or default
+    if (!roomIdsString && body.details && Array.isArray(body.details) && body.details.length > 0) {
+      const roomIdsFromDetails = body.details.map(d => d.room_id).filter(id => id);
+      if (roomIdsFromDetails.length > 0) {
+        roomIdsString = roomIdsFromDetails.join(',');
+      }
+    }
+
+    // ✅ Default fallback
+    if (!roomIdsString) {
+      roomIdsString = '0';
+    }
+
+    console.log('📊 Final room_ids string:', roomIdsString);
 
     // Convert driver properly
     const driverValue = (body.driver !== undefined && body.driver !== null && body.driver !== 0 && body.driver !== '0' && body.driver !== '') 
@@ -664,7 +691,7 @@ exports.addCheckin = async (req, res) => {
       const cleanedFolio = body.folio_entries.map(f => ({
         ...f,
         hotel_id: f.hotel_id || body.hotelid,
-        room_id: f.room_id || body.room_id || 0,
+        room_id: f.room_id || 0,
         debit_amount: f.debit_amount || 0,
         credit_amount: f.credit_amount || 0
       }));
@@ -692,7 +719,7 @@ exports.addCheckin = async (req, res) => {
       
       // 13-16: Room Info
       roomNo,
-      body.room_id ? Number(body.room_id) : null,
+      roomIdsString, // ✅ FIXED: String instead of Number
       body.category_id ? Number(body.category_id) : null,
       convertedCategory,
       
@@ -754,6 +781,7 @@ exports.addCheckin = async (req, res) => {
 
     // ✅ Log parameter summary
     console.log('📊 Parameter summary:');
+    console.log(`  - Room IDs: ${roomIdsString}`);
     console.log(`  - Driver: ${driverValue}`);
     console.log(`  - Details JSON length: ${detailsJson ? detailsJson.length : 0}`);
     console.log(`  - Room Charges JSON length: ${roomChargesJson ? roomChargesJson.length : 0}`);
@@ -803,6 +831,7 @@ exports.addCheckin = async (req, res) => {
           data: masterRow[0],
           checkin_id: parsedResult.checkin_id,
           reg_no: parsedResult.reg_no,
+          room_ids: roomIdsString, // Include in response
           debug: parsedResult.debug
         });
       } else {
