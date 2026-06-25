@@ -45,6 +45,7 @@ exports.getCheckinFullDetails = async (req, res) => {
       data: rows,
     });
 
+    
   } catch (error) {
     console.error('❌ Error in getCheckinFullDetails:', error);
     
