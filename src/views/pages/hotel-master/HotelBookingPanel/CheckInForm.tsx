@@ -1749,6 +1749,11 @@ onSubmit: async (values) => {
 
     const primaryCategoryId = roomCategories.find((c) => c.category_name === firstRow.type)?.room_category_id
 
+    
+     // ✅ FIX: room_id ko comma-separated string banaen
+  const roomIdsString = roomRows.map((r) => r.roomId).join(',');
+
+
     // ---------- 1. Build master payload ----------
     const masterPayload = {
       // Guest info
@@ -1766,7 +1771,7 @@ onSubmit: async (values) => {
       checkin_datetime: checkinDateTime,
       checkout_datetime: checkoutDateTime,
       room_no: firstRow.roomNumber,
-      room_id: firstRow.roomId,
+      room_id: roomIdsString, 
       room_name: firstRow.roomNumber,
       category_id: primaryCategoryId,
       category_name: firstRow.type,
