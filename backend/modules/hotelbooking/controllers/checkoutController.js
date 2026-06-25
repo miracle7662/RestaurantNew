@@ -153,203 +153,95 @@ exports.getBillPreview = async (req, res) => {
     try {
         const { checkout_id, ldg_bill_no } = req.query;
 
-        if (!checkout_id && !ldg_bill_no) {
+        let checkoutId = checkout_id;
+        
+        if (!checkoutId && ldg_bill_no) {
+            const [result] = await db.execute(
+                'SELECT checkout_id FROM checkout_master WHERE ldg_bill_no = ?',
+                [ldg_bill_no]
+            );
+            
+            if (result.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "No bill found with this ldg_bill_no"
+                });
+            }
+            checkoutId = result[0].checkout_id;
+        }
+
+        if (!checkoutId) {
             return res.status(400).json({
                 success: false,
                 message: "checkout_id or ldg_bill_no is required"
             });
         }
 
-        const query = `
-        SELECT
+        const [results] = await db.execute('CALL sp_checkout_bill(?)', [checkoutId]);
 
-        /* ================= HOTEL ================= */
+        const headerData = results[0][0] || {};
+        const roomDetails = results[1] || [];
+        const footerSummary = results[2][0] || {};
 
-        hm.hotelid,
-        hm.hotel_name,
-        hm.short_name,
-        hm.phone AS hotel_phone,
-        hm.email AS hotel_email,
-        hm.website,
-        hm.address AS hotel_address,
-        hm.trn_gstno,
-        hm.panno,
-        hm.fssai_no,
-        hm.Logo,
+        // Transform data to flat array format (each room as a row)
+        const flatData = roomDetails.map(room => ({
+            // Hotel fields
+            hotel_name: headerData.hotel_name,
+            hotel_address: headerData.hotel_address,
+            phone: headerData.phone,
+            trn_gstno: headerData.trn_gstno,
 
-        /* ================= CHECKOUT ================= */
+            // Checkout fields (repeated for each room)
+            checkout_id: headerData.checkout_id,
+            checkin_id: headerData.checkin_id,
+            reg_no: headerData.reg_no,
+            ldg_bill_no: headerData.ldg_bill_no,
+            guest_name: headerData.guest_name,
+            guest_address: headerData.guest_address,
+            mobile: headerData.mobile,
+            company_name: headerData.company_name,
+            booking: headerData.booking,
+            plan_name: headerData.plan_name,
+            checkin_datetime: headerData.checkin_datetime,
+            checkout_datetime: headerData.checkout_datetime,
+            room_no: headerData.room_no,
+            adults: headerData.adults,
+            pax: headerData.pax,
+            ex_pax: headerData.ex_pax,
+            total_nights: headerData.total_nights,
+            payment_mode: headerData.payment_mode,
 
-        cm.checkout_id,
-        cm.checkin_id,
-        cm.guest_id,
-        cm.reg_no,
-        cm.ldg_bill_no,
-        cm.guest_name,
-        cm.address AS guest_address,
-        cm.mobile,
-        cm.company_name,
-        cm.emailed,
-        cm.booking,
-        cm.plan_name,
-        cm.checkin_datetime,
-        cm.checkout_datetime,
-        cm.room_no,
-        cm.room_id,
-        cm.category_id,
-        cm.converted_category,
-        cm.adults,
-        cm.pax,
-        cm.pax_charges,
-        cm.ex_pax,
-        cm.ex_pax_charge,
-        cm.child_paid,
-        cm.child_unpaid,
-        cm.child_charge,
-        cm.driver,
-        cm.driver_charge,
-        cm.payment_id,
-        cm.payment_mode,
-        cm.discount_amount,
-        cm.post_changes_amt,
-        cm.allowances_amt,
-        cm.advance_amt,
-        cm.cgst_amt,
-        cm.sgst_amt,
-        cm.igst_amt,
-        cm.cess_amt,
-        cm.service_charge_amt,
-        cm.round_off_amount,
-        cm.total_amount,
-        cm.net_payable,
-        cm.total_nights,
-        cm.checked_out_rooms,
-        cm.status,
+            // Room details
+            room_number: room.room_number,
+            bill_date: room.bill_date,
+            tariff: room.tariff,
+            room_ex_pax: room.ex_pax,
+            cgst: room.cgst,
+            sgst: room.sgst,
+            food: room.food,
+            post_charges: room.post_charges,
+            allowance: room.allowance,
+            room_total_amount: room.total_amount,
 
-        /* ================= CHECKOUT DETAIL ================= */
-
-        cd.detail_id,
-        cd.room_id AS detail_room_id,
-        cd.room_number,
-        cd.room_category_id,
-        cd.room_category_name,
-        cd.converted_category_id,
-        cd.converted_category_name,
-        cd.room_tariff,
-        cd.no_of_days,
-        cd.adults AS room_adults,
-        cd.pax AS room_pax,
-        cd.ex_pax,
-        cd.ex_pax_charge,
-        cd.child_unpaid,
-        cd.child_paid_amount,
-        cd.driver,
-        cd.driver_charge,
-        cd.discount_percent,
-        cd.discount_amount AS room_discount,
-        cd.cgst_percent,
-        cd.cgst_amount,
-        cd.sgst_percent,
-        cd.sgst_amount,
-        cd.igst_percent,
-        cd.igst_amount,
-        cd.cess_percent,
-        cd.cess_amount,
-        cd.service_charge,
-        cd.service_charge_amount,
-        cd.tax,
-
-        /* ================= ROOM CHARGES ================= */
-
-        rc.charge_id,
-        rc.category_id,
-        rc.pax_count,
-        rc.pax_price,
-        rc.pax_tax,
-        rc.ex_pax_count,
-        rc.ex_pax_price,
-        rc.ex_pax_tax,
-        rc.ex_pax_tax_percent,
-        rc.ex_pax_total,
-        rc.child_count,
-        rc.child_price,
-        rc.child_tax,
-        rc.child_tax_percent,
-        rc.child_total,
-        rc.driver_count,
-        rc.driver_price,
-        rc.driver_tax,
-        rc.driver_tax_percent,
-        rc.driver_total,
-        rc.total_amount AS room_total,
-
-        /* ================= FOLIO ================= */
-
-        fm.folio_id,
-        fm.transaction_type,
-        fm.transaction_datetime,
-        fm.description,
-        fm.debit_amount,
-        fm.credit_amount,
-        fm.reference_number,
-        fm.payment_method
-
-        FROM checkout_master cm
-
-        LEFT JOIN msthotelmasters hm
-            ON hm.hotelid = cm.hotelid
-
-        LEFT JOIN checkout_detail cd
-            ON cd.checkout_id = cm.checkout_id
-
-        LEFT JOIN checkout_room_charges rc
-            ON rc.checkout_id = cm.checkout_id
-            AND rc.room_id = cd.room_id
-
-        LEFT JOIN checkout_folio_master fm
-            ON fm.checkout_id = cm.checkout_id
-            AND fm.detail_id = cd.detail_id
-
-        WHERE
-            (
-                ? IS NOT NULL
-                AND cm.checkout_id = ?
-            )
-            OR
-            (
-                ? IS NOT NULL
-                AND cm.ldg_bill_no = ?
-            )
-
-        ORDER BY
-            cd.room_number,
-            fm.transaction_datetime,
-            rc.charge_id;
-        `;
-
-        const [rows] = await db.execute(query, [
-
-            checkout_id || null,
-            checkout_id || null,
-            ldg_bill_no || null,
-            ldg_bill_no || null
-        ]);
-
-        if (rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "No bill preview found."
-            });
-        }
+            // Summary fields (repeated for each room)
+            bill_amount: footerSummary.bill_amount,
+            total_post_charges: footerSummary.post_charges,
+            total_allowance: footerSummary.allowance,
+            discount_amount: footerSummary.discount_amount,
+            advance_amount: footerSummary.advance_amount,
+            balance_amount: footerSummary.balance_amount,
+            net_payable: footerSummary.net_payable,
+            round_off_amount: footerSummary.round_off_amount
+        }));
 
         return res.status(200).json({
             success: true,
             message: "Bill Preview fetched successfully.",
-            data: rows
+            data: flatData // Return as array for frontend compatibility
         });
 
     } catch (error) {
         console.error("Bill Preview Error:", error);
-
         return res.status(500).json({
             success: false,
             message: error.message

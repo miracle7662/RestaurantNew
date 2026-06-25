@@ -536,15 +536,16 @@ exports.addAdvanceTransaction = async (req, res) => {
     // FIXED: Use the correct table name 'checkin_guest_folio_master' instead of 'guest_folio_master'
     await connection.query(`
       INSERT INTO checkin_guest_folio_master (
-        checkin_id, hotel_id, detail_id, transaction_type, transaction_datetime,
+        checkin_id, hotel_id, detail_id,  room_id, transaction_type, transaction_datetime,
         description, debit_amount, credit_amount, reference_number, payment_method,
         created_by_id, created_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `, [
       checkin_id,
       hotelIdForDb,
 
       detail_id || null,
+      room_id || null,
       folioTransactionType,
       formattedTransactionDateTime,
       folioDescription,
