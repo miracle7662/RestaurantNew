@@ -12,7 +12,7 @@ import CheckoutBillModal from './CheckoutBillModal'
 // API Services (only those actually used)
 import CheckoutService from '@/common/hotel/checkout'
 import RoomService from '@/common/hotel/room'
-import AdvanceTransactionService from '@/common/hotel/advanceTransaction'
+
 
 // Type imports (restored because they are used in interfaces and function signatures)
 import { GuestRoomCharge } from '@/common/hotel/guestRoomCharges'
@@ -310,8 +310,10 @@ const RoomDetailSummary = () => {
   const [displayRows, setDisplayRows] = useState<DisplayDetailRow[]>([])
   const [combinedSummary, setCombinedSummary] = useState<CombinedGuestSummary | null>(null)
   const [, setBillDateSummary] = useState<BillDateSummaryItem[]>([])
-  const [pendingAdvanceAmount, setPendingAdvanceAmount] = useState<number>(0)
+
   const [activeTab, setActiveTab] = useState('bill')
+  const [pendingAdvanceAmount, setPendingAdvanceAmount] = useState<number>(0)
+
   const [currentDateTime, setCurrentDateTime] = useState(new Date())
   // loading state is used only for setLoading in fetchData; the value itself is not read
   const [, setLoading] = useState(true)
@@ -589,8 +591,17 @@ const fetchData = async () => {
       }
 console.log('ROW DESCRIPTION =>', row.description);
       // Charges Map - Use room-specific guest_id
-      if (row.guest_room_charges_id && !allCharges.some(c => c.guest_room_charges_id === row.guest_room_charges_id)) {
+      const uniqueKey =
+  row.guest_room_charges_id || `folio_${row.folio_id}`;
+
+if (
+  !allCharges.some(
+    c =>
+      (c.guest_room_charges_id || `folio_${c.folio_id}`) === uniqueKey
+  )
+) {
         allCharges.push({
+          folio_id: row.folio_id,
           guest_room_charges_id: row.guest_room_charges_id,
           checkin_id: row.checkin_id,
           room_id: row.room_id,
@@ -664,9 +675,10 @@ console.log('ROW DESCRIPTION =>', row.description);
 
 
     // Filter charges
-    let filteredCharges = allCharges.filter(c => Number(c.checkin_id) === Number(checkinIdFromState));
-    filteredCharges = filteredCharges.filter(
-      (c: any) => c.department_name !== 'Advance Addition' && c.department_name !== 'Advance Cancel'
+    // NOTE: Do NOT filter out Advance Addition / Booking Receipt rows.
+    // getCheckinFullDetails() already returns them and the UI must display the exact same rows.
+    let filteredCharges = allCharges.filter(
+      (c) => Number(c.checkin_id) === Number(checkinIdFromState),
     );
 
     console.log('Filtered charges count:', filteredCharges.length);
@@ -674,6 +686,7 @@ console.log('ROW DESCRIPTION =>', row.description);
       navigate('/hotel-master/HotelBookingPanel', { replace: true });
       return;
     }
+
 
     // ========== PROCESS EACH CHARGE ==========
     const processedCharges: ExtendedGuestRoomCharge[] = [];
@@ -724,7 +737,7 @@ console.log('ROW DESCRIPTION =>', row.description);
           ...charge,
           room_no: roomNumber,
           room_number: roomNumber,
-          room_category_name: charge.department_name || (isAllowance ? 'Allowance' : 'Post Charge'),
+         room_category_name: charge.room_category_name || '-',
           converted_category_name: '',
           checkin_datetime_from_detail: charge.checkin_datetime || charge.created_at,
           checkout_datetime_from_detail: charge.checkout_datetime || charge.created_at,
@@ -743,7 +756,7 @@ console.log('ROW DESCRIPTION =>', row.description);
           is_extension_day: false,
           bill_date_formatted: billDateFormatted,
           detail_id: undefined,
-          actual_room_category_name: charge.department_name || (isAllowance ? 'Allowance' : 'Post Charge'),
+          actual_room_category_name:charge.room_category_name || '-',
           actual_converted_category_name: '',
           cgst_amount: 0,
           sgst_amount: 0,
@@ -914,7 +927,7 @@ console.log('ROW DESCRIPTION =>', row.description);
           detail_id: undefined,
           room_id: charge.room_id,
           room_number: roomNumber,
-          room_category_name: charge.department_name || (isAllowance ? 'Allowance' : 'Post Charge'),
+          room_category_name: charge.department_name || '-',
           converted_category_name: '-',
           bill_date: charge.checkin_datetime || charge.checkin_datetime_from_detail || '',
           bill_date_formatted: charge.bill_date_formatted!,
@@ -1046,131 +1059,9 @@ console.log('ROW DESCRIPTION =>', row.description);
     setDisplayRows(rows_display);
     console.log('Display rows count:', rows_display.length);
 
-    // ---- Advance transactions ----
-    try {
-      const advRes = await AdvanceTransactionService.list({ checkin_id: checkinIdFromState });
-      const advTransactions = advRes.data || [];
-      const advanceDisplayRows: DisplayDetailRow[] = [];
-      const advanceAdditions = advTransactions.filter(
-        (t: any) =>
-          (t.transaction_type === 'Advance Addition' || t.transaction_type === 'Booking Receipt') &&
-          t.status === 'active' &&
-          t.credit_amount > 0,
-      );
-      for (const adv of advanceAdditions) {
-        const netAmount = adv.credit_amount;
-        const billDateFormatted = adv.transaction_datetime ? formatBillDate(adv.transaction_datetime) : formatBillDate(new Date().toISOString());
-        const advRoomNo = adv.room_no || (adv.room_id ? roomMap.get(adv.room_id) || `Room-${adv.room_id}` : 'All Rooms');
-        
-        // Get guest name for this advance (room-specific if available)
-        let advGuestName = adv.guest_name || currentCheckin?.guest_name || 'Guest';
-        // guest_id doesn't exist on AdvanceTransaction, use currentCheckin's guest_id
-        let advGuestId = currentCheckin?.guest_id || 0;
-        
-        // If advance has a room_id, try to get the room-specific guest
-        if (adv.room_id && roomGuestMap.has(adv.room_id)) {
-          const roomGuest = roomGuestMap.get(adv.room_id);
-          advGuestName = roomGuest.guest_name;
-          advGuestId = roomGuest.guest_id;
-        }
-        
-        advanceDisplayRows.push({
-          id: `adv-${adv.advance_id}`,
-          guest_room_charges_id: adv.advance_id,
-          checkin_id: adv.checkin_id,
-          guest_id: advGuestId,
-          detail_id: adv.detail_id || undefined,
-          room_id: adv.room_id || 0,
-          room_number: advRoomNo,
-          room_category_name: 'Advance',
-          converted_category_name: '-',
-          bill_date: adv.transaction_datetime,
-          bill_date_formatted: billDateFormatted,
-          checkin_datetime: adv.transaction_datetime,
-          checkout_datetime: adv.transaction_datetime,
-          no_of_days: 0,
-          day_number: 0,
-          original_day_number: 0,
-          room_tariff_per_day: -netAmount,
-          total_room_tariff: -netAmount,
-          ex_pax_count: 0,
-          ex_pax_price: 0,
-          ex_pax_tax: 0,
-          ex_pax_tax_percent: 0,
-          ex_pax_total: 0,
-          child_count: 0,
-          child_unpaid: 0,
-          child_price: 0,
-          child_tax: 0,
-          child_tax_percent: 0,
-          child_total: 0,
-          driver_count: 0,
-          driver_price: 0,
-          driver_tax: 0,
-          driver_tax_percent: 0,
-          driver_total: 0,
-          cgst_amount: 0,
-          sgst_amount: 0,
-          igst_amount: 0,
-          cess_amount: 0,
-          service_charge_amount: 0,
-          adults: 0,
-          pax: 0,
-          ex_pax: 0,
-          child_paid: 0,
-          driver: 0,
-          discount_percent: 0,
-          discount_amount: 0,
-          tax_percent: 0,
-          tax_amount: 0,
-          total_amount: -netAmount,
-          is_extension: false,
-          isPostCharge: true,
-          parent_detail_id: null,
-          selected: true,
-          cumulative_total: 0,
-          guest_name: advGuestName,
-          payment_method: adv.payment_method || 'Cash',
-          created_at: adv.created_at,
-          has_checkout_datetime: false,
-          checkout_time_formatted: '-',
-          description:  adv.description || '',
-          particulars: adv.narration || adv.reason || '',
-          department_name: 'Advance',
-        });
-      }
-      if (advanceDisplayRows.length > 0) {
-        const allRows = [...rows_display, ...advanceDisplayRows];
-        allRows.sort((a, b) => {
-          const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0);
-          const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0);
-          if (dateA.getTime() !== dateB.getTime()) return dateA.getTime() - dateB.getTime();
-          const getPriority = (row: DisplayDetailRow) => {
-            if (row.department_name === 'Advance') return 4;
-            if (row.isPostCharge) return row.total_amount < 0 ? 3 : 2;
-            if (row.is_extension) return 1;
-            return 0;
-          };
-          const pDiff = getPriority(a) - getPriority(b);
-          if (pDiff !== 0) return pDiff;
-          return a.room_number.localeCompare(b.room_number, undefined, { numeric: true });
-        });
-        const recalcMap = new Map<string, number>();
-        const recalced = allRows.map((row) => {
-          const prev = recalcMap.get(row.room_number) || 0;
-          const newCumul = roundToTwo(prev + row.total_amount);
-          recalcMap.set(row.room_number, newCumul);
-          return { ...row, cumulative_total: newCumul };
-        });
-        setDisplayRows(recalced);
-      }
-      const summaryRes = await AdvanceTransactionService.getSummary(checkinIdFromState);
-      if (summaryRes.success && summaryRes.data) {
-        setPendingAdvanceAmount(summaryRes.data.pending_advance || 0);
-      }
-    } catch (advErr) {
-      console.warn('Advance transactions error:', advErr);
-    }
+    // ---- Advances are now returned directly by getCheckinFullDetails() (no separate API calls) ----
+    // pendingAdvanceAmount previously came from AdvanceTransactionService; keep value as-is (0) for now.
+
 
     // Bill summary
     const billSummaryItems: BillDateSummaryItem[] = rows_display.map((row, idx) => ({
