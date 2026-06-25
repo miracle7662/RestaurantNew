@@ -1218,9 +1218,6 @@ export const fetchOccupiedRooms = async (
       const totalTaxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent + serviceCharge;
       
       // ✅ Calculate charges with tax
-      // NOTE: `guest_room_charges_id` can appear on multiple rows (e.g., day extension breakdowns).
-      // Using “first seen” here can undercount totals.
-      // We'll keep this cache for room-level net (net_room_amount) only, but compute checkinAllRoomsNet from rows.
       const chargeTotalById = new Map<number, number>();
       for (const ci of allCheckins as any[]) {
         const gid = ci?.guest_room_charges_id;
@@ -1230,7 +1227,6 @@ export const fetchOccupiedRooms = async (
           }
         }
       }
-
 
       const roomChargeIds = new Set<number>();
       if (checkinId) {
@@ -1253,34 +1249,25 @@ export const fetchOccupiedRooms = async (
         roomNet = Number(totalAmount) || 0;
       }
 
-      // ✅ Compute checkin total from rows directly to avoid undercounting caused by Set/first-seen logic.
-      // Expected: sum of all room charges (is_settle=0) under the same `checkin_id`.
-      let checkinAllRoomsNet = 0;
+      const allChargeIds = new Set<number>();
       if (checkinId) {
-        const matchingRows = (allCheckins as any[]).filter((ci) =>
-          Number(ci.checkin_id) === Number(checkinId) &&
-          ci.is_settle === 0 &&
-          ci?.guest_room_charges_id != null,
-        )
+        for (const ci of allCheckins as any[]) {
+          if (
+            Number(ci.checkin_id) === Number(checkinId) &&
+            ci.is_settle === 0 &&
+            ci?.guest_room_charges_id != null
+          ) {
+            allChargeIds.add(Number(ci.guest_room_charges_id));
+          }
+        }
+      }
 
-        // Sum directly from `total_amount` in every matching row.
-        // If backend already aggregates per room/day correctly, this produces the true total.
-        checkinAllRoomsNet = matchingRows.reduce((sum, ci) => sum + (Number(ci.total_amount) || 0), 0)
-
-        // Console diagnostics for the mismatch.
-        const roomIdsForThisCheckin = new Set(
-          matchingRows.map((ci) => Number(ci.room_id)).filter((n) => !Number.isNaN(n)),
-        )
-        console.log('💰 checkin total debug', {
-          checkinId: Number(checkinId),
-          roomsCount: roomIdsForThisCheckin.size,
-          matchingRowsCount: matchingRows.length,
-          checkinAllRoomsNet_rawFromRows: checkinAllRoomsNet,
-        })
+      let checkinAllRoomsNet = 0;
+      if (allChargeIds.size > 0) {
+        for (const id of allChargeIds) checkinAllRoomsNet += chargeTotalById.get(id) || 0;
       } else {
         checkinAllRoomsNet = Number(totalAmount) || 0;
       }
-
 
       // ✅ Advance subtraction
       let pendingAdvanceForRoom = 0;
