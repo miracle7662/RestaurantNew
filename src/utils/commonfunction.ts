@@ -1217,67 +1217,49 @@ export const fetchOccupiedRooms = async (
       const serviceCharge = room.service_charge || 0;
       const totalTaxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent + serviceCharge;
       
-      // ✅ Calculate charges with tax
-      // NOTE: `guest_room_charges_id` can appear on multiple rows (e.g., day extension breakdowns).
-      // Using “first seen” here can undercount totals.
-      // We'll keep this cache for room-level net (net_room_amount) only, but compute checkinAllRoomsNet from rows.
-      const chargeTotalById = new Map<number, number>();
-      for (const ci of allCheckins as any[]) {
-        const gid = ci?.guest_room_charges_id;
-        if (gid != null) {
-          if (!chargeTotalById.has(Number(gid))) {
-            chargeTotalById.set(Number(gid), Number(ci.total_amount) || 0);
-          }
-        }
-      }
+      // ✅ Calculate charges with tax (ROOM-wise and CHECKIN-wise)
+      // Bug source: previous logic used a set of guest_room_charges_id and a shared map,
+      // which can cause charge totals to be effectively treated as checkin-level.
+      // Fix: aggregate directly using room_id for left side and across all rooms for right side.
 
+      console.log('CHECKIN_ID', checkinId);
 
-      const roomChargeIds = new Set<number>();
-      if (checkinId) {
-        for (const ci of allCheckins as any[]) {
-          if (
-            Number(ci.checkin_id) === Number(checkinId) &&
-            Number(ci.room_id) === Number(room.room_id) &&
-            ci.is_settle === 0 &&
-            ci?.guest_room_charges_id != null
-          ) {
-            roomChargeIds.add(Number(ci.guest_room_charges_id));
-          }
-        }
-      }
+      console.log(
+        'ALL ROOMS OF CHECKIN',
+        allCheckins.filter((x: any) => Number(x.checkin_id) === Number(checkinId)),
+      );
+
+      const checkinNetRows = allCheckins.filter((ci: any) => {
+        return (
+          Number(ci.checkin_id) === Number(checkinId) &&
+          ci.is_settle === 0 
+          
+        )
+      });
+
+      console.log(
+        'CHECKIN_NET_ROWS (after filter ci.is_settle===0 and guest_room_charges_id!=null)',
+        checkinNetRows.map((r: any) => ({
+          room_id: r.room_id,
+          total_amount: r.total_amount,
+          guest_room_charges_id: r.guest_room_charges_id,
+          is_settle: r.is_settle,
+        })),
+      );
+
+      const roomNetRows = checkinNetRows.filter((ci: any) => {
+        return Number(ci.room_id) === Number(room.room_id);
+      });
 
       let roomNet = 0;
-      if (roomChargeIds.size > 0) {
-        for (const id of roomChargeIds) roomNet += chargeTotalById.get(id) || 0;
-      } else {
-        roomNet = Number(totalAmount) || 0;
-      }
-
-      // ✅ Compute checkin total from rows directly to avoid undercounting caused by Set/first-seen logic.
-      // Expected: sum of all room charges (is_settle=0) under the same `checkin_id`.
       let checkinAllRoomsNet = 0;
-      if (checkinId) {
-        const matchingRows = (allCheckins as any[]).filter((ci) =>
-          Number(ci.checkin_id) === Number(checkinId) &&
-          ci.is_settle === 0 &&
-          ci?.guest_room_charges_id != null,
-        )
 
-        // Sum directly from `total_amount` in every matching row.
-        // If backend already aggregates per room/day correctly, this produces the true total.
-        checkinAllRoomsNet = matchingRows.reduce((sum, ci) => sum + (Number(ci.total_amount) || 0), 0)
-
-        // Console diagnostics for the mismatch.
-        const roomIdsForThisCheckin = new Set(
-          matchingRows.map((ci) => Number(ci.room_id)).filter((n) => !Number.isNaN(n)),
-        )
-        console.log('💰 checkin total debug', {
-          checkinId: Number(checkinId),
-          roomsCount: roomIdsForThisCheckin.size,
-          matchingRowsCount: matchingRows.length,
-          checkinAllRoomsNet_rawFromRows: checkinAllRoomsNet,
-        })
+      if (checkinNetRows.length > 0) {
+        roomNet = roomNetRows.reduce((sum: number, ci: any) => sum + (Number(ci.total_amount) || 0), 0);
+        checkinAllRoomsNet = checkinNetRows.reduce((sum: number, ci: any) => sum + (Number(ci.total_amount) || 0), 0);
       } else {
+        // Fallbacks to keep existing behavior when charges table rows are missing
+        roomNet = Number(totalAmount) || 0;
         checkinAllRoomsNet = Number(totalAmount) || 0;
       }
 
