@@ -1112,7 +1112,7 @@ useEffect(() => {
         amount: totalAmount,
         debit_amount: 0,
         credit_amount: totalAmount,
-        reason: additionReason || 'Advance payment addition',
+        reason: additionReason || 'Advance +',
         narration: allAdditionItems.map((i) => `${i.payType}: ${i.particulars}`).join('; '),
         reference_no: freshReceiptNo,
         transaction_datetime: additionDate,
