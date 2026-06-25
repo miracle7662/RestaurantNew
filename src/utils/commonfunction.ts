@@ -1217,57 +1217,52 @@ export const fetchOccupiedRooms = async (
       const serviceCharge = room.service_charge || 0;
       const totalTaxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent + serviceCharge;
       
-      // ✅ Calculate charges with tax
-      const chargeTotalById = new Map<number, number>();
-      for (const ci of allCheckins as any[]) {
-        const gid = ci?.guest_room_charges_id;
-        if (gid != null) {
-          if (!chargeTotalById.has(Number(gid))) {
-            chargeTotalById.set(Number(gid), Number(ci.total_amount) || 0);
-          }
-        }
-      }
+      // ✅ Calculate charges with tax (ROOM-wise and CHECKIN-wise)
+      // Bug source: previous logic used a set of guest_room_charges_id and a shared map,
+      // which can cause charge totals to be effectively treated as checkin-level.
+      // Fix: aggregate directly using room_id for left side and across all rooms for right side.
 
-      const roomChargeIds = new Set<number>();
-      if (checkinId) {
-        for (const ci of allCheckins as any[]) {
-          if (
-            Number(ci.checkin_id) === Number(checkinId) &&
-            Number(ci.room_id) === Number(room.room_id) &&
-            ci.is_settle === 0 &&
-            ci?.guest_room_charges_id != null
-          ) {
-            roomChargeIds.add(Number(ci.guest_room_charges_id));
-          }
-        }
-      }
+      console.log('CHECKIN_ID', checkinId);
+
+      console.log(
+        'ALL ROOMS OF CHECKIN',
+        allCheckins.filter((x: any) => Number(x.checkin_id) === Number(checkinId)),
+      );
+
+      const checkinNetRows = allCheckins.filter((ci: any) => {
+        return (
+          Number(ci.checkin_id) === Number(checkinId) &&
+          ci.is_settle === 0 
+          
+        )
+      });
+
+      console.log(
+        'CHECKIN_NET_ROWS (after filter ci.is_settle===0 and guest_room_charges_id!=null)',
+        checkinNetRows.map((r: any) => ({
+          room_id: r.room_id,
+          total_amount: r.total_amount,
+          guest_room_charges_id: r.guest_room_charges_id,
+          is_settle: r.is_settle,
+        })),
+      );
+
+      const roomNetRows = checkinNetRows.filter((ci: any) => {
+        return Number(ci.room_id) === Number(room.room_id);
+      });
 
       let roomNet = 0;
-      if (roomChargeIds.size > 0) {
-        for (const id of roomChargeIds) roomNet += chargeTotalById.get(id) || 0;
-      } else {
-        roomNet = Number(totalAmount) || 0;
-      }
-
-      const allChargeIds = new Set<number>();
-      if (checkinId) {
-        for (const ci of allCheckins as any[]) {
-          if (
-            Number(ci.checkin_id) === Number(checkinId) &&
-            ci.is_settle === 0 &&
-            ci?.guest_room_charges_id != null
-          ) {
-            allChargeIds.add(Number(ci.guest_room_charges_id));
-          }
-        }
-      }
-
       let checkinAllRoomsNet = 0;
-      if (allChargeIds.size > 0) {
-        for (const id of allChargeIds) checkinAllRoomsNet += chargeTotalById.get(id) || 0;
+
+      if (checkinNetRows.length > 0) {
+        roomNet = roomNetRows.reduce((sum: number, ci: any) => sum + (Number(ci.total_amount) || 0), 0);
+        checkinAllRoomsNet = checkinNetRows.reduce((sum: number, ci: any) => sum + (Number(ci.total_amount) || 0), 0);
       } else {
+        // Fallbacks to keep existing behavior when charges table rows are missing
+        roomNet = Number(totalAmount) || 0;
         checkinAllRoomsNet = Number(totalAmount) || 0;
       }
+
 
       // ✅ Advance subtraction
       let pendingAdvanceForRoom = 0;
