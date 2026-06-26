@@ -33,7 +33,7 @@ export interface ApiRoom {
   room_name: string;
   display_name?: string;
   room_category_id: number;
-  room_status: string;  // ✅ String hai (backend se aata hai)
+  room_status: string;
   room_status_id?: number;
   status_color?: string;
   status_name?: string;
@@ -62,127 +62,117 @@ export interface RoomPayload {
   updated_by_id?: number;
 }
 
-// Type for the full checkin details row (matches backend joined result)
+// ✅ ALL FIELDS RETAINED + NEW FIELDS ADDED
 export interface CheckinFullDetailsRow {
-  // Checkin Master
+  // Checkin Master (ALL original fields + new)
   checkin_id: number;
-  guest_id: number;
-  guest_name: string;
-  mobile: string;
-  address: string;
-  company_name: string;
-  emailed: string;
-  booking: string;
-  plan_name: string;
-  reg_no: string;
-  checkin_datetime: string;
-  checkout_datetime: string;
-  hotelid: number;
-  room_id: number;
-  // is_settle: number;
-  checkout_id: number | null;
+  guest_id: number;           // ✅ RETAINED
+  guest_name: string;          // ✅ RETAINED
+  mobile: string;              // ✅ RETAINED
+  address: string;             // ✅ RETAINED
+  company_name: string;        // ✅ RETAINED
+  emailed: string;             // ✅ RETAINED (ab email bhi hai)
+  booking: string;             // ✅ RETAINED
+  plan_name: string;           // ✅ RETAINED
+  reg_no: string;              // ✅ RETAINED
+  checkin_datetime: string;    // ✅ RETAINED
+  checkout_datetime: string;   // ✅ RETAINED
+  hotelid: number;             // ✅ RETAINED
+  room_id: number;             // ✅ RETAINED
+  checkout_id: number | null;  // ✅ RETAINED
 
-  // Checkin Detail
-  detail_id: number | null;
-  detail_room_id: number | null;
-  room_number: string | null;
-  room_category_name: string | null;
-  converted_category_name: string | null;
-  room_tariff: number | null;
-  discount_percent: number | null;
-  cgst_percent: number | null;
-  sgst_percent: number | null;
-  igst_percent: number | null;
-    
-   is_settle: number | null;
-  detail_checkin_datetime?: string;
-  detail_checkout_datetime?: string;
-  detail_adults?: number;
-  detail_pax?: number;
-  detail_ex_pax?: number;
-  detail_child_unpaid?: number;
-  detail_driver?: number;
-  detail_ex_pax_charge?: number;
-  detail_child_paid_amount?: number;
-  detail_driver_charge?: number;
-  detail_cess_percent?: number;
-  detail_service_charge?: number;
-  parent_detail_id?: number;
+  // Checkin Detail (ALL original fields + new)
+  detail_id: number | null;           // ✅ RETAINED
+  detail_room_id: number | null;      // ✅ RETAINED (ab room_id bhi hai)
+  room_number: string | null;         // ✅ RETAINED
+  room_category_name: string | null;  // ✅ RETAINED
+  converted_category_name: string | null; // ✅ RETAINED
+  room_tariff: number | null;         // ✅ RETAINED
+  discount_percent: number | null;    // ✅ RETAINED
+  discount_amount: number | null;     // ✅ NEW (stored procedure se)
+  cgst_percent: number | null;        // ✅ RETAINED
+  sgst_percent: number | null;        // ✅ RETAINED
+  igst_percent: number | null;        // ✅ RETAINED
+  is_settle: number | null;           // ✅ RETAINED
+  detail_checkin_datetime?: string;   // ✅ RETAINED
+  detail_checkout_datetime?: string;  // ✅ RETAINED
+  detail_adults?: number;             // ✅ RETAINED (ab adults bhi hai)
+  detail_pax?: number;                // ✅ RETAINED (ab pax bhi hai)
+  detail_ex_pax?: number;             // ✅ RETAINED (ab ex_pax bhi hai)
+  detail_child_unpaid?: number;       // ✅ RETAINED (ab child_unpaid bhi hai)
+  detail_driver?: number;             // ✅ RETAINED (ab driver bhi hai)
+  detail_ex_pax_charge?: number;      // ✅ RETAINED (ab ex_pax_charge bhi hai)
+  detail_child_paid_amount?: number;  // ✅ RETAINED (ab child_paid_amount bhi hai)
+  detail_driver_charge?: number;      // ✅ RETAINED (ab driver_charge bhi hai)
+  detail_cess_percent?: number;       // ✅ RETAINED (ab cess_percent bhi hai)
+  detail_service_charge?: number;     // ✅ RETAINED (ab service_charge bhi hai)
+  parent_detail_id?: number;          // ✅ RETAINED
 
-  // Guest Folio
-  folio_id: number | null;
-  transaction_type: string | null;
-  payment_method: string | null;
-  debit_amount: number | null;
-  credit_amount: number | null;
-  reference_number: string | null;
-  description: string | null;
-  charge_description: string | null;
-  transaction_datetime: string | null;
+  // Guest fields (ALL original + new)
+  email?: string;                     // ✅ NEW (stored procedure se)
+  // company_name, guest_name already above
 
-  // Guest Room Charges (all fields from backend)
-  guest_room_charges_id: number | null;
-  charge_room_id?: number | null;
-  category_id?: number | null;
-  pax_count: number | null;
-  pax_price: number | null;
-  pax_tax: number | null;
-  ex_pax_count: number | null;
-  ex_pax_price: number | null;
-  ex_pax_tax: number | null;
-  ex_pax_tax_percent?: number | null;
-  ex_pax_total?: number | null;
-  child_count: number | null;
-  child_price: number | null;
-  child_tax: number | null;
-  child_tax_percent?: number | null;
-  child_total?: number | null;
-  driver_count: number | null;
-  driver_price: number | null;
-  driver_tax: number | null;
-  driver_tax_percent?: number | null;
-  driver_total?: number | null;
-  total_amount: number | null;
-  charge_checkin_datetime: string | null;
-  charge_checkout_datetime: string | null;
-  charge_created_at?: string | null;
-  charge_updated_at?: string | null;
-  department_name?: string | null;   // if needed – not in your current SQL but may be added later
-  particulars?: string | null;       // if needed
+  // Guest Folio (ALL original fields + new)
+  folio_id: number | null;            // ✅ RETAINED
+  transaction_type: string | null;    // ✅ RETAINED
+  payment_method: string | null;      // ✅ RETAINED
+  debit_amount: number | null;        // ✅ RETAINED
+  credit_amount: number | null;       // ✅ RETAINED
+  reference_number: string | null;    // ✅ RETAINED
+  description: string | null;         // ✅ RETAINED
+  charge_description: string | null;  // ✅ RETAINED
+  transaction_datetime: string | null; // ✅ RETAINED
+
+  // Guest Room Charges (ALL original + new)
+  guest_room_charges_id: number | null;  // ✅ RETAINED
+  charge_room_id?: number | null;        // ✅ RETAINED
+  category_id?: number | null;           // ✅ RETAINED
+  pax_count: number | null;              // ✅ RETAINED
+  pax_price: number | null;              // ✅ RETAINED
+  pax_tax: number | null;                // ✅ RETAINED
+  ex_pax_count: number | null;           // ✅ RETAINED
+  ex_pax_price: number | null;           // ✅ RETAINED
+  ex_pax_tax: number | null;             // ✅ RETAINED
+  ex_pax_tax_percent?: number | null;    // ✅ RETAINED
+  ex_pax_total?: number | null;          // ✅ RETAINED
+  child_count: number | null;            // ✅ RETAINED
+  child_price: number | null;            // ✅ RETAINED
+  child_tax: number | null;              // ✅ RETAINED
+  child_tax_percent?: number | null;     // ✅ RETAINED
+  child_total?: number | null;           // ✅ RETAINED
+  driver_count: number | null;           // ✅ RETAINED
+  driver_price: number | null;           // ✅ RETAINED
+  driver_tax: number | null;             // ✅ RETAINED
+  driver_tax_percent?: number | null;    // ✅ RETAINED
+  driver_total?: number | null;          // ✅ RETAINED
+  total_amount: number | null;           // ✅ RETAINED
+  charge_checkin_datetime: string | null; // ✅ RETAINED
+  charge_checkout_datetime: string | null; // ✅ RETAINED
+  charge_created_at?: string | null;     // ✅ RETAINED
+  charge_updated_at?: string | null;     // ✅ RETAINED
+  department_name?: string | null;       // ✅ RETAINED
+  particulars?: string | null;           // ✅ RETAINED
+
+  // ✅ NEW: Source type to identify record origin
+  source_type?: 'ROOM_CHARGE' | 'FOLIO_ENTRY';
 }
 
 const RoomService = {
-  // ✅ YEH FUNCTION USE KARO - getHotelBookingMeta
-   getHotelBookingMeta(hotelid: string | number) {
+  getHotelBookingMeta(hotelid: string | number) {
     return HttpClient.get<
       ApiResponse<{
         floors: any[]
         categories: any[]
-        rooms: ApiRoom[]  // ✅ Yahan Room[] mein status_color aayega
-        statuses: any[] // ✅ Statuses bhi aayenge
+        rooms: ApiRoom[]
+        statuses: any[]
       }>
     >('/rooms/hotelbooking-meta', { params: { hotelid } })
   },
-  // ❌ YEH FUNCTION DELETE KARO YA COMMENT KARO - kyunki ye rooms array return karta hai without status_color
-  // list(params?: { hotelid?: number; q?: string }) {
-  //   return HttpClient.get<ApiResponse<any>>("/rooms/hotelbooking-meta", { params }).then(
-  //     (res) => ({
-  //       success: res.success,
-  //       data: res.data?.rooms ?? [],
-  //     }),
-  //   );
-  // },
 
-  // ✅ NAYA LIST FUNCTION - Jo full data return kare
-// ✅ Bas ye function update karo
   list(params?: { hotelid?: number; q?: string }) {
-    // Legacy: CheckInForm expects ApiResponse<Room[]> in `.data`.
-    // Backend returns ApiResponse<{ floors, categories, rooms }>.
-    // We reshape it so `.data` becomes the rooms array.
     return HttpClient.get<ApiResponse<any>>("/rooms/hotelbooking-meta", { params }).then(
       (res) => ({
         success: res.success,
-       
         data: res.data?.rooms ?? [],
       }),
     );
@@ -223,10 +213,6 @@ const RoomService = {
       params: { hotelid, checkin_id },
     });
   },
-
-  
 };
 
 export default RoomService;
-
-
