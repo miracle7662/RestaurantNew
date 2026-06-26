@@ -312,7 +312,7 @@ const RoomDetailSummary = () => {
   const [, setBillDateSummary] = useState<BillDateSummaryItem[]>([])
 
   const [activeTab, setActiveTab] = useState('bill')
-  const [pendingAdvanceAmount, setPendingAdvanceAmount] = useState<number>(0)
+  const [pendingAdvanceAmount] = useState<number>(0)
 
   const [currentDateTime, setCurrentDateTime] = useState(new Date())
   // loading state is used only for setLoading in fetchData; the value itself is not read
@@ -727,9 +727,10 @@ if (
 
       // ---- POST CHARGE (including allowances) ----
       if (isPostCharge) {
-        const totalAmount = toNumber(charge.total_amount);
-        const isAllowance = totalAmount < 0;
+        const totalAmount = toNumber(charge.total_amount)
+        const isAllowance = totalAmount < 0
         const billDateFormatted = charge.checkin_datetime
+
           ? formatBillDate(charge.checkin_datetime)
           : formatBillDate(charge.created_at || new Date().toISOString());
 
@@ -1119,13 +1120,14 @@ if (allGuestNames.size === 1) {
   displayGuestName = Array.from(allGuestNames).join(', ');
 }
 
-let displayGuestId = '';
+let displayGuestId = ''
+
 if (allGuestIds.size === 1) {
-  displayGuestId = String(Array.from(allGuestIds)[0]);
+  displayGuestId = String(Array.from(allGuestIds)[0])
 } else if (allGuestIds.size > 1) {
-  displayGuestId = Array.from(allGuestIds).join(', ');
+  displayGuestId = Array.from(allGuestIds).join(', ')
 } else {
-  displayGuestId = String(currentCheckin?.guest_id || '');
+  displayGuestId = String(currentCheckin?.guest_id || '')
 }
     const combinedSummaryData: CombinedGuestSummary = {
       checkin_id: checkinIdFromState,

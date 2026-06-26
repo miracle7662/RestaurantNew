@@ -9,7 +9,7 @@ import FormModal from '@/components/Common/models/FormModal';
 import RoomForm from './RoomForm';
 import { useAuthContext } from '@/common/context/useAuthContext';
 
-type Room = {
+type HotelRoom = {
     room_id: number;
     room_no: string;
     room_name: string;
@@ -85,9 +85,33 @@ const RoomMaster = () => {
         try {
             const response = await roomApi.list({ hotelid: hotelId });
             if (response.success) {
-                setRooms(Array.isArray(response.data) ? response.data : []);
+                const apiRooms = Array.isArray(response.data) ? response.data : [];
+                const normalizedRooms: Room[] = apiRooms.map((r: any) => ({
+                    room_id: r.room_id,
+                    room_no: r.room_no,
+                    room_name: r.room_name,
+                    display_name: r.display_name,
+                    room_category_id: r.room_category_id,
+                    category_name: r.category_name,
+                    room_ext_no: r.room_ext_no,
+                    room_status_id: r.room_status_id ?? 0,
+                    room_status: r.room_status,
+                    status_color: r.status_color,
+                    department_id: r.department_id,
+                    department_name: r.department_name,
+                    block_id: r.block_id,
+                    block_name: r.block_name,
+                    floor_id: r.floor_id,
+                    floor_name: r.floor_name,
+                    hotelid: r.hotelid,
+                    created_date: r.created_date,
+                    updated_date: r.updated_date,
+                    created_by_id: r.created_by_id,
+                    updated_by_id: r.updated_by_id,
+                }));
+                setRooms(normalizedRooms);
             } else {
-                toast.error(response.message || 'Failed to load rooms');
+                toast.error((response as any).message || 'Failed to load rooms');
                 setRooms([]);
             }
         } catch (error: any) {
@@ -223,12 +247,37 @@ const RoomMaster = () => {
                 delete updatePayload.created_by_id;
                 const response = await roomApi.update(editingRoom.room_id, updatePayload);
                 if (response.success && response.data) {
-                    setRooms((prev) =>
-                        prev.map((item) => (item.room_id === response.data!.room_id ? response.data! : item))
+                    const updatedRoomRaw = response.data as any;
+                    const updatedRoom: Room = {
+                        room_id: updatedRoomRaw.room_id,
+                        room_no: updatedRoomRaw.room_no,
+                        room_name: updatedRoomRaw.room_name,
+                        display_name: updatedRoomRaw.display_name,
+                        room_category_id: updatedRoomRaw.room_category_id,
+                        category_name: updatedRoomRaw.category_name,
+                        room_ext_no: updatedRoomRaw.room_ext_no,
+                        room_status_id: updatedRoomRaw.room_status_id ?? 0,
+                        room_status: updatedRoomRaw.room_status,
+                        status_color: updatedRoomRaw.status_color,
+                        department_id: updatedRoomRaw.department_id,
+                        department_name: updatedRoomRaw.department_name,
+                        block_id: updatedRoomRaw.block_id,
+                        block_name: updatedRoomRaw.block_name,
+                        floor_id: updatedRoomRaw.floor_id,
+                        floor_name: updatedRoomRaw.floor_name,
+                        hotelid: updatedRoomRaw.hotelid,
+                        created_date: updatedRoomRaw.created_date,
+                        updated_date: updatedRoomRaw.updated_date,
+                        created_by_id: updatedRoomRaw.created_by_id,
+                        updated_by_id: updatedRoomRaw.updated_by_id,
+                    };
+
+                    setRooms((prev): Room[] =>
+                        prev.map((item): Room => (item.room_id === updatedRoom.room_id ? updatedRoom : item))
                     );
                     toast.success('Room updated');
                 } else {
-                    toast.error(response.message || 'Update failed');
+                    toast.error((response as any)?.message || 'Update failed');
                 }
             } else {
                 const response = await roomApi.create(apiPayload);
@@ -236,7 +285,7 @@ const RoomMaster = () => {
                     setRooms((prev) => [response.data!, ...prev]);
                     toast.success('Room added');
                 } else {
-                    toast.error(response.message || 'Create failed');
+                    toast.error((response as any)?.message || 'Create failed');
                 }
             }
 

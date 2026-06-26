@@ -597,7 +597,7 @@ exports.getHotelBookingMeta = async (req, res) => {
 
         // ✅ Rooms fetch करें जिसमें room_status_id भी आएगा
         const roomsSql = `
-            SELECT
+         SELECT
                 rm.room_id,
                 rm.room_no,
                 rm.room_name,
@@ -606,6 +606,7 @@ exports.getHotelBookingMeta = async (req, res) => {
                 rc.category_name,
                 rm.room_ext_no,
                 rm.room_status_id,  -- ✅ यह important है
+                rs.status_name as room_status,
                 rm.department_id,
                 dm.department_name,
                 rm.block_id,
@@ -623,6 +624,7 @@ exports.getHotelBookingMeta = async (req, res) => {
             LEFT JOIN departmentmaster dm ON rm.department_id = dm.department_id
             LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
             LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
+            left join room_status rs on rs.room_status_id =rm.room_status_id
             WHERE rm.hotelid = ?
             ORDER BY rm.floor_id ASC, rm.room_no ASC
         `;

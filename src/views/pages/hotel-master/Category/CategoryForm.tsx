@@ -89,7 +89,7 @@ const RoomCategoryForm = forwardRef<any, Props>(({ selectedItem, isEdit, onSave 
 
     if (hotelId) {
       setLoadingDepartments(true);
-      DepartmentService.list({ mst_hotelid: hotelId })  // Changed from mst_hotelid to hotelid
+      DepartmentService.list({ hotelid: hotelId })  // Changed from mst_hotelid to hotelid
         .then((res) => {
           if (res.success) setDepartmentList(Array.isArray(res.data) ? res.data : []);
         })
