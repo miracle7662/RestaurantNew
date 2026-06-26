@@ -5472,7 +5472,7 @@ const ApplyDiscountComponent = ({
   }, [originalDiscount])
 
   const previewRow = useMemo(() => {
-    const updatedDetail = { ...selectedRoom.detail, discount_percent: tempDiscountPercent }
+    const updatedDetail = { ...selectedRoom.detail, discount_percent: tempDiscountPercent  }
     return buildRoomDataRowFromDetail(updatedDetail, selectedRoom.checkin, selectedRoom.charges)
   }, [selectedRoom, tempDiscountPercent])
 
@@ -5487,107 +5487,112 @@ const ApplyDiscountComponent = ({
     toast.success('Preview updated')
   }
 
-  const handleUpdate = async () => {
-    setLoading(true)
-    try {
-      const detail = selectedRoom.detail
-      const nights = detail.no_of_days || 1
-      const rate = detail.room_tariff || 0
-      const discountAmount = (rate * nights * tempDiscountPercent) / 100
+ const handleUpdate = async () => {
+  setLoading(true)
+  try {
+    const detail = selectedRoom.detail
+    const nights = detail.no_of_days || 1
+    const rate = detail.room_tariff || 0
+    const discountAmount = (rate * nights * tempDiscountPercent) / 100
 
-      await DetailService.update(detail.detail_id, {
+    // ✅ FIX: Update both discount_percent AND discount_amount
+    await DetailService.update(detail.detail_id, {
+      discount_percent: tempDiscountPercent,
+      discount_amount: discountAmount,  // ← Add this line
+    })
+
+    const chargesId = selectedRoom.charges?.guest_room_charges_id || selectedRoom.charges?.id
+    if (chargesId) {
+      const updatedDetail = {
+        ...detail,
         discount_percent: tempDiscountPercent,
-      })
-
-      const chargesId = selectedRoom.charges?.guest_room_charges_id || selectedRoom.charges?.id
-      if (chargesId) {
-        const updatedDetail = {
-          ...detail,
-          discount_percent: tempDiscountPercent,
-        }
-        const updatedRow = buildRoomDataRowFromDetail(
-          updatedDetail,
-          selectedRoom.checkin,
-          selectedRoom.charges,
-        )
-        const newTotalAmount = parseFloat(updatedRow.totalAmount)
-        await GuestRoomChargesService.update(chargesId, {
-          total_amount: newTotalAmount,
-          guest_id: selectedRoom.checkin.guest_id,
-          room_id: detail.room_id,
-          checkin_id: selectedRoom.checkin.checkin_id,
-        })
-      } else {
-        const updatedDetail = {
-          ...detail,
-          discount_percent: tempDiscountPercent,
-        }
-        const updatedRow = buildRoomDataRowFromDetail(updatedDetail, selectedRoom.checkin, null)
-        const newTotalAmount = parseFloat(updatedRow.totalAmount)
-        await GuestRoomChargesService.create({
-          guest_id: selectedRoom.checkin.guest_id,
-          room_id: detail.room_id,
-          checkin_id: selectedRoom.checkin.checkin_id,
-          total_amount: newTotalAmount,
-        })
+        discount_amount: discountAmount,  // ← Also update in the updatedDetail
       }
-
-      const folioRes = await GuestFolioService.list({ checkin_id: selectedRoom.checkin.checkin_id })
-      const folioEntries = folioRes.data || []
-      const existingDiscountEntry = folioEntries.find(
-        (entry) => entry.transaction_type === 'Discount' && entry.detail_id === detail.detail_id,
+      const updatedRow = buildRoomDataRowFromDetail(
+        updatedDetail,
+        selectedRoom.checkin,
+        selectedRoom.charges,
       )
-
-      if (tempDiscountPercent === 0) {
-        if (existingDiscountEntry) {
-          await GuestFolioService.remove(existingDiscountEntry.folio_id)
-        }
-      } else {
-        const discountDescription = `Discount ${tempDiscountPercent}% applied`
-        if (existingDiscountEntry) {
-          await GuestFolioService.update(existingDiscountEntry.folio_id, {
-            credit_amount: discountAmount,
-            description: discountDescription,
-          })
-        } else {
-          await GuestFolioService.create({
-            checkin_id: selectedRoom.checkin.checkin_id,
-            hotelid: selectedRoom.checkin.hotelid,
-            detail_id: detail.detail_id,
-            transaction_type: 'Discount',
-            transaction_datetime: new Date().toISOString(),
-            description: discountDescription,
-            credit_amount: discountAmount,
-            payment_method: '',
-          })
-        }
+      const newTotalAmount = parseFloat(updatedRow.totalAmount)
+      await GuestRoomChargesService.update(chargesId, {
+        total_amount: newTotalAmount,
+        guest_id: selectedRoom.checkin.guest_id,
+        room_id: detail.room_id,
+        checkin_id: selectedRoom.checkin.checkin_id,
+      })
+    } else {
+      const updatedDetail = {
+        ...detail,
+        discount_percent: tempDiscountPercent,
+        discount_amount: discountAmount,  // ← Also update here
       }
-
-      toast.success(`Discount applied: ${tempDiscountPercent}%`)
-
-      try {
-        const folioRes = await GuestFolioService.list({
-          checkin_id: selectedRoom.checkin.checkin_id,
-        })
-        const recentFolios = folioRes.data || []
-        const discountFolios = recentFolios.filter(
-          (f: any) =>
-            f.transaction_type === 'Discount' && f.detail_id === selectedRoom.detail.detail_id,
-        )
-        setFolioPreviewData(discountFolios)
-        setShowConfirmationDialog(true)
-      } catch (folioError) {
-        console.warn('Could not fetch folio for preview:', folioError)
-      }
-
-      onRefresh()
-    } catch (error) {
-      console.error('Failed to apply discount:', error)
-      toast.error('Could not apply discount')
-    } finally {
-      setLoading(false)
+      const updatedRow = buildRoomDataRowFromDetail(updatedDetail, selectedRoom.checkin, null)
+      const newTotalAmount = parseFloat(updatedRow.totalAmount)
+      await GuestRoomChargesService.create({
+        guest_id: selectedRoom.checkin.guest_id,
+        room_id: detail.room_id,
+        checkin_id: selectedRoom.checkin.checkin_id,
+        total_amount: newTotalAmount,
+      })
     }
+
+    // Rest of your code remains the same...
+    const folioRes = await GuestFolioService.list({ checkin_id: selectedRoom.checkin.checkin_id })
+    const folioEntries = folioRes.data || []
+    const existingDiscountEntry = folioEntries.find(
+      (entry) => entry.transaction_type === 'Discount' && entry.detail_id === detail.detail_id,
+    )
+
+    if (tempDiscountPercent === 0) {
+      if (existingDiscountEntry) {
+        await GuestFolioService.remove(existingDiscountEntry.folio_id)
+      }
+    } else {
+      const discountDescription = `Discount ${tempDiscountPercent}% applied`
+      if (existingDiscountEntry) {
+        await GuestFolioService.update(existingDiscountEntry.folio_id, {
+          credit_amount: discountAmount,
+          description: discountDescription,
+        })
+      } else {
+        await GuestFolioService.create({
+          checkin_id: selectedRoom.checkin.checkin_id,
+          hotelid: selectedRoom.checkin.hotelid,
+          detail_id: detail.detail_id,
+          transaction_type: 'Discount',
+          transaction_datetime: new Date().toISOString(),
+          description: discountDescription,
+          credit_amount: discountAmount,
+          payment_method: '',
+        })
+      }
+    }
+
+    toast.success(`Discount applied: ${tempDiscountPercent}%`)
+
+    try {
+      const folioRes = await GuestFolioService.list({
+        checkin_id: selectedRoom.checkin.checkin_id,
+      })
+      const recentFolios = folioRes.data || []
+      const discountFolios = recentFolios.filter(
+        (f: any) =>
+          f.transaction_type === 'Discount' && f.detail_id === selectedRoom.detail.detail_id,
+      )
+      setFolioPreviewData(discountFolios)
+      setShowConfirmationDialog(true)
+    } catch (folioError) {
+      console.warn('Could not fetch folio for preview:', folioError)
+    }
+
+    onRefresh()
+  } catch (error) {
+    console.error('Failed to apply discount:', error)
+    toast.error('Could not apply discount')
+  } finally {
+    setLoading(false)
   }
+}
 
   const currentRow = previewActive ? previewRow : originalRow
 
