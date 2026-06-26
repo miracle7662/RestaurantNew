@@ -81,6 +81,7 @@ export interface CheckinFullDetailsRow {
   room_id: number;             // ✅ RETAINED
   checkout_id: number | null;  // ✅ RETAINED
 
+<<<<<<< HEAD
   // Checkin Detail (ALL original fields + new)
   detail_id: number | null;           // ✅ RETAINED
   detail_room_id: number | null;      // ✅ RETAINED (ab room_id bhi hai)
@@ -107,6 +108,36 @@ export interface CheckinFullDetailsRow {
   detail_cess_percent?: number;       // ✅ RETAINED (ab cess_percent bhi hai)
   detail_service_charge?: number;     // ✅ RETAINED (ab service_charge bhi hai)
   parent_detail_id?: number;          // ✅ RETAINED
+=======
+  // Checkin Detail
+  detail_id: number | null;
+  detail_room_id: number | null;
+  room_number: string | null;
+  room_category_name: string | null;
+  converted_category_name: string | null;
+  room_tariff: number | null;
+  discount_percent: number | null;
+  cgst_percent: number | null;
+  sgst_percent: number | null;
+  igst_percent: number | null;
+    
+   is_settle: number | null;
+  detail_checkin_datetime?: string;
+  detail_checkout_datetime?: string;
+  detail_adults?: number;
+  detail_pax?: number;
+  adults?:number,
+  pax?:number,
+  detail_ex_pax?: number;
+  detail_child_unpaid?: number;
+  detail_driver?: number;
+  detail_ex_pax_charge?: number;
+  detail_child_paid_amount?: number;
+  detail_driver_charge?: number;
+  detail_cess_percent?: number;
+  detail_service_charge?: number;
+  parent_detail_id?: number;
+>>>>>>> 41c73a63c884ce36aaf7401ebf2fceb2b3452520
 
   // Guest fields (ALL original + new)
   email?: string;                     // ✅ NEW (stored procedure se)

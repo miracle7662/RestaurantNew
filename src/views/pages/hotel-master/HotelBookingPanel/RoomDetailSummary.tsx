@@ -561,7 +561,7 @@ const fetchData = async () => {
             checkin_datetime: row.detail_checkin_datetime || row.checkin_datetime,
             checkout_datetime: row.detail_checkout_datetime || row.checkout_datetime,
             // ✅ Correct adults/pax based on transaction type row
-adults: row.detail_adults ?? row.adults ?? 0,
+            adults: row.detail_adults ?? row.adults ?? 0,
             pax: row.detail_pax ?? row.pax ?? row.detail_adults ?? row.adults ?? 0,
             ex_pax: row.detail_ex_pax ?? existing?.ex_pax ?? 0,
             child_unpaid: row.detail_child_unpaid ?? existing?.child_unpaid ?? 0,
