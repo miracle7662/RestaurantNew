@@ -1315,76 +1315,113 @@ exports.getAtGlance = async (req, res) => {
 
         const sql = `
          SELECT
-    -- Room Master
+    -- Room Information
     rm.room_id,
     rm.room_no,
     rs.status_name AS status,
-        rs.status_color,
-
-    fm.floor_name as floorNo,
+    rs.status_color,
+    fm.floor_name AS floorNo,
     rm.room_status_id,
 
-    -- Checkin Master
+    -- Check-In Information
     cm.checkin_id,
     cm.reg_no,
     cm.booking,
     cm.plan_name,
-    cm.checkin_datetime,
-    cm.checkout_datetime,
     cm.checkout_id,
 
-    -- Checkin Detail
+    cm.checkin_datetime,
+    cm.checkout_datetime,
+
+    DATE_FORMAT(cm.checkin_datetime,'%d-%m-%Y %H:%i') AS checkin_date,
+    DATE_FORMAT(cm.checkout_datetime,'%d-%m-%Y %H:%i') AS checkout_date,
+
+    CASE
+        WHEN cm.checkin_datetime IS NULL
+          OR cm.checkout_datetime IS NULL
+        THEN 0
+        ELSE DATEDIFF(
+            DATE(cm.checkout_datetime),
+            DATE(cm.checkin_datetime)
+        )
+    END AS stay_days,
+
+    cm.total_amount AS checkin_total_amount,
+    cm.pax_charges AS checkin_pax_charges,
+
+    -- Room Detail
     cdm.detail_id,
     cdm.guest_id,
     cdm.room_number,
+
     cdm.room_category_name AS roomCategory,
     cdm.converted_category_name AS convertedCategory,
-    cdm.room_number AS occupied_room_number,
 
+    cdm.room_tariff,
 
-    cdm.room_tariff AS totalAmt,
-    cdm.room_tariff AS total_amount,
     cdm.adults,
-    cdm.ex_pax AS ex_pax,
-    cdm.child_unpaid AS child_unpaid,
+    cdm.ex_pax,
+    cdm.child_unpaid,
     cdm.child_paid_amount AS child_paid,
-    cdm.driver AS driver,
-    cdm.pax AS pax,
-
-
+    cdm.driver,
+    cdm.pax,
 
     cdm.ex_pax_charge,
     cdm.child_paid_amount,
     cdm.driver_charge,
 
-    cdm.discount_percent as discountPercent,
+    cdm.discount_percent AS discountPercent,
     cdm.cgst_percent,
     cdm.sgst_percent,
     cdm.igst_percent,
     cdm.service_charge,
 
-    -- Total Room Amount
     (
-        IFNULL(cdm.room_tariff, 0)
-        + IFNULL(cdm.ex_pax_charge, 0)
-        + IFNULL(cdm.child_paid_amount, 0)
-        + IFNULL(cdm.driver_charge, 0)
+        IFNULL(cdm.room_tariff,0)
+        + IFNULL(cdm.ex_pax_charge,0)
+        + IFNULL(cdm.child_paid_amount,0)
+        + IFNULL(cdm.driver_charge,0)
     ) AS total_room_amount,
 
-    -- Guest Details
+    -- Guest Information
     gm.name AS guest_name,
     gm.mobile,
     gm.address,
     gm.email,
 
     -- Company
-    comp.company_name
+    comp.company_name,
+
+    -- Folio Summary
+    IFNULL(folio.total_debit,0)      AS total_debit,
+    IFNULL(folio.total_credit,0)     AS total_credit,
+
+    IFNULL(folio.advance_amount,0)   AS advance_amount,
+    IFNULL(folio.allowance_amount,0) AS allowance_amount,
+    IFNULL(folio.charge_amount,0)    AS charge_amount,
+
+    -- Final Due Amount
+    (
+        IFNULL(folio.total_debit,0)
+        -
+        IFNULL(folio.total_credit,0)
+    ) AS due_amount
 
 FROM room_master rm
 
-LEFT JOIN checkin_detail_master cdm
-       ON rm.room_id = cdm.room_id
-      AND cdm.is_settle = 0
+LEFT JOIN
+(
+    SELECT cd1.*
+    FROM checkin_detail_master cd1
+    WHERE cd1.detail_id =
+    (
+        SELECT MAX(cd2.detail_id)
+        FROM checkin_detail_master cd2
+        WHERE cd2.room_id = cd1.room_id
+          AND cd2.is_settle = 0
+    )
+) cdm
+ON rm.room_id = cdm.room_id
 
 LEFT JOIN checkin_master cm
        ON cm.checkin_id = cdm.checkin_id
@@ -1395,12 +1432,62 @@ LEFT JOIN guest_master gm
 
 LEFT JOIN company_master comp
        ON comp.company_id = gm.company_id
-       left join room_status rs on rs.room_status_id =rm.room_status_id
-       left join floormaster fm on fm.floor_id = rm.floor_id
+
+LEFT JOIN room_status rs
+       ON rs.room_status_id = rm.room_status_id
+
+LEFT JOIN floormaster fm
+       ON fm.floor_id = rm.floor_id
+
+/* ===========================
+   ROOM-WISE FOLIO SUMMARY
+=========================== */
+LEFT JOIN
+(
+    SELECT
+        room_id,
+        checkin_id,
+
+        SUM(IFNULL(debit_amount,0))  AS total_debit,
+        SUM(IFNULL(credit_amount,0)) AS total_credit,
+
+        SUM(
+            CASE
+                WHEN transaction_type='Advance Addition'
+                THEN IFNULL(credit_amount,0)
+                ELSE 0
+            END
+        ) AS advance_amount,
+
+        SUM(
+            CASE
+                WHEN UPPER(transaction_type)='ALLOWANCE'
+                THEN IFNULL(credit_amount,0)
+                ELSE 0
+            END
+        ) AS allowance_amount,
+
+        SUM(
+            CASE
+                WHEN UPPER(transaction_type)='CHARGE'
+                THEN IFNULL(debit_amount,0)
+                ELSE 0
+            END
+        ) AS charge_amount
+
+    FROM checkin_guest_folio_master
+    GROUP BY room_id,checkin_id
+
+) folio
+ON folio.room_id = rm.room_id
+AND folio.checkin_id = cm.checkin_id
 
 WHERE rm.hotelid = ?
 
-ORDER BY CAST(rm.room_no AS UNSIGNED), rm.room_no;
+ORDER BY
+    fm.floor_id,
+    CAST(rm.room_no AS UNSIGNED),
+    rm.room_no;
         `;
 
         const [rows] = await db.execute(sql, [hotelId]);
