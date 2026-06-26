@@ -15,52 +15,9 @@ import RoomService from '@/common/hotel/room'
 
 
 // Type imports (restored because they are used in interfaces and function signatures)
-import { GuestRoomCharge } from '@/common/hotel/guestRoomCharges'
 
 // ==================== INTERFACES ====================
 
-interface ExtendedGuestRoomCharge extends GuestRoomCharge {
-  room_number?: string
-  room_category_name?: string
-  converted_category_name?: string
-  checkin_datetime_from_detail?: string
-  checkout_datetime_from_detail?: string
-  guest_name?: string
-  adults?: number
-  pax?: number
-  ex_pax?: number
-  child_paid?: number
-  child_unpaid?: number
-  driver?: number
-  discount_percent?: number
-  payment_method?: string
-  day_number?: number
-  is_extension_day?: boolean
-  bill_date_formatted?: string
-  detail_id?: number
-  actual_room_category_name?: string
-  actual_converted_category_name?: string
-  cgst_amount?: number
-  sgst_amount?: number
-  igst_amount?: number
-  cess_amount?: number
-  service_charge_amount?: number
-  tax_percent?: number
-  ex_pax_tax_percent: number | null
-  child_tax_percent: number | null
-  driver_tax_percent: number | null
-  ex_pax_tax: number | null
-  child_tax: number | null
-  driver_tax: number | null
-  isPostCharge?: boolean
-  postChargeDescription?: string
-  postChargeParticulars?: string
-  department_name?: string
-  sortDate?: Date
-  chargeType?: 'original' | 'extension' | 'postcharge' | 'allowance'
-  original_day_number?: number
-  description?: string
-}
 
 interface DisplayDetailRow {
   id: string
