@@ -180,109 +180,35 @@ exports.getBillPreview = async (req, res) => {
         const [results] = await db.execute('CALL sp_checkout_bill(?)', [checkoutId]);
 
         const headerData = results[0][0] || {};
-        const roomDetails = results[1] || [];
+        const transactionRows = results[1] || [];
         const footerSummary = results[2][0] || {};
 
-        // Transform room details to match frontend's DisplayDetailRow interface
-        const flatData = roomDetails.map(room => ({
-            // Hotel fields
-            hotel_name: headerData.hotel_name,
-            hotel_address: headerData.hotel_address,
-            phone: headerData.phone,
-            trn_gstno: headerData.trn_gstno,
-
-            // Checkout fields
-            checkout_id: headerData.checkout_id,
-            checkin_id: headerData.checkin_id,
-            reg_no: headerData.reg_no,
-            ldg_bill_no: headerData.ldg_bill_no,
-            guest_name: headerData.guest_name,
-            guest_address: headerData.guest_address,
-            mobile: headerData.mobile,
-            company_name: headerData.company_name,
-            booking: headerData.booking,
-            plan_name: headerData.plan_name,
-            checkin_datetime: headerData.checkin_datetime,
-            checkout_datetime: headerData.checkout_datetime,
-            payment_mode: headerData.payment_mode,
-            adults: headerData.adults,
-            pax: headerData.pax,
-            ex_pax: headerData.ex_pax,
-            total_nights: headerData.total_nights,
-
-            // Room details (matching frontend expectations)
-            room_number: room.room_number,
-            room_category_name: room.room_category_name || '-',
-            converted_category_name: room.converted_category_name || '-',
-            bill_date: room.bill_date,
-            bill_date_formatted: formatBillDate(room.bill_date),
-            checkin_datetime: headerData.checkin_datetime,
-            checkout_datetime: headerData.checkout_datetime,
-            no_of_days: room.no_of_days || 1,
-            day_number: 1,
-            original_day_number: 1,
-            room_tariff_per_day: room.room_tariff_per_day || 0,
-            total_room_tariff: room.room_tariff_per_day || 0,
-            ex_pax_count: room.ex_pax_count || 0,
-            ex_pax_price: room.ex_pax_price || 0,
-            ex_pax_tax: room.ex_pax_tax || 0,
-            ex_pax_tax_percent: room.ex_pax_tax_percent || 0,
-            ex_pax_total: room.ex_pax_total || 0,
-            child_count: room.child_count || 0,
-            child_unpaid: 0,
-            child_price: room.child_price || 0,
-            child_tax: room.child_tax || 0,
-            child_tax_percent: room.child_tax_percent || 0,
-            child_total: room.child_total || 0,
-            driver_count: room.driver_count || 0,
-            driver_price: room.driver_price || 0,
-            driver_tax: room.driver_tax || 0,
-            driver_tax_percent: room.driver_tax_percent || 0,
-            driver_total: room.driver_total || 0,
-            cgst_amount: room.cgst_amount || 0,
-            sgst_amount: room.sgst_amount || 0,
-            igst_amount: room.igst_amount || 0,
-            cess_amount: room.cess_amount || 0,
-            service_charge_amount: room.service_charge_amount || 0,
-            adults: room.adults || 0,
-            pax: room.pax || 0,
-            ex_pax: room.ex_pax || 0,
-            child_paid: room.child_paid || 0,
-            driver: room.driver || 0,
-            discount_percent: room.discount_percent || 0,
-            discount_amount: room.discount_amount || 0,
-            tax_percent: room.tax_percent || 18,
-            tax_amount: room.tax_amount || 0,
-            total_amount: room.total_amount || 0,
-            is_extension: false,
-            isPostCharge: room.transaction_type !== 'Room Charge',
-            parent_detail_id: null,
-            selected: true,
-            cumulative_total: 0,
-            payment_method: headerData.payment_mode || 'Cash',
-            created_at: room.bill_date,
-            has_checkout_datetime: !!headerData.checkout_datetime,
-            checkout_time_formatted: headerData.checkout_datetime ? formatDateTime(headerData.checkout_datetime) : '-',
-            description: room.description || room.transaction_type || 'Room Charges',
-            particulars: room.particulars || '',
-            department_name: room.transaction_type || '',
-            room_group: room.room_number,
+        // Merge header data into each transaction row
+        const flatData = transactionRows.map(row => ({
+            ...headerData,
+            ...row,
+            // Map fields for frontend compatibility
+            room_tariff: row.tariff || 0,
+            ex_pax_total: row.ex_pax || 0,
+            cgst_amount: row.cgst || 0,
+            sgst_amount: row.sgst || 0,
+            total_amount: row.total_amount || 0,
+            room_total_amount: row.total_amount || 0,
+            // Footer summary fields
+            net_payable: footerSummary.net_payable || headerData.net_payable || 0,
+            bill_amount: footerSummary.bill_amount || headerData.total_amount || 0,
+            discount_amount_total: footerSummary.discount_amount || headerData.discount_amount || 0,
+            advance_amount_total: footerSummary.advance_amount || headerData.advance_amt || 0,
+            post_charges_total: footerSummary.post_charges || 0,
+            allowance_total: footerSummary.allowance || 0,
+            round_off_amount: footerSummary.round_off_amount || headerData.round_off_amount || 0,
         }));
-
-        // Calculate cumulative totals for each room
-        const cumulativeMap = new Map();
-        flatData.forEach(row => {
-            const roomNum = row.room_number;
-            const prev = cumulativeMap.get(roomNum) || 0;
-            const total = Number(row.total_amount) || 0;
-            cumulativeMap.set(roomNum, prev + total);
-            row.cumulative_total = cumulativeMap.get(roomNum);
-        });
 
         return res.status(200).json({
             success: true,
             message: "Bill Preview fetched successfully.",
-            data: flatData
+            data: flatData,
+            summary: footerSummary
         });
 
     } catch (error) {
