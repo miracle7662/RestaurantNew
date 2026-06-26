@@ -5593,7 +5593,7 @@ const ApplyDiscountComponent = ({
     setLoading(false)
   }
 }
-
+const [backdatedApply, setBackdatedApply] = useState(false);
   const currentRow = previewActive ? previewRow : originalRow
 
   const allHeaders = [
@@ -5637,39 +5637,66 @@ const ApplyDiscountComponent = ({
 
   return (
     <ActionBox title="Apply Discount" onClose={onClose}>
-      <div className="border p-2 mb-2">
-        <div className="d-flex align-items-center gap-4">
-          <div className="d-flex align-items-center">
-            <Form.Label className="fs-small mb-0 me-2 fw-bold" style={{ minWidth: '130px' }}>
-              Current Discount (%)
-            </Form.Label>
-            <Form.Control
-              type="text"
-              size="sm"
-              value={originalDiscount}
-              readOnly
-              className="bg-light"
-              style={{ width: '100px' }}
-            />
-          </div>
+     <div className="border p-2 mb-2">
+  <div className="d-flex align-items-center gap-4">
 
-          <div className="d-flex align-items-center">
-            <Form.Label className="fs-small mb-0 me-2 fw-bold" style={{ minWidth: '120px' }}>
-              New Discount (%)
-            </Form.Label>
-            <Form.Control
-              type="number"
-              size="sm"
-              value={tempDiscountPercent}
-              onChange={(e) => setTempDiscountPercent(Number(e.target.value))}
-              min={0}
-              max={100}
-              step={1}
-              style={{ width: '100px' }}
-            />
-          </div>
-        </div>
-      </div>
+    <div className="d-flex align-items-center">
+      <Form.Label
+        className="mb-0 me-2 fw-bold"
+        style={{ minWidth: "130px" }}
+      >
+        Current Discount (%)
+      </Form.Label>
+
+      <Form.Control
+        type="text"
+        size="sm"
+        value={originalDiscount}
+        readOnly
+        className="bg-light"
+        style={{ width: "100px" }}
+      />
+    </div>
+
+    <div className="d-flex align-items-center">
+      <Form.Label
+        className="mb-0 me-2 fw-bold"
+        style={{ minWidth: "120px" }}
+      >
+        New Discount (%)
+      </Form.Label>
+
+      <Form.Control
+        type="number"
+        size="sm"
+        value={tempDiscountPercent}
+        onChange={(e) => setTempDiscountPercent(Number(e.target.value))}
+        min={0}
+        max={100}
+        step={1}
+        style={{ width: "100px" }}
+      />
+    </div>
+
+    <div className="d-flex align-items-center">
+      <Form.Check
+        id="backdatedApply"
+        type="checkbox"
+        checked={backdatedApply}
+        onChange={(e) => setBackdatedApply(e.target.checked)}
+        className="mb-0"
+      />
+      <Form.Label
+        htmlFor="backdatedApply"
+        className="mb-0 ms-2 fw-bold"
+        style={{ cursor: "pointer" }}
+      >
+        Backdated Apply
+      </Form.Label>
+    </div>
+
+  </div>
+</div>
 
       <div className="action-table-container">
         <table className="action-table table table-bordered text-center align-middle">
