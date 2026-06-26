@@ -99,6 +99,8 @@ export interface CheckinFullDetailsRow {
   detail_checkout_datetime?: string;
   detail_adults?: number;
   detail_pax?: number;
+  adults?:number,
+  pax?:number,
   detail_ex_pax?: number;
   detail_child_unpaid?: number;
   detail_driver?: number;
