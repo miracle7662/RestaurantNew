@@ -109,7 +109,21 @@ exports.transferRoom = async (req, res) => {
          AND (checkout_datetime IS NULL OR DATE(checkout_datetime) >= ?)`,
       [parsedNewRoomId, parsedCheckinId, parsedOldRoomId, todayStr]
     );
-
+// ================================================================
+// 4. UPDATE checkin_guest_folio_master
+// ================================================================
+const [folioResult] = await connection.execute(
+  `UPDATE checkin_guest_folio_master
+   SET room_id = ?,
+       updated_date = NOW()
+   WHERE checkin_id = ?
+     AND room_id = ?`,
+  [
+    parsedNewRoomId,
+    parsedCheckinId,
+    parsedOldRoomId
+  ]
+);
     // ================================================================
     // 4. UPDATE ROOM STATUS
     // ================================================================

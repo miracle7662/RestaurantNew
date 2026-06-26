@@ -62,7 +62,8 @@ const RoomMaster = () => {
     const { user } = useAuthContext();
     const hotelId = user?.hotelid;
 
-    const [rooms, setRooms] = useState<Room[]>([]);
+    const [rooms, setRooms] = useState<HotelRoom[]>([]);
+
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -131,6 +132,7 @@ const RoomMaster = () => {
     const filteredRooms = useMemo(() => {
         let result = rooms;
 
+
         const query = search.trim().toLowerCase();
         if (query) {
             result = result.filter((room) =>
@@ -149,8 +151,10 @@ const RoomMaster = () => {
 
         if (sortField) {
             result = [...result].sort((a, b) => {
-                const aVal = a[sortField as keyof Room] ?? '';
-                const bVal = b[sortField as keyof Room] ?? '';
+                    const aVal = a[sortField as keyof HotelRoom] ?? '';
+
+                const bVal = b[sortField as keyof HotelRoom] ?? '';
+
                 if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
                 if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
                 return 0;
