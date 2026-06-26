@@ -1,12 +1,13 @@
-# TODO
+# TODO - Refactor RoomDetailSummary.tsx fetchData()
 
-- [ ] Refactor `fetchData()` in `src/views/pages/hotel-master/HotelBookingPanel/RoomDetailSummary.tsx` to remove frontend reconstruction logic.
-- [ ] Ensure `rows` is the sole source: `const rows = fullDetailsRes.data || [];`
-- [ ] Remove creation/usage of `checkinMap`, `detailMap`, `roomGuestMap`, `folios`, `allCharges`, `processedCharges`.
-- [ ] Remove manual matching logic (`find`, Map lookups, associatedDetail, checkin lookup, roomGuest lookup).
-- [ ] Create `displayRows` directly via `rows.map(row => ({...}))` using `row.*` fields from the stored procedure.
-- [ ] Keep UI unchanged (JSX/table columns/modal/checkout logic untouched).
-- [ ] Keep TypeScript types as-is.
-- [ ] Remove dead/unneeded helper functions that become unused after the refactor.
-- [ ] Run `npm test` / `npm run build` (or `npm run lint` if available) to validate.
+- [ ] Inspect current RoomDetailSummary.tsx fetchData() and identify reconstruction logic to delete.
+- [ ] Identify which fields are already present in stored procedure rows (based on usage/mapping inside current fetchData).
+- [ ] Rewrite fetchData() to:
+  - [ ] Call API
+  - [ ] Use only `rows = fullDetailsRes.data || []`
+  - [ ] Create `displayRows = rows.map(row => ({ ... }))` without maps/find matching
+  - [ ] Set `setDisplayRows(displayRows)`
+  - [ ] Compute only required UI summaries (billDateSummary + combinedSummary) without business reconstruction.
+- [ ] Remove dead/unused helpers that become unnecessary.
+- [ ] Run TypeScript/lint checks (npm test/build or `npm run build`) to ensure no TS errors.
 
