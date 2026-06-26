@@ -529,51 +529,70 @@ const fetchData = async () => {
       }
 
       // Detail Map - store room-specific guest info
-      if (row.detail_id && !detailMap.has(row.detail_id)) {
-        const detailData = {
-          detail_id: row.detail_id,
-          checkin_id: row.checkin_id,
-          room_id: row.room_id,
-          room_number: row.room_number,
-          room_category_name: row.room_category_name,
-          converted_category_name: row.converted_category_name,
-          room_tariff: row.room_tariff,
-          discount_percent: row.discount_percent,
-          cgst_percent: row.cgst_percent,
-          sgst_percent: row.sgst_percent,
-          igst_percent: row.igst_percent,
-          is_settle: row.is_settle,
-          checkin_datetime: row.detail_checkin_datetime || row.checkin_datetime,
-          checkout_datetime: row.detail_checkout_datetime || row.checkout_datetime,
-          // Use detail_* fields from the row (these exist in the type)
-          adults: row.detail_adults,
-          pax: row.detail_pax,
-          ex_pax: row.detail_ex_pax ?? 0,
-          child_unpaid: row.detail_child_unpaid ?? 0,
-          driver: row.detail_driver ?? 0,
-          ex_pax_charge: row.detail_ex_pax_charge ?? 0,
-          child_paid_amount: row.detail_child_paid_amount ?? 0,
-          driver_charge: row.detail_driver_charge ?? 0,
-          parent_detail_id: row.parent_detail_id,
-          // Store room-specific guest info
-          guest_id: row.guest_id,
-          guest_name: row.guest_name || 'Guest',
-          mobile: row.mobile,
-          address: row.address,
-          // Note: 'emailed' is the field name in the type, not 'email'
-          email: row.emailed,
-        };
-        detailMap.set(row.detail_id, detailData);
-        
+      if (row.detail_id) {
+        const existing = detailMap.get(row.detail_id);
+
+        const isAdvanceAddition = row.transaction_type === 'Advance Addition' ||
+          (typeof row.description === 'string' && row.description.toLowerCase().includes('advance'));
+
+        // “First row wins” breaks when backend returns multiple rows per detail_id.
+        // We want:
+        // - Advance Addition => adults=0, pax=0
+        // - Check-in Day / Room Extension => real adults/pax
+        const nextAdults = isAdvanceAddition ? 0 : (row.detail_adults ?? 0);
+        const nextPax = isAdvanceAddition ? 0 : (row.detail_pax ?? row.detail_adults ?? 0);
+
+        const shouldOverwrite = !existing || (!isAdvanceAddition && existing.adults === 0 && existing.pax === 0);
+
+        if (shouldOverwrite) {
+          const detailData = {
+            detail_id: row.detail_id,
+            checkin_id: row.checkin_id,
+            room_id: row.room_id,
+            room_number: row.room_number,
+            room_category_name: row.room_category_name,
+            converted_category_name: row.converted_category_name,
+            room_tariff: row.room_tariff,
+            discount_percent: row.discount_percent,
+            cgst_percent: row.cgst_percent,
+            sgst_percent: row.sgst_percent,
+            igst_percent: row.igst_percent,
+            is_settle: row.is_settle,
+            checkin_datetime: row.detail_checkin_datetime || row.checkin_datetime,
+            checkout_datetime: row.detail_checkout_datetime || row.checkout_datetime,
+            // ✅ Correct adults/pax based on transaction type row
+            adults: row.detail_adults,
+            pax: row.detail_pax,
+            ex_pax: row.detail_ex_pax ?? existing?.ex_pax ?? 0,
+            child_unpaid: row.detail_child_unpaid ?? existing?.child_unpaid ?? 0,
+            driver: row.detail_driver ?? existing?.driver ?? 0,
+            ex_pax_charge: row.detail_ex_pax_charge ?? existing?.ex_pax_charge ?? 0,
+            child_paid_amount: row.detail_child_paid_amount ?? existing?.child_paid_amount ?? 0,
+            driver_charge: row.detail_driver_charge ?? existing?.driver_charge ?? 0,
+            parent_detail_id: row.parent_detail_id,
+            // Store room-specific guest info
+            guest_id: row.guest_id,
+            guest_name: row.guest_name || 'Guest',
+            mobile: row.mobile,
+            address: row.address,
+            // Note: 'emailed' is the field name in the type, not 'email'
+            email: row.emailed,
+          };
+          detailMap.set(row.detail_id, detailData);
+        }
+
         // Store in room guest map for quick lookup
-        roomGuestMap.set(row.room_id, {
-          guest_id: row.guest_id,
-          guest_name: row.guest_name || 'Guest',
-          mobile: row.mobile,
-          address: row.address,
-          email: row.emailed,
-        });
+        if (!roomGuestMap.has(row.room_id)) {
+          roomGuestMap.set(row.room_id, {
+            guest_id: row.guest_id,
+            guest_name: row.guest_name || 'Guest',
+            mobile: row.mobile,
+            address: row.address,
+            email: row.emailed,
+          });
+        }
       }
+
 
       // Folio Map
       if (row.folio_id && !folios.some(f => f.folio_id === row.folio_id)) {

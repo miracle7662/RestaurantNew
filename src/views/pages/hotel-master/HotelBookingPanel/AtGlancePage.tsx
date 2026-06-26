@@ -8,7 +8,6 @@ import html2canvas from 'html2canvas'
 import TitleHelmet from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
 import CheckInService, { CheckIn } from '@/common/hotel/checkIn'
-
 interface AtGlanceItem {
   floorNo: string
   floorId: number
@@ -155,7 +154,17 @@ const addCanvasToPdf = (pdf: jsPDF, canvas: HTMLCanvasElement, marginMM = 10) =>
     if (ctx) {
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, canvas.width, sliceHeightPx)
-      ctx.drawImage(canvas, 0, renderedPx, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx)
+      ctx.drawImage(
+        canvas,
+        0,
+        renderedPx,
+        canvas.width,
+        sliceHeightPx,
+        0,
+        0,
+        canvas.width,
+        sliceHeightPx,
+      )
     }
 
     const pageImgData = pageCanvas.toDataURL('image/png')
@@ -169,7 +178,7 @@ const addCanvasToPdf = (pdf: jsPDF, canvas: HTMLCanvasElement, marginMM = 10) =>
   }
 }
 
-const AtGlance = () => {
+const AtGlancePage = () => {
   const navigate = useNavigate()
   const { user } = useAuthContext()
   const hotelId = user?.hotelid || user?.hotel_id
@@ -180,10 +189,7 @@ const AtGlance = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('All')
 
   const statusCounts = useMemo(() => {
-    const map = new Map<
-      string,
-      { status: string; count: number; statusColor?: string }
-    >()
+    const map = new Map<string, { status: string; count: number; statusColor?: string }>()
 
     for (const item of atGlanceData) {
       const status = (item.status || '').trim()
@@ -219,7 +225,7 @@ const AtGlance = () => {
 
     try {
       console.log('Fetching at-glance data for hotelId:', hotelId)
-      
+
       const atGlanceRes = await CheckInService.getAtGlance({ hotelid: hotelId })
       console.log('At-glance API response:', atGlanceRes)
 
@@ -275,10 +281,7 @@ const AtGlance = () => {
           status_color: statusColor,
           totalAmt:
             Number(
-              (c as any).totalAmt ??
-                (c as any).total_room_amount ??
-                (c as any).total_amount ??
-                0,
+              (c as any).totalAmt ?? (c as any).total_room_amount ?? (c as any).total_amount ?? 0,
             ) || 0,
           groupAmt: 0,
           discountPercent: (c as any).discountPercent ?? (c as any).discount_percent ?? 0,
@@ -418,7 +421,7 @@ const AtGlance = () => {
 
       const tableClone = table.cloneNode(true) as HTMLElement
       tableClone.querySelectorAll('thead tr, tfoot tr').forEach((el) => {
-        (el as HTMLElement).style.position = 'static'
+        ;(el as HTMLElement).style.position = 'static'
       })
 
       wrapper.appendChild(tableClone)
@@ -526,14 +529,19 @@ const AtGlance = () => {
             </td>
             <td>${item.regNo || ''}</td>
             <td>
-              <div>${item.companyName || ''}</div>
-              ${meal ? `<div class="subtext">${meal.toUpperCase()}</div>` : ''}
+              <div>${item.guest || ''}</div>
+              ${item.planName ? `<div class="subtext">${item.planName.toUpperCase()}</div>` : ''}
             </td>
-            <td>${item.guest || ''}</td>
+            <td>
+              <div>${item.companyName || ''}</div>
+            
+            </td>
+            
             <td>
               <div>${formatRegisterDateTime(item.checkinDatetime)}</div>
               <div>${formatRegisterDateTime(item.checkoutDatetime)}</div>
             </td>
+           <td class="num">${item.totalDays ?? 0}</td>
             <td class="num">${item.adults ?? 0}</td>
             <td class="num">${item.totalAmt.toFixed(2)}</td>
             <td class="num">${discount.toFixed(2)}</td>
@@ -546,14 +554,14 @@ const AtGlance = () => {
     const styleCss = `
       .register-title { text-align: center; background: #dcdcdc; padding: 6px; font-weight: bold; font-size: 15px; letter-spacing: 0.5px; }
       .register-subheader { display: flex; justify-content: space-between; font-size: 13px; margin: 6px 2px 14px 2px; }
-      table.occ-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-      table.occ-table th, table.occ-table td { border: 1px solid #999; padding: 6px 8px; text-align: left; vertical-align: top; }
+      table.occ-table { width: 100%; border-collapse: collapse; font-size: 16px; }
+      table.occ-table th, table.occ-table td { border: 0.5pt solid #d0d0d0;; padding: 6px 8px; text-align: left; vertical-align: top; }
       table.occ-table th { background: #ececec; font-weight: 700; text-align: left; }
       table.occ-table td.num, table.occ-table th.num { text-align: right; }
-      table.occ-table .subtext { font-size: 10.5px; color: #444; margin-top: 2px; }
+      table.occ-table .subtext { font-size: 14px; color: #444; margin-top: 2px; }
       .occ-summary-table { width: 100%; border-collapse: collapse; margin-top: 22px; font-family: Arial, sans-serif; }
       .occ-summary-table td { padding: 12px 16px 12px 0; vertical-align: middle; }
-      .occ-summary-table .hdr-label { font-weight: 700; font-size: 16px; color: #111; border-bottom: 1.5px solid #333; }
+      .occ-summary-table .hdr-label { font-weight: 700; font-size: 16px; color: #111; border-bottom: 1px solid #333; }
       .occ-summary-table .hdr-value { font-weight: 700; font-size: 16px; color: #111; text-align: left; border-bottom: 1.5px solid #333; }
       .occ-summary-table .row-label { font-size: 14px; color: #333; border-bottom: 1px solid #e3e3e3; }
       .occ-summary-table .row-value { font-size: 14px; font-weight: 700; color: #111; text-align: left; border-bottom: 1px solid #e3e3e3; }
@@ -575,13 +583,14 @@ const AtGlance = () => {
           <tr>
             <th>ROOM</th>
             <th>REG NO</th>
-            <th>COMPANY NAME</th>
             <th>CUSTOMER NAME</th>
+            <th>COMPANY NAME</th>
             <th>ARRIVAL &amp;<br/>DEPARTURE DATE</th>
+            <th class="num">STAY</th>
             <th class="num">PAX</th>
             <th class="num">TERIFF</th>
-            <th class="num">DISCOUNT</th>
-            <th class="num">DUE AMOUNT</th>
+            <th class="num">DISC.</th>
+            <th class="num">DUE <br> AMOUNT</th>
           </tr>
         </thead>
         <tbody>
@@ -665,11 +674,8 @@ const AtGlance = () => {
     }
 
     const wrapper = document.createElement('div')
-    // Positioned fully off-screen (fixed + pushed far outside the viewport)
-    // rather than relying on normal document flow. This guarantees it never
-    // becomes visible — not even briefly while html2canvas captures it —
-    // and it can't get left sitting at the bottom of the page if capture
-    // fails part-way through.
+
+    // Positioned fully off-screen
     wrapper.style.position = 'fixed'
     wrapper.style.top = '0'
     wrapper.style.left = '-10000px'
@@ -697,21 +703,46 @@ const AtGlance = () => {
         backgroundColor: '#ffffff',
       })
 
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+      })
+
       addCanvasToPdf(pdf, canvas, 10)
-      pdf.save('room-occupancy-register.pdf')
+
+      // Current Date & Time
+      const now = new Date()
+
+      const pad = (num: number) => num.toString().padStart(2, '0')
+
+      const day = pad(now.getDate())
+      const month = pad(now.getMonth() + 1)
+      const year = now.getFullYear()
+      const hours = pad(now.getHours()) // 24-hour format
+      const minutes = pad(now.getMinutes())
+
+      // NOTE:
+      // Windows does NOT allow ":" in file names.
+      // Recommended filename:
+      const fileName = `occupancy-chart-${day}-${month}-${year}_${hours}-${minutes}.pdf`
+
+      // If you still want this format:
+      // room-occupancy-chart-26-06-2026_16:15.pdf
+      // Uncomment the line below and comment the above line.
+      //
+      // const fileName = `room-occupancy-chart-${day}-${month}-${year}_${hours}:${minutes}.pdf`
+
+      pdf.save(fileName)
     } catch (err) {
       console.error(err)
       toast.error('PDF generation failed')
     } finally {
-      // Always clean up the off-screen render node — success or failure —
-      // so it can never get left behind in the page.
       if (wrapper.parentNode) {
         wrapper.parentNode.removeChild(wrapper)
       }
     }
   }
-
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
@@ -777,10 +808,11 @@ const AtGlance = () => {
                 className="form-select form-select-sm"
                 style={{ width: 200 }}
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-              >
+                onChange={(e) => setSelectedStatus(e.target.value)}>
                 <option value="All">All</option>
-                {Array.from(new Set(atGlanceData.map((x) => (x.status || '').trim()).filter(Boolean)))
+                {Array.from(
+                  new Set(atGlanceData.map((x) => (x.status || '').trim()).filter(Boolean)),
+                )
                   .sort((a, b) => a.localeCompare(b))
                   .map((s) => (
                     <option key={s} value={s}>
@@ -805,13 +837,17 @@ const AtGlance = () => {
           </div>
         </div>
 
-        <div className="d-flex justify-content-between align-items-center" style={{ marginBottom: 8 }}>
+        <div
+          className="d-flex justify-content-between align-items-center"
+          style={{ marginBottom: 8 }}>
           <div className="text-muted" style={{ fontSize: '0.85rem' }}>
-            Showing {
+            Showing{' '}
+            {
               atGlanceData.filter(
-                (x) => selectedStatus === 'All' || (x.status || '') === selectedStatus
+                (x) => selectedStatus === 'All' || (x.status || '') === selectedStatus,
               ).length
-            } rows
+            }{' '}
+            rows
           </div>
 
           <div className="d-flex align-items-center gap-4">
@@ -819,8 +855,7 @@ const AtGlance = () => {
               <div
                 key={sc.status}
                 className="d-flex align-items-center gap-2"
-                style={{ fontSize: '0.9rem', fontWeight: 600 }}
-              >
+                style={{ fontSize: '0.9rem', fontWeight: 600 }}>
                 <span
                   style={{
                     width: 12,
@@ -937,13 +972,15 @@ const AtGlance = () => {
                 <th>EX-PAX</th>
                 <th>CHILD</th>
                 <th>DRIVER</th>
-                 <th>DUE AMOUNT</th>
+                <th>DUE AMOUNT</th>
                 <th>STATUS</th>
               </tr>
             </thead>
             <tbody>
               {atGlanceData
-                .filter((item) => selectedStatus === 'All' || (item.status || '') === selectedStatus)
+                .filter(
+                  (item) => selectedStatus === 'All' || (item.status || '') === selectedStatus,
+                )
                 .map((item, idx) => {
                   const rowStyle = getStatusStyle(item.status || '', item.status_color)
                   return (
@@ -951,11 +988,15 @@ const AtGlance = () => {
                       <td>{item.floorNo}</td>
                       <td>{item.roomNo}</td>
                       <td>{item.guest}</td>
-                       <td>{item.companyName}</td>
+                      <td>{item.companyName}</td>
                       <td>{item.totalDays ?? '-'}</td>
                       <td>
-                        <div>{item.checkinDatetime ? formatDateTime(item.checkinDatetime) : '-'}</div>
-                        <div>{item.checkoutDatetime ? formatDateTime(item.checkoutDatetime) : '-'}</div>
+                        <div>
+                          {item.checkinDatetime ? formatDateTime(item.checkinDatetime) : '-'}
+                        </div>
+                        <div>
+                          {item.checkoutDatetime ? formatDateTime(item.checkoutDatetime) : '-'}
+                        </div>
                       </td>
                       <td>{formatAmount(item.totalAmt)}</td>
                       <td>{item.discountPercent}%</td>
@@ -968,7 +1009,7 @@ const AtGlance = () => {
                       <td>{item.exPax}</td>
                       <td>{item.child}</td>
                       <td>{item.driver}</td>
-                        <td>{item.dueAmount}</td>
+                      <td>{item.dueAmount}</td>
                       <td>{item.status || '-'}</td>
                     </tr>
                   )
@@ -981,4 +1022,4 @@ const AtGlance = () => {
   )
 }
 
-export default AtGlance
+export default AtGlancePage
