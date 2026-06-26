@@ -274,13 +274,13 @@ exports.addPostCharge = async (req, res) => {
     // ===============================
     await connection.query(`
       INSERT INTO checkin_guest_folio_master (
-        checkin_id, hotel_id, detail_id, transaction_type,
+        checkin_id, hotel_id, detail_id,room_id,  transaction_type,
         transaction_datetime, description, debit_amount, credit_amount,
         reference_number, payment_method, created_by_id, created_date,
         updated_by_id, updated_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      checkin_id, currentHotelId, detail_id || null, transaction_type,
+      checkin_id, currentHotelId, detail_id || null, room_id, transaction_type,
       updatedPostDateTime, description || particulars || (transaction_type === 'CHARGE' ? 'Charge' : 'Allowance'),
       transaction_type === 'CHARGE' ? Math.abs(finalTotalAmount) : 0,
       transaction_type === 'ALLOWANCE' ? Math.abs(finalTotalAmount) : 0,
