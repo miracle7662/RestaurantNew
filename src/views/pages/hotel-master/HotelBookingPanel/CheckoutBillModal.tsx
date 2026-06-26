@@ -75,6 +75,7 @@ interface DisplayDetailRow {
   cess_percent?: number
   service_charge_percent?: number
   room_group?: string
+  transaction_type?: string
 }
 
 interface CheckoutBillModalProps {
@@ -283,6 +284,15 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const [billLoading, setBillLoading] = useState(false)
   const [billError, setBillError] = useState<string | null>(null)
 
+  console.log('🔄 CheckoutBillModal Props:', {
+    show,
+    checkoutId,
+    ldgBillNo,
+    hotelId,
+    selectedRooms,
+    billDataLength: billData.length
+  })
+
   // ========== FETCH PRINT SETTINGS ==========
   useEffect(() => {
     const fetchSettings = async () => {
@@ -338,6 +348,15 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             })
           }
           setBillData(filteredData)
+
+          console.log('📦 Raw Bill Data from API:', filteredData.map((r: any) => ({
+            transaction_type: r.transaction_type,
+            post_charges: r.post_charges,
+            allowance: r.allowance,
+            description: r.description,
+            total_amount: r.total_amount,
+            tariff: r.tariff
+          })))
         } else {
           setBillError(response.message || 'Failed to fetch bill data')
         }
@@ -362,33 +381,69 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
   // ========== BUILD DISPLAY ROWS FROM API DATA ==========
   const displayRows = useMemo(() => {
-    if (!billData.length) return []
+    console.log('🏗️ Building displayRows from billData:', billData.length)
+    
+    if (!billData.length) {
+      console.log('❌ No billData available')
+      return []
+    }
 
     const rows: DisplayDetailRow[] = []
     const cumulativeMap = new Map<string, number>()
 
     billData.forEach((row, index) => {
       const roomNumber = row.room_number || `Room-${row.room_id}`
+      const transactionType = (row.transaction_type || '').toUpperCase().trim()
       
-      const roomTariff = toNumber(row.tariff || row.room_tariff_per_day || 0)
-      const exPaxTotal = toNumber(row.ex_pax || row.ex_pax_total || 0)
-      const cgstAmount = toNumber(row.cgst || row.cgst_amount || 0)
-      const sgstAmount = toNumber(row.sgst || row.sgst_amount || 0)
-      const foodAmount = toNumber(row.food || 0)
-      const postCharges = toNumber(row.post_charges || 0)
-      const allowance = toNumber(row.allowance || 0)
-      const totalAmount = toNumber(row.total_amount || row.room_total_amount || 0)
+      console.log(`📝 Processing row ${index}:`, {
+        transactionType,
+        roomNumber,
+        total_amount: row.total_amount,
+        post_charges: row.post_charges,
+        allowance: row.allowance
+      })
       
-      const taxAmount = cgstAmount + sgstAmount
-      
-      let transactionType = row.transaction_type || 'Room Charge'
-      let description = row.description || 'Room Charges'
+      let roomTariff = 0
+      let exPaxTotal = 0
+      let cgstAmount = 0
+      let sgstAmount = 0
+      let totalAmount = 0
       let isPostCharge = false
       
-      if (transactionType === 'Post Charge' || transactionType === 'Food' || 
-          transactionType === 'Allowance' || transactionType === 'Advance') {
+      // Map transaction types
+      if (transactionType === 'ROOM CHARGES' || transactionType === 'ROOM CHARGE') {
+        roomTariff = toNumber(row.tariff || row.room_tariff_per_day || 0)
+        exPaxTotal = toNumber(row.ex_pax || row.ex_pax_total || 0)
+        cgstAmount = toNumber(row.cgst || row.cgst_amount || 0)
+        sgstAmount = toNumber(row.sgst || row.sgst_amount || 0)
+        totalAmount = toNumber(row.total_amount || 0)
+        isPostCharge = false
+        console.log(`✅ Room Charge: ${roomNumber} - ₹${totalAmount}`)
+      } 
+      else if (transactionType === 'CHARGE' || transactionType === 'POST CHARGE' || transactionType === 'POST_CHARGE') {
+        totalAmount = toNumber(row.post_charges || row.debit_amount || 0)
         isPostCharge = true
+        console.log(`✅ Post Charge: ${roomNumber} - ₹${totalAmount}`)
+      } 
+      else if (transactionType === 'ALLOWANCE') {
+        totalAmount = -Math.abs(toNumber(row.allowance || row.debit_amount || 0))
+        isPostCharge = true
+        console.log(`✅ Allowance: ${roomNumber} - ₹${totalAmount}`)
+      } 
+      else if (transactionType === 'ADVANCE ADDITION' || transactionType === 'ADVANCE') {
+        totalAmount = -Math.abs(toNumber(row.allowance || row.debit_amount || 0))
+        isPostCharge = true
+        console.log(`✅ Advance: ${roomNumber} - ₹${totalAmount}`)
       }
+      else {
+        // Fallback
+        totalAmount = toNumber(row.total_amount || 0)
+        isPostCharge = false
+        console.log(`⚠️ Unknown type: ${transactionType}, using total_amount: ${totalAmount}`)
+      }
+      
+      const taxAmount = cgstAmount + sgstAmount
+      const description = row.description || 'Room Charges'
       
       const prevCumulative = cumulativeMap.get(roomNumber) || 0
       const cumulativeTotal = roundToTwo(prevCumulative + totalAmount)
@@ -459,7 +514,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         has_checkout_datetime: !!row.checkout_datetime,
         checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
         description: description,
-        particulars: '',
+        particulars: row.particulars || '',
         department_name: transactionType,
         cgst_percent: row.cgst_percent,
         sgst_percent: row.sgst_percent,
@@ -467,11 +522,122 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         cess_percent: row.cess_percent,
         service_charge_percent: row.service_charge,
         room_group: roomNumber,
+        transaction_type: transactionType
       })
     })
 
+    console.log(`✅ Generated ${rows.length} display rows`)
+    console.log('📊 Display rows summary:', rows.map(r => ({
+      room: r.room_number,
+      amount: r.total_amount,
+      isPost: r.isPostCharge,
+      type: r.department_name
+    })))
+
     return rows
   }, [billData])
+
+  // ========== SEPARATE CHARGES ==========
+  const roomCharges = useMemo(() => {
+    const filtered = displayRows.filter((r) => !r.isPostCharge)
+    console.log(`🏠 Room Charges: ${filtered.length}`, filtered.map(r => ({
+      room: r.room_number,
+      amount: r.total_amount
+    })))
+    return filtered
+  }, [displayRows])
+
+  const postCharges = useMemo(() => {
+    const filtered = displayRows.filter((r) => r.isPostCharge && r.total_amount > 0)
+    console.log(`📋 Post Charges: ${filtered.length}`, filtered.map(r => ({
+      room: r.room_number,
+      amount: r.total_amount,
+      type: r.department_name
+    })))
+    return filtered
+  }, [displayRows])
+
+  const allowances = useMemo(() => {
+    const filtered = displayRows.filter((r) => r.isPostCharge && r.total_amount < 0)
+    console.log(`📋 Allowances: ${filtered.length}`, filtered.map(r => ({
+      room: r.room_number,
+      amount: r.total_amount,
+      type: r.department_name
+    })))
+    return filtered
+  }, [displayRows])
+
+  // FOOD CHARGES
+  const foodCharges = useMemo(() => {
+    return postCharges.filter((r) => {
+      const transactionType = (r.department_name || '').toUpperCase().trim()
+      const desc = (r.description || r.particulars || '').toLowerCase()
+      const isFood = transactionType === 'FOOD' ||
+        desc.includes('food') ||
+        desc.includes('restaurant') ||
+        desc.includes('meal') ||
+        desc.includes('breakfast') ||
+        desc.includes('lunch') ||
+        desc.includes('dinner') ||
+        desc.includes('coffee') ||
+        desc.includes('bar') ||
+        desc.includes('snack') ||
+        desc.includes('restro')
+      
+      if (isFood) {
+        console.log(`🍽️ Food charge found: ${r.description} - ₹${r.total_amount}`)
+      }
+      return isFood
+    })
+  }, [postCharges])
+
+  const nonFoodPostCharges = useMemo(() => {
+    return postCharges.filter((r) => {
+      const transactionType = (r.department_name || '').toUpperCase().trim()
+      const desc = (r.description || r.particulars || '').toLowerCase()
+      return !(transactionType === 'FOOD' ||
+        desc.includes('food') ||
+        desc.includes('restaurant') ||
+        desc.includes('meal') ||
+        desc.includes('breakfast') ||
+        desc.includes('lunch') ||
+        desc.includes('dinner') ||
+        desc.includes('coffee') ||
+        desc.includes('bar') ||
+        desc.includes('snack') ||
+        desc.includes('restro'))
+    })
+  }, [postCharges])
+
+  // ADVANCES
+  const advances = useMemo(() => {
+    return allowances.filter((r) => {
+      const transactionType = (r.department_name || '').toUpperCase().trim()
+      const desc = (r.description || r.particulars || '').toLowerCase()
+      const isAdvance = transactionType === 'ADVANCE ADDITION' ||
+        transactionType === 'ADVANCE' ||
+        desc.includes('advance') ||
+        desc.includes('deposit') ||
+        desc.includes('prepaid')
+      
+      if (isAdvance) {
+        console.log(`💰 Advance found: ${r.description} - ₹${r.total_amount}`)
+      }
+      return isAdvance
+    })
+  }, [allowances])
+
+  const otherAllowances = useMemo(() => {
+    return allowances.filter((r) => {
+      const transactionType = (r.department_name || '').toUpperCase().trim()
+      const desc = (r.description || r.particulars || '').toLowerCase()
+      return !(transactionType === 'ADVANCE ADDITION' ||
+        transactionType === 'ADVANCE' ||
+        desc.includes('advance') ||
+        desc.includes('deposit') ||
+        desc.includes('prepaid'))
+    })
+  }, [allowances])
 
   // ========== BUILD SUMMARY ==========
   const summary = useMemo(() => {
@@ -556,64 +722,271 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
   }, [displayRows, billData])
 
-  // ========== SEPARATE CHARGES ==========
-  const roomCharges = useMemo(() => displayRows.filter((r) => !r.isPostCharge), [displayRows])
-  const postCharges = useMemo(() => displayRows.filter((r) => r.isPostCharge && r.total_amount > 0), [displayRows])
-  const allowances = useMemo(() => displayRows.filter((r) => r.isPostCharge && r.total_amount < 0), [displayRows])
+// ========== GENERATE TABLE ROWS (ROOM WISE) ==========
+const tableRows = useMemo(() => {
+  console.log('🔨 Building tableRows...')
+  console.log('📊 Input counts:', {
+    roomCharges: roomCharges.length,
+    foodCharges: foodCharges.length,
+    nonFoodPostCharges: nonFoodPostCharges.length,
+    advances: advances.length,
+    otherAllowances: otherAllowances.length
+  })
 
-  const foodCharges = useMemo(() => {
-    return postCharges.filter((r) => {
-      const desc = (r.description || r.particulars || '').toLowerCase()
-      return (
-        desc.includes('food') ||
-        desc.includes('restaurant') ||
-        desc.includes('meal') ||
-        desc.includes('breakfast') ||
-        desc.includes('lunch') ||
-        desc.includes('dinner') ||
-        desc.includes('coffee') ||
-        desc.includes('bar') ||
-        desc.includes('snack') ||
-        desc.includes('restro')
-      )
+  const rows: TableRowWithIndex[] = []
+  let index = 1
+
+  // Group by room first, then by date
+  const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
+  
+  // Combine all charges
+  const allCharges = [...roomCharges, ...foodCharges, ...nonFoodPostCharges, ...advances, ...otherAllowances]
+  
+  console.log('📦 Total charges to group:', allCharges.length)
+  
+  allCharges.forEach((charge) => {
+    const roomNum = charge.room_number || 'COMMON'
+    const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
+    
+    if (!roomGroups.has(roomNum)) {
+      roomGroups.set(roomNum, new Map())
+    }
+    
+    const dateMap = roomGroups.get(roomNum)!
+    if (!dateMap.has(dateKey)) {
+      dateMap.set(dateKey, {
+        date: dateKey,
+        roomChargeAmount: 0,
+        exPaxAmount: 0,
+        postCharges: [],
+        allowances: [],
+        advances: [],
+        foodCharges: [],
+        cgstAmount: 0,
+        sgstAmount: 0,
+        roomNumbers: new Set([roomNum]),
+      })
+    }
+    
+    const item = dateMap.get(dateKey)!
+    
+    // Check if it's a room charge
+    if (!charge.isPostCharge) {
+      item.roomChargeAmount += charge.room_tariff_per_day || 0
+      item.exPaxAmount += charge.ex_pax_total || 0
+      item.cgstAmount += charge.cgst_amount || 0
+      item.sgstAmount += charge.sgst_amount || 0
+    }
+    
+    // Handle post charges (including food, charges, allowances, advances)
+    if (charge.isPostCharge) {
+      const amount = Math.abs(charge.total_amount || 0)
+      const transactionType = (charge.department_name || '').toUpperCase().trim()
+      const desc = (charge.description || charge.particulars || '').toLowerCase()
+      
+      console.log(`📌 Grouping: ${transactionType} - ${charge.description} - ₹${amount}`)
+      
+      // Check transaction type first, then fallback to description
+      if (transactionType === 'FOOD' || 
+          desc.includes('food') || desc.includes('meal') || desc.includes('breakfast') || 
+          desc.includes('lunch') || desc.includes('dinner') || desc.includes('coffee') ||
+          desc.includes('restaurant') || desc.includes('bar') || desc.includes('snack') ||
+          desc.includes('restro')) {
+        item.foodCharges.push({
+          description: charge.description || 'Food',
+          amount,
+          id: charge.id,
+        })
+      } else if (transactionType === 'ADVANCE ADDITION' || transactionType === 'ADVANCE' ||
+                 desc.includes('advance') || desc.includes('deposit') || desc.includes('prepaid')) {
+        item.advances.push({
+          description: charge.description || 'Advance',
+          amount,
+          id: charge.id,
+        })
+      } else if (transactionType === 'ALLOWANCE' || desc.includes('allowance')) {
+        item.allowances.push({
+          description: charge.description || 'Allowance',
+          amount,
+          id: charge.id,
+        })
+      } else if (transactionType === 'CHARGE' || transactionType === 'POST CHARGE' || 
+                 transactionType === 'POST_CHARGE' || desc.includes('charge')) {
+        item.postCharges.push({
+          description: charge.description || 'Post Charge',
+          amount,
+          id: charge.id,
+        })
+      } else {
+        // Default: treat as post charge
+        item.postCharges.push({
+          description: charge.description || 'Post Charge',
+          amount,
+          id: charge.id,
+        })
+      }
+    }
+  })
+
+  // Sort rooms
+  const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
+    if (a === 'COMMON') return 1
+    if (b === 'COMMON') return -1
+    const numA = parseInt(a)
+    const numB = parseInt(b)
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return numA - numB
+    }
+    return a.localeCompare(b)
+  })
+
+  console.log('🏨 Room groups found:', sortedRooms.length)
+
+  for (const room of sortedRooms) {
+    const dateMap = roomGroups.get(room)!
+    const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
+      const dateA = a.split('/').reverse().join('-')
+      const dateB = b.split('/').reverse().join('-')
+      return new Date(dateA).getTime() - new Date(dateB).getTime()
     })
-  }, [postCharges])
 
-  const nonFoodPostCharges = useMemo(() => {
-    return postCharges.filter((r) => {
-      const desc = (r.description || r.particulars || '').toLowerCase()
-      return !(
-        desc.includes('food') ||
-        desc.includes('restaurant') ||
-        desc.includes('meal') ||
-        desc.includes('breakfast') ||
-        desc.includes('lunch') ||
-        desc.includes('dinner') ||
-        desc.includes('coffee') ||
-        desc.includes('bar') ||
-        desc.includes('snack') ||
-        desc.includes('restro')
-      )
+    let isFirstRow = true
+    
+    for (const date of sortedDates) {
+      const item = dateMap.get(date)!
+
+      // Calculate totals - make sure we're not double counting
+      const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
+      const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
+      const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
+      const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
+
+      // Total = Room Tariff + Extra Pax + Food + Post Charges - Allowances - Advances
+      // Note: Advances and Allowances are subtracted because they're negative amounts
+      const total = item.roomChargeAmount + item.exPaxAmount + foodTotal + postTotal - allowanceTotal - advanceTotal
+
+      console.log(`📊 Row: ${room} - ${date}`, {
+        roomCharge: item.roomChargeAmount,
+        exPax: item.exPaxAmount,
+        food: foodTotal,
+        post: postTotal,
+        allowance: allowanceTotal,
+        advance: advanceTotal,
+        total: total
+      })
+
+      rows.push({
+        id: `row-${room}-${date}`,
+        displayIndex: index++,
+        roomNumber: isFirstRow ? room : '',
+        date: date,
+        roomTariff: item.roomChargeAmount,
+        exPax: item.exPaxAmount,
+        cgst: item.cgstAmount,
+        sgst: item.sgstAmount,
+        food: foodTotal,
+        total: total,
+        advanceTotal: advanceTotal,
+        postTotal: postTotal,
+        allowanceTotal: allowanceTotal,
+        postAllowNet: postTotal - allowanceTotal - advanceTotal,
+        postCharges: item.postCharges,
+        allowances: item.allowances,
+        advances: item.advances,
+        foodCharges: item.foodCharges,
+        sacCode: '996311',
+        isFirstRow: isFirstRow,
+      })
+      
+      isFirstRow = false
+    }
+  }
+
+  console.log(`✅ Generated ${rows.length} table rows`)
+  return rows
+}, [roomCharges, foodCharges, nonFoodPostCharges, advances, otherAllowances])
+
+  // ========== ADD DEBUG LOGS HERE ==========
+console.log('🔍 DETAILED TABLE ROWS DEBUG:');
+console.log('Total tableRows:', tableRows.length);
+tableRows.forEach((row, idx) => {
+  console.log(`Row ${idx + 1}:`, {
+    roomNumber: row.roomNumber,
+    date: row.date,
+    roomTariff: row.roomTariff,
+    exPax: row.exPax,
+    cgst: row.cgst,
+    sgst: row.sgst,
+    food: row.food,
+    total: row.total,
+    advanceTotal: row.advanceTotal,
+    postTotal: row.postTotal,
+    allowanceTotal: row.allowanceTotal,
+    postCharges: row.postCharges,
+    allowances: row.allowances,
+    advances: row.advances,
+    foodCharges: row.foodCharges,
+    isFirstRow: row.isFirstRow
+  });
+});
+
+console.log('📊 ROOM CHARGES:', roomCharges.length);
+console.log('📊 POST CHARGES:', postCharges.length);
+console.log('📊 ALLOWANCES:', allowances.length);
+console.log('📊 FOOD CHARGES:', foodCharges.length);
+console.log('📊 ADVANCES:', advances.length);
+console.log('📊 OTHER ALLOWANCES:', otherAllowances.length);
+
+
+  // ========== CALCULATE TOTALS ==========
+  const totals = useMemo(() => {
+    const totalRoomTariffAmount = roundToTwo(
+      tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
+    )
+    const totalExPaxAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.exPax, 0))
+    const totalCgstAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.cgst, 0))
+    const totalSgstAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.sgst, 0))
+    const totalFoodAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.food, 0))
+    const totalAdvanceAmount = roundToTwo(
+      tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
+    )
+    const totalPostAmount = roundToTwo(
+      tableRows.reduce((sum, row) => sum + row.postTotal, 0)
+    )
+    const totalAllowanceAmount = roundToTwo(
+      tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
+    )
+    const totalAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.total, 0))
+    const netTotal = billData[0]?.net_payable || totalAmount
+
+    console.log('💰 Totals calculated:', {
+      totalRoomTariffAmount,
+      totalExPaxAmount,
+      totalCgstAmount,
+      totalSgstAmount,
+      totalFoodAmount,
+      totalAdvanceAmount,
+      totalPostAmount,
+      totalAllowanceAmount,
+      totalAmount,
+      netTotal
     })
-  }, [postCharges])
 
-  const advances = useMemo(() => {
-    return allowances.filter((r) => {
-      const desc = (r.description || r.particulars || '').toLowerCase()
-      return desc.includes('advance') || desc.includes('deposit') || desc.includes('prepaid')
-    })
-  }, [allowances])
+    return {
+      totalRoomTariffAmount,
+      totalExPaxAmount,
+      totalCgstAmount,
+      totalSgstAmount,
+      totalFoodAmount,
+      totalAdvanceAmount,
+      totalPostAmount,
+      totalAllowanceAmount,
+      totalAmount,
+      netTotal,
+    }
+  }, [tableRows, billData])
 
-  const otherAllowances = useMemo(() => {
-    return allowances.filter((r) => {
-      const desc = (r.description || r.particulars || '').toLowerCase()
-      return !(desc.includes('advance') || desc.includes('deposit') || desc.includes('prepaid'))
-    })
-  }, [allowances])
 
-  const discountAmount = useMemo(() => {
-    return roundToTwo(roomCharges.reduce((s, r) => s + (r.discount_amount || 0), 0))
-  }, [roomCharges])
 
   // ========== DISPLAY VALUES ==========
   const displayCheckedOutRooms = summary?.checked_out_rooms || summary?.room_numbers || []
@@ -655,186 +1028,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         return '8pt'
     }
   }, [printSettings?.table_font_size])
-
-  // ========== GENERATE TABLE ROWS (ROOM WISE) ==========
-  const tableRows = useMemo(() => {
-    const rows: TableRowWithIndex[] = []
-    let index = 1
-
-    // Group by room first, then by date
-    const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
-    
-    // Combine all charges
-    const allCharges = [...roomCharges, ...foodCharges, ...nonFoodPostCharges, ...advances, ...otherAllowances]
-    
-    allCharges.forEach((charge) => {
-      const roomNum = charge.room_number || 'COMMON'
-      const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
-      
-      if (!roomGroups.has(roomNum)) {
-        roomGroups.set(roomNum, new Map())
-      }
-      
-      const dateMap = roomGroups.get(roomNum)!
-      if (!dateMap.has(dateKey)) {
-        dateMap.set(dateKey, {
-          date: dateKey,
-          roomChargeAmount: 0,
-          exPaxAmount: 0,
-          postCharges: [],
-          allowances: [],
-          advances: [],
-          foodCharges: [],
-          cgstAmount: 0,
-          sgstAmount: 0,
-          roomNumbers: new Set([roomNum]),
-        })
-      }
-      
-      const item = dateMap.get(dateKey)!
-      
-      if (!charge.isPostCharge) {
-        item.roomChargeAmount += charge.room_tariff_per_day || 0
-        item.exPaxAmount += charge.ex_pax_total || 0
-        item.cgstAmount += charge.cgst_amount || 0
-        item.sgstAmount += charge.sgst_amount || 0
-      }
-      
-      if (charge.isPostCharge) {
-        const amount = Math.abs(charge.total_amount || 0)
-        const desc = (charge.description || '').toLowerCase()
-        
-        if (desc.includes('food') || desc.includes('meal') || desc.includes('breakfast') || 
-            desc.includes('lunch') || desc.includes('dinner') || desc.includes('coffee') ||
-            desc.includes('restaurant') || desc.includes('bar') || desc.includes('snack')) {
-          item.foodCharges.push({
-            description: charge.description || 'Food',
-            amount,
-            id: charge.id,
-          })
-        } else if (desc.includes('advance') || desc.includes('deposit') || desc.includes('prepaid')) {
-          item.advances.push({
-            description: charge.description || 'Advance',
-            amount,
-            id: charge.id,
-          })
-        } else if (desc.includes('allowance')) {
-          item.allowances.push({
-            description: charge.description || 'Allowance',
-            amount,
-            id: charge.id,
-          })
-        } else {
-          item.postCharges.push({
-            description: charge.description || 'Post Charge',
-            amount,
-            id: charge.id,
-          })
-        }
-      }
-    })
-
-    // Sort rooms
-    const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
-      if (a === 'COMMON') return 1
-      if (b === 'COMMON') return -1
-      // Try numeric sort if both are numbers
-      const numA = parseInt(a)
-      const numB = parseInt(b)
-      if (!isNaN(numA) && !isNaN(numB)) {
-        return numA - numB
-      }
-      return a.localeCompare(b)
-    })
-
-    for (const room of sortedRooms) {
-      const dateMap = roomGroups.get(room)!
-      const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
-        const dateA = a.split('/').reverse().join('-')
-        const dateB = b.split('/').reverse().join('-')
-        return new Date(dateA).getTime() - new Date(dateB).getTime()
-      })
-
-      let isFirstRow = true
-      
-      for (const date of sortedDates) {
-        const item = dateMap.get(date)!
-
-        const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
-        const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
-        const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
-        const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
-
-        const totalPost = postTotal + foodTotal
-        const totalAllow = allowanceTotal + advanceTotal
-        const total = item.roomChargeAmount + item.exPaxAmount + totalPost - totalAllow
-
-        rows.push({
-          id: `row-${room}-${date}`,
-          displayIndex: index++,
-          roomNumber: isFirstRow ? room : '',
-          date: date,
-          roomTariff: item.roomChargeAmount,
-          exPax: item.exPaxAmount,
-          cgst: item.cgstAmount,
-          sgst: item.sgstAmount,
-          food: foodTotal,
-          total: total,
-          advanceTotal: advanceTotal,
-          postTotal: totalPost,
-          allowanceTotal: totalAllow,
-          postAllowNet: totalPost - totalAllow,
-          postCharges: item.postCharges,
-          allowances: item.allowances,
-          advances: item.advances,
-          foodCharges: item.foodCharges,
-          sacCode: '996311',
-          isFirstRow: isFirstRow,
-        })
-        
-        isFirstRow = false
-      }
-    }
-
-    return rows
-  }, [roomCharges, foodCharges, nonFoodPostCharges, advances, otherAllowances])
-
-  // ========== CALCULATE TOTALS ==========
-  const totals = useMemo(() => {
-    const totalRoomTariffAmount = roundToTwo(
-      tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
-    )
-    const totalExPaxAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.exPax, 0))
-    const totalCgstAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.cgst, 0))
-    const totalSgstAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.sgst, 0))
-    const totalFoodAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.food, 0))
-    const totalAdvanceAmount = roundToTwo(
-      tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
-    )
-    const totalPostAmount = roundToTwo(
-      tableRows.reduce((sum, row) => sum + row.postTotal, 0)
-    )
-    const totalAllowanceAmount = roundToTwo(
-      tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
-    )
-    const totalAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.total, 0))
-    const netTotal = billData[0]?.net_payable || totalAmount
-
-    return {
-      totalRoomTariffAmount,
-      totalExPaxAmount,
-      totalCgstAmount,
-      totalSgstAmount,
-      totalFoodAmount,
-      totalAdvanceAmount,
-      totalPostAmount,
-      totalAllowanceAmount,
-      totalAmount,
-      netTotal,
-    }
-  }, [tableRows, billData])
-
-  const hasAdvanceData = totals.totalAdvanceAmount > 0
 
   // ========== STYLES ==========
   const getBillStyles = useCallback(() => {
@@ -1428,120 +1621,171 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     )
   }, [printSettings, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, summary])
 
-  const renderChargesTable = useCallback(() => {
-    const showRowNums = printSettings?.show_row_numbers === 1
-
-    const headers: React.ReactElement[] = []
-    if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
-    headers.push(<th key="room" className="col-room bct-left">ROOM</th>)
-    headers.push(<th key="date" className="col-date bct-left">DATE</th>)
-    headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
-    headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
-    headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
-    headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
-    headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
-    headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
-
-    const totalCols = headers.length
-
-    const bodyRows: React.ReactElement[] = []
-    let runningIndex = 1
-
-    tableRows.forEach((row) => {
-      const mainIndex = runningIndex++
-
-      const foodDisplay = row.food > 0 ? formatAmtDisplay(row.food) : '-'
-
-      const cells: React.ReactElement[] = []
-      if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>)
-      cells.push(
-        <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'normal' }}>
-          {row.roomNumber}
-        </td>
-      )
-      cells.push(<td key="date" className="bct-left">{row.date}</td>)
-      cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff)}</td>)
-      cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax)}</td>)
-      cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst)}</td>)
-      cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst)}</td>)
-      cells.push(<td key="food" className="bct-right">{foodDisplay}</td>)
-      cells.push(
-        <td key="total" className="bct-right" style={{ fontWeight: 600 }}>
-          {formatAmtDisplay(row.total)}
-        </td>
-      )
-      bodyRows.push(<tr key={row.id}>{cells}</tr>)
-    })
-
-    // Add total row
-    const footerCells: React.ReactElement[] = []
-    const labelColSpan = showRowNums ? 3 : 2
-    
-    footerCells.push(
-      <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ fontWeight: 700 }}>
-        Total
-      </td>
-    )
-    footerCells.push(
-      <td key="total_tariff" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totals.totalRoomTariffAmount)}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_expax" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totals.totalExPaxAmount)}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_cgst" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totals.totalCgstAmount)}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_sgst" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totals.totalSgstAmount)}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_food" className="bct-right" style={{ fontWeight: 700 }}>
-        {totals.totalFoodAmount > 0 ? formatAmtDisplay(totals.totalFoodAmount) : '-'}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_amount" className="bct-right" style={{ fontWeight: 800, background: '#f0f0f0' }}>
-        {formatAmtDisplay(totals.totalAmount)}
-      </td>
-    )
-
-    // Grand Total row
-    const summaryRows: React.ReactElement[] = []
-
-    summaryRows.push(
-      <tr key="summary_grand_total" style={{ background: headerBg, color: headerText }}>
-        <td colSpan={totalCols - 1} className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
-          TOTAL PAID (INR)
-        </td>
-        <td className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
-          ₹{formatAmt(totals.netTotal)}
-        </td>
-      </tr>
-    )
-
+const renderChargesTable = useCallback(() => {
+  console.log('🎯 Rendering Charges Table, tableRows:', tableRows.length);
+  
+  if (tableRows.length === 0) {
     return (
-      <div style={{ overflowX: 'auto' }}>
-        <table className="bill-charges-table">
-          <thead>
-            <tr>{headers}</tr>
-          </thead>
-          <tbody>{bodyRows}</tbody>
-          <tfoot>
-            <tr key="footer1">{footerCells}</tr>
-            {summaryRows}
-          </tfoot>
-        </table>
+      <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+        No charges to display.
       </div>
-    )
-  }, [printSettings, tableRows, totals, headerBg, headerText])
+    );
+  }
+
+  const showRowNums = printSettings?.show_row_numbers === 1;
+
+  // Add ALLOWANCE and ADVANCE columns
+  const headers: React.ReactElement[] = [];
+  if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>);
+  headers.push(<th key="room" className="col-room bct-left">ROOM</th>);
+  headers.push(<th key="date" className="col-date bct-left">DATE</th>);
+  headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>);
+  headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>);
+  headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>);
+  headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>);
+  headers.push(<th key="food" className="col-amount bct-right">FOOD</th>);
+  headers.push(<th key="post" className="col-amount bct-right">POST</th>);
+  headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>);
+  headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>);
+  headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>);
+
+  const totalCols = headers.length;
+
+  const bodyRows: React.ReactElement[] = [];
+  let runningIndex = 1;
+
+  tableRows.forEach((row) => {
+    const mainIndex = runningIndex++;
+    
+    // Debug each row
+    console.log(`📝 Building row ${mainIndex}:`, {
+      roomNumber: row.roomNumber,
+      date: row.date,
+      roomTariff: row.roomTariff,
+      exPax: row.exPax,
+      cgst: row.cgst,
+      sgst: row.sgst,
+      food: row.food,
+      postTotal: row.postTotal,
+      advanceTotal: row.advanceTotal,
+      allowanceTotal: row.allowanceTotal,
+      total: row.total
+    });
+
+    const cells: React.ReactElement[] = [];
+    if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>);
+    cells.push(
+      <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'normal' }}>
+        {row.roomNumber || 'N/A'}
+      </td>
+    );
+    cells.push(<td key="date" className="bct-left">{row.date || 'N/A'}</td>);
+    cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff || 0)}</td>);
+    cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax || 0)}</td>);
+    cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst || 0)}</td>);
+    cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst || 0)}</td>);
+    cells.push(<td key="food" className="bct-right">{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>);
+    cells.push(<td key="post" className="bct-right">{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>);
+    cells.push(<td key="advance" className="bct-right" style={{ color: row.advanceTotal > 0 ? '#c0392b' : 'inherit' }}>
+      {row.advanceTotal > 0 ? formatAmtDisplay(row.advanceTotal) : '-'}
+    </td>);
+    cells.push(<td key="allowance" className="bct-right" style={{ color: row.allowanceTotal > 0 ? '#c0392b' : 'inherit' }}>
+      {row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}
+    </td>);
+    cells.push(
+      <td key="total" className="bct-right" style={{ fontWeight: 600 }}>
+        {formatAmtDisplay(row.total || 0)}
+      </td>
+    );
+    bodyRows.push(<tr key={row.id}>{cells}</tr>);
+  });
+
+  console.log(`✅ Built ${bodyRows.length} body rows`);
+
+  // Footer row
+  const footerCells: React.ReactElement[] = [];
+  const labelColSpan = showRowNums ? 3 : 2;
+  
+  footerCells.push(
+    <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ fontWeight: 700 }}>
+      Total
+    </td>
+  );
+  footerCells.push(
+    <td key="total_tariff" className="bct-right" style={{ fontWeight: 700 }}>
+      {formatAmtDisplay(totals.totalRoomTariffAmount || 0)}
+    </td>
+  );
+  footerCells.push(
+    <td key="total_expax" className="bct-right" style={{ fontWeight: 700 }}>
+      {formatAmtDisplay(totals.totalExPaxAmount || 0)}
+    </td>
+  );
+  footerCells.push(
+    <td key="total_cgst" className="bct-right" style={{ fontWeight: 700 }}>
+      {formatAmtDisplay(totals.totalCgstAmount || 0)}
+    </td>
+  );
+  footerCells.push(
+    <td key="total_sgst" className="bct-right" style={{ fontWeight: 700 }}>
+      {formatAmtDisplay(totals.totalSgstAmount || 0)}
+    </td>
+  );
+  footerCells.push(
+    <td key="total_food" className="bct-right" style={{ fontWeight: 700 }}>
+      {totals.totalFoodAmount > 0 ? formatAmtDisplay(totals.totalFoodAmount) : '-'}
+    </td>
+  );
+  footerCells.push(
+    <td key="total_post" className="bct-right" style={{ fontWeight: 700 }}>
+      {totals.totalPostAmount > 0 ? formatAmtDisplay(totals.totalPostAmount) : '-'}
+    </td>
+  );
+  footerCells.push(
+    <td key="total_advance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
+      {totals.totalAdvanceAmount > 0 ? formatAmtDisplay(totals.totalAdvanceAmount) : '-'}
+    </td>
+  );
+  footerCells.push(
+    <td key="total_allowance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
+      {totals.totalAllowanceAmount > 0 ? formatAmtDisplay(totals.totalAllowanceAmount) : '-'}
+    </td>
+  );
+  footerCells.push(
+    <td key="total_amount" className="bct-right" style={{ fontWeight: 800, background: '#f0f0f0' }}>
+      {formatAmtDisplay(totals.totalAmount || 0)}
+    </td>
+  );
+
+  // Grand Total row
+  const summaryRows: React.ReactElement[] = [];
+
+  summaryRows.push(
+    <tr key="summary_grand_total" style={{ background: headerBg, color: headerText }}>
+      <td colSpan={totalCols - 1} className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
+        TOTAL PAID (INR)
+      </td>
+      <td className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
+        ₹{formatAmt(totals.netTotal || 0)}
+      </td>
+    </tr>
+  );
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table className="bill-charges-table">
+        <thead>
+          <tr>{headers}</tr>
+        </thead>
+        <tbody>{bodyRows}</tbody>
+        <tfoot>
+          <tr key="footer1">{footerCells}</tr>
+          {summaryRows}
+        </tfoot>
+      </table>
+    </div>
+  );
+}, [printSettings, tableRows, totals, headerBg, headerText]);
 
   const renderHorizontalSummary = useCallback(() => null, [])
 
