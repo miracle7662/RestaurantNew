@@ -4210,52 +4210,79 @@ const TransferRoomComponent = ({
 
   return (
     <ActionBox title="Transfer Room" onClose={onClose}>
-      <Row className="mb-3">
-        <Col md={4}>
-          <div className="d-flex align-items-center gap-2 pt-2">
-            <Form.Label className="mb-0 fs-small fw-bold" style={{ minWidth: '130px' }}>
-              Current Room No
-            </Form.Label>
-            <Form.Control
-              type="text"
-              size="sm"
-              value={selectedRoom.roomNo}
-              readOnly
-              className="fs-small bg-light"
-              style={{ width: '150px' }}
-            />
-          </div>
-        </Col>
+   <Row className="mb-3">
+  <Col md={4}>
+    <div className="d-flex align-items-center gap-2 pt-2">
+      <Form.Label
+        className="mb-0 fw-bold"
+        style={{
+          minWidth: '150px',
+          fontSize: '16px'
+        }}
+      >
+        Current Room No
+      </Form.Label>
 
-        <Col md={4}>
-          <div className="d-flex align-items-center gap-2 pt-2">
-            <Form.Label className="mb-0 fs-small fw-bold" style={{ minWidth: '130px' }}>
-              Transfer Room No
-            </Form.Label>
-            <Form.Select
-              size="sm"
-              value={targetRoomNo}
-              onChange={(e) => {
-                setTargetRoomNo(e.target.value)
-                setShowTestPreview(false)
-              }}
-              className="fs-small"              
-              disabled={loadingUpdate}
-              style={{ width: '200px' }}>
-              <option value="">Select a vacant room</option>
-              {vacantRooms.map((room) => (
-                <option key={room.room_id} value={room.room_no}>
-                  {room.room_no}
-                </option>
-              ))}
-            </Form.Select>
-          </div>
-          
-          {vacantRooms.length === 0 && (
-            <div className="text-danger small mt-1">No vacant rooms available</div>
-          )}
-        </Col>
-      </Row>
+      <Form.Control
+  type="text"
+  value={selectedRoom.roomNo}
+  readOnly
+  className="bg-light"
+  style={{
+    width: '150px',
+    fontSize: '16px',
+    height: '38px'
+    
+  }}
+/>
+    </div>
+  </Col>
+
+  <Col md={4}>
+    <div className="d-flex align-items-center gap-2 pt-2">
+      <Form.Label
+        className="mb-0 fw-bold"
+        style={{
+          minWidth: '160px',
+          fontSize: '16px'
+        }}
+      >
+        Transfer Room No
+      </Form.Label>
+
+      <Form.Select
+  value={targetRoomNo}
+  onChange={(e) => {
+    setTargetRoomNo(e.target.value)
+    setShowTestPreview(false)
+  }}
+  disabled={loadingUpdate}
+  style={{
+    width: '220px',
+    fontSize: '16px',
+    height: '38px'
+  }}
+>
+        <option value="">Select a vacant room</option>
+
+        {vacantRooms.map((room) => (
+          <option key={room.room_id} value={room.room_no}>
+            {room.room_no}
+          </option>
+        ))}
+      </Form.Select>
+    </div>
+
+    {vacantRooms.length === 0 && (
+      <div
+        className="text-danger mt-1"
+        style={{ fontSize: '14px' }}
+      >
+        No vacant rooms available
+      </div>
+    )}
+  </Col>
+</Row>
       
       <div className="action-table-container mb-2">
         <div className="small fw-bold mb-1">
