@@ -30,6 +30,7 @@ interface DisplayDetailRow {
   room_category_name: string
   converted_category_name: string
   bill_date: string
+  detail_checkin_datetime:string
   bill_date_formatted: string
   checkin_datetime: string
   checkout_datetime: string
@@ -460,7 +461,7 @@ const fetchData = async () => {
           ? '-'
           : row.converted_category_name || '-',
         bill_date: row.bill_date || row.checkin_datetime || '',
-        bill_date_formatted: formatBillDate(row.bill_date || row.checkin_datetime),
+        bill_date_formatted: formatBillDate(row.detail_checkin_datetime ),
         checkin_datetime: row.checkin_datetime || '',
         checkout_datetime: row.checkout_datetime || '',
         no_of_days: isPostCharge ? 0 : 1,
