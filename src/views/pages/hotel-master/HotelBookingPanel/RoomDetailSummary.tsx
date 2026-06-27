@@ -678,14 +678,14 @@ const fetchData = async () => {
     selectedRowsForCheckout.reduce((sum, row) => sum + row.total_amount, 0),
   )
 
- const selectedRoomSummary = (() => {
+const selectedRoomSummary = (() => {
   if (!combinedSummary) return null
 
   const seenRooms = new Set<string>()
   const roomCats = new Set<string>()
   const convCats = new Set<string>()
   const uniqueGuestNames = new Set<string>()
-  const uniqueGuestIds = new Set<number>() // ✅ Collect guest IDs
+  const uniqueGuestIds = new Set<number>()
 
   let adults = 0,
     pax = 0,
@@ -698,14 +698,14 @@ const fetchData = async () => {
     childCharge = 0,
     driverCharge = 0
   let taxAmt = 0,
-    discountSum = 0,
+    discountPercentSum = 0,
+    discountAmountSum = 0,  // ✅ Add this for total discount amount
     taxPctSum = 0,
     roomChargeCount = 0
   let minCI = '',
     maxCO = ''
 
   for (const row of filteredRowsByRoom) {
-    // ✅ Collect unique guest names and IDs
     if (row.guest_name && row.guest_name !== 'Guest') {
       uniqueGuestNames.add(row.guest_name)
     }
@@ -726,7 +726,8 @@ const fetchData = async () => {
       childCharge += row.child_total
       driverCharge += row.driver_total
       taxAmt += row.tax_amount
-      discountSum += row.discount_percent
+      discountPercentSum += row.discount_percent
+      discountAmountSum += row.discount_amount  // ✅ Sum up discount amounts
       taxPctSum += row.tax_percent
       roomChargeCount++
       if (!minCI || row.checkin_datetime < minCI) minCI = row.checkin_datetime
@@ -752,7 +753,6 @@ const fetchData = async () => {
     stayDays = stayDays > 0 ? stayDays : 1
   }
 
-  // ✅ Create comma-separated guest names and IDs
   let guestNamesDisplay = '';
   if (uniqueGuestNames.size > 0) {
     guestNamesDisplay = Array.from(uniqueGuestNames).join(', ');
@@ -769,7 +769,7 @@ const fetchData = async () => {
 
   return {
     guest_name: guestNamesDisplay,
-    guest_id: guestIdsDisplay, // ✅ Now comma-separated guest IDs
+    guest_id: guestIdsDisplay,
     payment_method: combinedSummary.payment_method,
     room_categories_str: Array.from(roomCats).join(', '),
     converted_categories_str: Array.from(convCats).join(', ') || '-',
@@ -781,6 +781,8 @@ const fetchData = async () => {
     total_child_unpaid: 0,
     total_driver: driver,
     total_room_tariff: roundToTwo(roomTariff),
+    total_discount_amount: roundToTwo(discountAmountSum),  // ✅ Now uses discountAmountSum
+    total_discount_percent: roundToTwo(discountPercentSum), // ✅ Added for percent total (optional)
     total_ex_pax_charge: roundToTwo(exPaxCharge),
     total_child_paid_amount: roundToTwo(childCharge),
     total_driver_charge: roundToTwo(driverCharge),
@@ -789,7 +791,6 @@ const fetchData = async () => {
     selected: combinedSummary.selected,
   }
 })()
-
   const handleCheckoutClick = () => {
     if (!combinedSummary) {
       toast.error('No check-in data found')
@@ -1390,6 +1391,7 @@ const handleConfirmCheckout = async () => {
                               <th>Pax</th>
                               <th>Amount</th>
                               <th>Discount%</th>
+                              <th>Discount Amt</th>
                               <th>Tax%</th>
                               <th>Tax Amt</th>
                               <th>Ex_Pax</th>
@@ -1454,6 +1456,10 @@ const handleConfirmCheckout = async () => {
                                   <td className="text-center">
                                     {row.isPostCharge ? '-' : `${row.discount_percent}%`}
                                   </td>
+                                  <td className="text-center">
+                                    {row.isPostCharge ? '-' : `${row.discount_amount.toFixed(2)}`}
+                                  </td>
+                                  
                                   <td className="text-center">
                                     {row.isPostCharge ? '-' : `${row.tax_percent.toFixed(2)}%`}
                                   </td>
@@ -1548,6 +1554,7 @@ const handleConfirmCheckout = async () => {
                           <th>Adults</th>
                           <th>Pax</th>
                           <th>Amount</th>
+                          <th>Discount Amt</th>
                           <th>Ex_Pax</th>
                           <th>Ex_Pax Total</th>
                           <th>Child</th>
@@ -1587,6 +1594,7 @@ const handleConfirmCheckout = async () => {
                             <td>{selectedRoomSummary.total_adults}</td>
                             <td>{selectedRoomSummary.total_pax}</td>
                             <td>{formatAmountClean(selectedRoomSummary.total_room_tariff)}</td>
+                            <td>{formatAmountClean(selectedRoomSummary.total_discount_amount)}</td>
                             <td>{selectedRoomSummary.total_ex_pax}</td>
                             <td>{formatAmountClean(selectedRoomSummary.total_ex_pax_charge)}</td>
                             <td>{selectedRoomSummary.total_child_paid}</td>
