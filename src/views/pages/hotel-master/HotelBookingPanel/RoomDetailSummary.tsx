@@ -74,13 +74,16 @@ interface DisplayDetailRow {
   room_number: string
   room_category_name: string
   converted_category_name: string
+
+  // ✅ Bill Date must ALWAYS be sourced from this row-specific field.
+  // Never use bill_date / checkin_datetime / any other date field for Bill Date display.
+  detail_checkin_datetime: string
   bill_date: string
   bill_date_formatted: string
+
   checkin_datetime: string
   checkout_datetime: string
-  detail_checkin_datetime: string
   no_of_days: number
-
   day_number: number
   original_day_number: number
   room_tariff_per_day: number
@@ -131,6 +134,7 @@ interface DisplayDetailRow {
   department_name: string
   sortKey?: string
 }
+
 
 interface CombinedGuestSummary {
   checkin_id: number
@@ -541,10 +545,8 @@ const fetchData = async () => {
         // We want:
         // - Advance Addition => adults=0, pax=0
         // - Check-in Day / Room Extension => real adults/pax
-        const nextAdults = isAdvanceAddition ? 0 : (row.detail_adults ?? 0);
-        const nextPax = isAdvanceAddition ? 0 : (row.detail_pax ?? row.detail_adults ?? 0);
-
         const shouldOverwrite = !existing || (!isAdvanceAddition && existing.adults === 0 && existing.pax === 0);
+
 
         if (shouldOverwrite) {
           const detailData = {
@@ -716,9 +718,10 @@ if (
       const checkin = checkinMap.get(charge.checkin_id);
       if (!checkin) continue;
 
-      const isPostCharge = isPostChargeType(charge);
+        const isPostCharge = isPostChargeType(charge);
 
       let associatedDetail: any = undefined;
+
       if (charge.detail_id) {
         associatedDetail = detailMap.get(charge.detail_id);
       }
@@ -750,10 +753,10 @@ if (
       if (isPostCharge) {
         const totalAmount = toNumber(charge.total_amount)
         const isAllowance = totalAmount < 0
-        const billDateFormatted = charge.checkin_datetime
-
-          ? formatBillDate(charge.checkin_datetime)
-          : formatBillDate(charge.created_at || new Date().toISOString());
+        const detail_checkin_datetime = charge.detail_checkin_datetime || ''
+        const billDateFormatted = detail_checkin_datetime
+          ? formatBillDate(detail_checkin_datetime)
+          : '-';
 
         processedCharges.push({
           ...charge,
@@ -875,17 +878,7 @@ if (
       const driverTaxPercent = driverCount > 0 ? toNumber(charge.driver_tax_percent || taxPercent) : 0;
       const driverTax = driverCount > 0 ? (charge.driver_tax != null ? toNumber(charge.driver_tax) : roundToTwo((driverPrice * driverTaxPercent) / 100)) : 0;
 
-        // IMPORTANT: use the bill/date from the current API row.
-        // Do NOT fall back to `associatedDetail.checkin_datetime`, because `associatedDetail`
-        // is stored per detail_id and can be reused across multiple room/day rows.
-        const chargeDateForBill =
-          charge.checkin_datetime ||
-          (charge as any).detail_checkin_datetime ||
-          (charge as any).charge_checkin_datetime ||
-          ''
-
-        const billDateFormatted = formatBillDate(chargeDateForBill)
-
+      const billDateFormatted = charge.checkin_datetime ? formatBillDate(charge.checkin_datetime) : formatBillDate(associatedDetail.checkin_datetime);
 
       const roomCategoryForThisDay = charge.room_category_name || associatedDetail.room_category_name || '-';
       const convertedCategoryForThisDay = charge.converted_category_name || associatedDetail.converted_category_name || '-';
@@ -962,8 +955,10 @@ adults: associatedDetail.adults ?? 0,
           room_category_name: charge.department_name || '-',
           converted_category_name: '-',
           bill_date: charge.checkin_datetime || charge.checkin_datetime_from_detail || '',
+          detail_checkin_datetime: (charge as any).detail_checkin_datetime || '',
           bill_date_formatted: charge.bill_date_formatted!,
           checkin_datetime: charge.checkin_datetime_from_detail || '',
+
           checkout_datetime: charge.checkout_datetime_from_detail || '',
           no_of_days: 0,
           day_number: 0,
@@ -1031,8 +1026,12 @@ adults: associatedDetail.adults ?? 0,
           room_number: roomNumber,
           room_category_name: charge.actual_room_category_name || charge.room_category_name || '-',
           converted_category_name: charge.actual_converted_category_name || charge.converted_category_name || '-',
-          bill_date: charge.checkin_datetime || charge.checkin_datetime_from_detail || '',
-          bill_date_formatted: charge.bill_date_formatted!,
+
+          // ✅ Bill Date must ALWAYS be row-specific `detail_checkin_datetime`
+          detail_checkin_datetime: (charge as any).detail_checkin_datetime || '',
+          bill_date: (charge as any).detail_checkin_datetime || '',
+          bill_date_formatted: (charge as any).detail_checkin_datetime ? formatBillDate((charge as any).detail_checkin_datetime) : '-',
+
           checkin_datetime: charge.checkin_datetime_from_detail || '',
           checkout_datetime: charge.checkout_datetime_from_detail || '',
           no_of_days: 1,
@@ -1985,7 +1984,7 @@ const handleConfirmCheckout = async () => {
                           <thead className="bg-fo-header ">
                             <tr>
                               <th>#</th>
-                             d <th>Bill Date</th>
+                              <th>Bill Date</th>
                               <th>Guest</th>
                               <th>GuestID</th>
                               <th>Room No.</th>
@@ -2021,7 +2020,9 @@ const handleConfirmCheckout = async () => {
                                 <tr key={row.id} className={rowClass}>
                                   <td className="text-center">{idx + 1}</td>
                                   <td className="bill-date-highlight text-center">
-                                    {row.bill_date_formatted}
+                                    {row.detail_checkin_datetime
+                                      ? formatBillDate(row.detail_checkin_datetime)
+                                      : '-'}
                                   </td>
                                   <td>{row.guest_name}</td>
                                   <td className="text-center">{row.guest_id}</td>
