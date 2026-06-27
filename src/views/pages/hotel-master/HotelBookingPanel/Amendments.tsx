@@ -30,6 +30,10 @@ import RoomTransferService from '@/common/hotel/roomTransferService';
 import GuestForm from '../Guest/GuestForm'
 import FormModal from '@/components/Common/models/FormModal'
 
+
+import DiscountService from '@/common/hotel/discount'
+
+
 // Types
 interface OccupiedRoom {
   roomNo: string
@@ -5445,12 +5449,29 @@ const SwapRoomComponent = ({ selectedRoom, occupiedRooms, onClose, onRefresh }: 
 }
 
 
-// ================== Apply Discount Component ==================
+/// ================== Apply Discount Component ==================
+// Types
 interface ApplyDiscountProps {
   selectedRoom: OccupiedRoom
   allRoomsDetails: Detail[]
   onClose: () => void
   onRefresh: () => void
+}
+
+interface AffectedDay {
+  detail_id?: number
+  room_number?: string
+  checkin_datetime?: string
+  checkout_datetime?: string
+  no_of_days?: number
+  room_tariff?: number
+  discount_percent?: number
+  discount_amount?: number
+  total_amount?: number
+  debit_amount?: number
+  credit_amount?: number
+  base_amount?: number
+  per_day_discount?: number
 }
 
 const ApplyDiscountComponent = ({
@@ -5459,142 +5480,271 @@ const ApplyDiscountComponent = ({
   onClose,
   onRefresh,
 }: ApplyDiscountProps) => {
+  // ========================================
+  // STATE
+  // ========================================
   const originalDiscount = selectedRoom.detail.discount_percent || 0
   const [tempDiscountPercent, setTempDiscountPercent] = useState(originalDiscount)
   const [previewActive, setPreviewActive] = useState(false)
   const [loading, setLoading] = useState(false)
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false)
-  const [folioPreviewData, setFolioPreviewData] = useState<any[]>([])
+  const [backdatedApply, setBackdatedApply] = useState(false)
+  const [discountDetails, setDiscountDetails] = useState<any[]>([])
+  const [affectedDays, setAffectedDays] = useState<AffectedDay[]>([])
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0)
 
+  // ========================================
+  // EFFECTS
+  // ========================================
   useEffect(() => {
     setTempDiscountPercent(originalDiscount)
     setPreviewActive(false)
+    setBackdatedApply(false)
+    setDiscountDetails([])
+    setAffectedDays([])
+    setSelectedDayIndex(0)
   }, [originalDiscount])
 
-  const previewRow = useMemo(() => {
-    const updatedDetail = { ...selectedRoom.detail, discount_percent: tempDiscountPercent  }
-    return buildRoomDataRowFromDetail(updatedDetail, selectedRoom.checkin, selectedRoom.charges)
-  }, [selectedRoom, tempDiscountPercent])
+  // ✅ Fetch ALL days for this room on mount
+  useEffect(() => {
+    fetchAffectedDays()
+  }, [selectedRoom.detail.room_id, selectedRoom.checkin.checkin_id])
 
-  const originalRow = buildRoomDataRowFromDetail(
-    selectedRoom.detail,
-    selectedRoom.checkin,
-    selectedRoom.charges,
-  )
+  // ========================================
+  // ✅ HELPER: Safe number conversion
+  // ========================================
+  const safeNumber = (value: any): number => {
+    const num = Number(value)
+    return isNaN(num) ? 0 : num
+  }
 
+  // ========================================
+  // ✅ HELPER: Calculate totals safely
+  // ========================================
+  const calculateTotalDiscount = (items: AffectedDay[]): number => {
+    return items.reduce((sum, item) => {
+      return sum + safeNumber(item.discount_amount)
+    }, 0)
+  }
+
+  const calculateTotalAmount = (items: AffectedDay[]): number => {
+    return items.reduce((sum, item) => {
+      return sum + safeNumber(item.total_amount || item.debit_amount || 0)
+    }, 0)
+  }
+
+  // ========================================
+  // ✅ FETCH ALL DAYS FOR THIS ROOM (ALWAYS)
+  // ========================================
+  const fetchAffectedDays = async () => {
+    try {
+      const response = await DiscountService.getRoomDetails({
+        checkin_id: selectedRoom.checkin.checkin_id,
+        room_id: selectedRoom.detail.room_id
+      })
+
+      if (response.success) {
+        const details = response.data || []
+        
+        const formattedDetails = details.map((d: any) => ({
+          ...d,
+          discount_percent: safeNumber(d.discount_percent),
+          discount_amount: safeNumber(d.discount_amount),
+          total_amount: safeNumber(d.total_amount || d.debit_amount || 0),
+          debit_amount: safeNumber(d.debit_amount),
+          credit_amount: safeNumber(d.credit_amount),
+          no_of_days: safeNumber(d.no_of_days),
+          room_tariff: safeNumber(d.room_tariff),
+          checkout_datetime: d.checkout_datetime || d.checkout_datetime,
+          base_amount: safeNumber(d.base_amount || d.room_tariff * d.no_of_days),
+          per_day_discount: safeNumber(d.per_day_discount || 0)
+        }))
+        
+        setAffectedDays(formattedDetails)
+        
+        // ✅ Auto-select the CURRENT day when data loads
+        const currentIndex = findCurrentDayIndex(formattedDetails)
+        setSelectedDayIndex(currentIndex)
+        
+        // Filter for discount entries
+        const discountEntries = formattedDetails.filter((d: any) => d.discount_percent > 0)
+        setDiscountDetails(discountEntries)
+      }
+    } catch (error) {
+      console.error('Failed to fetch affected days:', error)
+    }
+  }
+
+  // ========================================
+  // ✅ FIND CURRENT DAY INDEX (Today's Date)
+  // ========================================
+  const findCurrentDayIndex = (days: AffectedDay[] = affectedDays): number => {
+    if (days.length === 0) return 0
+    
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    // Find the day where checkin_datetime matches today's date
+    for (let i = 0; i < days.length; i++) {
+      const day = days[i]
+      if (day.checkin_datetime) {
+        const checkinDate = new Date(day.checkin_datetime)
+        checkinDate.setHours(0, 0, 0, 0)
+        if (checkinDate.getTime() === today.getTime()) {
+          return i
+        }
+      }
+    }
+    
+    // If no match found, return the first day
+    return 0
+  }
+
+  // ========================================
+  // BUILD ROW FOR A SPECIFIC DAY
+  // ========================================
+  const buildRowForDay = (day: AffectedDay, index: number, isPreview: boolean = false) => {
+    const detail = selectedRoom.detail
+    const nights = day.no_of_days || detail.no_of_days || 1
+    const rate = day.room_tariff || detail.room_tariff || 0
+    
+    // Calculate discount for this day
+    const discountPercent = isPreview ? tempDiscountPercent : (day.discount_percent || 0)
+    const discountAmount = (rate * nights * discountPercent) / 100
+    
+    // Check if this is the current day (today)
+    const isCurrentDay = (() => {
+      if (!day.checkin_datetime) return false
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const checkinDate = new Date(day.checkin_datetime)
+      checkinDate.setHours(0, 0, 0, 0)
+      return checkinDate.getTime() === today.getTime()
+    })()
+    
+    return {
+      index: index + 1,
+      date: day.checkin_datetime ? new Date(day.checkin_datetime).toLocaleDateString() : '-',
+      guestName: selectedRoom.checkin.guest_name || '-',
+      guestId: selectedRoom.checkin.guest_id || '-',
+      roomNo: day.room_number || selectedRoom.roomNo,
+      type: detail.room_category_name || '-',
+      convCat: detail.converted_category_name || '-',
+      aDate: day.checkin_datetime ? new Date(day.checkin_datetime).toLocaleDateString() : '-',
+      aTime: day.checkin_datetime ? new Date(day.checkin_datetime).toLocaleTimeString().slice(0, 5) : '-',
+      dDate: day.checkout_datetime ? new Date(day.checkout_datetime).toLocaleDateString() : '-',
+      dTime: day.checkout_datetime ? new Date(day.checkout_datetime).toLocaleTimeString().slice(0, 5) : '-',
+      adults: detail.adults || 0,
+      pax: detail.pax || 0,
+      exPax: detail.ex_pax || 0,
+      exPaxPrice: '0.00',
+      exPaxTaxPercent: '0',
+      exPaxTax: '0.00',
+      exPaxTotal: '0.00',
+      childPaid: selectedRoom.checkin.child_paid || 0,
+      childUnpaid: selectedRoom.checkin.child_unpaid || 0,
+      childPrice: '0.00',
+      childTaxPercent: '0',
+      childTax: '0.00',
+      childTotal: '0.00',
+      driver: detail.driver || 0,
+      driverPrice: '0.00',
+      driverTaxPercent: '0',
+      driverTax: '0.00',
+      driverTotal: '0.00',
+      nights: nights,
+      rate: rate.toFixed(2),
+      discountPercent: isPreview ? tempDiscountPercent : (day.discount_percent || 0),
+      discountAmt: discountAmount.toFixed(2),
+      taxPercent: '0',
+      taxAmount: '0.00',
+      totalAmount: isPreview 
+        ? (rate * nights - discountAmount).toFixed(2)
+        : (day.total_amount || day.debit_amount || 0).toFixed(2),
+      isSelected: index === selectedDayIndex,
+      isCurrentDay: isCurrentDay,
+      isPreview: isPreview && (backdatedApply ? true : index === selectedDayIndex),
+      detail_id: day.detail_id
+    }
+  }
+
+  // ========================================
+  // HANDLERS
+  // ========================================
   const handleTest = () => {
     setPreviewActive(true)
-    toast.success('Preview updated')
+    
+    if (backdatedApply) {
+      toast.success('Preview updated - All days will be affected')
+    } else {
+      // ✅ Show which day is being previewed (current day)
+      const currentIndex = findCurrentDayIndex()
+      toast.success(`Preview updated - Day ${currentIndex + 1} (Current Day) only`)
+    }
   }
 
- const handleUpdate = async () => {
-  setLoading(true)
-  try {
-    const detail = selectedRoom.detail
-    const nights = detail.no_of_days || 1
-    const rate = detail.room_tariff || 0
-    const discountAmount = (rate * nights * tempDiscountPercent) / 100
-
-    // ✅ FIX: Update both discount_percent AND discount_amount
-    await DetailService.update(detail.detail_id, {
-      discount_percent: tempDiscountPercent,
-      discount_amount: discountAmount,  // ← Add this line
-    })
-
-    const chargesId = selectedRoom.charges?.guest_room_charges_id || selectedRoom.charges?.id
-    if (chargesId) {
-      const updatedDetail = {
-        ...detail,
-        discount_percent: tempDiscountPercent,
-        discount_amount: discountAmount,  // ← Also update in the updatedDetail
-      }
-      const updatedRow = buildRoomDataRowFromDetail(
-        updatedDetail,
-        selectedRoom.checkin,
-        selectedRoom.charges,
-      )
-      const newTotalAmount = parseFloat(updatedRow.totalAmount)
-      await GuestRoomChargesService.update(chargesId, {
-        total_amount: newTotalAmount,
-        guest_id: selectedRoom.checkin.guest_id,
-        room_id: detail.room_id,
-        checkin_id: selectedRoom.checkin.checkin_id,
-      })
-    } else {
-      const updatedDetail = {
-        ...detail,
-        discount_percent: tempDiscountPercent,
-        discount_amount: discountAmount,  // ← Also update here
-      }
-      const updatedRow = buildRoomDataRowFromDetail(updatedDetail, selectedRoom.checkin, null)
-      const newTotalAmount = parseFloat(updatedRow.totalAmount)
-      await GuestRoomChargesService.create({
-        guest_id: selectedRoom.checkin.guest_id,
-        room_id: detail.room_id,
-        checkin_id: selectedRoom.checkin.checkin_id,
-        total_amount: newTotalAmount,
-      })
+  const handleUpdate = async () => {
+    if (tempDiscountPercent < 0 || tempDiscountPercent > 100) {
+      toast.error('Discount must be between 0 and 100')
+      return
     }
 
-    // Rest of your code remains the same...
-    const folioRes = await GuestFolioService.list({ checkin_id: selectedRoom.checkin.checkin_id })
-    const folioEntries = folioRes.data || []
-    const existingDiscountEntry = folioEntries.find(
-      (entry) => entry.transaction_type === 'Discount' && entry.detail_id === detail.detail_id,
-    )
-
-    if (tempDiscountPercent === 0) {
-      if (existingDiscountEntry) {
-        await GuestFolioService.remove(existingDiscountEntry.folio_id)
-      }
-    } else {
-      const discountDescription = `Discount ${tempDiscountPercent}% applied`
-      if (existingDiscountEntry) {
-        await GuestFolioService.update(existingDiscountEntry.folio_id, {
-          credit_amount: discountAmount,
-          description: discountDescription,
-        })
-      } else {
-        await GuestFolioService.create({
-          checkin_id: selectedRoom.checkin.checkin_id,
-          hotelid: selectedRoom.checkin.hotelid,
-          detail_id: detail.detail_id,
-          transaction_type: 'Discount',
-          transaction_datetime: new Date().toISOString(),
-          description: discountDescription,
-          credit_amount: discountAmount,
-          payment_method: '',
-        })
-      }
-    }
-
-    toast.success(`Discount applied: ${tempDiscountPercent}%`)
-
+    setLoading(true)
+    
     try {
-      const folioRes = await GuestFolioService.list({
-        checkin_id: selectedRoom.checkin.checkin_id,
-      })
-      const recentFolios = folioRes.data || []
-      const discountFolios = recentFolios.filter(
-        (f: any) =>
-          f.transaction_type === 'Discount' && f.detail_id === selectedRoom.detail.detail_id,
-      )
-      setFolioPreviewData(discountFolios)
-      setShowConfirmationDialog(true)
-    } catch (folioError) {
-      console.warn('Could not fetch folio for preview:', folioError)
-    }
+      let targetDetailId;
+      
+      if (backdatedApply) {
+        // ✅ BACKDATED: Use first day's detail_id, SP will apply to ALL days
+        const firstDay = affectedDays[0]
+        targetDetailId = firstDay?.detail_id || selectedRoom.detail.detail_id
+      } else {
+        // ✅ SINGLE DAY: Use the CURRENT day's detail_id (today's date)
+        const currentIndex = findCurrentDayIndex()
+        const currentDay = affectedDays[currentIndex]
+        targetDetailId = currentDay?.detail_id || selectedRoom.detail.detail_id
+      }
 
-    onRefresh()
-  } catch (error) {
-    console.error('Failed to apply discount:', error)
-    toast.error('Could not apply discount')
-  } finally {
-    setLoading(false)
+      const response = await DiscountService.apply({
+        detail_id: targetDetailId,
+        checkin_id: selectedRoom.checkin.checkin_id,
+        hotelid: selectedRoom.checkin.hotelid,
+        discount_percent: tempDiscountPercent,
+        backdated_apply: backdatedApply,
+        user_id: selectedRoom.checkin.created_by_id || 1
+      })
+
+      if (!response.success) {
+        toast.error(response.message || 'Failed to apply discount')
+        setLoading(false)
+        return
+      }
+
+      const affectedCount = backdatedApply ? affectedDays.length : 1
+      const dayLabel = backdatedApply ? 'All days' : `Day ${findCurrentDayIndex() + 1} (Current)`
+      toast.success(`Discount ${tempDiscountPercent}% applied to ${dayLabel}`)
+
+      await fetchAffectedDays()
+      setPreviewActive(false)
+      setShowConfirmationDialog(true)
+      onRefresh()
+
+    } catch (error: any) {
+      console.error('Failed to apply discount:', error)
+      toast.error(error.message || 'Could not apply discount')
+    } finally {
+      setLoading(false)
+    }
   }
-}
-const [backdatedApply, setBackdatedApply] = useState(false);
-  const currentRow = previewActive ? previewRow : originalRow
+
+
+
+  // ========================================
+  // RENDER HELPERS
+  // ========================================
+  const totalDiscount = calculateTotalDiscount(affectedDays)
+  const totalAmount = calculateTotalAmount(affectedDays)
+  const currentDayIndex = findCurrentDayIndex()
 
   const allHeaders = [
     { key: '#', label: '#' },
@@ -5635,69 +5785,153 @@ const [backdatedApply, setBackdatedApply] = useState(false);
     { key: 'totalAmount', label: 'Total' },
   ]
 
+  // ========================================
+  // RENDER
+  // ========================================
   return (
     <ActionBox title="Apply Discount" onClose={onClose}>
-     <div className="border p-2 mb-2">
-  <div className="d-flex align-items-center gap-4">
+      {/* Controls */}
+      <div className="border p-2 mb-2">
+        <div className="d-flex align-items-center gap-4 flex-wrap">
+          <div className="d-flex align-items-center">
+            <Form.Label className="mb-0 me-2 fw-bold" style={{ minWidth: "130px" }}>
+              Current Discount (%)
+            </Form.Label>
+            <Form.Control
+              type="text"
+              size="sm"
+              value={originalDiscount}
+              readOnly
+              className="bg-light"
+              style={{ width: "100px" }}
+            />
+          </div>
 
-    <div className="d-flex align-items-center">
-      <Form.Label
-        className="mb-0 me-2 fw-bold"
-        style={{ minWidth: "130px" }}
-      >
-        Current Discount (%)
-      </Form.Label>
+          <div className="d-flex align-items-center">
+            <Form.Label className="mb-0 me-2 fw-bold" style={{ minWidth: "120px" }}>
+              New Discount (%)
+            </Form.Label>
+            <Form.Control
+              type="number"
+              size="sm"
+              value={tempDiscountPercent}
+              onChange={(e) => setTempDiscountPercent(Number(e.target.value))}
+              min={0}
+              max={100}
+              step={1}
+              style={{ width: "100px" }}
+            />
+          </div>
 
-      <Form.Control
-        type="text"
-        size="sm"
-        value={originalDiscount}
-        readOnly
-        className="bg-light"
-        style={{ width: "100px" }}
-      />
-    </div>
+          {/* Day Selector - Shows which day is selected */}
+          {affectedDays.length > 1 && (
+            <div className="d-flex align-items-center">
+              <Form.Label className="mb-0 me-2 fw-bold" style={{ minWidth: "60px" }}>
+                Day:
+              </Form.Label>
+              <Form.Select
+                size="sm"
+                value={selectedDayIndex}
+                onChange={(e) => {
+                  setSelectedDayIndex(Number(e.target.value))
+                  setPreviewActive(false)
+                }}
+                style={{ width: "80px" }}
+                disabled={backdatedApply}
+              >
+                {affectedDays.map((day, idx) => {
+                  const isCurrent = (() => {
+                    if (!day.checkin_datetime) return false
+                    const today = new Date()
+                    today.setHours(0, 0, 0, 0)
+                    const checkinDate = new Date(day.checkin_datetime)
+                    checkinDate.setHours(0, 0, 0, 0)
+                    return checkinDate.getTime() === today.getTime()
+                  })()
+                  return (
+                    <option key={idx} value={idx}>
+                      {idx + 1}{isCurrent ? ' (Today)' : ''}
+                    </option>
+                  )
+                })}
+              </Form.Select>
+            </div>
+          )}
 
-    <div className="d-flex align-items-center">
-      <Form.Label
-        className="mb-0 me-2 fw-bold"
-        style={{ minWidth: "120px" }}
-      >
-        New Discount (%)
-      </Form.Label>
+          <div className="d-flex align-items-center">
+            <Form.Check
+              id="backdatedApply"
+              type="checkbox"
+              checked={backdatedApply}
+              onChange={(e) => {
+                setBackdatedApply(e.target.checked)
+                setPreviewActive(false)
+                setDiscountDetails([])
+                // ✅ When backdated is unchecked, select the CURRENT day
+                if (!e.target.checked) {
+                  const currentIndex = findCurrentDayIndex()
+                  setSelectedDayIndex(currentIndex)
+                }
+              }}
+              className="mb-0"
+            />
+            <Form.Label
+              htmlFor="backdatedApply"
+              className="mb-0 ms-2 fw-bold"
+              style={{ cursor: "pointer" }}
+            >
+              Backdated Apply
+            </Form.Label>
+          </div>
 
-      <Form.Control
-        type="number"
-        size="sm"
-        value={tempDiscountPercent}
-        onChange={(e) => setTempDiscountPercent(Number(e.target.value))}
-        min={0}
-        max={100}
-        step={1}
-        style={{ width: "100px" }}
-      />
-    </div>
+          {backdatedApply && (
+            <span className="badge bg-info text-white">
+              🔄 All days will be affected
+            </span>
+          )}
+          {!backdatedApply && affectedDays.length > 0 && (
+            <span className="badge bg-success text-white">
+              📅 Current Day (Day {currentDayIndex + 1}) only
+            </span>
+          )}
+        </div>
 
-    <div className="d-flex align-items-center">
-      <Form.Check
-        id="backdatedApply"
-        type="checkbox"
-        checked={backdatedApply}
-        onChange={(e) => setBackdatedApply(e.target.checked)}
-        className="mb-0"
-      />
-      <Form.Label
-        htmlFor="backdatedApply"
-        className="mb-0 ms-2 fw-bold"
-        style={{ cursor: "pointer" }}
-      >
-        Backdated Apply
-      </Form.Label>
-    </div>
+        {/* ✅ Affected Days Info - ALWAYS SHOW */}
+        {affectedDays.length > 0 && (
+          <div className="mt-2 p-2 bg-light rounded border">
+            <div className="d-flex align-items-center gap-3 flex-wrap">
+              <span className="fw-bold text-primary">📋 Total Days:</span>
+              <span>{affectedDays.length} day(s)</span>
+              <span className="text-muted">|</span>
+              <span className="text-success">
+                Total Discount: ₹{totalDiscount.toFixed(2)}
+              </span>
+              <span className="text-muted">|</span>
+              <span className="text-primary">
+                Total Amount: ₹{totalAmount.toFixed(2)}
+              </span>
+              {!backdatedApply && (
+                <>
+                  <span className="text-muted">|</span>
+                  <span className="text-warning">
+                    ⚡ Applying to Current Day only
+                  </span>
+                </>
+              )}
+              {backdatedApply && (
+                <>
+                  <span className="text-muted">|</span>
+                  <span className="text-success">
+                    ⚡ Applying to ALL {affectedDays.length} days
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
-  </div>
-</div>
-
+      {/* ✅ Main Table - ALL DAYS with Current Day Highlighted */}
       <div className="action-table-container">
         <table className="action-table table table-bordered text-center align-middle">
           <thead className="table-light">
@@ -5708,118 +5942,183 @@ const [backdatedApply, setBackdatedApply] = useState(false);
             </tr>
           </thead>
           <tbody>
-            {currentRow ? (
-              <tr>
-                <td>1</td>
-                <td>{currentRow.date}</td>
-                <td>{currentRow.guestName}</td>
-                <td>{currentRow.guestId}</td>
-                <td>{currentRow.roomNo}</td>
-                <td>{currentRow.type}</td>
-                <td>{currentRow.convCat}</td>
-                <td>{currentRow.aDate}</td>
-                <td>{currentRow.aTime}</td>
-                <td>{currentRow.dDate}</td>
-                <td>{currentRow.dTime}</td>
-                <td>{currentRow.adults}</td>
-                <td>{currentRow.pax}</td>
-                <td>{currentRow.exPax}</td>
-                <td>{currentRow.exPaxPrice}</td>
-                <td>{currentRow.exPaxTaxPercent}%</td>
-                <td>{currentRow.exPaxTax}</td>
-                <td>{currentRow.exPaxTotal}</td>
-                <td>{currentRow.childPaid}</td>
-                <td>{currentRow.childUnpaid}</td>
-                <td>{currentRow.childPrice}</td>
-                <td>{currentRow.childTaxPercent}%</td>
-                <td>{currentRow.childTax}</td>
-                <td>{currentRow.childTotal}</td>
-                <td>{currentRow.driver}</td>
-                <td>{currentRow.driverPrice}</td>
-                <td>{currentRow.driverTaxPercent}%</td>
-                <td>{currentRow.driverTax}</td>
-                <td>{currentRow.driverTotal}</td>
-                <td>{currentRow.nights}</td>
-                <td>{currentRow.rate}</td>
-                <td
-                  className={
-                    previewActive && tempDiscountPercent !== originalDiscount
-                      ? 'highlight-cell'
-                      : ''
-                  }>
-                  {currentRow.discountPercent}%
-                </td>
-                <td>{currentRow.discountAmt}</td>
-                <td>{currentRow.taxPercent}%</td>
-                <td>{currentRow.taxAmount}</td>
-                <td>{currentRow.totalAmount}</td>
-              </tr>
+            {affectedDays.length > 0 ? (
+              affectedDays.map((day, idx) => {
+                const isCurrentDay = (() => {
+                  if (!day.checkin_datetime) return false
+                  const today = new Date()
+                  today.setHours(0, 0, 0, 0)
+                  const checkinDate = new Date(day.checkin_datetime)
+                  checkinDate.setHours(0, 0, 0, 0)
+                  return checkinDate.getTime() === today.getTime()
+                })()
+                
+                // ✅ When not backdated, preview ONLY on the CURRENT day
+                const isPreview = previewActive && (backdatedApply ? true : isCurrentDay)
+                const row = buildRowForDay(day, idx, isPreview)
+                const isSelected = idx === selectedDayIndex
+                
+                // ✅ Highlight current day with a special color
+                const rowClassName = isCurrentDay && !backdatedApply ? 'table-success' : 
+                                    isSelected ? 'table-primary' : ''
+                
+                return (
+                  <tr 
+                    key={idx}
+                    className={rowClassName}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      if (!previewActive && !backdatedApply) {
+                        setSelectedDayIndex(idx)
+                      }
+                    }}
+                  >
+                    <td>{row.index}</td>
+                    <td>{row.date}{isCurrentDay && ' 📍'}</td>
+                    <td>{row.guestName}</td>
+                    <td>{row.guestId}</td>
+                    <td>{row.roomNo}</td>
+                    <td>{row.type}</td>
+                    <td>{row.convCat}</td>
+                    <td>{row.aDate}</td>
+                    <td>{row.aTime}</td>
+                    <td>{row.dDate}</td>
+                    <td>{row.dTime}</td>
+                    <td>{row.adults}</td>
+                    <td>{row.pax}</td>
+                    <td>{row.exPax}</td>
+                    <td>{row.exPaxPrice}</td>
+                    <td>{row.exPaxTaxPercent}%</td>
+                    <td>{row.exPaxTax}</td>
+                    <td>{row.exPaxTotal}</td>
+                    <td>{row.childPaid}</td>
+                    <td>{row.childUnpaid}</td>
+                    <td>{row.childPrice}</td>
+                    <td>{row.childTaxPercent}%</td>
+                    <td>{row.childTax}</td>
+                    <td>{row.childTotal}</td>
+                    <td>{row.driver}</td>
+                    <td>{row.driverPrice}</td>
+                    <td>{row.driverTaxPercent}%</td>
+                    <td>{row.driverTax}</td>
+                    <td>{row.driverTotal}</td>
+                    <td>{row.nights}</td>
+                    <td>{row.rate}</td>
+                    <td
+                      className={
+                        isPreview && tempDiscountPercent !== originalDiscount
+                          ? 'highlight-cell'
+                          : isCurrentDay && previewActive && !backdatedApply
+                          ? 'highlight-cell'
+                          : ''
+                      }>
+                      {isPreview ? tempDiscountPercent : row.discountPercent}%
+                    </td>
+                    <td>
+                      {isPreview ? row.discountAmt : row.discountAmt}
+                    </td>
+                    <td>{row.taxPercent}%</td>
+                    <td>{row.taxAmount}</td>
+                    <td className={isPreview ? 'highlight-cell fw-bold' : ''}>
+                      {isPreview ? row.totalAmount : row.totalAmount}
+                    </td>
+                  </tr>
+                )
+              })
             ) : (
               <tr>
                 <td colSpan={allHeaders.length} className="text-muted">
-                  No data
+                  No data available
                 </td>
               </tr>
             )}
           </tbody>
+          {/* Footer with totals */}
+          {affectedDays.length > 1 && (
+            <tfoot className="table-secondary">
+              <tr>
+                <td colSpan={31} className="text-end fw-bold">Total:</td>
+                <td className="fw-bold">-</td>
+                <td className="fw-bold text-success">₹{totalDiscount.toFixed(2)}</td>
+                <td className="fw-bold">-</td>
+                <td className="fw-bold">-</td>
+                <td className="fw-bold">₹{totalAmount.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 
+      {/* Footer Buttons */}
       <div className="action-footer">
-        <Button size="sm" variant="info" onClick={handleTest}>
+        <Button size="sm" variant="info" onClick={handleTest} disabled={affectedDays.length === 0}>
           Test
         </Button>
-        <Button size="sm" variant="success" onClick={handleUpdate} disabled={loading}>
-          {loading ? 'Applying...' : 'Apply'}
-        </Button>
+        
+        <Button size="sm" variant="success" onClick={handleUpdate} disabled={loading || affectedDays.length === 0}>
+            {loading ? 'Applying...' : 'Apply'}
+          </Button>
+        
         <Button size="sm" variant="secondary" onClick={onClose}>
           Close
         </Button>
       </div>
 
+      {/* ======================================== */}
+      {/* CONFIRMATION DIALOG */}
+      {/* ======================================== */}
       {showConfirmationDialog && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }}>
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }}
+        >
           <div
             className="bg-white p-4 rounded shadow-lg"
-            style={{ maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto' }}>
+            style={{ maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}
+          >
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <h6 className="mb-0 fw-bold">✅ Folio Updated Successfully</h6>
+              <h6 className="mb-0 fw-bold">✅ Discount Applied Successfully</h6>
               <button className="btn-close" onClick={() => setShowConfirmationDialog(false)} />
             </div>
+
             <div className="mb-3">
-              <strong>Room:</strong> {selectedRoom.roomNo} |<strong> Discount:</strong>{' '}
-              {tempDiscountPercent}% |<strong> Amount:</strong> ₹{previewRow?.discountAmt || 0}
-            </div>
-            <h6 className="text-success mb-2">Guest Folio Master Entry:</h6>
-            {folioPreviewData.length > 0 ? (
-              folioPreviewData.map((folio, idx) => (
-                <div key={idx} className="border p-2 mb-2 rounded bg-light">
-                  <div>
-                    <strong>ID:</strong> {folio.folio_id}
-                  </div>
-                  <div>
-                    <strong>Type:</strong> {folio.transaction_type}
-                  </div>
-                  <div>
-                    <strong>Date:</strong> {new Date(folio.transaction_datetime).toLocaleString()}
-                  </div>
-                  <div className="fw-bold fs-small">
-                    💳 Credit: ₹{folio.credit_amount || 0} | 💰 Debit: ₹{folio.debit_amount || 0}
-                  </div>
+              <div className="row">
+                <div className="col-6">
+                  <strong>Room:</strong> {selectedRoom.roomNo}
                 </div>
-              ))
-            ) : (
-              <div className="text-muted">Folio entry created (refresh to view)</div>
-            )}
+                <div className="col-6">
+                  <strong>Discount:</strong> {tempDiscountPercent}%
+                </div>
+              </div>
+              <div className="row mt-1">
+                <div className="col-6">
+                  <strong>Mode:</strong> {backdatedApply ? '🔄 Backdated (All Days)' : `📅 Current Day`}
+                </div>
+                <div className="col-6">
+                  <strong>Total Days:</strong> {affectedDays.length}
+                </div>
+              </div>
+              <div className="row mt-1">
+                <div className="col-12">
+                  <strong>Total Discount:</strong> ₹{totalDiscount.toFixed(2)}
+                </div>
+              </div>
+            </div>
+
             <div className="mt-3 pt-2 border-top">
               <Button
                 size="sm"
                 variant="success"
                 className="me-2"
-                onClick={() => setShowConfirmationDialog(false)}>
+                onClick={() => {
+                  setShowConfirmationDialog(false)
+                  onRefresh()
+                }}
+              >
                 OK
+              </Button>
+              <Button size="sm" variant="outline-secondary" onClick={onClose}>
+                Close
               </Button>
             </div>
           </div>
