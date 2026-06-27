@@ -15,9 +15,54 @@ import RoomService from '@/common/hotel/room'
 
 
 // Type imports (restored because they are used in interfaces and function signatures)
+import { GuestRoomCharge } from '@/common/hotel/guestRoomCharges'
+import { CheckIn } from '@/common/hotel/checkIn'
+import { Detail } from '@/common/hotel/detail'
 
 // ==================== INTERFACES ====================
 
+interface ExtendedGuestRoomCharge extends GuestRoomCharge {
+  room_number?: string
+  room_category_name?: string
+  converted_category_name?: string
+  checkin_datetime_from_detail?: string
+  checkout_datetime_from_detail?: string
+  guest_name?: string
+  adults?: number
+  pax?: number
+  ex_pax?: number
+  child_paid?: number
+  child_unpaid?: number
+  driver?: number
+  discount_percent?: number
+  payment_method?: string
+  day_number?: number
+  is_extension_day?: boolean
+  bill_date_formatted?: string
+  detail_id?: number
+  actual_room_category_name?: string
+  actual_converted_category_name?: string
+  cgst_amount?: number
+  sgst_amount?: number
+  igst_amount?: number
+  cess_amount?: number
+  service_charge_amount?: number
+  tax_percent?: number
+  ex_pax_tax_percent: number | null
+  child_tax_percent: number | null
+  driver_tax_percent: number | null
+  ex_pax_tax: number | null
+  child_tax: number | null
+  driver_tax: number | null
+  isPostCharge?: boolean
+  postChargeDescription?: string
+  postChargeParticulars?: string
+  department_name?: string
+  sortDate?: Date
+  chargeType?: 'original' | 'extension' | 'postcharge' | 'allowance'
+  original_day_number?: number
+  description?: string
+}
 
 interface DisplayDetailRow {
   id: string
@@ -33,10 +78,12 @@ interface DisplayDetailRow {
   bill_date_formatted: string
   checkin_datetime: string
   checkout_datetime: string
+  detail_checkin_datetime: string
   no_of_days: number
+
   day_number: number
   original_day_number: number
-  room_tariff: number
+  room_tariff_per_day: number
   total_room_tariff: number
   ex_pax_count: number
   ex_pax_price: number
@@ -186,45 +233,45 @@ const formatBillDate = (dateString: string): string => {
   return `${day}-${month}-${year}`
 }
 
-// const getChargeTypePriority = (charge: ExtendedGuestRoomCharge): number => {
-//   if ((charge as any).department_name === 'Advance') return 4
-//   if (charge.isPostCharge) {
-//     const totalAmount = toNumber(charge.total_amount)
-//     return totalAmount < 0 ? 3 : 2
-//   }
-//   if (charge.is_extension_day) return 1
-//   return 0
-// }
+const getChargeTypePriority = (charge: ExtendedGuestRoomCharge): number => {
+  if ((charge as any).department_name === 'Advance') return 4
+  if (charge.isPostCharge) {
+    const totalAmount = toNumber(charge.total_amount)
+    return totalAmount < 0 ? 3 : 2
+  }
+  if (charge.is_extension_day) return 1
+  return 0
+}
 
-// const sortChargesByDateAndPriority = (
-//   charges: ExtendedGuestRoomCharge[],
-// ): ExtendedGuestRoomCharge[] => {
-//   return [...charges].sort((a, b) => {
-//     const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0)
-//     const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0)
-//     const dateCompare = dateA.getTime() - dateB.getTime()
-//     if (dateCompare !== 0) return dateCompare
+const sortChargesByDateAndPriority = (
+  charges: ExtendedGuestRoomCharge[],
+): ExtendedGuestRoomCharge[] => {
+  return [...charges].sort((a, b) => {
+    const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0)
+    const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0)
+    const dateCompare = dateA.getTime() - dateB.getTime()
+    if (dateCompare !== 0) return dateCompare
 
-//     const priorityA = getChargeTypePriority(a)
-//     const priorityB = getChargeTypePriority(b)
-//     if (priorityA !== priorityB) return priorityA - priorityB
+    const priorityA = getChargeTypePriority(a)
+    const priorityB = getChargeTypePriority(b)
+    if (priorityA !== priorityB) return priorityA - priorityB
 
-//     const roomA = String(a.room_number || a.room_no || '').trim()
-//     const roomB = String(b.room_number || b.room_no || '').trim()
-//     const roomCompare = roomA.localeCompare(roomB, undefined, { numeric: true })
-//     if (roomCompare !== 0) return roomCompare
+    const roomA = String(a.room_number || a.room_no || '').trim()
+    const roomB = String(b.room_number || b.room_no || '').trim()
+    const roomCompare = roomA.localeCompare(roomB, undefined, { numeric: true })
+    if (roomCompare !== 0) return roomCompare
 
-//     if (!a.isPostCharge && !b.isPostCharge) {
-//       return (
-//         (a.original_day_number || a.day_number || 0) - (b.original_day_number || b.day_number || 0)
-//       )
-//     }
+    if (!a.isPostCharge && !b.isPostCharge) {
+      return (
+        (a.original_day_number || a.day_number || 0) - (b.original_day_number || b.day_number || 0)
+      )
+    }
 
-//     const timeA = new Date(a.created_at || a.checkin_datetime || 0).getTime()
-//     const timeB = new Date(b.created_at || b.checkin_datetime || 0).getTime()
-//     return timeA - timeB
-//   })
-// }
+    const timeA = new Date(a.created_at || a.checkin_datetime || 0).getTime()
+    const timeB = new Date(b.created_at || b.checkin_datetime || 0).getTime()
+    return timeA - timeB
+  })
+}
 
 const parseBillDateToDate = (billDateFormatted: string): Date => {
   if (!billDateFormatted) return new Date(0)
@@ -238,19 +285,19 @@ const parseBillDateToDate = (billDateFormatted: string): Date => {
   return new Date(0)
 }
 
-// const isPostChargeType = (charge: GuestRoomCharge): boolean => {
-//   if (charge.category_id === null || charge.category_id === undefined) {
-//     return true
-//   }
-//   const hasExtraData =
-//     toNumber(charge.ex_pax_count) > 0 ||
-//     toNumber(charge.child_count) > 0 ||
-//     toNumber(charge.driver_count) > 0
-//   if (!hasExtraData && charge.category_id === null) {
-//     return true
-//   }
-//   return false
-// }
+const isPostChargeType = (charge: GuestRoomCharge): boolean => {
+  if (charge.category_id === null || charge.category_id === undefined) {
+    return true
+  }
+  const hasExtraData =
+    toNumber(charge.ex_pax_count) > 0 ||
+    toNumber(charge.child_count) > 0 ||
+    toNumber(charge.driver_count) > 0
+  if (!hasExtraData && charge.category_id === null) {
+    return true
+  }
+  return false
+}
 
 // ==================== MAIN COMPONENT ====================
 
@@ -308,6 +355,7 @@ const RoomDetailSummary = () => {
 
   const [, setRoomNumberMap] = useState<Map<number, string>>(new Map())
   const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set())
+  const [, setTransferredRooms] = useState<Set<string>>(new Set())
 
   const { occupiedItem } = (location.state as any) || {}
   const checkinIdFromState = occupiedItem?.checkin_id
@@ -366,161 +414,689 @@ const RoomDetailSummary = () => {
     }
   }
 
-  // const getRoomNumber = (
-  //   charge: GuestRoomCharge,
-  //   roomMap: Map<number, string>,
-  //   checkin: CheckIn | undefined,
-  //   detail: Detail | undefined,
-  // ): string => {
-  //   if ((charge as any).room_no && String((charge as any).room_no).trim() !== '') {
-  //     const roomNo = String((charge as any).room_no).trim()
-  //     if (/^\d+$/.test(roomNo) && roomMap.has(Number(roomNo))) {
-  //       return roomMap.get(Number(roomNo)) || roomNo
-  //     }
-  //     return roomNo
-  //   }
+  const getRoomNumber = (
+    charge: GuestRoomCharge,
+    roomMap: Map<number, string>,
+    checkin: CheckIn | undefined,
+    detail: Detail | undefined,
+  ): string => {
+    if ((charge as any).room_no && String((charge as any).room_no).trim() !== '') {
+      const roomNo = String((charge as any).room_no).trim()
+      if (/^\d+$/.test(roomNo) && roomMap.has(Number(roomNo))) {
+        return roomMap.get(Number(roomNo)) || roomNo
+      }
+      return roomNo
+    }
 
-  //   if ((charge as any).room_number && String((charge as any).room_number).trim() !== '') {
-  //     const roomNo = String((charge as any).room_number).trim()
-  //     if (/^\d+$/.test(roomNo) && roomMap.has(Number(roomNo))) {
-  //       return roomMap.get(Number(roomNo)) || roomNo
-  //     }
-  //     return roomNo
-  //   }
+    if ((charge as any).room_number && String((charge as any).room_number).trim() !== '') {
+      const roomNo = String((charge as any).room_number).trim()
+      if (/^\d+$/.test(roomNo) && roomMap.has(Number(roomNo))) {
+        return roomMap.get(Number(roomNo)) || roomNo
+      }
+      return roomNo
+    }
 
-  //   if (charge.room_id && roomMap.has(charge.room_id)) {
-  //     return roomMap.get(charge.room_id)!
-  //   }
+    if (charge.room_id && roomMap.has(charge.room_id)) {
+      return roomMap.get(charge.room_id)!
+    }
 
-  //   if (detail?.room_number) {
-  //     return String(detail.room_number)
-  //   }
+    if (detail?.room_number) {
+      return String(detail.room_number)
+    }
 
-  //   if (checkin?.room_no) {
-  //     return String(checkin.room_no)
-  //   }
+    if (checkin?.room_no) {
+      return String(checkin.room_no)
+    }
 
-  //   return `Room ${charge.room_id || 'N/A'}`
-  // }
+    return `Room ${charge.room_id || 'N/A'}`
+  }
 
+  // Fetch data
 const fetchData = async () => {
+  // NOTE: “matching”/rebuild logic कमी करून DB/Backend जे fields देतो तेच display करायचे.
+  // विशेषतः `description` जे backend ला checkin_guest_folio_master मध्ये stored आहे तेच show करायचे.
+
   if (!hotelId) {
-    setError('Hotel ID not found')
-    setLoading(false)
-    return
+    setError('Hotel ID not found');
+    setLoading(false);
+    return;
   }
 
   if (!checkinIdFromState) {
-    navigate('/hotel-master/HotelBookingPanel', { replace: true })
-    return
+    navigate('/hotel-master/HotelBookingPanel', { replace: true });
+    return;
   }
 
-  setLoading(true)
-  setError(null)
+  setLoading(true);
+  setError(null);
+
+  console.log('Location State:', location.state);
+  console.log('Received Checkin ID:', checkinIdFromState);
 
   try {
-    // 1. Room number map (still needed for the Room No. filter panel)
-    const roomMap = await fetchRoomNumbers()
-    setRoomNumberMap(roomMap)
+    // 1. Fetch room number mapping
+    const roomMap = await fetchRoomNumbers();
+    setRoomNumberMap(roomMap);
 
-    // 2. Single API call — getCheckinFullDetails is the single source of truth.
-    //    Every field used below comes directly off each row; nothing is
-    //    recomputed, matched, or looked up against a second structure.
-    const fullDetailsRes = await RoomService.getCheckinFullDetails(hotelId, checkinIdFromState)
-    const rows = fullDetailsRes.data || []
+    // 2. Single API call
+    const fullDetailsRes = await RoomService.getCheckinFullDetails(hotelId, checkinIdFromState);
+
+    console.log('🧾 RAW folio check:', fullDetailsRes.data?.map((r: any) => ({
+  folio_id: r.folio_id,
+  room_id: r.room_id,
+  checkin_id: r.checkin_id,
+  charge_description: r.charge_description,
+})));
+    // console.log('🔍 fullDetailsRes:', fullDetailsRes);
+    // console.log('📦 rows count:', fullDetailsRes.data?.length);
+    // console.log('📝 first row sample:', fullDetailsRes.data?.[0]);
+    // console.log('API Response:', fullDetailsRes);
+    const rows = fullDetailsRes.data || [];
 
     if (!rows.length) {
-      navigate('/hotel-master/HotelBookingPanel', { replace: true })
-      return
+      console.warn('No rows returned from API');
+      navigate('/hotel-master/HotelBookingPanel', { replace: true });
+      return;
     }
 
-    // 3. Build display rows directly from the SP output.
-    const roomCumulativeMap = new Map<string, number>()
-    const displayRowsResult: DisplayDetailRow[] = rows.map((row: any, idx: number) => {
-      const isPostCharge = !!row.is_post_charge
-      const roomNumber = row.room_number ? String(row.room_number) : `Room-${row.room_id}`
-      const totalAmount = roundToTwo(toNumber(row.total_amount))
+    // 3. Reconstruct maps
+    const checkinMap = new Map<number, any>();
+    const detailMap = new Map<number, any>();
+    const roomGuestMap = new Map<number, any>();
+    const folios: any[] = [];
+    const allCharges: any[] = [];
 
-      const prevCumulative = roomCumulativeMap.get(roomNumber) || 0
-      const cumulativeTotal = roundToTwo(prevCumulative + totalAmount)
-      roomCumulativeMap.set(roomNumber, cumulativeTotal)
-
-      return {
-        id: `${isPostCharge ? 'post' : 'room'}-${row.guest_room_charges_id}-${idx}`,
-        guest_room_charges_id: row.guest_room_charges_id,
-        checkin_id: row.checkin_id ?? 0,
-        guest_id: row.guest_id,
-        detail_id: row.detail_id ?? undefined,
-        room_id: row.room_id,
-        room_number: roomNumber,
-        room_category_name: isPostCharge
-          ? row.department_name || '-'
-          : row.room_category_name || '-',
-        converted_category_name: isPostCharge
-          ? '-'
-          : row.converted_category_name || '-',
-        bill_date: row.bill_date || row.checkin_datetime || '',
-        bill_date_formatted: formatBillDate(row.bill_date || row.checkin_datetime),
-        checkin_datetime: row.checkin_datetime || '',
-        checkout_datetime: row.checkout_datetime || '',
-        no_of_days: isPostCharge ? 0 : 1,
-        day_number: isPostCharge ? 0 : toNumber(row.day_number) || 1,
-        original_day_number: isPostCharge ? 0 : toNumber(row.original_day_number) || toNumber(row.day_number) || 1,
-        room_tariff: isPostCharge ? totalAmount : toNumber(row.room_tariff),
-        total_room_tariff: isPostCharge ? totalAmount : toNumber(row.room_tariff),
-        ex_pax_count: toNumber(row.ex_pax_count),
-        ex_pax_price: toNumber(row.ex_pax_price),
-        ex_pax_tax: toNumber(row.ex_pax_tax),
-        ex_pax_tax_percent: toNumber(row.ex_pax_tax_percent),
-        ex_pax_total: toNumber(row.ex_pax_total),
-        child_count: toNumber(row.child_count),
-        child_unpaid: toNumber(row.detail_child_unpaid),
-        child_price: toNumber(row.child_price),
-        child_tax: toNumber(row.child_tax),
-        child_tax_percent: toNumber(row.child_tax_percent),
-        child_total: toNumber(row.child_total),
-        driver_count: toNumber(row.driver_count),
-        driver_price: toNumber(row.driver_price),
-        driver_tax: toNumber(row.driver_tax),
-        driver_tax_percent: toNumber(row.driver_tax_percent),
-        driver_total: toNumber(row.driver_total),
-        cgst_amount: toNumber(row.cgst_amount),
-        sgst_amount: toNumber(row.sgst_amount),
-        igst_amount: toNumber(row.igst_amount),
-        cess_amount: toNumber(row.cess_amount),
-        service_charge_amount: toNumber(row.service_charge_amount),
-        adults:  toNumber(row.adults),
-        pax:  toNumber(row.pax ),
-        ex_pax: toNumber(row.detail_ex_pax),
-        child_paid: toNumber(row.child_count),
-        driver: toNumber(row.detail_driver),
-        discount_percent: isPostCharge ? 0 : toNumber(row.discount_percent),
-        discount_amount: isPostCharge
-          ? 0
-          : roundToTwo((toNumber(row.room_tariff) * toNumber(row.discount_percent)) / 100),
-        tax_percent: isPostCharge ? 0 : toNumber(row.tax_percent),
-        tax_amount: isPostCharge ? 0 : toNumber(row.pax_tax),
-        total_amount: totalAmount,
-        is_extension: !!row.is_extension_day,
-        isPostCharge,
-        parent_detail_id: row.parent_detail_id ?? null,
-        selected: true,
-        cumulative_total: cumulativeTotal,
-        guest_name: row.guest_name || 'Guest',
-        payment_method: row.payment_method || 'Cash',
-        created_at: row.charge_created_at || row.checkin_datetime,
-        has_checkout_datetime: !!row.checkout_datetime,
-        checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
-        description: row.description || '',
-        particulars: row.particulars || '',
-        department_name: row.department_name || '',
+    // Process each row with room-specific guest info
+    for (const row of rows) {
+      // Checkin Map - use room-specific guest info
+      if (!checkinMap.has(row.checkin_id)) {
+        checkinMap.set(row.checkin_id, {
+          checkin_id: row.checkin_id,
+          // Use room-specific guest_id from detail master
+          guest_id: row.guest_id || row.guest_id,
+          // Use room-specific guest_name from guest master
+          guest_name: row.guest_name || 'Guest',
+          mobile: row.mobile,
+          address: row.address,
+          company_name: row.company_name,
+          emailed: row.emailed,
+          booking: row.booking,
+          plan_name: row.plan_name,
+          reg_no: row.reg_no,
+          checkin_datetime: row.checkin_datetime,
+          checkout_datetime: row.checkout_datetime,
+          hotelid: row.hotelid,
+          checkout_id: row.checkout_id,
+        });
       }
-    })
 
-    setDisplayRows(displayRowsResult)
+      // Detail Map - store room-specific guest info
+      if (row.detail_id) {
+        const existing = detailMap.get(row.detail_id);
 
-    // Bill date summary — pure UI projection of displayRowsResult, no extra lookups.
-    const billSummaryItems: BillDateSummaryItem[] = displayRowsResult.map((row, idx) => ({
+        const isAdvanceAddition = row.transaction_type === 'Advance Addition' ||
+          (typeof row.description === 'string' && row.description.toLowerCase().includes('advance'));
+
+        // “First row wins” breaks when backend returns multiple rows per detail_id.
+        // We want:
+        // - Advance Addition => adults=0, pax=0
+        // - Check-in Day / Room Extension => real adults/pax
+        const nextAdults = isAdvanceAddition ? 0 : (row.detail_adults ?? 0);
+        const nextPax = isAdvanceAddition ? 0 : (row.detail_pax ?? row.detail_adults ?? 0);
+
+        const shouldOverwrite = !existing || (!isAdvanceAddition && existing.adults === 0 && existing.pax === 0);
+
+        if (shouldOverwrite) {
+          const detailData = {
+            detail_id: row.detail_id,
+            checkin_id: row.checkin_id,
+            room_id: row.room_id,
+            room_number: row.room_number,
+            room_category_name: row.room_category_name,
+            converted_category_name: row.converted_category_name,
+            room_tariff: row.room_tariff,
+            discount_percent: row.discount_percent,
+            cgst_percent: row.cgst_percent,
+            sgst_percent: row.sgst_percent,
+            igst_percent: row.igst_percent,
+            is_settle: row.is_settle,
+            checkin_datetime: row.detail_checkin_datetime || row.checkin_datetime,
+            checkout_datetime: row.detail_checkout_datetime || row.checkout_datetime,
+            // ✅ Correct adults/pax based on transaction type row
+            adults: row.detail_adults  ,
+            pax: row.detail_pax ,
+            ex_pax: row.detail_ex_pax ,
+            child_unpaid: row.detail_child_unpaid ,
+            driver: row.detail_driver ,
+            ex_pax_charge: row.detail_ex_pax_charge ,
+            child_paid_amount: row.detail_child_paid_amount ,
+            driver_charge: row.detail_driver_charge ,
+            parent_detail_id: row.parent_detail_id,
+            // Store room-specific guest info
+            guest_id: row.guest_id,
+            guest_name: row.guest_name || 'Guest',
+            mobile: row.mobile,
+            address: row.address,
+            // Note: 'emailed' is the field name in the type, not 'email'
+            email: row.emailed,
+          };
+          detailMap.set(row.detail_id, detailData);
+        }
+
+        // Store in room guest map for quick lookup
+        if (!roomGuestMap.has(row.room_id)) {
+          roomGuestMap.set(row.room_id, {
+            guest_id: row.guest_id,
+            guest_name: row.guest_name || 'Guest',
+            mobile: row.mobile,
+            address: row.address,
+            email: row.emailed,
+          });
+        }
+      }
+
+
+      // Folio Map
+      if (row.folio_id && !folios.some(f => f.folio_id === row.folio_id)) {
+        folios.push({
+          folio_id: row.folio_id,
+          checkin_id: row.checkin_id,
+          room_id: row.room_id,
+          transaction_type: row.transaction_type,
+          payment_method: row.payment_method,
+          debit_amount: row.debit_amount,
+          credit_amount: row.credit_amount,
+          reference_number: row.reference_number,
+          description: row.description, // ← ADD THIS
+        });
+      }
+console.log('ROW DESCRIPTION =>', row.description);
+      // Charges Map - Use room-specific guest_id
+      const uniqueKey =
+  row.guest_room_charges_id || `folio_${row.folio_id}`;
+
+if (
+  !allCharges.some(
+    c =>
+      (c.guest_room_charges_id || `folio_${c.folio_id}`) === uniqueKey
+  )
+) {
+        allCharges.push({
+          folio_id: row.folio_id,
+          guest_room_charges_id: row.guest_room_charges_id,
+          checkin_id: row.checkin_id,
+          room_id: row.room_id,
+          guest_id: row.guest_id,
+          category_id: row.category_id,
+          pax_count: row.pax_count,
+          pax_price: row.pax_price,
+          pax_tax: row.pax_tax,
+          ex_pax_count: row.ex_pax_count,
+          ex_pax_price: row.ex_pax_price,
+          ex_pax_tax: row.ex_pax_tax,
+          ex_pax_tax_percent: row.ex_pax_tax_percent,
+          ex_pax_total: row.ex_pax_total,
+          child_count: row.child_count,
+          child_price: row.child_price,
+          child_tax: row.child_tax,
+          child_tax_percent: row.child_tax_percent,
+          child_total: row.child_total,
+          driver_count: row.driver_count,
+          driver_price: row.driver_price,
+          driver_tax: row.driver_tax,
+          driver_tax_percent: row.driver_tax_percent,
+          driver_total: row.driver_total,
+          total_amount: row.total_amount,
+          checkin_datetime: row.charge_checkin_datetime,
+          checkout_datetime: row.charge_checkout_datetime,
+          created_at: row.charge_created_at || row.checkin_datetime,
+          department_name: row.department_name,
+          particulars: row.particulars,
+          description: row.description,
+          // ✅ Carry transaction_type from backend row so description mapping works for multiple folios per room
+          transaction_type: row.transaction_type,
+        });
+      }
+    }
+
+    if (checkinMap.size === 0) {
+      navigate('/hotel-master/HotelBookingPanel', { replace: true });
+      return;
+    }
+
+    // Get the first checkin reference
+    const currentCheckin = Array.from(checkinMap.values())[0];
+    const relevantDetails = Array.from(detailMap.values());
+
+    // Transferred rooms detection
+    const transferredRoomNumbers = new Set<string>();
+    relevantDetails.forEach((d: any) => {
+      if (d.parent_detail_id) {
+        const toRoomNo = d.room_number ? String(d.room_number) : '';
+        if (toRoomNo) transferredRoomNumbers.add(toRoomNo);
+        const parentDetail = detailMap.get(d.parent_detail_id);
+        if (parentDetail) {
+          const fromRoomNo = parentDetail.room_number ? String(parentDetail.room_number) : '';
+          if (fromRoomNo) transferredRoomNumbers.add(fromRoomNo);
+        }
+      }
+    });
+    setTransferredRooms(transferredRoomNumbers);
+
+    // Payment method map
+    const paymentMethodMap = new Map<number, string>();
+    folios.forEach((folio: any) => {
+      if (folio.checkin_id && !paymentMethodMap.has(folio.checkin_id)) {
+        paymentMethodMap.set(folio.checkin_id, folio.payment_method || 'Cash');
+      }
+    });
+
+
+
+
+
+    // Filter charges
+    // NOTE: Do NOT filter out Advance Addition / Booking Receipt rows.
+    // getCheckinFullDetails() already returns them and the UI must display the exact same rows.
+    let filteredCharges = allCharges.filter(
+      (c) => Number(c.checkin_id) === Number(checkinIdFromState),
+    );
+
+    console.log('Filtered charges count:', filteredCharges.length);
+    if (filteredCharges.length === 0) {
+      navigate('/hotel-master/HotelBookingPanel', { replace: true });
+      return;
+    }
+
+
+    // ========== PROCESS EACH CHARGE ==========
+    const processedCharges: ExtendedGuestRoomCharge[] = [];
+
+    for (const charge of filteredCharges) {
+      const checkin = checkinMap.get(charge.checkin_id);
+      if (!checkin) continue;
+
+      const isPostCharge = isPostChargeType(charge);
+
+      let associatedDetail: any = undefined;
+      if (charge.detail_id) {
+        associatedDetail = detailMap.get(charge.detail_id);
+      }
+      if (!associatedDetail) {
+        associatedDetail = relevantDetails.find(
+          (d: any) => d.checkin_id === charge.checkin_id && d.room_id === charge.room_id,
+        );
+      }
+
+      // Get room-specific guest name
+      let roomGuestName = checkin.guest_name;
+      let roomGuestId = checkin.guest_id;
+      
+      // If we have a room ID, try to get the specific guest for that room
+      if (charge.room_id && roomGuestMap.has(charge.room_id)) {
+        const roomGuest = roomGuestMap.get(charge.room_id);
+        roomGuestName = roomGuest.guest_name;
+        roomGuestId = roomGuest.guest_id;
+      }
+      // If we have a detail, use the guest from the detail
+      else if (associatedDetail && associatedDetail.guest_name) {
+        roomGuestName = associatedDetail.guest_name;
+        roomGuestId = associatedDetail.guest_id;
+      }
+
+      const roomNumber = getRoomNumber(charge, roomMap, checkin, associatedDetail);
+
+      // ---- POST CHARGE (including allowances) ----
+      if (isPostCharge) {
+        const totalAmount = toNumber(charge.total_amount)
+        const isAllowance = totalAmount < 0
+        const billDateFormatted = charge.checkin_datetime
+
+          ? formatBillDate(charge.checkin_datetime)
+          : formatBillDate(charge.created_at || new Date().toISOString());
+
+        processedCharges.push({
+          ...charge,
+          room_no: roomNumber,
+          room_number: roomNumber,
+         room_category_name: charge.room_category_name || '-',
+          converted_category_name: '',
+          checkin_datetime_from_detail: charge.checkin_datetime || charge.created_at,
+          checkout_datetime_from_detail: charge.checkout_datetime || charge.created_at,
+          guest_name: roomGuestName,
+          guest_id: roomGuestId,
+          adults: 0,
+          pax: 0,
+          ex_pax: 0,
+          child_paid: 0,
+          child_unpaid: 0,
+          driver: 0,
+          discount_percent: 0,
+          payment_method: paymentMethodMap.get(charge.checkin_id) || 'Cash',
+          day_number: 0,
+          original_day_number: 0,
+          is_extension_day: false,
+          bill_date_formatted: billDateFormatted,
+          detail_id: undefined,
+          actual_room_category_name:charge.room_category_name || '-',
+          actual_converted_category_name: '',
+          cgst_amount: 0,
+          sgst_amount: 0,
+          igst_amount: 0,
+          cess_amount: 0,
+          service_charge_amount: 0,
+          tax_percent: 0,
+          ex_pax_tax_percent: 0,
+          child_tax_percent: 0,
+          driver_tax_percent: 0,
+          ex_pax_tax: 0,
+          child_tax: 0,
+          driver_tax: 0,
+          isPostCharge: true,
+          description: charge.description || '',
+          postChargeParticulars: charge.particulars || '',
+          department_name: charge.department_name || '',
+        });
+        continue;
+      }
+
+      // ---- REGULAR ROOM CHARGE ----
+      if (!associatedDetail) continue;
+
+      // Day number calculation
+      let dayNumber = 1;
+      let isExtension = false;
+      let originalDayNumber = 1;
+      let chargeDateForDay = charge.checkin_datetime;
+      if (!chargeDateForDay && charge.created_at) {
+        chargeDateForDay = charge.created_at;
+      }
+      if (chargeDateForDay && associatedDetail.checkin_datetime) {
+        const chargeDate = new Date(chargeDateForDay);
+        const checkinDate = new Date(associatedDetail.checkin_datetime);
+        const diffDays = Math.floor((chargeDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24));
+        dayNumber = diffDays + 1;
+        originalDayNumber = dayNumber;
+        isExtension = diffDays > 0;
+      }
+
+      const roomTariffPerDay = toNumber(charge.pax_price) || toNumber(associatedDetail.room_tariff) || 0;
+      const discountPercent = toNumber(charge.discount_percent || associatedDetail.discount_percent || 0);
+      const roomTariffAfterDiscount = roundToTwo(roomTariffPerDay - (roomTariffPerDay * discountPercent) / 100);
+
+      const paxTaxFromDB = toNumber(charge.pax_tax);
+      const cgstPercent = toNumber(associatedDetail.cgst_percent);
+      const sgstPercent = toNumber(associatedDetail.sgst_percent);
+      const igstPercent = toNumber(associatedDetail.igst_percent);
+
+      let roomCgst = 0, roomSgst = 0, roomIgst = 0;
+
+      if (paxTaxFromDB > 0) {
+        let rawIgst = 0, rawCgst = 0, rawSgst = 0;
+        if (igstPercent > 0) {
+          rawIgst = roundToTwo((roomTariffAfterDiscount * igstPercent) / 100);
+        } else {
+          rawCgst = roundToTwo((roomTariffAfterDiscount * cgstPercent) / 100);
+          rawSgst = roundToTwo((roomTariffAfterDiscount * sgstPercent) / 100);
+        }
+        const rawTotal = roundToTwo(rawIgst + rawCgst + rawSgst);
+        if (rawTotal > 0) {
+          const scale = paxTaxFromDB / rawTotal;
+          roomIgst = roundToTwo(rawIgst * scale);
+          roomCgst = roundToTwo(rawCgst * scale);
+          roomSgst = roundToTwo(rawSgst * scale);
+        } else {
+          roomIgst = paxTaxFromDB;
+        }
+      } else {
+        if (igstPercent > 0) {
+          roomIgst = roundToTwo((roomTariffAfterDiscount * igstPercent) / 100);
+        } else {
+          roomCgst = roundToTwo((roomTariffAfterDiscount * cgstPercent) / 100);
+          roomSgst = roundToTwo((roomTariffAfterDiscount * sgstPercent) / 100);
+        }
+      }
+
+      const taxPercent = roomTariffAfterDiscount > 0 ? roundToTwo((paxTaxFromDB / roomTariffAfterDiscount) * 100) : 18;
+
+      const exPaxCount = toNumber(charge.ex_pax_count) || toNumber(associatedDetail.ex_pax) || 0;
+      const exPaxPrice = exPaxCount > 0 ? toNumber(charge.ex_pax_price || associatedDetail.ex_pax_charge) || 0 : 0;
+      const exPaxTaxPercent = exPaxCount > 0 ? toNumber(charge.ex_pax_tax_percent || taxPercent) : 0;
+      const exPaxTax = exPaxCount > 0 ? (charge.ex_pax_tax != null ? toNumber(charge.ex_pax_tax) : roundToTwo((exPaxPrice * exPaxTaxPercent) / 100)) : 0;
+
+      const childPaidCount = toNumber(charge.child_count) || 0;
+      const childUnpaidCount = toNumber(associatedDetail.child_unpaid) || 0;
+      const childPrice = childPaidCount > 0 ? toNumber(charge.child_price || associatedDetail.child_paid_amount) || 0 : 0;
+      const childTaxPercent = childPaidCount > 0 ? toNumber(charge.child_tax_percent || taxPercent) : 0;
+      const childTax = childPaidCount > 0 ? (charge.child_tax != null ? toNumber(charge.child_tax) : roundToTwo((childPrice * childTaxPercent) / 100)) : 0;
+
+      const driverCount = toNumber(charge.driver_count) || toNumber(associatedDetail.driver) || 0;
+      const driverPrice = driverCount > 0 ? toNumber(charge.driver_price || associatedDetail.driver_charge) || 0 : 0;
+      const driverTaxPercent = driverCount > 0 ? toNumber(charge.driver_tax_percent || taxPercent) : 0;
+      const driverTax = driverCount > 0 ? (charge.driver_tax != null ? toNumber(charge.driver_tax) : roundToTwo((driverPrice * driverTaxPercent) / 100)) : 0;
+
+        // IMPORTANT: use the bill/date from the current API row.
+        // Do NOT fall back to `associatedDetail.checkin_datetime`, because `associatedDetail`
+        // is stored per detail_id and can be reused across multiple room/day rows.
+        const chargeDateForBill =
+          charge.checkin_datetime ||
+          (charge as any).detail_checkin_datetime ||
+          (charge as any).charge_checkin_datetime ||
+          ''
+
+        const billDateFormatted = formatBillDate(chargeDateForBill)
+
+
+      const roomCategoryForThisDay = charge.room_category_name || associatedDetail.room_category_name || '-';
+      const convertedCategoryForThisDay = charge.converted_category_name || associatedDetail.converted_category_name || '-';
+
+      processedCharges.push({
+        ...charge,
+        room_no: roomNumber,
+        room_number: roomNumber,
+        room_category_name: roomCategoryForThisDay,
+        converted_category_name: convertedCategoryForThisDay,
+        actual_room_category_name: roomCategoryForThisDay,
+        actual_converted_category_name: convertedCategoryForThisDay,
+        checkin_datetime_from_detail: associatedDetail.checkin_datetime,
+        checkout_datetime_from_detail: associatedDetail.checkout_datetime,
+        guest_name: roomGuestName,
+        guest_id: roomGuestId,
+adults: associatedDetail.adults ?? 0,
+        pax: associatedDetail.pax ?? associatedDetail.adults ?? 0,
+        ex_pax: exPaxCount,
+        child_paid: childPaidCount,
+        child_unpaid: childUnpaidCount,
+        driver: driverCount,
+        discount_percent: discountPercent,
+        payment_method: paymentMethodMap.get(charge.checkin_id) || 'Cash',
+        day_number: dayNumber,
+        original_day_number: originalDayNumber,
+        is_extension_day: isExtension,
+        bill_date_formatted: billDateFormatted,
+        detail_id: charge.detail_id || associatedDetail.detail_id,
+        cgst_amount: roomCgst,
+        sgst_amount: roomSgst,
+        igst_amount: roomIgst,
+        cess_amount: 0,
+        service_charge_amount: 0,
+        tax_percent: taxPercent,
+        ex_pax_tax_percent: exPaxTaxPercent,
+        child_tax_percent: childTaxPercent,
+        driver_tax_percent: driverTaxPercent,
+        ex_pax_tax: exPaxTax,
+        child_tax: childTax,
+        driver_tax: driverTax,
+        isPostCharge: false,
+      });
+    }
+
+    console.log('Processed charges count:', processedCharges.length);
+
+    // Sort charges
+    const sortedCharges = sortChargesByDateAndPriority(processedCharges);
+
+    // Build display rows and cumulative totals
+    const rows_display: DisplayDetailRow[] = [];
+    const roomCumulativeMap = new Map<string, number>();
+
+    for (let idx = 0; idx < sortedCharges.length; idx++) {
+      const charge = sortedCharges[idx];
+      const roomNumber = charge.room_number || `Room-${charge.room_id}`;
+
+      if (charge.isPostCharge) {
+        const totalAmount = toNumber(charge.total_amount);
+        const isAllowance = totalAmount < 0;
+        const prevCumulative = roomCumulativeMap.get(roomNumber) || 0;
+        const cumulativeTotal = roundToTwo(prevCumulative + totalAmount);
+        roomCumulativeMap.set(roomNumber, cumulativeTotal);
+
+        rows_display.push({
+          id: `post-${charge.guest_room_charges_id}-${idx}`,
+          guest_room_charges_id: charge.guest_room_charges_id,
+          checkin_id: charge.checkin_id ?? 0,
+          guest_id: charge.guest_id,
+          detail_id: undefined,
+          room_id: charge.room_id,
+          room_number: roomNumber,
+          room_category_name: charge.department_name || '-',
+          converted_category_name: '-',
+          bill_date: charge.checkin_datetime || charge.checkin_datetime_from_detail || '',
+          bill_date_formatted: charge.bill_date_formatted!,
+          checkin_datetime: charge.checkin_datetime_from_detail || '',
+          checkout_datetime: charge.checkout_datetime_from_detail || '',
+          no_of_days: 0,
+          day_number: 0,
+          original_day_number: 0,
+          room_tariff_per_day: totalAmount,
+          total_room_tariff: totalAmount,
+          ex_pax_count: 0,
+          ex_pax_price: 0,
+          ex_pax_tax: 0,
+          ex_pax_tax_percent: 0,
+          ex_pax_total: 0,
+          child_count: 0,
+          child_unpaid: 0,
+          child_price: 0,
+          child_tax: 0,
+          child_tax_percent: 0,
+          child_total: 0,
+          driver_count: 0,
+          driver_price: 0,
+          driver_tax: 0,
+          driver_tax_percent: 0,
+          driver_total: 0,
+          cgst_amount: 0,
+          sgst_amount: 0,
+          igst_amount: 0,
+          cess_amount: 0,
+          service_charge_amount: 0,
+          adults: 0,
+          pax: 0,
+          ex_pax: 0,
+          child_paid: 0,
+          driver: 0,
+          discount_percent: 0,
+          discount_amount: 0,
+          tax_percent: 0,
+          tax_amount: 0,
+          total_amount: totalAmount,
+          is_extension: false,
+          isPostCharge: true,
+          parent_detail_id: null,
+          selected: true,
+          cumulative_total: cumulativeTotal,
+          guest_name: charge.guest_name!,
+          payment_method: charge.payment_method!,
+          created_at: charge.created_at,
+          has_checkout_datetime: !!charge.checkout_datetime,
+          checkout_time_formatted: charge.checkout_datetime ? formatDateTime(charge.checkout_datetime) : '-',
+          description: charge.description || '',
+          particulars: charge.postChargeParticulars || charge.particulars || charge.postChargeDescription || '',
+          department_name: charge.department_name || '',
+        });
+      } else {
+        const rowTotal = roundToTwo(toNumber(charge.total_amount));
+        const prevCumulative = roomCumulativeMap.get(roomNumber) || 0;
+        const cumulativeTotal = roundToTwo(prevCumulative + rowTotal);
+        roomCumulativeMap.set(roomNumber, cumulativeTotal);
+
+        rows_display.push({
+          id: `room-${charge.guest_room_charges_id}-${idx}`,
+          guest_room_charges_id: charge.guest_room_charges_id,
+          checkin_id: charge.checkin_id ?? 0,
+          guest_id: charge.guest_id,
+          detail_id: charge.detail_id,
+          room_id: charge.room_id,
+          room_number: roomNumber,
+          room_category_name: charge.actual_room_category_name || charge.room_category_name || '-',
+          converted_category_name: charge.actual_converted_category_name || charge.converted_category_name || '-',
+          bill_date: charge.checkin_datetime || charge.checkin_datetime_from_detail || '',
+          bill_date_formatted: charge.bill_date_formatted!,
+          checkin_datetime: charge.checkin_datetime_from_detail || '',
+          checkout_datetime: charge.checkout_datetime_from_detail || '',
+          no_of_days: 1,
+          day_number: charge.day_number!,
+          original_day_number: charge.original_day_number || charge.day_number!,
+          room_tariff_per_day: toNumber(charge.pax_price) || 0,
+          total_room_tariff: toNumber(charge.pax_price) || 0,
+          ex_pax_count: toNumber(charge.ex_pax_count),
+          ex_pax_price: toNumber(charge.ex_pax_price),
+          ex_pax_tax: toNumber(charge.ex_pax_tax),
+          ex_pax_tax_percent: toNumber(charge.ex_pax_tax_percent),
+          ex_pax_total: toNumber(charge.ex_pax_total),
+          child_count: toNumber(charge.child_count),
+          child_unpaid: toNumber(charge.child_unpaid),
+          child_price: toNumber(charge.child_price),
+          child_tax: toNumber(charge.child_tax),
+          child_tax_percent: toNumber(charge.child_tax_percent),
+          child_total: toNumber(charge.child_total),
+          driver_count: toNumber(charge.driver_count),
+          driver_price: toNumber(charge.driver_price),
+          driver_tax: toNumber(charge.driver_tax),
+          driver_tax_percent: toNumber(charge.driver_tax_percent),
+          driver_total: toNumber(charge.driver_total),
+          cgst_amount: toNumber(charge.cgst_amount),
+          sgst_amount: toNumber(charge.sgst_amount),
+          igst_amount: toNumber(charge.igst_amount),
+          cess_amount: toNumber(charge.cess_amount),
+          service_charge_amount: toNumber(charge.service_charge_amount),
+          adults: charge.adults!,
+          pax: charge.pax!,
+          ex_pax: charge.ex_pax!,
+          child_paid: charge.child_paid!,
+          driver: charge.driver!,
+          discount_percent: charge.discount_percent!,
+          discount_amount: roundToTwo((toNumber(charge.pax_price) * toNumber(charge.discount_percent)) / 100),
+          tax_percent: toNumber(charge.tax_percent) || 0,
+          tax_amount: toNumber(charge.pax_tax),
+          total_amount: rowTotal,
+          is_extension: charge.is_extension_day || false,
+          isPostCharge: false,
+          parent_detail_id: null,
+          selected: true,
+          cumulative_total: cumulativeTotal,
+          guest_name: charge.guest_name!,
+          payment_method: charge.payment_method!,
+          created_at: charge.created_at,
+          has_checkout_datetime: !!charge.checkout_datetime,
+          checkout_time_formatted: charge.checkout_datetime ? formatDateTime(charge.checkout_datetime) : '-',
+          description: charge.description || '',
+          particulars: '',
+          department_name: '',
+        });
+      }
+    }
+
+    setDisplayRows(rows_display);
+    console.log('Display rows count:', rows_display.length);
+
+    // ---- Advances are now returned directly by getCheckinFullDetails() (no separate API calls) ----
+    // pendingAdvanceAmount previously came from AdvanceTransactionService; keep value as-is (0) for now.
+
+
+    // Bill summary
+    const billSummaryItems: BillDateSummaryItem[] = rows_display.map((row, idx) => ({
       billDate: row.bill_date,
       billDateFormatted: row.bill_date_formatted,
       roomNumber: row.room_number,
@@ -529,42 +1105,77 @@ const fetchData = async () => {
       billNo: idx + 1,
       dayNumber: row.day_number,
       description: row.description,
-      amount: row.room_tariff,
+      amount: row.room_tariff_per_day,
       total: row.total_amount,
       isExtension: row.is_extension,
       isPostCharge: row.isPostCharge,
       originalDayNumber: row.original_day_number,
-    }))
-    setBillDateSummary(billSummaryItems)
+    }));
+    setBillDateSummary(billSummaryItems);
 
-    // 4. Combined guest summary — derived only from displayRowsResult.
-    const firstRow = rows[0]
-    const roomNumbersSet = new Set(displayRowsResult.map((r) => r.room_number))
+    // Build Combined Summary - Show all guest names per room
+const roomNumbersSet = new Set(rows_display.map(r => r.room_number));
 
-    // Collect unique guest names from display rows
-    const guestNames = new Set<string>()
-    displayRowsResult.forEach((r) => {
-      if (r.guest_name && r.guest_name !== 'Guest') guestNames.add(r.guest_name)
-    })
-    const displayGuestName =
-      guestNames.size > 0 ? Array.from(guestNames).join(', ') : firstRow.guest_name || 'Guest'
+// Get unique guest names and IDs for each room
+const roomGuestNames = new Map<string, Set<string>>();
+const roomGuestIds = new Map<string, Set<number>>();
 
+for (const room of roomNumbersSet) {
+  const roomRows = rows_display.filter(r => r.room_number === room);
+  const guestNames = new Set<string>();
+  const guestIds = new Set<number>();
+  
+  roomRows.forEach(r => {
+    if (r.guest_name && r.guest_name !== 'Guest') {
+      guestNames.add(r.guest_name);
+    }
+    if (r.guest_id && r.guest_id > 0) {
+      guestIds.add(r.guest_id);
+    }
+  });
+  
+  roomGuestNames.set(room, guestNames);
+  roomGuestIds.set(room, guestIds);
+}
+
+// Collect all unique guest names and IDs
+const allGuestNames = new Set<string>();
+const allGuestIds = new Set<number>();
+
+
+// Format display
+let displayGuestName = '';
+if (allGuestNames.size === 1) {
+  displayGuestName = Array.from(allGuestNames)[0];
+} else {
+  displayGuestName = Array.from(allGuestNames).join(', ');
+}
+
+let displayGuestId = ''
+
+if (allGuestIds.size === 1) {
+  displayGuestId = String(Array.from(allGuestIds)[0])
+} else if (allGuestIds.size > 1) {
+  displayGuestId = Array.from(allGuestIds).join(', ')
+} else {
+  displayGuestId = String(currentCheckin?.guest_id || '')
+}
     const combinedSummaryData: CombinedGuestSummary = {
       checkin_id: checkinIdFromState,
-      guest_id: firstRow.guest_id || 0,
-      guest_name: displayGuestName,
+      guest_id: currentCheckin?.guest_id || 0,
+      guest_name: displayGuestName || currentCheckin?.guest_name || 'Guest',
       room_numbers: Array.from(roomNumbersSet),
       room_categories: [],
       converted_categories: [],
       room_numbers_str: Array.from(roomNumbersSet).join(', '),
       room_categories_str: '',
       converted_categories_str: '',
-      total_room_tariff: displayRowsResult.reduce((s, r) => s + r.total_room_tariff, 0),
-      total_ex_pax_charge: displayRowsResult.reduce((s, r) => s + r.ex_pax_total, 0),
-      total_child_paid_amount: displayRowsResult.reduce((s, r) => s + r.child_total, 0),
-      total_driver_charge: displayRowsResult.reduce((s, r) => s + r.driver_total, 0),
-      total_tax_amount: displayRowsResult.reduce((s, r) => s + r.tax_amount, 0),
-      total_amount: displayRowsResult.reduce((s, r) => s + r.total_amount, 0),
+      total_room_tariff: rows_display.reduce((s, r) => s + r.total_room_tariff, 0),
+      total_ex_pax_charge: rows_display.reduce((s, r) => s + r.ex_pax_total, 0),
+      total_child_paid_amount: rows_display.reduce((s, r) => s + r.child_total, 0),
+      total_driver_charge: rows_display.reduce((s, r) => s + r.driver_total, 0),
+      total_tax_amount: rows_display.reduce((s, r) => s + r.tax_amount, 0),
+      total_amount: rows_display.reduce((s, r) => s + r.total_amount, 0),
       total_days: 1,
       total_adults: 0,
       total_pax: 0,
@@ -578,42 +1189,37 @@ const fetchData = async () => {
       extension_count: 0,
       extension_days: 0,
       payment_methods: ['Cash'],
-      payment_method: firstRow.payment_method || 'Cash',
+      payment_method: 'Cash',
       charges_ids: [],
       selected: true,
       original_checkin_datetime: '',
       final_checkout_datetime: '',
-      guest_mobile: firstRow.mobile,
-      guest_address: firstRow.address,
-      guest_email: firstRow.emailed,
+      guest_mobile: currentCheckin?.mobile,
+      guest_address: currentCheckin?.address,
+      guest_email: currentCheckin?.emailed,
       guest_id_proof: '-',
-      reg_no: firstRow.reg_no,
-      booking_ref: firstRow.booking,
-      plan_name: firstRow.plan_name,
-    }
-    setCombinedSummary(combinedSummaryData)
+      reg_no: currentCheckin?.reg_no,
+      booking_ref: currentCheckin?.booking,
+      plan_name: currentCheckin?.plan_name,
+    };
+    setCombinedSummary(combinedSummaryData);
 
-    // Set initial values for bill generation
-    setGeneratedBillNumber('')
-    setPaymentTransactionId(`TXN${Date.now().toString().slice(-12)}`)
-    setPaymentDate(formatBillDate(new Date().toISOString()))
-    setPaymentBank(
-      combinedSummaryData.payment_method === 'Credit Card' ? 'HDFC Bank Credit Card' : 'Cash',
-    )
+    setGeneratedBillNumber('');
+    setPaymentTransactionId(`TXN${Date.now().toString().slice(-12)}`);
+    setPaymentDate(formatBillDate(new Date().toISOString()));
+    setPaymentBank(combinedSummaryData.payment_method === 'Credit Card' ? 'HDFC Bank Credit Card' : 'Cash');
 
-    // Set selected rooms
-    const allRooms = Array.from(roomNumbersSet).sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true }),
-    )
-    setSelectedRooms(new Set(allRooms))
+    const allRooms = Array.from(roomNumbersSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    setSelectedRooms(new Set(allRooms));
+
   } catch (err) {
-    console.error('fetchData error:', err)
-    setError('Failed to load data. Please try again.')
-    toast.error('Failed to load room details')
+    console.error('fetchData error:', err);
+    setError('Failed to load data. Please try again.');
+    toast.error('Failed to load room details');
   } finally {
-    setLoading(false)
+    setLoading(false);
   }
-}
+};
 
   // ==================== HANDLER FUNCTIONS ====================
 
@@ -678,14 +1284,14 @@ const fetchData = async () => {
     selectedRowsForCheckout.reduce((sum, row) => sum + row.total_amount, 0),
   )
 
-const selectedRoomSummary = (() => {
+ const selectedRoomSummary = (() => {
   if (!combinedSummary) return null
 
   const seenRooms = new Set<string>()
   const roomCats = new Set<string>()
   const convCats = new Set<string>()
   const uniqueGuestNames = new Set<string>()
-  const uniqueGuestIds = new Set<number>()
+  const uniqueGuestIds = new Set<number>() // ✅ Collect guest IDs
 
   let adults = 0,
     pax = 0,
@@ -698,14 +1304,14 @@ const selectedRoomSummary = (() => {
     childCharge = 0,
     driverCharge = 0
   let taxAmt = 0,
-    discountPercentSum = 0,
-    discountAmountSum = 0,  // ✅ Add this for total discount amount
+    discountSum = 0,
     taxPctSum = 0,
     roomChargeCount = 0
   let minCI = '',
     maxCO = ''
 
   for (const row of filteredRowsByRoom) {
+    // ✅ Collect unique guest names and IDs
     if (row.guest_name && row.guest_name !== 'Guest') {
       uniqueGuestNames.add(row.guest_name)
     }
@@ -726,8 +1332,7 @@ const selectedRoomSummary = (() => {
       childCharge += row.child_total
       driverCharge += row.driver_total
       taxAmt += row.tax_amount
-      discountPercentSum += row.discount_percent
-      discountAmountSum += row.discount_amount  // ✅ Sum up discount amounts
+      discountSum += row.discount_percent
       taxPctSum += row.tax_percent
       roomChargeCount++
       if (!minCI || row.checkin_datetime < minCI) minCI = row.checkin_datetime
@@ -753,6 +1358,7 @@ const selectedRoomSummary = (() => {
     stayDays = stayDays > 0 ? stayDays : 1
   }
 
+  // ✅ Create comma-separated guest names and IDs
   let guestNamesDisplay = '';
   if (uniqueGuestNames.size > 0) {
     guestNamesDisplay = Array.from(uniqueGuestNames).join(', ');
@@ -769,7 +1375,7 @@ const selectedRoomSummary = (() => {
 
   return {
     guest_name: guestNamesDisplay,
-    guest_id: guestIdsDisplay,
+    guest_id: guestIdsDisplay, // ✅ Now comma-separated guest IDs
     payment_method: combinedSummary.payment_method,
     room_categories_str: Array.from(roomCats).join(', '),
     converted_categories_str: Array.from(convCats).join(', ') || '-',
@@ -781,8 +1387,6 @@ const selectedRoomSummary = (() => {
     total_child_unpaid: 0,
     total_driver: driver,
     total_room_tariff: roundToTwo(roomTariff),
-    total_discount_amount: roundToTwo(discountAmountSum),  // ✅ Now uses discountAmountSum
-    total_discount_percent: roundToTwo(discountPercentSum), // ✅ Added for percent total (optional)
     total_ex_pax_charge: roundToTwo(exPaxCharge),
     total_child_paid_amount: roundToTwo(childCharge),
     total_driver_charge: roundToTwo(driverCharge),
@@ -791,6 +1395,7 @@ const selectedRoomSummary = (() => {
     selected: combinedSummary.selected,
   }
 })()
+
   const handleCheckoutClick = () => {
     if (!combinedSummary) {
       toast.error('No check-in data found')
@@ -1380,7 +1985,7 @@ const handleConfirmCheckout = async () => {
                           <thead className="bg-fo-header ">
                             <tr>
                               <th>#</th>
-                              <th>Bill Date</th>
+                             d <th>Bill Date</th>
                               <th>Guest</th>
                               <th>GuestID</th>
                               <th>Room No.</th>
@@ -1391,7 +1996,6 @@ const handleConfirmCheckout = async () => {
                               <th>Pax</th>
                               <th>Amount</th>
                               <th>Discount%</th>
-                              <th>Discount Amt</th>
                               <th>Tax%</th>
                               <th>Tax Amt</th>
                               <th>Ex_Pax</th>
@@ -1451,15 +2055,11 @@ const handleConfirmCheckout = async () => {
                                     {row.isPostCharge ? '-' : row.pax}
                                   </td>
                                   <td className="text-end">
-                                    {formatAmountClean(row.room_tariff)}
+                                    {formatAmountClean(row.room_tariff_per_day)}
                                   </td>
                                   <td className="text-center">
                                     {row.isPostCharge ? '-' : `${row.discount_percent}%`}
                                   </td>
-                                  <td className="text-center">
-                                    {row.isPostCharge ? '-' : `${row.discount_amount.toFixed(2)}`}
-                                  </td>
-                                  
                                   <td className="text-center">
                                     {row.isPostCharge ? '-' : `${row.tax_percent.toFixed(2)}%`}
                                   </td>
@@ -1554,7 +2154,6 @@ const handleConfirmCheckout = async () => {
                           <th>Adults</th>
                           <th>Pax</th>
                           <th>Amount</th>
-                          <th>Discount Amt</th>
                           <th>Ex_Pax</th>
                           <th>Ex_Pax Total</th>
                           <th>Child</th>
@@ -1594,7 +2193,6 @@ const handleConfirmCheckout = async () => {
                             <td>{selectedRoomSummary.total_adults}</td>
                             <td>{selectedRoomSummary.total_pax}</td>
                             <td>{formatAmountClean(selectedRoomSummary.total_room_tariff)}</td>
-                            <td>{formatAmountClean(selectedRoomSummary.total_discount_amount)}</td>
                             <td>{selectedRoomSummary.total_ex_pax}</td>
                             <td>{formatAmountClean(selectedRoomSummary.total_ex_pax_charge)}</td>
                             <td>{selectedRoomSummary.total_child_paid}</td>
@@ -1724,7 +2322,7 @@ const handleConfirmCheckout = async () => {
                                     )}
                                   </td>
                                   <td className="text-end">
-                                    {formatAmountClean(item.room_tariff)}
+                                    {formatAmountClean(item.room_tariff_per_day)}
                                   </td>
                                   <td className="fw-bold text-end">
                                     <span
@@ -1839,7 +2437,7 @@ const handleConfirmCheckout = async () => {
                                 {row.isPostCharge ? '-' : formatAmountClean(row.driver_total)}
                               </td>
                               <td className="text-end">
-                                {formatAmountClean(row.room_tariff)}
+                                {formatAmountClean(row.room_tariff_per_day)}
                               </td>
                               <td className="text-center">
                                 {row.isPostCharge ? '-' : `${row.tax_percent.toFixed(2)}%`}
