@@ -1309,7 +1309,7 @@ const ActionBox = ({ title, onClose, children, className = '' }: ActionBoxProps)
   )
 }
 
-// ================== Pax Change Component ==================
+// ================== Pax Change Component (FIXED - Using proper API services) ==================
 interface PaxChangeProps {
   selectedRoom: OccupiedRoom
   allRoomsDetails: Detail[]
@@ -1323,11 +1323,16 @@ const PaxChangeComponent = ({
   onClose,
   onRefresh,
 }: PaxChangeProps) => {
+  const { user } = useAuthContext()
+  const hotelId = user?.hotel_id
+
   const originalPax = selectedRoom.detail.pax || 0
   const originalExPax = selectedRoom.detail.ex_pax || 0
   const originalChildPaid = selectedRoom.checkin.child_paid || 0
   const originalDriver = selectedRoom.detail.driver || 0
 
+  // Combined total guests (Pax + ExPax)
+  const [tempTotalGuests, setTempTotalGuests] = useState(originalPax + originalExPax)
   const [tempPax, setTempPax] = useState(originalPax)
   const [tempExPax, setTempExPax] = useState(originalExPax)
   const [tempChildPaid, setTempChildPaid] = useState(originalChildPaid)
@@ -1336,27 +1341,45 @@ const PaxChangeComponent = ({
   const [modeCharges, setModeCharges] = useState<any[]>([])
   const [taxMap, setTaxMap] = useState<Map<number, number>>(new Map())
   const [loadingUpdate, setLoadingUpdate] = useState(false)
+  
+  // Category pax limits
+  const [categoryMaxPax, setCategoryMaxPax] = useState<number | null>(null)
+  const [categoryMaxLimit, setCategoryMaxLimit] = useState<number | null>(null)
+  const [tariffSlabs, setTariffSlabs] = useState<Array<{ no_of_pax: number; room_tariff: number }>>([])
 
   useEffect(() => {
     setTempPax(originalPax)
     setTempExPax(originalExPax)
+    setTempTotalGuests(originalPax + originalExPax)
     setTempChildPaid(originalChildPaid)
     setTempDriver(originalDriver)
     setPreviewActive(false)
   }, [originalPax, originalExPax, originalChildPaid, originalDriver])
 
+  // Fetch category details
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchCategoryData = async () => {
       const effectiveCategoryId =
         selectedRoom.detail.converted_category_id || selectedRoom.detail.room_category_id
       if (!effectiveCategoryId) return
+      
       try {
         const catRes = await RoomCategoryService.get(effectiveCategoryId)
         const catData = catRes.data || catRes
+        
+        const tariffs = catData.tariffs || []
+        setTariffSlabs(tariffs)
+        
+        const paxValues = tariffs
+          .map((t: any) => Number(t.no_of_pax))
+          .filter((v: number) => v > 0)
+        setCategoryMaxPax(paxValues.length ? Math.max(...paxValues) : null)
+        
+        setCategoryMaxLimit(catData.max_limit != null ? Number(catData.max_limit) : null)
         setModeCharges(catData.mode_charges || [])
 
         const taxRes = await taxApi.list()
-        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
+        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
         const map = new Map<number, number>()
         taxData.forEach((tax: any) => {
           const percent = tax.hotel_tax_value ?? tax.hotel_cgst + tax.hotel_sgst
@@ -1368,7 +1391,7 @@ const PaxChangeComponent = ({
         toast.error('Could not load extra charges configuration')
       }
     }
-    fetchData()
+    fetchCategoryData()
   }, [selectedRoom])
 
   const nights = selectedRoom.detail.no_of_days || 1
@@ -1376,7 +1399,7 @@ const PaxChangeComponent = ({
   const computeModeCharges = (modeName: string, count: number) => {
     const mode = modeCharges.find((m: any) => m.mode_name === modeName)
     if (!mode || count <= 0) {
-      return { price: 0, tax: 0, taxPercent: 0, total: 0 }
+      return { price: 0, tax: 0, taxPercent: 0, total: 0, perNightPrice: 0 }
     }
     const perNightPrice = mode.charges * count
     let taxPercent = 0
@@ -1390,7 +1413,81 @@ const PaxChangeComponent = ({
       tax: perNightTax * nights,
       taxPercent,
       total: perNightTotal * nights,
+      perNightPrice,
     }
+  }
+
+  // ============================================================
+  // COMBINED PAX/EXPAX CONTROL WITH CATEGORY LIMIT LOGIC
+  // ============================================================
+  
+  // Calculate distribution: Pax gets filled up to max, rest goes to ExPax
+  const calculateDistribution = (totalGuests: number): { pax: number; exPax: number } => {
+    const effectiveMaxPax = categoryMaxPax || categoryMaxLimit || 999
+    
+    if (totalGuests <= effectiveMaxPax) {
+      return { pax: totalGuests, exPax: 0 }
+    } else {
+      return { pax: effectiveMaxPax, exPax: totalGuests - effectiveMaxPax }
+    }
+  }
+
+  // Handle total guests increment
+  const handleTotalGuestsIncrement = () => {
+    const newTotal = tempTotalGuests + 1
+    setTempTotalGuests(newTotal)
+    
+    const distribution = calculateDistribution(newTotal)
+    setTempPax(distribution.pax)
+    setTempExPax(distribution.exPax)
+    setPreviewActive(false)
+  }
+
+  // Handle total guests decrement
+  const handleTotalGuestsDecrement = () => {
+    if (tempTotalGuests > 1) {
+      const newTotal = tempTotalGuests - 1
+      setTempTotalGuests(newTotal)
+      
+      const distribution = calculateDistribution(newTotal)
+      setTempPax(distribution.pax)
+      setTempExPax(distribution.exPax)
+      setPreviewActive(false)
+    }
+  }
+
+  // ============================================================
+  // INCREMENT/DECREMENT HANDLERS FOR ALL FIELDS
+  // ============================================================
+  
+  const handleIncrement = (field: 'totalGuests' | 'child' | 'driver') => {
+    switch (field) {
+      case 'totalGuests':
+        handleTotalGuestsIncrement()
+        break
+      case 'child':
+        setTempChildPaid((c: number) => c + 1)
+        break
+      case 'driver':
+        setTempDriver((d: number) => d + 1)
+        break
+    }
+    setPreviewActive(false)
+  }
+
+  const handleDecrement = (field: 'totalGuests' | 'child' | 'driver') => {
+    switch (field) {
+      case 'totalGuests':
+        handleTotalGuestsDecrement()
+        break
+      case 'child':
+        if (tempChildPaid > 0) setTempChildPaid((c: number) => c - 1)
+        break
+      case 'driver':
+        if (tempDriver > 0) setTempDriver((d: number) => d - 1)
+        break
+    }
+    setPreviewActive(false)
   }
 
   const exPaxCalc = computeModeCharges('EXTRA_PAX', tempExPax)
@@ -1404,7 +1501,15 @@ const PaxChangeComponent = ({
       ex_pax: tempExPax,
       driver: tempDriver,
     }
-    const updatedCheckin = { ...selectedRoom.checkin, child_paid: tempChildPaid }
+    const updatedCheckin = { 
+      ...selectedRoom.checkin, 
+      child_paid: tempChildPaid,
+      ex_pax: tempExPax,
+      ex_pax_charge: exPaxCalc.price,
+      child_charge: childCalc.price,
+      driver: tempDriver,
+      driver_charge: driverCalc.price,
+    }
     const charges = {
       ex_pax_price: exPaxCalc.price,
       ex_pax_tax: exPaxCalc.tax,
@@ -1466,42 +1571,6 @@ const PaxChangeComponent = ({
     return buildRoomDataRowFromDetail(selectedRoom.detail, selectedRoom.checkin, liveCharges)
   }, [selectedRoom, modeCharges, taxMap, originalExPaxCalc, originalChildCalc, originalDriverCalc])
 
-  const handleIncrement = (field: 'pax' | 'exPax' | 'child' | 'driver') => {
-    switch (field) {
-      case 'pax':
-        setTempPax((p) => p + 1)
-        break
-      case 'exPax':
-        setTempExPax((e) => e + 1)
-        break
-      case 'child':
-        setTempChildPaid((c) => c + 1)
-        break
-      case 'driver':
-        setTempDriver((d) => d + 1)
-        break
-    }
-    setPreviewActive(false)
-  }
-
-  const handleDecrement = (field: 'pax' | 'exPax' | 'child' | 'driver') => {
-    switch (field) {
-      case 'pax':
-        if (tempPax > 0) setTempPax((p) => p - 1)
-        break
-      case 'exPax':
-        if (tempExPax > 0) setTempExPax((e) => e - 1)
-        break
-      case 'child':
-        if (tempChildPaid > 0) setTempChildPaid((c) => c - 1)
-        break
-      case 'driver':
-        if (tempDriver > 0) setTempDriver((d) => d - 1)
-        break
-    }
-    setPreviewActive(false)
-  }
-
   const handleTest = () => {
     setPreviewActive(true)
     toast.success('Preview updated')
@@ -1510,21 +1579,42 @@ const PaxChangeComponent = ({
   const handleUpdate = async () => {
     setLoadingUpdate(true)
     try {
+      // Calculate all values
+      const newTotal = parseFloat(updatedRow.totalAmount)
+      const baseRoomAmount = parseFloat(updatedRow.rate) * nights
+      const discountAmount = (baseRoomAmount * (selectedRoom.detail.discount_percent || 0)) / 100
+      const roomAmountAfterDiscount = baseRoomAmount - discountAmount
+      const taxPercent = parseFloat(updatedRow.taxPercent)
+      const taxAmount = (roomAmountAfterDiscount * taxPercent) / 100
+
+      // ========== 1. UPDATE detail_master ==========
       const detailPayload = {
         pax: tempPax,
         ex_pax: tempExPax,
         driver: tempDriver,
-        ex_pax_charge: exPaxCalc.total,
-        driver_charge: driverCalc.total,
-        child_paid_amount: childCalc.total,
+        ex_pax_charge: exPaxCalc.perNightPrice,
+        driver_charge: driverCalc.perNightPrice,
+        child_paid_amount: childCalc.perNightPrice,
+        tax: taxAmount,
+        total_amount: newTotal,
       }
       await DetailService.update(selectedRoom.detail.detail_id, detailPayload)
+      console.log('[PAX] Updated detail_master:', detailPayload)
 
-      const checkinPayload = { child_paid: tempChildPaid }
+      // ========== 2. UPDATE checkin_master (ALL FIELDS) ==========
+      const checkinPayload = {
+        child_paid: tempChildPaid,
+        child_charge: childCalc.price,
+        ex_pax: tempExPax,
+        ex_pax_charge: exPaxCalc.price,
+        driver: tempDriver,
+        driver_charge: driverCalc.price,
+        total_amount: newTotal,
+      }
       await CheckInService.update(selectedRoom.checkin.checkin_id, checkinPayload)
+      console.log('[PAX] Updated checkin_master:', checkinPayload)
 
-      const newTotal = parseFloat(updatedRow.totalAmount)
-
+      // ========== 3. UPDATE or CREATE guest_room_charges ==========
       const chargesPayload = {
         guest_id: selectedRoom.checkin.guest_id,
         room_id: selectedRoom.detail.room_id,
@@ -1546,26 +1636,33 @@ const PaxChangeComponent = ({
         total_amount: newTotal,
       }
 
-      const paxChargesId = selectedRoom.charges?.guest_room_charges_id || selectedRoom.charges?.id
+      const paxChargesId = selectedRoom.charges?.checkin_guest_room_charges_id || selectedRoom.charges?.id
       if (paxChargesId) {
         await GuestRoomChargesService.update(paxChargesId, chargesPayload)
+        console.log('[PAX] Updated guest_room_charges ID:', paxChargesId)
       } else {
         const newChargesPayload = {
           checkin_id: selectedRoom.checkin.checkin_id,
           ...chargesPayload,
         }
         await GuestRoomChargesService.create(newChargesPayload)
+        console.log('[PAX] Created new guest_room_charges')
       }
 
+      // ========== 4. UPDATE folio entry ==========
       await updateRoomChargeFolio(
         selectedRoom.checkin.checkin_id,
         selectedRoom.detail.detail_id,
         newTotal,
         selectedRoom.checkin.hotelid,
       )
+      console.log('[PAX] Updated folio with new total:', newTotal)
 
-      toast.success('Pax information updated successfully')
+      toast.success(`Pax information updated successfully!
+        Pax: ${tempPax} | ExPax: ${tempExPax} | Child: ${tempChildPaid} | Driver: ${tempDriver}
+        Total: ${newTotal}`)
       onRefresh()
+      onClose()
     } catch (error) {
       console.error('Update failed', error)
       toast.error('Failed to update pax information')
@@ -1573,6 +1670,35 @@ const PaxChangeComponent = ({
       setLoadingUpdate(false)
     }
   }
+
+  // Calculate max limit display values
+  const getMaxLimitDisplay = () => {
+    if (tariffSlabs.length > 0) {
+      const paxValues = tariffSlabs
+        .map(t => Number(t.no_of_pax))
+        .filter(v => v > 0)
+      const maxPax = paxValues.length ? Math.max(...paxValues) : null
+      
+      let exPaxLimit = 'NA'
+      if (maxPax !== null && categoryMaxLimit !== null) {
+        exPaxLimit = String(Math.max(categoryMaxLimit - maxPax, 0))
+      }
+      
+      return {
+        paxLimit: maxPax !== null ? String(maxPax) : 'NA',
+        exPaxLimit: exPaxLimit
+      }
+    }
+    
+    return {
+      paxLimit: categoryMaxPax !== null ? String(categoryMaxPax) : 'NA',
+      exPaxLimit: categoryMaxLimit !== null && categoryMaxPax !== null
+        ? String(Math.max(categoryMaxLimit - categoryMaxPax, 0))
+        : 'NA'
+    }
+  }
+
+  const limits = getMaxLimitDisplay()
 
   const allHeaders = [
     { key: '#', label: '#' },
@@ -1613,9 +1739,11 @@ const PaxChangeComponent = ({
     { key: 'totalAmount', label: 'Total' },
   ]
 
-  const isChanged = (field: 'exPax' | 'child' | 'driver') => {
+  const isChanged = (field: 'pax' | 'exPax' | 'child' | 'driver') => {
     if (!previewActive) return false
     switch (field) {
+      case 'pax':
+        return tempPax !== originalPax
       case 'exPax':
         return tempExPax !== originalExPax
       case 'child':
@@ -1634,24 +1762,27 @@ const PaxChangeComponent = ({
       <div className="border p-2 mb-2">
         <Row className="g-2">
           <Col md={3} className="border-end pe-2">
+            {/* Combined Pax/ExPax control */}
             <div className="d-flex align-items-center mb-1">
               <div style={{ width: '120px' }} className="fs-small">
                 Pax/ExPax
               </div>
-              <Button size="sm" variant="light" onClick={() => handleDecrement('exPax')}>
+              <Button size="sm" variant="light" onClick={() => handleDecrement('totalGuests')}>
                 -
               </Button>
               <input
                 className="form-control form-control-sm"
                 style={{ width: '50px' }}
                 type="number"
-                value={tempExPax}
+                value={tempTotalGuests}
                 readOnly
               />
-              <Button size="sm" variant="light" onClick={() => handleIncrement('exPax')}>
+              <Button size="sm" variant="light" onClick={() => handleIncrement('totalGuests')}>
                 +
               </Button>
             </div>
+            
+            {/* Child - separate control */}
             <div className="d-flex align-items-center mb-1">
               <div style={{ width: '120px' }} className="fs-small">
                 Child
@@ -1670,6 +1801,8 @@ const PaxChangeComponent = ({
                 +
               </Button>
             </div>
+            
+            {/* Driver - separate control */}
             <div className="d-flex align-items-center">
               <div style={{ width: '120px' }} className="fs-small">
                 Driver
@@ -1703,13 +1836,20 @@ const PaxChangeComponent = ({
               <tbody>
                 <tr>
                   <td className="text-start fw-bold">Max Limit For</td>
-                  <td>{tempPax}</td>
-                  <td>{tempExPax}</td>
-                  <td>{tempChildPaid}</td>
-                  <td>{tempDriver}</td>
+                  <td>{limits.paxLimit}</td>
+                  <td>{limits.exPaxLimit}</td>
+                  <td>NA</td>
+                  <td>NA</td>
                 </tr>
                 <tr>
                   <td className="text-start fw-bold">Current Occupied</td>
+                  <td>{originalPax}</td>
+                  <td>{originalExPax}</td>
+                  <td>{originalChildPaid}</td>
+                  <td>{originalDriver}</td>
+                </tr>
+                <tr>
+                  <td className="text-start fw-bold">Current Value</td>
                   <td>{tempPax}</td>
                   <td>{tempExPax}</td>
                   <td>{tempChildPaid}</td>
@@ -1719,6 +1859,10 @@ const PaxChangeComponent = ({
             </table>
           </Col>
         </Row>
+        <div className="text-muted small mt-2">
+          <i className="bi bi-info-circle me-1"></i>
+          Updates will be saved to: detail_master, checkin_master, guest_room_charges, and folio.
+        </div>
       </div>
 
       <div className="action-table-container">
@@ -1745,7 +1889,7 @@ const PaxChangeComponent = ({
                 <td>{currentRow.dDate}</td>
                 <td>{currentRow.dTime}</td>
                 <td>{currentRow.adults}</td>
-                <td>{currentRow.pax}</td>
+                <td className={isChanged('pax') ? 'highlight-cell' : ''}>{currentRow.pax}</td>
                 <td className={isChanged('exPax') ? 'highlight-cell' : ''}>{currentRow.exPax}</td>
                 <td>{currentRow.exPaxPrice}</td>
                 <td>{currentRow.exPaxTaxPercent}%</td>
