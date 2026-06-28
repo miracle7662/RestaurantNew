@@ -180,13 +180,26 @@ const CheckoutService = {
     updateRoomsToAvailable: (payload: UpdateRoomsPayload) => 
     HttpClient.put<ApiResponse<UpdateRoomsResponse>>( "/checkouts/rooms/available", payload ),
 
-     getBillPreview: (checkoutId?: number, ldgBillNo?: string): Promise<ApiResponse<BillPreviewResponse[]>> => {
-    const params: any = {};
-    if (checkoutId) params.checkout_id = checkoutId;
-    if (ldgBillNo) params.ldg_bill_no = ldgBillNo;
-    
-    return HttpClient.get<ApiResponse<BillPreviewResponse[]>>('/checkouts/bill-preview', { params });
-  },
+    // In checkout.ts - Replace the getBillPreview method with this:
+
+getBillPreview: async (checkoutId?: number, ldgBillNo?: string): Promise<{
+  success: boolean;
+  message: string;
+  data: BillPreviewResponse[];
+  summary: BillPreviewResponse['summary'];
+}> => {
+  const params: any = {};
+  if (checkoutId) params.checkout_id = checkoutId;
+  if (ldgBillNo) params.ldg_bill_no = ldgBillNo;
+  
+  // Use HttpClient directly with a custom return type
+  return HttpClient.get<{
+    success: boolean;
+    message: string;
+    data: BillPreviewResponse[];
+    summary: BillPreviewResponse['summary'];
+  }>('/checkouts/bill-preview', { params });
+},
 
 };
 
