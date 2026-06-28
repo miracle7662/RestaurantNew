@@ -1349,153 +1349,164 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     )
   }, [printSettings, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, summary, headerBg, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate])
 
-  const renderChargesTable = useCallback(() => {
-    console.log('🎯 Rendering Charges Table, tableRows:', tableRows.length)
-    
-    if (tableRows.length === 0) {
-      return (
-        <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-          No charges to display.
-        </div>
-      )
-    }
-
-    const showRowNums = printSettings?.show_row_numbers === 1
-
-    const headers: React.ReactElement[] = []
-    if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
-    headers.push(<th key="room" className="col-room bct-left">ROOM</th>)
-    headers.push(<th key="date" className="col-date bct-left">DATE</th>)
-    headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
-    headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
-    headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
-    headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
-    headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
-    headers.push(<th key="post" className="col-amount bct-right">POST</th>)
-    headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>)
-    headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>)
-    headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
-
-    const totalCols = headers.length
-
-    const bodyRows: React.ReactElement[] = []
-    let runningIndex = 1
-
-    tableRows.forEach((row) => {
-      const mainIndex = runningIndex++
-      
-      const cells: React.ReactElement[] = []
-      if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>)
-      cells.push(
-        <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'normal' }}>
-          {row.roomNumber || 'N/A'}
-        </td>
-      )
-      cells.push(<td key="date" className="bct-left">{row.date || 'N/A'}</td>)
-      cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff || 0)}</td>)
-      cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax || 0)}</td>)
-      cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst || 0)}</td>)
-      cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst || 0)}</td>)
-      cells.push(<td key="food" className="bct-right">{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
-      cells.push(<td key="post" className="bct-right">{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>)
-      cells.push(<td key="advance" className="bct-right" style={{ color: row.advanceTotal > 0 ? '#c0392b' : 'inherit' }}>
-        {row.advanceTotal > 0 ? formatAmtDisplay(row.advanceTotal) : '-'}
-      </td>)
-      cells.push(<td key="allowance" className="bct-right" style={{ color: row.allowanceTotal > 0 ? '#c0392b' : 'inherit' }}>
-        {row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}
-      </td>)
-      cells.push(
-        <td key="total" className="bct-right" style={{ fontWeight: 600 }}>
-          {formatAmtDisplay(row.total || 0)}
-        </td>
-      )
-      bodyRows.push(<tr key={row.id}>{cells}</tr>)
-    })
-
-    // Footer row - using backend calculated totals
-    const footerCells: React.ReactElement[] = []
-    const labelColSpan = showRowNums ? 3 : 2
-    
-    footerCells.push(
-      <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ fontWeight: 700 }}>
-        Total
-      </td>
-    )
-    footerCells.push(
-      <td key="total_tariff" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totals.totalRoomTariffAmount || 0)}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_expax" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totals.totalExPaxAmount || 0)}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_cgst" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totals.totalCgstAmount || 0)}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_sgst" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totals.totalSgstAmount || 0)}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_food" className="bct-right" style={{ fontWeight: 700 }}>
-        {totals.totalFoodAmount > 0 ? formatAmtDisplay(totals.totalFoodAmount) : '-'}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_post" className="bct-right" style={{ fontWeight: 700 }}>
-        {totals.totalPostAmount > 0 ? formatAmtDisplay(totals.totalPostAmount) : '-'}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_advance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
-        {totals.totalAdvanceAmount > 0 ? formatAmtDisplay(totals.totalAdvanceAmount) : '-'}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_allowance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
-        {totals.totalAllowanceAmount > 0 ? formatAmtDisplay(totals.totalAllowanceAmount) : '-'}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_amount" className="bct-right" style={{ fontWeight: 800, background: '#f0f0f0' }}>
-        {formatAmtDisplay(totals.totalAmount || 0)}
-      </td>
-    )
-
-    // Grand Total row - using backend net payable
-    const summaryRows: React.ReactElement[] = []
-
-    summaryRows.push(
-      <tr key="summary_grand_total" style={{ background: headerBg, color: headerText }}>
-        <td colSpan={totalCols - 1} className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
-          TOTAL PAID (INR)
-        </td>
-        <td className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
-          ₹{formatAmt(totals.netTotal || 0)}
-        </td>
-      </tr>
-    )
-
+ const renderChargesTable = useCallback(() => {
+  console.log('🎯 Rendering Charges Table, tableRows:', tableRows.length)
+  
+  if (tableRows.length === 0) {
     return (
-      <div style={{ overflowX: 'auto' }}>
-        <table className="bill-charges-table">
-          <thead>
-            <tr>{headers}</tr>
-          </thead>
-          <tbody>{bodyRows}</tbody>
-          <tfoot>
-            <tr key="footer1">{footerCells}</tr>
-            {summaryRows}
-          </tfoot>
-        </table>
+      <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+        No charges to display.
       </div>
     )
-  }, [printSettings, tableRows, totals, headerBg, headerText])
+  }
+
+  const showRowNums = printSettings?.show_row_numbers === 1
+
+  const headers: React.ReactElement[] = []
+  if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
+  headers.push(<th key="room" className="col-room bct-left">ROOM</th>)
+  headers.push(<th key="date" className="col-date bct-left">DATE</th>)
+  headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
+  headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
+  headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
+  headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
+  headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
+  headers.push(<th key="post" className="col-amount bct-right">POST</th>)
+  headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>)
+  headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>)
+  headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
+
+  const totalCols = headers.length
+
+  const bodyRows: React.ReactElement[] = []
+  let runningIndex = 1
+
+  tableRows.forEach((row) => {
+    const mainIndex = runningIndex++
+    
+    const cells: React.ReactElement[] = []
+    if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>)
+    cells.push(
+      <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'normal' }}>
+        {row.roomNumber || 'N/A'}
+      </td>
+    )
+    cells.push(<td key="date" className="bct-left">{row.date || 'N/A'}</td>)
+    cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff || 0)}</td>)
+    cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax || 0)}</td>)
+    cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst || 0)}</td>)
+    cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst || 0)}</td>)
+    cells.push(<td key="food" className="bct-right">{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
+    cells.push(<td key="post" className="bct-right">{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>)
+    cells.push(<td key="advance" className="bct-right" style={{ color: row.advanceTotal > 0 ? '#c0392b' : 'inherit' }}>
+      {row.advanceTotal > 0 ? formatAmtDisplay(row.advanceTotal) : '-'}
+    </td>)
+    cells.push(<td key="allowance" className="bct-right" style={{ color: row.allowanceTotal > 0 ? '#c0392b' : 'inherit' }}>
+      {row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}
+    </td>)
+    cells.push(
+      <td key="total" className="bct-right" style={{ fontWeight: 600 }}>
+        {formatAmtDisplay(row.total || 0)}
+      </td>
+    )
+    bodyRows.push(<tr key={row.id}>{cells}</tr>)
+  })
+
+  // FIX: Calculate totals from tableRows instead of using totals object
+  const totalTariff = tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
+  const totalExPax = tableRows.reduce((sum, row) => sum + row.exPax, 0)
+  const totalCgst = tableRows.reduce((sum, row) => sum + row.cgst, 0)
+  const totalSgst = tableRows.reduce((sum, row) => sum + row.sgst, 0)
+  const totalFood = tableRows.reduce((sum, row) => sum + row.food, 0)
+  const totalPost = tableRows.reduce((sum, row) => sum + row.postTotal, 0)
+  const totalAdvance = tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
+  const totalAllowance = tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
+  const totalAmount = tableRows.reduce((sum, row) => sum + row.total, 0)
+
+  // Footer row - using calculated values
+  const footerCells: React.ReactElement[] = []
+  const labelColSpan = showRowNums ? 3 : 2
+  
+  footerCells.push(
+    <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ fontWeight: 700 }}>
+      Total
+    </td>
+  )
+  footerCells.push(
+    <td key="total_tariff" className="bct-right" style={{ fontWeight: 700 }}>
+      {formatAmtDisplay(totalTariff)}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_expax" className="bct-right" style={{ fontWeight: 700 }}>
+      {formatAmtDisplay(totalExPax)}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_cgst" className="bct-right" style={{ fontWeight: 700 }}>
+      {formatAmtDisplay(totalCgst)}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_sgst" className="bct-right" style={{ fontWeight: 700 }}>
+      {formatAmtDisplay(totalSgst)}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_food" className="bct-right" style={{ fontWeight: 700 }}>
+      {totalFood > 0 ? formatAmtDisplay(totalFood) : '-'}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_post" className="bct-right" style={{ fontWeight: 700 }}>
+      {totalPost > 0 ? formatAmtDisplay(totalPost) : '-'}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_advance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
+      {totalAdvance > 0 ? formatAmtDisplay(totalAdvance) : '-'}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_allowance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
+      {totalAllowance > 0 ? formatAmtDisplay(totalAllowance) : '-'}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_amount" className="bct-right" style={{ fontWeight: 800, background: '#f0f0f0' }}>
+      {formatAmtDisplay(totalAmount)}
+    </td>
+  )
+
+  // Grand Total row - using calculated totalAmount
+  const summaryRows: React.ReactElement[] = []
+
+  summaryRows.push(
+    <tr key="summary_grand_total" style={{ background: headerBg, color: headerText }}>
+      <td colSpan={totalCols - 1} className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
+        TOTAL PAID (INR)
+      </td>
+      <td className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
+        ₹{formatAmt(totalAmount)}
+      </td>
+    </tr>
+  )
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table className="bill-charges-table">
+        <thead>
+          <tr>{headers}</tr>
+        </thead>
+        <tbody>{bodyRows}</tbody>
+        <tfoot>
+          <tr key="footer1">{footerCells}</tr>
+          {summaryRows}
+        </tfoot>
+      </table>
+    </div>
+  )
+}, [printSettings, tableRows, headerBg, headerText])
 
   const renderHorizontalSummary = useCallback(() => null, [])
 
