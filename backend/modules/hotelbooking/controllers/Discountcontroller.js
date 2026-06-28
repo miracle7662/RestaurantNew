@@ -51,7 +51,7 @@ exports.applyDiscount = async (req, res) => {
     // ✅ Convert backdated_apply to proper flag
     const backdatedFlag = backdated_apply === true || backdated_apply === 1 || backdated_apply === 'true' ? 1 : 0;
 
-    // Call stored procedure
+    // ✅ Call stored procedure only
     await db.query(
       `CALL sp_apply_discount(?, ?, ?, ?, ?, ?, @status_code, @status_message, @affected_rows)`,
       [detail_id, checkin_id, hotelid, discount_percent, backdatedFlag, userId]
@@ -71,47 +71,8 @@ exports.applyDiscount = async (req, res) => {
       })
     }
 
-    // ========================================
-    // ✅ FETCH ALL ROWS FOR THIS ROOM (ALWAYS)
-    // ========================================
-    
-    // Get the room_id for this detail
-    const [roomInfo] = await db.query(
-      `SELECT room_id FROM checkin_detail_master WHERE detail_id = ? AND checkin_id = ?`,
-      [Number(detail_id), Number(checkin_id)]
-    );
-    
-    const roomId = roomInfo[0]?.room_id;
-
-    // ✅ ALWAYS fetch ALL details for this room
-    const query = `
-      SELECT 
-        d.detail_id,
-        d.room_number,
-        d.room_tariff,
-        d.no_of_days,
-        d.discount_percent,
-        d.discount_amount,
-        d.checkin_datetime,
-        d.checkout_datetime,
-        f.folio_id,
-        f.debit_amount,
-        f.credit_amount,
-        f.description as folio_description,
-        (d.room_tariff * d.no_of_days) as base_amount,
-        ((d.room_tariff * d.discount_percent) / 100) as per_day_discount,
-        (((d.room_tariff * d.discount_percent) / 100) * d.no_of_days) as total_discount
-      FROM checkin_detail_master d
-      LEFT JOIN checkin_guest_folio_master f 
-        ON f.detail_id = d.detail_id 
-        AND f.transaction_type IN ('Room Charge', 'Room Charges')
-      WHERE d.checkin_id = ?
-        AND d.room_id = ?
-      ORDER BY d.checkin_datetime
-    `
-
-    const [updatedDetails] = await db.query(query, [Number(checkin_id), roomId])
-
+    // ✅ Return simple success response
+    // Frontend will fetch fresh data using getCheckinFullDetails
     return res.status(200).json({
       success: true,
       message: result.status_message,
@@ -119,8 +80,9 @@ exports.applyDiscount = async (req, res) => {
         affected_rows: result.affected_rows,
         discount_percent: discount_percent,
         backdated_apply: backdatedFlag === 1,
-        details: updatedDetails,
-        count: updatedDetails.length
+        // ✅ No need to return details here
+        // Frontend will call getCheckinFullDetails to get updated data
+        note: 'Please refresh data using getCheckinFullDetails API'
       }
     })
 
