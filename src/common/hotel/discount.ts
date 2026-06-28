@@ -73,46 +73,7 @@ const DiscountService = {
 
   
 
-  /**
-   * ✅ Get ALL days for a specific room
-   * GET /api/discount/room/:roomId
-   */
-  getRoomDetails: (
-    params: { room_id: number; checkin_id: number }
-  ): Promise<ApiResponse<DiscountDetail[]>> => {
-    const { room_id, checkin_id } = params
-    return HttpClient.get<ApiResponse<DiscountDetail[]>>(`/discount/room/${room_id}`, { 
-      params: { checkin_id } 
-    })
-  },
-
-  /**
-   * Get discount summary
-   * GET /api/discount/summary
-   */
-
-
-  /**
-   * Get discount by detail ID
-   * GET /api/discount/:detailId
-   */
-
-
-  /**
-   * Remove discount
-   * DELETE /api/discount/:detailId
-   */
-  remove: (
-    detailId: number,
-    params: {
-      checkin_id: number
-      hotelid?: number
-      backdated_apply?: boolean
-    }
-  ): Promise<ApiResponse<RemoveDiscountData>> => {
-    return HttpClient.delete<ApiResponse<RemoveDiscountData>>(`/discount/${detailId}`, { params })
-  },
-
+  
   
 }
 

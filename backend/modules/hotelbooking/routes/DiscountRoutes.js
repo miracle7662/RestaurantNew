@@ -8,8 +8,7 @@ router.post('/apply', DiscountController.applyDiscount)
 
 
 
-// GET - Get ALL days for a room
-router.get('/room/:roomId', DiscountController.getRoomDiscountDetails)
+
 
 
 module.exports = router

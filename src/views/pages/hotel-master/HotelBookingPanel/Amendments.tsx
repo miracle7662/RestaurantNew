@@ -5616,6 +5616,56 @@ interface AffectedDay {
   credit_amount?: number
   base_amount?: number
   per_day_discount?: number
+  isCurrentDay?: boolean
+  
+  // Tax fields
+  tax_percent?: number
+  taxAmount?: string
+  cgst_percent?: number
+  sgst_percent?: number
+  igst_percent?: number
+  cess_percent?: number
+  cgst_amount?: number
+  sgst_amount?: number
+  igst_amount?: number
+  cess_amount?: number
+  service_charge?: number
+  service_charge_amount?: number
+  
+  // Extra charges
+  ex_pax_price?: number
+  ex_pax_tax_percent?: number
+  ex_pax_tax?: number
+  ex_pax_total?: number
+  child_price?: number
+  child_tax_percent?: number
+  child_tax?: number
+  child_total?: number
+  driver_price?: number
+  driver_tax_percent?: number
+  driver_tax?: number
+  driver_total?: number
+  
+  // Room charges fields
+  pax_count?: number
+  pax_price?: number
+  pax_tax?: number
+  ex_pax_count?: number
+  child_count?: number
+  driver_count?: number
+  
+  // Guest info
+  guest_name?: string
+  guest_id?: number
+  room_category_name?: string
+  converted_category_name?: string
+  adults?: number
+  pax?: number
+  ex_pax?: number
+  child_paid_amount?: number
+  child_unpaid?: number
+  driver?: number
+  room_id?: number
 }
 
 const ApplyDiscountComponent = ({
@@ -5649,17 +5699,25 @@ const ApplyDiscountComponent = ({
     setSelectedDayIndex(0)
   }, [originalDiscount])
 
-  // ✅ Fetch ALL days for this room on mount
   useEffect(() => {
     fetchAffectedDays()
-  }, [selectedRoom.detail.room_id, selectedRoom.checkin.checkin_id])
+  }, [selectedRoom.detail.room_id, selectedRoom.checkin.checkin_id, selectedRoom.checkin.hotelid])
 
   // ========================================
   // ✅ HELPER: Safe number conversion
   // ========================================
-  const safeNumber = (value: any): number => {
+  const safeNumber = (value: any, defaultValue: number = 0): number => {
+    if (value === null || value === undefined) return defaultValue
     const num = Number(value)
-    return isNaN(num) ? 0 : num
+    return isNaN(num) ? defaultValue : num
+  }
+
+  // ========================================
+  // ✅ HELPER: Safe toFixed
+  // ========================================
+  const safeToFixed = (value: any, decimals: number = 2): string => {
+    const num = safeNumber(value)
+    return num.toFixed(decimals)
   }
 
   // ========================================
@@ -5678,49 +5736,115 @@ const ApplyDiscountComponent = ({
   }
 
   // ========================================
-  // ✅ FETCH ALL DAYS FOR THIS ROOM (ALWAYS)
+  // ✅ FETCH ALL DAYS USING RoomService.getCheckinFullDetails
   // ========================================
   const fetchAffectedDays = async () => {
     try {
-      const response = await DiscountService.getRoomDetails({
-        checkin_id: selectedRoom.checkin.checkin_id,
-        room_id: selectedRoom.detail.room_id
-      })
+      // ✅ Use RoomService.getCheckinFullDetails
+      const response = await RoomService.getCheckinFullDetails(
+        selectedRoom.checkin.hotelid,
+        selectedRoom.checkin.checkin_id
+      )
 
       if (response.success) {
-        const details = response.data || []
+        const allDetails = response.data || []
         
-        const formattedDetails = details.map((d: any) => ({
-          ...d,
+        // ✅ Filter only the current room's details
+        const roomDetails = allDetails.filter(
+          (d: any) => d.room_id === selectedRoom.detail.room_id
+        )
+        
+        const formattedDetails = roomDetails.map((d: any) => ({
+          detail_id: d.detail_id,
+          room_id: d.room_id,
+          room_number: d.room_number || '',
+          checkin_datetime: d.detail_checkin_datetime || d.checkin_datetime || null,
+          checkout_datetime: d.detail_checkout_datetime || d.checkout_datetime || null,
+          no_of_days: safeNumber(d.no_of_days, 1),
+          room_tariff: safeNumber(d.room_tariff),
           discount_percent: safeNumber(d.discount_percent),
           discount_amount: safeNumber(d.discount_amount),
           total_amount: safeNumber(d.total_amount || d.debit_amount || 0),
           debit_amount: safeNumber(d.debit_amount),
           credit_amount: safeNumber(d.credit_amount),
-          no_of_days: safeNumber(d.no_of_days),
-          room_tariff: safeNumber(d.room_tariff),
-          checkout_datetime: d.checkout_datetime || d.checkout_datetime,
-          base_amount: safeNumber(d.base_amount || d.room_tariff * d.no_of_days),
-          per_day_discount: safeNumber(d.per_day_discount || 0)
+          base_amount: safeNumber(d.base_amount) || safeNumber(d.room_tariff) * safeNumber(d.no_of_days),
+          per_day_discount: safeNumber(d.per_day_discount),
+          
+          // Guest info
+          guest_name: d.guest_name || d.name || '',
+          guest_id: d.guest_id,
+          room_category_name: d.room_category_name || '',
+          converted_category_name: d.converted_category_name || '',
+          adults: safeNumber(d.adults),
+          pax: safeNumber(d.pax),
+          ex_pax: safeNumber(d.ex_pax),
+          child_paid_amount: safeNumber(d.child_paid_amount),
+          child_unpaid: safeNumber(d.child_unpaid),
+          driver: safeNumber(d.driver),
+          
+          // Tax fields - Calculate total tax from components
+          tax_percent: safeNumber(d.tax_percent || d.tax),
+          taxAmount: safeToFixed(
+            safeNumber(d.cgst_amount || 0) + 
+            safeNumber(d.sgst_amount || 0) + 
+            safeNumber(d.igst_amount || 0) + 
+            safeNumber(d.cess_amount || 0) + 
+            safeNumber(d.service_charge_amount || 0)
+          ),
+          cgst_percent: safeNumber(d.cgst_percent),
+          sgst_percent: safeNumber(d.sgst_percent),
+          igst_percent: safeNumber(d.igst_percent),
+          cess_percent: safeNumber(d.cess_percent),
+          cgst_amount: safeNumber(d.cgst_amount),
+          sgst_amount: safeNumber(d.sgst_amount),
+          igst_amount: safeNumber(d.igst_amount),
+          cess_amount: safeNumber(d.cess_amount),
+          service_charge: safeNumber(d.service_charge),
+          service_charge_amount: safeNumber(d.service_charge_amount),
+          
+          // Room charges from checkin_guest_room_charges
+          ex_pax_price: safeNumber(d.ex_pax_price),
+          ex_pax_tax_percent: safeNumber(d.ex_pax_tax_percent),
+          ex_pax_tax: safeNumber(d.ex_pax_tax),
+          ex_pax_total: safeNumber(d.ex_pax_total),
+          child_price: safeNumber(d.child_price),
+          child_tax_percent: safeNumber(d.child_tax_percent),
+          child_tax: safeNumber(d.child_tax),
+          child_total: safeNumber(d.child_total),
+          driver_price: safeNumber(d.driver_price),
+          driver_tax_percent: safeNumber(d.driver_tax_percent),
+          driver_tax: safeNumber(d.driver_tax),
+          driver_total: safeNumber(d.driver_total),
+          
+          // Additional charges fields
+          pax_count: safeNumber(d.pax_count),
+          pax_price: safeNumber(d.pax_price),
+          pax_tax: safeNumber(d.pax_tax),
+          ex_pax_count: safeNumber(d.ex_pax_count),
+          child_count: safeNumber(d.child_count),
+          driver_count: safeNumber(d.driver_count),
+          
+          isCurrentDay: false
         }))
         
         setAffectedDays(formattedDetails)
         
-        // ✅ Auto-select the CURRENT day when data loads
         const currentIndex = findCurrentDayIndex(formattedDetails)
         setSelectedDayIndex(currentIndex)
         
-        // Filter for discount entries
         const discountEntries = formattedDetails.filter((d: any) => d.discount_percent > 0)
         setDiscountDetails(discountEntries)
+      } else {
+        toast.error(response.message || 'Failed to fetch room details')
       }
     } catch (error) {
       console.error('Failed to fetch affected days:', error)
+      toast.error('Failed to load room details')
     }
   }
 
   // ========================================
-  // ✅ FIND CURRENT DAY INDEX (Today's Date)
+  // ✅ FIND CURRENT DAY INDEX
   // ========================================
   const findCurrentDayIndex = (days: AffectedDay[] = affectedDays): number => {
     if (days.length === 0) return 0
@@ -5728,7 +5852,6 @@ const ApplyDiscountComponent = ({
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     
-    // Find the day where checkin_datetime matches today's date
     for (let i = 0; i < days.length; i++) {
       const day = days[i]
       if (day.checkin_datetime) {
@@ -5740,75 +5863,83 @@ const ApplyDiscountComponent = ({
       }
     }
     
-    // If no match found, return the first day
     return 0
   }
 
   // ========================================
-  // BUILD ROW FOR A SPECIFIC DAY
+  // ✅ CHECK IF DAY IS CURRENT
+  // ========================================
+  const isCurrentDay = (checkinDatetime?: string): boolean => {
+    if (!checkinDatetime) return false
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const checkinDate = new Date(checkinDatetime)
+    checkinDate.setHours(0, 0, 0, 0)
+    return checkinDate.getTime() === today.getTime()
+  }
+
+  // ========================================
+  // ✅ BUILD ROW FOR A SPECIFIC DAY
   // ========================================
   const buildRowForDay = (day: AffectedDay, index: number, isPreview: boolean = false) => {
     const detail = selectedRoom.detail
-    const nights = day.no_of_days || detail.no_of_days || 1
-    const rate = day.room_tariff || detail.room_tariff || 0
     
-    // Calculate discount for this day
-    const discountPercent = isPreview ? tempDiscountPercent : (day.discount_percent || 0)
+    const nights = safeNumber(day.no_of_days) || safeNumber(detail.no_of_days) || 1
+    const rate = safeNumber(day.room_tariff) || safeNumber(detail.room_tariff) || 0
+    const discountPercent = isPreview ? safeNumber(tempDiscountPercent) : safeNumber(day.discount_percent || 0)
     const discountAmount = (rate * nights * discountPercent) / 100
     
-    // Check if this is the current day (today)
-    const isCurrentDay = (() => {
-      if (!day.checkin_datetime) return false
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const checkinDate = new Date(day.checkin_datetime)
-      checkinDate.setHours(0, 0, 0, 0)
-      return checkinDate.getTime() === today.getTime()
-    })()
+    // Get tax from day data
+    const taxPercent = safeNumber(day.tax_percent) || 0
+    const taxAmount = safeNumber(day.taxAmount) || 0
+    
+    const currentDay = isCurrentDay(day.checkin_datetime)
+    const totalAmount = isPreview 
+      ? (rate * nights - discountAmount) + taxAmount
+      : safeNumber(day.total_amount || day.debit_amount || 0)
     
     return {
       index: index + 1,
       date: day.checkin_datetime ? new Date(day.checkin_datetime).toLocaleDateString() : '-',
-      guestName: selectedRoom.checkin.guest_name || '-',
-      guestId: selectedRoom.checkin.guest_id || '-',
-      roomNo: day.room_number || selectedRoom.roomNo,
-      type: detail.room_category_name || '-',
-      convCat: detail.converted_category_name || '-',
+      guestName: day.guest_name || selectedRoom.checkin.guest_name || '-',
+      guestId: day.guest_id || selectedRoom.checkin.guest_id || '-',
+      roomNo: day.room_number || selectedRoom.roomNo || '-',
+      type: day.room_category_name || detail.room_category_name || '-',
+      convCat: day.converted_category_name || detail.converted_category_name || '-',
       aDate: day.checkin_datetime ? new Date(day.checkin_datetime).toLocaleDateString() : '-',
       aTime: day.checkin_datetime ? new Date(day.checkin_datetime).toLocaleTimeString().slice(0, 5) : '-',
       dDate: day.checkout_datetime ? new Date(day.checkout_datetime).toLocaleDateString() : '-',
       dTime: day.checkout_datetime ? new Date(day.checkout_datetime).toLocaleTimeString().slice(0, 5) : '-',
-      adults: detail.adults || 0,
-      pax: detail.pax || 0,
-      exPax: detail.ex_pax || 0,
-      exPaxPrice: '0.00',
-      exPaxTaxPercent: '0',
-      exPaxTax: '0.00',
-      exPaxTotal: '0.00',
-      childPaid: selectedRoom.checkin.child_paid || 0,
-      childUnpaid: selectedRoom.checkin.child_unpaid || 0,
-      childPrice: '0.00',
-      childTaxPercent: '0',
-      childTax: '0.00',
-      childTotal: '0.00',
-      driver: detail.driver || 0,
-      driverPrice: '0.00',
-      driverTaxPercent: '0',
-      driverTax: '0.00',
-      driverTotal: '0.00',
+      adults: safeNumber(day.adults) || safeNumber(detail.adults),
+      pax: safeNumber(day.pax) || safeNumber(detail.pax),
+      exPax: safeNumber(day.ex_pax) || safeNumber(detail.ex_pax),
+      exPaxPrice: safeToFixed(safeNumber(day.ex_pax_price) || 0),
+      exPaxTaxPercent: safeNumber(day.ex_pax_tax_percent) || 0,
+      exPaxTax: safeToFixed(safeNumber(day.ex_pax_tax) || 0),
+      exPaxTotal: safeToFixed(safeNumber(day.ex_pax_total) || 0),
+      childPaid: safeNumber(day.child_paid_amount) || safeNumber(selectedRoom.checkin.child_paid) || 0,
+      childUnpaid: safeNumber(day.child_unpaid) || safeNumber(selectedRoom.checkin.child_unpaid) || 0,
+      childPrice: safeToFixed(safeNumber(day.child_price) || 0),
+      childTaxPercent: safeNumber(day.child_tax_percent) || 0,
+      childTax: safeToFixed(safeNumber(day.child_tax) || 0),
+      childTotal: safeToFixed(safeNumber(day.child_total) || 0),
+      driver: safeNumber(day.driver) || safeNumber(detail.driver),
+      driverPrice: safeToFixed(safeNumber(day.driver_price) || 0),
+      driverTaxPercent: safeNumber(day.driver_tax_percent) || 0,
+      driverTax: safeToFixed(safeNumber(day.driver_tax) || 0),
+      driverTotal: safeToFixed(safeNumber(day.driver_total) || 0),
       nights: nights,
-      rate: rate.toFixed(2),
-      discountPercent: isPreview ? tempDiscountPercent : (day.discount_percent || 0),
-      discountAmt: discountAmount.toFixed(2),
-      taxPercent: '0',
-      taxAmount: '0.00',
-      totalAmount: isPreview 
-        ? (rate * nights - discountAmount).toFixed(2)
-        : (day.total_amount || day.debit_amount || 0).toFixed(2),
+      rate: safeToFixed(rate, 2),
+      discountPercent: discountPercent,
+      discountAmt: safeToFixed(discountAmount, 2),
+      taxPercent: taxPercent,
+      taxAmount: safeToFixed(taxAmount, 2),
+      totalAmount: safeToFixed(totalAmount, 2),
       isSelected: index === selectedDayIndex,
-      isCurrentDay: isCurrentDay,
+      isCurrentDay: currentDay,
       isPreview: isPreview && (backdatedApply ? true : index === selectedDayIndex),
-      detail_id: day.detail_id
+      detail_id: day.detail_id,
+      room_id: day.room_id
     }
   }
 
@@ -5821,7 +5952,6 @@ const ApplyDiscountComponent = ({
     if (backdatedApply) {
       toast.success('Preview updated - All days will be affected')
     } else {
-      // ✅ Show which day is being previewed (current day)
       const currentIndex = findCurrentDayIndex()
       toast.success(`Preview updated - Day ${currentIndex + 1} (Current Day) only`)
     }
@@ -5839,11 +5969,9 @@ const ApplyDiscountComponent = ({
       let targetDetailId;
       
       if (backdatedApply) {
-        // ✅ BACKDATED: Use first day's detail_id, SP will apply to ALL days
         const firstDay = affectedDays[0]
         targetDetailId = firstDay?.detail_id || selectedRoom.detail.detail_id
       } else {
-        // ✅ SINGLE DAY: Use the CURRENT day's detail_id (today's date)
         const currentIndex = findCurrentDayIndex()
         const currentDay = affectedDays[currentIndex]
         targetDetailId = currentDay?.detail_id || selectedRoom.detail.detail_id
@@ -5864,7 +5992,6 @@ const ApplyDiscountComponent = ({
         return
       }
 
-      const affectedCount = backdatedApply ? affectedDays.length : 1
       const dayLabel = backdatedApply ? 'All days' : `Day ${findCurrentDayIndex() + 1} (Current)`
       toast.success(`Discount ${tempDiscountPercent}% applied to ${dayLabel}`)
 
@@ -5880,8 +6007,6 @@ const ApplyDiscountComponent = ({
       setLoading(false)
     }
   }
-
-
 
   // ========================================
   // RENDER HELPERS
@@ -5967,7 +6092,6 @@ const ApplyDiscountComponent = ({
             />
           </div>
 
-          {/* Day Selector - Shows which day is selected */}
           {affectedDays.length > 1 && (
             <div className="d-flex align-items-center">
               <Form.Label className="mb-0 me-2 fw-bold" style={{ minWidth: "60px" }}>
@@ -5984,17 +6108,10 @@ const ApplyDiscountComponent = ({
                 disabled={backdatedApply}
               >
                 {affectedDays.map((day, idx) => {
-                  const isCurrent = (() => {
-                    if (!day.checkin_datetime) return false
-                    const today = new Date()
-                    today.setHours(0, 0, 0, 0)
-                    const checkinDate = new Date(day.checkin_datetime)
-                    checkinDate.setHours(0, 0, 0, 0)
-                    return checkinDate.getTime() === today.getTime()
-                  })()
+                  const current = isCurrentDay(day.checkin_datetime)
                   return (
                     <option key={idx} value={idx}>
-                      {idx + 1}{isCurrent ? ' (Today)' : ''}
+                      {idx + 1}{current ? ' (Today)' : ''}
                     </option>
                   )
                 })}
@@ -6011,7 +6128,6 @@ const ApplyDiscountComponent = ({
                 setBackdatedApply(e.target.checked)
                 setPreviewActive(false)
                 setDiscountDetails([])
-                // ✅ When backdated is unchecked, select the CURRENT day
                 if (!e.target.checked) {
                   const currentIndex = findCurrentDayIndex()
                   setSelectedDayIndex(currentIndex)
@@ -6040,7 +6156,6 @@ const ApplyDiscountComponent = ({
           )}
         </div>
 
-        {/* ✅ Affected Days Info - ALWAYS SHOW */}
         {affectedDays.length > 0 && (
           <div className="mt-2 p-2 bg-light rounded border">
             <div className="d-flex align-items-center gap-3 flex-wrap">
@@ -6048,11 +6163,11 @@ const ApplyDiscountComponent = ({
               <span>{affectedDays.length} day(s)</span>
               <span className="text-muted">|</span>
               <span className="text-success">
-                Total Discount: ₹{totalDiscount.toFixed(2)}
+                Total Discount: ₹{safeToFixed(totalDiscount)}
               </span>
               <span className="text-muted">|</span>
               <span className="text-primary">
-                Total Amount: ₹{totalAmount.toFixed(2)}
+                Total Amount: ₹{safeToFixed(totalAmount)}
               </span>
               {!backdatedApply && (
                 <>
@@ -6075,7 +6190,7 @@ const ApplyDiscountComponent = ({
         )}
       </div>
 
-      {/* ✅ Main Table - ALL DAYS with Current Day Highlighted */}
+      {/* Main Table */}
       <div className="action-table-container">
         <table className="action-table table table-bordered text-center align-middle">
           <thead className="table-light">
@@ -6088,22 +6203,12 @@ const ApplyDiscountComponent = ({
           <tbody>
             {affectedDays.length > 0 ? (
               affectedDays.map((day, idx) => {
-                const isCurrentDay = (() => {
-                  if (!day.checkin_datetime) return false
-                  const today = new Date()
-                  today.setHours(0, 0, 0, 0)
-                  const checkinDate = new Date(day.checkin_datetime)
-                  checkinDate.setHours(0, 0, 0, 0)
-                  return checkinDate.getTime() === today.getTime()
-                })()
-                
-                // ✅ When not backdated, preview ONLY on the CURRENT day
-                const isPreview = previewActive && (backdatedApply ? true : isCurrentDay)
+                const currentDay = isCurrentDay(day.checkin_datetime)
+                const isPreview = previewActive && (backdatedApply ? true : currentDay)
                 const row = buildRowForDay(day, idx, isPreview)
                 const isSelected = idx === selectedDayIndex
                 
-                // ✅ Highlight current day with a special color
-                const rowClassName = isCurrentDay && !backdatedApply ? 'table-success' : 
+                const rowClassName = currentDay && !backdatedApply ? 'table-success' : 
                                     isSelected ? 'table-primary' : ''
                 
                 return (
@@ -6118,7 +6223,7 @@ const ApplyDiscountComponent = ({
                     }}
                   >
                     <td>{row.index}</td>
-                    <td>{row.date}{isCurrentDay && ' 📍'}</td>
+                    <td>{row.date}{currentDay && ' 📍'}</td>
                     <td>{row.guestName}</td>
                     <td>{row.guestId}</td>
                     <td>{row.roomNo}</td>
@@ -6152,19 +6257,17 @@ const ApplyDiscountComponent = ({
                       className={
                         isPreview && tempDiscountPercent !== originalDiscount
                           ? 'highlight-cell'
-                          : isCurrentDay && previewActive && !backdatedApply
+                          : currentDay && previewActive && !backdatedApply
                           ? 'highlight-cell'
                           : ''
                       }>
                       {isPreview ? tempDiscountPercent : row.discountPercent}%
                     </td>
-                    <td>
-                      {isPreview ? row.discountAmt : row.discountAmt}
-                    </td>
+                    <td>{row.discountAmt}</td>
                     <td>{row.taxPercent}%</td>
                     <td>{row.taxAmount}</td>
                     <td className={isPreview ? 'highlight-cell fw-bold' : ''}>
-                      {isPreview ? row.totalAmount : row.totalAmount}
+                      {row.totalAmount}
                     </td>
                   </tr>
                 )
@@ -6177,16 +6280,15 @@ const ApplyDiscountComponent = ({
               </tr>
             )}
           </tbody>
-          {/* Footer with totals */}
           {affectedDays.length > 1 && (
             <tfoot className="table-secondary">
               <tr>
                 <td colSpan={31} className="text-end fw-bold">Total:</td>
                 <td className="fw-bold">-</td>
-                <td className="fw-bold text-success">₹{totalDiscount.toFixed(2)}</td>
+                <td className="fw-bold text-success">₹{safeToFixed(totalDiscount)}</td>
                 <td className="fw-bold">-</td>
                 <td className="fw-bold">-</td>
-                <td className="fw-bold">₹{totalAmount.toFixed(2)}</td>
+                <td className="fw-bold">₹{safeToFixed(totalAmount)}</td>
               </tr>
             </tfoot>
           )}
@@ -6200,17 +6302,15 @@ const ApplyDiscountComponent = ({
         </Button>
         
         <Button size="sm" variant="success" onClick={handleUpdate} disabled={loading || affectedDays.length === 0}>
-            {loading ? 'Applying...' : 'Apply'}
-          </Button>
+          {loading ? 'Applying...' : 'Apply'}
+        </Button>
         
         <Button size="sm" variant="secondary" onClick={onClose}>
           Close
         </Button>
       </div>
 
-      {/* ======================================== */}
-      {/* CONFIRMATION DIALOG */}
-      {/* ======================================== */}
+      {/* Confirmation Dialog */}
       {showConfirmationDialog && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
@@ -6244,7 +6344,7 @@ const ApplyDiscountComponent = ({
               </div>
               <div className="row mt-1">
                 <div className="col-12">
-                  <strong>Total Discount:</strong> ₹{totalDiscount.toFixed(2)}
+                  <strong>Total Discount:</strong> ₹{safeToFixed(totalDiscount)}
                 </div>
               </div>
             </div>
