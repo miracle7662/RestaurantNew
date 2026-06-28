@@ -565,144 +565,146 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   }, [displayRows, billData])
 
   // ========== GENERATE TABLE ROWS - USING BACKEND CALCULATED VALUES ==========
-  const tableRows = useMemo(() => {
-    console.log('🔨 Building tableRows...')
-    
-    if (!displayRows.length) return []
+ // ========== GENERATE TABLE ROWS - USING BACKEND CALCULATED VALUES ==========
+const tableRows = useMemo(() => {
+  console.log('🔨 Building tableRows...')
+  
+  if (!displayRows.length) return []
 
-    // Group by room first, then by date
-    const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
+  // Group by room first, then by date
+  const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
+  
+  displayRows.forEach((charge) => {
+    const roomNum = charge.room_number || 'COMMON'
+    const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
     
-    displayRows.forEach((charge) => {
-      const roomNum = charge.room_number || 'COMMON'
-      const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
-      
-      if (!roomGroups.has(roomNum)) {
-        roomGroups.set(roomNum, new Map())
-      }
-      
-      const dateMap = roomGroups.get(roomNum)!
-      if (!dateMap.has(dateKey)) {
-        dateMap.set(dateKey, {
-          date: dateKey,
-          roomChargeAmount: 0,
-          exPaxAmount: 0,
-          postCharges: [],
-          allowances: [],
-          advances: [],
-          foodCharges: [],
-          cgstAmount: 0,
-          sgstAmount: 0,
-          roomNumbers: new Set([roomNum]),
-        })
-      }
-      
-      const item = dateMap.get(dateKey)!
-      
-      // Use backend calculated values directly - NO MANUAL CALCULATIONS
-      const type = charge.transaction_type
-      
-      if (!charge.isPostCharge) {
-        // Room charges - use backend values
-        item.roomChargeAmount += charge.room_tariff_per_day || 0
-        item.exPaxAmount += charge.ex_pax_total || 0
-        item.cgstAmount += charge.cgst_amount || 0
-        item.sgstAmount += charge.sgst_amount || 0
-      } else if (type === 'FOOD') {
-        const amount = Math.abs(charge.total_amount || 0)
-        item.foodCharges.push({
-          description: charge.description || 'Food',
-          amount,
-          id: charge.id,
-        })
-      } else if (type === 'ADVANCE ADDITION') {
-        const amount = Math.abs(charge.total_amount || 0)
-        item.advances.push({
-          description: charge.description || 'Advance',
-          amount,
-          id: charge.id,
-        })
-      } else if (type === 'ALLOWANCE') {
-        const amount = Math.abs(charge.total_amount || 0)
-        item.allowances.push({
-          description: charge.description || 'Allowance',
-          amount,
-          id: charge.id,
-        })
-      } else if (type === 'CHARGE' || type === 'POST CHARGE' || type === 'POST_CHARGE') {
-        const amount = Math.abs(charge.total_amount || 0)
-        item.postCharges.push({
-          description: charge.description || 'Post Charge',
-          amount,
-          id: charge.id,
-        })
-      }
-    })
-
-    // Build rows
-    const rows: TableRowWithIndex[] = []
-    let index = 1
-    
-    const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
-      if (a === 'COMMON') return 1
-      if (b === 'COMMON') return -1
-      const numA = parseInt(a)
-      const numB = parseInt(b)
-      if (!isNaN(numA) && !isNaN(numB)) {
-        return numA - numB
-      }
-      return a.localeCompare(b)
-    })
-    
-    for (const room of sortedRooms) {
-      const dateMap = roomGroups.get(room)!
-      const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
-        const dateA = a.split('/').reverse().join('-')
-        const dateB = b.split('/').reverse().join('-')
-        return new Date(dateA).getTime() - new Date(dateB).getTime()
-      })
-      
-      let isFirstRow = true
-      for (const date of sortedDates) {
-        const item = dateMap.get(date)!
-        
-        const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
-        const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
-        const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
-        const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
-        
-        // Total calculation using backend values
-        const total = item.roomChargeAmount + item.exPaxAmount + foodTotal + postTotal - allowanceTotal - advanceTotal
-        
-        rows.push({
-          id: `row-${room}-${date}`,
-          displayIndex: index++,
-          roomNumber: isFirstRow ? room : '',
-          date: date,
-          roomTariff: item.roomChargeAmount,
-          exPax: item.exPaxAmount,
-          cgst: item.cgstAmount,
-          sgst: item.sgstAmount,
-          food: foodTotal,
-          total: total,
-          advanceTotal: advanceTotal,
-          postTotal: postTotal,
-          allowanceTotal: allowanceTotal,
-          postAllowNet: postTotal - allowanceTotal - advanceTotal,
-          postCharges: item.postCharges,
-          allowances: item.allowances,
-          advances: item.advances,
-          foodCharges: item.foodCharges,
-          sacCode: '996311',
-          isFirstRow: isFirstRow,
-        })
-        isFirstRow = false
-      }
+    if (!roomGroups.has(roomNum)) {
+      roomGroups.set(roomNum, new Map())
     }
+    
+    const dateMap = roomGroups.get(roomNum)!
+    if (!dateMap.has(dateKey)) {
+      dateMap.set(dateKey, {
+        date: dateKey,
+        roomChargeAmount: 0,
+        exPaxAmount: 0,
+        postCharges: [],
+        allowances: [],
+        advances: [],
+        foodCharges: [],
+        cgstAmount: 0,
+        sgstAmount: 0,
+        roomNumbers: new Set([roomNum]),
+      })
+    }
+    
+    const item = dateMap.get(dateKey)!
+    
+    // Use backend calculated values directly - NO MANUAL CALCULATIONS
+    const type = charge.transaction_type
+    
+    if (!charge.isPostCharge) {
+      // Room charges - use backend values
+      item.roomChargeAmount += charge.room_tariff_per_day || 0
+      item.exPaxAmount += charge.ex_pax_total || 0
+      item.cgstAmount += charge.cgst_amount || 0
+      item.sgstAmount += charge.sgst_amount || 0
+    } else if (type === 'FOOD') {
+      const amount = Math.abs(charge.total_amount || 0)
+      item.foodCharges.push({
+        description: charge.description || 'Food',
+        amount,
+        id: charge.id,
+      })
+    } else if (type === 'ADVANCE ADDITION') {
+      const amount = Math.abs(charge.total_amount || 0)
+      item.advances.push({
+        description: charge.description || 'Advance',
+        amount,
+        id: charge.id,
+      })
+    } else if (type === 'ALLOWANCE') {
+      const amount = Math.abs(charge.total_amount || 0)
+      item.allowances.push({
+        description: charge.description || 'Allowance',
+        amount,
+        id: charge.id,
+      })
+    } else if (type === 'CHARGE' || type === 'POST CHARGE' || type === 'POST_CHARGE') {
+      const amount = Math.abs(charge.total_amount || 0)
+      item.postCharges.push({
+        description: charge.description || 'Post Charge',
+        amount,
+        id: charge.id,
+      })
+    }
+  })
 
-    console.log(`✅ Generated ${rows.length} table rows`)
-    return rows
-  }, [displayRows])
+  // Build rows
+  const rows: TableRowWithIndex[] = []
+  let index = 1
+  
+  const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
+    if (a === 'COMMON') return 1
+    if (b === 'COMMON') return -1
+    const numA = parseInt(a)
+    const numB = parseInt(b)
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return numA - numB
+    }
+    return a.localeCompare(b)
+  })
+  
+  for (const room of sortedRooms) {
+    const dateMap = roomGroups.get(room)!
+    const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
+      const dateA = a.split('/').reverse().join('-')
+      const dateB = b.split('/').reverse().join('-')
+      return new Date(dateA).getTime() - new Date(dateB).getTime()
+    })
+    
+    // FIX: Show room number for ALL rows in this room group
+    let isFirstRow = true
+    for (const date of sortedDates) {
+      const item = dateMap.get(date)!
+      
+      const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
+      const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
+      const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
+      const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
+      
+      // Total calculation using backend values
+      const total = item.roomChargeAmount + item.exPaxAmount + foodTotal + postTotal - allowanceTotal - advanceTotal
+      
+      rows.push({
+        id: `row-${room}-${date}`,
+        displayIndex: index++,
+        roomNumber: room, // FIX: Show room number for EVERY row
+        date: date,
+        roomTariff: item.roomChargeAmount,
+        exPax: item.exPaxAmount,
+        cgst: item.cgstAmount,
+        sgst: item.sgstAmount,
+        food: foodTotal,
+        total: total,
+        advanceTotal: advanceTotal,
+        postTotal: postTotal,
+        allowanceTotal: allowanceTotal,
+        postAllowNet: postTotal - allowanceTotal - advanceTotal,
+        postCharges: item.postCharges,
+        allowances: item.allowances,
+        advances: item.advances,
+        foodCharges: item.foodCharges,
+        sacCode: '996311',
+        isFirstRow: isFirstRow,
+      })
+      isFirstRow = false
+    }
+  }
+
+  console.log(`✅ Generated ${rows.length} table rows`)
+  return rows
+}, [displayRows])
 
   // ========== CALCULATE TOTALS - USING BACKEND VALUES ==========
   const totals = useMemo(() => {
