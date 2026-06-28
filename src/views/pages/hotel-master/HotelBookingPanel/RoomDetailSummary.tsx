@@ -460,7 +460,7 @@ const fetchData = async () => {
         converted_category_name: isPostCharge
           ? '-'
           : row.converted_category_name || '-',
-        bill_date: row.bill_date || row.checkin_datetime || '',
+        bill_date: row.checkin_datetime || '',
         bill_date_formatted: formatBillDate(row.detail_checkin_datetime ),
         checkin_datetime: row.checkin_datetime || '',
         checkout_datetime: row.checkout_datetime || '',
