@@ -76,6 +76,10 @@ interface DisplayDetailRow {
   service_charge_percent?: number
   room_group?: string
   transaction_type?: string
+  // Backend calculated values
+  post_charges?: number
+  allowance?: number
+  food?: number
 }
 
 interface CheckoutBillModalProps {
@@ -125,25 +129,6 @@ interface GroupedChargeItem {
   cgstAmount: number
   sgstAmount: number
   roomNumbers?: Set<string>
-}
-
-// ==================== BACKEND SUMMARY INTERFACE ====================
-
-interface BackendSummary {
-  bill_amount: number
-  post_charges: number
-  allowance: number
-  discount_amount: number
-  advance_amount: number
-  balance_amount: number
-  net_payable: number
-  round_off_amount: number
-  cgst: number
-  sgst: number
-  igst: number
-  cess: number
-  service_charge: number
-  payment_mode: string
 }
 
 // ==================== HELPERS ====================
@@ -302,9 +287,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const [billData, setBillData] = useState<any[]>([])
   const [billLoading, setBillLoading] = useState(false)
   const [billError, setBillError] = useState<string | null>(null)
-  
-  // ✅ BACKEND SUMMARY STATE - SOURCE OF TRUTH FOR ALL FINANCIAL AMOUNTS
-  const [backendSummary, setBackendSummary] = useState<BackendSummary | null>(null)
 
   console.log('🔄 CheckoutBillModal Props:', {
     show,
@@ -371,55 +353,17 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           }
           setBillData(filteredData)
 
-          // ✅ EXTRACT BACKEND SUMMARY FROM API RESPONSE
-          if (response.summary) {
-            setBackendSummary({
-              bill_amount: toNumber(response.summary.bill_amount || 0),
-              post_charges: toNumber(response.summary.post_charges || 0),
-              allowance: toNumber(response.summary.allowance || 0),
-              discount_amount: toNumber(response.summary.discount_amount || 0),
-              advance_amount: toNumber(response.summary.advance_amount || 0),
-              balance_amount: toNumber(response.summary.balance_amount || 0),
-              net_payable: toNumber(response.summary.net_payable || 0),
-              round_off_amount: toNumber(response.summary.round_off_amount || 0),
-              cgst: toNumber(response.summary.cgst || 0),
-              sgst: toNumber(response.summary.sgst || 0),
-              igst: toNumber(response.summary.igst || 0),
-              cess: toNumber(response.summary.cess || 0),
-              service_charge: toNumber(response.summary.service_charge || 0),
-              payment_mode: response.summary.payment_mode || 'Cash'
-            })
-          } else {
-            // Fallback: try to extract from first row
-            const firstRow = filteredData[0] || {}
-            setBackendSummary({
-              bill_amount: toNumber(firstRow.bill_amount || firstRow.total_amount || 0),
-              post_charges: toNumber(firstRow.post_charges_total || firstRow.post_changes_amt || 0),
-              allowance: toNumber(firstRow.allowance_total || firstRow.allowances_amt || 0),
-              discount_amount: toNumber(firstRow.discount_amount_total || firstRow.discount_amount || 0),
-              advance_amount: toNumber(firstRow.advance_amount_total || firstRow.advance_amt || 0),
-              balance_amount: toNumber(firstRow.balance_amount || 0),
-              net_payable: toNumber(firstRow.net_payable || 0),
-              round_off_amount: toNumber(firstRow.round_off_amount || 0),
-              cgst: toNumber(firstRow.cgst || 0),
-              sgst: toNumber(firstRow.sgst || 0),
-              igst: toNumber(firstRow.igst || 0),
-              cess: toNumber(firstRow.cess || 0),
-              service_charge: toNumber(firstRow.service_charge || 0),
-              payment_mode: firstRow.payment_mode || 'Cash'
-            })
-          }
-
           console.log('📦 Raw Bill Data from API:', filteredData.map((r: any) => ({
             transaction_type: r.transaction_type,
             post_charges: r.post_charges,
             allowance: r.allowance,
             description: r.description,
             total_amount: r.total_amount,
-            tariff: r.tariff
+            tariff: r.tariff,
+            cgst: r.cgst,
+            sgst: r.sgst,
+            food: r.food
           })))
-          
-          console.log('📊 Backend Summary:', response.summary)
         } else {
           setBillError(response.message || 'Failed to fetch bill data')
         }
@@ -442,7 +386,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
   }, [show, checkoutId, ldgBillNo, selectedRooms])
 
-  // ========== BUILD DISPLAY ROWS FROM API DATA ==========
+  // ========== BUILD DISPLAY ROWS - USING BACKEND CALCULATED VALUES ==========
   const displayRows = useMemo(() => {
     console.log('🏗️ Building displayRows from billData:', billData.length)
     
@@ -458,56 +402,22 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       const roomNumber = row.room_number || `Room-${row.room_id}`
       const transactionType = (row.transaction_type || '').toUpperCase().trim()
       
-      console.log(`📝 Processing row ${index}:`, {
-        transactionType,
-        roomNumber,
-        total_amount: row.total_amount,
-        post_charges: row.post_charges,
-        allowance: row.allowance
-      })
+      // Use backend calculated values directly - NO MANUAL CALCULATIONS
+      const roomTariff = toNumber(row.tariff || row.room_tariff_per_day || 0)
+      const exPaxTotal = toNumber(row.ex_pax || row.ex_pax_total || 0)
+      const cgstAmount = toNumber(row.cgst || row.cgst_amount || 0)
+      const sgstAmount = toNumber(row.sgst || row.sgst_amount || 0)
+      const igstAmount = toNumber(row.igst || row.igst_amount || 0)
+      const cessAmount = toNumber(row.cess || row.cess_amount || 0)
+      const serviceChargeAmount = toNumber(row.service_charge_amount || 0)
+      const totalAmount = toNumber(row.total_amount || 0)
+      const discountAmount = toNumber(row.discount_amount || 0)
+      const discountPercent = toNumber(row.discount_percent || 0)
       
-      let roomTariff = 0
-      let exPaxTotal = 0
-      let cgstAmount = 0
-      let sgstAmount = 0
-      let totalAmount = 0
-      let isPostCharge = false
-      
-      // Map transaction types
-      if (transactionType === 'ROOM CHARGES' || transactionType === 'ROOM CHARGE') {
-        roomTariff = toNumber(row.tariff || row.room_tariff_per_day || 0)
-        exPaxTotal = toNumber(row.ex_pax || row.ex_pax_total || 0)
-        cgstAmount = toNumber(row.cgst || row.cgst_amount || 0)
-        sgstAmount = toNumber(row.sgst || row.sgst_amount || 0)
-        totalAmount = toNumber(row.total_amount || 0)
-        isPostCharge = false
-        console.log(`✅ Room Charge: ${roomNumber} - ₹${totalAmount}`)
-      } 
-      else if (transactionType === 'CHARGE' || transactionType === 'POST CHARGE' || transactionType === 'POST_CHARGE') {
-        totalAmount = toNumber(row.post_charges || row.debit_amount || 0)
-        isPostCharge = true
-        console.log(`✅ Post Charge: ${roomNumber} - ₹${totalAmount}`)
-      } 
-      else if (transactionType === 'ALLOWANCE') {
-        totalAmount = -Math.abs(toNumber(row.allowance || row.debit_amount || 0))
-        isPostCharge = true
-        console.log(`✅ Allowance: ${roomNumber} - ₹${totalAmount}`)
-      } 
-      else if (transactionType === 'ADVANCE ADDITION' || transactionType === 'ADVANCE') {
-        totalAmount = -Math.abs(toNumber(row.allowance || row.debit_amount || 0))
-        isPostCharge = true
-        console.log(`✅ Advance: ${roomNumber} - ₹${totalAmount}`)
-      }
-      else {
-        // Fallback
-        totalAmount = toNumber(row.total_amount || 0)
-        isPostCharge = false
-        console.log(`⚠️ Unknown type: ${transactionType}, using total_amount: ${totalAmount}`)
-      }
-      
-      const taxAmount = cgstAmount + sgstAmount
-      const description = row.description || 'Room Charges'
-      
+      // Determine if post charge from transaction_type (using backend classification)
+      const isPostCharge = ['CHARGE', 'POST CHARGE', 'POST_CHARGE', 'ALLOWANCE', 'ADVANCE ADDITION', 'FOOD']
+        .includes(transactionType)
+
       const prevCumulative = cumulativeMap.get(roomNumber) || 0
       const cumulativeTotal = roundToTwo(prevCumulative + totalAmount)
       cumulativeMap.set(roomNumber, cumulativeTotal)
@@ -553,20 +463,20 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         driver_total: 0,
         cgst_amount: cgstAmount,
         sgst_amount: sgstAmount,
-        igst_amount: row.igst_amount || 0,
-        cess_amount: row.cess_amount || 0,
-        service_charge_amount: row.service_charge_amount || 0,
+        igst_amount: igstAmount,
+        cess_amount: cessAmount,
+        service_charge_amount: serviceChargeAmount,
         adults: row.adults || 0,
         pax: row.pax || 0,
         ex_pax: row.ex_pax || 0,
         child_paid: 0,
         driver: row.driver || 0,
-        discount_percent: row.discount_percent || 0,
-        discount_amount: row.discount_amount || 0,
+        discount_percent: discountPercent,
+        discount_amount: discountAmount,
         tax_percent: row.tax || 18,
-        tax_amount: taxAmount,
+        tax_amount: cgstAmount + sgstAmount + igstAmount, // Use backend calculated taxes
         total_amount: totalAmount,
-        is_extension: false,
+        is_extension: transactionType === 'ROOM EXTENSION',
         isPostCharge: isPostCharge,
         parent_detail_id: null,
         selected: true,
@@ -576,7 +486,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         created_at: row.bill_date || row.checkin_datetime,
         has_checkout_datetime: !!row.checkout_datetime,
         checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
-        description: description,
+        description: row.description || 'Room Charges',
         particulars: row.particulars || '',
         department_name: transactionType,
         cgst_percent: row.cgst_percent,
@@ -585,124 +495,21 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         cess_percent: row.cess_percent,
         service_charge_percent: row.service_charge,
         room_group: roomNumber,
-        transaction_type: transactionType
+        transaction_type: transactionType,
+        // Store backend calculated values
+        post_charges: toNumber(row.post_charges || 0),
+        allowance: toNumber(row.allowance || 0),
+        food: toNumber(row.food || 0)
       })
     })
 
     console.log(`✅ Generated ${rows.length} display rows`)
-    console.log('📊 Display rows summary:', rows.map(r => ({
-      room: r.room_number,
-      amount: r.total_amount,
-      isPost: r.isPostCharge,
-      type: r.department_name
-    })))
-
     return rows
   }, [billData])
 
-  // ========== SEPARATE CHARGES ==========
-  const roomCharges = useMemo(() => {
-    const filtered = displayRows.filter((r) => !r.isPostCharge)
-    console.log(`🏠 Room Charges: ${filtered.length}`, filtered.map(r => ({
-      room: r.room_number,
-      amount: r.total_amount
-    })))
-    return filtered
-  }, [displayRows])
+  
 
-  const postCharges = useMemo(() => {
-    const filtered = displayRows.filter((r) => r.isPostCharge && r.total_amount > 0)
-    console.log(`📋 Post Charges: ${filtered.length}`, filtered.map(r => ({
-      room: r.room_number,
-      amount: r.total_amount,
-      type: r.department_name
-    })))
-    return filtered
-  }, [displayRows])
-
-  const allowances = useMemo(() => {
-    const filtered = displayRows.filter((r) => r.isPostCharge && r.total_amount < 0)
-    console.log(`📋 Allowances: ${filtered.length}`, filtered.map(r => ({
-      room: r.room_number,
-      amount: r.total_amount,
-      type: r.department_name
-    })))
-    return filtered
-  }, [displayRows])
-
-  // FOOD CHARGES
-  const foodCharges = useMemo(() => {
-    return postCharges.filter((r) => {
-      const transactionType = (r.department_name || '').toUpperCase().trim()
-      const desc = (r.description || r.particulars || '').toLowerCase()
-      const isFood = transactionType === 'FOOD' ||
-        desc.includes('food') ||
-        desc.includes('restaurant') ||
-        desc.includes('meal') ||
-        desc.includes('breakfast') ||
-        desc.includes('lunch') ||
-        desc.includes('dinner') ||
-        desc.includes('coffee') ||
-        desc.includes('bar') ||
-        desc.includes('snack') ||
-        desc.includes('restro')
-      
-      if (isFood) {
-        console.log(`🍽️ Food charge found: ${r.description} - ₹${r.total_amount}`)
-      }
-      return isFood
-    })
-  }, [postCharges])
-
-  const nonFoodPostCharges = useMemo(() => {
-    return postCharges.filter((r) => {
-      const transactionType = (r.department_name || '').toUpperCase().trim()
-      const desc = (r.description || r.particulars || '').toLowerCase()
-      return !(transactionType === 'FOOD' ||
-        desc.includes('food') ||
-        desc.includes('restaurant') ||
-        desc.includes('meal') ||
-        desc.includes('breakfast') ||
-        desc.includes('lunch') ||
-        desc.includes('dinner') ||
-        desc.includes('coffee') ||
-        desc.includes('bar') ||
-        desc.includes('snack') ||
-        desc.includes('restro'))
-    })
-  }, [postCharges])
-
-  // ADVANCES
-  const advances = useMemo(() => {
-    return allowances.filter((r) => {
-      const transactionType = (r.department_name || '').toUpperCase().trim()
-      const desc = (r.description || r.particulars || '').toLowerCase()
-      const isAdvance = transactionType === 'ADVANCE ADDITION' ||
-        transactionType === 'ADVANCE' ||
-        desc.includes('advance') ||
-        desc.includes('deposit') ||
-        desc.includes('prepaid')
-      
-      if (isAdvance) {
-        console.log(`💰 Advance found: ${r.description} - ₹${r.total_amount}`)
-      }
-      return isAdvance
-    })
-  }, [allowances])
-
-  const otherAllowances = useMemo(() => {
-    return allowances.filter((r) => {
-      const transactionType = (r.department_name || '').toUpperCase().trim()
-      const desc = (r.description || r.particulars || '').toLowerCase()
-      return !(transactionType === 'ADVANCE ADDITION' ||
-        transactionType === 'ADVANCE' ||
-        desc.includes('advance') ||
-        desc.includes('deposit') ||
-        desc.includes('prepaid'))
-    })
-  }, [allowances])
-
-  // ========== BUILD SUMMARY ==========
+  // ========== BUILD SUMMARY - USING BACKEND VALUES ==========
   const summary = useMemo(() => {
     if (!billData.length || !displayRows.length) return null
 
@@ -711,34 +518,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const roomCategories = Array.from(
       new Set(displayRows.map(r => r.room_category_name).filter(Boolean))
     )
-
-    let totalRoomTariff = 0
-    let totalExPaxCharge = 0
-    let totalChildPaidAmount = 0
-    let totalDriverCharge = 0
-    let totalTaxAmount = 0
-    let totalAmount = 0
-    let totalAdults = 0
-    let totalPax = 0
-    let totalExPax = 0
-    let totalChildPaid = 0
-    let totalDriver = 0
-
-    displayRows.forEach(row => {
-      if (!row.isPostCharge) {
-        totalRoomTariff += row.room_tariff_per_day || 0
-        totalExPaxCharge += row.ex_pax_total || 0
-        totalChildPaidAmount += row.child_total || 0
-        totalDriverCharge += row.driver_total || 0
-        totalTaxAmount += row.tax_amount || 0
-        totalAmount += row.total_amount || 0
-        totalAdults += row.adults || 0
-        totalPax += row.pax || 0
-        totalExPax += row.ex_pax_count || 0
-        totalChildPaid += row.child_count || 0
-        totalDriver += row.driver_count || 0
-      }
-    })
 
     return {
       checkin_id: firstRow.checkin_id,
@@ -750,19 +529,19 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       room_numbers_str: roomNumbers.join(', ') || '-',
       room_categories_str: roomCategories.join(', ') || '-',
       converted_categories_str: '-',
-      total_room_tariff: totalRoomTariff,
-      total_ex_pax_charge: totalExPaxCharge,
-      total_child_paid_amount: totalChildPaidAmount,
-      total_driver_charge: totalDriverCharge,
-      total_tax_amount: totalTaxAmount,
-      total_amount: totalAmount,
+      total_room_tariff: toNumber(firstRow.total_amount || 0),
+      total_ex_pax_charge: toNumber(firstRow.ex_pax || 0),
+      total_child_paid_amount: 0,
+      total_driver_charge: 0,
+      total_tax_amount: toNumber(firstRow.cgst_amt || 0) + toNumber(firstRow.sgst_amt || 0),
+      total_amount: toNumber(firstRow.total_amount || 0),
       total_days: firstRow.total_nights || 0,
-      total_adults: totalAdults,
-      total_pax: totalPax,
-      total_ex_pax: totalExPax,
-      total_child_paid: totalChildPaid,
+      total_adults: firstRow.adults || 0,
+      total_pax: firstRow.pax || 0,
+      total_ex_pax: firstRow.ex_pax || 0,
+      total_child_paid: 0,
       total_child_unpaid: firstRow.child_unpaid || 0,
-      total_driver: totalDriver,
+      total_driver: firstRow.driver || 0,
       avg_discount_percent: firstRow.discount_percent || 0,
       avg_tax_percent: firstRow.tax || 18,
       has_extensions: false,
@@ -785,29 +564,16 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
   }, [displayRows, billData])
 
-  // ========== GENERATE TABLE ROWS (ROOM WISE) ==========
+  // ========== GENERATE TABLE ROWS - USING BACKEND CALCULATED VALUES ==========
   const tableRows = useMemo(() => {
     console.log('🔨 Building tableRows...')
-    console.log('📊 Input counts:', {
-      roomCharges: roomCharges.length,
-      foodCharges: foodCharges.length,
-      nonFoodPostCharges: nonFoodPostCharges.length,
-      advances: advances.length,
-      otherAllowances: otherAllowances.length
-    })
-
-    const rows: TableRowWithIndex[] = []
-    let index = 1
+    
+    if (!displayRows.length) return []
 
     // Group by room first, then by date
     const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
     
-    // Combine all charges
-    const allCharges = [...roomCharges, ...foodCharges, ...nonFoodPostCharges, ...advances, ...otherAllowances]
-    
-    console.log('📦 Total charges to group:', allCharges.length)
-    
-    allCharges.forEach((charge) => {
+    displayRows.forEach((charge) => {
       const roomNum = charge.room_number || 'COMMON'
       const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
       
@@ -833,65 +599,50 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       
       const item = dateMap.get(dateKey)!
       
-      // Check if it's a room charge
+      // Use backend calculated values directly - NO MANUAL CALCULATIONS
+      const type = charge.transaction_type
+      
       if (!charge.isPostCharge) {
+        // Room charges - use backend values
         item.roomChargeAmount += charge.room_tariff_per_day || 0
         item.exPaxAmount += charge.ex_pax_total || 0
         item.cgstAmount += charge.cgst_amount || 0
         item.sgstAmount += charge.sgst_amount || 0
-      }
-      
-      // Handle post charges (including food, charges, allowances, advances)
-      if (charge.isPostCharge) {
+      } else if (type === 'FOOD') {
         const amount = Math.abs(charge.total_amount || 0)
-        const transactionType = (charge.department_name || '').toUpperCase().trim()
-        const desc = (charge.description || charge.particulars || '').toLowerCase()
-        
-        console.log(`📌 Grouping: ${transactionType} - ${charge.description} - ₹${amount}`)
-        
-        // Check transaction type first, then fallback to description
-        if (transactionType === 'FOOD' || 
-            desc.includes('food') || desc.includes('meal') || desc.includes('breakfast') || 
-            desc.includes('lunch') || desc.includes('dinner') || desc.includes('coffee') ||
-            desc.includes('restaurant') || desc.includes('bar') || desc.includes('snack') ||
-            desc.includes('restro')) {
-          item.foodCharges.push({
-            description: charge.description || 'Food',
-            amount,
-            id: charge.id,
-          })
-        } else if (transactionType === 'ADVANCE ADDITION' || transactionType === 'ADVANCE' ||
-                   desc.includes('advance') || desc.includes('deposit') || desc.includes('prepaid')) {
-          item.advances.push({
-            description: charge.description || 'Advance',
-            amount,
-            id: charge.id,
-          })
-        } else if (transactionType === 'ALLOWANCE' || desc.includes('allowance')) {
-          item.allowances.push({
-            description: charge.description || 'Allowance',
-            amount,
-            id: charge.id,
-          })
-        } else if (transactionType === 'CHARGE' || transactionType === 'POST CHARGE' || 
-                   transactionType === 'POST_CHARGE' || desc.includes('charge')) {
-          item.postCharges.push({
-            description: charge.description || 'Post Charge',
-            amount,
-            id: charge.id,
-          })
-        } else {
-          // Default: treat as post charge
-          item.postCharges.push({
-            description: charge.description || 'Post Charge',
-            amount,
-            id: charge.id,
-          })
-        }
+        item.foodCharges.push({
+          description: charge.description || 'Food',
+          amount,
+          id: charge.id,
+        })
+      } else if (type === 'ADVANCE ADDITION') {
+        const amount = Math.abs(charge.total_amount || 0)
+        item.advances.push({
+          description: charge.description || 'Advance',
+          amount,
+          id: charge.id,
+        })
+      } else if (type === 'ALLOWANCE') {
+        const amount = Math.abs(charge.total_amount || 0)
+        item.allowances.push({
+          description: charge.description || 'Allowance',
+          amount,
+          id: charge.id,
+        })
+      } else if (type === 'CHARGE' || type === 'POST CHARGE' || type === 'POST_CHARGE') {
+        const amount = Math.abs(charge.total_amount || 0)
+        item.postCharges.push({
+          description: charge.description || 'Post Charge',
+          amount,
+          id: charge.id,
+        })
       }
     })
 
-    // Sort rooms
+    // Build rows
+    const rows: TableRowWithIndex[] = []
+    let index = 1
+    
     const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
       if (a === 'COMMON') return 1
       if (b === 'COMMON') return -1
@@ -902,9 +653,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       }
       return a.localeCompare(b)
     })
-
-    console.log('🏨 Room groups found:', sortedRooms.length)
-
+    
     for (const room of sortedRooms) {
       const dateMap = roomGroups.get(room)!
       const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
@@ -912,32 +661,19 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         const dateB = b.split('/').reverse().join('-')
         return new Date(dateA).getTime() - new Date(dateB).getTime()
       })
-
-      let isFirstRow = true
       
+      let isFirstRow = true
       for (const date of sortedDates) {
         const item = dateMap.get(date)!
-
-        // Calculate totals - make sure we're not double counting
+        
         const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
         const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
         const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
         const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
-
-        // Total = Room Tariff + Extra Pax + Food + Post Charges - Allowances - Advances
-        // Note: Advances and Allowances are subtracted because they're negative amounts
+        
+        // Total calculation using backend values
         const total = item.roomChargeAmount + item.exPaxAmount + foodTotal + postTotal - allowanceTotal - advanceTotal
-
-        console.log(`📊 Row: ${room} - ${date}`, {
-          roomCharge: item.roomChargeAmount,
-          exPax: item.exPaxAmount,
-          food: foodTotal,
-          post: postTotal,
-          allowance: allowanceTotal,
-          advance: advanceTotal,
-          total: total
-        })
-
+        
         rows.push({
           id: `row-${room}-${date}`,
           displayIndex: index++,
@@ -960,45 +696,65 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           sacCode: '996311',
           isFirstRow: isFirstRow,
         })
-        
         isFirstRow = false
       }
     }
 
     console.log(`✅ Generated ${rows.length} table rows`)
     return rows
-  }, [roomCharges, foodCharges, nonFoodPostCharges, advances, otherAllowances])
+  }, [displayRows])
 
-  // ========== ADD DEBUG LOGS HERE ==========
-  console.log('🔍 DETAILED TABLE ROWS DEBUG:');
-  console.log('Total tableRows:', tableRows.length);
-  tableRows.forEach((row, idx) => {
-    console.log(`Row ${idx + 1}:`, {
-      roomNumber: row.roomNumber,
-      date: row.date,
-      roomTariff: row.roomTariff,
-      exPax: row.exPax,
-      cgst: row.cgst,
-      sgst: row.sgst,
-      food: row.food,
-      total: row.total,
-      advanceTotal: row.advanceTotal,
-      postTotal: row.postTotal,
-      allowanceTotal: row.allowanceTotal,
-      postCharges: row.postCharges,
-      allowances: row.allowances,
-      advances: row.advances,
-      foodCharges: row.foodCharges,
-      isFirstRow: row.isFirstRow
-    });
-  });
-
-  console.log('📊 ROOM CHARGES:', roomCharges.length);
-  console.log('📊 POST CHARGES:', postCharges.length);
-  console.log('📊 ALLOWANCES:', allowances.length);
-  console.log('📊 FOOD CHARGES:', foodCharges.length);
-  console.log('📊 ADVANCES:', advances.length);
-  console.log('📊 OTHER ALLOWANCES:', otherAllowances.length);
+  // ========== CALCULATE TOTALS - USING BACKEND VALUES ==========
+  const totals = useMemo(() => {
+    const firstRow = billData[0] || {}
+    const footerSummary = billData[0] || {}
+    
+    // Use backend calculated values from footer summary
+    return {
+      totalRoomTariffAmount: roundToTwo(
+        tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
+      ),
+      totalExPaxAmount: roundToTwo(
+        tableRows.reduce((sum, row) => sum + row.exPax, 0)
+      ),
+      totalCgstAmount: roundToTwo(
+        firstRow.cgst_amt || // Use backend CGST
+        tableRows.reduce((sum, row) => sum + row.cgst, 0)
+      ),
+      totalSgstAmount: roundToTwo(
+        firstRow.sgst_amt || // Use backend SGST
+        tableRows.reduce((sum, row) => sum + row.sgst, 0)
+      ),
+      totalFoodAmount: roundToTwo(
+        firstRow.food_total || // Use backend food total
+        tableRows.reduce((sum, row) => sum + row.food, 0)
+      ),
+      totalAdvanceAmount: roundToTwo(
+        firstRow.advance_amt || // Use backend advance amount
+        firstRow.advance_amount_total ||
+        tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
+      ),
+      totalPostAmount: roundToTwo(
+        firstRow.post_changes_amt || // Use backend post charges
+        firstRow.post_charges_total ||
+        tableRows.reduce((sum, row) => sum + row.postTotal, 0)
+      ),
+      totalAllowanceAmount: roundToTwo(
+        firstRow.allowances_amt || // Use backend allowances
+        firstRow.allowance_total ||
+        tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
+      ),
+      totalAmount: roundToTwo(
+        firstRow.total_amount || // Use backend total amount
+        tableRows.reduce((sum, row) => sum + row.total, 0)
+      ),
+      netTotal: roundToTwo(
+        firstRow.net_payable || // Use backend net payable
+        firstRow.bill_amount ||
+        0
+      ),
+    }
+  }, [tableRows, billData])
 
   // ========== DISPLAY VALUES ==========
   const displayCheckedOutRooms = summary?.checked_out_rooms || summary?.room_numbers || []
@@ -1015,7 +771,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     billData[0]?.ldg_bill_no ||
     `INV/${new Date().getFullYear()}/${String(summary?.checkin_id || '0').padStart(4, '0')}`
   const bookingId = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
-  const paymentStatus = 'Paid'
   const paymentMode = summary?.payment_method || 'Credit Card'
 
   const headerBg = printSettings?.table_header_bg_color || '#1a2744'
@@ -1520,7 +1275,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const renderBookingDetails = useCallback(() => {
     if (printSettings?.show_booking_details !== 1) return null
     
-    // Get values from props or billData
     const invoiceNo = propBillNumber || billData[0]?.ldg_bill_no || generatedBillNo
     const invoiceDateDisplay = propPaymentDate || invoiceDate
     const bookingIdDisplay = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
@@ -1534,81 +1288,60 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       <div className="bill-info-box">
         <div className="bill-info-box-header">BOOKING & INVOICE DETAILS</div>
         <div className="bill-info-box-body">
-          {/* Two Column Grid Layout */}
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: '1fr 1fr', 
             gap: '4px 20px',
             fontSize: '7.5pt'
           }}>
-            {/* Left Column */}
             <div>
-              {/* Invoice No */}
               <div style={{ display: 'flex', padding: '3px 0' }}>
                 <span style={{ fontWeight: 600, minWidth: '85px' }}>Invoice No.</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span style={{ fontWeight: 700, color: headerBg }}>{invoiceNo}</span>
               </div>
-              
-              {/* Booking ID */}
               <div style={{ display: 'flex', padding: '3px 0' }}>
                 <span style={{ fontWeight: 600, minWidth: '85px' }}>Booking ID</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span style={{ fontWeight: 600 }}>{bookingIdDisplay}</span>
               </div>
-              
-              {/* Check-in Date */}
               <div style={{ display: 'flex', padding: '3px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '85px' }}> Arrival Date</span>
+                <span style={{ fontWeight: 600, minWidth: '85px' }}>Arrival Date</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{checkinDateDisplay}</span>
               </div>
-              
-              {/* Check-out Date */}
               <div style={{ display: 'flex', padding: '3px 0' }}>
                 <span style={{ fontWeight: 600, minWidth: '85px' }}>Check-out Date</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{checkoutDateDisplay}</span>
               </div>
-               {/* Room No(s). - additional row */}
               <div style={{ display: 'flex', padding: '3px 0' }}>
                 <span style={{ fontWeight: 600, minWidth: '85px' }}>Room No(s).</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{roomNumbersDisplay}</span>
               </div>
             </div>
-            
-            {/* Right Column */}
             <div>
-              {/* Invoice Date */}
               <div style={{ display: 'flex', padding: '3px 0' }}>
                 <span style={{ fontWeight: 600, minWidth: '85px' }}>Invoice Date</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{invoiceDateDisplay}</span>
               </div>
-              
-              {/* Room Type - right side of Booking ID */}
               <div style={{ display: 'flex', padding: '3px 0' }}>
                 <span style={{ fontWeight: 600, minWidth: '85px' }}>Room Type</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span style={{ fontWeight: 600 }}>{roomTypeDisplay}</span>
               </div>
-              
-              {/* No. of Nights - right side of Check-in Date */}
               <div style={{ display: 'flex', padding: '3px 0' }}>
                 <span style={{ fontWeight: 600, minWidth: '85px' }}>No. of Nights</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{nightsDisplay}</span>
               </div>
-              
-              {/* Guests / Plan - right side of Check-out Date */}
               <div style={{ display: 'flex', padding: '3px 0' }}>
                 <span style={{ fontWeight: 600, minWidth: '85px' }}>Guests / Plan</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{guestsDisplay} {tariffPlanDisplay ? `(${tariffPlanDisplay})` : ''}</span>
               </div>
-              
-             
             </div>
           </div>
         </div>
@@ -1617,156 +1350,125 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   }, [printSettings, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, summary, headerBg, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate])
 
   const renderChargesTable = useCallback(() => {
-    console.log('🎯 Rendering Charges Table, tableRows:', tableRows.length);
+    console.log('🎯 Rendering Charges Table, tableRows:', tableRows.length)
     
     if (tableRows.length === 0) {
       return (
         <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
           No charges to display.
         </div>
-      );
+      )
     }
 
-    const showRowNums = printSettings?.show_row_numbers === 1;
+    const showRowNums = printSettings?.show_row_numbers === 1
 
-    // Add ALLOWANCE and ADVANCE columns
-    const headers: React.ReactElement[] = [];
-    if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>);
-    headers.push(<th key="room" className="col-room bct-left">ROOM</th>);
-    headers.push(<th key="date" className="col-date bct-left">DATE</th>);
-    headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>);
-    headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>);
-    headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>);
-    headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>);
-    headers.push(<th key="food" className="col-amount bct-right">FOOD</th>);
-    headers.push(<th key="post" className="col-amount bct-right">POST</th>);
-    headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>);
-    headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>);
-    headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>);
+    const headers: React.ReactElement[] = []
+    if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
+    headers.push(<th key="room" className="col-room bct-left">ROOM</th>)
+    headers.push(<th key="date" className="col-date bct-left">DATE</th>)
+    headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
+    headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
+    headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
+    headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
+    headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
+    headers.push(<th key="post" className="col-amount bct-right">POST</th>)
+    headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>)
+    headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>)
+    headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
 
-    const totalCols = headers.length;
+    const totalCols = headers.length
 
-    const bodyRows: React.ReactElement[] = [];
-    let runningIndex = 1;
+    const bodyRows: React.ReactElement[] = []
+    let runningIndex = 1
 
     tableRows.forEach((row) => {
-      const mainIndex = runningIndex++;
+      const mainIndex = runningIndex++
       
-      // Debug each row
-      console.log(`📝 Building row ${mainIndex}:`, {
-        roomNumber: row.roomNumber,
-        date: row.date,
-        roomTariff: row.roomTariff,
-        exPax: row.exPax,
-        cgst: row.cgst,
-        sgst: row.sgst,
-        food: row.food,
-        postTotal: row.postTotal,
-        advanceTotal: row.advanceTotal,
-        allowanceTotal: row.allowanceTotal,
-        total: row.total
-      });
-
-      const cells: React.ReactElement[] = [];
-      if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>);
+      const cells: React.ReactElement[] = []
+      if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>)
       cells.push(
         <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'normal' }}>
           {row.roomNumber || 'N/A'}
         </td>
-      );
-      cells.push(<td key="date" className="bct-left">{row.date || 'N/A'}</td>);
-      cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff || 0)}</td>);
-      cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax || 0)}</td>);
-      cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst || 0)}</td>);
-      cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst || 0)}</td>);
-      cells.push(<td key="food" className="bct-right">{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>);
-      cells.push(<td key="post" className="bct-right">{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>);
+      )
+      cells.push(<td key="date" className="bct-left">{row.date || 'N/A'}</td>)
+      cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff || 0)}</td>)
+      cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax || 0)}</td>)
+      cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst || 0)}</td>)
+      cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst || 0)}</td>)
+      cells.push(<td key="food" className="bct-right">{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
+      cells.push(<td key="post" className="bct-right">{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>)
       cells.push(<td key="advance" className="bct-right" style={{ color: row.advanceTotal > 0 ? '#c0392b' : 'inherit' }}>
         {row.advanceTotal > 0 ? formatAmtDisplay(row.advanceTotal) : '-'}
-      </td>);
+      </td>)
       cells.push(<td key="allowance" className="bct-right" style={{ color: row.allowanceTotal > 0 ? '#c0392b' : 'inherit' }}>
         {row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}
-      </td>);
+      </td>)
       cells.push(
         <td key="total" className="bct-right" style={{ fontWeight: 600 }}>
           {formatAmtDisplay(row.total || 0)}
         </td>
-      );
-      bodyRows.push(<tr key={row.id}>{cells}</tr>);
-    });
+      )
+      bodyRows.push(<tr key={row.id}>{cells}</tr>)
+    })
 
-    console.log(`✅ Built ${bodyRows.length} body rows`);
-
-    // Calculate table totals for display purposes only
-    // These are NOT used for final financial amounts - only for table display
-    const totalRoomTariffAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.roomTariff, 0));
-    const totalExPaxAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.exPax, 0));
-    const totalCgstAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.cgst, 0));
-    const totalSgstAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.sgst, 0));
-    const totalFoodAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.food, 0));
-    const totalAdvanceAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.advanceTotal, 0));
-    const totalPostAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.postTotal, 0));
-    const totalAllowanceAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0));
-    const totalAmount = roundToTwo(tableRows.reduce((sum, row) => sum + row.total, 0));
-
-    // Footer row
-    const footerCells: React.ReactElement[] = [];
-    const labelColSpan = showRowNums ? 3 : 2;
+    // Footer row - using backend calculated totals
+    const footerCells: React.ReactElement[] = []
+    const labelColSpan = showRowNums ? 3 : 2
     
     footerCells.push(
       <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ fontWeight: 700 }}>
         Total
       </td>
-    );
+    )
     footerCells.push(
       <td key="total_tariff" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totalRoomTariffAmount || 0)}
+        {formatAmtDisplay(totals.totalRoomTariffAmount || 0)}
       </td>
-    );
+    )
     footerCells.push(
       <td key="total_expax" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totalExPaxAmount || 0)}
+        {formatAmtDisplay(totals.totalExPaxAmount || 0)}
       </td>
-    );
+    )
     footerCells.push(
       <td key="total_cgst" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totalCgstAmount || 0)}
+        {formatAmtDisplay(totals.totalCgstAmount || 0)}
       </td>
-    );
+    )
     footerCells.push(
       <td key="total_sgst" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totalSgstAmount || 0)}
+        {formatAmtDisplay(totals.totalSgstAmount || 0)}
       </td>
-    );
+    )
     footerCells.push(
       <td key="total_food" className="bct-right" style={{ fontWeight: 700 }}>
-        {totalFoodAmount > 0 ? formatAmtDisplay(totalFoodAmount) : '-'}
+        {totals.totalFoodAmount > 0 ? formatAmtDisplay(totals.totalFoodAmount) : '-'}
       </td>
-    );
+    )
     footerCells.push(
       <td key="total_post" className="bct-right" style={{ fontWeight: 700 }}>
-        {totalPostAmount > 0 ? formatAmtDisplay(totalPostAmount) : '-'}
+        {totals.totalPostAmount > 0 ? formatAmtDisplay(totals.totalPostAmount) : '-'}
       </td>
-    );
+    )
     footerCells.push(
       <td key="total_advance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
-        {totalAdvanceAmount > 0 ? formatAmtDisplay(totalAdvanceAmount) : '-'}
+        {totals.totalAdvanceAmount > 0 ? formatAmtDisplay(totals.totalAdvanceAmount) : '-'}
       </td>
-    );
+    )
     footerCells.push(
       <td key="total_allowance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
-        {totalAllowanceAmount > 0 ? formatAmtDisplay(totalAllowanceAmount) : '-'}
+        {totals.totalAllowanceAmount > 0 ? formatAmtDisplay(totals.totalAllowanceAmount) : '-'}
       </td>
-    );
+    )
     footerCells.push(
       <td key="total_amount" className="bct-right" style={{ fontWeight: 800, background: '#f0f0f0' }}>
-        {formatAmtDisplay(totalAmount || 0)}
+        {formatAmtDisplay(totals.totalAmount || 0)}
       </td>
-    );
+    )
 
-    // Grand Total row - ✅ USES BACKEND SUMMARY (SOURCE OF TRUTH)
-    const summaryRows: React.ReactElement[] = [];
-    const netPayable = backendSummary?.net_payable || 0;
+    // Grand Total row - using backend net payable
+    const summaryRows: React.ReactElement[] = []
 
     summaryRows.push(
       <tr key="summary_grand_total" style={{ background: headerBg, color: headerText }}>
@@ -1774,10 +1476,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           TOTAL PAID (INR)
         </td>
         <td className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
-          ₹{formatAmt(netPayable)}
+          ₹{formatAmt(totals.netTotal || 0)}
         </td>
       </tr>
-    );
+    )
 
     return (
       <div style={{ overflowX: 'auto' }}>
@@ -1792,21 +1494,19 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           </tfoot>
         </table>
       </div>
-    );
-  }, [printSettings, tableRows, headerBg, headerText, backendSummary]);
+    )
+  }, [printSettings, tableRows, totals, headerBg, headerText])
 
   const renderHorizontalSummary = useCallback(() => null, [])
 
   const renderAmountInWords = useCallback(() => {
-    // ✅ USES BACKEND SUMMARY
-    const amount = backendSummary?.net_payable || 0;
     return (
       <div className="bill-amount-words">
         <span className="baw-label">Amount in Words: </span>
-        <span className="baw-text">{numberToWords(amount)}</span>
+        <span className="baw-text">{numberToWords(totals.netTotal)}</span>
       </div>
     )
-  }, [backendSummary])
+  }, [totals.netTotal])
 
   const renderPaymentDetails = useCallback(() => {
     const paymentTxnId = propPaymentTransactionId || 
@@ -1815,8 +1515,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     
     const paymentDateDisplay = propPaymentDate || invoiceDate
     const paymentBankDisplay = propPaymentBank || paymentMode
-    // ✅ USES BACKEND SUMMARY
-    const netPayable = backendSummary?.net_payable || 0
 
     return (
       <div className="bill-info-box">
@@ -1827,7 +1525,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
               <tr>
                 <td className="bdt-label">Paid Amount</td>
                 <td className="bdt-colon">:</td>
-                <td className="bdt-value">INR {formatAmt(netPayable)}</td>
+                <td className="bdt-value">INR {formatAmt(totals.netTotal)}</td>
               </tr>
               <tr>
                 <td className="bdt-label">Transaction ID</td>
@@ -1849,40 +1547,14 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         </div>
       </div>
     )
-  }, [propPaymentTransactionId, billData, propPaymentDate, invoiceDate, propPaymentBank, paymentMode, backendSummary])
+  }, [propPaymentTransactionId, billData, propPaymentDate, invoiceDate, propPaymentBank, paymentMode, totals.netTotal])
 
   const renderSummaryBox = useCallback(() => {
-    // ✅ ALL VALUES COME FROM BACKEND SUMMARY - NO MANUAL CALCULATIONS
-    const summaryData = backendSummary || {
-      bill_amount: 0,
-      post_charges: 0,
-      allowance: 0,
-      discount_amount: 0,
-      advance_amount: 0,
-      balance_amount: 0,
-      net_payable: 0,
-      round_off_amount: 0,
-      cgst: 0,
-      sgst: 0,
-      payment_mode: 'Cash'
-    };
-
-    const {
-      bill_amount,
-      post_charges,
-      allowance,
-      discount_amount,
-      advance_amount,
-      balance_amount,
-      net_payable,
-      round_off_amount
-    } = summaryData;
-
-    const hasDiscount = discount_amount > 0;
-    const hasAdvance = advance_amount > 0;
-    const hasPostCharges = post_charges > 0;
-    const hasAllowance = allowance > 0;
-    const hasRoundOff = round_off_amount !== 0;
+    const firstRow = billData[0] || {}
+    const discountAmount = toNumber(firstRow.discount_amount || 0)
+    const netTotal = totals.netTotal || totals.totalAmount || 0
+    const advanceTotal = toNumber(firstRow.advance_amt || 0)
+    const finalAmount = roundToTwo(netTotal - advanceTotal)
 
     return (
       <div className="bill-info-box">
@@ -1894,14 +1566,13 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             fontSize: '8pt'
           }}>
             <tbody>
-              {/* BILL AMOUNT - from backend */}
               <tr>
                 <td style={{ 
                   padding: '4px 8px', 
                   fontWeight: 700,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  BILL AMOUNT
+                  TOTAL AMOUNT
                 </td>
                 <td style={{ 
                   padding: '4px 8px', 
@@ -1909,52 +1580,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
                   fontWeight: 700,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  ₹{formatAmt(bill_amount)}
+                  ₹{formatAmt(toNumber(firstRow.total_amount || 0))}
                 </td>
               </tr>
-
-              {/* POST CHARGES - from backend */}
-              {hasPostCharges && (
-                <tr>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    Post Charges
-                  </td>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    textAlign: 'right',
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    ₹{formatAmt(post_charges)}
-                  </td>
-                </tr>
-              )}
-
-              {/* ALLOWANCE - from backend */}
-              {hasAllowance && (
-                <tr>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    color: '#c0392b',
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    Allowance
-                  </td>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    textAlign: 'right',
-                    color: '#c0392b',
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    -₹{formatAmt(allowance)}
-                  </td>
-                </tr>
-              )}
-
-              {/* DISCOUNT - from backend */}
-              {hasDiscount && (
+              {discountAmount > 0 && (
                 <tr>
                   <td style={{ 
                     padding: '4px 8px', 
@@ -1971,40 +1600,17 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
                     fontWeight: 600,
                     borderBottom: '1px solid #e0e0e0'
                   }}>
-                    -₹{formatAmt(discount_amount)}
+                    -₹{formatAmt(discountAmount)}
                   </td>
                 </tr>
               )}
-
-              {/* ROUND OFF - from backend */}
-              {hasRoundOff && (
-                <tr>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    color: '#666',
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    Round Off
-                  </td>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    textAlign: 'right',
-                    color: '#666',
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    ₹{formatAmt(round_off_amount)}
-                  </td>
-                </tr>
-              )}
-
-              {/* NET PAYABLE - from backend */}
               <tr>
                 <td style={{ 
                   padding: '4px 8px', 
                   fontWeight: 700,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  NET PAYABLE
+                  NET TOTAL
                 </td>
                 <td style={{ 
                   padding: '4px 8px', 
@@ -2012,12 +1618,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
                   fontWeight: 700,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  ₹{formatAmt(net_payable)}
+                  ₹{formatAmt(netTotal)}
                 </td>
               </tr>
-
-              {/* ADVANCE - from backend */}
-              {hasAdvance && (
+              {advanceTotal > 0 && (
                 <tr>
                   <td style={{ 
                     padding: '4px 8px', 
@@ -2034,13 +1638,11 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
                     fontWeight: 600,
                     borderBottom: '1px solid #e0e0e0'
                   }}>
-                    -₹{formatAmt(advance_amount)}
+                    -₹{formatAmt(advanceTotal)}
                   </td>
                 </tr>
               )}
-
-              {/* BALANCE AMOUNT - from backend (most important!) */}
-              {(hasAdvance || balance_amount !== net_payable) && (
+              {advanceTotal > 0 && (
                 <tr>
                   <td style={{ 
                     padding: '4px 8px', 
@@ -2048,7 +1650,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
                     fontSize: '9pt',
                     color: headerBg
                   }}>
-                    {hasAdvance ? 'BALANCE AMOUNT' : 'TOTAL PAID'}
+                    BALANCE AMOUNT
                   </td>
                   <td style={{ 
                     padding: '4px 8px', 
@@ -2057,7 +1659,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
                     fontSize: '9pt',
                     color: headerBg
                   }}>
-                    ₹{formatAmt(balance_amount)}
+                    ₹{formatAmt(finalAmount)}
                   </td>
                 </tr>
               )}
@@ -2065,14 +1667,13 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           </table>
         </div>
       </div>
-    );
-  }, [backendSummary, headerBg]);
+    )
+  }, [billData, totals, headerBg])
 
   const renderFooter = useCallback(() => {
     const firstRow = billData[0]
     return (
       <div className="text-center mt-2">
-        {renderAmountInWords()}
         {printSettings?.show_thankyou_message === 1 && (
           <div className="bill-thankyou">
             {printSettings?.thankyou_message_text || 'Thank You!'}
@@ -2095,7 +1696,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         )}
       </div>
     )
-  }, [billData, printSettings, renderAmountInWords])
+  }, [billData, printSettings])
 
   const renderLayout = useCallback(() => {
     const guestPosition = printSettings?.guest_details_position || 'left'
