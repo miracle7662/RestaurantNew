@@ -1549,126 +1549,127 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     )
   }, [propPaymentTransactionId, billData, propPaymentDate, invoiceDate, propPaymentBank, paymentMode, totals.netTotal])
 
-  const renderSummaryBox = useCallback(() => {
-    const firstRow = billData[0] || {}
-    const discountAmount = toNumber(firstRow.discount_amount || 0)
-    const netTotal = totals.netTotal || totals.totalAmount || 0
-    const advanceTotal = toNumber(firstRow.advance_amt || 0)
-    const finalAmount = roundToTwo(netTotal - advanceTotal)
+ const renderSummaryBox = useCallback(() => {
+  const firstRow = billData[0] || {}
+  const discountAmount = toNumber(firstRow.discount_amount || 0)
+  const grossTotal = toNumber(firstRow.total_amount || 0)
+  const netTotal = roundToTwo(grossTotal - discountAmount) // Total after discount
+  const advanceTotal = toNumber(firstRow.advance_amt || 0)
+  const finalAmount = roundToTwo(netTotal - advanceTotal) // Net - Advance
 
-    return (
-      <div className="bill-info-box">
-        <div className="bill-info-box-header">BILL SUMMARY</div>
-        <div className="bill-info-box-body">
-          <table style={{ 
-            width: '100%', 
-            borderCollapse: 'collapse',
-            fontSize: '8pt'
-          }}>
-            <tbody>
+  return (
+    <div className="bill-info-box">
+      <div className="bill-info-box-header">BILL SUMMARY</div>
+      <div className="bill-info-box-body">
+        <table style={{ 
+          width: '100%', 
+          borderCollapse: 'collapse',
+          fontSize: '8pt'
+        }}>
+          <tbody>
+            <tr>
+              <td style={{ 
+                padding: '4px 8px', 
+                fontWeight: 700,
+                borderBottom: '1px solid #e0e0e0'
+              }}>
+                TOTAL AMOUNT
+              </td>
+              <td style={{ 
+                padding: '4px 8px', 
+                textAlign: 'right',
+                fontWeight: 700,
+                borderBottom: '1px solid #e0e0e0'
+              }}>
+                ₹{formatAmt(grossTotal)}
+              </td>
+            </tr>
+            {discountAmount > 0 && (
               <tr>
                 <td style={{ 
                   padding: '4px 8px', 
-                  fontWeight: 700,
+                  color: '#c0392b',
+                  fontWeight: 600,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  TOTAL AMOUNT
+                  Discount
                 </td>
                 <td style={{ 
                   padding: '4px 8px', 
                   textAlign: 'right',
-                  fontWeight: 700,
+                  color: '#c0392b',
+                  fontWeight: 600,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  ₹{formatAmt(toNumber(firstRow.total_amount || 0))}
+                  -₹{formatAmt(discountAmount)}
                 </td>
               </tr>
-              {discountAmount > 0 && (
-                <tr>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    color: '#c0392b',
-                    fontWeight: 600,
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    Discount
-                  </td>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    textAlign: 'right',
-                    color: '#c0392b',
-                    fontWeight: 600,
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    -₹{formatAmt(discountAmount)}
-                  </td>
-                </tr>
-              )}
+            )}
+            <tr>
+              <td style={{ 
+                padding: '4px 8px', 
+                fontWeight: 700,
+                borderBottom: '1px solid #e0e0e0'
+              }}>
+                NET TOTAL
+              </td>
+              <td style={{ 
+                padding: '4px 8px', 
+                textAlign: 'right',
+                fontWeight: 700,
+                borderBottom: '1px solid #e0e0e0'
+              }}>
+                ₹{formatAmt(netTotal)}
+              </td>
+            </tr>
+            {advanceTotal > 0 && (
               <tr>
                 <td style={{ 
                   padding: '4px 8px', 
-                  fontWeight: 700,
+                  color: '#e67e22',
+                  fontWeight: 600,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  NET TOTAL
+                  Advance
                 </td>
                 <td style={{ 
                   padding: '4px 8px', 
                   textAlign: 'right',
-                  fontWeight: 700,
+                  color: '#e67e22',
+                  fontWeight: 600,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  ₹{formatAmt(netTotal)}
+                  -₹{formatAmt(advanceTotal)}
                 </td>
               </tr>
-              {advanceTotal > 0 && (
-                <tr>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    color: '#e67e22',
-                    fontWeight: 600,
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    Advance
-                  </td>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    textAlign: 'right',
-                    color: '#e67e22',
-                    fontWeight: 600,
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    -₹{formatAmt(advanceTotal)}
-                  </td>
-                </tr>
-              )}
-              {advanceTotal > 0 && (
-                <tr>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    fontWeight: 800,
-                    fontSize: '9pt',
-                    color: headerBg
-                  }}>
-                    BALANCE AMOUNT
-                  </td>
-                  <td style={{ 
-                    padding: '4px 8px', 
-                    textAlign: 'right',
-                    fontWeight: 800,
-                    fontSize: '9pt',
-                    color: headerBg
-                  }}>
-                    ₹{formatAmt(finalAmount)}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            )}
+            {advanceTotal > 0 && (
+              <tr>
+                <td style={{ 
+                  padding: '4px 8px', 
+                  fontWeight: 800,
+                  fontSize: '9pt',
+                  color: headerBg
+                }}>
+                  BALANCE AMOUNT
+                </td>
+                <td style={{ 
+                  padding: '4px 8px', 
+                  textAlign: 'right',
+                  fontWeight: 800,
+                  fontSize: '9pt',
+                  color: headerBg
+                }}>
+                  ₹{formatAmt(finalAmount)}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
-    )
-  }, [billData, totals, headerBg])
+    </div>
+  )
+}, [billData, headerBg])
 
   const renderFooter = useCallback(() => {
     const firstRow = billData[0]
