@@ -874,25 +874,34 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             id: charge.id,
           })
         } else if (transactionType === 'CHARGE' || transactionType === 'POST CHARGE' || 
-
-  for (const room of sortedRooms) {
-    const dateMap = roomGroups.get(room)!
-    const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
-      const dateA = a.split('/').reverse().join('-')
-      const dateB = b.split('/').reverse().join('-')
-      return new Date(dateA).getTime() - new Date(dateB).getTime()
+                   transactionType === 'POST_CHARGE' || desc.includes('charge')) {
+          item.postCharges.push({
+            description: charge.description || 'Post Charge',
+            amount,
+            id: charge.id,
+          })
+        } else {
+          // Default: treat as post charge
+          item.postCharges.push({
+            description: charge.description || 'Post Charge',
+            amount,
+            id: charge.id,
+          })
+        }
+      }
     })
 
-    let isFirstRow = true
-    
-    for (const date of sortedDates) {
-      const item = dateMap.get(date)!
-
-      // Calculate totals - make sure we're not double counting
-      const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
-      const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
-      const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
-      const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
+    // Sort rooms
+    const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
+      if (a === 'COMMON') return 1
+      if (b === 'COMMON') return -1
+      const numA = parseInt(a)
+      const numB = parseInt(b)
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return numA - numB
+      }
+      return a.localeCompare(b)
+    })
 
     console.log('🏨 Room groups found:', sortedRooms.length)
 
