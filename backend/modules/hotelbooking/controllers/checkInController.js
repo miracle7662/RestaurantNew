@@ -80,7 +80,7 @@ exports.getCheckins = async (req, res) => {
         const { q, status } = req.query;
 
         let sql = `
-      SELECT
+     SELECT
     -- Checkin Master
     cm.checkin_id,
     cm.reg_no,
@@ -152,9 +152,21 @@ exports.getCheckins = async (req, res) => {
 
 FROM checkin_master cm
 
-LEFT JOIN checkin_detail_master cdm
-    ON cm.checkin_id = cdm.checkin_id
-   AND cdm.is_settle = 0
+LEFT JOIN (
+    SELECT c1.*
+    FROM checkin_detail_master c1
+    INNER JOIN (
+        SELECT
+            checkin_id,
+            room_id,
+            MAX(detail_id) AS detail_id
+        FROM checkin_detail_master
+        WHERE is_settle = 0
+        GROUP BY checkin_id, room_id
+    ) x
+        ON c1.detail_id = x.detail_id
+) cdm
+ON cm.checkin_id = cdm.checkin_id
 
 LEFT JOIN guest_master gm
     ON gm.guest_id = cdm.guest_id

@@ -564,7 +564,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
   }, [displayRows, billData])
 
-  // ========== GENERATE TABLE ROWS - USING BACKEND CALCULATED VALUES ==========
  // ========== GENERATE TABLE ROWS - USING BACKEND CALCULATED VALUES ==========
 const tableRows = useMemo(() => {
   console.log('🔨 Building tableRows...')
