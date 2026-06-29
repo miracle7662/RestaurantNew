@@ -5738,110 +5738,133 @@ const ApplyDiscountComponent = ({
   // ========================================
   // ✅ FETCH ALL DAYS USING RoomService.getCheckinFullDetails
   // ========================================
-  const fetchAffectedDays = async () => {
-    try {
-      // ✅ Use RoomService.getCheckinFullDetails
-      const response = await RoomService.getCheckinFullDetails(
-        selectedRoom.checkin.hotelid,
-        selectedRoom.checkin.checkin_id
-      )
+const fetchAffectedDays = async () => {
+  try {
+    const response = await RoomService.getCheckinFullDetails(
+      selectedRoom.checkin.hotelid,
+      selectedRoom.checkin.checkin_id
+    )
 
-      if (response.success) {
-        const allDetails = response.data || []
-        
-        // ✅ Filter only the current room's details
-        const roomDetails = allDetails.filter(
-          (d: any) => d.room_id === selectedRoom.detail.room_id
-        )
-        
-        const formattedDetails = roomDetails.map((d: any) => ({
-          detail_id: d.detail_id,
-          room_id: d.room_id,
-          room_number: d.room_number || '',
-          checkin_datetime: d.detail_checkin_datetime || d.checkin_datetime || null,
-          checkout_datetime: d.detail_checkout_datetime || d.checkout_datetime || null,
-          no_of_days: safeNumber(d.no_of_days, 1),
-          room_tariff: safeNumber(d.room_tariff),
-          discount_percent: safeNumber(d.discount_percent),
-          discount_amount: safeNumber(d.discount_amount),
-          total_amount: safeNumber(d.total_amount || d.debit_amount || 0),
-          debit_amount: safeNumber(d.debit_amount),
-          credit_amount: safeNumber(d.credit_amount),
-          base_amount: safeNumber(d.base_amount) || safeNumber(d.room_tariff) * safeNumber(d.no_of_days),
-          per_day_discount: safeNumber(d.per_day_discount),
-          
-          // Guest info
-          guest_name: d.guest_name || d.name || '',
-          guest_id: d.guest_id,
-          room_category_name: d.room_category_name || '',
-          converted_category_name: d.converted_category_name || '',
-          adults: safeNumber(d.adults),
-          pax: safeNumber(d.pax),
-          ex_pax: safeNumber(d.ex_pax),
-          child_paid_amount: safeNumber(d.child_paid_amount),
-          child_unpaid: safeNumber(d.child_unpaid),
-          driver: safeNumber(d.driver),
-          
-          // Tax fields - Calculate total tax from components
-          tax_percent: safeNumber(d.tax_percent || d.tax),
-          taxAmount: safeToFixed(
-            safeNumber(d.cgst_amount || 0) + 
-            safeNumber(d.sgst_amount || 0) + 
-            safeNumber(d.igst_amount || 0) + 
-            safeNumber(d.cess_amount || 0) + 
-            safeNumber(d.service_charge_amount || 0)
-          ),
-          cgst_percent: safeNumber(d.cgst_percent),
-          sgst_percent: safeNumber(d.sgst_percent),
-          igst_percent: safeNumber(d.igst_percent),
-          cess_percent: safeNumber(d.cess_percent),
-          cgst_amount: safeNumber(d.cgst_amount),
-          sgst_amount: safeNumber(d.sgst_amount),
-          igst_amount: safeNumber(d.igst_amount),
-          cess_amount: safeNumber(d.cess_amount),
-          service_charge: safeNumber(d.service_charge),
-          service_charge_amount: safeNumber(d.service_charge_amount),
-          
-          // Room charges from checkin_guest_room_charges
-          ex_pax_price: safeNumber(d.ex_pax_price),
-          ex_pax_tax_percent: safeNumber(d.ex_pax_tax_percent),
-          ex_pax_tax: safeNumber(d.ex_pax_tax),
-          ex_pax_total: safeNumber(d.ex_pax_total),
-          child_price: safeNumber(d.child_price),
-          child_tax_percent: safeNumber(d.child_tax_percent),
-          child_tax: safeNumber(d.child_tax),
-          child_total: safeNumber(d.child_total),
-          driver_price: safeNumber(d.driver_price),
-          driver_tax_percent: safeNumber(d.driver_tax_percent),
-          driver_tax: safeNumber(d.driver_tax),
-          driver_total: safeNumber(d.driver_total),
-          
-          // Additional charges fields
-          pax_count: safeNumber(d.pax_count),
-          pax_price: safeNumber(d.pax_price),
-          pax_tax: safeNumber(d.pax_tax),
-          ex_pax_count: safeNumber(d.ex_pax_count),
-          child_count: safeNumber(d.child_count),
-          driver_count: safeNumber(d.driver_count),
-          
-          isCurrentDay: false
-        }))
-        
-        setAffectedDays(formattedDetails)
-        
-        const currentIndex = findCurrentDayIndex(formattedDetails)
-        setSelectedDayIndex(currentIndex)
-        
-        const discountEntries = formattedDetails.filter((d: any) => d.discount_percent > 0)
-        setDiscountDetails(discountEntries)
-      } else {
-        toast.error(response.message || 'Failed to fetch room details')
+    if (response.success) {
+      const allDetails = response.data?.details || []
+      
+      // ✅ FILTER: Sirf 'Room Charges' aur 'Room Extension' wali rows
+     // Case-insensitive filter
+const filteredDetails = allDetails.filter((d: any) => {
+  const transType = (d.transaction_type || '').toLowerCase()
+  return transType === 'room charges' || 
+         transType === 'room extension'
+})
+      
+      // ✅ Agar filter empty hai toh saari rows show karein (for testing)
+      // const finalDetails = filteredDetails.length > 0 ? filteredDetails : allDetails
+      
+      // ✅ Ab current room ke details filter karo
+      const roomDetails = filteredDetails.filter(
+        (d: any) => d.room_id === selectedRoom.detail.room_id
+      )
+      
+      console.log('Filtered room details:', roomDetails.length)
+      
+      // Agar roomDetails empty hai toh error show karein
+      if (roomDetails.length === 0) {
+        toast.error('No check-in or extension days found for this room')
+        setAffectedDays([])
+        return
       }
-    } catch (error) {
-      console.error('Failed to fetch affected days:', error)
-      toast.error('Failed to load room details')
+      
+      const formattedDetails = roomDetails.map((d: any) => ({
+        detail_id: d.detail_id,
+        room_id: d.room_id,
+        room_number: d.room_number || '',
+        checkin_datetime: d.detail_checkin_datetime || d.checkin_datetime || null,
+        checkout_datetime: d.detail_checkout_datetime || d.checkout_datetime || null,
+        no_of_days: safeNumber(d.no_of_days, 1),
+        room_tariff: safeNumber(d.room_tariff),
+        discount_percent: safeNumber(d.discount_percent),
+        discount_amount: safeNumber(d.discount_amount),
+        total_amount: safeNumber(d.total_amount || d.debit_amount || 0),
+        debit_amount: safeNumber(d.debit_amount),
+        credit_amount: safeNumber(d.credit_amount),
+        base_amount: safeNumber(d.base_amount) || safeNumber(d.room_tariff) * safeNumber(d.no_of_days),
+        per_day_discount: safeNumber(d.per_day_discount),
+        
+        // Guest info
+        guest_name: d.guest_name || d.name || '',
+        guest_id: d.guest_id,
+        room_category_name: d.room_category_name || '',
+        converted_category_name: d.converted_category_name || '',
+        adults: safeNumber(d.adults),
+        pax: safeNumber(d.pax),
+        ex_pax: safeNumber(d.ex_pax),
+        child_paid_amount: safeNumber(d.child_paid_amount),
+        child_unpaid: safeNumber(d.child_unpaid),
+        driver: safeNumber(d.driver),
+        
+        // Tax fields
+        tax_percent: safeNumber(d.tax_percent || d.tax),
+        taxAmount: safeToFixed(
+          safeNumber(d.cgst_amount || 0) + 
+          safeNumber(d.sgst_amount || 0) + 
+          safeNumber(d.igst_amount || 0) + 
+          safeNumber(d.cess_amount || 0) + 
+          safeNumber(d.service_charge_amount || 0)
+        ),
+        cgst_percent: safeNumber(d.cgst_percent),
+        sgst_percent: safeNumber(d.sgst_percent),
+        igst_percent: safeNumber(d.igst_percent),
+        cess_percent: safeNumber(d.cess_percent),
+        cgst_amount: safeNumber(d.cgst_amount),
+        sgst_amount: safeNumber(d.sgst_amount),
+        igst_amount: safeNumber(d.igst_amount),
+        cess_amount: safeNumber(d.cess_amount),
+        service_charge: safeNumber(d.service_charge),
+        service_charge_amount: safeNumber(d.service_charge_amount),
+        
+        // Room charges
+        ex_pax_price: safeNumber(d.ex_pax_price),
+        ex_pax_tax_percent: safeNumber(d.ex_pax_tax_percent),
+        ex_pax_tax: safeNumber(d.ex_pax_tax),
+        ex_pax_total: safeNumber(d.ex_pax_total),
+        child_price: safeNumber(d.child_price),
+        child_tax_percent: safeNumber(d.child_tax_percent),
+        child_tax: safeNumber(d.child_tax),
+        child_total: safeNumber(d.child_total),
+        driver_price: safeNumber(d.driver_price),
+        driver_tax_percent: safeNumber(d.driver_tax_percent),
+        driver_tax: safeNumber(d.driver_tax),
+        driver_total: safeNumber(d.driver_total),
+        
+        // Additional charges fields
+        pax_count: safeNumber(d.pax_count),
+        pax_price: safeNumber(d.pax_price),
+        pax_tax: safeNumber(d.pax_tax),
+        ex_pax_count: safeNumber(d.ex_pax_count),
+        child_count: safeNumber(d.child_count),
+        driver_count: safeNumber(d.driver_count),
+        
+        // Store original transaction type for display
+        transaction_type: d.transaction_type,
+        description: d.description || d.charge_description || '',
+        
+        isCurrentDay: false
+      }))
+      
+      setAffectedDays(formattedDetails)
+      
+      const currentIndex = findCurrentDayIndex(formattedDetails)
+      setSelectedDayIndex(currentIndex)
+      
+      const discountEntries = formattedDetails.filter((d: any) => d.discount_percent > 0)
+      setDiscountDetails(discountEntries)
+    } else {
+      toast.error(response.message || 'Failed to fetch room details')
     }
+  } catch (error) {
+    console.error('Failed to fetch affected days:', error)
+    toast.error('Failed to load room details')
   }
+}
 
   // ========================================
   // ✅ FIND CURRENT DAY INDEX
