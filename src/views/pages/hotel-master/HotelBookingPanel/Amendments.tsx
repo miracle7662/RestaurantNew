@@ -1379,7 +1379,7 @@ const PaxChangeComponent = ({
         setModeCharges(catData.mode_charges || [])
 
         const taxRes = await taxApi.list()
-        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
+        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
         const map = new Map<number, number>()
         taxData.forEach((tax: any) => {
           const percent = tax.hotel_tax_value ?? tax.hotel_cgst + tax.hotel_sgst

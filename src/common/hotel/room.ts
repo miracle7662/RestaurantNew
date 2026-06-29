@@ -250,11 +250,16 @@ const RoomService = {
   },
 
   // ✅ UPDATED: Now returns both details and summary
-  getCheckinFullDetails(hotelid: string | number, checkin_id: string | number) {
+  getCheckinFullDetails(
+    hotelid: string | number,
+    checkin_id: string | number,
+    room_ids?: string,
+  ) {
     return HttpClient.get<ApiResponse<CheckinFullDetailsResponse>>("/rooms/checkin-full-details", {
-      params: { hotelid, checkin_id },
+      params: { hotelid, checkin_id, room_ids: room_ids ?? undefined },
     });
   },
 };
+
 
 export default RoomService;

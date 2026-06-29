@@ -421,7 +421,7 @@ const AtGlancePage = () => {
 
       const tableClone = table.cloneNode(true) as HTMLElement
       tableClone.querySelectorAll('thead tr, tfoot tr').forEach((el) => {
-        ;(el as HTMLElement).style.position = 'static'
+        (el as HTMLElement).style.position = 'static'
       })
 
       wrapper.appendChild(tableClone)
