@@ -186,9 +186,9 @@ LEFT JOIN (
        AND x.latest_created = c1.created_at
 ) cgrc
     ON cgrc.checkin_id = cdm.checkin_id
-   AND cgrc.room_id = cdm.room_id;
+   AND cgrc.room_id = cdm.room_id
 
-WHERE cm.hotelid = ?;`;
+WHERE cm.hotelid = ?`
 
         const params = [hotelId];
 
