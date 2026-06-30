@@ -136,6 +136,11 @@ const PostChargesModal = ({
   const [departments, setDepartments] = useState<DepartmentWithOutlet[]>([])
   const [subDepartments, setSubDepartments] = useState<SubDepartment[]>([])
 
+
+  const getTransactionTypeLabel = (type: 'charge' | 'allowance'): string => {
+  return type === 'allowance' ? 'Allowance' : 'Post Charge';
+};
+
   // ── Sync postType when modal opens ───────────────────────────────────────
   useEffect(() => {
     if (show) setPostType(mode)
@@ -439,7 +444,8 @@ const PostChargesModal = ({
 
     setUpdating(true)
     try {
-      const description = outletOption ? `${outletName} - ${outletOption.label}` : outletName
+      const transactionLabel = getTransactionTypeLabel(postType);
+      const description = transactionLabel; 
       const amountValue = parseFloat(amount)
       const discountValue = 0
       const isAllowance = postType === 'allowance'
@@ -557,7 +563,8 @@ const PostChargesModal = ({
 
     setSaving(true)
     try {
-      const description = outletOption ? `${outletName} - ${outletOption.label}` : outletName
+       const transactionLabel = getTransactionTypeLabel(postType);
+    const description = transactionLabel;   // "Allowance" or "Post Charge"
       const billNumber = `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`
       const docNumber = docNo || `DOC-${Date.now()}`
       const amountValue = parseFloat(amount)
@@ -585,7 +592,7 @@ const PostChargesModal = ({
         outlet_name: outletName,
         outlet_option: outletOption?.label ?? null,
         outlet_option_id: outletOption?.subDepartmentId ?? null,
-        description: description,
+        description: description,   // ✅ "Allowance" or "Post Charge"
         particulars: particulars || `${outletName}${outletOption ? ` - ${outletOption.label}` : ''} charges`,
         amount: amountValue,
         discount: discountValue,
