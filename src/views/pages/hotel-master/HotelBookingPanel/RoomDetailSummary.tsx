@@ -616,13 +616,7 @@ const RoomDetailSummary = () => {
 
     if (selectedRows.length === 0) return null
 
-     // ✅ NEW: Filter ONLY Check-in Day and Extension rows (exclude Post Charges)
-  const roomTariffRows = selectedRows.filter((row) => {
-    // Exclude all Post Charges (including Allowances)
-    if (row.isPostCharge) return false
-    return true // Include Check-in Day and Extension rows
-  })
-
+  
     // Calculate totals from selected rows
     const totalRoomTariff = selectedRows.reduce((sum, row) => sum + row.room_tariff, 0)
     const totalExPaxCharge = selectedRows.reduce((sum, row) => sum + row.ex_pax_total, 0)
