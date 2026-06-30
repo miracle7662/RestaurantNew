@@ -411,14 +411,8 @@ exports.getNextInvoiceNo = async (req, res) => {
 exports.performCheckout = async (req, res) => {
   let connection;
   try {
-    console.log('🚀 ========== STARTING CHECKOUT PROCESS ==========');
-    console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
-    
     connection = await db.getConnection();
-    console.log('✅ Database connection established');
-    
     await connection.beginTransaction();
-    console.log('🔄 Transaction started');
 
     const { 
       checkin_id, 
@@ -436,157 +430,59 @@ exports.performCheckout = async (req, res) => {
     } = req.body;
 
     const userId = getCurrentUserId(req);
-    console.log(`👤 User ID: ${userId}`);
-    console.log(`🏨 Checkin ID: ${checkin_id}`);
-    console.log(`🛏️ Selected Rooms:`, selected_rooms);
-    console.log(`📋 Selected Rooms (JSON string):`, JSON.stringify(selected_rooms));
-    console.log(`💰 Total Amount: ${total_amount}`);
-    console.log(`💳 Payment Method: ${payment_method || 'Cash'}`);
-    console.log(`🧾 Invoice No: ${invoiceNoFromBody || 'Auto-generate'}`);
 
     // ✅ Call the stored procedure
-    const params = [
-      checkin_id,
-      checkout_reason || 'Regular checkout',
-      payment_method || 'Cash',
-      total_amount || 0,
-      round_off_amount || 0,
-      net_payable || 0,
-      JSON.stringify(selected_rooms),
-      invoiceNoFromBody || null,
-      payment_id || null,
-      payment_mode || payment_method || 'Cash',
-      is_settle || 0,
-      is_print || 1,
-      userId
-    ];
-
-    console.log('📤 Calling stored procedure with params:');
-    console.log(`  - p_checkin_id: ${params[0]}`);
-    console.log(`  - p_checkout_reason: ${params[1]}`);
-    console.log(`  - p_payment_method: ${params[2]}`);
-    console.log(`  - p_total_amount: ${params[3]}`);
-    console.log(`  - p_round_off_amount: ${params[4]}`);
-    console.log(`  - p_net_payable: ${params[5]}`);
-    console.log(`  - p_selected_rooms: ${params[6]}`);
-    console.log(`  - p_invoice_no: ${params[7]}`);
-    console.log(`  - p_payment_id: ${params[8]}`);
-    console.log(`  - p_payment_mode: ${params[9]}`);
-    console.log(`  - p_is_settle: ${params[10]}`);
-    console.log(`  - p_is_print: ${params[11]}`);
-    console.log(`  - p_user_id: ${params[12]}`);
-
-    console.log('⏳ Executing stored procedure...');
-    const startTime = Date.now();
-    
     const [results] = await connection.execute(
       `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      params
+      [
+        checkin_id,
+        checkout_reason || 'Regular checkout',
+        payment_method || 'Cash',
+        total_amount || 0,
+        round_off_amount || 0,
+        net_payable || 0,
+        JSON.stringify(selected_rooms),
+        invoiceNoFromBody || null,
+        payment_id || null,
+        payment_mode || payment_method || 'Cash',
+        is_settle || 0,
+        is_print || 1,
+        userId
+      ]
     );
-    
-    const endTime = Date.now();
-    console.log(`✅ Stored procedure executed in ${endTime - startTime}ms`);
-
-    console.log('📊 Raw results from stored procedure:');
-    console.log(`  - Results length: ${results?.length || 0}`);
-    if (results && results.length > 0) {
-      console.log(`  - First result set length: ${results[0]?.length || 0}`);
-      if (results[0] && results[0].length > 0) {
-        console.log(`  - First row:`, JSON.stringify(results[0][0], null, 2));
-      }
-    }
 
     await connection.commit();
-    console.log('✅ Transaction committed');
 
     // Parse the result
     let result = null;
     if (results && results.length > 0 && results[0] && results[0].length > 0) {
       const row = results[0][0];
-      console.log('📦 Row data:', JSON.stringify(row, null, 2));
-      
       if (row && row.result) {
-        console.log('🔍 Parsing result from row.result');
-        try {
-          result = typeof row.result === 'string' ? JSON.parse(row.result) : row.result;
-          console.log('✅ Result parsed successfully');
-          console.log('📊 Parsed result:', JSON.stringify(result, null, 2));
-        } catch (parseError) {
-          console.error('❌ Failed to parse result:', parseError);
-          console.log('Raw result:', row.result);
-          throw new Error('Failed to parse checkout result');
-        }
-      } else {
-        console.warn('⚠️ No "result" field found in row:', Object.keys(row));
-        // Try to use the row directly if it has success field
-        if (row.success !== undefined) {
-          result = row;
-          console.log('📊 Using row directly as result');
-        }
+        result = typeof row.result === 'string' ? JSON.parse(row.result) : row.result;
       }
-    } else {
-      console.warn('⚠️ No results returned from stored procedure');
     }
 
     if (result && result.success) {
-      console.log('✅ Checkout successful!');
-      console.log(`  - Checkout ID: ${result.checkout_id}`);
-      console.log(`  - LDG Bill No: ${result.ldg_bill_no}`);
-      console.log(`  - Is Partial: ${result.is_partial || false}`);
-      console.log(`  - Room IDs Updated: ${result.room_ids_updated || 'N/A'}`);
-      console.log(`  - Debug Info: ${result.debug_info || 'N/A'}`);
-      
-      if (result.data) {
-        console.log('  - Data:', JSON.stringify(result.data, null, 2));
-      }
-      
       res.status(200).json({
         success: true,
         message: result.message,
         data: result.data,
         checkout_id: result.checkout_id,
-        ldg_bill_no: result.ldg_bill_no,
-        debug_info: result.debug_info
+        ldg_bill_no: result.ldg_bill_no
       });
     } else {
-      console.error('❌ Checkout failed:', result?.message || 'Unknown error');
       throw new Error(result?.message || 'Checkout failed');
     }
 
   } catch (error) {
-    console.error('❌ ========== CHECKOUT ERROR ==========');
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      errno: error.errno,
-      sqlState: error.sqlState,
-      sqlMessage: error.sqlMessage
-    });
-    
-    if (connection) {
-      console.log('🔄 Rolling back transaction...');
-      await connection.rollback();
-      console.log('✅ Transaction rolled back');
-    }
-    
+    if (connection) await connection.rollback();
     console.error('Checkout error:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Checkout failed',
-      error: process.env.NODE_ENV === 'development' ? {
-        stack: error.stack,
-        code: error.code,
-        sqlMessage: error.sqlMessage
-      } : undefined
+      message: error.message || 'Checkout failed'
     });
   } finally {
-    if (connection) {
-      console.log('🔓 Releasing database connection...');
-      connection.release();
-      console.log('✅ Connection released');
-    }
-    console.log('🏁 ========== CHECKOUT PROCESS ENDED ==========');
+    if (connection) connection.release();
   }
 };
 
