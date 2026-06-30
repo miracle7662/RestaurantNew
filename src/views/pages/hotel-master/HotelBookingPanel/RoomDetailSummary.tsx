@@ -1,4 +1,4 @@
-// pages/RoomDetailSummary.tsx - Complete with missing type imports restored
+// pages/RoomDetailSummary.tsx - Complete with corrections
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Row, Col, Button, Card, Tabs, Tab, Form, Nav, Modal } from 'react-bootstrap'
@@ -9,15 +9,11 @@ import { useAuthContext } from '@/common/context/useAuthContext'
 // Bill Modal
 import CheckoutBillModal from './CheckoutBillModal'
 
-// API Services (only those actually used)
+// API Services
 import CheckoutService from '@/common/hotel/checkout'
 import RoomService from '@/common/hotel/room'
 
-
-// Type imports (restored because they are used in interfaces and function signatures)
-
 // ==================== INTERFACES ====================
-
 
 interface DisplayDetailRow {
   id: string
@@ -30,7 +26,7 @@ interface DisplayDetailRow {
   room_category_name: string
   converted_category_name: string
   bill_date: string
-  detail_checkin_datetime:string
+  detail_checkin_datetime: string
   bill_date_formatted: string
   checkin_datetime: string
   checkout_datetime: string
@@ -187,46 +183,6 @@ const formatBillDate = (dateString: string): string => {
   return `${day}-${month}-${year}`
 }
 
-// const getChargeTypePriority = (charge: ExtendedGuestRoomCharge): number => {
-//   if ((charge as any).department_name === 'Advance') return 4
-//   if (charge.isPostCharge) {
-//     const totalAmount = toNumber(charge.total_amount)
-//     return totalAmount < 0 ? 3 : 2
-//   }
-//   if (charge.is_extension_day) return 1
-//   return 0
-// }
-
-// const sortChargesByDateAndPriority = (
-//   charges: ExtendedGuestRoomCharge[],
-// ): ExtendedGuestRoomCharge[] => {
-//   return [...charges].sort((a, b) => {
-//     const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0)
-//     const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0)
-//     const dateCompare = dateA.getTime() - dateB.getTime()
-//     if (dateCompare !== 0) return dateCompare
-
-//     const priorityA = getChargeTypePriority(a)
-//     const priorityB = getChargeTypePriority(b)
-//     if (priorityA !== priorityB) return priorityA - priorityB
-
-//     const roomA = String(a.room_number || a.room_no || '').trim()
-//     const roomB = String(b.room_number || b.room_no || '').trim()
-//     const roomCompare = roomA.localeCompare(roomB, undefined, { numeric: true })
-//     if (roomCompare !== 0) return roomCompare
-
-//     if (!a.isPostCharge && !b.isPostCharge) {
-//       return (
-//         (a.original_day_number || a.day_number || 0) - (b.original_day_number || b.day_number || 0)
-//       )
-//     }
-
-//     const timeA = new Date(a.created_at || a.checkin_datetime || 0).getTime()
-//     const timeB = new Date(b.created_at || b.checkin_datetime || 0).getTime()
-//     return timeA - timeB
-//   })
-// }
-
 const parseBillDateToDate = (billDateFormatted: string): Date => {
   if (!billDateFormatted) return new Date(0)
   const parts = billDateFormatted.split('-')
@@ -239,29 +195,15 @@ const parseBillDateToDate = (billDateFormatted: string): Date => {
   return new Date(0)
 }
 
-// const isPostChargeType = (charge: GuestRoomCharge): boolean => {
-//   if (charge.category_id === null || charge.category_id === undefined) {
-//     return true
-//   }
-//   const hasExtraData =
-//     toNumber(charge.ex_pax_count) > 0 ||
-//     toNumber(charge.child_count) > 0 ||
-//     toNumber(charge.driver_count) > 0
-//   if (!hasExtraData && charge.category_id === null) {
-//     return true
-//   }
-//   return false
-// }
-
 // ==================== MAIN COMPONENT ====================
 
 const RoomDetailSummary = () => {
-  console.log('🚀 RoomDetailSummary component mounted');
+  console.log('🚀 RoomDetailSummary component mounted')
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuthContext()
   const hotelId = user?.hotelid
-  console.log('🏨 hotelId:', hotelId);
+  console.log('🏨 hotelId:', hotelId)
 
   const [displayRows, setDisplayRows] = useState<DisplayDetailRow[]>([])
   const [combinedSummary, setCombinedSummary] = useState<CombinedGuestSummary | null>(null)
@@ -271,7 +213,6 @@ const RoomDetailSummary = () => {
   const [pendingAdvanceAmount] = useState<number>(0)
 
   const [currentDateTime, setCurrentDateTime] = useState(new Date())
-  // loading state is used only for setLoading in fetchData; the value itself is not read
   const [, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -297,12 +238,11 @@ const RoomDetailSummary = () => {
   const [checkoutDone, setCheckoutDone] = useState(false)
   const [showBillModal, setShowBillModal] = useState(false)
 
- 
   const [generatedBillNumber, setGeneratedBillNumber] = useState<string>('')
   const [paymentTransactionId, setPaymentTransactionId] = useState<string>('')
   const [paymentDate, setPaymentDate] = useState<string>('')
   const [paymentBank, setPaymentBank] = useState<string>('')
-  const [checkoutId, setCheckoutId] = useState<number | null>(null);
+  const [checkoutId, setCheckoutId] = useState<number | null>(null)
 
   const [selectedPaymentModeId] = useState<number | null>(null)
   const [selectedPaymentModeName] = useState<string>('Cash')
@@ -312,24 +252,22 @@ const RoomDetailSummary = () => {
 
   const { occupiedItem } = (location.state as any) || {}
   const checkinIdFromState = occupiedItem?.checkin_id
-  console.log('🔑 checkinIdFromState:', checkinIdFromState);
+  console.log('🔑 checkinIdFromState:', checkinIdFromState)
 
   useEffect(() => {
     if (!checkinIdFromState) {
-      console.log('❌ No checkinId, redirecting to panel');
-      navigate('/hotel-master/HotelBookingPanel', { replace: true });
+      console.log('❌ No checkinId, redirecting to panel')
+      navigate('/hotel-master/HotelBookingPanel', { replace: true })
     }
-  }, []);
+  }, [checkinIdFromState, navigate])
 
   useEffect(() => {
     if (hotelId && checkinIdFromState) {
-      console.log('🔥 Calling fetchData...');
-      fetchData();
+      console.log('🔥 Calling fetchData...')
+      fetchData()
     }
-  }, [hotelId, checkinIdFromState]);
-
-  // Fetch hotel details
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotelId, checkinIdFromState])
 
   // Auto-refresh time
   useEffect(() => {
@@ -367,254 +305,310 @@ const RoomDetailSummary = () => {
     }
   }
 
-  // const getRoomNumber = (
-  //   charge: GuestRoomCharge,
-  //   roomMap: Map<number, string>,
-  //   checkin: CheckIn | undefined,
-  //   detail: Detail | undefined,
-  // ): string => {
-  //   if ((charge as any).room_no && String((charge as any).room_no).trim() !== '') {
-  //     const roomNo = String((charge as any).room_no).trim()
-  //     if (/^\d+$/.test(roomNo) && roomMap.has(Number(roomNo))) {
-  //       return roomMap.get(Number(roomNo)) || roomNo
-  //     }
-  //     return roomNo
-  //   }
+  // ==================== FETCH DATA ====================
 
-  //   if ((charge as any).room_number && String((charge as any).room_number).trim() !== '') {
-  //     const roomNo = String((charge as any).room_number).trim()
-  //     if (/^\d+$/.test(roomNo) && roomMap.has(Number(roomNo))) {
-  //       return roomMap.get(Number(roomNo)) || roomNo
-  //     }
-  //     return roomNo
-  //   }
+  const fetchData = async () => {
+    if (!hotelId) {
+      setError('Hotel ID not found')
+      setLoading(false)
+      return
+    }
 
-  //   if (charge.room_id && roomMap.has(charge.room_id)) {
-  //     return roomMap.get(charge.room_id)!
-  //   }
-
-  //   if (detail?.room_number) {
-  //     return String(detail.room_number)
-  //   }
-
-  //   if (checkin?.room_no) {
-  //     return String(checkin.room_no)
-  //   }
-
-  //   return `Room ${charge.room_id || 'N/A'}`
-  // }
-
-const fetchData = async () => {
-  if (!hotelId) {
-    setError('Hotel ID not found')
-    setLoading(false)
-    return
-  }
-
-  if (!checkinIdFromState) {
-    navigate('/hotel-master/HotelBookingPanel', { replace: true })
-    return
-  }
-
-  setLoading(true)
-  setError(null)
-
-  try {
-    // 1. Room number map (still needed for the Room No. filter panel)
-    const roomMap = await fetchRoomNumbers()
-    setRoomNumberMap(roomMap)
-
-    // 2. Single API call — getCheckinFullDetails is the single source of truth.
-    //    Every field used below comes directly off each row; nothing is
-    //    recomputed, matched, or looked up against a second structure.
-    const fullDetailsRes = await RoomService.getCheckinFullDetails(hotelId, checkinIdFromState)
-    const rows = fullDetailsRes.data || []
-
-    if (!rows.length) {
+    if (!checkinIdFromState) {
       navigate('/hotel-master/HotelBookingPanel', { replace: true })
       return
     }
 
-    // 3. Build display rows directly from the SP output.
-    const roomCumulativeMap = new Map<string, number>()
-    const displayRowsResult: DisplayDetailRow[] = rows.map((row: any, idx: number) => {
-      const isPostCharge = !!row.is_post_charge
-      const roomNumber = row.room_number ? String(row.room_number) : `Room-${row.room_id}`
-      const totalAmount = roundToTwo(toNumber(row.total_amount))
+    setLoading(true)
+    setError(null)
 
-      const prevCumulative = roomCumulativeMap.get(roomNumber) || 0
-      const cumulativeTotal = roundToTwo(prevCumulative + totalAmount)
-      roomCumulativeMap.set(roomNumber, cumulativeTotal)
+    try {
+      // 1. Room number map
+      const roomMap = await fetchRoomNumbers()
+      setRoomNumberMap(roomMap)
 
-      return {
-        id: `${isPostCharge ? 'post' : 'room'}-${row.guest_room_charges_id}-${idx}`,
-        guest_room_charges_id: row.guest_room_charges_id,
-        checkin_id: row.checkin_id ?? 0,
-        guest_id: row.guest_id,
-        detail_id: row.detail_id ?? undefined,
-        room_id: row.room_id,
-        room_number: roomNumber,
-        room_category_name: isPostCharge
-          ? row.department_name || '-'
-          : row.room_category_name || '-',
-        converted_category_name: isPostCharge
-          ? '-'
-          : row.converted_category_name || '-',
-        bill_date: row.checkin_datetime || '',
-        bill_date_formatted: formatBillDate(row.detail_checkin_datetime ),
-        checkin_datetime: row.checkin_datetime || '',
-        checkout_datetime: row.checkout_datetime || '',
-        no_of_days: isPostCharge ? 0 : 1,
-        day_number: isPostCharge ? 0 : toNumber(row.day_number) || 1,
-        original_day_number: isPostCharge ? 0 : toNumber(row.original_day_number) || toNumber(row.day_number) || 1,
-        room_tariff: isPostCharge ? totalAmount : toNumber(row.room_tariff),
-        total_room_tariff: isPostCharge ? totalAmount : toNumber(row.room_tariff),
-        ex_pax_count: toNumber(row.ex_pax_count),
-        ex_pax_price: toNumber(row.ex_pax_price),
-        ex_pax_tax: toNumber(row.ex_pax_tax),
-        ex_pax_tax_percent: toNumber(row.ex_pax_tax_percent),
-        ex_pax_total: toNumber(row.ex_pax_total),
-        child_count: toNumber(row.child_count),
-        child_unpaid: toNumber(row.detail_child_unpaid),
-        child_price: toNumber(row.child_price),
-        child_tax: toNumber(row.child_tax),
-        child_tax_percent: toNumber(row.child_tax_percent),
-        child_total: toNumber(row.child_total),
-        driver_count: toNumber(row.driver_count),
-        driver_price: toNumber(row.driver_price),
-        driver_tax: toNumber(row.driver_tax),
-        driver_tax_percent: toNumber(row.driver_tax_percent),
-        driver_total: toNumber(row.driver_total),
-        cgst_amount: toNumber(row.cgst_amount),
-        sgst_amount: toNumber(row.sgst_amount),
-        igst_amount: toNumber(row.igst_amount),
-        cess_amount: toNumber(row.cess_amount),
-        service_charge_amount: toNumber(row.service_charge_amount),
-        adults:  toNumber(row.adults),
-        pax:  toNumber(row.pax ),
-        ex_pax: toNumber(row.detail_ex_pax),
-        child_paid: toNumber(row.child_count),
-        driver: toNumber(row.detail_driver),
-        discount_percent: isPostCharge ? 0 : toNumber(row.discount_percent),
-        discount_amount: isPostCharge
-          ? 0
-          : roundToTwo((toNumber(row.room_tariff) * toNumber(row.discount_percent)) / 100),
-        tax_percent: isPostCharge ? 0 : toNumber(row.tax_percent),
-        tax_amount: isPostCharge ? 0 : toNumber(row.pax_tax),
-        total_amount: totalAmount,
-        is_extension: !!row.is_extension_day,
-        isPostCharge,
-        parent_detail_id: row.parent_detail_id ?? null,
-        selected: true,
-        cumulative_total: cumulativeTotal,
-        guest_name: row.guest_name || 'Guest',
-        payment_method: row.payment_method || 'Cash',
-        created_at: row.charge_created_at || row.checkin_datetime,
-        has_checkout_datetime: !!row.checkout_datetime,
-        checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
-        description: row.description || '',
-        particulars: row.particulars || '',
-        department_name: row.department_name || '',
+      // 2. API call that returns both details AND summary
+      const fullDetailsRes = await RoomService.getCheckinFullDetails(hotelId, checkinIdFromState)
+
+      // 🔍 Debug log
+      console.log('📦 Full API Response:', fullDetailsRes)
+
+      // 🔥 EXTRACT BOTH RESULT SETS
+      let details: any[] = []
+      let summary: any[] = []
+
+      if (fullDetailsRes.data) {
+        if (Array.isArray(fullDetailsRes.data)) {
+          // Old format: data is an array
+          details = fullDetailsRes.data || []
+          summary = []
+          console.log('📦 Using old format (array)')
+        } else if (fullDetailsRes.data.details !== undefined) {
+          // New format: data has details and summary
+          details = fullDetailsRes.data.details || []
+          summary = fullDetailsRes.data.summary || []
+          console.log(`📦 New format: ${details.length} details, ${summary.length} summary`)
+        } else {
+          details = fullDetailsRes.data as any || []
+          summary = []
+        }
       }
-    })
 
-    setDisplayRows(displayRowsResult)
+      if (!details.length) {
+        navigate('/hotel-master/HotelBookingPanel', { replace: true })
+        return
+      }
 
-    // Bill date summary — pure UI projection of displayRowsResult, no extra lookups.
-    const billSummaryItems: BillDateSummaryItem[] = displayRowsResult.map((row, idx) => ({
-      billDate: row.bill_date,
-      billDateFormatted: row.bill_date_formatted,
-      roomNumber: row.room_number,
-      roomCategory: row.room_category_name,
-      convertedCategory: row.converted_category_name,
-      billNo: idx + 1,
-      dayNumber: row.day_number,
-      description: row.description,
-      amount: row.room_tariff,
-      total: row.total_amount,
-      isExtension: row.is_extension,
-      isPostCharge: row.isPostCharge,
-      originalDayNumber: row.original_day_number,
-    }))
-    setBillDateSummary(billSummaryItems)
+      // 3. Build display rows from the DETAILS result set
+      const roomCumulativeMap = new Map<string, number>()
+      const displayRowsResult: DisplayDetailRow[] = details.map((row: any, idx: number) => {
+        const isPostCharge = !!row.is_post_charge
+        const roomNumber = row.room_number ? String(row.room_number) : `Room-${row.room_id}`
+        const totalAmount = roundToTwo(toNumber(row.total_amount))
 
-    // 4. Combined guest summary — derived only from displayRowsResult.
-    const firstRow = rows[0]
-    const roomNumbersSet = new Set(displayRowsResult.map((r) => r.room_number))
+        const prevCumulative = roomCumulativeMap.get(roomNumber) || 0
+        const cumulativeTotal = roundToTwo(prevCumulative + totalAmount)
+        roomCumulativeMap.set(roomNumber, cumulativeTotal)
 
-    // Collect unique guest names from display rows
-    const guestNames = new Set<string>()
-    displayRowsResult.forEach((r) => {
-      if (r.guest_name && r.guest_name !== 'Guest') guestNames.add(r.guest_name)
-    })
-    const displayGuestName =
-      guestNames.size > 0 ? Array.from(guestNames).join(', ') : firstRow.guest_name || 'Guest'
+        return {
+          id: `${isPostCharge ? 'post' : 'room'}-${row.guest_room_charges_id}-${idx}`,
+          guest_room_charges_id: row.guest_room_charges_id,
+          checkin_id: row.checkin_id ?? 0,
+          guest_id: row.guest_id,
+          detail_id: row.detail_id ?? undefined,
+          room_id: row.room_id,
+          room_number: roomNumber,
+          room_category_name: isPostCharge
+            ? row.department_name || '-'
+            : row.room_category_name || '-',
+          converted_category_name: isPostCharge
+            ? '-'
+            : row.converted_category_name || '-',
+          bill_date: row.checkin_datetime || '',
+          detail_checkin_datetime: row.detail_checkin_datetime || row.checkin_datetime || '',
+          bill_date_formatted: formatBillDate(row.detail_checkin_datetime || row.checkin_datetime || ''),
+          checkin_datetime: row.checkin_datetime || '',
+          checkout_datetime: row.checkout_datetime || '',
+          no_of_days: isPostCharge ? 0 : 1,
+          day_number: isPostCharge ? 0 : toNumber(row.day_number) || 1,
+          original_day_number: isPostCharge ? 0 : toNumber(row.original_day_number) || toNumber(row.day_number) || 1,
+          room_tariff: isPostCharge ? totalAmount : toNumber(row.room_tariff),
+          total_room_tariff: isPostCharge ? totalAmount : toNumber(row.room_tariff),
+          ex_pax_count: toNumber(row.ex_pax_count),
+          ex_pax_price: toNumber(row.ex_pax_price),
+          ex_pax_tax: toNumber(row.ex_pax_tax),
+          ex_pax_tax_percent: toNumber(row.ex_pax_tax_percent),
+          ex_pax_total: toNumber(row.ex_pax_total),
+          child_count: toNumber(row.child_count),
+          child_unpaid: toNumber(row.detail_child_unpaid),
+          child_price: toNumber(row.child_price),
+          child_tax: toNumber(row.child_tax),
+          child_tax_percent: toNumber(row.child_tax_percent),
+          child_total: toNumber(row.child_total),
+          driver_count: toNumber(row.driver_count),
+          driver_price: toNumber(row.driver_price),
+          driver_tax: toNumber(row.driver_tax),
+          driver_tax_percent: toNumber(row.driver_tax_percent),
+          driver_total: toNumber(row.driver_total),
+          cgst_amount: toNumber(row.cgst_amount),
+          sgst_amount: toNumber(row.sgst_amount),
+          igst_amount: toNumber(row.igst_amount),
+          cess_amount: toNumber(row.cess_amount),
+          service_charge_amount: toNumber(row.service_charge_amount),
+          adults: toNumber(row.adults),
+          pax: toNumber(row.pax),
+          ex_pax: toNumber(row.detail_ex_pax),
+          child_paid: toNumber(row.child_count),
+          driver: toNumber(row.detail_driver),
+          discount_percent: isPostCharge ? 0 : toNumber(row.discount_percent),
+          discount_amount: isPostCharge
+            ? 0
+            : roundToTwo((toNumber(row.room_tariff) * toNumber(row.discount_percent)) / 100),
+          tax_percent: isPostCharge ? 0 : toNumber(row.tax_percent),
+          tax_amount: isPostCharge ? 0 : toNumber(row.pax_tax),
+          total_amount: totalAmount,
+          is_extension: !!row.is_extension_day,
+          isPostCharge,
+          parent_detail_id: row.parent_detail_id ?? null,
+          selected: true,
+          cumulative_total: cumulativeTotal,
+          guest_name: row.guest_name || 'Guest',
+          payment_method: row.payment_method || 'Cash',
+          created_at: row.charge_created_at || row.checkin_datetime,
+          has_checkout_datetime: !!row.checkout_datetime,
+          checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
+          description: row.description || '',
+          particulars: row.particulars || '',
+          department_name: row.department_name || '',
+        }
+      })
 
-    const combinedSummaryData: CombinedGuestSummary = {
-      checkin_id: checkinIdFromState,
-      guest_id: firstRow.guest_id || 0,
-      guest_name: displayGuestName,
-      room_numbers: Array.from(roomNumbersSet),
-      room_categories: [],
-      converted_categories: [],
-      room_numbers_str: Array.from(roomNumbersSet).join(', '),
-      room_categories_str: '',
-      converted_categories_str: '',
-      total_room_tariff: displayRowsResult.reduce((s, r) => s + r.total_room_tariff, 0),
-      total_ex_pax_charge: displayRowsResult.reduce((s, r) => s + r.ex_pax_total, 0),
-      total_child_paid_amount: displayRowsResult.reduce((s, r) => s + r.child_total, 0),
-      total_driver_charge: displayRowsResult.reduce((s, r) => s + r.driver_total, 0),
-      total_tax_amount: displayRowsResult.reduce((s, r) => s + r.tax_amount, 0),
-      total_amount: displayRowsResult.reduce((s, r) => s + r.total_amount, 0),
-      total_days: 1,
-      total_adults: 0,
-      total_pax: 0,
-      total_ex_pax: 0,
-      total_child_paid: 0,
-      total_child_unpaid: 0,
-      total_driver: 0,
-      avg_discount_percent: 0,
-      avg_tax_percent: 0,
-      has_extensions: false,
-      extension_count: 0,
-      extension_days: 0,
-      payment_methods: ['Cash'],
-      payment_method: firstRow.payment_method || 'Cash',
-      charges_ids: [],
-      selected: true,
-      original_checkin_datetime: '',
-      final_checkout_datetime: '',
-      guest_mobile: firstRow.mobile,
-      guest_address: firstRow.address,
-      guest_email: firstRow.emailed,
-      guest_id_proof: '-',
-      reg_no: firstRow.reg_no,
-      booking_ref: firstRow.booking,
-      plan_name: firstRow.plan_name,
+      setDisplayRows(displayRowsResult)
+
+      // Bill date summary
+      const billSummaryItems: BillDateSummaryItem[] = displayRowsResult.map((row, idx) => ({
+        billDate: row.bill_date,
+        billDateFormatted: row.bill_date_formatted,
+        roomNumber: row.room_number,
+        roomCategory: row.room_category_name,
+        convertedCategory: row.converted_category_name,
+        billNo: idx + 1,
+        dayNumber: row.day_number,
+        description: row.description,
+        amount: row.room_tariff,
+        total: row.total_amount,
+        isExtension: row.is_extension,
+        isPostCharge: row.isPostCharge,
+        originalDayNumber: row.original_day_number,
+      }))
+      setBillDateSummary(billSummaryItems)
+
+      // 🔥 4. USE THE SUMMARY FROM THE STORED PROCEDURE - NO MANUAL CALCULATION!
+      if (summary && summary.length > 0) {
+        const summaryRow = summary[0]
+
+        const roomNumbersArray = summaryRow.room_numbers_str
+          ? summaryRow.room_numbers_str.split(', ').filter(Boolean)
+          : []
+
+        const combinedSummaryData: CombinedGuestSummary = {
+          checkin_id: summaryRow.checkin_id || checkinIdFromState,
+          guest_id: summaryRow.guest_id || 0,
+          guest_name: summaryRow.guest_name || 'Guest',
+          room_numbers: roomNumbersArray,
+          room_categories: summaryRow.room_categories_str ? summaryRow.room_categories_str.split(', ').filter(Boolean) : [],
+          converted_categories: summaryRow.converted_categories_str ? summaryRow.converted_categories_str.split(', ').filter(Boolean) : [],
+          room_numbers_str: summaryRow.room_numbers_str || '',
+          room_categories_str: summaryRow.room_categories_str || '',
+          converted_categories_str: summaryRow.converted_categories_str || '',
+
+          // ✅ ALL VALUES COME DIRECTLY FROM THE STORED PROCEDURE
+          total_room_tariff: toNumber(summaryRow.total_room_tariff),
+          total_ex_pax_charge: toNumber(summaryRow.total_ex_pax_charge),
+          total_child_paid_amount: toNumber(summaryRow.total_child_paid_amount),
+          total_driver_charge: toNumber(summaryRow.total_driver_charge),
+          total_tax_amount: toNumber(summaryRow.total_tax_amount),
+          total_amount: toNumber(summaryRow.total_amount),
+          total_days: toNumber(summaryRow.total_days),
+          total_adults: toNumber(summaryRow.total_adults),
+          total_pax: toNumber(summaryRow.total_pax),
+          total_ex_pax: toNumber(summaryRow.total_ex_pax),
+          total_child_paid: toNumber(summaryRow.total_child_paid),
+          total_child_unpaid: toNumber(summaryRow.total_child_unpaid),
+          total_driver: toNumber(summaryRow.total_driver),
+          avg_discount_percent: toNumber(summaryRow.avg_discount_percent),
+          avg_tax_percent: toNumber(summaryRow.avg_tax_percent),
+          has_extensions: Boolean(summaryRow.has_extensions),
+          extension_count: toNumber(summaryRow.extension_count),
+          extension_days: toNumber(summaryRow.extension_days),
+
+          payment_methods: summaryRow.payment_method ? [summaryRow.payment_method] : ['Cash'],
+          payment_method: summaryRow.payment_method || 'Cash',
+          charges_ids: [],
+          selected: true,
+
+          original_checkin_datetime: summaryRow.original_checkin_datetime || '',
+          final_checkout_datetime: summaryRow.final_checkout_datetime || '',
+          guest_mobile: summaryRow.guest_mobile || '',
+          guest_address: summaryRow.guest_address || '',
+          guest_email: summaryRow.guest_email || '',
+          guest_id_proof: '-',
+          reg_no: summaryRow.reg_no || '',
+          booking_ref: summaryRow.booking_ref || '',
+          plan_name: summaryRow.plan_name || '',
+        }
+
+        setCombinedSummary(combinedSummaryData)
+
+        // Set initial values for bill generation
+        setGeneratedBillNumber('')
+        setPaymentTransactionId(`TXN${Date.now().toString().slice(-12)}`)
+        setPaymentDate(formatBillDate(new Date().toISOString()))
+        setPaymentBank(
+          combinedSummaryData.payment_method === 'Credit Card' ? 'HDFC Bank Credit Card' : 'Cash',
+        )
+
+        // Set selected rooms (all rooms initially)
+        const allRooms = Array.from(new Set(displayRowsResult.map(r => r.room_number)))
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+        setSelectedRooms(new Set(allRooms))
+
+      } else {
+        // ⚠️ FALLBACK: If summary is not available (should rarely happen)
+        console.warn('⚠️ No summary from stored procedure, using basic data')
+        
+        const firstRow = details[0]
+        const roomNumbersSet = new Set(displayRowsResult.map((r) => r.room_number))
+
+        const guestNames = new Set<string>()
+        displayRowsResult.forEach((r) => {
+          if (r.guest_name && r.guest_name !== 'Guest') guestNames.add(r.guest_name)
+        })
+        const displayGuestName = guestNames.size > 0
+          ? Array.from(guestNames).join(', ')
+          : firstRow.guest_name || 'Guest'
+
+        // ✅ NO MANUAL CALCULATIONS HERE - Use zeros or basic values
+        // The actual totals will be calculated from display rows elsewhere
+        const fallbackSummary: CombinedGuestSummary = {
+          checkin_id: checkinIdFromState,
+          guest_id: firstRow.guest_id || 0,
+          guest_name: displayGuestName,
+          room_numbers: Array.from(roomNumbersSet),
+          room_categories: [],
+          converted_categories: [],
+          room_numbers_str: Array.from(roomNumbersSet).join(', '),
+          room_categories_str: '',
+          converted_categories_str: '',
+          total_room_tariff: 0,
+          total_ex_pax_charge: 0,
+          total_child_paid_amount: 0,
+          total_driver_charge: 0,
+          total_tax_amount: 0,
+          total_amount: 0,
+          total_days: 1,
+          total_adults: 0,
+          total_pax: 0,
+          total_ex_pax: 0,
+          total_child_paid: 0,
+          total_child_unpaid: 0,
+          total_driver: 0,
+          avg_discount_percent: 0,
+          avg_tax_percent: 0,
+          has_extensions: false,
+          extension_count: 0,
+          extension_days: 0,
+          payment_methods: firstRow.payment_method ? [firstRow.payment_method] : ['Cash'],
+          payment_method: firstRow.payment_method || 'Cash',
+          charges_ids: [],
+          selected: true,
+          original_checkin_datetime: '',
+          final_checkout_datetime: '',
+          guest_mobile: firstRow.mobile,
+          guest_address: firstRow.address,
+          guest_email: firstRow.emailed,
+          guest_id_proof: '-',
+          reg_no: firstRow.reg_no,
+          booking_ref: firstRow.booking,
+          plan_name: firstRow.plan_name,
+        }
+        setCombinedSummary(fallbackSummary)
+
+        // Set selected rooms
+        const allRooms = Array.from(roomNumbersSet).sort((a, b) =>
+          a.localeCompare(b, undefined, { numeric: true }),
+        )
+        setSelectedRooms(new Set(allRooms))
+      }
+
+    } catch (err) {
+      console.error('fetchData error:', err)
+      setError('Failed to load data. Please try again.')
+      toast.error('Failed to load room details')
+    } finally {
+      setLoading(false)
     }
-    setCombinedSummary(combinedSummaryData)
-
-    // Set initial values for bill generation
-    setGeneratedBillNumber('')
-    setPaymentTransactionId(`TXN${Date.now().toString().slice(-12)}`)
-    setPaymentDate(formatBillDate(new Date().toISOString()))
-    setPaymentBank(
-      combinedSummaryData.payment_method === 'Credit Card' ? 'HDFC Bank Credit Card' : 'Cash',
-    )
-
-    // Set selected rooms
-    const allRooms = Array.from(roomNumbersSet).sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true }),
-    )
-    setSelectedRooms(new Set(allRooms))
-  } catch (err) {
-    console.error('fetchData error:', err)
-    setError('Failed to load data. Please try again.')
-    toast.error('Failed to load room details')
-  } finally {
-    setLoading(false)
   }
-}
 
   // ==================== HANDLER FUNCTIONS ====================
 
@@ -675,123 +669,128 @@ const fetchData = async () => {
 
   const filteredRowsByRoom = getFilteredRowsBySelectedRooms()
   const selectedRowsForCheckout = filteredRowsByRoom.filter((row) => row.selected)
+  
+  // ✅ grandTotal is calculated from filtered rows (selected rooms only)
   const grandTotal = roundToTwo(
     selectedRowsForCheckout.reduce((sum, row) => sum + row.total_amount, 0),
   )
 
-const selectedRoomSummary = (() => {
-  if (!combinedSummary) return null
+  // ✅ selectedRoomSummary - Calculates summary for SELECTED ROOMS only
+  // This is correct because the stored procedure summary is for ALL rooms
+  const selectedRoomSummary = (() => {
+    if (!combinedSummary) return null
 
-  const seenRooms = new Set<string>()
-  const roomCats = new Set<string>()
-  const convCats = new Set<string>()
-  const uniqueGuestNames = new Set<string>()
-  const uniqueGuestIds = new Set<number>()
+    const seenRooms = new Set<string>()
+    const roomCats = new Set<string>()
+    const convCats = new Set<string>()
+    const uniqueGuestNames = new Set<string>()
+    const uniqueGuestIds = new Set<number>()
 
-  let adults = 0,
-    pax = 0,
-    exPax = 0,
-    childPaid = 0,
-    childUnpaid = 0,
-    driver = 0
-  let roomTariff = 0,
-    exPaxCharge = 0,
-    childCharge = 0,
-    driverCharge = 0
-  let taxAmt = 0,
-    discountPercentSum = 0,
-    discountAmountSum = 0,  // ✅ Add this for total discount amount
-    taxPctSum = 0,
-    roomChargeCount = 0
-  let minCI = '',
-    maxCO = ''
+    let adults = 0,
+      pax = 0,
+      exPax = 0,
+      childPaid = 0,
+      childUnpaid = 0,
+      driver = 0
+    let roomTariff = 0,
+      exPaxCharge = 0,
+      childCharge = 0,
+      driverCharge = 0
+    let taxAmt = 0,
+      discountPercentSum = 0,
+      discountAmountSum = 0,
+      taxPctSum = 0,
+      roomChargeCount = 0
+    let minCI = '',
+      maxCO = ''
 
-  for (const row of filteredRowsByRoom) {
-    if (row.guest_name && row.guest_name !== 'Guest') {
-      uniqueGuestNames.add(row.guest_name)
-    }
-    if (row.guest_id && row.guest_id > 0) {
-      uniqueGuestIds.add(row.guest_id)
-    }
+    for (const row of filteredRowsByRoom) {
+      if (row.guest_name && row.guest_name !== 'Guest') {
+        uniqueGuestNames.add(row.guest_name)
+      }
+      if (row.guest_id && row.guest_id > 0) {
+        uniqueGuestIds.add(row.guest_id)
+      }
 
-    if (!row.isPostCharge && row.department_name !== 'Advance') {
-      if (row.room_category_name && row.room_category_name !== '-')
-        roomCats.add(row.room_category_name)
-      if (row.converted_category_name && row.converted_category_name !== '-')
-        convCats.add(row.converted_category_name)
-    }
+      if (!row.isPostCharge && row.department_name !== 'Advance') {
+        if (row.room_category_name && row.room_category_name !== '-')
+          roomCats.add(row.room_category_name)
+        if (row.converted_category_name && row.converted_category_name !== '-')
+          convCats.add(row.converted_category_name)
+      }
 
-    if (!row.isPostCharge && row.department_name !== 'Advance') {
-      roomTariff += row.total_room_tariff
-      exPaxCharge += row.ex_pax_total
-      childCharge += row.child_total
-      driverCharge += row.driver_total
-      taxAmt += row.tax_amount
-      discountPercentSum += row.discount_percent
-      discountAmountSum += row.discount_amount  // ✅ Sum up discount amounts
-      taxPctSum += row.tax_percent
-      roomChargeCount++
-      if (!minCI || row.checkin_datetime < minCI) minCI = row.checkin_datetime
-      if (!maxCO || row.checkout_datetime > maxCO) maxCO = row.checkout_datetime
+      if (!row.isPostCharge && row.department_name !== 'Advance') {
+        roomTariff += row.total_room_tariff
+        exPaxCharge += row.ex_pax_total
+        childCharge += row.child_total
+        driverCharge += row.driver_total
+        taxAmt += row.tax_amount
+        discountPercentSum += row.discount_percent
+        discountAmountSum += row.discount_amount
+        taxPctSum += row.tax_percent
+        roomChargeCount++
+        if (!minCI || row.checkin_datetime < minCI) minCI = row.checkin_datetime
+        if (!maxCO || row.checkout_datetime > maxCO) maxCO = row.checkout_datetime
 
-      if (!seenRooms.has(row.room_number)) {
-        seenRooms.add(row.room_number)
-        adults += row.adults
-        pax += row.pax
-        exPax += row.ex_pax_count
-        childPaid += row.child_count
-        childUnpaid += !row.is_extension ? row.child_unpaid : 0
-        driver += row.driver_count
+        if (!seenRooms.has(row.room_number)) {
+          seenRooms.add(row.room_number)
+          adults += row.adults
+          pax += row.pax
+          exPax += row.ex_pax_count
+          childPaid += row.child_count
+          childUnpaid += !row.is_extension ? row.child_unpaid : 0
+          driver += row.driver_count
+        }
       }
     }
-  }
 
-  let stayDays = 0
-  if (minCI && maxCO) {
-    stayDays = Math.ceil(
-      Math.abs(new Date(maxCO).getTime() - new Date(minCI).getTime()) / (1000 * 60 * 60 * 24),
-    )
-    stayDays = stayDays > 0 ? stayDays : 1
-  }
+    let stayDays = 0
+    if (minCI && maxCO) {
+      stayDays = Math.ceil(
+        Math.abs(new Date(maxCO).getTime() - new Date(minCI).getTime()) / (1000 * 60 * 60 * 24),
+      )
+      stayDays = stayDays > 0 ? stayDays : 1
+    }
 
-  let guestNamesDisplay = '';
-  if (uniqueGuestNames.size > 0) {
-    guestNamesDisplay = Array.from(uniqueGuestNames).join(', ');
-  } else {
-    guestNamesDisplay = combinedSummary.guest_name;
-  }
+    let guestNamesDisplay = ''
+    if (uniqueGuestNames.size > 0) {
+      guestNamesDisplay = Array.from(uniqueGuestNames).join(', ')
+    } else {
+      guestNamesDisplay = combinedSummary.guest_name
+    }
 
-  let guestIdsDisplay = '';
-  if (uniqueGuestIds.size > 0) {
-    guestIdsDisplay = Array.from(uniqueGuestIds).join(', ');
-  } else {
-    guestIdsDisplay = String(combinedSummary.guest_id || '');
-  }
+    let guestIdsDisplay = ''
+    if (uniqueGuestIds.size > 0) {
+      guestIdsDisplay = Array.from(uniqueGuestIds).join(', ')
+    } else {
+      guestIdsDisplay = String(combinedSummary.guest_id || '')
+    }
 
-  return {
-    guest_name: guestNamesDisplay,
-    guest_id: guestIdsDisplay,
-    payment_method: combinedSummary.payment_method,
-    room_categories_str: Array.from(roomCats).join(', '),
-    converted_categories_str: Array.from(convCats).join(', ') || '-',
-    total_days: stayDays,
-    total_adults: adults,
-    total_pax: pax,
-    total_ex_pax: exPax,
-    total_child_paid: childPaid,
-    total_child_unpaid: 0,
-    total_driver: driver,
-    total_room_tariff: roundToTwo(roomTariff),
-    total_discount_amount: roundToTwo(discountAmountSum),  // ✅ Now uses discountAmountSum
-    total_discount_percent: roundToTwo(discountPercentSum), // ✅ Added for percent total (optional)
-    total_ex_pax_charge: roundToTwo(exPaxCharge),
-    total_child_paid_amount: roundToTwo(childCharge),
-    total_driver_charge: roundToTwo(driverCharge),
-    total_tax_amount: roundToTwo(taxAmt),
-    avg_tax_percent: roomChargeCount > 0 ? roundToTwo(taxPctSum / roomChargeCount) : 0,
-    selected: combinedSummary.selected,
-  }
-})()
+    return {
+      guest_name: guestNamesDisplay,
+      guest_id: guestIdsDisplay,
+      payment_method: combinedSummary.payment_method,
+      room_categories_str: Array.from(roomCats).join(', '),
+      converted_categories_str: Array.from(convCats).join(', ') || '-',
+      total_days: stayDays,
+      total_adults: adults,
+      total_pax: pax,
+      total_ex_pax: exPax,
+      total_child_paid: childPaid,
+      total_child_unpaid: 0,
+      total_driver: driver,
+      total_room_tariff: roundToTwo(roomTariff),
+      total_discount_amount: roundToTwo(discountAmountSum),
+      total_discount_percent: roundToTwo(discountPercentSum),
+      total_ex_pax_charge: roundToTwo(exPaxCharge),
+      total_child_paid_amount: roundToTwo(childCharge),
+      total_driver_charge: roundToTwo(driverCharge),
+      total_tax_amount: roundToTwo(taxAmt),
+      avg_tax_percent: roomChargeCount > 0 ? roundToTwo(taxPctSum / roomChargeCount) : 0,
+      selected: combinedSummary.selected,
+    }
+  })()
+
   const handleCheckoutClick = () => {
     if (!combinedSummary) {
       toast.error('No check-in data found')
@@ -804,84 +803,78 @@ const selectedRoomSummary = (() => {
     setShowCheckoutModal(true)
   }
 
-const handleConfirmCheckout = async () => {
-  if (!combinedSummary) return;
-  setCheckoutProcessing(true);
-  try {
-    const finalTotalAmount = grandTotal || combinedSummary.total_amount;
-
-    let invoiceNo = '';
+  const handleConfirmCheckout = async () => {
+    if (!combinedSummary) return
+    setCheckoutProcessing(true)
     try {
-      const invoiceRes = await CheckoutService.getNextInvoiceNo();
-      if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
-        invoiceNo = invoiceRes.data.ldg_bill_no;
-        console.log('Fetched invoice number:', invoiceNo);
-      }
-    } catch (invoiceErr) {
-      console.warn('Could not fetch invoice number; server will auto-assign one', invoiceErr);
-    }
+      const finalTotalAmount = grandTotal || combinedSummary.total_amount
 
-    // ✅ Get ALL selected room IDs (not just the first one)
-    const selectedRoomIds = Array.from(selectedRooms)
-      .map(roomNo => {
-        const row = displayRows.find(r => r.room_number === roomNo);
-        return row?.room_id;
-    
+      let invoiceNo = ''
+      try {
+        const invoiceRes = await CheckoutService.getNextInvoiceNo()
+        if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
+          invoiceNo = invoiceRes.data.ldg_bill_no
+          console.log('Fetched invoice number:', invoiceNo)
+        }
+      } catch (invoiceErr) {
+        console.warn('Could not fetch invoice number; server will auto-assign one', invoiceErr)
+      }
+
+      const selectedRoomIds = Array.from(selectedRooms)
+        .map(roomNo => {
+          const row = displayRows.find(r => r.room_number === roomNo)
+          return row?.room_id
+        })
+        .filter((id): id is number => id !== null && id !== undefined)
+
+      const roomIdsCommaString = selectedRoomIds.join(',')
+
+      const response = await CheckoutService.performCheckout({
+        checkin_id: combinedSummary.checkin_id,
+        checkout_reason: checkoutReason || 'Regular checkout',
+        payment_id: selectedPaymentModeId ?? undefined,
+        payment_mode: selectedPaymentModeName,
+        payment_method: selectedPaymentModeName,
+        total_amount: finalTotalAmount,
+        room_id: roomIdsCommaString,
+        round_off_amount: 0,
+        net_payable: finalTotalAmount,
+        selected_rooms: Array.from(selectedRooms),
+        invoiceNoFromBody: invoiceNo,
+        is_settle: 0,
+        is_print: 1,
       })
-      .filter((id): id is number => id !== null && id !== undefined);
 
-    // ✅ Join multiple IDs with comma (e.g., "94,95,96")
-    const roomIdsCommaString = selectedRoomIds.join(',');
+      if (response.success) {
+        if (response.data?.checkout_id) {
+          setCheckoutId(response.data.checkout_id)
+        }
 
-    const response = await CheckoutService.performCheckout({
-      checkin_id: combinedSummary.checkin_id,
-      checkout_reason: checkoutReason || 'Regular checkout',
-      payment_id: selectedPaymentModeId ?? undefined,
-      payment_mode: selectedPaymentModeName,
-      payment_method: selectedPaymentModeName,
-      total_amount: finalTotalAmount,
-      room_id: roomIdsCommaString,        // ✅ now sends multiple IDs
-      round_off_amount: 0,
-      net_payable: finalTotalAmount,
-      selected_rooms: Array.from(selectedRooms),
-      invoiceNoFromBody: invoiceNo,
-      is_settle: 0,
-      is_print: 1,
-    });
+        if (response.data?.ldg_bill_no) {
+          setGeneratedBillNumber(response.data.ldg_bill_no)
+        } else if (invoiceNo) {
+          setGeneratedBillNumber(invoiceNo)
+        }
 
-    if (response.success) {
+        const roomIdsCommaFromResponse = response.data?.checked_out_room_ids_comma ||
+          (response.data?.checked_out_room_ids || []).join(', ')
 
-  if (response.data?.checkout_id) {
-        setCheckoutId(response.data.checkout_id);
+        toast.success(`Checkout completed for room ID(s): ${roomIdsCommaFromResponse}`)
+
+        setShowCheckoutModal(false)
+        setCheckoutReason('')
+        setCheckoutDone(true)
+        setShowBillModal(true)
+      } else {
+        toast.error(response.message || 'Checkout failed')
       }
-
-      if (response.data?.ldg_bill_no) {
-        setGeneratedBillNumber(response.data.ldg_bill_no);
-      } else if (invoiceNo) {
-        setGeneratedBillNumber(invoiceNo);
-      }
-
-      // ✅ Show comma-separated room IDs from response (backup if response doesn't have it)
-      const roomIdsCommaFromResponse = response.data?.checked_out_room_ids_comma ||
-                                       (response.data?.checked_out_room_ids || []).join(', ');
-      
-      toast.success(`Checkout completed for room ID(s): ${roomIdsCommaFromResponse}`);
-
-      setShowCheckoutModal(false);
-      setCheckoutReason('');
-      setCheckoutDone(true);
-      setShowBillModal(true);
-    } else {
-      toast.error(response.message || 'Checkout failed');
-      
+    } catch (error: any) {
+      console.error('Checkout failed:', error)
+      toast.error(error.response?.data?.message || 'Failed to process checkout')
+    } finally {
+      setCheckoutProcessing(false)
     }
-  } catch (error: any) {
-    console.error('Checkout failed:', error);
-    toast.error(error.response?.data?.message || 'Failed to process checkout');
-  } finally {
-    setCheckoutProcessing(false);
   }
-};
 
   const handleCancelCheckout = () => {
     setShowCheckoutModal(false)
@@ -920,6 +913,8 @@ const handleConfirmCheckout = async () => {
     )
   }
 
+  // ==================== RENDER ====================
+
   return (
     <>
       <TitleHelmet title="Front Office Bill" />
@@ -939,7 +934,7 @@ const handleConfirmCheckout = async () => {
         }
         .bg-fo-header {
           background-color: #bfcdf0 !important;
-          color:white;
+          color: white;
         }
         .info-box {
           border: 1px solid #dee2e6;
@@ -1378,7 +1373,7 @@ const handleConfirmCheckout = async () => {
                     <Card.Body className="p-0">
                       <div className="first-table-container">
                         <table className="table-fo mb-0 w-100">
-                          <thead className="bg-fo-header ">
+                          <thead className="bg-fo-header">
                             <tr>
                               <th>#</th>
                               <th>Bill Date</th>
@@ -1460,7 +1455,6 @@ const handleConfirmCheckout = async () => {
                                   <td className="text-center">
                                     {row.isPostCharge ? '-' : `${row.discount_amount.toFixed(2)}`}
                                   </td>
-                                  
                                   <td className="text-center">
                                     {row.isPostCharge ? '-' : `${row.tax_percent.toFixed(2)}%`}
                                   </td>
@@ -1519,7 +1513,7 @@ const handleConfirmCheckout = async () => {
                             })}
                             {filteredDisplayRowsForTable.length === 0 && (
                               <tr>
-                                <td colSpan={28} className="text-center py-4 text-muted">
+                                <td colSpan={29} className="text-center py-4 text-muted">
                                   No rooms selected. Please select at least one room from the Room
                                   No. panel.
                                 </td>
@@ -1626,6 +1620,7 @@ const handleConfirmCheckout = async () => {
             </div>
           </>
         ) : (
+          // Summary Tab
           <>
             <div className="guest-company-row d-flex flex-wrap gap-4 align-items-center">
               <div>
@@ -2039,31 +2034,28 @@ const handleConfirmCheckout = async () => {
         </Modal.Footer>
       </Modal>
 
-   
-
-<CheckoutBillModal
-  show={showBillModal}
-  onHide={() => {
-    setShowBillModal(false)
-    setCheckoutDone(false)
-    navigate('/hotel-master/HotelBookingPanel', {
-      state: {
-        checkoutSuccess: true,
-        checkedOutRooms: Array.from(selectedRooms),
-        checkin_id: combinedSummary?.checkin_id,
-      }
-    })
-  }}
-  checkoutId={checkoutId || 0}  // Use checkoutId from state
-  ldgBillNo={generatedBillNumber}
-  hotelId={hotelId}
-  billNumber={generatedBillNumber}
-  paymentTransactionId={paymentTransactionId}
-  paymentDate={paymentDate}
-  paymentBank={paymentBank}
-  selectedRooms={Array.from(selectedRooms)}  // ✅ Pass selected rooms
-
-/>
+      <CheckoutBillModal
+        show={showBillModal}
+        onHide={() => {
+          setShowBillModal(false)
+          setCheckoutDone(false)
+          navigate('/hotel-master/HotelBookingPanel', {
+            state: {
+              checkoutSuccess: true,
+              checkedOutRooms: Array.from(selectedRooms),
+              checkin_id: combinedSummary?.checkin_id,
+            }
+          })
+        }}
+        checkoutId={checkoutId || 0}
+        ldgBillNo={generatedBillNumber}
+        hotelId={hotelId}
+        billNumber={generatedBillNumber}
+        paymentTransactionId={paymentTransactionId}
+        paymentDate={paymentDate}
+        paymentBank={paymentBank}
+        selectedRooms={Array.from(selectedRooms)}
+      />
     </>
   )
 }

@@ -29,28 +29,32 @@ exports.getCheckinFullDetails = async (req, res) => {
       });
     }
 
-    // 🔥 Option 1: Use Stored Procedure
+    // Execute the stored procedure
     const sql = `CALL sp_get_checkin_details_summary(?, ?)`;
     const [results] = await db.query(sql, [hotelid, checkin_id]);
     
-    // MySQL returns stored procedure results as array of arrays
-    // The first element contains the actual data
-    const rows = results[0] || [];
+    // 🔥 MySQL returns multiple result sets as an array
+    // results[0] = First SELECT (Room Charges & Folio entries - DETAILS)
+    // results[1] = Second SELECT (Summary)
+    
+    const details = results[0] || [];
+    const summary = results[1] || [];
 
-    console.log(`✅ Stored procedure returned ${rows.length} rows`);
+    console.log(`✅ Details: ${details.length} rows, Summary: ${summary.length} rows`);
 
+    // Return both result sets
     return res.status(200).json({
       success: true,
-      count: rows.length,
-      data: rows,
+      data: {
+        details: details,
+        summary: summary
+      },
+      count: details.length,
+      summaryCount: summary.length
     });
 
-    
   } catch (error) {
     console.error('❌ Error in getCheckinFullDetails:', error);
-    
-    // Option 2: Fallback to original query if stored procedure fails
-    // You can add fallback logic here
     
     return res.status(500).json({
       success: false,
