@@ -80,7 +80,7 @@ exports.getCheckins = async (req, res) => {
         const { q, status } = req.query;
 
         let sql = `
-    SELECT
+      SELECT
     -- Checkin Master
     cm.checkin_id,
     cm.reg_no,
@@ -128,30 +128,45 @@ exports.getCheckins = async (req, res) => {
     gm.email,
     comp.company_name,
 
-    -- Folio
+    -- Folio Summary
     COALESCE(cgfm.total_debit,0)  AS total_debit,
     COALESCE(cgfm.total_credit,0) AS total_credit,
 
-    -- Charges
-    COALESCE(cgrc.total_amount,0)     AS total_amount,
-    COALESCE(cgrc.pax_count,0)        AS pax_count,
-    COALESCE(cgrc.pax_price,0)        AS pax_price,
-    COALESCE(cgrc.pax_tax,0)          AS pax_tax,
-    COALESCE(cgrc.ex_pax_count,0)     AS ex_pax_count,
-    COALESCE(cgrc.ex_pax_price,0)     AS ex_pax_price,
-    COALESCE(cgrc.ex_pax_tax,0)       AS ex_pax_tax,
-    COALESCE(cgrc.child_count,0)      AS child_count,
-    COALESCE(cgrc.child_price,0)      AS child_price,
-    COALESCE(cgrc.child_tax,0)        AS child_tax,
-    COALESCE(cgrc.driver_count,0)     AS driver_count,
-    COALESCE(cgrc.driver_price,0)     AS driver_price,
-    COALESCE(cgrc.driver_tax,0)       AS driver_tax
+    -- Room Charges Summary
+    COALESCE(cgrc.total_amount,0) AS total_amount,
+    COALESCE(cgrc.pax_count,0) AS pax_count,
+    COALESCE(cgrc.pax_price,0) AS pax_price,
+    COALESCE(cgrc.pax_tax,0) AS pax_tax,
+
+    COALESCE(cgrc.ex_pax_count,0) AS ex_pax_count,
+    COALESCE(cgrc.ex_pax_price,0) AS ex_pax_price,
+    COALESCE(cgrc.ex_pax_tax,0) AS ex_pax_tax,
+
+    COALESCE(cgrc.child_count,0) AS child_count,
+    COALESCE(cgrc.child_price,0) AS child_price,
+    COALESCE(cgrc.child_tax,0) AS child_tax,
+
+    COALESCE(cgrc.driver_count,0) AS driver_count,
+    COALESCE(cgrc.driver_price,0) AS driver_price,
+    COALESCE(cgrc.driver_tax,0) AS driver_tax
 
 FROM checkin_master cm
 
-LEFT JOIN checkin_detail_master cdm
-    ON cm.checkin_id = cdm.checkin_id
-   AND cdm.is_settle = 0
+LEFT JOIN (
+    SELECT c1.*
+    FROM checkin_detail_master c1
+    INNER JOIN (
+        SELECT
+            checkin_id,
+            room_id,
+            MAX(detail_id) AS detail_id
+        FROM checkin_detail_master
+        WHERE is_settle = 0
+        GROUP BY checkin_id, room_id
+    ) x
+        ON c1.detail_id = x.detail_id
+) cdm
+ON cm.checkin_id = cdm.checkin_id
 
 LEFT JOIN guest_master gm
     ON gm.guest_id = cdm.guest_id
@@ -159,6 +174,7 @@ LEFT JOIN guest_master gm
 LEFT JOIN company_master comp
     ON comp.company_id = gm.company_id
 
+-- Folio Aggregate
 LEFT JOIN (
     SELECT
         checkin_id,
@@ -168,27 +184,40 @@ LEFT JOIN (
     FROM checkin_guest_folio_master
     GROUP BY checkin_id, room_id
 ) cgfm
-    ON cgfm.checkin_id = cdm.checkin_id
-   AND cgfm.room_id = cdm.room_id
-LEFT JOIN (
-    SELECT c1.*
-    FROM checkin_guest_room_charges c1
-    INNER JOIN (
-        SELECT
-            checkin_id,
-            room_id,
-            MAX(created_at) AS latest_created
-        FROM checkin_guest_room_charges
-        GROUP BY checkin_id, room_id
-    ) x
-        ON x.checkin_id = c1.checkin_id
-       AND x.room_id = c1.room_id
-       AND x.latest_created = c1.created_at
-) cgrc
-    ON cgrc.checkin_id = cdm.checkin_id
-   AND cgrc.room_id = cdm.room_id
+ON cgfm.checkin_id = cdm.checkin_id
+AND cgfm.room_id = cdm.room_id
 
-WHERE cm.hotelid = ?`
+-- Room Charges Aggregate
+LEFT JOIN (
+    SELECT
+        checkin_id,
+        room_id,
+
+        SUM(total_amount) AS total_amount,
+
+        SUM(pax_count) AS pax_count,
+        SUM(pax_price) AS pax_price,
+        SUM(pax_tax) AS pax_tax,
+
+        SUM(ex_pax_count) AS ex_pax_count,
+        SUM(ex_pax_price) AS ex_pax_price,
+        SUM(ex_pax_tax) AS ex_pax_tax,
+
+        SUM(child_count) AS child_count,
+        SUM(child_price) AS child_price,
+        SUM(child_tax) AS child_tax,
+
+        SUM(driver_count) AS driver_count,
+        SUM(driver_price) AS driver_price,
+        SUM(driver_tax) AS driver_tax
+
+    FROM checkin_guest_room_charges
+    GROUP BY checkin_id, room_id
+) cgrc
+ON cgrc.checkin_id = cdm.checkin_id
+AND cgrc.room_id = cdm.room_id
+
+WHERE cm.hotelid = ?`;
 
         const params = [hotelId];
 
