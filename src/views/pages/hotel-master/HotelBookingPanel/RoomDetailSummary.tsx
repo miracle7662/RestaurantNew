@@ -12,6 +12,7 @@ import CheckoutBillModal from './CheckoutBillModal'
 // API Services
 import CheckoutService from '@/common/hotel/checkout'
 import RoomService from '@/common/hotel/room'
+import OutletPaymentModeService from '@/common/api/outletpaymentmode'
 
 // ==================== INTERFACES ====================
 
@@ -249,11 +250,16 @@ const RoomDetailSummary = () => {
   const [paymentBank, setPaymentBank] = useState<string>('')
   const [checkoutId, setCheckoutId] = useState<number | null>(null)
 
-  const [selectedPaymentModeId] = useState<number | null>(null)
-  const [selectedPaymentModeName] = useState<string>('Cash')
+  // Payment mode states
+  const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([])
+  const [selectedPaymentModeId, setSelectedPaymentModeId] = useState<number | null>(null)
+  const [selectedPaymentModeName, setSelectedPaymentModeName] = useState<string>('')
+  const [isPaymentModeChanging, setIsPaymentModeChanging] = useState<boolean>(false)
 
   const [, setRoomNumberMap] = useState<Map<number, string>>(new Map())
   const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set())
+
+  
 
   const { occupiedItem } = (location.state as any) || {}
   const checkinIdFromState = occupiedItem?.checkin_id
@@ -311,6 +317,77 @@ const RoomDetailSummary = () => {
       return new Map<number, string>()
     }
   }
+
+  // Fetch payment modes for dropdown
+useEffect(() => {
+  if (!hotelId) return
+
+  const fetchPaymentModes = async () => {
+    try {
+      const outletId = user?.outletid || hotelId
+      const res = await OutletPaymentModeService.list({ outletid: outletId })
+      if (res.success && res.data) {
+        setOutletPaymentModes(res.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch payment modes:', error)
+    }
+  }
+  fetchPaymentModes()
+}, [hotelId, user])
+
+
+// Sync selected payment mode with combined summary
+useEffect(() => {
+  if (!combinedSummary?.payment_method || outletPaymentModes.length === 0) return
+
+  // Find matching payment mode from the list
+  const matchedMode = outletPaymentModes.find(
+    (m) => m.mode_name?.toLowerCase() === combinedSummary.payment_method?.toLowerCase()
+  )
+
+  if (matchedMode) {
+    // If found, use that mode
+    setSelectedPaymentModeId(matchedMode.id)
+    setSelectedPaymentModeName(matchedMode.mode_name)
+  } else if (outletPaymentModes.length > 0) {
+    // If not found, use the first available mode (but don't default to Cash)
+    // Instead, use the actual payment method from the data
+    const firstMode = outletPaymentModes[0]
+    setSelectedPaymentModeId(firstMode.id)
+    setSelectedPaymentModeName(firstMode.mode_name)
+    
+    // Update the summary to use the actual payment method
+    setCombinedSummary(prev => prev ? {
+      ...prev,
+      payment_method: firstMode.mode_name || 'Cash',
+      payment_methods: [firstMode.mode_name || 'Cash'],
+    } : null)
+  }
+}, [combinedSummary, outletPaymentModes])
+
+
+
+const handlePaymentModeChange = (modeId: number) => {
+  const selectedMode = outletPaymentModes.find((m) => m.id === modeId)
+  if (!selectedMode) return
+
+  setSelectedPaymentModeId(modeId)
+  setSelectedPaymentModeName(selectedMode.mode_name || '')
+  setIsPaymentModeChanging(true)
+
+  // Update the combined summary with new payment method
+  if (combinedSummary) {
+    setCombinedSummary({
+      ...combinedSummary,
+      payment_method: selectedMode.mode_name || '',
+      payment_methods: [selectedMode.mode_name || ''],
+    })
+  }
+
+  // toast.success(`Payment method changed to ${selectedMode.mode_name}`)
+  setIsPaymentModeChanging(false)
+}
 
   // ==================== FETCH DATA ====================
 
@@ -701,6 +778,7 @@ const RoomDetailSummary = () => {
       total_discount_amount: totalDiscountAmount,
        total_credit_amount: total_credit_amount,
     total_debit_amount: total_debit_amount,
+     payment_method: combinedSummary.payment_method || 'Cash',
     }
   }
 
@@ -1526,7 +1604,7 @@ const RoomDetailSummary = () => {
                       <thead className="bg-fo-header text-black">
                         <tr>
                           <th>Select</th>
-                          <th>Guest</th>
+                          <th style={{ minWidth: '150px', maxWidth: '200px' }}>Guest</th>
                           <th>Guest ID</th>
                           <th>Pay Method</th>
                           <th>Room No(s)</th>
@@ -1566,7 +1644,35 @@ const RoomDetailSummary = () => {
                             </td>
                             <td>{filteredSummary.guest_name}</td>
                             <td>{filteredSummary.guest_id}</td>
-                            <td>{filteredSummary.payment_method}</td>
+                           <td>
+  {outletPaymentModes.length > 0 ? (
+    <Form.Select
+      size="sm"
+      value={selectedPaymentModeId || ''}
+      onChange={(e) => handlePaymentModeChange(Number(e.target.value))}
+      disabled={isPaymentModeChanging || outletPaymentModes.length === 0}
+      style={{
+        minWidth: '100px',
+        fontSize: '0.75rem',
+        padding: '2px 6px',
+        height: '28px',
+        border: '1px solid #ced4da',
+        borderRadius: '4px',
+        backgroundColor: isPaymentModeChanging ? '#f8f9fa' : '#fff',
+      }}
+    >
+      {outletPaymentModes.map((mode) => (
+        <option key={mode.id} value={mode.id}>
+          {mode.mode_name || 'Unknown'}
+        </option>
+      ))}
+    </Form.Select>
+  ) : (
+    <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+      {combinedSummary?.payment_method || 'No modes'}
+    </span>
+  )}
+</td>
                             <td className="room-numbers-cell fw-bold">
                               {filteredSummary.room_numbers_str || '-'}
                             </td>
