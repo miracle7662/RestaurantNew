@@ -123,6 +123,7 @@ interface CombinedGuestSummary {
   reg_no?: string
   booking_ref?: string
   plan_name?: string
+  total_discount_amount?: number
 }
 
 interface BillDateSummaryItem {
@@ -328,8 +329,6 @@ const RoomDetailSummary = () => {
       setRoomNumberMap(roomMap)
 
       // 2. API call that returns both details AND summary
-      // Build room_ids from current selection (comma-separated)
-      // Note: during initial load `selectedRooms` may be empty; backend filter should handle NULL/'' accordingly.
       const roomIdsCommaString = Array.from(selectedRooms)
         .map((roomNo) => displayRows.find((r) => r.room_number === roomNo)?.room_id)
         .filter((id): id is number => id !== null && id !== undefined)
@@ -341,23 +340,17 @@ const RoomDetailSummary = () => {
         roomIdsCommaString || undefined,
       )
 
-
-
-      // 🔍 Debug log
       console.log('📦 Full API Response:', fullDetailsRes)
 
-      // 🔥 EXTRACT BOTH RESULT SETS
       let details: any[] = []
       let summary: any[] = []
 
       if (fullDetailsRes.data) {
         if (Array.isArray(fullDetailsRes.data)) {
-          // Old format: data is an array
           details = fullDetailsRes.data || []
           summary = []
           console.log('📦 Using old format (array)')
         } else if (fullDetailsRes.data.details !== undefined) {
-          // New format: data has details and summary
           details = fullDetailsRes.data.details || []
           summary = fullDetailsRes.data.summary || []
           console.log(`📦 New format: ${details.length} details, ${summary.length} summary`)
@@ -476,7 +469,7 @@ const RoomDetailSummary = () => {
       }))
       setBillDateSummary(billSummaryItems)
 
-      // 🔥 4. USE THE SUMMARY FROM THE STORED PROCEDURE - NO MANUAL CALCULATION!
+      // 4. USE THE SUMMARY FROM THE STORED PROCEDURE
       if (summary && summary.length > 0) {
         const summaryRow = summary[0]
 
@@ -494,8 +487,6 @@ const RoomDetailSummary = () => {
           room_numbers_str: summaryRow.room_numbers_str || '',
           room_categories_str: summaryRow.room_categories_str || '',
           converted_categories_str: summaryRow.converted_categories_str || '',
-
-          // ✅ ALL VALUES COME DIRECTLY FROM THE STORED PROCEDURE
           total_room_tariff: toNumber(summaryRow.total_room_tariff),
           total_ex_pax_charge: toNumber(summaryRow.total_ex_pax_charge),
           total_child_paid_amount: toNumber(summaryRow.total_child_paid_amount),
@@ -514,12 +505,10 @@ const RoomDetailSummary = () => {
           has_extensions: Boolean(summaryRow.has_extensions),
           extension_count: toNumber(summaryRow.extension_count),
           extension_days: toNumber(summaryRow.extension_days),
-
           payment_methods: summaryRow.payment_method ? [summaryRow.payment_method] : ['Cash'],
           payment_method: summaryRow.payment_method || 'Cash',
           charges_ids: [],
           selected: true,
-
           original_checkin_datetime: summaryRow.original_checkin_datetime || '',
           final_checkout_datetime: summaryRow.final_checkout_datetime || '',
           guest_mobile: summaryRow.guest_mobile || '',
@@ -533,7 +522,6 @@ const RoomDetailSummary = () => {
 
         setCombinedSummary(combinedSummaryData)
 
-        // Set initial values for bill generation
         setGeneratedBillNumber('')
         setPaymentTransactionId(`TXN${Date.now().toString().slice(-12)}`)
         setPaymentDate(formatBillDate(new Date().toISOString()))
@@ -541,13 +529,11 @@ const RoomDetailSummary = () => {
           combinedSummaryData.payment_method === 'Credit Card' ? 'HDFC Bank Credit Card' : 'Cash',
         )
 
-        // Set selected rooms (all rooms initially)
         const allRooms = Array.from(new Set(displayRowsResult.map(r => r.room_number)))
           .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
         setSelectedRooms(new Set(allRooms))
 
       } else {
-        // ⚠️ FALLBACK: If summary is not available (should rarely happen)
         console.warn('⚠️ No summary from stored procedure, using basic data')
         
         const firstRow = details[0]
@@ -561,8 +547,6 @@ const RoomDetailSummary = () => {
           ? Array.from(guestNames).join(', ')
           : firstRow.guest_name || 'Guest'
 
-        // ✅ NO MANUAL CALCULATIONS HERE - Use zeros or basic values
-        // The actual totals will be calculated from display rows elsewhere
         const fallbackSummary: CombinedGuestSummary = {
           checkin_id: checkinIdFromState,
           guest_id: firstRow.guest_id || 0,
@@ -607,7 +591,6 @@ const RoomDetailSummary = () => {
         }
         setCombinedSummary(fallbackSummary)
 
-        // Set selected rooms
         const allRooms = Array.from(roomNumbersSet).sort((a, b) =>
           a.localeCompare(b, undefined, { numeric: true }),
         )
@@ -620,6 +603,99 @@ const RoomDetailSummary = () => {
       toast.error('Failed to load room details')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // ==================== HELPER: Get filtered summary for selected rooms only ====================
+
+  const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
+    if (!combinedSummary) return null
+
+    // Get rows filtered by selected rooms
+    const selectedRows = displayRows.filter((row) => selectedRooms.has(row.room_number))
+
+    if (selectedRows.length === 0) return null
+
+ // ✅ UPDATED: Filter ONLY Check-in Day and Extension rows (EXCLUDE Post Charges AND Advance)
+const roomTariffRows = selectedRows.filter((row) => {
+  // Exclude ALL Post Charges (including Advance and Allowances)
+  if (row.isPostCharge) return false
+  
+  // Exclude Advance rows (check department_name)
+  if (row.department_name?.toLowerCase().includes('advance')) return false
+  
+  // Include Check-in Day and Extension rows
+  return true
+})
+
+    // Calculate totals from selected rows
+    const totalRoomTariff = roomTariffRows.reduce((sum, row) => sum + row.room_tariff, 0)
+    const totalExPaxCharge = selectedRows.reduce((sum, row) => sum + row.ex_pax_total, 0)
+    const totalChildPaidAmount = selectedRows.reduce((sum, row) => sum + row.child_total, 0)
+    const totalDriverCharge = selectedRows.reduce((sum, row) => sum + row.driver_total, 0)
+    const totalTaxAmount = selectedRows.reduce((sum, row) => sum + row.tax_amount, 0)
+    const totalAmount = selectedRows.reduce((sum, row) => sum + row.total_amount, 0)
+
+    const totalDiscountAmount = selectedRows.reduce((sum, row) => sum + row.discount_amount, 0)
+    
+
+
+    
+
+    // Get unique values from selected rows
+    const uniqueRoomNumbers = Array.from(new Set(selectedRows.map((r) => r.room_number)))
+    const uniqueRoomCategories = Array.from(
+      new Set(selectedRows.map((r) => r.room_category_name).filter((c) => c !== '-'))
+    )
+    const uniqueConvertedCategories = Array.from(
+      new Set(selectedRows.map((r) => r.converted_category_name).filter((c) => c !== '-'))
+    )
+
+    // Calculate aggregates
+    const totalDays = selectedRows.length
+    const totalAdults = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.adults), 0)
+    const totalPax = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.pax), 0)
+    const totalExPax = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.ex_pax_count), 0)
+    const totalChildPaid = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.child_count), 0)
+    const totalChildUnpaid = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.child_unpaid), 0)
+    const totalDriver = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.driver_count), 0)
+
+    // Average tax percent
+    const avgTaxPercent = selectedRows.length > 0
+      ? selectedRows.reduce((sum, row) => sum + row.tax_percent, 0) / selectedRows.length
+      : 0
+
+    // Extension info
+    const hasExtensions = selectedRows.some((row) => row.is_extension)
+    const extensionCount = selectedRows.filter((row) => row.is_extension).length
+    const extensionDays = selectedRows.filter((row) => row.is_extension).length
+
+    return {
+      ...combinedSummary,
+      room_numbers: uniqueRoomNumbers,
+      room_numbers_str: uniqueRoomNumbers.join(', '),
+      room_categories: uniqueRoomCategories,
+      room_categories_str: uniqueRoomCategories.join(', '),
+      converted_categories: uniqueConvertedCategories,
+      converted_categories_str: uniqueConvertedCategories.join(', '),
+      total_room_tariff: totalRoomTariff,
+      total_ex_pax_charge: totalExPaxCharge,
+      total_child_paid_amount: totalChildPaidAmount,
+      total_driver_charge: totalDriverCharge,
+      total_tax_amount: totalTaxAmount,
+      total_amount: totalAmount,
+      total_days: totalDays,
+      total_adults: totalAdults,
+      total_pax: totalPax,
+      total_ex_pax: totalExPax,
+      total_child_paid: totalChildPaid,
+      total_child_unpaid: totalChildUnpaid,
+      total_driver: totalDriver,
+      avg_tax_percent: avgTaxPercent,
+      has_extensions: hasExtensions,
+      extension_count: extensionCount,
+      extension_days: extensionDays,
+      total_discount_amount: totalDiscountAmount,
     }
   }
 
@@ -682,13 +758,14 @@ const RoomDetailSummary = () => {
 
   const filteredRowsByRoom = getFilteredRowsBySelectedRooms()
   const selectedRowsForCheckout = filteredRowsByRoom.filter((row) => row.selected)
-  
-  // ✅ grandTotal is calculated from filtered rows (selected rooms only)
+
+  // ✅ grandTotal calculated from filtered rows (selected rooms only)
   const grandTotal = roundToTwo(
     selectedRowsForCheckout.reduce((sum, row) => sum + row.total_amount, 0),
   )
 
-
+  // ✅ filteredSummary for the Room Summary table (selected rooms only)
+  const filteredSummary = getFilteredSummaryForSelectedRooms()
 
   const handleCheckoutClick = () => {
     if (!combinedSummary) {
@@ -1426,6 +1503,7 @@ const RoomDetailSummary = () => {
                 </Col>
               </Row>
 
+              {/* ==================== ROOM SUMMARY - TOTAL CHARGES ==================== */}
               <Card className="shadow-sm mb-3">
                 <Card.Header className="bg-fo-header text-black py-1">
                   <span className="fw-bold">Room Summary - Total Charges</span>
@@ -1461,56 +1539,52 @@ const RoomDetailSummary = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {combinedSummary && (
+                        {/* ✅ USE FILTERED SUMMARY - ONLY SELECTED ROOMS */}
+                        {filteredSummary && selectedRooms.size > 0 ? (
                           <tr className="combined-row-summary">
                             <td>
                               <Form.Check
                                 type="checkbox"
-                                checked={combinedSummary.selected}
+                                checked={filteredSummary.selected}
                                 onChange={(e) => handleGuestSummarySelect(e.target.checked)}
                               />
                             </td>
-                            <td>{combinedSummary.guest_name}</td>
-                            <td>{combinedSummary.guest_id}</td>
-                            <td>{combinedSummary.payment_method}</td>
+                            <td>{filteredSummary.guest_name}</td>
+                            <td>{filteredSummary.guest_id}</td>
+                            <td>{filteredSummary.payment_method}</td>
                             <td className="room-numbers-cell fw-bold">
-                              {Array.from(selectedRooms)
-                                .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-                                .join(', ') || '-'}
+                              {filteredSummary.room_numbers_str || '-'}
                             </td>
                             <td className="text-wrap-cell">
-                              {combinedSummary.room_categories_str}
+                              {filteredSummary.room_categories_str || '-'}
                             </td>
                             <td className="text-wrap-cell">
-                              {combinedSummary.converted_categories_str}
+                              {filteredSummary.converted_categories_str || '-'}
                             </td>
-                            <td>{combinedSummary.total_days}</td>
-                            <td>{combinedSummary.total_adults}</td>
-                            <td>{combinedSummary.total_pax}</td>
-                            <td>{formatAmountClean(combinedSummary.total_room_tariff)}</td>
-                            <td>{formatAmountClean(combinedSummary.avg_discount_percent)}</td>
-                            <td>{combinedSummary.total_ex_pax}</td>
-                            <td>{formatAmountClean(combinedSummary.total_ex_pax_charge)}</td>
-                            <td>{combinedSummary.total_child_paid}</td>
-                            <td>
-                              {formatAmountClean(combinedSummary.total_child_paid_amount)}
-                            </td>
-                            <td>{combinedSummary.total_driver}</td>
-                            <td>{formatAmountClean(combinedSummary.total_driver_charge)}</td>
-                            <td>{combinedSummary.avg_tax_percent.toFixed(2)}%</td>
-                            <td>{formatAmountClean(combinedSummary.total_tax_amount)}</td>
+                            <td>{filteredSummary.total_days}</td>
+                            <td>{filteredSummary.total_adults}</td>
+                            <td>{filteredSummary.total_pax}</td>
+                            <td>{formatAmountClean(filteredSummary.total_room_tariff)}</td>
+                            <td>{formatAmountClean(filteredSummary.total_discount_amount || 0)}</td>
+                            <td>{filteredSummary.total_ex_pax}</td>
+                            <td>{formatAmountClean(filteredSummary.total_ex_pax_charge)}</td>
+                            <td>{filteredSummary.total_child_paid}</td>
+                            <td>{formatAmountClean(filteredSummary.total_child_paid_amount)}</td>
+                            <td>{filteredSummary.total_driver}</td>
+                            <td>{formatAmountClean(filteredSummary.total_driver_charge)}</td>
+                            <td>{filteredSummary.avg_tax_percent.toFixed(2)}%</td>
+                            <td>{formatAmountClean(filteredSummary.total_tax_amount)}</td>
                             <td className="fw-bold text-primary">
-                              {formatAmountClean(combinedSummary.total_amount)}
+                              {formatAmountClean(filteredSummary.total_amount)}
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr>
+                            <td colSpan={21} className="text-center text-muted py-2">
+                              {selectedRooms.size === 0 ? 'No rooms selected' : 'No data available'}
                             </td>
                           </tr>
                         )}
-                        {!combinedSummary || selectedRooms.size === 0 ? (
-                          <tr>
-                            <td colSpan={21} className="text-center text-muted py-2">
-                              No rooms selected
-                            </td>
-                          </tr>
-                        ) : null}
                       </tbody>
                     </table>
                   </div>
