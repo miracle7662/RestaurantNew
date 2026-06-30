@@ -616,20 +616,15 @@ const RoomDetailSummary = () => {
 
     if (selectedRows.length === 0) return null
 
- // ✅ UPDATED: Filter ONLY Check-in Day and Extension rows (EXCLUDE Post Charges AND Advance)
-const roomTariffRows = selectedRows.filter((row) => {
-  // Exclude ALL Post Charges (including Advance and Allowances)
-  if (row.isPostCharge) return false
-  
-  // Exclude Advance rows (check department_name)
-  if (row.department_name?.toLowerCase().includes('advance')) return false
-  
-  // Include Check-in Day and Extension rows
-  return true
-})
+     // ✅ NEW: Filter ONLY Check-in Day and Extension rows (exclude Post Charges)
+  const roomTariffRows = selectedRows.filter((row) => {
+    // Exclude all Post Charges (including Allowances)
+    if (row.isPostCharge) return false
+    return true // Include Check-in Day and Extension rows
+  })
 
     // Calculate totals from selected rows
-    const totalRoomTariff = roomTariffRows.reduce((sum, row) => sum + row.room_tariff, 0)
+    const totalRoomTariff = selectedRows.reduce((sum, row) => sum + row.room_tariff, 0)
     const totalExPaxCharge = selectedRows.reduce((sum, row) => sum + row.ex_pax_total, 0)
     const totalChildPaidAmount = selectedRows.reduce((sum, row) => sum + row.child_total, 0)
     const totalDriverCharge = selectedRows.reduce((sum, row) => sum + row.driver_total, 0)
@@ -637,7 +632,6 @@ const roomTariffRows = selectedRows.filter((row) => {
     const totalAmount = selectedRows.reduce((sum, row) => sum + row.total_amount, 0)
 
     const totalDiscountAmount = selectedRows.reduce((sum, row) => sum + row.discount_amount, 0)
-    
 
 
     
