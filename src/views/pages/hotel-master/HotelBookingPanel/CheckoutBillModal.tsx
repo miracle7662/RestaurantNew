@@ -567,23 +567,13 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
  // ========== GENERATE TABLE ROWS - USING BACKEND CALCULATED VALUES ==========
 const tableRows = useMemo(() => {
   console.log('🔨 Building tableRows...')
+  
   if (!displayRows.length) return []
 
   // Group by room first, then by date
   const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
-  const seen = new Set<string | number>()   // ⬅️ DEDUPLICATION SET
-
+  
   displayRows.forEach((charge) => {
-    // ---------------------- DEDUPLICATION CHECK ----------------------
-    const uniqueKey = charge.guest_room_charges_id ||
-                      `${charge.room_number}|${charge.bill_date_formatted}|${charge.transaction_type}|${charge.total_amount}`
-    if (seen.has(uniqueKey)) {
-      console.warn('⚠️ Duplicate charge skipped:', uniqueKey, charge)
-      return
-    }
-    seen.add(uniqueKey)
-    // ---------------------- END OF DEDUPLICATION ----------------------
-
     const roomNum = charge.room_number || 'COMMON'
     const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
     
@@ -608,6 +598,8 @@ const tableRows = useMemo(() => {
     }
     
     const item = dateMap.get(dateKey)!
+    
+    // Use backend calculated values directly - NO MANUAL CALCULATIONS
     const type = charge.transaction_type
     
     if (!charge.isPostCharge) {
@@ -670,6 +662,7 @@ const tableRows = useMemo(() => {
       return new Date(dateA).getTime() - new Date(dateB).getTime()
     })
     
+    // FIX: Show room number for ALL rows in this room group
     let isFirstRow = true
     for (const date of sortedDates) {
       const item = dateMap.get(date)!
@@ -679,12 +672,13 @@ const tableRows = useMemo(() => {
       const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
       const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
       
+      // Total calculation using backend values
       const total = item.roomChargeAmount + item.exPaxAmount + foodTotal + postTotal - allowanceTotal - advanceTotal
       
       rows.push({
         id: `row-${room}-${date}`,
         displayIndex: index++,
-        roomNumber: room,
+        roomNumber: room, // FIX: Show room number for EVERY row
         date: date,
         roomTariff: item.roomChargeAmount,
         exPax: item.exPaxAmount,
