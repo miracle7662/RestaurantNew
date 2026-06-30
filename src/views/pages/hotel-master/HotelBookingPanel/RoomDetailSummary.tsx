@@ -80,6 +80,8 @@ interface DisplayDetailRow {
   particulars: string
   department_name: string
   sortKey?: string
+   credit_amount?: number
+  debit_amount?: number
 }
 
 interface CombinedGuestSummary {
@@ -124,6 +126,8 @@ interface CombinedGuestSummary {
   booking_ref?: string
   plan_name?: string
   total_discount_amount?: number
+    total_credit_amount?: number    // Total credit from folio
+  total_debit_amount?: number     // Total debit from folio
 }
 
 interface BillDateSummaryItem {
@@ -253,6 +257,8 @@ const RoomDetailSummary = () => {
 
   const { occupiedItem } = (location.state as any) || {}
   const checkinIdFromState = occupiedItem?.checkin_id
+
+  
   console.log('🔑 checkinIdFromState:', checkinIdFromState)
 
   useEffect(() => {
@@ -446,6 +452,9 @@ const RoomDetailSummary = () => {
           description: row.description || '',
           particulars: row.particulars || '',
           department_name: row.department_name || '',
+           // ✅ ADD THESE LINES - Capture credit and debit from API
+    credit_amount: toNumber(row.credit_amount) || 0,
+    debit_amount: toNumber(row.debit_amount) || 0,
         }
       })
 
@@ -518,6 +527,9 @@ const RoomDetailSummary = () => {
           reg_no: summaryRow.reg_no || '',
           booking_ref: summaryRow.booking_ref || '',
           plan_name: summaryRow.plan_name || '',
+           // ✅ ADD NEW FIELDS
+    total_credit_amount: toNumber(summaryRow.total_credit_amount) || 0,
+    total_debit_amount: toNumber(summaryRow.total_debit_amount) || 0,
         }
 
         setCombinedSummary(combinedSummaryData)
@@ -647,6 +659,9 @@ const RoomDetailSummary = () => {
     const totalChildPaid = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.child_count), 0)
     const totalChildUnpaid = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.child_unpaid), 0)
     const totalDriver = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.driver_count), 0)
+     // ✅ Calculate credit and debit from rows if needed
+  const total_credit_amount = selectedRows.reduce((sum, row) => sum + (row.credit_amount || 0), 0)
+  const total_debit_amount = selectedRows.reduce((sum, row) => sum + (row.debit_amount || 0), 0)
 
     // Average tax percent
     const avgTaxPercent = selectedRows.length > 0
@@ -684,6 +699,8 @@ const RoomDetailSummary = () => {
       extension_count: extensionCount,
       extension_days: extensionDays,
       total_discount_amount: totalDiscountAmount,
+       total_credit_amount: total_credit_amount,
+    total_debit_amount: total_debit_amount,
     }
   }
 
@@ -751,6 +768,11 @@ const RoomDetailSummary = () => {
   const grandTotal = roundToTwo(
     selectedRowsForCheckout.reduce((sum, row) => sum + row.total_amount, 0),
   )
+
+  const [editablePax, setEditablePax] = useState<number>(0)
+
+
+
 
   // ✅ filteredSummary for the Room Summary table (selected rooms only)
   const filteredSummary = getFilteredSummaryForSelectedRooms()
@@ -1514,7 +1536,7 @@ const RoomDetailSummary = () => {
                           <th>Adults</th>
                           <th>Pax</th>
                           <th>Amount</th>
-                          <th>Discount Amt</th>
+                          <th>Discount</th>
                           <th>Ex_Pax</th>
                           <th>Ex_Pax Total</th>
                           <th>Child</th>
@@ -1524,6 +1546,11 @@ const RoomDetailSummary = () => {
                           <th>Avg Tax%</th>
                           <th>Tax Amt</th>
                           <th>Total Amount</th>
+                          <th>Debit Amount</th>
+                          <th>Credit Amount</th>
+                           
+                        <th>Dummy PAX</th>
+
                         </tr>
                       </thead>
                       <tbody>
@@ -1565,6 +1592,47 @@ const RoomDetailSummary = () => {
                             <td className="fw-bold text-primary">
                               {formatAmountClean(filteredSummary.total_amount)}
                             </td>
+                            <td className="fw-bold text-success">
+                {formatAmountClean(filteredSummary.total_credit_amount || 0)}
+              </td>
+              <td className="fw-bold text-danger">
+                {formatAmountClean(filteredSummary.total_debit_amount || 0)}
+              </td>
+              <td>
+                <Form.Control
+                  type="number"
+                  size="sm"
+                  value={editablePax}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0
+                    setEditablePax(val)
+                  }}
+                  onBlur={() => {
+                    // Update the filteredSummary when user finishes editing
+                    if (filteredSummary && editablePax !== filteredSummary.total_pax) {
+                      // You can optionally call an API to update the pax count
+                      console.log(`Pax updated from ${filteredSummary.total_pax} to ${editablePax}`)
+                      // Update the summary data
+                      setCombinedSummary(prev => prev ? {
+                        ...prev,
+                        total_pax: editablePax
+                      } : null)
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      (e.target as HTMLInputElement).blur()
+                    }
+                  }}
+                  style={{
+                    width: '60px',
+                    display: 'inline-block',
+                    padding: '2px 4px',
+                    fontSize: '0.85rem'
+                  }}
+                />
+              </td>
+              
                           </tr>
                         ) : (
                           <tr>
