@@ -29,36 +29,57 @@ exports.getCheckinFullDetails = async (req, res) => {
       });
     }
 
-    // Execute the stored procedure
+    // Execute the stored procedure (returns one result set)
     const sql = `CALL sp_get_checkin_details_summary(?, ?)`;
     const [results] = await db.query(sql, [hotelid, checkin_id]);
-    
-    // 🔥 MySQL returns multiple result sets as an array
-    // results[0] = First SELECT (Room Charges & Folio entries - DETAILS)
-    // results[1] = Second SELECT (Summary)
-    
+
+    // ✅ The first (and only) result set contains all detail rows
     const details = results[0] || [];
-    const summary = results[1] || [];
 
-    console.log(`✅ Details: ${details.length} rows, Summary: ${summary.length} rows`);
+    console.log(`✅ Details: ${details.length} rows`);
 
-    // Return both result sets
+    // ── Optional: compute summary from the details ──
+    const summary = details.reduce(
+      (acc, row) => {
+        acc.totalDebit += parseFloat(row.debit_amount || 0);
+        acc.totalCredit += parseFloat(row.credit_amount || 0);
+        acc.totalRoomTariff += parseFloat(row.room_tariff || 0);
+        acc.totalTax += parseFloat(row.cgst_amount || 0) + parseFloat(row.sgst_amount || 0) + parseFloat(row.igst_amount || 0);
+        // Count unique rooms/detail entries
+        if (!acc.uniqueDetailIds.has(row.detail_id)) {
+          acc.uniqueDetailIds.add(row.detail_id);
+          acc.roomCount++;
+        }
+        return acc;
+      },
+      {
+        totalDebit: 0,
+        totalCredit: 0,
+        totalRoomTariff: 0,
+        totalTax: 0,
+        roomCount: 0,
+        uniqueDetailIds: new Set(),
+      }
+    );
+
+    // Remove the Set from the summary before sending
+    delete summary.uniqueDetailIds;
+
     return res.status(200).json({
       success: true,
       data: {
-        details: details,
-        summary: summary
+        details,                // all rows (room charges + folio entries)
+        summary,                // computed aggregates
       },
       count: details.length,
-      summaryCount: summary.length
+      summaryCount: 1,          // summary object itself
     });
 
   } catch (error) {
-    console.error('❌ Error in getCheckinFullDetails:', error);
-    
+    console.error("❌ Error in getCheckinFullDetails:", error);
     return res.status(500).json({
       success: false,
-      message: error.message || 'Failed to fetch check-in details',
+      message: error.message || "Failed to fetch check-in details",
     });
   }
 };

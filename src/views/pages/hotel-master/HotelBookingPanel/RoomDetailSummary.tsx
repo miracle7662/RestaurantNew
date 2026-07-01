@@ -506,9 +506,9 @@ const handlePaymentModeChange = (modeId: number) => {
           service_charge_amount: toNumber(row.service_charge_amount),
           adults: toNumber(row.adults),
           pax: toNumber(row.pax),
-          ex_pax: toNumber(row.detail_ex_pax),
+          ex_pax: toNumber(row.ex_pax),
           child_paid: toNumber(row.child_count),
-          driver: toNumber(row.detail_driver),
+          driver: toNumber(row.driver),
           discount_percent: isPostCharge ? 0 : toNumber(row.discount_percent),
           discount_amount: isPostCharge
             ? 0
