@@ -133,61 +133,64 @@ exports.getCheckin = async (req, res) => {
     try {
         const { id } = req.params;
         const checkinId = parseInt(id);
-
         if (isNaN(checkinId)) {
             return res.status(400).json({ success: false, message: 'Invalid checkin ID' });
         }
 
         let hotelId = req.query.hotelid || getCurrentUserHotelId(req);
 
+        // Select only columns that exist in checkin_master
         let sql = `
             SELECT 
                 cm.checkin_id,
                 cm.guest_id,
-                cm.address,
-                cm.mobile,
-                cm.company_name,
-                cm.emailed,
+                cm.reg_no,
                 cm.booking,
                 cm.plan_name,
-                cm.reg_no,
-                cm.special_instruction,
-                cm.message,
                 cm.checkin_datetime,
                 cm.room_no,
-                cm.category_id,
-                cm.converted_category,
-                cm.adults,
-                cm.pax,
-                cm.pax_charges,
-                cm.ex_pax,
-                cm.ex_pax_charge,
-                cm.child_paid,
-                cm.child_unpaid,
-                cm.child_charge,
-                cm.driver,
-                cm.driver_charge,
+                cm.tot_room_tariff,
+                cm.tot_ex_pax_charge,
+                cm.tot_child_paid_amount,
+                cm.tot_driver_charge,
+                cm.tot_discount_amount,
+                cm.tot_cgst_amount,
+                cm.tot_sgst_amount,
+                cm.tot_igst_amount,
+                cm.tot_ex_cgst_amount,
+                cm.tot_ex_sgst_amount,
+                cm.tot_ex_igst_amount,
+                cm.tot_child_cgst_amount,
+                cm.tot_child_sgst_amount,
+                cm.tot_child_igst_amount,
+                cm.tot_driver_cgst_amount,
+                cm.tot_driver_sgst_amount,
+                cm.tot_driver_igst_amount,
+                cm.tot_service_charge_amount,
+                cm.tot_cess_amount,
+                cm.tot_advance,
                 cm.hotelid,
+                cm.total_amount,
+                cm.total_nights,
                 cm.id_type,
                 cm.id_number,
                 cm.department_id,
                 cm.department_name,
-                cm.status,
-                cm.total_nights,
-                cm.total_amount,
+                cm.special_instruction,
+                cm.message,
                 cm.created_by_id,
                 cm.created_date,
                 cm.updated_by_id,
                 cm.updated_date,
-                cm.room_id,          -- ✅ new field added
-                cm.is_settle,        -- ✅ new field added
-                cm.checkout_id       -- ✅ new field added
+                cm.status,
+                cm.room_id,
+                cm.is_settle,
+                cm.checkout_id
             FROM checkin_master cm
             WHERE cm.checkin_id = ?
         `;
 
         const params = [checkinId];
-
         if (hotelId) {
             sql += ` AND cm.hotelid = ?`;
             params.push(hotelId);
@@ -199,12 +202,18 @@ exports.getCheckin = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Checkin not found' });
         }
 
+        // Format dates – only for columns that exist
+        const formatDateSafe = (dateVal) => {
+            if (!dateVal) return null;
+            return formatDate(dateVal);
+        };
+
         const formattedCheckin = {
             ...checkins[0],
-            checkin_datetime: formatDate(checkins[0].checkin_datetime),
-            checkout_datetime: formatDate(checkins[0].checkout_datetime),
-            created_date: formatDate(checkins[0].created_date),
-            updated_date: formatDate(checkins[0].updated_date)
+            checkin_datetime: formatDateSafe(checkins[0].checkin_datetime),
+            created_date: formatDateSafe(checkins[0].created_date),
+            updated_date: formatDateSafe(checkins[0].updated_date)
+            // checkout_datetime is NOT in this table, so we don't format it
         };
 
         res.json({
