@@ -69,204 +69,261 @@ const getAvailableStatusId = async () => {
 // ----------------------------------------------------------------------
 // GET /checkins – list checkins
 // ----------------------------------------------------------------------
+// exports.getCheckins = async (req, res) => {
+//     try {
+//         let hotelId = req.query.hotelid || req.query.mst_hotelid;
+//         if (!hotelId) hotelId = getCurrentUserHotelId(req);
+//         if (!hotelId) {
+//             return res.status(400).json({ success: false, message: 'Hotel ID not found' });
+//         }
+
+//         const { q, status } = req.query;
+
+//         let sql = `
+//       SELECT
+//     -- Checkin Master
+//     cm.checkin_id,
+//     cm.reg_no,
+//     cm.booking,
+//     cm.plan_name,
+//     cm.checkin_datetime,
+//     cm.checkout_datetime,
+//     cm.hotelid,
+//     cm.checkout_id,
+
+//     -- Room Details
+//     cdm.detail_id,
+//     cdm.guest_id,
+//     cdm.room_id,
+//     cdm.room_number,
+//     cdm.room_category_name,
+//     cdm.converted_category_name,
+//     cdm.room_tariff,
+//     cdm.discount_percent,
+//     cdm.cgst_percent,
+//     cdm.sgst_percent,
+//     cdm.igst_percent,
+//     cdm.cess_percent AS detail_cess_percent,
+//     cdm.service_charge AS detail_service_charge,
+//     cdm.is_settle,
+//     cdm.parent_detail_id,
+
+//     cdm.checkin_datetime AS detail_checkin_datetime,
+//     cdm.checkout_datetime AS detail_checkout_datetime,
+
+//     cdm.adults AS detail_adults,
+//     cdm.pax AS detail_pax,
+//     cdm.ex_pax AS detail_ex_pax,
+//     cdm.child_unpaid AS detail_child_unpaid,
+//     cdm.driver AS detail_driver,
+
+//     cdm.ex_pax_charge AS detail_ex_pax_charge,
+//     cdm.child_paid_amount AS detail_child_paid_amount,
+//     cdm.driver_charge AS detail_driver_charge,
+
+//     -- Guest
+//     gm.name AS guest_name,
+//     gm.mobile,
+//     gm.address,
+//     gm.email,
+//     comp.company_name,
+
+//     -- Folio Summary
+//     COALESCE(cgfm.total_debit,0)  AS total_debit,
+//     COALESCE(cgfm.total_credit,0) AS total_credit,
+
+//     -- Room Charges Summary
+//     COALESCE(cgrc.total_amount,0) AS total_amount,
+//     COALESCE(cgrc.pax_count,0) AS pax_count,
+//     COALESCE(cgrc.pax_price,0) AS pax_price,
+//     COALESCE(cgrc.pax_tax,0) AS pax_tax,
+
+//     COALESCE(cgrc.ex_pax_count,0) AS ex_pax_count,
+//     COALESCE(cgrc.ex_pax_price,0) AS ex_pax_price,
+//     COALESCE(cgrc.ex_pax_tax,0) AS ex_pax_tax,
+
+//     COALESCE(cgrc.child_count,0) AS child_count,
+//     COALESCE(cgrc.child_price,0) AS child_price,
+//     COALESCE(cgrc.child_tax,0) AS child_tax,
+
+//     COALESCE(cgrc.driver_count,0) AS driver_count,
+//     COALESCE(cgrc.driver_price,0) AS driver_price,
+//     COALESCE(cgrc.driver_tax,0) AS driver_tax
+
+// FROM checkin_master cm
+
+// LEFT JOIN (
+//     SELECT c1.*
+//     FROM checkin_detail_master c1
+//     INNER JOIN (
+//         SELECT
+//             checkin_id,
+//             room_id,
+//             MAX(detail_id) AS detail_id
+//         FROM checkin_detail_master
+//         WHERE is_settle = 0
+//         GROUP BY checkin_id, room_id
+//     ) x
+//         ON c1.detail_id = x.detail_id
+// ) cdm
+// ON cm.checkin_id = cdm.checkin_id
+
+// LEFT JOIN guest_master gm
+//     ON gm.guest_id = cdm.guest_id
+
+// LEFT JOIN company_master comp
+//     ON comp.company_id = gm.company_id
+
+// -- Folio Aggregate
+// LEFT JOIN (
+//     SELECT
+//         checkin_id,
+//         room_id,
+//         SUM(debit_amount)  AS total_debit,
+//         SUM(credit_amount) AS total_credit
+//     FROM checkin_guest_folio_master
+//     GROUP BY checkin_id, room_id
+// ) cgfm
+// ON cgfm.checkin_id = cdm.checkin_id
+// AND cgfm.room_id = cdm.room_id
+
+// -- Room Charges Aggregate
+// LEFT JOIN (
+//     SELECT
+//         checkin_id,
+//         room_id,
+
+//         SUM(total_amount) AS total_amount,
+
+//         SUM(pax_count) AS pax_count,
+//         SUM(pax_price) AS pax_price,
+//         SUM(pax_tax) AS pax_tax,
+
+//         SUM(ex_pax_count) AS ex_pax_count,
+//         SUM(ex_pax_price) AS ex_pax_price,
+//         SUM(ex_pax_tax) AS ex_pax_tax,
+
+//         SUM(child_count) AS child_count,
+//         SUM(child_price) AS child_price,
+//         SUM(child_tax) AS child_tax,
+
+//         SUM(driver_count) AS driver_count,
+//         SUM(driver_price) AS driver_price,
+//         SUM(driver_tax) AS driver_tax
+
+//     FROM checkin_guest_room_charges
+//     GROUP BY checkin_id, room_id
+// ) cgrc
+// ON cgrc.checkin_id = cdm.checkin_id
+// AND cgrc.room_id = cdm.room_id
+
+// WHERE cm.hotelid = ?`;
+
+//         const params = [hotelId];
+
+//         // Build WHERE conditions
+//         let whereConditions = [];
+
+//         if (!status) {
+//             whereConditions.push(`cm.status = 'active'`);
+//         } else if (status === 'checked_out') {
+//             whereConditions.push(`cm.status = 'checked_out'`);
+//         } else if (status === 'all') {
+//             // Show all checkins including checked_out - no status filter needed
+//         } else {
+//             whereConditions.push(`cm.status = ?`);
+//             params.push(status);
+//         }
+
+//         if (q) {
+//             whereConditions.push(`(cm.guest_name LIKE ? OR cm.reg_no LIKE ? OR cm.mobile LIKE ?)`);
+//             const like = `%${q}%`;
+//             params.push(like, like, like);
+//         }
+
+//         // Add WHERE conditions if any
+//         if (whereConditions.length > 0) {
+//             sql += ` AND ${whereConditions.join(' AND ')}`;
+//         }
+
+//         // Add ORDER BY at the end
+//         sql += ` ORDER BY cm.checkin_id DESC, cdm.room_number`;
+
+//         const [checkins] = await db.execute(sql, params);
+
+//         const formattedCheckins = checkins.map(checkin => ({
+//             ...checkin,
+//             checkin_datetime: formatDate(checkin.checkin_datetime),
+//             checkout_datetime: formatDate(checkin.checkout_datetime),
+//             created_date: formatDate(checkin.created_date),
+//             updated_date: formatDate(checkin.updated_date)
+//         }));
+
+//         res.json({
+//             success: true,
+//             message: 'Checkins fetched successfully',
+//             data: formattedCheckins,
+//         });
+//     } catch (error) {
+//         console.error('Error fetching checkins:', error);
+//         res.status(500).json({ success: false, message: 'Database error', error: error.message });
+//     }
+// };
 exports.getCheckins = async (req, res) => {
     try {
+        // Get Hotel ID
         let hotelId = req.query.hotelid || req.query.mst_hotelid;
-        if (!hotelId) hotelId = getCurrentUserHotelId(req);
+
         if (!hotelId) {
-            return res.status(400).json({ success: false, message: 'Hotel ID not found' });
+            hotelId = getCurrentUserHotelId(req);
         }
 
-        const { q, status } = req.query;
-
-        let sql = `
-      SELECT
-    -- Checkin Master
-    cm.checkin_id,
-    cm.reg_no,
-    cm.booking,
-    cm.plan_name,
-    cm.checkin_datetime,
-    cm.checkout_datetime,
-    cm.hotelid,
-    cm.checkout_id,
-
-    -- Room Details
-    cdm.detail_id,
-    cdm.guest_id,
-    cdm.room_id,
-    cdm.room_number,
-    cdm.room_category_name,
-    cdm.converted_category_name,
-    cdm.room_tariff,
-    cdm.discount_percent,
-    cdm.cgst_percent,
-    cdm.sgst_percent,
-    cdm.igst_percent,
-    cdm.cess_percent AS detail_cess_percent,
-    cdm.service_charge AS detail_service_charge,
-    cdm.is_settle,
-    cdm.parent_detail_id,
-
-    cdm.checkin_datetime AS detail_checkin_datetime,
-    cdm.checkout_datetime AS detail_checkout_datetime,
-
-    cdm.adults AS detail_adults,
-    cdm.pax AS detail_pax,
-    cdm.ex_pax AS detail_ex_pax,
-    cdm.child_unpaid AS detail_child_unpaid,
-    cdm.driver AS detail_driver,
-
-    cdm.ex_pax_charge AS detail_ex_pax_charge,
-    cdm.child_paid_amount AS detail_child_paid_amount,
-    cdm.driver_charge AS detail_driver_charge,
-
-    -- Guest
-    gm.name AS guest_name,
-    gm.mobile,
-    gm.address,
-    gm.email,
-    comp.company_name,
-
-    -- Folio Summary
-    COALESCE(cgfm.total_debit,0)  AS total_debit,
-    COALESCE(cgfm.total_credit,0) AS total_credit,
-
-    -- Room Charges Summary
-    COALESCE(cgrc.total_amount,0) AS total_amount,
-    COALESCE(cgrc.pax_count,0) AS pax_count,
-    COALESCE(cgrc.pax_price,0) AS pax_price,
-    COALESCE(cgrc.pax_tax,0) AS pax_tax,
-
-    COALESCE(cgrc.ex_pax_count,0) AS ex_pax_count,
-    COALESCE(cgrc.ex_pax_price,0) AS ex_pax_price,
-    COALESCE(cgrc.ex_pax_tax,0) AS ex_pax_tax,
-
-    COALESCE(cgrc.child_count,0) AS child_count,
-    COALESCE(cgrc.child_price,0) AS child_price,
-    COALESCE(cgrc.child_tax,0) AS child_tax,
-
-    COALESCE(cgrc.driver_count,0) AS driver_count,
-    COALESCE(cgrc.driver_price,0) AS driver_price,
-    COALESCE(cgrc.driver_tax,0) AS driver_tax
-
-FROM checkin_master cm
-
-LEFT JOIN (
-    SELECT c1.*
-    FROM checkin_detail_master c1
-    INNER JOIN (
-        SELECT
-            checkin_id,
-            room_id,
-            MAX(detail_id) AS detail_id
-        FROM checkin_detail_master
-        WHERE is_settle = 0
-        GROUP BY checkin_id, room_id
-    ) x
-        ON c1.detail_id = x.detail_id
-) cdm
-ON cm.checkin_id = cdm.checkin_id
-
-LEFT JOIN guest_master gm
-    ON gm.guest_id = cdm.guest_id
-
-LEFT JOIN company_master comp
-    ON comp.company_id = gm.company_id
-
--- Folio Aggregate
-LEFT JOIN (
-    SELECT
-        checkin_id,
-        room_id,
-        SUM(debit_amount)  AS total_debit,
-        SUM(credit_amount) AS total_credit
-    FROM checkin_guest_folio_master
-    GROUP BY checkin_id, room_id
-) cgfm
-ON cgfm.checkin_id = cdm.checkin_id
-AND cgfm.room_id = cdm.room_id
-
--- Room Charges Aggregate
-LEFT JOIN (
-    SELECT
-        checkin_id,
-        room_id,
-
-        SUM(total_amount) AS total_amount,
-
-        SUM(pax_count) AS pax_count,
-        SUM(pax_price) AS pax_price,
-        SUM(pax_tax) AS pax_tax,
-
-        SUM(ex_pax_count) AS ex_pax_count,
-        SUM(ex_pax_price) AS ex_pax_price,
-        SUM(ex_pax_tax) AS ex_pax_tax,
-
-        SUM(child_count) AS child_count,
-        SUM(child_price) AS child_price,
-        SUM(child_tax) AS child_tax,
-
-        SUM(driver_count) AS driver_count,
-        SUM(driver_price) AS driver_price,
-        SUM(driver_tax) AS driver_tax
-
-    FROM checkin_guest_room_charges
-    GROUP BY checkin_id, room_id
-) cgrc
-ON cgrc.checkin_id = cdm.checkin_id
-AND cgrc.room_id = cdm.room_id
-
-WHERE cm.hotelid = ?`;
-
-        const params = [hotelId];
-
-        // Build WHERE conditions
-        let whereConditions = [];
-
-        if (!status) {
-            whereConditions.push(`cm.status = 'active'`);
-        } else if (status === 'checked_out') {
-            whereConditions.push(`cm.status = 'checked_out'`);
-        } else if (status === 'all') {
-            // Show all checkins including checked_out - no status filter needed
-        } else {
-            whereConditions.push(`cm.status = ?`);
-            params.push(status);
+        if (!hotelId) {
+            return res.status(400).json({
+                success: false,
+                message: "Hotel ID not found"
+            });
         }
 
-        if (q) {
-            whereConditions.push(`(cm.guest_name LIKE ? OR cm.reg_no LIKE ? OR cm.mobile LIKE ?)`);
-            const like = `%${q}%`;
-            params.push(like, like, like);
-        }
+        // Optional Checkin ID
+        const checkinId = req.query.checkin_id || 0;
 
-        // Add WHERE conditions if any
-        if (whereConditions.length > 0) {
-            sql += ` AND ${whereConditions.join(' AND ')}`;
-        }
+        // Call Store Procedure
+        const [result] = await db.execute(
+            "CALL sp_get_checkins(?, ?)",
+            [hotelId, checkinId]
+        );
 
-        // Add ORDER BY at the end
-        sql += ` ORDER BY cm.checkin_id DESC, cdm.room_number`;
+        // MySQL SP returns first result set
+        const checkins = result[0] || [];
 
-        const [checkins] = await db.execute(sql, params);
-
+        // Format Dates
         const formattedCheckins = checkins.map(checkin => ({
             ...checkin,
             checkin_datetime: formatDate(checkin.checkin_datetime),
             checkout_datetime: formatDate(checkin.checkout_datetime),
-            created_date: formatDate(checkin.created_date),
-            updated_date: formatDate(checkin.updated_date)
+            created_date: checkin.created_date
+                ? formatDate(checkin.created_date)
+                : null,
+            updated_date: checkin.updated_date
+                ? formatDate(checkin.updated_date)
+                : null
         }));
 
-        res.json({
+        return res.status(200).json({
             success: true,
-            message: 'Checkins fetched successfully',
-            data: formattedCheckins,
+            message: "Checkins fetched successfully",
+            data: formattedCheckins
         });
+
     } catch (error) {
-        console.error('Error fetching checkins:', error);
-        res.status(500).json({ success: false, message: 'Database error', error: error.message });
+        console.error("Error fetching checkins:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Database error",
+            error: error.message
+        });
     }
 };
 
