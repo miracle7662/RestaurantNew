@@ -71,20 +71,58 @@ export interface TodayCheckout {
 }
 
 export interface CheckInPayload {
+  // ----- Master fields (as per sp_add_checkin) -----
   guest_id?: number;
+  booking?: string;
+  plan_name?: string;
+  checkin_datetime?: string;
+  checkout_datetime?: string;
+  room_no?: string;
+  room_id?: string; // comma-separated room ids
+  tot_room_tariff?: number;
+  tot_ex_pax_charge?: number;
+  tot_child_paid_amount?: number;
+  tot_driver_charge?: number;
+  tot_discount_amount?: number;
+  tot_cgst_amount?: number;
+  tot_sgst_amount?: number;
+  tot_igst_amount?: number;
+  tot_ex_cgst_amount?: number;
+  tot_ex_sgst_amount?: number;
+  tot_ex_igst_amount?: number;
+  tot_child_cgst_amount?: number;
+  tot_child_sgst_amount?: number;
+  tot_child_igst_amount?: number;
+  tot_driver_cgst_amount?: number;
+  tot_driver_sgst_amount?: number;
+  tot_driver_igst_amount?: number;
+  tot_service_charge_amount?: number;
+  tot_cess_amount?: number;
+  tot_advance?: number;
+  hotelid?: number;
+  outletid?: number;
+  id_type?: string;
+  id_number?: string;
+  department_id?: number;
+  department_name?: string;
+  special_instruction?: string;
+  message?: string;
+  total_nights?: number;
+  total_amount?: number;
+  status?: string;
+  created_by_id?: number;
+
+  // ----- Nested arrays (sent only in create) -----
+  details?: any[];         // array of detail objects for checkin_detail_master
+  room_charges?: any[];    // array of room charge objects for checkin_guest_room_charges
+  folio_entries?: any[];   // array of folio entry objects for checkin_guest_folio_master
+
+  // ----- Legacy fields (used in update and other endpoints, optional) -----
   guest_name?: string;
   address?: string;
   mobile?: string;
   company_name?: string;
   emailed?: string;
-  booking?: string;
-  plan_name?: string;
-  reg_no?: string;
-  special_instruction?: string;
-  message?: string;
-  checkin_datetime?: string;
-  checkout_datetime?: string;
-  room_no?: string;
   category_id?: number;
   converted_category?: string;
   adults?: number;
@@ -97,16 +135,8 @@ export interface CheckInPayload {
   child_charge?: number;
   driver?: number | string;
   driver_charge?: number;
-  hotelid?: number;
-  id_type?: string;
-  id_number?: string;
-  department_id?: number;
-  department_name?: string;
-  status?: string;
-  created_by_id?: number;
   room_ids?: number[];
-  total_nights?: number;
-  total_amount?: number;
+  reg_no?: string;
 }
 
 export interface ExtendStayPayload {
@@ -155,12 +185,11 @@ export interface ExtendDayResponse {
   checkin: CheckIn | null;
 }
 
-
 const CheckInService = {
- // In src/common/hotel/checkIn.ts
-list(params?: { hotelid?: number; status?: string; q?: string }) {
-  return HttpClient.get<ApiResponse<CheckIn[]>>("/checkins", { params });
-},
+  // In src/common/hotel/checkIn.ts
+  list(params?: { hotelid?: number; status?: string; q?: string }) {
+    return HttpClient.get<ApiResponse<CheckIn[]>>("/checkins", { params });
+  },
 
   get: (id: number): Promise<ApiResponse<CheckIn>> =>
     HttpClient.get<ApiResponse<CheckIn>>(`/checkins/${id}`),

@@ -33,8 +33,7 @@ exports.getPostCharges = async (req, res) => {
       SELECT pc.*, 
              gm.name as guest_name,
              rm.room_no,
-             cm.reg_no,
-             cm.guest_name as checkin_guest_name
+             cm.reg_no
       FROM post_charges pc
       LEFT JOIN guest_master gm ON pc.guest_id = gm.guest_id
       LEFT JOIN room_master rm ON pc.room_id = rm.room_id
@@ -156,13 +155,12 @@ exports.addPostCharge = async (req, res) => {
 
     // Get checkin data to get original checkin_datetime
     const [checkinData] = await connection.query(`
-      SELECT checkin_datetime, checkout_datetime, total_amount 
+      SELECT checkin_datetime, total_amount 
       FROM CheckIn_Master 
       WHERE checkin_id = ?
     `, [checkin_id]);
     
     const originalCheckinDateTime = checkinData[0]?.checkin_datetime || mysqlDateTime;
-    const originalCheckoutDateTime = checkinData[0]?.checkout_datetime || mysqlDateTime;
     const currentCheckinTotal = Number(checkinData[0]?.total_amount) || 0;
 
     // ===============================

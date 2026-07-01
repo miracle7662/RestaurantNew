@@ -66,209 +66,8 @@ const getAvailableStatusId = async () => {
     return altStatuses.length > 0 ? altStatuses[0].room_status_id : 1;
 };
 
-// ----------------------------------------------------------------------
-// GET /checkins – list checkins
-// ----------------------------------------------------------------------
-// exports.getCheckins = async (req, res) => {
-//     try {
-//         let hotelId = req.query.hotelid || req.query.mst_hotelid;
-//         if (!hotelId) hotelId = getCurrentUserHotelId(req);
-//         if (!hotelId) {
-//             return res.status(400).json({ success: false, message: 'Hotel ID not found' });
-//         }
 
-//         const { q, status } = req.query;
 
-//         let sql = `
-//       SELECT
-//     -- Checkin Master
-//     cm.checkin_id,
-//     cm.reg_no,
-//     cm.booking,
-//     cm.plan_name,
-//     cm.checkin_datetime,
-//     cm.checkout_datetime,
-//     cm.hotelid,
-//     cm.checkout_id,
-
-//     -- Room Details
-//     cdm.detail_id,
-//     cdm.guest_id,
-//     cdm.room_id,
-//     cdm.room_number,
-//     cdm.room_category_name,
-//     cdm.converted_category_name,
-//     cdm.room_tariff,
-//     cdm.discount_percent,
-//     cdm.cgst_percent,
-//     cdm.sgst_percent,
-//     cdm.igst_percent,
-//     cdm.cess_percent AS detail_cess_percent,
-//     cdm.service_charge AS detail_service_charge,
-//     cdm.is_settle,
-//     cdm.parent_detail_id,
-
-//     cdm.checkin_datetime AS detail_checkin_datetime,
-//     cdm.checkout_datetime AS detail_checkout_datetime,
-
-//     cdm.adults AS detail_adults,
-//     cdm.pax AS detail_pax,
-//     cdm.ex_pax AS detail_ex_pax,
-//     cdm.child_unpaid AS detail_child_unpaid,
-//     cdm.driver AS detail_driver,
-
-//     cdm.ex_pax_charge AS detail_ex_pax_charge,
-//     cdm.child_paid_amount AS detail_child_paid_amount,
-//     cdm.driver_charge AS detail_driver_charge,
-
-//     -- Guest
-//     gm.name AS guest_name,
-//     gm.mobile,
-//     gm.address,
-//     gm.email,
-//     comp.company_name,
-
-//     -- Folio Summary
-//     COALESCE(cgfm.total_debit,0)  AS total_debit,
-//     COALESCE(cgfm.total_credit,0) AS total_credit,
-
-//     -- Room Charges Summary
-//     COALESCE(cgrc.total_amount,0) AS total_amount,
-//     COALESCE(cgrc.pax_count,0) AS pax_count,
-//     COALESCE(cgrc.pax_price,0) AS pax_price,
-//     COALESCE(cgrc.pax_tax,0) AS pax_tax,
-
-//     COALESCE(cgrc.ex_pax_count,0) AS ex_pax_count,
-//     COALESCE(cgrc.ex_pax_price,0) AS ex_pax_price,
-//     COALESCE(cgrc.ex_pax_tax,0) AS ex_pax_tax,
-
-//     COALESCE(cgrc.child_count,0) AS child_count,
-//     COALESCE(cgrc.child_price,0) AS child_price,
-//     COALESCE(cgrc.child_tax,0) AS child_tax,
-
-//     COALESCE(cgrc.driver_count,0) AS driver_count,
-//     COALESCE(cgrc.driver_price,0) AS driver_price,
-//     COALESCE(cgrc.driver_tax,0) AS driver_tax
-
-// FROM checkin_master cm
-
-// LEFT JOIN (
-//     SELECT c1.*
-//     FROM checkin_detail_master c1
-//     INNER JOIN (
-//         SELECT
-//             checkin_id,
-//             room_id,
-//             MAX(detail_id) AS detail_id
-//         FROM checkin_detail_master
-//         WHERE is_settle = 0
-//         GROUP BY checkin_id, room_id
-//     ) x
-//         ON c1.detail_id = x.detail_id
-// ) cdm
-// ON cm.checkin_id = cdm.checkin_id
-
-// LEFT JOIN guest_master gm
-//     ON gm.guest_id = cdm.guest_id
-
-// LEFT JOIN company_master comp
-//     ON comp.company_id = gm.company_id
-
-// -- Folio Aggregate
-// LEFT JOIN (
-//     SELECT
-//         checkin_id,
-//         room_id,
-//         SUM(debit_amount)  AS total_debit,
-//         SUM(credit_amount) AS total_credit
-//     FROM checkin_guest_folio_master
-//     GROUP BY checkin_id, room_id
-// ) cgfm
-// ON cgfm.checkin_id = cdm.checkin_id
-// AND cgfm.room_id = cdm.room_id
-
-// -- Room Charges Aggregate
-// LEFT JOIN (
-//     SELECT
-//         checkin_id,
-//         room_id,
-
-//         SUM(total_amount) AS total_amount,
-
-//         SUM(pax_count) AS pax_count,
-//         SUM(pax_price) AS pax_price,
-//         SUM(pax_tax) AS pax_tax,
-
-//         SUM(ex_pax_count) AS ex_pax_count,
-//         SUM(ex_pax_price) AS ex_pax_price,
-//         SUM(ex_pax_tax) AS ex_pax_tax,
-
-//         SUM(child_count) AS child_count,
-//         SUM(child_price) AS child_price,
-//         SUM(child_tax) AS child_tax,
-
-//         SUM(driver_count) AS driver_count,
-//         SUM(driver_price) AS driver_price,
-//         SUM(driver_tax) AS driver_tax
-
-//     FROM checkin_guest_room_charges
-//     GROUP BY checkin_id, room_id
-// ) cgrc
-// ON cgrc.checkin_id = cdm.checkin_id
-// AND cgrc.room_id = cdm.room_id
-
-// WHERE cm.hotelid = ?`;
-
-//         const params = [hotelId];
-
-//         // Build WHERE conditions
-//         let whereConditions = [];
-
-//         if (!status) {
-//             whereConditions.push(`cm.status = 'active'`);
-//         } else if (status === 'checked_out') {
-//             whereConditions.push(`cm.status = 'checked_out'`);
-//         } else if (status === 'all') {
-//             // Show all checkins including checked_out - no status filter needed
-//         } else {
-//             whereConditions.push(`cm.status = ?`);
-//             params.push(status);
-//         }
-
-//         if (q) {
-//             whereConditions.push(`(cm.guest_name LIKE ? OR cm.reg_no LIKE ? OR cm.mobile LIKE ?)`);
-//             const like = `%${q}%`;
-//             params.push(like, like, like);
-//         }
-
-//         // Add WHERE conditions if any
-//         if (whereConditions.length > 0) {
-//             sql += ` AND ${whereConditions.join(' AND ')}`;
-//         }
-
-//         // Add ORDER BY at the end
-//         sql += ` ORDER BY cm.checkin_id DESC, cdm.room_number`;
-
-//         const [checkins] = await db.execute(sql, params);
-
-//         const formattedCheckins = checkins.map(checkin => ({
-//             ...checkin,
-//             checkin_datetime: formatDate(checkin.checkin_datetime),
-//             checkout_datetime: formatDate(checkin.checkout_datetime),
-//             created_date: formatDate(checkin.created_date),
-//             updated_date: formatDate(checkin.updated_date)
-//         }));
-
-//         res.json({
-//             success: true,
-//             message: 'Checkins fetched successfully',
-//             data: formattedCheckins,
-//         });
-//     } catch (error) {
-//         console.error('Error fetching checkins:', error);
-//         res.status(500).json({ success: false, message: 'Database error', error: error.message });
-//     }
-// };
 exports.getCheckins = async (req, res) => {
     try {
         // Get Hotel ID
@@ -345,7 +144,6 @@ exports.getCheckin = async (req, res) => {
             SELECT 
                 cm.checkin_id,
                 cm.guest_id,
-                cm.guest_name,
                 cm.address,
                 cm.mobile,
                 cm.company_name,
@@ -356,7 +154,6 @@ exports.getCheckin = async (req, res) => {
                 cm.special_instruction,
                 cm.message,
                 cm.checkin_datetime,
-                cm.checkout_datetime,
                 cm.room_no,
                 cm.category_id,
                 cm.converted_category,
@@ -547,7 +344,7 @@ exports.getTodayCheckouts = async (req, res) => {
         const [checkouts] = await db.execute(`
             SELECT 
                 cm.checkin_id,
-                cm.guest_name,
+               
                 cm.reg_no,
                 cm.room_no,
                 cm.booking,
@@ -602,20 +399,11 @@ exports.addCheckin = async (req, res) => {
     const userId = body.created_by_id || 1;
 
     console.log('📥 ===== ADD CHECKIN REQUEST =====');
-    console.log('📥 Guest Name:', body.guest_name);
+    console.log('📥 Guest ID:', body.guest_id);
     console.log('📥 Hotel ID:', body.hotelid);
-    console.log('📥 Room IDs received:', body.room_ids);
     console.log('📥 Room ID string:', body.room_id);
 
-    // ✅ LOG THE JSON PAYLOADS FOR DEBUGGING
-    console.log('📥 Details JSON length:', body.details?.length || 0);
-    console.log('📥 Room Charges JSON length:', body.room_charges?.length || 0);
-    console.log('📥 Folio Entries JSON length:', body.folio_entries?.length || 0);
-    
-    if (body.room_charges && body.room_charges.length > 0) {
-      console.log('📥 First room charge:', JSON.stringify(body.room_charges[0], null, 2));
-    }
-
+    // ----- Helper: format datetime -----
     const formatDateTime = (val) => {
       if (!val) return null;
       if (val instanceof Date) return val;
@@ -629,237 +417,208 @@ exports.addCheckin = async (req, res) => {
       return val;
     };
 
-    // ✅ FIX: Handle room_ids properly - comma-separated string
+    // ----- Helper: ensure string or null -----
+    const toStr = (val) => (val !== undefined && val !== null && val !== '') ? String(val) : null;
+
+    // ----- Helper: ensure number or 0 -----
+    const toNum = (val) => (val !== undefined && val !== null) ? Number(val) : 0;
+
+    // ----- Ensure room_id is a comma‑separated string -----
     let roomIdsString = null;
-    if (body.room_ids && Array.isArray(body.room_ids) && body.room_ids.length > 0) {
-      roomIdsString = body.room_ids.join(',');
-    } else if (body.room_id && typeof body.room_id === 'string' && body.room_id.includes(',')) {
+    if (body.room_id && typeof body.room_id === 'string' && body.room_id.length > 0) {
       roomIdsString = body.room_id;
-    } else if (body.room_id) {
-      roomIdsString = String(body.room_id);
+    } else if (body.room_ids && Array.isArray(body.room_ids) && body.room_ids.length > 0) {
+      roomIdsString = body.room_ids.join(',');
+    } else if (body.details && Array.isArray(body.details) && body.details.length > 0) {
+      const ids = body.details.map(d => d.room_id).filter(id => id);
+      if (ids.length > 0) roomIdsString = ids.join(',');
     }
-
-    // ✅ If still null, use first room from details or default
-    if (!roomIdsString && body.details && Array.isArray(body.details) && body.details.length > 0) {
-      const roomIdsFromDetails = body.details.map(d => d.room_id).filter(id => id);
-      if (roomIdsFromDetails.length > 0) {
-        roomIdsString = roomIdsFromDetails.join(',');
-      }
-    }
-
-    // ✅ Default fallback
-    if (!roomIdsString) {
-      roomIdsString = '0';
-    }
+    if (!roomIdsString) roomIdsString = '0';
 
     console.log('📊 Final room_ids string:', roomIdsString);
 
-    // Convert driver properly
-    const driverValue = (body.driver !== undefined && body.driver !== null && body.driver !== 0 && body.driver !== '0' && body.driver !== '') 
-      ? String(body.driver) 
-      : null;
-
-    const specialInstruction = body.special_instruction !== undefined && body.special_instruction !== null && body.special_instruction !== ''
-      ? String(body.special_instruction)
-      : null;
-      
-    const message = body.message !== undefined && body.message !== null && body.message !== ''
-      ? String(body.message)
-      : null;
-
-    const idType = body.id_type !== undefined && body.id_type !== null && body.id_type !== ''
-      ? String(body.id_type)
-      : null;
-      
-    const idNumber = body.id_number !== undefined && body.id_number !== null && body.id_number !== ''
-      ? String(body.id_number)
-      : null;
-
-    const roomNo = body.room_no !== undefined && body.room_no !== null && body.room_no !== ''
-      ? String(body.room_no)
-      : null;
-
-    const convertedCategory = body.converted_category !== undefined && body.converted_category !== null && body.converted_category !== ''
-      ? String(body.converted_category)
-      : null;
-
-    // ✅ ENSURE JSON DATA IS PROPERLY STRINGIFIED WITH NULL CHECKS
+    // ----- JSON preparation with defaults -----
     let detailsJson = null;
-    let roomChargesJson = null;
-    let folioEntriesJson = null;
-
     if (body.details && Array.isArray(body.details) && body.details.length > 0) {
-      // Ensure all required fields have values
-      const cleanedDetails = body.details.map(d => ({
-        ...d,
-        guest_id: d.guest_id || 0,
-        room_id: d.room_id || 0,
-        room_category_id: d.room_category_id || 0,
-        no_of_days: d.no_of_days || 1,
-        adults: d.adults || 0,
-        pax: d.pax || 0,
-        ex_pax: d.ex_pax || 0,
-        child_unpaid: d.child_unpaid || 0,
-        driver: d.driver || 0,
-        room_tariff: d.room_tariff || 0,
-        ex_pax_charge: d.ex_pax_charge || 0,
-        child_paid_amount: d.child_paid_amount || 0,
-        driver_charge: d.driver_charge || 0,
-        discount_percent: d.discount_percent || 0,
-        discount_amount: d.discount_amount || 0,
-        cgst_percent: d.cgst_percent || 0,
-        cgst_amount: d.cgst_amount || 0,
-        sgst_percent: d.sgst_percent || 0,
-        sgst_amount: d.sgst_amount || 0,
-        igst_percent: d.igst_percent || 0,
-        igst_amount: d.igst_amount || 0,
-        cess_percent: d.cess_percent || 0,
-        cess_amount: d.cess_amount || 0,
-        service_charge: d.service_charge || 0,
-        service_charge_amount: d.service_charge_amount || 0,
-        tax: d.tax || 0
+      const cleaned = body.details.map(d => ({
+        guest_id: toNum(d.guest_id),
+        guest_name: toStr(d.guest_name) || '',
+        address: toStr(d.address) || '',
+        mobile: toStr(d.mobile) || '',
+        company_id: d.company_id ? Number(d.company_id) : null,
+        company_name: toStr(d.company_name) || '',
+        emailed: toStr(d.emailed) || '',
+        room_id: toNum(d.room_id),
+        room_number: toStr(d.room_number) || '',
+        room_category_id: toNum(d.room_category_id),
+        room_category_name: toStr(d.room_category_name) || '',
+        converted_category_id: toNum(d.converted_category_id),
+        converted_category_name: toStr(d.converted_category_name) || '',
+        checkin_datetime: formatDateTime(d.checkin_datetime) || formatDateTime(body.checkin_datetime),
+        checkout_datetime: formatDateTime(d.checkout_datetime) || formatDateTime(body.checkout_datetime),
+        no_of_days: toNum(d.no_of_days) || 1,
+        adults: toNum(d.adults),
+        pax: toNum(d.pax),
+        ex_pax: toNum(d.ex_pax),
+        child_paid: toNum(d.child_paid),
+        child_unpaid: toNum(d.child_unpaid),
+        driver: toNum(d.driver),
+        room_tariff: toNum(d.room_tariff),
+        ex_pax_charge: toNum(d.ex_pax_charge),
+        child_paid_amount: toNum(d.child_paid_amount),
+        driver_charge: toNum(d.driver_charge),
+        discount_percent: toNum(d.discount_percent),
+        discount_amount: toNum(d.discount_amount),
+        tax_percen_room: toNum(d.tax_percen_room),
+        cgst_percent: toNum(d.cgst_percent),
+        cgst_amount: toNum(d.cgst_amount),
+        sgst_percent: toNum(d.sgst_percent),
+        sgst_amount: toNum(d.sgst_amount),
+        igst_percent: toNum(d.igst_percent),
+        igst_amount: toNum(d.igst_amount),
+        tax_percen_ex: toNum(d.tax_percen_ex),
+        ex_cgst_percent: toNum(d.ex_cgst_percent),
+        ex_cgst_amount: toNum(d.ex_cgst_amount),
+        ex_sgst_percent: toNum(d.ex_sgst_percent),
+        ex_sgst_amount: toNum(d.ex_sgst_amount),
+        ex_igst_percent: toNum(d.ex_igst_percent),
+        ex_igst_amount: toNum(d.ex_igst_amount),
+        tax_percen_child: toNum(d.tax_percen_child),
+        child_cgst_percent: toNum(d.child_cgst_percent),
+        child_cgst_amount: toNum(d.child_cgst_amount),
+        child_sgst_percent: toNum(d.child_sgst_percent),
+        child_sgst_amount: toNum(d.child_sgst_amount),
+        child_igst_percent: toNum(d.child_igst_percent),
+        child_igst_amount: toNum(d.child_igst_amount),
+        tax_percen_driver: toNum(d.tax_percen_driver),
+        driver_cgst_percent: toNum(d.driver_cgst_percent),
+        driver_cgst_amount: toNum(d.driver_cgst_amount),
+        driver_sgst_percent: toNum(d.driver_sgst_percent),
+        driver_sgst_amount: toNum(d.driver_sgst_amount),
+        driver_igst_percent: toNum(d.driver_igst_percent),
+        driver_igst_amount: toNum(d.driver_igst_amount),
+        service_charge: toNum(d.service_charge),
+        service_charge_amount: toNum(d.service_charge_amount),
+        cess_percent: toNum(d.cess_percent),
+        cess_amount: toNum(d.cess_amount),
+        tax: toNum(d.tax),
+        // ✅ FIX: Add missing NOT NULL columns with default 0
+        parent_detail_id: 0,
+        is_checkout: 0,
+        merged: 0,
+        is_settle: 0
       }));
-      detailsJson = JSON.stringify(cleanedDetails);
-      console.log('📥 Cleaned details:', JSON.stringify(cleanedDetails[0], null, 2));
+      detailsJson = JSON.stringify(cleaned);
+      console.log('📥 Details JSON length:', detailsJson.length);
     }
 
+    let roomChargesJson = null;
     if (body.room_charges && Array.isArray(body.room_charges) && body.room_charges.length > 0) {
-      // Ensure all required fields have values
-      const cleanedCharges = body.room_charges.map(c => ({
-        ...c,
-        guest_id: c.guest_id || 0,
-        room_id: c.room_id || 0,
-        category_id: c.category_id || 0,
-        pax_count: c.pax_count || 0,
-        pax_price: c.pax_price || 0,
-        pax_tax: c.pax_tax || 0,
-        ex_pax_count: c.ex_pax_count || 0,
-        ex_pax_price: c.ex_pax_price || 0,
-        ex_pax_tax: c.ex_pax_tax || 0,
-        ex_pax_tax_percent: c.ex_pax_tax_percent || 0,
-        ex_pax_total: c.ex_pax_total || 0,
-        child_count: c.child_count || 0,
-        child_price: c.child_price || 0,
-        child_tax: c.child_tax || 0,
-        child_tax_percent: c.child_tax_percent || 0,
-        child_total: c.child_total || 0,
-        driver_count: c.driver_count || 0,
-        driver_price: c.driver_price || 0,
-        driver_tax: c.driver_tax || 0,
-        driver_tax_percent: c.driver_tax_percent || 0,
-        driver_total: c.driver_total || 0,
-        total_amount: c.total_amount || 0,
-        checkin_datetime: c.checkin_datetime || body.checkin_datetime,
-        checkout_datetime: c.checkout_datetime || body.checkout_datetime
+      const cleaned = body.room_charges.map(c => ({
+        guest_id: toNum(c.guest_id),
+        room_id: toNum(c.room_id),
+        room_no: toStr(c.room_no) || '',
+        category_id: toNum(c.category_id),
+        pax_count: toNum(c.pax_count),
+        pax_price: toNum(c.pax_price),
+        pax_tax: toNum(c.pax_tax),
+        ex_pax_count: toNum(c.ex_pax_count),
+        ex_pax_price: toNum(c.ex_pax_price),
+        ex_pax_tax: toNum(c.ex_pax_tax),
+        ex_pax_tax_percent: toNum(c.ex_pax_tax_percent),
+        ex_pax_total: toNum(c.ex_pax_total),
+        child_count: toNum(c.child_count),
+        child_price: toNum(c.child_price),
+        child_tax: toNum(c.child_tax),
+        child_tax_percent: toNum(c.child_tax_percent),
+        child_total: toNum(c.child_total),
+        driver_count: toNum(c.driver_count),
+        driver_price: toNum(c.driver_price),
+        driver_tax: toNum(c.driver_tax),
+        driver_tax_percent: toNum(c.driver_tax_percent),
+        driver_total: toNum(c.driver_total),
+        total_amount: toNum(c.total_amount),
+        checkin_datetime: formatDateTime(c.checkin_datetime) || formatDateTime(body.checkin_datetime),
+        checkout_datetime: formatDateTime(c.checkout_datetime) || formatDateTime(body.checkout_datetime)
       }));
-      roomChargesJson = JSON.stringify(cleanedCharges);
-      console.log('📥 Cleaned room charge:', JSON.stringify(cleanedCharges[0], null, 2));
+      roomChargesJson = JSON.stringify(cleaned);
+      console.log('📥 Room Charges JSON length:', roomChargesJson.length);
     }
 
+    let folioEntriesJson = null;
     if (body.folio_entries && Array.isArray(body.folio_entries) && body.folio_entries.length > 0) {
-      const cleanedFolio = body.folio_entries.map(f => ({
-        ...f,
-        hotel_id: f.hotel_id || body.hotelid,
-        room_id: f.room_id || 0,
-        debit_amount: f.debit_amount || 0,
-        credit_amount: f.credit_amount || 0
+      const cleaned = body.folio_entries.map(f => ({
+        hotel_id: toNum(f.hotel_id) || toNum(body.hotelid),
+        room_id: toNum(f.room_id) || 0,
+        transaction_type: toStr(f.transaction_type) || '',
+        transaction_datetime: formatDateTime(f.transaction_datetime) || new Date().toISOString().slice(0,19).replace('T',' '),
+        description: toStr(f.description) || '',
+        debit_amount: toNum(f.debit_amount),
+        credit_amount: toNum(f.credit_amount),
+        reference_number: toStr(f.reference_number),
+        payment_method: toStr(f.payment_method) || ''
       }));
-      folioEntriesJson = JSON.stringify(cleanedFolio);
-      console.log('📥 Cleaned folio entry:', JSON.stringify(cleanedFolio[0], null, 2));
+      folioEntriesJson = JSON.stringify(cleaned);
+      console.log('📥 Folio Entries JSON length:', folioEntriesJson.length);
     }
 
-    // ✅ BUILD ALL 40 PARAMETERS
+    // ----- Build parameter array in exact procedure order (42 parameters) -----
     const params = [
-      // 1-10: Personal Info
       body.guest_id ? Number(body.guest_id) : null,
-      body.guest_name ? String(body.guest_name) : null,
-      body.address ? String(body.address) : null,
-      body.mobile ? String(body.mobile) : null,
-      body.company_name ? String(body.company_name) : null,
-      body.emailed ? String(body.emailed) : null,
-      body.booking ? String(body.booking) : null,
-      body.plan_name ? String(body.plan_name) : null,
-      specialInstruction,
-      message,
-      
-      // 11-12: Dates
+      toStr(body.booking),
+      toStr(body.plan_name),
       formatDateTime(body.checkin_datetime),
       formatDateTime(body.checkout_datetime),
-      
-      // 13-16: Room Info
-      roomNo,
-      roomIdsString, // ✅ FIXED: String instead of Number
-      body.category_id ? Number(body.category_id) : null,
-      convertedCategory,
-      
-      // 17-26: Counts
-      Number(body.adults) || 0,
-      Number(body.pax) || 0,
-      Number(body.pax_charges) || 0,
-      Number(body.ex_pax) || 0,
-      Number(body.ex_pax_charge) || 0,
-      Number(body.child_paid) || 0,
-      Number(body.child_unpaid) || 0,
-      Number(body.child_charge) || 0,
-      driverValue,
-      Number(body.driver_charge) || 0,
-      
-      // 27-29: IDs
-      Number(body.hotelid),
-      Number(body.outletid) || 1,
-      Number(body.userid) || userId,
-      
-      // 30-31: ID Details
-      idType,
-      idNumber,
-      
-      // 32-33: Department
+      toStr(body.room_no),
+      roomIdsString,
+      toNum(body.tot_room_tariff),
+      toNum(body.tot_ex_pax_charge),
+      toNum(body.tot_child_paid_amount),
+      toNum(body.tot_driver_charge),
+      toNum(body.tot_discount_amount),
+      toNum(body.tot_cgst_amount),
+      toNum(body.tot_sgst_amount),
+      toNum(body.tot_igst_amount),
+      toNum(body.tot_ex_cgst_amount),
+      toNum(body.tot_ex_sgst_amount),
+      toNum(body.tot_ex_igst_amount),
+      toNum(body.tot_child_cgst_amount),
+      toNum(body.tot_child_sgst_amount),
+      toNum(body.tot_child_igst_amount),
+      toNum(body.tot_driver_cgst_amount),
+      toNum(body.tot_driver_sgst_amount),
+      toNum(body.tot_driver_igst_amount),
+      toNum(body.tot_service_charge_amount),
+      toNum(body.tot_cess_amount),
+      toNum(body.tot_advance),
+      toNum(body.hotelid),
+      toNum(body.outletid) || 1,
+      toStr(body.id_type),
+      toStr(body.id_number),
       body.department_id ? Number(body.department_id) : null,
-      body.department_name ? String(body.department_name) : null,
-      
-      // 34-35: Totals
-      Number(body.total_nights) || 0,
-      Number(body.total_amount) || 0,
-      
-      // 36: Status
-      body.status || 'active',
-      
-      // 37: Created By
+      toStr(body.department_name),
+      toStr(body.special_instruction),
+      toStr(body.message),
+      toNum(body.total_nights),
+      toNum(body.total_amount),
+      toStr(body.status) || 'active',
       Number(userId),
-      
-      // 38-40: JSON Data (with cleaned values)
       detailsJson,
       roomChargesJson,
       folioEntriesJson
     ];
 
-    // ✅ Verify parameter count
-    console.log(`📊 Total parameters: ${params.length}`);
-    
-    if (params.length !== 40) {
-      console.error(`❌ Expected 40 parameters, got ${params.length}`);
-      throw new Error(`Expected 40 parameters, got ${params.length}`);
+    if (params.length !== 42) {
+      throw new Error(`Expected 42 parameters, got ${params.length}`);
     }
 
-    // ✅ Check if any parameter is undefined
-    const undefinedParams = params.map((p, i) => p === undefined ? i+1 : null).filter(p => p !== null);
-    if (undefinedParams.length > 0) {
-      console.error(`❌ Undefined parameters at positions: ${undefinedParams.join(', ')}`);
-      throw new Error(`Undefined parameters at positions: ${undefinedParams.join(', ')}`);
-    }
-
-    // ✅ Log parameter summary
-    console.log('📊 Parameter summary:');
+    console.log(`📊 Parameter count: ${params.length}`);
     console.log(`  - Room IDs: ${roomIdsString}`);
-    console.log(`  - Driver: ${driverValue}`);
-    console.log(`  - Details JSON length: ${detailsJson ? detailsJson.length : 0}`);
-    console.log(`  - Room Charges JSON length: ${roomChargesJson ? roomChargesJson.length : 0}`);
-    console.log(`  - Folio Entries JSON length: ${folioEntriesJson ? folioEntriesJson.length : 0}`);
+    console.log(`  - Details JSON: ${detailsJson ? 'yes' : 'no'}`);
+    console.log(`  - Room Charges JSON: ${roomChargesJson ? 'yes' : 'no'}`);
+    console.log(`  - Folio Entries JSON: ${folioEntriesJson ? 'yes' : 'no'}`);
 
-    // Execute stored procedure
     const placeholders = params.map(() => '?').join(',');
-    console.log(`📊 Executing: CALL sp_add_checkin(${placeholders})`);
-    
     const [results] = await connection.execute(
       `CALL sp_add_checkin(${placeholders})`,
       params
@@ -867,24 +626,16 @@ exports.addCheckin = async (req, res) => {
 
     await connection.commit();
 
-    // Process the result
     let result = null;
     if (results && results.length > 0 && results[0] && results[0].length > 0) {
       result = results[0][0];
-      console.log('📊 Stored procedure result:', JSON.stringify(result, null, 2));
     }
 
     if (result && result.result) {
       let parsedResult;
       try {
-        if (typeof result.result === 'string') {
-          parsedResult = JSON.parse(result.result);
-        } else {
-          parsedResult = result.result;
-        }
-        console.log('📊 Parsed result:', JSON.stringify(parsedResult, null, 2));
+        parsedResult = typeof result.result === 'string' ? JSON.parse(result.result) : result.result;
       } catch (e) {
-        console.error('Error parsing result:', e);
         parsedResult = { success: false, message: 'Invalid result format' };
       }
 
@@ -900,17 +651,11 @@ exports.addCheckin = async (req, res) => {
           data: masterRow[0],
           checkin_id: parsedResult.checkin_id,
           reg_no: parsedResult.reg_no,
-          room_ids: roomIdsString, // Include in response
+          room_ids: roomIdsString,
           debug: parsedResult.debug
         });
       } else {
-        const errorMsg = parsedResult.message || 'Unknown error from stored procedure';
-        const sqlError = parsedResult.sql_error || '';
-        const debug = parsedResult.debug || '';
-        console.error('❌ Stored procedure error:', errorMsg);
-        console.error('❌ SQL Error:', sqlError);
-        console.error('❌ Debug info:', debug);
-        throw new Error(errorMsg + (sqlError ? ` (SQL: ${sqlError})` : ''));
+        throw new Error(parsedResult.message || 'Unknown error from stored procedure');
       }
     } else {
       throw new Error('No result from stored procedure');
@@ -918,28 +663,11 @@ exports.addCheckin = async (req, res) => {
 
   } catch (err) {
     if (connection) await connection.rollback();
-    
-    console.error('❌ addCheckin error:');
-    console.error('  Message:', err.message);
-    console.error('  Stack:', err.stack);
-    
-    // Check for SQL specific error
-    if (err.sqlMessage) {
-      console.error('  SQL Message:', err.sqlMessage);
-    }
-    if (err.sql) {
-      console.error('  SQL:', err.sql);
-    }
-    
-    res.status(500).json({ 
-      success: false, 
+    console.error('❌ addCheckin error:', err.message);
+    res.status(500).json({
+      success: false,
       message: err.message || 'Internal server error',
-      ...(process.env.NODE_ENV === 'development' && {
-        stack: err.stack,
-        code: err.code,
-        sqlMessage: err.sqlMessage,
-        sqlState: err.sqlState
-      })
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     });
   } finally {
     if (connection) connection.release();

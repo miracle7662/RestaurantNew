@@ -1,5 +1,5 @@
 // CheckInForm.tsx (MySQL Compatible Version - With Front Desk Settings Integration)
-// UPDATED: Guest history now uses checkout tables only
+// UPDATED: Payload aligned with sp_add_checkin stored procedure
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Container, Row, Col, Form as BootstrapForm, Button, Card } from 'react-bootstrap'
@@ -24,20 +24,11 @@ import taxApi from '@/common/hotel/taxes'
 import FragmentService from '@/common/hotel/fragments'
 import DocumentTypeService from '@/common/hotel/documentType'
 import CheckInService from '@/common/hotel/checkIn'
-import FrontdeskSettingAPI from '@/common/hotel/frontdeskSettings' // Import Front Desk Settings API
-
-// Removed unused imports:
-// import DetailService from '@/common/hotel/detail'
-// import GuestFolioService from '@/common/hotel/guestFolio'
-// import GuestRoomChargesService from '@/common/hotel/guestRoomCharges'
-// import AgentRoomCheckinService from '@/common/hotel/agentRoomCheckin'
-// import StockService from '@/common/hotel/stock'
+import FrontdeskSettingAPI from '@/common/hotel/frontdeskSettings'
 
 import PaymentModeService from '@/common/api/outletpaymentmode'
 import travelAgentApi from '@/common/hotel/travelagent'
 import { useAuthContext } from '@/common/context/useAuthContext'
-
-// Removed unused types: DetailPayload, GuestFolioPayload, AgentRoomCheckinPayload
 
 import GuestForm from '../Guest/GuestForm'
 import CompanyForm from '../Company/CompanyForm'
@@ -199,6 +190,10 @@ interface RoomRow {
   totalAmount?: number
   cgstAmount?: number
   sgstAmount?: number
+  cessAmount?: number
+  totalTax?: number
+  igstAmount?: number
+
 }
 
 interface GuestDocument {
@@ -213,7 +208,6 @@ interface GuestDocument {
   guest_photo_url?: string | null
 }
 
-// Front Desk Settings Interface
 interface FrontDeskSettings {
   hotelid: number
   outletid: number
@@ -247,35 +241,23 @@ const CheckInForm = () => {
 
   const hotelId = state?.hotelId || loggedInUser?.hotelid
 
-  // Front Desk Settings State
   const [frontDeskSettings, setFrontDeskSettings] = useState<FrontDeskSettings | null>(null)
 
-   // Fetch Front Desk Settings
-    // Fetch Front Desk Settings - UPDATED to handle response structure correctly
   const fetchFrontDeskSettings = async () => {
     if (!hotelId) return
     try {
-      // Use the getByOutlet method to fetch settings for the specific outlet
       const outletId = user?.outletid || 1
       const response = await FrontdeskSettingAPI.getByOutlet(outletId)
-      
-      // Check if response is successful and has data
       if (response && response.success && response.data) {
         setFrontDeskSettings(response.data)
-        console.log('Front desk settings loaded:', response.data)
       } else {
-        // If no settings found or response is empty, use defaults
-        console.log('No front desk settings found, using defaults')
         setFrontDeskSettings(null)
       }
     } catch (error: any) {
-      // 404 means no settings found - that's fine, use defaults
       if (error?.response?.status === 404) {
-        console.log('No front desk settings configured, using defaults')
         setFrontDeskSettings(null)
       } else {
         console.error('Failed to fetch front desk settings:', error)
-        // Don't show error toast - use default behavior
         setFrontDeskSettings(null)
       }
     }
@@ -292,7 +274,6 @@ const CheckInForm = () => {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        // Discard unsaved temp photo on escape/back
         setTempGuestPhoto(null)
         navigate(-1)
         return
@@ -419,40 +400,14 @@ const CheckInForm = () => {
   const [showGuestDocsModal, setShowGuestDocsModal] = useState(false)
   const [pendingGuestLoad, setPendingGuestLoad] = useState<number | null>(null)
 
-  // Temporary guest photo — stored in memory only until F9 (Check In) is confirmed.
-  // Never written to DB or uploads folder until onSubmit succeeds.
   const [tempGuestPhoto, setTempGuestPhoto] = useState<string | null>(null)
 
-  // ==================== FRONT DESK SETTINGS EFFECT ====================
-  // Fetch front desk settings when hotelId changes
+  // Fetch front desk settings
   useEffect(() => {
     if (hotelId) {
       fetchFrontDeskSettings()
     }
   }, [hotelId])
-
-
-
-  // ==================== INVENTORY AUTO-ASSIGN FUNCTION (kept but not used now) ====================
-  // const autoAssignAmenities = async (checkinId: number, roomId: number, guestCount: number) => {
-  //   if (!hotelId) return
-  //   try {
-  //     const response = await StockService.autoAssign({ 
-  //       checkin_id: checkinId, 
-  //       room_id: roomId, 
-  //       guest_count: guestCount,
-  //       hotelid: hotelId 
-  //     })
-  //     if (response.success && response.data?.assignedItems?.length > 0) {
-  //       console.log(`Auto-assigned amenities to room ${roomId}:`, response.data.assignedItems)
-  //       return response.data.assignedItems
-  //     }
-  //   } catch (error) {
-  //     console.error(`Failed to auto-assign amenities for room ${roomId}:`, error)
-  //   }
-  //   return []
-  // }
-  // ==================== END INVENTORY FUNCTION ====================
 
   const defaultGuestForm = {
     fragment_id: null,
@@ -484,9 +439,6 @@ const CheckInForm = () => {
     created_by_id: user?.id,
     documents: [],
   }
-
-  // Prepare Agent Room Checkin Payload Helper Function (kept for reference but not called)
-  
 
   useEffect(() => {
     const fetchRegNumber = async () => {
@@ -586,7 +538,7 @@ const CheckInForm = () => {
           RoomCategoryService.list({ hotelid: hotelId }),
           taxApi.list(),
           FragmentService.list(),
-          PaymentModeService.list({ outletid: user?.outletid ? String(user.outletid) : undefined }), // Assuming outletId is available in scope; replace with actual value or state if needed
+          PaymentModeService.list({ outletid: user?.outletid ? String(user.outletid) : undefined }),
         ])
 
         const countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || []
@@ -656,31 +608,25 @@ const CheckInForm = () => {
         const paymentMethodsData = Array.isArray(paymentMethodsRes)
           ? paymentMethodsRes
           : paymentMethodsRes?.data || []
-        // Filter only active types (status === 1) if status field present, else show all
-        
-        // ✅ FIX: pm.id is the payment_modes table PK — this is what must be stored
-        // in Checkout_Master.payment_id. Never use paymenttypeid here.
-         const mappedPaymentMethods = paymentMethodsData
-  .map((pm: any) => {
-    const modeName = pm.mode_name || ''
-    const safeName = modeName.trim()
-    if (!safeName) return null
-    return {
-      id: pm.id ?? pm.paymenttypeid,
-      name: safeName,
-      payment_method_name: safeName,
-    }
-  })
-  .filter((item): item is { id: number; name: string; payment_method_name: string } => item !== null)
+        const mappedPaymentMethods = paymentMethodsData
+          .map((pm: any) => {
+            const modeName = pm.mode_name || ''
+            const safeName = modeName.trim()
+            if (!safeName) return null
+            return {
+              id: pm.id ?? pm.paymenttypeid,
+              name: safeName,
+              payment_method_name: safeName,
+            }
+          })
+          .filter((item): item is { id: number; name: string; payment_method_name: string } => item !== null)
         setPaymentMethods(mappedPaymentMethods)
-        // Pre-select Cash as default; also pre-set the numeric id
         const cashMethod = mappedPaymentMethods.find(
           (pm: any) => pm.payment_method_name?.toLowerCase() === 'cash'
         )
         if (cashMethod) {
           formik.setFieldValue('paymentMethod', cashMethod.payment_method_name)
         } else if (mappedPaymentMethods.length > 0) {
-          // Fall back to first available mode
           formik.setFieldValue('paymentMethod', mappedPaymentMethods[0].payment_method_name)
         }
       } catch (error) {
@@ -702,10 +648,8 @@ const CheckInForm = () => {
     }
   }, [hotelId])
 
-  // Sentinel value for the "Self" option
   const SELF_AGENT_VALUE = '__SELF__'
 
-  // Build agent options: "Self" first, then all travel agents from API
   const travelAgentOptions = useMemo(() => {
     const selfOption = { label: `Self`, value: SELF_AGENT_VALUE }
     const agentOpts = travelAgents.map((a) => ({
@@ -776,7 +720,6 @@ const CheckInForm = () => {
       setFieldValue('travelAgent', '')
       setFieldValue('agentAmount', 0)
       setFieldValue('agentAmountPer', 0)
-      // Clear booking ID and date when agent is cleared
       setFieldValue('bookingId', '')
       setFieldValue('bookingDate', '')
       return
@@ -807,19 +750,8 @@ const CheckInForm = () => {
         const commissionValue = selectedAgent.commission_value || 0
         setFieldValue('agentAmountPer', commissionValue)
 
-        // Auto-set Booking Date to today (YYYY-MM-DD)
         const todayStr = new Date().toISOString().split('T')[0]
         setFieldValue('bookingDate', todayStr)
-
-        // Auto-generate next Booking ID (AG001, AG002, ...)
-        // try {
-        //   const bookingIdRes = await AgentRoomCheckinService.getNextBookingId()
-        //   if (bookingIdRes?.success && bookingIdRes?.data?.booking_id) {
-        //     setFieldValue('bookingId', bookingIdRes.data.booking_id)
-        //   }
-        // } catch (bookingIdError) {
-        //   console.error('Failed to fetch next booking ID:', bookingIdError)
-        // }
       }
     } catch (error) {
       console.error('Failed to load agent details', error)
@@ -841,13 +773,13 @@ const CheckInForm = () => {
     return [walkInOption, ...companyOpts]
   }, [companies])
 
-const paymentMethodOptions: Option[] = useMemo(
-  () => paymentMethods.map((pm) => ({
-    label: pm.name,
-    value: pm.payment_method_name,
-  })),
-  [paymentMethods],
-)
+  const paymentMethodOptions: Option[] = useMemo(
+    () => paymentMethods.map((pm) => ({
+      label: pm.name,
+      value: pm.payment_method_name,
+    })),
+    [paymentMethods],
+  )
 
   const loadAllGuests = async () => {
     if (!hotelId) return
@@ -1062,26 +994,15 @@ const paymentMethodOptions: Option[] = useMemo(
     }
   }
 
-  /**
-   * handleGuestPhotoCapture — TEMPORARY storage only.
-   *
-   * The captured image is kept in React state (tempGuestPhoto) and is never
-   * written to the database or the uploads folder at this point.
-   * The actual upload happens inside onSubmit only after a successful F9 Check-In.
-   * If the user closes the popup, navigates back, or cancels without saving,
-   * the tempGuestPhoto state is simply discarded — nothing is persisted.
-   */
   const handleGuestPhotoCapture = (imageDataUrl: string) => {
     if (!values.guestId) {
       toast.error('No guest selected')
       return
     }
-    // Store photo in temporary state — no DB/disk write yet
     setTempGuestPhoto(imageDataUrl)
     toast.success('Photo captured — will be saved after Check-In (F9)')
     setShowDocScanModal(false)
   }
-
 
   const handleGuestSave = async (guestData: any) => {
     setSavingGuest(true)
@@ -1487,7 +1408,7 @@ const paymentMethodOptions: Option[] = useMemo(
     }, 0)
   }, [roomRows])
 
-const computeExtraCharges = (
+  const computeExtraCharges = (
     categoryId: number | null,
     counts: { exPax: number; childPaid: number; driver: number },
     nights: number,
@@ -1554,14 +1475,13 @@ const computeExtraCharges = (
     }
   }
 
-// UPDATED: Guest history now handled by GuestHistoryModal directly (checkout tables only)
-const handleHistoryClick = () => {
-  if (!values.guestId) {
-    toast.error('Please select a guest first')
-    return
+  const handleHistoryClick = () => {
+    if (!values.guestId) {
+      toast.error('Please select a guest first')
+      return
+    }
+    setShowHistoryModal(true)
   }
-  setShowHistoryModal(true)
-}
 
   const handleShowDocuments = async () => {
     if (!values.guestId) {
@@ -1690,164 +1610,261 @@ const handleHistoryClick = () => {
         .required(),
     }),
 
-onSubmit: async (values) => {
-  if (roomRows.length === 0) {
-    toast.error('Please add at least one room')
-    return
-  }
+    onSubmit: async (values) => {
+      if (roomRows.length === 0) {
+        toast.error('Please add at least one room')
+        return
+      }
 
-  setSubmitting(true)
+      setSubmitting(true)
 
-  try {
-    // Use the first row for master data (guest name, dates, etc.)
-    const firstRow = roomRows[0]
-    const totalNights = firstRow.nights
-    const guestName = firstRow.guestName
-    const guestId = firstRow.guestId!
+      try {
+        const firstRow = roomRows[0]
+        const totalNights = firstRow.nights
+        const guestName = firstRow.guestName
+        const guestId = firstRow.guestId!
 
-    // Build datetime strings (MySQL compatible)
-    const checkinDateTime = `${firstRow.arrivalDate} ${firstRow.arrivalTime}:00`
-    const checkoutDateTime = `${firstRow.departureDate} ${firstRow.departureTime}:00`
+        const checkinDateTime = `${firstRow.arrivalDate} ${firstRow.arrivalTime}:00`
+        const checkoutDateTime = `${firstRow.departureDate} ${firstRow.departureTime}:00`
 
-    // Compute totals across all rooms
-    let totalAdults = 0
-    let totalPax = 0
-    let totalExPax = 0
-    let totalChildPaid = 0
-    let totalChildUnpaid = 0
-    let totalDriver = 0
-    let totalPaxCharges = 0
-    let totalExPaxCharge = 0
-    let totalDriverCharge = 0
-    let totalChildPaidCharge = 0
-    let totalAmountAllNights = 0
+        // ---- Compute totals for master payload ----
+        let totRoomTariff = 0
+        let totExPaxCharge = 0
+        let totChildPaid = 0
+        let totDriverCharge = 0
+        let totDiscountAmt = 0
 
-    roomRows.forEach((row) => {
-      totalAdults += row.adults || 0
-      totalPax += row.pax || 0
-      totalExPax += row.exPax || 0
-      totalChildPaid += row.childPaid || 0
-      totalChildUnpaid += row.childUnpaid || 0
-      totalDriver += row.driver || 0
+        let totCgst = 0, totSgst = 0, totIgst = 0, totCess = 0
+        let totExCgst = 0, totExSgst = 0, totExIgst = 0
+        let totChildCgst = 0, totChildSgst = 0, totChildIgst = 0
+        let totDriverCgst = 0, totDriverSgst = 0, totDriverIgst = 0
+        let totServiceCharge = 0
+        let totAdvance = safeNumber(values.receivedAmount) || 0
 
-      totalPaxCharges += (row.rate || 0) * totalNights
-      totalExPaxCharge += ((row.exPaxPrice || 0) * totalNights)
-      totalDriverCharge += ((row.driverPrice || 0) * totalNights)
-      totalChildPaidCharge += ((row.childPrice || 0) * totalNights)
+        let totalAmountAllNights = 0
 
-      totalAmountAllNights += (row.totalAmount || 0)
-    })
+        roomRows.forEach((row) => {
+          const nights = row.nights || 1
+          const rate = safeNumber(row.rate)
+          const discAmt = safeNumber(row.discountAmt)
+          const exPaxPrice = safeNumber(row.exPaxPrice)
+          const childPrice = safeNumber(row.childPrice)
+          const driverPrice = safeNumber(row.driverPrice)
+          const cgst = safeNumber(row.cgstAmount)
+          const sgst = safeNumber(row.sgstAmount)
+          const igst = safeNumber(row.igstAmount)
+          const cess = safeNumber(row.cessAmount)
+          const exPaxTax = safeNumber(row.exPaxTax)
+          const childTax = safeNumber(row.childTax)
+          const driverTax = safeNumber(row.driverTax)
 
-    const companyName =
-      values.companyId === 'WALK-N-GUESTI' || !values.companyId
-        ? 'WALK-IN-GUEST'
-        : companies.find((c) => c.company_id === values.companyId)?.company_name || 'WALK-IN-GUEST'
+          totRoomTariff += rate * nights
+          totExPaxCharge += exPaxPrice * nights
+          totChildPaid += childPrice * nights
+          totDriverCharge += driverPrice * nights
+          totDiscountAmt += discAmt
+          totCgst += cgst
+          totSgst += sgst
+          totIgst += igst
+          totCess += cess
 
-    const firstRoomDeptInfo = roomDepartmentMap.get(firstRow.roomId)
-    const departmentId = firstRoomDeptInfo?.department_id
-    const departmentName = firstRoomDeptInfo?.department_name || ''
+          // Split extra taxes using same CGST/SGST/IGST ratio as room tax
+          const totalTaxP = safeNumber(row.taxPercent) || 1
+          const cgstRatio = safeNumber(row.cgstPercent) / totalTaxP
+          const sgstRatio = safeNumber(row.sgstPercent) / totalTaxP
+          const igstRatio = safeNumber(row.igstPercent) / totalTaxP
 
-    const primaryCategoryId = roomCategories.find((c) => c.category_name === firstRow.type)?.room_category_id
+          totExCgst += exPaxTax * cgstRatio
+          totExSgst += exPaxTax * sgstRatio
+          totExIgst += exPaxTax * igstRatio
 
-    
-     // ✅ FIX: room_id ko comma-separated string banaen
-  const roomIdsString = roomRows.map((r) => r.roomId).join(',');
+          totChildCgst += childTax * cgstRatio
+          totChildSgst += childTax * sgstRatio
+          totChildIgst += childTax * igstRatio
 
+          totDriverCgst += driverTax * cgstRatio
+          totDriverSgst += driverTax * sgstRatio
+          totDriverIgst += driverTax * igstRatio
 
-    // ---------- 1. Build master payload ----------
-    const masterPayload = {
-      // Guest info
-      guest_id: guestId,
-      guest_name: guestName,
-      address: values.address,
-      mobile: values.phone1,
-      company_name: companyName,
-      emailed: values.email,
-      booking: values.bookingType,
-      plan_name: values.planName,
-      reg_no: values.regNo,
-      special_instruction: values.specialInstruction,
-      message: values.message,
-      checkin_datetime: checkinDateTime,
-      checkout_datetime: checkoutDateTime,
-      room_no: firstRow.roomNumber,
-      room_id: roomIdsString, 
-      room_name: firstRow.roomNumber,
-      category_id: primaryCategoryId,
-      category_name: firstRow.type,
-      converted_category: firstRow.convertedCategoryName || '',
-      converted_category_id: firstRow.convertedCategoryId,
-      adults: totalAdults,
-      pax: totalPax,
-      pax_charges: totalPaxCharges,
-      ex_pax: totalExPax,
-      ex_pax_charge: totalExPaxCharge,
-      child_paid: totalChildPaid,
-      child_unpaid: totalChildUnpaid,
-      child_charge: totalChildPaidCharge,
-      driver: totalDriver,
-      driver_charge: totalDriverCharge,
-      hotelid: hotelId,
-      id_type: values.idType || '',
-      id_number: values.idNumber || '',
-      department_id: departmentId,
-      department_name: departmentName,
-      status: 'active',
-      total_nights: totalNights,
-      total_amount: totalAmountAllNights,
-      created_by_id: user?.id,
-      room_ids: roomRows.map((r) => r.roomId),
-      // Agent fields
-      travelAgentId: values.travelAgentId,
-      travelAgent: values.travelAgent,
-      agentAmount: values.agentAmount,
-      agentAmountPer: values.agentAmountPer,
-      agentIgst: values.agentIgst,
-      agentIgstPer: values.agentIgstPer,
-      agentCgst: values.agentCgst,
-      agentCgstPer: values.agentCgstPer,
-      agentSgst: values.agentSgst,
-      agentSgstPer: values.agentSgstPer,
-      agentTds: values.agentTds,
-      agentTdsPer: values.agentTdsPer,
-      agentTcs: values.agentTcs,
-      agentTcsPer: values.agentTcsPer,
-      agentCess: values.agentCess,
-      agentCessPer: values.agentCessPer,
-      agentServiceFee: values.agentServiceFee,
-      agentTotal: values.agentTotal,
-      agentPayToHotel: values.agentPayToHotel,
-      bookingId: values.bookingId,
-      bookingDate: values.bookingDate,
-      paymentMethod: values.paymentMethod,
-      receivedAmount: values.receivedAmount,
-    }
+          totalAmountAllNights += safeNumber(row.totalAmount)
+        })
 
-    // ---------- 2. Build details array (one per room) ----------
-    const detailsPayload = roomRows.map((row) => {
-  const catId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id || 0
-  const dailyDiscountedTariff = row.rate - ((row.rate * (row.discount || 0)) / 100)
-  const dailyCgstAmount = (dailyDiscountedTariff * (row.cgstPercent || 0)) / 100
-  const dailySgstAmount = (dailyDiscountedTariff * (row.sgstPercent || 0)) / 100
-  const dailyIgstAmount = (dailyDiscountedTariff * (row.igstPercent || 0)) / 100
-  const dailyCessAmount = (dailyDiscountedTariff * (row.cessPercent || 0)) / 100
-  const dailyTotalTax = dailyCgstAmount + dailySgstAmount + dailyIgstAmount + dailyCessAmount
+        const companyName =
+          values.companyId === 'WALK-N-GUESTI' || !values.companyId
+            ? 'WALK-IN-GUEST'
+            : companies.find((c) => c.company_id === values.companyId)?.company_name || 'WALK-IN-GUEST'
 
-  return {
-    guest_id: row.guestId || 0,           // ✅ Ensure NOT NULL
-    hotelid: hotelId,
-    room_id: row.roomId || 0,             // ✅ Ensure NOT NULL
+        const firstRoomDeptInfo = roomDepartmentMap.get(firstRow.roomId)
+        const departmentId = firstRoomDeptInfo?.department_id
+        const departmentName = firstRoomDeptInfo?.department_name || ''
+
+        const roomIdsString = roomRows.map((r) => r.roomId).join(',')
+
+        // ---- 1. Master Payload (only fields expected by sp_add_checkin) ----
+        const masterPayload = {
+          guest_id: guestId,
+          booking: values.bookingType,
+          plan_name: values.planName,
+          checkin_datetime: checkinDateTime,
+          checkout_datetime: checkoutDateTime,
+          room_no: firstRow.roomNumber,
+          room_id: roomIdsString,
+          tot_room_tariff: round2(totRoomTariff),
+          tot_ex_pax_charge: round2(totExPaxCharge),
+          tot_child_paid_amount: round2(totChildPaid),
+          tot_driver_charge: round2(totDriverCharge),
+          tot_discount_amount: round2(totDiscountAmt),
+          tot_cgst_amount: round2(totCgst),
+          tot_sgst_amount: round2(totSgst),
+          tot_igst_amount: round2(totIgst),
+          tot_ex_cgst_amount: round2(totExCgst),
+          tot_ex_sgst_amount: round2(totExSgst),
+          tot_ex_igst_amount: round2(totExIgst),
+          tot_child_cgst_amount: round2(totChildCgst),
+          tot_child_sgst_amount: round2(totChildSgst),
+          tot_child_igst_amount: round2(totChildIgst),
+          tot_driver_cgst_amount: round2(totDriverCgst),
+          tot_driver_sgst_amount: round2(totDriverSgst),
+          tot_driver_igst_amount: round2(totDriverIgst),
+          tot_service_charge_amount: round2(totServiceCharge),
+          tot_cess_amount: round2(totCess),
+          tot_advance: round2(totAdvance),
+          hotelid: hotelId,
+          outletid: user?.outletid || 1,
+          id_type: values.idType || '',
+          id_number: values.idNumber || '',
+          department_id: departmentId,
+          department_name: departmentName,
+          special_instruction: values.specialInstruction || '',
+          message: values.message || '',
+          total_nights: totalNights,
+          total_amount: round2(totalAmountAllNights),
+          status: 'active',
+          created_by_id: user?.id,
+        }
+
+        // ---- 2. Details Payload (full details per room) ----
+        const detailsPayload = roomRows.map((row) => {
+          const catId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id || 0
+          const nightlyRate = safeNumber(row.rate)
+          const discPercent = safeNumber(row.discount)
+          const discAmt = (nightlyRate * discPercent) / 100
+          const nightlyAfterDisc = nightlyRate - discAmt
+          const cgstP = safeNumber(row.cgstPercent)
+          const sgstP = safeNumber(row.sgstPercent)
+          const igstP = safeNumber(row.igstPercent)
+          const cessP = safeNumber(row.cessPercent)
+          const totalTaxP = cgstP + sgstP + igstP + cessP
+          const taxAmount = (nightlyAfterDisc * totalTaxP) / 100
+          const cgstAmt = (nightlyAfterDisc * cgstP) / 100
+          const sgstAmt = (nightlyAfterDisc * sgstP) / 100
+          const igstAmt = (nightlyAfterDisc * igstP) / 100
+          const cessAmt = (nightlyAfterDisc * cessP) / 100
+
+          const exPaxPrice = safeNumber(row.exPaxPrice)
+          const childPrice = safeNumber(row.childPrice)
+          const driverPrice = safeNumber(row.driverPrice)
+          const exPaxTax = safeNumber(row.exPaxTax)
+          const childTax = safeNumber(row.childTax)
+          const driverTax = safeNumber(row.driverTax)
+
+          const totalTaxPRatio = totalTaxP || 1
+          const cgstRatio = cgstP / totalTaxPRatio
+          const sgstRatio = sgstP / totalTaxPRatio
+          const igstRatio = igstP / totalTaxPRatio
+
+          return {
+            guest_id: row.guestId || 0,
+            guest_name: row.guestName || '',
+            address: values.address || '',
+            mobile: values.phone1 || '',
+            company_id: values.companyId === 'WALK-N-GUESTI' ? null : values.companyId,
+            company_name: companyName,
+            emailed: values.email || '',
+            room_id: row.roomId || 0,
+            room_number: row.roomNumber || '',
+            room_category_id: catId || 0,
+            room_category_name: row.type || '',
+            converted_category_id: row.convertedCategoryId || 0,
+            converted_category_name: row.convertedCategoryName || '',
+            checkin_datetime: checkinDateTime,
+            checkout_datetime: checkoutDateTime,
+            no_of_days: totalNights,
+            adults: row.adults || 0,
+            pax: row.pax || 0,
+            ex_pax: row.exPax || 0,
+            child_paid: row.childPaid || 0,
+            child_unpaid: row.childUnpaid || 0,
+            driver: row.driver || 0,
+            room_tariff: nightlyRate,
+            ex_pax_charge: exPaxPrice,
+            child_paid_amount: childPrice,
+            driver_charge: driverPrice,
+            discount_percent: discPercent,
+            discount_amount: discAmt,
+            tax_percen_room: totalTaxP,
+            cgst_percent: cgstP,
+            cgst_amount: cgstAmt,
+            sgst_percent: sgstP,
+            sgst_amount: sgstAmt,
+            igst_percent: igstP,
+            igst_amount: igstAmt,
+            tax_percen_ex: row.exPaxTaxPercent || 0,
+            ex_cgst_percent: cgstP,
+            ex_cgst_amount: exPaxTax * cgstRatio,
+            ex_sgst_percent: sgstP,
+            ex_sgst_amount: exPaxTax * sgstRatio,
+            ex_igst_percent: igstP,
+            ex_igst_amount: exPaxTax * igstRatio,
+            tax_percen_child: row.childTaxPercent || 0,
+            child_cgst_percent: cgstP,
+            child_cgst_amount: childTax * cgstRatio,
+            child_sgst_percent: sgstP,
+            child_sgst_amount: childTax * sgstRatio,
+            child_igst_percent: igstP,
+            child_igst_amount: childTax * igstRatio,
+            tax_percen_driver: row.driverTaxPercent || 0,
+            driver_cgst_percent: cgstP,
+            driver_cgst_amount: driverTax * cgstRatio,
+            driver_sgst_percent: sgstP,
+            driver_sgst_amount: driverTax * sgstRatio,
+            driver_igst_percent: igstP,
+            driver_igst_amount: driverTax * igstRatio,
+            service_charge: 0,
+            service_charge_amount: 0,
+            cess_percent: cessP,
+            cess_amount: cessAmt,
+            tax: taxAmount + exPaxTax + childTax + driverTax,
+          }
+        })
+
+        // ---- 3. Room Charges Payload ----
+        const roomChargesPayload = roomRows.map((row) => {
+          const catId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id
+          const perDayTotalAmount = (row.totalAmount || 0) / totalNights
+
+          return {
+    guest_id: row.guestId || 0,
+    guest_name: row.guestName || '',
+    address: values.address || '',
+    mobile: values.phone1 || '',
+    // ⚠️ Change: company_id = 0 instead of null for walk‑in
+    company_id: values.companyId === 'WALK-N-GUESTI' ? 0 : Number(values.companyId) || 0,
+    company_name: companyName || '',
+    emailed: values.email || '',
+    room_id: row.roomId || 0,
     room_number: row.roomNumber || '',
-    room_category_id: catId || 0,         // ✅ Ensure NOT NULL
+    room_category_id: catId || 0,
     room_category_name: row.type || '',
     converted_category_id: row.convertedCategoryId || 0,
     converted_category_name: row.convertedCategoryName || '',
     checkin_datetime: checkinDateTime,
     checkout_datetime: checkoutDateTime,
-    no_of_days: 1,
+    no_of_days: totalNights,
     adults: row.adults || 0,
     pax: row.pax || 0,
     ex_pax: row.exPax || 0,
+    child_paid: row.childPaid || 0,
     child_unpaid: row.childUnpaid || 0,
     driver: row.driver || 0,
     room_tariff: row.rate || 0,
@@ -1855,160 +1872,124 @@ onSubmit: async (values) => {
     child_paid_amount: row.childPrice || 0,
     driver_charge: row.driverPrice || 0,
     discount_percent: row.discount || 0,
-    discount_amount: (row.rate * (row.discount || 0)) / 100,
+    discount_amount: (row.rate * (row.discount || 0)) / 100 || 0,
+    tax_percen_room: row.taxPercent || 0,
     cgst_percent: row.cgstPercent || 0,
-    cgst_amount: dailyCgstAmount,
+    cgst_amount: row.cgstAmount || 0,
     sgst_percent: row.sgstPercent || 0,
-    sgst_amount: dailySgstAmount,
+    sgst_amount: row.sgstAmount || 0,
     igst_percent: row.igstPercent || 0,
-    igst_amount: dailyIgstAmount,
-    cess_percent: row.cessPercent || 0,
-    cess_amount: dailyCessAmount,
+    tax_percen_ex: row.exPaxTaxPercent || 0,
+    ex_cgst_percent: row.cgstPercent || 0,
+    ex_cgst_amount: (row.exPaxTax || 0) * ((row.cgstPercent || 0) / 100) || 0,
+    ex_sgst_percent: row.sgstPercent || 0,
+    ex_sgst_amount: (row.exPaxTax || 0) * ((row.sgstPercent || 0) / 100) || 0,
+    ex_igst_percent: row.igstPercent || 0,
+    ex_igst_amount: (row.exPaxTax || 0) * ((row.igstPercent || 0) / 100) || 0,
+    tax_percen_child: row.childTaxPercent || 0,
+    child_cgst_percent: row.cgstPercent || 0,
+    child_cgst_amount: (row.childTax || 0) * ((row.cgstPercent || 0) / 100) || 0,
+    child_sgst_percent: row.sgstPercent || 0,
+    child_sgst_amount: (row.childTax || 0) * ((row.sgstPercent || 0) / 100) || 0,
+    child_igst_percent: row.igstPercent || 0,
+    child_igst_amount: (row.childTax || 0) * ((row.igstPercent || 0) / 100) || 0,
+    tax_percen_driver: row.driverTaxPercent || 0,
+    driver_cgst_percent: row.cgstPercent || 0,
+    driver_cgst_amount: (row.driverTax || 0) * ((row.cgstPercent || 0) / 100) || 0,
+    driver_sgst_percent: row.sgstPercent || 0,
+    driver_sgst_amount: (row.driverTax || 0) * ((row.sgstPercent || 0) / 100) || 0,
+    driver_igst_percent: row.igstPercent || 0,
+    driver_igst_amount: (row.driverTax || 0) * ((row.igstPercent || 0) / 100) || 0,
     service_charge: 0,
     service_charge_amount: 0,
-    tax: dailyTotalTax,
-  }
-})
+    cess_percent: row.cessPercent || 0,
+    cess_amount: row.cessAmount || 0,
+    tax: row.totalTax || 0,
+  };
+});
 
-    // ---------- 3. Build room_charges array (one per room) ----------
-    const roomChargesPayload = roomRows.map((row) => {
-  const catId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id
-  const perDayTotalAmount = (row.totalAmount || 0) / totalNights
+        // ---- 4. Folio Entries ----
+        const folioEntries: any[] = []
 
-  return {
-    guest_id: row.guestId || 0,           // ✅ Ensure NOT NULL
-    room_id: row.roomId || 0,             // ✅ Ensure NOT NULL
-    room_no: row.roomNumber || '',
-    category_id: catId || 0,              // ✅ Ensure NOT NULL (use 0 as default)
-    pax_count: row.pax || 0,
-    pax_price: row.rate || 0,
-    pax_tax: (row.taxAmount || 0) / totalNights,
-    ex_pax_count: row.exPax || 0,
-    ex_pax_price: row.exPaxPrice || 0,
-    ex_pax_tax: row.exPaxTax || 0,
-    ex_pax_tax_percent: row.exPaxTaxPercent || 0,
-    ex_pax_total: row.exPaxTotal || 0,
-    child_count: row.childPaid || 0,
-    child_price: row.childPrice || 0,
-    child_tax: row.childTax || 0,
-    child_tax_percent: row.childTaxPercent || 0,
-    child_total: row.childTotal || 0,
-    driver_count: row.driver || 0,
-    driver_price: row.driverPrice || 0,
-    driver_tax: row.driverTax || 0,
-    driver_tax_percent: row.driverTaxPercent || 0,
-    driver_total: row.driverTotal || 0,
-    total_amount: perDayTotalAmount || 0,
-    checkin_datetime: checkinDateTime,
-    checkout_datetime: checkoutDateTime,
-  }
-})
+        roomRows.forEach((row) => {
+          folioEntries.push({
+            hotel_id: hotelId,
+            room_id: row.roomId || 0,
+            transaction_type: 'Room Charges',
+            transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+            description: `Check-in Day `,
+            debit_amount: (row.totalAmount || 0) / totalNights,
+            credit_amount: 0,
+            reference_number: null,
+            payment_method: values.paymentMethod,
+          })
+        })
 
-    // ---------- 4. Build folio_entries array ----------
-  // ---------- 4. Build folio_entries array ----------
-const folioEntries: any[] = []
+        if (values.receivedAmount && Number(values.receivedAmount) > 0) {
+          folioEntries.push({
+            hotel_id: hotelId,
+            room_id: roomRows[0]?.roomId || 0,
+            transaction_type: 'Payment',
+            transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+            description: 'Payment received at check-in',
+            debit_amount: 0,
+            credit_amount: Number(values.receivedAmount),
+            reference_number: '',
+            payment_method: values.paymentMethod,
+          })
+        }
 
-roomRows.forEach((row) => {
-  folioEntries.push({
-    hotel_id: hotelId,
-    room_id: row.roomId || 0,  // ✅ Ensure NOT NULL
-    transaction_type: 'Room Charges',
-    transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
-    description: `Check-in Day `,
-    debit_amount: (row.totalAmount || 0) / totalNights,
-    credit_amount: 0,
-    reference_number: null,
-    payment_method: values.paymentMethod,
-  })
-})
+        // ---- 5. Final Payload ----
+        const finalPayload: any = {
+          ...masterPayload,
+          details: detailsPayload,
+          room_charges: roomChargesPayload,
+          folio_entries: folioEntries,
+        }
 
-// Payment entry (optional)
-if (values.receivedAmount && Number(values.receivedAmount) > 0) {
-  folioEntries.push({
-    hotel_id: hotelId,
-    room_id: roomRows[0].roomId, // or null if payment is common
-    transaction_type: 'Payment',
-    transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
-    description: 'Payment received at check-in',
-    debit_amount: 0,
-    credit_amount: Number(values.receivedAmount),
-    reference_number: '',
-    payment_method: values.paymentMethod,
-  })
-}
+        // ---- 6. API Call ----
+        const response = await CheckInService.create(finalPayload)
 
-    // Payment folio entry if received amount > 0
-    if (values.receivedAmount && Number(values.receivedAmount) > 0) {
-      folioEntries.push({
-        hotel_id: hotelId,
-        transaction_type: 'Payment',
-        transaction_datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
-        description: 'Payment received at check-in',
-        debit_amount: 0,
-        credit_amount: Number(values.receivedAmount),
-        reference_number: '',
-        payment_method: values.paymentMethod,
-      })
-    }
+        if (!response.success) {
+          throw new Error(response.message || 'Check-in failed')
+        }
 
-    // ---------- 5. Build final payload ----------
-    const finalPayload: any = {
-      ...masterPayload,
-      details: detailsPayload,
-      room_charges: roomChargesPayload,
-      folio_entries: folioEntries,
-      hotelid: hotelId,
-      created_by_id: user?.id,
-    }
+        // ---- 7. Upload Guest Photo if any ----
+        if (tempGuestPhoto && guestId) {
+          try {
+            await GuestService.uploadGuestPhoto(guestId, tempGuestPhoto)
+            setTempGuestPhoto(null)
+          } catch (photoErr) {
+            console.error('Guest photo upload failed after check-in:', photoErr)
+            toast.error('Check-in saved, but guest photo could not be uploaded.')
+          }
+        }
 
-    // ---------- 6. Single API call ----------
-    const response = await CheckInService.create(finalPayload)
+        toast.success(`Checked in ${roomRows.length} room(s) for ${totalNights} day(s) successfully`)
+        navigate(-1)
 
-    if (!response.success) {
-      throw new Error(response.message || 'Check-in failed')
-    }
-
-    // ---------- 7. Upload guest photo if any (temporary) ----------
-    if (tempGuestPhoto && guestId) {
-      try {
-        await GuestService.uploadGuestPhoto(guestId, tempGuestPhoto)
-        setTempGuestPhoto(null)
-      } catch (photoErr) {
-        console.error('Guest photo upload failed after check-in:', photoErr)
-        toast.error('Check-in saved, but guest photo could not be uploaded.')
+      } catch (error: any) {
+        console.error('Check-in submission failed:', error)
+        toast.error(error.response?.data?.message || error.message || 'Check-in failed')
+      } finally {
+        setSubmitting(false)
       }
-    }
-
-    toast.success(`Checked in ${roomRows.length} room(s) for ${totalNights} day(s) successfully`)
-    navigate(-1)
-
-  } catch (error: any) {
-    console.error('Check-in submission failed:', error)
-    toast.error(error.response?.data?.message || error.message || 'Check-in failed')
-  } finally {
-    setSubmitting(false)
-  }
-},
+    },
   })
 
   const { handleSubmit, setFieldValue, values } = formik
 
-    // ==================== FRONT DESK SETTINGS EFFECT ====================
-  // Fetch front desk settings when hotelId changes
   useEffect(() => {
     if (hotelId) {
       fetchFrontDeskSettings()
     }
   }, [hotelId, user?.outletid])
 
-   // ==================== APPLY FRONT DESK SETTINGS TO DEPARTURE TIME ====================
-  // This effect runs when front desk settings are loaded or when arrival date/time changes
   useEffect(() => {
     if (!frontDeskSettings) return
 
     const { arrivalDate, arrivalTime, nights } = values
     
-    // Calculate departure date based on nights
     let departureDateStr = ''
     if (arrivalDate && nights && nights > 0) {
       const arrival = new Date(arrivalDate)
@@ -2016,25 +1997,20 @@ if (values.receivedAmount && Number(values.receivedAmount) > 0) {
       departure.setDate(departure.getDate() + Number(nights))
       departureDateStr = departure.toISOString().split('T')[0]
     } else {
-      // Fallback: default to next day if no arrival date
       const today = new Date()
       const tomorrow = new Date(today)
       tomorrow.setDate(tomorrow.getDate() + 1)
       departureDateStr = tomorrow.toISOString().split('T')[0]
     }
 
-    // Determine departure time based on front desk settings
-    let departureTimeStr = '12:00' // Default fallback
+    let departureTimeStr = '12:00'
 
     if (frontDeskSettings.checkout_time_setting === '12_NOON') {
-      // Use fixed checkout time from settings
       departureTimeStr = frontDeskSettings.fixed_checkout_time || '12:00'
     } else if (frontDeskSettings.checkout_time_setting === '24_HOURS') {
-      // 24-hour checkout: departure time = arrival time
       departureTimeStr = arrivalTime || '12:00'
     }
 
-    // Only update if values differ to avoid unnecessary re-renders
     if (values.departureDate !== departureDateStr) {
       setFieldValue('departureDate', departureDateStr)
     }
@@ -2042,16 +2018,7 @@ if (values.receivedAmount && Number(values.receivedAmount) > 0) {
       setFieldValue('departureTime', departureTimeStr)
     }
 
-    console.log('Applied front desk settings:', {
-      checkoutType: frontDeskSettings.checkout_time_setting,
-      departureTime: departureTimeStr,
-      departureDate: departureDateStr
-    })
-
   }, [frontDeskSettings, values.arrivalDate, values.arrivalTime, values.nights, values.departureDate, values.departureTime, setFieldValue])
-
-  // Remove the old departure date effect and replace with front desk settings effect above
-  // The old effect that calculated departure date from nights is now handled by the front desk settings effect
 
   useEffect(() => {
     formik.setFieldValue('settDisc', totalDiscount)
@@ -2239,38 +2206,38 @@ if (values.receivedAmount && Number(values.receivedAmount) > 0) {
     setFieldValue,
   ])
 
-useEffect(() => {
-  const commission = safeNumber(values.agentAmount)
-  const igst = safeNumber(values.agentIgst)
-  const cgst = safeNumber(values.agentCgst)
-  const sgst = safeNumber(values.agentSgst)
-  const cess = safeNumber(values.agentCess)
-  const tds = safeNumber(values.agentTds)
-  const tcs = safeNumber(values.agentTcs)
-  const serviceFee = safeNumber(values.agentServiceFee)
-  const totalAmt = safeNumber(values.totalAmt)
+  useEffect(() => {
+    const commission = safeNumber(values.agentAmount)
+    const igst = safeNumber(values.agentIgst)
+    const cgst = safeNumber(values.agentCgst)
+    const sgst = safeNumber(values.agentSgst)
+    const cess = safeNumber(values.agentCess)
+    const tds = safeNumber(values.agentTds)
+    const tcs = safeNumber(values.agentTcs)
+    const serviceFee = safeNumber(values.agentServiceFee)
+    const totalAmt = safeNumber(values.totalAmt)
 
-  const agentTotal = round2(commission + igst + cgst + sgst + cess + serviceFee)
-  const agentPayToHotel = round2(totalAmt - agentTotal - tds - tcs)
+    const agentTotal = round2(commission + igst + cgst + sgst + cess + serviceFee)
+    const agentPayToHotel = round2(totalAmt - agentTotal - tds - tcs)
 
-  if (Math.abs(safeNumber(values.agentTotal) - agentTotal) > 0.01) {
-    setFieldValue('agentTotal', agentTotal)
-  }
-  if (Math.abs(safeNumber(values.agentPayToHotel) - agentPayToHotel) > 0.01) {
-    setFieldValue('agentPayToHotel', agentPayToHotel)
-  }
-}, [
-  values.agentAmount,
-  values.agentIgst,
-  values.agentCgst,
-  values.agentSgst,
-  values.agentCess,
-  values.agentTds,
-  values.agentTcs,
-  values.agentServiceFee,
-  values.totalAmt,
-  setFieldValue
-])
+    if (Math.abs(safeNumber(values.agentTotal) - agentTotal) > 0.01) {
+      setFieldValue('agentTotal', agentTotal)
+    }
+    if (Math.abs(safeNumber(values.agentPayToHotel) - agentPayToHotel) > 0.01) {
+      setFieldValue('agentPayToHotel', agentPayToHotel)
+    }
+  }, [
+    values.agentAmount,
+    values.agentIgst,
+    values.agentCgst,
+    values.agentSgst,
+    values.agentCess,
+    values.agentTds,
+    values.agentTcs,
+    values.agentServiceFee,
+    values.totalAmt,
+    setFieldValue
+  ])
 
   const countryOptions: Option[] = countries.map((c) => ({
     label: String(c.name),
@@ -2369,132 +2336,123 @@ useEffect(() => {
     }),
   }
 
- const handleAddOrUpdateRow = () => {
-  // Remove the guestId check here - we'll allow adding rooms with different guests
-  // if (!values.guestId) {
-  //   toast.error('Please select a guest first')
-  //   return
-  // }
-  
-  const selectedRoomId = values.roomNo
-  if (!selectedRoomId) {
-    toast.error('Please select a room')
-    return
-  }
-  const selectedRoom = initialSelectedRooms.find((r) => r.roomId === selectedRoomId)
-  if (!selectedRoom) return
+  const handleAddOrUpdateRow = () => {
+    const selectedRoomId = values.roomNo
+    if (!selectedRoomId) {
+      toast.error('Please select a room')
+      return
+    }
+    const selectedRoom = initialSelectedRooms.find((r) => r.roomId === selectedRoomId)
+    if (!selectedRoom) return
 
-  const selectedCategoryId = values.roomType
-  if (!selectedCategoryId) {
-    toast.error('Please select a room type')
-    return
-  }
+    const selectedCategoryId = values.roomType
+    if (!selectedCategoryId) {
+      toast.error('Please select a room type')
+      return
+    }
 
-  const selectedCategory = roomCategories.find((c) => c.room_category_id === selectedCategoryId)
-  if (!selectedCategory) {
-    toast.error('Invalid room type')
-    return
-  }
-  const selectedCategoryName = selectedCategory.category_name
+    const selectedCategory = roomCategories.find((c) => c.room_category_id === selectedCategoryId)
+    if (!selectedCategory) {
+      toast.error('Invalid room type')
+      return
+    }
+    const selectedCategoryName = selectedCategory.category_name
 
-  const convertedCategoryId = values.convertedCategoryId
-  const convertedCategory = convertedCategoryId
-    ? roomCategories.find((c) => c.room_category_id === convertedCategoryId)
-    : null
+    const convertedCategoryId = values.convertedCategoryId
+    const convertedCategory = convertedCategoryId
+      ? roomCategories.find((c) => c.room_category_id === convertedCategoryId)
+      : null
 
-  let taxTypeId = null
-  const effectiveCategoryId = convertedCategoryId ?? selectedCategoryId
-  const categoryDetails = categoryDetailsMap.get(effectiveCategoryId)
+    let taxTypeId = null
+    const effectiveCategoryId = convertedCategoryId ?? selectedCategoryId
+    const categoryDetails = categoryDetailsMap.get(effectiveCategoryId)
 
-  if (categoryDetails && categoryDetails.tariffs && categoryDetails.tariffs.length > 0) {
-    taxTypeId = categoryDetails.tariffs[0].tax_type
-  }
+    if (categoryDetails && categoryDetails.tariffs && categoryDetails.tariffs.length > 0) {
+      taxTypeId = categoryDetails.tariffs[0].tax_type
+    }
 
-  const taxDetails = taxTypeId ? taxDetailsMap.get(Number(taxTypeId)) : null
-  const cgstPercent  = safeNumber(taxDetails?.hotel_cgst)
-  const sgstPercent  = safeNumber(taxDetails?.hotel_sgst)
-  const igstPercent  = safeNumber(taxDetails?.hotel_igst)
-  const cessPercent  = safeNumber(taxDetails?.hotel_cess)
+    const taxDetails = taxTypeId ? taxDetailsMap.get(Number(taxTypeId)) : null
+    const cgstPercent  = safeNumber(taxDetails?.hotel_cgst)
+    const sgstPercent  = safeNumber(taxDetails?.hotel_sgst)
+    const igstPercent  = safeNumber(taxDetails?.hotel_igst)
+    const cessPercent  = safeNumber(taxDetails?.hotel_cess)
 
-  const rate         = safeNumber(values.roomCharges) || safeNumber(selectedRoomTariff)
-  const nights       = safeNumber(values.nights) || 1
-  const baseAmount   = round2(rate * nights)
+    const rate         = safeNumber(values.roomCharges) || safeNumber(selectedRoomTariff)
+    const nights       = safeNumber(values.nights) || 1
+    const baseAmount   = round2(rate * nights)
 
-  const discountPercent = safeNumber(values.discount)
-  const discountAmt     = round2((baseAmount * discountPercent) / 100)
-  const afterDiscount   = round2(baseAmount - discountAmt)
+    const discountPercent = safeNumber(values.discount)
+    const discountAmt     = round2((baseAmount * discountPercent) / 100)
+    const afterDiscount   = round2(baseAmount - discountAmt)
 
-  const taxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent
-  const taxAmount  = round2((afterDiscount * taxPercent) / 100)
+    const taxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent
+    const taxAmount  = round2((afterDiscount * taxPercent) / 100)
 
-  const cgstAmount = round2((afterDiscount * cgstPercent) / 100)
-  const sgstAmount = round2((afterDiscount * sgstPercent) / 100)
+    const cgstAmount = round2((afterDiscount * cgstPercent) / 100)
+    const sgstAmount = round2((afterDiscount * sgstPercent) / 100)
 
-  const extraDaily = computeExtraCharges(
-    effectiveCategoryId,
-    {
-      exPax:     safeNumber(values.exPax),
-      childPaid: safeNumber(values.childrenPaid),
-      driver:    safeNumber(values.driver),
-    },
-    nights,
-  )
+    const extraDaily = computeExtraCharges(
+      effectiveCategoryId,
+      {
+        exPax:     safeNumber(values.exPax),
+        childPaid: safeNumber(values.childrenPaid),
+        driver:    safeNumber(values.driver),
+      },
+      nights,
+    )
 
-  const extraChargesTotal = round2(
-    (extraDaily.exPaxTotal * nights) + (extraDaily.childTotal * nights) + (extraDaily.driverTotal * nights),
-  )
+    const extraChargesTotal = round2(
+      (extraDaily.exPaxTotal * nights) + (extraDaily.childTotal * nights) + (extraDaily.driverTotal * nights),
+    )
 
-  const totalAmount = round2(afterDiscount + taxAmount + extraChargesTotal)
+    const totalAmount = round2(afterDiscount + taxAmount + extraChargesTotal)
 
-  // Use the guest ID from the form - allow null/undefined for rooms without guest
-  const guestName = [values.firstName, values.lastName].filter(Boolean).join(' ').trim() || values.firstName || ''
+    const guestName = [values.firstName, values.lastName].filter(Boolean).join(' ').trim() || values.firstName || ''
 
-  const rowFields = {
-    guestId:               values.guestId || null,  // Allow null
-    guestName,
-    roomCategoryId:        selectedCategoryId,
-    type:                  selectedCategoryName,
-    convertedCategoryId:   convertedCategoryId || null,
-    convertedCategoryName: convertedCategory?.category_name || '',
-    driver:                safeNumber(values.driver),
-    childUnpaid:           safeNumber(values.childrenUnpaid),
-    childPaid:             safeNumber(values.childrenPaid),
-    arrivalDate:           values.arrivalDate,
-    arrivalTime:           values.arrivalTime,
-    departureDate:         values.departureDate,
-    departureTime:         values.departureTime,
-    nights,
-    rate,
-    discount:              discountPercent,
-    discountAmt,
-    taxPercent,
-    taxAmount,
-    pax:                   safeNumber(values.pax),
-    exPax:                 safeNumber(values.exPax),
-    adults:                safeNumber(values.adults),
-    taxTypeId:             taxTypeId ? Number(taxTypeId) : undefined,
-    cgstPercent,
-    sgstPercent,
-    igstPercent,
-    cessPercent,
-    exPaxPrice:            extraDaily.exPaxPrice,
-    exPaxTax:              extraDaily.exPaxTax,
-    exPaxTaxPercent:       extraDaily.exPaxTaxPercent,
-    exPaxTotal:            extraDaily.exPaxTotal,
-    childPrice:            extraDaily.childPrice,
-    childTax:              extraDaily.childTax,
-    childTaxPercent:       extraDaily.childTaxPercent,
-    childTotal:            extraDaily.childTotal,
-    driverPrice:           extraDaily.driverPrice,
-    driverTax:             extraDaily.driverTax,
-    driverTaxPercent:      extraDaily.driverTaxPercent,
-    driverTotal:           extraDaily.driverTotal,
-    totalAmount,
-    cgstAmount,
-    sgstAmount,
-  }
-
- 
+    const rowFields = {
+      guestId:               values.guestId || null,
+      guestName,
+      roomCategoryId:        selectedCategoryId,
+      type:                  selectedCategoryName,
+      convertedCategoryId:   convertedCategoryId || null,
+      convertedCategoryName: convertedCategory?.category_name || '',
+      driver:                safeNumber(values.driver),
+      childUnpaid:           safeNumber(values.childrenUnpaid),
+      childPaid:             safeNumber(values.childrenPaid),
+      arrivalDate:           values.arrivalDate,
+      arrivalTime:           values.arrivalTime,
+      departureDate:         values.departureDate,
+      departureTime:         values.departureTime,
+      nights,
+      rate,
+      discount:              discountPercent,
+      discountAmt,
+      taxPercent,
+      taxAmount,
+      pax:                   safeNumber(values.pax),
+      exPax:                 safeNumber(values.exPax),
+      adults:                safeNumber(values.adults),
+      taxTypeId:             taxTypeId ? Number(taxTypeId) : undefined,
+      cgstPercent,
+      sgstPercent,
+      igstPercent,
+      cessPercent,
+      exPaxPrice:            extraDaily.exPaxPrice,
+      exPaxTax:              extraDaily.exPaxTax,
+      exPaxTaxPercent:       extraDaily.exPaxTaxPercent,
+      exPaxTotal:            extraDaily.exPaxTotal,
+      childPrice:            extraDaily.childPrice,
+      childTax:              extraDaily.childTax,
+      childTaxPercent:       extraDaily.childTaxPercent,
+      childTotal:            extraDaily.childTotal,
+      driverPrice:           extraDaily.driverPrice,
+      driverTax:             extraDaily.driverTax,
+      driverTaxPercent:      extraDaily.driverTaxPercent,
+      driverTotal:           extraDaily.driverTotal,
+      totalAmount,
+      cgstAmount,
+      sgstAmount,
+    }
 
     if (editingRowId) {
       if (!roomRows.find((row) => row.id === editingRowId)) return
@@ -2772,7 +2730,6 @@ useEffect(() => {
                 </span>
               )}
             </span>
-            {/* Front Desk Settings Status */}
             {frontDeskSettings && (
               <span className="ms-3 d-flex align-items-center">
                 <span className="badge bg-secondary fs-small">
@@ -2838,7 +2795,6 @@ useEffect(() => {
                               setFieldValue('companyId', null)
                               setFieldValue('gst', '')
                               setGuestDocuments([])
-                              // Discard any unsaved temp photo when guest is cleared
                               setTempGuestPhoto(null)
                             }
                           }}
@@ -3055,7 +3011,6 @@ useEffect(() => {
                             }
                             onChange={(opt) => {
                               if (!opt || opt.value === SELF_AGENT_VALUE) {
-                                // Self selected — clear agent fields
                                 handleAgentSelect(null)
                                 setFieldValue('travelAgent', SELF_AGENT_VALUE)
                               } else {
@@ -3303,15 +3258,6 @@ useEffect(() => {
                             />
                           </Col>
 
-                          {/* <Col md={3}>
-  <label className="fs-small mb-1">Arrival Date</label>
-  <input
-    type="date"
-    className="form-control form-control-sm fs-small"
-    {...formik.getFieldProps('arrivalDate')}
-    min={new Date().toISOString().split('T')[0]}
-  />
-</Col> */}
                           <Col md={2}>
                             <label className="fs-small mb-1">Time</label>
                             <FormikTextInput
@@ -3819,7 +3765,6 @@ useEffect(() => {
                                   className="w-100 fs-small"
                                   isLoading={loadingPaymentMethods}
                                   onChange={(v) => {
-                                    // v is the mode_name string (used in folio)
                                     setFieldValue('paymentMethod', v)
                                   }}
                                 />
@@ -4299,7 +4244,6 @@ useEffect(() => {
         guestName={getGuestName()}
         guestId={values.guestId}
         onDocumentsChange={() => values.guestId && loadGuestDocuments(values.guestId, false)}
-        // Pass the in-memory temp photo so the modal can preview it before F9 save
         tempGuestPhoto={tempGuestPhoto}
       />
     </FormikProvider>
