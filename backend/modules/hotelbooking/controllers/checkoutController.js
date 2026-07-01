@@ -414,8 +414,8 @@ exports.performCheckout = async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    const { 
-      checkin_id, 
+    const {
+      checkin_id,
       checkout_reason,
       payment_method,
       total_amount,
@@ -431,7 +431,6 @@ exports.performCheckout = async (req, res) => {
 
     const userId = getCurrentUserId(req);
 
-    // ✅ Call the stored procedure
     const [results] = await connection.execute(
       `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -447,13 +446,12 @@ exports.performCheckout = async (req, res) => {
         payment_mode || payment_method || 'Cash',
         is_settle || 0,
         is_print || 1,
-        userId
+        userId,
       ]
     );
 
     await connection.commit();
 
-    // Parse the result
     let result = null;
     if (results && results.length > 0 && results[0] && results[0].length > 0) {
       const row = results[0][0];
@@ -466,20 +464,24 @@ exports.performCheckout = async (req, res) => {
       res.status(200).json({
         success: true,
         message: result.message,
-        data: result.data,
         checkout_id: result.checkout_id,
-        ldg_bill_no: result.ldg_bill_no
+        checkin_id: result.checkin_id,
+        ldg_bill_no: result.ldg_bill_no,           // ← now included
+        is_partial: result.is_partial,
+        checked_out_rooms: result.checked_out_rooms,
+        checked_out_room_ids: result.checked_out_room_ids,
+        rooms_updated_count: result.rooms_updated_count,
+        data: result.data,                         // contains totals + ldg_bill_no inside
       });
     } else {
       throw new Error(result?.message || 'Checkout failed');
     }
-
   } catch (error) {
     if (connection) await connection.rollback();
     console.error('Checkout error:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Checkout failed'
+      message: error.message || 'Checkout failed',
     });
   } finally {
     if (connection) connection.release();
