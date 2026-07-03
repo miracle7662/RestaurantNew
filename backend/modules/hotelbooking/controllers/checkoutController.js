@@ -156,137 +156,68 @@ exports.getBillPreview = async (req, res) => {
         console.log('🔍 getBillPreview called with:', { checkout_id, ldg_bill_no });
 
         let checkoutId = checkout_id;
-        
+
         if (!checkoutId && ldg_bill_no) {
-            console.log('📋 Fetching checkout_id from ldg_bill_no:', ldg_bill_no);
             const [result] = await db.execute(
                 'SELECT checkout_id FROM checkout_master WHERE ldg_bill_no = ?',
                 [ldg_bill_no]
             );
-            
             if (result.length === 0) {
-                console.log('❌ No bill found with ldg_bill_no:', ldg_bill_no);
                 return res.status(404).json({
                     success: false,
                     message: "No bill found with this ldg_bill_no"
                 });
             }
             checkoutId = result[0].checkout_id;
-            console.log('✅ Found checkout_id:', checkoutId);
         }
 
         if (!checkoutId) {
-            console.log('❌ No checkout_id provided');
             return res.status(400).json({
                 success: false,
                 message: "checkout_id or ldg_bill_no is required"
             });
         }
 
-        console.log('🔄 Calling stored procedure sp_checkout_bill with checkout_id:', checkoutId);
+        console.log('🔄 Calling sp_checkout_bill with checkout_id:', checkoutId);
         const [results] = await db.execute('CALL sp_checkout_bill(?)', [checkoutId]);
-
-        console.log('📊 Results received:');
-        console.log('  - Result Set 1 (Header):', results[0] ? results[0].length : 0, 'rows');
-        console.log('  - Result Set 2 (Transactions):', results[1] ? results[1].length : 0, 'rows');
-        console.log('  - Result Set 3 (Footer):', results[2] ? results[2].length : 0, 'rows');
 
         const headerData = results[0][0] || {};
         const transactionRows = results[1] || [];
         const footerSummary = results[2][0] || {};
 
-        console.log('📋 Header Data:', {
-            hotel_name: headerData.hotel_name,
-            checkout_id: headerData.checkout_id,
+        // 🔍 Debug – check guest details
+        console.log('👤 Guest Info:', {
             guest_name: headerData.guest_name,
-            total_amount: headerData.total_amount,
-            net_payable: headerData.net_payable,
-            post_changes_amt: headerData.post_changes_amt,
-            allowances_amt: headerData.allowances_amt,
-            advance_amt: headerData.advance_amt
+            guest_mobile: headerData.guest_mobile,
+            guest_email: headerData.guest_email,
+            guest_address: headerData.guest_address,
         });
 
-        console.log('📋 Footer Summary:', footerSummary);
+        // Optional: Map transaction types for frontend
+        const typeMap = {
+            'CHARGE': 'Post Charge',
+            'ALLOWANCE': 'Allowance',
+            'ADVANCE ADDITION': 'Advance',
+            'ROOM CHARGES': 'Room Charge',
+            'ROOM EXTENSION': 'Room Extension',
+            'FOOD': 'Food'
+        };
 
-        // 🔍 DEBUG: Log raw transaction rows before mapping
-        console.log('🔍 RAW Transaction Rows (first 5):');
-        transactionRows.slice(0, 5).forEach((row, index) => {
-            console.log(`  Row ${index + 1}:`, {
-                room_number: row.room_number,
-                bill_date: row.bill_date,
-                transaction_type: row.transaction_type,
-                description: row.description,
-                tariff: row.tariff,
-                ex_pax: row.ex_pax,
-                cgst: row.cgst,
-                sgst: row.sgst,
-                food: row.food,
-                post_charges: row.post_charges,
-                allowance: row.allowance,
-                total_amount: row.total_amount
-            });
-        });
-
-        // 🔍 DEBUG: Log all transaction types present
-        const transactionTypes = [...new Set(transactionRows.map(r => r.transaction_type))];
-        console.log('📊 Transaction Types found:', transactionTypes);
-
-        // 🔍 DEBUG: Log post charges specifically
-        const postChargeRows = transactionRows.filter(r => r.transaction_type === 'Post Charge');
-        console.log(`📊 Post Charge rows: ${postChargeRows.length}`);
-        postChargeRows.forEach((row, index) => {
-            console.log(`  Post Charge ${index + 1}:`, {
-                room_number: row.room_number,
-                description: row.description,
-                post_charges: row.post_charges,
-                total_amount: row.total_amount
-            });
-        });
-
-        // 🔍 DEBUG: Log allowance/advance rows specifically
-        const allowanceRows = transactionRows.filter(r => 
-            r.transaction_type === 'Allowance' || r.transaction_type === 'Advance'
-        );
-        console.log(`📊 Allowance/Advance rows: ${allowanceRows.length}`);
-        allowanceRows.forEach((row, index) => {
-            console.log(`  Allowance/Advance ${index + 1}:`, {
-                room_number: row.room_number,
-                transaction_type: row.transaction_type,
-                description: row.description,
-                allowance: row.allowance,
-                total_amount: row.total_amount
-            });
-        });
-
-        // 🔍 DEBUG: Log food rows specifically
-        const foodRows = transactionRows.filter(r => r.transaction_type === 'Food');
-        console.log(`📊 Food rows: ${foodRows.length}`);
-        foodRows.forEach((row, index) => {
-            console.log(`  Food ${index + 1}:`, {
-                room_number: row.room_number,
-                description: row.description,
-                food: row.food,
-                total_amount: row.total_amount
-            });
-        });
-
-        // 🔴 FIX: Put headerData first, then row so row data takes precedence
         const flatData = transactionRows.map(row => ({
-            ...headerData,  // First add header data
-            ...row,         // Then add row data (this will OVERWRITE header data if same keys exist)
-            // Map fields for frontend compatibility
+            ...headerData,
+            ...row,
             room_tariff: row.tariff || 0,
             ex_pax_total: row.ex_pax || 0,
             cgst_amount: row.cgst || 0,
             sgst_amount: row.sgst || 0,
             total_amount: row.total_amount || 0,
             room_total_amount: row.total_amount || 0,
-            // CRITICAL: Keep these fields from the transaction rows
             post_charges: row.post_charges || 0,
             allowance: row.allowance || 0,
-            transaction_type: row.transaction_type || '',
+            // Map transaction_type if needed
+            transaction_type: typeMap[row.transaction_type] || row.transaction_type || '',
             description: row.description || '',
-            // Footer summary fields
+            // Footer values (optional, but keep for compatibility)
             net_payable: footerSummary.net_payable || headerData.net_payable || 0,
             bill_amount: footerSummary.bill_amount || headerData.total_amount || 0,
             discount_amount_total: footerSummary.discount_amount || headerData.discount_amount || 0,
@@ -296,32 +227,7 @@ exports.getBillPreview = async (req, res) => {
             round_off_amount: footerSummary.round_off_amount || headerData.round_off_amount || 0,
         }));
 
-        // 🔍 DEBUG: Log first 5 rows after mapping
-        console.log('🔍 Mapped Data (first 5 rows):');
-        flatData.slice(0, 5).forEach((row, index) => {
-            console.log(`  Mapped Row ${index + 1}:`, {
-                room_number: row.room_number,
-                bill_date: row.bill_date,
-                transaction_type: row.transaction_type,
-                description: row.description,
-                post_charges: row.post_charges,
-                allowance: row.allowance,
-                food: row.food,
-                total_amount: row.total_amount
-            });
-        });
-
-        // 🔍 DEBUG: Log summary of all transaction types in mapped data
-        const mappedTypes = [...new Set(flatData.map(r => r.transaction_type))];
-        console.log('📊 Mapped Transaction Types:', mappedTypes);
-
-        // 🔍 DEBUG: Count rows by transaction type
-        const typeCounts = {};
-        flatData.forEach(r => {
-            const type = r.transaction_type || 'Unknown';
-            typeCounts[type] = (typeCounts[type] || 0) + 1;
-        });
-        console.log('📊 Row counts by transaction type:', typeCounts);
+        console.log(`✅ Mapped ${flatData.length} rows`);
 
         return res.status(200).json({
             success: true,
@@ -407,10 +313,13 @@ exports.getNextInvoiceNo = async (req, res) => {
   }
 };
 
-// PERFORM CHECKOUT - UPDATED: NO DELETION, only status update and data preservation
+
 exports.performCheckout = async (req, res) => {
   let connection;
   try {
+    console.log('🔵 [performCheckout] Starting...');
+    console.log('🔵 Request body:', JSON.stringify(req.body, null, 2));
+
     connection = await db.getConnection();
     await connection.beginTransaction();
 
@@ -431,63 +340,131 @@ exports.performCheckout = async (req, res) => {
 
     const userId = getCurrentUserId(req);
 
+    // Parameters must match the stored procedure signature exactly
+    const params = [
+      checkin_id,
+      checkout_reason || 'Regular checkout',
+      payment_method || 'Cash',
+      total_amount || 0,
+      round_off_amount || 0,
+      net_payable || 0,
+      JSON.stringify(selected_rooms),          // expects a JSON array
+      invoiceNoFromBody || null,
+      payment_id || null,
+      payment_mode || payment_method || 'Cash',
+      is_settle || 0,
+      is_print || 1,
+      userId,
+    ];
+
+    console.log('🔵 Calling sp_perform_checkout with params:');
+    console.log(`   checkin_id: ${params[0]}`);
+    console.log(`   checkout_reason: ${params[1]}`);
+    console.log(`   payment_method: ${params[2]}`);
+    console.log(`   total_amount: ${params[3]}`);
+    console.log(`   round_off_amount: ${params[4]}`);
+    console.log(`   net_payable: ${params[5]}`);
+    console.log(`   selected_rooms (JSON): ${params[6]}`);
+    console.log(`   invoiceNoFromBody: ${params[7]}`);
+    console.log(`   payment_id: ${params[8]}`);
+    console.log(`   payment_mode: ${params[9]}`);
+    console.log(`   is_settle: ${params[10]}`);
+    console.log(`   is_print: ${params[11]}`);
+    console.log(`   userId: ${params[12]}`);
+
+    // Execute stored procedure – returns multiple result sets
     const [results] = await connection.execute(
       `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        checkin_id,
-        checkout_reason || 'Regular checkout',
-        payment_method || 'Cash',
-        total_amount || 0,
-        round_off_amount || 0,
-        net_payable || 0,
-        JSON.stringify(selected_rooms),
-        invoiceNoFromBody || null,
-        payment_id || null,
-        payment_mode || payment_method || 'Cash',
-        is_settle || 0,
-        is_print || 1,
-        userId,
-      ]
+      params
     );
+
+    console.log('🔵 Raw results from stored procedure:');
+    console.log(JSON.stringify(results, null, 2));
 
     await connection.commit();
 
+    // Extract first row from first result set
     let result = null;
     if (results && results.length > 0 && results[0] && results[0].length > 0) {
-      const row = results[0][0];
-      if (row && row.result) {
-        result = typeof row.result === 'string' ? JSON.parse(row.result) : row.result;
+      const firstRow = results[0][0];
+      console.log('🔵 First row:', JSON.stringify(firstRow, null, 2));
+
+      // The procedure returns a JSON column named 'result'
+      if (firstRow && firstRow.result) {
+        try {
+          result = typeof firstRow.result === 'string'
+            ? JSON.parse(firstRow.result)
+            : firstRow.result;
+          console.log('🔵 Parsed result:', JSON.stringify(result, null, 2));
+        } catch (parseError) {
+          console.error('🔴 Failed to parse result JSON:', parseError);
+          throw new Error('Invalid JSON response from stored procedure');
+        }
+      } else {
+        console.warn('⚠️ No result field in row, using raw row as fallback');
+        result = firstRow;
       }
+    } else {
+      console.warn('⚠️ Stored procedure returned no rows');
+      throw new Error('No data returned from stored procedure');
     }
 
-    if (result && result.success) {
-      res.status(200).json({
+    // Check outcome
+    if (result && result.success === true) {
+      console.log('✅ Checkout successful');
+      return res.status(200).json({
         success: true,
         message: result.message,
         checkout_id: result.checkout_id,
         checkin_id: result.checkin_id,
-        ldg_bill_no: result.ldg_bill_no,           // ← now included
+        ldg_bill_no: result.ldg_bill_no,
         is_partial: result.is_partial,
         checked_out_rooms: result.checked_out_rooms,
         checked_out_room_ids: result.checked_out_room_ids,
         rooms_updated_count: result.rooms_updated_count,
-        data: result.data,                         // contains totals + ldg_bill_no inside
+        data: result.data,
       });
     } else {
-      throw new Error(result?.message || 'Checkout failed');
+      // Build detailed error message
+      const errorMsg = result?.message || 'Checkout failed';
+      const sqlError = result?.sql_error || '';
+      const errno = result?.errno || '';
+      const debug = result?.debug || '';
+      console.error('❌ Checkout failed:', errorMsg, sqlError, errno, debug);
+      throw new Error(`${errorMsg}${sqlError ? ` (SQL: ${sqlError})` : ''}`);
     }
   } catch (error) {
-    if (connection) await connection.rollback();
-    console.error('Checkout error:', error);
-    res.status(500).json({
+    // Rollback on error
+    if (connection) {
+      try {
+        await connection.rollback();
+        console.log('🔵 Transaction rolled back');
+      } catch (rollbackError) {
+        console.error('🔴 Rollback failed:', rollbackError);
+      }
+    }
+    console.error('🔴 Checkout error caught in controller:');
+    console.error('   Message:', error.message);
+    console.error('   Stack:', error.stack);
+    if (error.sql) console.error('   SQL:', error.sql);
+    if (error.sqlMessage) console.error('   SQL Message:', error.sqlMessage);
+
+    return res.status(500).json({
       success: false,
       message: error.message || 'Checkout failed',
+      ...(process.env.NODE_ENV !== 'production' && {
+        sqlError: error.sqlError,
+        errno: error.errno,
+        debug: error.debug,
+      }),
     });
   } finally {
-    if (connection) connection.release();
+    if (connection) {
+      connection.release();
+      console.log('🔵 Connection released');
+    }
   }
 };
-
 // DELETE checkout record (soft delete - update status only)
 exports.deleteCheckout = async (req, res) => {
   try {

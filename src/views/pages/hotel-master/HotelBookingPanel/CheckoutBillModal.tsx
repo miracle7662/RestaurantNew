@@ -510,59 +510,65 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   
 
   // ========== BUILD SUMMARY - USING BACKEND VALUES ==========
-  const summary = useMemo(() => {
-    if (!billData.length || !displayRows.length) return null
+ const summary = useMemo(() => {
+  if (!billData.length || !displayRows.length) return null
 
-    const firstRow = billData[0]
-    const roomNumbers = Array.from(new Set(displayRows.map(r => r.room_number).filter(Boolean)))
-    const roomCategories = Array.from(
-      new Set(displayRows.map(r => r.room_category_name).filter(Boolean))
-    )
+  const firstRow = billData[0]
 
-    return {
-      checkin_id: firstRow.checkin_id,
-      guest_id: firstRow.guest_id,
-      guest_name: firstRow.guest_name,
-      room_numbers: roomNumbers,
-      room_categories: roomCategories,
-      converted_categories: [],
-      room_numbers_str: roomNumbers.join(', ') || '-',
-      room_categories_str: roomCategories.join(', ') || '-',
-      converted_categories_str: '-',
-      total_room_tariff: toNumber(firstRow.total_amount || 0),
-      total_ex_pax_charge: toNumber(firstRow.ex_pax || 0),
-      total_child_paid_amount: 0,
-      total_driver_charge: 0,
-      total_tax_amount: toNumber(firstRow.cgst_amt || 0) + toNumber(firstRow.sgst_amt || 0),
-      total_amount: toNumber(firstRow.total_amount || 0),
-      total_days: firstRow.total_nights || 0,
-      total_adults: firstRow.adults || 0,
-      total_pax: firstRow.pax || 0,
-      total_ex_pax: firstRow.ex_pax || 0,
-      total_child_paid: 0,
-      total_child_unpaid: firstRow.child_unpaid || 0,
-      total_driver: firstRow.driver || 0,
-      avg_discount_percent: firstRow.discount_percent || 0,
-      avg_tax_percent: firstRow.tax || 18,
-      has_extensions: false,
-      extension_count: 0,
-      extension_days: 0,
-      payment_methods: [firstRow.payment_mode || 'Cash'],
-      payment_method: firstRow.payment_mode || 'Cash',
-      charges_ids: [],
-      selected: true,
-      original_checkin_datetime: firstRow.checkin_datetime,
-      final_checkout_datetime: firstRow.checkout_datetime,
-      guest_mobile: firstRow.mobile,
-      guest_address: firstRow.guest_address,
-      guest_email: firstRow.emailed,
-      guest_id_proof: '-',
-      reg_no: firstRow.reg_no,
-      booking_ref: firstRow.booking,
-      plan_name: firstRow.plan_name,
-      checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [],
-    }
-  }, [displayRows, billData])
+  const guestMobile = firstRow.guest_mobile || firstRow.mobile || '-'
+  const guestEmail = firstRow.guest_email || firstRow.emailed || '-'
+  const guestAddress = firstRow.guest_address || firstRow.address || '-'
+  const guestName = firstRow.guest_name || firstRow.guestName || 'Guest'
+
+  const roomNumbers = Array.from(new Set(displayRows.map(r => r.room_number).filter(Boolean)))
+  const roomCategories = Array.from(
+    new Set(displayRows.map(r => r.room_category_name).filter(Boolean))
+  )
+
+  return {
+    checkin_id: firstRow.checkin_id,
+    guest_id: firstRow.guest_id,
+    guest_name: guestName,
+    guest_mobile: guestMobile,
+    guest_email: guestEmail,
+    guest_address: guestAddress,
+    room_numbers: roomNumbers,
+    room_categories: roomCategories,
+    converted_categories: [],
+    room_numbers_str: roomNumbers.join(', ') || '-',
+    room_categories_str: roomCategories.join(', ') || '-',
+    converted_categories_str: '-',
+    total_room_tariff: toNumber(firstRow.total_amount || 0),
+    total_ex_pax_charge: toNumber(firstRow.ex_pax || 0),
+    total_child_paid_amount: 0,
+    total_driver_charge: 0,
+    total_tax_amount: toNumber(firstRow.cgst_amt || 0) + toNumber(firstRow.sgst_amt || 0),
+    total_amount: toNumber(firstRow.total_amount || 0),
+    total_days: firstRow.total_nights || 0,
+    total_adults: firstRow.adults || 0,
+    total_pax: firstRow.pax || 0,
+    total_ex_pax: firstRow.ex_pax || 0,
+    total_child_paid: 0,
+    total_child_unpaid: firstRow.child_unpaid || 0,
+    total_driver: firstRow.driver || 0,
+    avg_discount_percent: firstRow.discount_percent || 0,
+    avg_tax_percent: firstRow.tax || 18,
+    has_extensions: false,
+    extension_count: 0,
+    extension_days: 0,
+    payment_methods: [firstRow.payment_mode || 'Cash'],
+    payment_method: firstRow.payment_mode || 'Cash',
+    charges_ids: [],
+    selected: true,
+    original_checkin_datetime: firstRow.checkin_datetime,
+    final_checkout_datetime: firstRow.checkout_datetime,
+    guest_id_proof: '-',
+    reg_no: firstRow.reg_no,
+    booking_ref: firstRow.booking,
+    plan_name: firstRow.plan_name,
+    checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [],
+  }
+}, [displayRows, billData])
 
  // ========== GENERATE TABLE ROWS - USING BACKEND CALCULATED VALUES ==========
 const tableRows = useMemo(() => {
@@ -1539,11 +1545,7 @@ const tableRows = useMemo(() => {
                 <td className="bdt-colon">:</td>
                 <td className="bdt-value">INR {formatAmt(totals.netTotal)}</td>
               </tr>
-              <tr>
-                <td className="bdt-label">Transaction ID</td>
-                <td className="bdt-colon">:</td>
-                <td className="bdt-value">{paymentTxnId}</td>
-              </tr>
+              
               <tr>
                 <td className="bdt-label">Payment Date</td>
                 <td className="bdt-colon">:</td>

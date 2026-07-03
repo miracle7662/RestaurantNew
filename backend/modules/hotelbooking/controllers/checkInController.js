@@ -454,7 +454,7 @@ exports.addCheckin = async (req, res) => {
         guest_name: toStr(d.guest_name) || '',
         address: toStr(d.address) || '',
         mobile: toStr(d.mobile) || '',
-        company_id: d.company_id ? Number(d.company_id) : null,
+        company_id: d.company_id ? Number(d.company_id) : 0,
         company_name: toStr(d.company_name) || '',
         emailed: toStr(d.emailed) || '',
         room_id: toNum(d.room_id),
@@ -1378,7 +1378,6 @@ exports.extendDay = async (req, res) => {
 
         const output = outputRows[0];
 
-        // ========== CHECK IF SUCCESSFUL ==========
         if (!output.success) {
             await connection.rollback();
             return res.status(400).json({
@@ -1391,18 +1390,43 @@ exports.extendDay = async (req, res) => {
         await connection.commit();
 
         // ========== FETCH UPDATED CHECKIN DATA ==========
+        // ✅ CORRECTED: Join with checkin_detail_master for guest details
         const [updatedCheckin] = await connection.execute(
             `SELECT 
-                checkin_id, guest_id, guest_name, address, mobile, company_name,
-                emailed, booking, plan_name, reg_no, special_instruction, message,
-                checkin_datetime, checkout_datetime, room_no, category_id,
-                converted_category, adults, pax, pax_charges, ex_pax, ex_pax_charge,
-                child_paid, child_unpaid, child_charge, driver, driver_charge,
-                hotelid, id_type, id_number, department_id, department_name,
-                status, total_nights, total_amount, created_by_id, created_date,
-                updated_by_id, updated_date, room_id, is_settle, checkout_id
-            FROM checkin_master 
-            WHERE checkin_id = ?`,
+                cm.checkin_id,
+                cm.guest_id,
+                cm.reg_no,
+                cm.booking,
+                cm.plan_name,
+                cm.checkin_datetime,
+                cm.room_no,
+                cm.hotelid,
+                cm.total_amount,
+                cm.total_nights,
+                cm.id_type,
+                cm.id_number,
+                cm.department_id,
+                cm.department_name,
+                cm.special_instruction,
+                cm.message,
+                cm.status,
+                cm.created_by_id,
+                cm.created_date,
+                cm.updated_by_id,
+                cm.updated_date,
+                cm.room_id,
+                cm.is_settle,
+                cm.checkout_id,
+                -- Guest details from detail table
+                MAX(cdm.guest_name) AS guest_name,
+                MAX(cdm.address) AS address,
+                MAX(cdm.mobile) AS mobile,
+                MAX(cdm.company_name) AS company_name,
+                MAX(cdm.emailed) AS emailed
+            FROM checkin_master cm
+            LEFT JOIN checkin_detail_master cdm ON cdm.checkin_id = cm.checkin_id
+            WHERE cm.checkin_id = ?
+            GROUP BY cm.checkin_id`,
             [id]
         );
 
@@ -1417,7 +1441,6 @@ exports.extendDay = async (req, res) => {
         const formattedCheckin = updatedCheckin.length > 0 ? {
             ...updatedCheckin[0],
             checkin_datetime: formatDate(updatedCheckin[0].checkin_datetime),
-            checkout_datetime: formatDate(updatedCheckin[0].checkout_datetime),
             created_date: formatDate(updatedCheckin[0].created_date),
             updated_date: formatDate(updatedCheckin[0].updated_date)
         } : null;
