@@ -408,11 +408,9 @@ exports.addCheckin = async (req, res) => {
     const userId = body.created_by_id || 1;
 
     console.log('📥 ===== ADD CHECKIN REQUEST =====');
-    console.log('📥 Guest ID:', body.guest_id);
-    console.log('📥 Hotel ID:', body.hotelid);
-    console.log('📥 Room ID string:', body.room_id);
+    console.log('📥 Full body:', JSON.stringify(body, null, 2));
 
-    // ----- Helper: format datetime -----
+    // ----- Helpers -----
     const formatDateTime = (val) => {
       if (!val) return null;
       if (val instanceof Date) return val;
@@ -426,27 +424,23 @@ exports.addCheckin = async (req, res) => {
       return val;
     };
 
-    // ----- Helper: ensure string or null -----
     const toStr = (val) => (val !== undefined && val !== null && val !== '') ? String(val) : null;
-
-    // ----- Helper: ensure number or 0 -----
     const toNum = (val) => (val !== undefined && val !== null) ? Number(val) : 0;
 
-    // ----- Ensure room_id is a comma‑separated string -----
-    let roomIdsString = null;
+    // ----- Ensure room_id as comma string -----
+    let roomIdsString = '0';
     if (body.room_id && typeof body.room_id === 'string' && body.room_id.length > 0) {
       roomIdsString = body.room_id;
-    } else if (body.room_ids && Array.isArray(body.room_ids) && body.room_ids.length > 0) {
+    } else if (body.room_ids && Array.isArray(body.room_ids)) {
       roomIdsString = body.room_ids.join(',');
-    } else if (body.details && Array.isArray(body.details) && body.details.length > 0) {
+    } else if (body.details && Array.isArray(body.details)) {
       const ids = body.details.map(d => d.room_id).filter(id => id);
-      if (ids.length > 0) roomIdsString = ids.join(',');
+      if (ids.length) roomIdsString = ids.join(',');
     }
-    if (!roomIdsString) roomIdsString = '0';
 
-    console.log('📊 Final room_ids string:', roomIdsString);
+    console.log('📊 Room IDs string:', roomIdsString);
 
-    // ----- JSON preparation with defaults -----
+    // ----- Prepare details JSON -----
     let detailsJson = null;
     if (body.details && Array.isArray(body.details) && body.details.length > 0) {
       const cleaned = body.details.map(d => ({
@@ -511,49 +505,111 @@ exports.addCheckin = async (req, res) => {
         cess_percent: toNum(d.cess_percent),
         cess_amount: toNum(d.cess_amount),
         tax: toNum(d.tax),
-        // ✅ FIX: Add missing NOT NULL columns with default 0
         parent_detail_id: 0,
         is_checkout: 0,
         merged: 0,
         is_settle: 0
       }));
       detailsJson = JSON.stringify(cleaned);
-      console.log('📥 Details JSON length:', detailsJson.length);
     }
 
+    // ============================================================
+    // 🔥 FIX: Automatically generate room_charges from details
+    //    if they are missing or all zeros.
+    // ============================================================
     let roomChargesJson = null;
     if (body.room_charges && Array.isArray(body.room_charges) && body.room_charges.length > 0) {
-      const cleaned = body.room_charges.map(c => ({
-        guest_id: toNum(c.guest_id),
-        room_id: toNum(c.room_id),
-        room_no: toStr(c.room_no) || '',
-        category_id: toNum(c.category_id),
-        pax_count: toNum(c.pax_count),
-        pax_price: toNum(c.pax_price),
-        pax_tax: toNum(c.pax_tax),
-        ex_pax_count: toNum(c.ex_pax_count),
-        ex_pax_price: toNum(c.ex_pax_price),
-        ex_pax_tax: toNum(c.ex_pax_tax),
-        ex_pax_tax_percent: toNum(c.ex_pax_tax_percent),
-        ex_pax_total: toNum(c.ex_pax_total),
-        child_count: toNum(c.child_count),
-        child_price: toNum(c.child_price),
-        child_tax: toNum(c.child_tax),
-        child_tax_percent: toNum(c.child_tax_percent),
-        child_total: toNum(c.child_total),
-        driver_count: toNum(c.driver_count),
-        driver_price: toNum(c.driver_price),
-        driver_tax: toNum(c.driver_tax),
-        driver_tax_percent: toNum(c.driver_tax_percent),
-        driver_total: toNum(c.driver_total),
-        total_amount: toNum(c.total_amount),
-        checkin_datetime: formatDateTime(c.checkin_datetime) || formatDateTime(body.checkin_datetime),
-        checkout_datetime: formatDateTime(c.checkout_datetime) || formatDateTime(body.checkout_datetime)
-      }));
-      roomChargesJson = JSON.stringify(cleaned);
-      console.log('📥 Room Charges JSON length:', roomChargesJson.length);
+      // Check if all numeric amounts are zero – if so, rebuild from details
+      const hasNonZero = body.room_charges.some(c =>
+        toNum(c.pax_price) > 0 ||
+        toNum(c.ex_pax_price) > 0 ||
+        toNum(c.child_price) > 0 ||
+        toNum(c.driver_price) > 0 ||
+        toNum(c.total_amount) > 0
+      );
+
+      if (hasNonZero) {
+        // Use provided charges as-is
+        const cleaned = body.room_charges.map(c => ({
+          guest_id: toNum(c.guest_id),
+          room_id: toNum(c.room_id),
+          category_id: toNum(c.category_id),
+          pax_count: toNum(c.pax_count),
+          pax_price: toNum(c.pax_price),
+          pax_tax: toNum(c.pax_tax),
+          ex_pax_count: toNum(c.ex_pax_count),
+          ex_pax_price: toNum(c.ex_pax_price),
+          ex_pax_tax: toNum(c.ex_pax_tax),
+          ex_pax_tax_percent: toNum(c.ex_pax_tax_percent),
+          ex_pax_total: toNum(c.ex_pax_total),
+          child_count: toNum(c.child_count),
+          child_price: toNum(c.child_price),
+          child_tax: toNum(c.child_tax),
+          child_tax_percent: toNum(c.child_tax_percent),
+          child_total: toNum(c.child_total),
+          driver_count: toNum(c.driver_count),
+          driver_price: toNum(c.driver_price),
+          driver_tax: toNum(c.driver_tax),
+          driver_tax_percent: toNum(c.driver_tax_percent),
+          driver_total: toNum(c.driver_total),
+          total_amount: toNum(c.total_amount),
+          checkin_datetime: formatDateTime(c.checkin_datetime) || formatDateTime(body.checkin_datetime),
+          checkout_datetime: formatDateTime(c.checkout_datetime) || formatDateTime(body.checkout_datetime)
+        }));
+        roomChargesJson = JSON.stringify(cleaned);
+        console.log('📥 Using provided room_charges (non-zero)');
+      } else {
+        console.log('⚠️ Provided room_charges are all zeros – rebuilding from details');
+        roomChargesJson = null; // will rebuild below
+      }
     }
 
+    // If roomChargesJson is still null, build from details (first detail per room)
+    if (!roomChargesJson && body.details && Array.isArray(body.details)) {
+      const charges = body.details.map(d => {
+        // Compute totals based on detail values
+        const baseRoom = toNum(d.room_tariff) - toNum(d.discount_amount);
+        const paxTax = toNum(d.cgst_amount) + toNum(d.sgst_amount) + toNum(d.igst_amount) +
+                       toNum(d.cess_amount) + toNum(d.service_charge_amount);
+        const totalRoom = baseRoom + paxTax;
+
+        const exPaxTotal = toNum(d.ex_pax_charge) + toNum(d.ex_cgst_amount) + toNum(d.ex_sgst_amount) + toNum(d.ex_igst_amount);
+        const childTotal = toNum(d.child_paid_amount) + toNum(d.child_cgst_amount) + toNum(d.child_sgst_amount) + toNum(d.child_igst_amount);
+        const driverTotal = toNum(d.driver_charge) + toNum(d.driver_cgst_amount) + toNum(d.driver_sgst_amount) + toNum(d.driver_igst_amount);
+        const totalAmount = totalRoom + exPaxTotal + childTotal + driverTotal;
+
+        return {
+          guest_id: toNum(d.guest_id),
+          room_id: toNum(d.room_id),
+          category_id: toNum(d.room_category_id),
+          pax_count: toNum(d.pax),
+          pax_price: baseRoom,
+          pax_tax: paxTax,
+          ex_pax_count: toNum(d.ex_pax),
+          ex_pax_price: toNum(d.ex_pax_charge),
+          ex_pax_tax: toNum(d.ex_cgst_amount) + toNum(d.ex_sgst_amount) + toNum(d.ex_igst_amount),
+          ex_pax_tax_percent: toNum(d.tax_percen_ex),
+          ex_pax_total: exPaxTotal,
+          child_count: toNum(d.child_paid),
+          child_price: toNum(d.child_paid_amount),
+          child_tax: toNum(d.child_cgst_amount) + toNum(d.child_sgst_amount) + toNum(d.child_igst_amount),
+          child_tax_percent: toNum(d.tax_percen_child),
+          child_total: childTotal,
+          driver_count: toNum(d.driver),
+          driver_price: toNum(d.driver_charge),
+          driver_tax: toNum(d.driver_cgst_amount) + toNum(d.driver_sgst_amount) + toNum(d.driver_igst_amount),
+          driver_tax_percent: toNum(d.tax_percen_driver),
+          driver_total: driverTotal,
+          total_amount: totalAmount,
+          checkin_datetime: formatDateTime(d.checkin_datetime) || formatDateTime(body.checkin_datetime),
+          checkout_datetime: formatDateTime(d.checkout_datetime) || formatDateTime(body.checkout_datetime)
+        };
+      });
+      roomChargesJson = JSON.stringify(charges);
+      console.log('📥 Generated room_charges from details');
+    }
+
+    // ----- Prepare folio JSON -----
     let folioEntriesJson = null;
     if (body.folio_entries && Array.isArray(body.folio_entries) && body.folio_entries.length > 0) {
       const cleaned = body.folio_entries.map(f => ({
@@ -568,10 +624,9 @@ exports.addCheckin = async (req, res) => {
         payment_method: toStr(f.payment_method) || ''
       }));
       folioEntriesJson = JSON.stringify(cleaned);
-      console.log('📥 Folio Entries JSON length:', folioEntriesJson.length);
     }
 
-    // ----- Build parameter array in exact procedure order (42 parameters) -----
+    // ----- Build parameters (42 total) -----
     const params = [
       body.guest_id ? Number(body.guest_id) : null,
       toStr(body.booking),
@@ -617,15 +672,13 @@ exports.addCheckin = async (req, res) => {
       folioEntriesJson
     ];
 
-    if (params.length !== 42) {
-      throw new Error(`Expected 42 parameters, got ${params.length}`);
+    // Validate that roomChargesJson is not null – procedure requires it
+    if (!roomChargesJson) {
+      throw new Error('Could not build room_charges – please provide valid room charge data.');
     }
 
     console.log(`📊 Parameter count: ${params.length}`);
-    console.log(`  - Room IDs: ${roomIdsString}`);
-    console.log(`  - Details JSON: ${detailsJson ? 'yes' : 'no'}`);
-    console.log(`  - Room Charges JSON: ${roomChargesJson ? 'yes' : 'no'}`);
-    console.log(`  - Folio Entries JSON: ${folioEntriesJson ? 'yes' : 'no'}`);
+    console.log(`📊 Room charges sample: ${roomChargesJson.substring(0, 200)}...`);
 
     const placeholders = params.map(() => '?').join(',');
     const [results] = await connection.execute(

@@ -903,7 +903,7 @@ const CheckInForm = () => {
         const fragmentName = getFragmentName(guest.fragment_id)
         formik.setFieldValue('title', fragmentName || 'MR')
 
-        formik.setFieldValue('guestId', guest.id || guest.guest_id)
+        formik.setFieldValue('guestId', Number(guest.id || guest.guest_id))
         formik.setFieldValue('fragment_id', guest.fragment_id || null)
         formik.setFieldValue('firstName', firstName)
         formik.setFieldValue('lastName', lastName)
@@ -1024,7 +1024,7 @@ const CheckInForm = () => {
       console.log('Guest creation response:', response)
 
       const newGuest: any = response.data || response
-      const newGuestId = newGuest.id || newGuest.guest_id || newGuest.guestId
+      const newGuestId = Number(newGuest.id || newGuest.guest_id || newGuest.guestId)
 
       if (documents && documents.length > 0 && newGuestId) {
         console.log('Saving documents for new guest:', newGuestId, documents)
