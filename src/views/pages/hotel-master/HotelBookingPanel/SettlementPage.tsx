@@ -501,7 +501,7 @@ const SettlementPage = () => {
                             paddingLeft: 6,
                           }}
                         >
-                          Rm: {co.room_no || '-'}
+                          Rm: {co.checked_out_rooms || '-'}
                         </span>
                       </div>
 
