@@ -15,6 +15,12 @@ const getCurrentUserId = (req) => {
 // ========================================
 
 exports.applyDiscount = async (req, res) => {
+
+    // console.log('📥 applyDiscount called');
+    // console.log('   Method:', req.method);
+    // console.log('   URL:', req.originalUrl);
+    // console.log('   Body:', JSON.stringify(req.body, null, 2));
+
   try {
     const {
       detail_id,
@@ -57,10 +63,18 @@ exports.applyDiscount = async (req, res) => {
       [detail_id, checkin_id, hotelid, discount_percent, backdatedFlag, userId]
     )
 
+//     console.log("backdatedFlag =", backdatedFlag);
+// console.log("detail_id =", detail_id);
+// console.log("checkin_id =", checkin_id);
+// console.log("hotelid =", hotelid);
+
+    console.log("✅ Stored procedure executed");
     // Get output parameters
     const [output] = await db.query(
       `SELECT @status_code AS status_code, @status_message AS status_message, @affected_rows AS affected_rows`
     )
+
+    console.log("Output:", output);
 
     const result = output[0]
 
