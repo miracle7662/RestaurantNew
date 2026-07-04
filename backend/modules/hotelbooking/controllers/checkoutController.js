@@ -124,22 +124,21 @@ exports.getCheckouts = async (req, res) => {
     if (!hotelId) return res.status(400).json({ success: false, message: "Hotel ID not found" });
 
     const [checkouts] = await db.query(`
-  SELECT
-    cm.*,
-    rm.room_status_id
-FROM Checkout_Master cm
-LEFT JOIN room_master rm
-    ON rm.room_id = cm.room_id
-WHERE
-    cm.hotelid = ?   
-    AND cm.is_settle = 0
-    AND cm.checkout_datetime = (
-        SELECT MAX(c2.checkout_datetime)
-        FROM Checkout_Master c2
-        WHERE c2.ldg_bill_no = cm.ldg_bill_no
-    )
-ORDER BY
-    cm.ldg_bill_no;
+  SELECT 
+    cm.*,   
+    cd.*
+FROM checkout_master cm
+LEFT JOIN checkout_detail cd 
+    ON cd.checkout_id = cm.checkout_id 
+    AND cd.room_id = cd.room_id   -- 👈 join on the actual room that was checked out
+WHERE cm.hotelid = ?
+  AND cd.is_settle = 0
+  AND cm.checkout_date = (
+      SELECT MAX(c2.checkout_date)
+      FROM checkout_master c2
+      WHERE c2.ldg_bill_no = cm.ldg_bill_no
+  )
+ORDER BY cm.ldg_bill_no;
     `, [hotelId]);
 
     res.json({ success: true, message: "Data fetched successfully", data: checkouts });

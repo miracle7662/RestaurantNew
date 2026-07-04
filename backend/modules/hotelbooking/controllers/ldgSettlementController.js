@@ -192,15 +192,11 @@ if (Array.isArray(room_ids) && room_ids.length > 0) {
 
       // 2. UPDATE checkin_master (once per checkin)
       await conn.query(
-        `UPDATE checkin_master SET is_settle = 1 WHERE checkin_id = ?`,
+        `UPDATE checkout_detail SET is_settle = 1 WHERE checkin_id = ?`,
         [checkinid]
       );
 
-      // 3. UPDATE checkout_master (once per checkout)
-      await conn.query(
-        `UPDATE checkout_master SET is_settle = 1 WHERE checkout_id = ?`,
-        [checkout_id]
-      );
+   
 
       // 4. UPDATE checkin_detail_master AND room_master FOR EACH ROOM
       for (const rid of roomsToSettle) {
