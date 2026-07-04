@@ -1041,7 +1041,7 @@ export const fetchOccupiedRooms = async (
     const allRooms = (roomsRes.data?.rooms || []) as any[];
     console.log(`✅ Total rooms found: ${allRooms.length}`);
     
-    // ✅ Get room categories with tariff and tax data using the meta endpoint
+    // ✅ Get room categories with tariff and tax data
     console.log('📡 Fetching room categories...');
     const metaRes = await RoomService.getHotelBookingMeta(hotelId);
     const categories = (metaRes.data?.categories || []) as any[];
@@ -1051,7 +1051,7 @@ export const fetchOccupiedRooms = async (
     });
     console.log(`✅ Total categories found: ${categories.length}`);
     
-    // ✅ Create a map of room_id to room details (including status_color)
+    // ✅ Create a map of room_id to room details
     const roomMap = new Map<number, any>();
     allRooms.forEach((room: any) => {
       const categoryData = categoryMap.get(room.room_category_id) || {};
@@ -1087,30 +1087,60 @@ export const fetchOccupiedRooms = async (
       return;
     }
 
-    // ✅ Get all check-ins with details
-    console.log('📡 Fetching all check-ins with details...');
+    // ✅ ============================================================
+    // ✅ IMPORTANT: Use the stored procedure to get check-in data
+    // ✅ This returns room-wise charges already calculated
+    // ✅ ============================================================
+    
+    console.log('📡 Fetching check-ins using stored procedure...');
     let allCheckins: any[] = [];
     
     try {
-      const checkinsRes = await CheckInService.list({ 
-        hotelid: hotelId,
-        status: 'all'
+      // Call the stored procedure via the service
+      const checkinsRes = await CheckInService.getCheckins({
+        hotelId: hotelId,
+        checkinId: 0 // 0 means all check-ins
       });
+      
+      // The procedure returns data with all the calculated fields
       allCheckins = (checkinsRes.data || []) as any[];
+      console.log(`✅ Total check-in records from SP: ${allCheckins.length}`);
     } catch (err) {
-      console.log('⚠️ Failed with status=all, trying without status...');
-      const checkinsRes = await CheckInService.list({ 
-        hotelid: hotelId
-      });
-      allCheckins = (checkinsRes.data || []) as any[];
+      console.error('❌ Failed to fetch check-ins from SP:', err);
+      // Fallback to regular list
+      try {
+        const checkinsRes = await CheckInService.list({ 
+          hotelid: hotelId,
+          status: 'all'
+        });
+        allCheckins = (checkinsRes.data || []) as any[];
+        console.log(`✅ Fallback: ${allCheckins.length} check-ins found`);
+      } catch (fallbackErr) {
+        console.error('❌ Fallback also failed:', fallbackErr);
+        setErrorOccupied('Failed to load check-in data');
+        setLoadingOccupied(false);
+        return;
+      }
     }
     
-    console.log(`✅ Total check-ins found: ${allCheckins.length}`);
+    // ✅ ============================================================
+    // ✅ Group check-ins by checkin_id to get all rooms per check-in
+    // ✅ ============================================================
     
-    // ✅ Group check-ins by room_id, keeping the latest one
+    const checkinGroupMap = new Map<number, any[]>();
     const roomCheckinMap = new Map<number, any>();
+    
     allCheckins.forEach((checkin: any) => {
+      const checkinId = checkin.checkin_id;
       const roomId = checkin.room_id;
+      
+      // Group by checkin_id
+      if (!checkinGroupMap.has(checkinId)) {
+        checkinGroupMap.set(checkinId, []);
+      }
+      checkinGroupMap.get(checkinId)!.push(checkin);
+      
+      // Keep latest check-in for each room
       if (!roomCheckinMap.has(roomId)) {
         roomCheckinMap.set(roomId, checkin);
       } else {
@@ -1122,211 +1152,143 @@ export const fetchOccupiedRooms = async (
         }
       }
     });
+    
+    console.log(`✅ Grouped by checkin_id: ${checkinGroupMap.size} check-ins`);
+    console.log(`✅ Grouped by room_id: ${roomCheckinMap.size} rooms`);
 
-    // ✅ Build occupied items with tariff and tax data
+    // ✅ Build occupied items
     const occupiedItems: any[] = [];
-    const advanceSummaryCache = new Map<number, number>();
     
     for (const roomId of occupiedRoomIds) {
       const room = roomMap.get(roomId);
       if (!room) continue;
       
       const checkin = roomCheckinMap.get(roomId);
-      const roomStatusId = room.room_status_id;
-      
-      console.log(`🔍 Processing room ${room.room_no} (status_id: ${roomStatusId})...`);
-      
-      let guestName = 'Unknown Guest';
-      let checkinDatetime = new Date().toISOString();
-      let checkoutDatetime = new Date().toISOString();
-      let totalAmount = 0;
-      let adults = 0;
-      let pax = 0;
-      let exPax = 0;
-      let childCount = 0;
-      let driverCount = 0;
-      let paymentMethod = 'Cash';
-      let discountPercent = 0;
-      let totalNights = 0;
-      let regNo = '';
-      let booking = '';
-      let planName = '';
-      let checkinId = 0;
-      let detailId = null;
-      let roomTariff = room.room_tariff || 0;
-      let originalCheckinDatetime = '';
-      let masterCheckinDatetime = '';
-      
-      if (checkin) {
-        guestName = checkin.guest_name || checkin.name || 'Unknown Guest';
-        
-        // ✅ CRITICAL FIX: Use master checkin_datetime (never changes)
-        // The master checkin_datetime is the original check-in date
-        masterCheckinDatetime = checkin.checkin_datetime || new Date().toISOString();
-        
-        // ✅ Use detail checkout datetime (updated on extension)
-        checkoutDatetime = checkin.detail_checkout_datetime || checkin.checkout_datetime || new Date().toISOString();
-        
-        // ✅ For display, ALWAYS use master checkin_datetime
-        checkinDatetime = masterCheckinDatetime;
-        originalCheckinDatetime = masterCheckinDatetime;
-        
-        totalAmount = checkin.total_amount || 0;
-        adults = checkin.detail_adults || checkin.adults || 0;
-        pax = checkin.detail_pax || checkin.pax || 0;
-        exPax = checkin.detail_ex_pax || 0;
-        childCount = checkin.detail_child_unpaid || 0;
-        driverCount = Number(checkin.detail_driver) || 0;
-        paymentMethod = checkin.payment_method || 'Cash';
-        discountPercent = checkin.discount_percent || checkin.detail_discount_percent || 0;
-        totalNights = checkin.total_nights || 0;
-        regNo = checkin.reg_no || '';
-        booking = checkin.booking || '';
-        planName = checkin.plan_name || '';
-        checkinId = checkin.checkin_id || 0;
-        detailId = checkin.detail_id || null;
-        
-        // ✅ Use checkin's room_tariff if available, otherwise fallback to room's tariff
-        roomTariff = checkin.room_tariff || room.room_tariff || 0;
-        
-        console.log(`📝 Room ${room.room_no}: Master IN=${masterCheckinDatetime}, Detail OUT=${checkoutDatetime}`);
-        
-      } else if (roomStatusId === 7) {
-        guestName = `Bill - Room ${room.room_no}`;
-        if (room.guest_name) {
-          guestName = room.guest_name;
-        }
-        const pastDate = new Date();
-        pastDate.setHours(pastDate.getHours() - 1);
-        checkoutDatetime = pastDate.toISOString();
-        checkinDatetime = pastDate.toISOString();
-        originalCheckinDatetime = checkinDatetime;
-      } else {
-        console.log(`⚠️ No check-in for room ${room.room_no}`);
+      if (!checkin) {
+        console.log(`⚠️ No check-in found for room ${room.room_no}`);
         continue;
       }
+      
+      const checkinId = checkin.checkin_id;
+      const roomStatusId = room.room_status_id;
+      
+      console.log(`🔍 Processing room ${room.room_no} (checkin_id: ${checkinId})...`);
+      
+      // ✅ ============================================================
+      // ✅ Get ALL rooms for this checkin from the group map
+      // ✅ ============================================================
+      
+      const allRoomsForCheckin = checkinGroupMap.get(checkinId) || [];
+      console.log(`📊 Checkin ${checkinId} has ${allRoomsForCheckin.length} rooms`);
+      
+      // ✅ ============================================================
+      // ✅ LEFT SIDE: Get data for THIS SPECIFIC ROOM
+      // ✅ The stored procedure already calculates room_total_amount
+      // ✅ ============================================================
+      
+      // Find the room-specific data from the check-in records
+      const roomData = allRoomsForCheckin.find((c: any) => Number(c.room_id) === Number(roomId));
+      
+      // LEFT SIDE values (room-specific)
+      const roomTotalAmount = Number(roomData?.room_total_amount) || Number(roomData?.total_amount) || 0;
+      const roomAdvance = Number(roomData?.balance) > 0 ? Number(roomData?.balance) : 0;
+      
+      // Calculate room net: Total Charges - Advance
+      // For Room 302: 1600 (tariff) - 2000 (advance) = -400
+      const leftSideNet = roomTotalAmount - roomAdvance;
+      
+      console.log(`📊 LEFT SIDE (Room ${room.room_no}):`);
+      console.log(`  Room Total Amount: ${roomTotalAmount}`);
+      console.log(`  Room Advance: ${roomAdvance}`);
+      console.log(`  → Room Net: ${leftSideNet}`);
+      
+      // ✅ ============================================================
+      // ✅ RIGHT SIDE: Get data for ENTIRE CHECKIN (all rooms)
+      // ✅ Sum up all room totals for this checkin
+      // ✅ ============================================================
+      
+      let checkinTotalAmount = 0;
+      let checkinTotalAdvance = 0;
+      
+      allRoomsForCheckin.forEach((c: any) => {
+        const roomTotal = Number(c.room_total_amount) || Number(c.total_amount) || 0;
+        const roomAdv = Number(c.balance) > 0 ? Number(c.balance) : 0;
+        
+        checkinTotalAmount += roomTotal;
+        checkinTotalAdvance += roomAdv;
+        
+        console.log(`  Room ${c.room_number}: Total=${roomTotal}, Advance=${roomAdv}`);
+      });
+      
+      const rightSideNet = checkinTotalAmount - checkinTotalAdvance;
+      
+      console.log(`📊 RIGHT SIDE (Checkin ${checkinId}):`);
+      console.log(`  Total Amount (all rooms): ${checkinTotalAmount}`);
+      console.log(`  Total Advance (all rooms): ${checkinTotalAdvance}`);
+      console.log(`  → Checkin Net: ${rightSideNet}`);
+      
+      // ✅ Get guest info
+      const guestName = roomData?.guest_name || checkin.guest_name || 'Unknown Guest';
+      const booking = roomData?.booking || checkin.booking || 'WALK-IN-GUEST';
+      
+      // ✅ Get pax details
+      const adults = Number(roomData?.adults) || Number(checkin.adults) || 0;
+      const pax = Number(roomData?.pax) || Number(checkin.pax) || 0;
+      const exPax = Number(roomData?.ex_pax) || Number(checkin.ex_pax) || 0;
+      const childUnpaid = Number(roomData?.child_unpaid) || Number(checkin.child_unpaid) || 0;
+      const driver = Number(roomData?.driver) || Number(checkin.driver) || 0;
+      
+      // ✅ Get dates
+      const checkinDatetime = roomData?.detail_checkin_datetime || checkin.detail_checkin_datetime || checkin.checkin_datetime || new Date().toISOString();
+      const checkoutDatetime = roomData?.detail_checkout_datetime || checkin.detail_checkout_datetime || new Date().toISOString();
       
       const minutesLeft = getMinutesLeft(checkoutDatetime);
       const isExpired = minutesLeft <= 0;
       
-      // ✅ Get tax data from room (which now has category data)
-      const cgstPercent = room.cgst_percent || 0;
-      const sgstPercent = room.sgst_percent || 0;
-      const igstPercent = room.igst_percent || 0;
-      const cessPercent = room.cess_percent || 0;
-      const serviceCharge = room.service_charge || 0;
+      // ✅ Get tax data
+      const cgstPercent = Number(room.cgst_percent) || 0;
+      const sgstPercent = Number(room.sgst_percent) || 0;
+      const igstPercent = Number(room.igst_percent) || 0;
+      const cessPercent = Number(room.cess_percent) || 0;
+      const serviceCharge = Number(room.service_charge) || 0;
       const totalTaxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent + serviceCharge;
       
-      // ✅ Calculate charges with tax (ROOM-wise and CHECKIN-wise)
-      // Bug source: previous logic used a set of guest_room_charges_id and a shared map,
-      // which can cause charge totals to be effectively treated as checkin-level.
-      // Fix: aggregate directly using room_id for left side and across all rooms for right side.
-
-      console.log('CHECKIN_ID', checkinId);
-
-      console.log(
-        'ALL ROOMS OF CHECKIN',
-        allCheckins.filter((x: any) => Number(x.checkin_id) === Number(checkinId)),
-      );
-
-      const checkinNetRows = allCheckins.filter((ci: any) => {
-        return (
-          Number(ci.checkin_id) === Number(checkinId) &&
-          ci.is_settle === 0 
-          
-        )
-      });
-
-      console.log(
-        'CHECKIN_NET_ROWS (after filter ci.is_settle===0 and guest_room_charges_id!=null)',
-        checkinNetRows.map((r: any) => ({
-          room_id: r.room_id,
-          total_amount: r.total_amount,
-          guest_room_charges_id: r.guest_room_charges_id,
-          is_settle: r.is_settle,
-        })),
-      );
-
-      const roomNetRows = checkinNetRows.filter((ci: any) => {
-        return Number(ci.room_id) === Number(room.room_id);
-      });
-
-      let roomNet = 0;
-      let checkinAllRoomsNet = 0;
-
-      if (checkinNetRows.length > 0) {
-        roomNet = roomNetRows.reduce((sum: number, ci: any) => sum + (Number(ci.total_amount) || 0), 0);
-        checkinAllRoomsNet = checkinNetRows.reduce((sum: number, ci: any) => sum + (Number(ci.total_amount) || 0), 0);
-      } else {
-        // Fallbacks to keep existing behavior when charges table rows are missing
-        roomNet = Number(totalAmount) || 0;
-        checkinAllRoomsNet = Number(totalAmount) || 0;
-      }
-
-
-      // ✅ Advance subtraction
-      let pendingAdvanceForRoom = 0;
-      if (checkinId) {
-        try {
-          const advRoomRes = await AdvanceTransactionService.getSummaryForRoom(checkinId, Number(room.room_id));
-          pendingAdvanceForRoom = Number(advRoomRes.data?.pending_advance) || 0;
-        } catch {
-          pendingAdvanceForRoom = 0;
-        }
-      }
-
-      let pendingAdvanceForCheckin = 0;
-      if (checkinId) {
-        if (advanceSummaryCache.has(checkinId)) {
-          pendingAdvanceForCheckin = advanceSummaryCache.get(checkinId) || 0;
-        } else {
-          try {
-            const advRes = await AdvanceTransactionService.getSummary(checkinId);
-            pendingAdvanceForCheckin = Number(advRes.data?.pending_advance) || 0;
-          } catch {
-            pendingAdvanceForCheckin = 0;
-          }
-          advanceSummaryCache.set(checkinId, pendingAdvanceForCheckin);
-        }
-      }
-
-      // ✅ Create occupied item with ALL required fields for price calculation
+      // ✅ Create occupied item
       occupiedItems.push({
         // Basic info
         checkin_id: checkinId,
         guest_name: guestName,
-        guest_type: booking || 'WALK-IN-GUEST',
-        booking_type: booking || 'WALK-IN-GUEST',
-        agent_name: checkin?.agent_name || '',
-        checkin_datetime: checkinDatetime, // ✅ Master checkin date (never changes)
-        checkout_datetime: checkoutDatetime, // ✅ Detail checkout date (updated on extension)
-        original_checkin_datetime: originalCheckinDatetime, // ✅ Same as master
-        master_checkin_datetime: masterCheckinDatetime, // ✅ Explicit master date
+        guest_type: booking,
+        booking_type: booking,
+        agent_name: roomData?.agent_name || checkin.agent_name || '',
+        checkin_datetime: checkinDatetime,
+        checkout_datetime: checkoutDatetime,
+        master_checkin_datetime: checkin.checkin_datetime,
         
         // Pax counts
         adults: adults,
         pax: pax,
         ex_pax: exPax,
-        child_count: childCount,
-        driver_count: driverCount,
+        child_count: childUnpaid,
+        driver_count: driver,
         original_pax: pax || adults,
+        display_pax: `${adults}:${childUnpaid}:${exPax}:${driver}`,
         
         // Payment and discount
-        payment_method: paymentMethod,
-        discount_percent: discountPercent,
+        payment_method: roomData?.payment_method || 'Cash',
+        discount_percent: Number(roomData?.discount_percent) || Number(checkin.discount_percent) || 0,
+        discount_amount: Number(roomData?.discount_amount) || Number(checkin.discount_amount) || 0,
         
         // Room details
-        detail_id: detailId,
+        detail_id: roomData?.detail_id || checkin.detail_id || null,
         room_id: room.room_id,
         room_no: room.room_no,
         room_category_id: room.room_category_id || 0,
         room_category_name: room.room_category_name || '',
-        converted_category_name: checkin?.converted_category_name || '',
+        converted_category_name: roomData?.converted_category_name || checkin.converted_category_name || '',
         
-        // ✅ CRITICAL: Room tariff for price calculation
-        room_tariff: roomTariff,
-        
-        // ✅ CRITICAL: Tax percentages for price calculation
+        // ✅ Tariff and tax
+        room_tariff: Number(roomData?.room_tariff) || Number(checkin.room_tariff) || room.room_tariff || 0,
         cgst_percent: cgstPercent,
         sgst_percent: sgstPercent,
         igst_percent: igstPercent,
@@ -1339,43 +1301,69 @@ export const fetchOccupiedRooms = async (
         child_charge: room.child_charge || 0,
         driver_charge: room.driver_charge || 0,
         
-        // Financials
-        net_room_amount: roomNet - pendingAdvanceForRoom,
-        total_all_rooms_net: checkinAllRoomsNet - pendingAdvanceForCheckin,
-        pending_advance_for_room: pendingAdvanceForRoom,
-        total_allowances: 0,
-        charges: [],
+        // ✅ LEFT SIDE: Room-specific values
+        room_base_charges: roomTotalAmount,
+        room_advance: roomAdvance,
+        room_discount: Number(roomData?.discount_amount) || 0,
+        net_room_amount: leftSideNet,
+        room_total_amount: roomTotalAmount,
+        
+        // ✅ RIGHT SIDE: Checkin-wide values
+        checkin_total_amount: checkinTotalAmount,
+        checkin_total_advance: checkinTotalAdvance,
+        checkin_total_discount: 0,
+        total_all_rooms_net: rightSideNet,
+        
+        // Folio data
+        total_debit: Number(roomData?.total_debit) || 0,
+        total_credit: Number(roomData?.total_credit) || 0,
+        balance: Number(roomData?.balance) || 0,
+        
+        // All rooms in this checkin
+        all_rooms: allRoomsForCheckin.map((c: any) => ({
+          room_no: c.room_number,
+          room_id: c.room_id,
+          total_amount: Number(c.room_total_amount) || Number(c.total_amount) || 0,
+          balance: Number(c.balance) || 0,
+          guest_name: c.guest_name,
+        })),
         
         // Checkin reference
         checkin: checkin,
-        detail: checkin,
+        detail: roomData || checkin,
         
         // Status and dates
-        latest_charge_checkout_datetime: checkoutDatetime,
         isExpired: isExpired,
         minutesLeft: minutesLeft,
         room_status_id: roomStatusId,
         status: roomStatusId === 2 ? 'Occupied' : 'Bill',
-        total_nights: totalNights,
-        total_amount: roomNet - pendingAdvanceForRoom,
-        reg_no: regNo,
+        total_nights: Number(roomData?.no_of_days) || Number(checkin.total_nights) || 0,
+        total_amount: leftSideNet,
+        reg_no: roomData?.reg_no || checkin.reg_no || '',
         booking: booking,
-        plan_name: planName,
+        plan_name: roomData?.plan_name || checkin.plan_name || '',
+        is_settle: Number(roomData?.is_settle) || Number(checkin.is_settle) || 0,
         
         // Colors
         status_color: room.status_color || '',
         status_name: room.status_name || '',
       });
       
-      console.log(`✅ Added room ${room.room_no}: IN=${checkinDatetime}, OUT=${checkoutDatetime}`);
+      console.log(`✅ Room ${room.room_no}: LEFT=${leftSideNet}, RIGHT=${rightSideNet}`);
     }
     
     setOccupiedRooms(occupiedItems);
     
     // 📊 Final summary
-    console.log('📊 Final occupied rooms summary:');
-    occupiedItems.forEach(item => {
-      console.log(`  Room ${item.room_no}: IN=${item.checkin_datetime}, OUT=${item.checkout_datetime}`);
+    console.log('📊 FINAL OCCUPIED ROOMS SUMMARY:');
+    occupiedItems.forEach((item: any) => {
+      console.log(`  Room ${item.room_no}: ${item.guest_name}`);
+      console.log(`    LEFT (Room Net): ${item.net_room_amount}`);
+      console.log(`    RIGHT (Checkin Net): ${item.total_all_rooms_net}`);
+      console.log(`    Pax: ${item.display_pax}`);
+      console.log(`    Check-in: ${item.checkin_datetime}`);
+      console.log(`    Check-out: ${item.checkout_datetime}`);
+      console.log(`    ---`);
     });
     
   } catch (err) {
