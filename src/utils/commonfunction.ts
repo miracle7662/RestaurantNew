@@ -1041,7 +1041,7 @@ export const fetchOccupiedRooms = async (
     const allRooms = (roomsRes.data?.rooms || []) as any[];
     console.log(`✅ Total rooms found: ${allRooms.length}`);
     
-    // ✅ Get room categories with tariff and tax data using the meta endpoint
+    // ✅ Get room categories with tariff and tax data
     console.log('📡 Fetching room categories...');
     const metaRes = await RoomService.getHotelBookingMeta(hotelId);
     const categories = (metaRes.data?.categories || []) as any[];
@@ -1051,7 +1051,7 @@ export const fetchOccupiedRooms = async (
     });
     console.log(`✅ Total categories found: ${categories.length}`);
     
-    // ✅ Create a map of room_id to room details (including status_color)
+    // ✅ Create a map of room_id to room details
     const roomMap = new Map<number, any>();
     allRooms.forEach((room: any) => {
       const categoryData = categoryMap.get(room.room_category_id) || {};
@@ -1066,6 +1066,7 @@ export const fetchOccupiedRooms = async (
         service_charge: categoryData.service_charge || 0,
         ex_pax_charge: categoryData.ex_pax_charge || 0,
         child_charge: categoryData.child_charge || 0,
+        child_paid_charge: categoryData.child_paid_charge || categoryData.child_charge || 0,
         driver_charge: categoryData.driver_charge || 0,
       });
     });
@@ -1087,30 +1088,40 @@ export const fetchOccupiedRooms = async (
       return;
     }
 
-    // ✅ Get all check-ins with details
-    console.log('📡 Fetching all check-ins with details...');
+    // ✅ Fetch all check-ins using the stored procedure
+    console.log('📡 Fetching check-ins using stored procedure...');
     let allCheckins: any[] = [];
     
     try {
+      const checkinsRes = await CheckInService.getCheckins({
+        hotelId: hotelId,
+        checkinId: 0
+      });
+      allCheckins = (checkinsRes.data || []) as any[];
+      console.log(`✅ Total check-in records from SP: ${allCheckins.length}`);
+    } catch (err) {
+      console.error('❌ Failed to fetch check-ins from SP:', err);
       const checkinsRes = await CheckInService.list({ 
         hotelid: hotelId,
         status: 'all'
       });
       allCheckins = (checkinsRes.data || []) as any[];
-    } catch (err) {
-      console.log('⚠️ Failed with status=all, trying without status...');
-      const checkinsRes = await CheckInService.list({ 
-        hotelid: hotelId
-      });
-      allCheckins = (checkinsRes.data || []) as any[];
+      console.log(`✅ Fallback: ${allCheckins.length} check-ins found`);
     }
     
-    console.log(`✅ Total check-ins found: ${allCheckins.length}`);
-    
-    // ✅ Group check-ins by room_id, keeping the latest one
+    // ✅ Group check-ins by checkin_id
+    const checkinGroupMap = new Map<number, any[]>();
     const roomCheckinMap = new Map<number, any>();
+    
     allCheckins.forEach((checkin: any) => {
+      const checkinId = checkin.checkin_id;
       const roomId = checkin.room_id;
+      
+      if (!checkinGroupMap.has(checkinId)) {
+        checkinGroupMap.set(checkinId, []);
+      }
+      checkinGroupMap.get(checkinId)!.push(checkin);
+      
       if (!roomCheckinMap.has(roomId)) {
         roomCheckinMap.set(roomId, checkin);
       } else {
@@ -1123,259 +1134,345 @@ export const fetchOccupiedRooms = async (
       }
     });
 
-    // ✅ Build occupied items with tariff and tax data
+    // ✅ Build occupied items
     const occupiedItems: any[] = [];
-    const advanceSummaryCache = new Map<number, number>();
+    const advanceCache = new Map<number, number>();
     
     for (const roomId of occupiedRoomIds) {
       const room = roomMap.get(roomId);
       if (!room) continue;
       
       const checkin = roomCheckinMap.get(roomId);
-      const roomStatusId = room.room_status_id;
-      
-      console.log(`🔍 Processing room ${room.room_no} (status_id: ${roomStatusId})...`);
-      
-      let guestName = 'Unknown Guest';
-      let checkinDatetime = new Date().toISOString();
-      let checkoutDatetime = new Date().toISOString();
-      let totalAmount = 0;
-      let adults = 0;
-      let pax = 0;
-      let exPax = 0;
-      let childCount = 0;
-      let driverCount = 0;
-      let paymentMethod = 'Cash';
-      let discountPercent = 0;
-      let totalNights = 0;
-      let regNo = '';
-      let booking = '';
-      let planName = '';
-      let checkinId = 0;
-      let detailId = null;
-      let roomTariff = room.room_tariff || 0;
-      let originalCheckinDatetime = '';
-      let masterCheckinDatetime = '';
-      
-      if (checkin) {
-        guestName = checkin.guest_name || checkin.name || 'Unknown Guest';
-        
-        // ✅ CRITICAL FIX: Use master checkin_datetime (never changes)
-        // The master checkin_datetime is the original check-in date
-        masterCheckinDatetime = checkin.checkin_datetime || new Date().toISOString();
-        
-        // ✅ Use detail checkout datetime (updated on extension)
-        checkoutDatetime = checkin.detail_checkout_datetime || checkin.checkout_datetime || new Date().toISOString();
-        
-        // ✅ For display, ALWAYS use master checkin_datetime
-        checkinDatetime = masterCheckinDatetime;
-        originalCheckinDatetime = masterCheckinDatetime;
-        
-        totalAmount = checkin.total_amount || 0;
-        adults = checkin.detail_adults || checkin.adults || 0;
-        pax = checkin.detail_pax || checkin.pax || 0;
-        exPax = checkin.detail_ex_pax || 0;
-        childCount = checkin.detail_child_unpaid || 0;
-        driverCount = Number(checkin.detail_driver) || 0;
-        paymentMethod = checkin.payment_method || 'Cash';
-        discountPercent = checkin.discount_percent || checkin.detail_discount_percent || 0;
-        totalNights = checkin.total_nights || 0;
-        regNo = checkin.reg_no || '';
-        booking = checkin.booking || '';
-        planName = checkin.plan_name || '';
-        checkinId = checkin.checkin_id || 0;
-        detailId = checkin.detail_id || null;
-        
-        // ✅ Use checkin's room_tariff if available, otherwise fallback to room's tariff
-        roomTariff = checkin.room_tariff || room.room_tariff || 0;
-        
-        console.log(`📝 Room ${room.room_no}: Master IN=${masterCheckinDatetime}, Detail OUT=${checkoutDatetime}`);
-        
-      } else if (roomStatusId === 7) {
-        guestName = `Bill - Room ${room.room_no}`;
-        if (room.guest_name) {
-          guestName = room.guest_name;
-        }
-        const pastDate = new Date();
-        pastDate.setHours(pastDate.getHours() - 1);
-        checkoutDatetime = pastDate.toISOString();
-        checkinDatetime = pastDate.toISOString();
-        originalCheckinDatetime = checkinDatetime;
-      } else {
-        console.log(`⚠️ No check-in for room ${room.room_no}`);
+      if (!checkin) {
+        console.log(`⚠️ No check-in found for room ${room.room_no}`);
         continue;
       }
+      
+      const checkinId = checkin.checkin_id;
+      const roomStatusId = room.room_status_id;
+      
+      console.log(`🔍 Processing room ${room.room_no} (checkin_id: ${checkinId})...`);
+      
+      // ✅ Get ALL rooms for this checkin
+      const allRoomsForCheckin = checkinGroupMap.get(checkinId) || [];
+      
+      // ✅ Get room-specific data
+      const roomData = allRoomsForCheckin.find((c: any) => Number(c.room_id) === Number(roomId));
+      
+      // ✅ ============================================================
+      // ✅ Extract ALL values from the stored procedure data
+      // ✅ ============================================================
+      
+      // Room Tariff - from stored procedure
+      const roomTariff = Number(roomData?.room_tariff) || Number(roomData?.amount) || Number(checkin.room_tariff) || room.room_tariff || 0;
+      
+      // ✅ PAX VALUES - Using the exact field names from the stored procedure
+      // The SP returns: adults, pax, ex_pax, child_paid, child_unpaid, driver
+      const pax = Number(roomData?.pax) || Number(checkin.pax) || 0;
+      const exPaxCount = Number(roomData?.ex_pax) || Number(checkin.ex_pax) || 0;
+      const childPaid = Number(roomData?.child_paid) || Number(checkin.child_paid) || 0;
+      const childUnpaid = Number(roomData?.child_unpaid) || Number(checkin.child_unpaid) || 0;
+      const driverCount = Number(roomData?.driver) || Number(checkin.driver) || 0;
+      const adults = Number(roomData?.adults) || Number(checkin.adults) || 0;
+      
+      // Also check detail fields from checkin_detail_master
+      const detailPax = Number(roomData?.detail_pax) || Number(checkin.detail_pax) || 0;
+      const detailExPax = Number(roomData?.detail_ex_pax) || Number(checkin.detail_ex_pax) || 0;
+      const detailChildPaid = Number(roomData?.detail_child_paid) || Number(checkin.detail_child_paid) || 0;
+      const detailChildUnpaid = Number(roomData?.detail_child_unpaid) || Number(checkin.detail_child_unpaid) || 0;
+      const detailDriver = Number(roomData?.detail_driver) || Number(checkin.detail_driver) || 0;
+      
+      // Use the first non-zero value
+      const finalPax = pax || detailPax || 0;
+      const finalExPax = exPaxCount || detailExPax || 0;
+      const finalChildPaid = childPaid || detailChildPaid || 0;
+      const finalChildUnpaid = childUnpaid || detailChildUnpaid || 0;
+      const finalDriver = driverCount || detailDriver || 0;
+      
+      console.log(`📊 Room ${room.room_no} PAX DATA:`, {
+        'pax': { roomData: roomData?.pax, checkin: checkin?.pax, detail: checkin?.detail_pax, final: finalPax },
+        'ex_pax': { roomData: roomData?.ex_pax, checkin: checkin?.ex_pax, detail: checkin?.detail_ex_pax, final: finalExPax },
+        'child_paid': { roomData: roomData?.child_paid, checkin: checkin?.child_paid, detail: checkin?.detail_child_paid, final: finalChildPaid },
+        'child_unpaid': { roomData: roomData?.child_unpaid, checkin: checkin?.child_unpaid, detail: checkin?.detail_child_unpaid, final: finalChildUnpaid },
+        'driver': { roomData: roomData?.driver, checkin: checkin?.driver, detail: checkin?.detail_driver, final: finalDriver },
+        'adults': { roomData: roomData?.adults, checkin: checkin?.adults, detail: checkin?.detail_adults, final: adults }
+      });
+      
+      // ✅ Get discount
+      const discountPercent = Number(roomData?.discount_percent) || Number(checkin.discount_percent) || 0;
+      const discountAmount = Number(roomData?.discount_amount) || Number(checkin.discount_amount) || 0;
+      
+      // ✅ Get tax percentages
+      const cgstPercent = Number(room.cgst_percent) || 0;
+      const sgstPercent = Number(room.sgst_percent) || 0;
+      const igstPercent = Number(room.igst_percent) || 0;
+      const cessPercent = Number(room.cess_percent) || 0;
+      const serviceCharge = Number(room.service_charge) || 0;
+      const totalTaxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent + serviceCharge;
+      
+      // ✅ Get charge rates
+      const exPaxCharge = Number(room.ex_pax_charge) || 0;
+      const childCharge = Number(room.child_charge) || 0;
+      const childPaidCharge = Number(room.child_paid_charge) || childCharge;
+      const driverCharge = Number(room.driver_charge) || 0;
+      
+      console.log(`📊 Room ${room.room_no} RATES:`, {
+        exPaxCharge,
+        childCharge,
+        childPaidCharge,
+        driverCharge,
+        discountPercent,
+        totalTaxPercent
+      });
+      
+      // ✅ ============================================================
+      // ✅ STEP 1: Calculate Room Charges (Tariff - Discount + Tax)
+      // ✅ ============================================================
+      
+      let roomDiscount = discountAmount;
+      if (roomDiscount === 0 && discountPercent > 0) {
+        roomDiscount = (roomTariff * discountPercent) / 100;
+      }
+      
+     const roomTax =
+    Number(roomData?.tax) ||
+    Number(roomData?.cgst_amount || 0)
+  + Number(roomData?.sgst_amount || 0)
+  + Number(roomData?.igst_amount || 0);
+
+const roomTotalWithTax =
+    Number(roomData?.room_total_amount) ||
+    (roomTariff - roomDiscount + roomTax);
+      
+      console.log(`📊 Room Charges:`, {
+        roomTariff,
+        roomDiscount,
+        
+        roomTax,
+        roomTotalWithTax
+      });
+      
+      // ✅ ============================================================
+      // ✅ STEP 2: Calculate Extra Pax Charges (ex_pax × charge + tax)
+      // ✅ ============================================================
+      
+      const exPaxBase = finalExPax * exPaxCharge;
+      const exPaxTax = (exPaxBase * totalTaxPercent) / 100;
+      const exPaxTotal =Number(roomData?.ex_pax_total) || (exPaxBase + exPaxTax);
+      
+      console.log(`📊 Extra Pax:`, {
+        finalExPax,
+        exPaxCharge,
+        exPaxBase,
+        exPaxTax,
+        exPaxTotal
+      });
+      
+      // ✅ ============================================================
+      // ✅ STEP 3: Calculate Child Paid Charges
+      // ✅ ============================================================
+      
+      const childPaidBase = finalChildPaid * childPaidCharge;
+      const childPaidTax = (childPaidBase * totalTaxPercent) / 100;
+      const childPaidTotal = childPaidBase + childPaidTax;
+      
+      console.log(`📊 Child Paid:`, {
+        finalChildPaid,
+        childPaidCharge,
+        childPaidBase,
+        childPaidTax,
+        childPaidTotal
+      });
+      
+      // ✅ ============================================================
+      // ✅ STEP 4: Calculate Child Unpaid Charges
+      // ✅ ============================================================
+      
+      const childUnpaidBase = finalChildUnpaid * childCharge;
+      const childUnpaidTax = (childUnpaidBase * totalTaxPercent) / 100;
+      const childUnpaidTotal = childUnpaidBase + childUnpaidTax;
+      
+      console.log(`📊 Child Unpaid:`, {
+        finalChildUnpaid,
+        childCharge,
+        childUnpaidBase,
+        childUnpaidTax,
+        childUnpaidTotal
+      });
+      
+      // ✅ ============================================================
+      // ✅ STEP 5: Calculate Driver Charges
+      // ✅ ============================================================
+      
+      const driverBase = finalDriver * driverCharge;
+      const driverTax = (driverBase * totalTaxPercent) / 100;
+      const driverTotal = driverBase + driverTax;
+      
+      console.log(`📊 Driver:`, {
+        finalDriver,
+        driverCharge,
+        driverBase,
+        driverTax,
+        driverTotal
+      });
+      
+      // ✅ ============================================================
+      // ✅ STEP 6: GRAND TOTAL = Room + Extra Pax + Child Paid + Child Unpaid + Driver
+      // ✅ ============================================================
+      
+      const grandTotal = roomTotalWithTax  + childPaidTotal + childUnpaidTotal + driverTotal;
+      
+      console.log(`📊 GRAND TOTAL:`, {
+        roomTotalWithTax,
+        exPaxTotal,
+        childPaidTotal,
+        childUnpaidTotal,
+        driverTotal,
+        grandTotal
+      });
+      
+      // ✅ ============================================================
+      // ✅ STEP 7: Get ADVANCE for this room
+      // ✅ ============================================================
+      
+      let roomAdvance = 0;
+      if (checkinId) {
+        try {
+          const advRes = await AdvanceTransactionService.getSummaryForRoom(checkinId, Number(roomId));
+          roomAdvance = Number(advRes.data?.pending_advance) || 0;
+        } catch {
+          roomAdvance = 0;
+        }
+      }
+      
+      // ✅ ============================================================
+      // ✅ STEP 8: LEFT SIDE NET = Grand Total - Advance
+      // ✅ ============================================================
+      
+      const leftSideNet = grandTotal - roomAdvance;
+      
+      console.log(`📊 LEFT SIDE FINAL (Room ${room.room_no}):`);
+      console.log(`  Room Tariff: ${roomTariff}`);
+      console.log(`  - Discount: ${roomDiscount}`);
+      console.log(`  + Tax: ${roomTax}`);
+      console.log(`  = Room Total: ${roomTotalWithTax}`);
+      console.log(`  + Extra Pax: ${exPaxTotal}`);
+      console.log(`  + Child Paid: ${childPaidTotal}`);
+      console.log(`  + Child Unpaid: ${childUnpaidTotal}`);
+      console.log(`  + Driver: ${driverTotal}`);
+      console.log(`  = Grand Total: ${grandTotal}`);
+      console.log(`  - Advance: ${roomAdvance}`);
+      console.log(`  → Display Amount: ${leftSideNet}`);
+      
+      // ✅ Get guest info
+      const guestName = roomData?.guest_name || checkin.guest_name || 'Unknown Guest';
+      const booking = roomData?.booking || checkin.booking || 'WALK-IN-GUEST';
+      const paymentMethod = roomData?.payment_method || checkin.payment_method || 'Cash';
+      
+      // ✅ Get dates
+      const checkinDatetime = roomData?.detail_checkin_datetime || checkin.detail_checkin_datetime || checkin.checkin_datetime || new Date().toISOString();
+      const checkoutDatetime = roomData?.detail_checkout_datetime || checkin.detail_checkout_datetime || new Date().toISOString();
       
       const minutesLeft = getMinutesLeft(checkoutDatetime);
       const isExpired = minutesLeft <= 0;
       
-      // ✅ Get tax data from room (which now has category data)
-      const cgstPercent = room.cgst_percent || 0;
-      const sgstPercent = room.sgst_percent || 0;
-      const igstPercent = room.igst_percent || 0;
-      const cessPercent = room.cess_percent || 0;
-      const serviceCharge = room.service_charge || 0;
-      const totalTaxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent + serviceCharge;
+      // ✅ Display pax format: pax : ex_pax : child_paid : child_unpaid : driver
+      const displayPax = `${finalPax}:${finalExPax}:${finalChildPaid}:${finalChildUnpaid}:${finalDriver}`;
       
-      // ✅ Calculate charges with tax (ROOM-wise and CHECKIN-wise)
-      // Bug source: previous logic used a set of guest_room_charges_id and a shared map,
-      // which can cause charge totals to be effectively treated as checkin-level.
-      // Fix: aggregate directly using room_id for left side and across all rooms for right side.
-
-      console.log('CHECKIN_ID', checkinId);
-
-      console.log(
-        'ALL ROOMS OF CHECKIN',
-        allCheckins.filter((x: any) => Number(x.checkin_id) === Number(checkinId)),
-      );
-
-      const checkinNetRows = allCheckins.filter((ci: any) => {
-        return (
-          Number(ci.checkin_id) === Number(checkinId) &&
-          ci.is_settle === 0 
-          
-        )
-      });
-
-      console.log(
-        'CHECKIN_NET_ROWS (after filter ci.is_settle===0 and guest_room_charges_id!=null)',
-        checkinNetRows.map((r: any) => ({
-          room_id: r.room_id,
-          total_amount: r.total_amount,
-          guest_room_charges_id: r.guest_room_charges_id,
-          is_settle: r.is_settle,
-        })),
-      );
-
-      const roomNetRows = checkinNetRows.filter((ci: any) => {
-        return Number(ci.room_id) === Number(room.room_id);
-      });
-
-      let roomNet = 0;
-      let checkinAllRoomsNet = 0;
-
-      if (checkinNetRows.length > 0) {
-        roomNet = roomNetRows.reduce((sum: number, ci: any) => sum + (Number(ci.total_amount) || 0), 0);
-        checkinAllRoomsNet = checkinNetRows.reduce((sum: number, ci: any) => sum + (Number(ci.total_amount) || 0), 0);
-      } else {
-        // Fallbacks to keep existing behavior when charges table rows are missing
-        roomNet = Number(totalAmount) || 0;
-        checkinAllRoomsNet = Number(totalAmount) || 0;
-      }
-
-
-      // ✅ Advance subtraction
-      let pendingAdvanceForRoom = 0;
-      if (checkinId) {
-        try {
-          const advRoomRes = await AdvanceTransactionService.getSummaryForRoom(checkinId, Number(room.room_id));
-          pendingAdvanceForRoom = Number(advRoomRes.data?.pending_advance) || 0;
-        } catch {
-          pendingAdvanceForRoom = 0;
-        }
-      }
-
-      let pendingAdvanceForCheckin = 0;
-      if (checkinId) {
-        if (advanceSummaryCache.has(checkinId)) {
-          pendingAdvanceForCheckin = advanceSummaryCache.get(checkinId) || 0;
-        } else {
-          try {
-            const advRes = await AdvanceTransactionService.getSummary(checkinId);
-            pendingAdvanceForCheckin = Number(advRes.data?.pending_advance) || 0;
-          } catch {
-            pendingAdvanceForCheckin = 0;
-          }
-          advanceSummaryCache.set(checkinId, pendingAdvanceForCheckin);
-        }
-      }
-
-      // ✅ Create occupied item with ALL required fields for price calculation
+      // ✅ Create occupied item
       occupiedItems.push({
         // Basic info
         checkin_id: checkinId,
         guest_name: guestName,
-        guest_type: booking || 'WALK-IN-GUEST',
-        booking_type: booking || 'WALK-IN-GUEST',
-        agent_name: checkin?.agent_name || '',
-        checkin_datetime: checkinDatetime, // ✅ Master checkin date (never changes)
-        checkout_datetime: checkoutDatetime, // ✅ Detail checkout date (updated on extension)
-        original_checkin_datetime: originalCheckinDatetime, // ✅ Same as master
-        master_checkin_datetime: masterCheckinDatetime, // ✅ Explicit master date
+        guest_type: booking,
+        booking_type: booking,
+        checkin_datetime: checkinDatetime,
+        checkout_datetime: checkoutDatetime,
         
-        // Pax counts
+        // ✅ PAX in correct format: pax : ex_pax : child_paid : child_unpaid : driver
+        pax: finalPax,
+        ex_pax: finalExPax,
+        child_paid: finalChildPaid,
+        child_unpaid: finalChildUnpaid,
+        driver_count: finalDriver,
         adults: adults,
-        pax: pax,
-        ex_pax: exPax,
-        child_count: childCount,
-        driver_count: driverCount,
-        original_pax: pax || adults,
-        
-        // Payment and discount
-        payment_method: paymentMethod,
-        discount_percent: discountPercent,
+        display_pax: displayPax,
         
         // Room details
-        detail_id: detailId,
         room_id: room.room_id,
         room_no: room.room_no,
-        room_category_id: room.room_category_id || 0,
         room_category_name: room.room_category_name || '',
-        converted_category_name: checkin?.converted_category_name || '',
         
-        // ✅ CRITICAL: Room tariff for price calculation
+        // Room charges
         room_tariff: roomTariff,
+        discount_percent: discountPercent,
+        discount_amount: roomDiscount,
+        room_tax_percent: totalTaxPercent,
+        room_tax_amount: roomTax,
+        room_total_with_tax: roomTotalWithTax,
         
-        // ✅ CRITICAL: Tax percentages for price calculation
-        cgst_percent: cgstPercent,
-        sgst_percent: sgstPercent,
-        igst_percent: igstPercent,
-        cess_percent: cessPercent,
-        service_charge: serviceCharge,
-        total_tax_percent: totalTaxPercent,
+        // Extra Pax charges
+        ex_pax_charge: exPaxCharge,
+        ex_pax_base: exPaxBase,
+        ex_pax_tax: exPaxTax,
+        ex_pax_total: exPaxTotal,
         
-        // Extra charges per person
-        ex_pax_charge: room.ex_pax_charge || 0,
-        child_charge: room.child_charge || 0,
-        driver_charge: room.driver_charge || 0,
+        // Child Paid charges
+        child_paid_charge: childPaidCharge,
+        child_paid_base: childPaidBase,
+        child_paid_tax: childPaidTax,
+        child_paid_total: childPaidTotal,
         
-        // Financials
-        net_room_amount: roomNet - pendingAdvanceForRoom,
-        total_all_rooms_net: checkinAllRoomsNet - pendingAdvanceForCheckin,
-        pending_advance_for_room: pendingAdvanceForRoom,
-        total_allowances: 0,
-        charges: [],
+        // Child Unpaid charges
+        child_unpaid_charge: childCharge,
+        child_unpaid_base: childUnpaidBase,
+        child_unpaid_tax: childUnpaidTax,
+        child_unpaid_total: childUnpaidTotal,
         
-        // Checkin reference
-        checkin: checkin,
-        detail: checkin,
+        child_total: childPaidTotal + childUnpaidTotal,
         
-        // Status and dates
-        latest_charge_checkout_datetime: checkoutDatetime,
+        // Driver charges
+        driver_charge: driverCharge,
+        driver_base: driverBase,
+        driver_tax: driverTax,
+        driver_total: driverTotal,
+        
+        // Totals
+        grand_total: grandTotal,
+        room_advance: roomAdvance,
+        display_amount: leftSideNet,
+        net_room_amount: leftSideNet,
+        
+        payment_method: paymentMethod,
         isExpired: isExpired,
         minutesLeft: minutesLeft,
         room_status_id: roomStatusId,
         status: roomStatusId === 2 ? 'Occupied' : 'Bill',
-        total_nights: totalNights,
-        total_amount: roomNet - pendingAdvanceForRoom,
-        reg_no: regNo,
-        booking: booking,
-        plan_name: planName,
         
-        // Colors
-        status_color: room.status_color || '',
-        status_name: room.status_name || '',
+        roomData: roomData,
+        checkin: checkin,
+        all_rooms: allRoomsForCheckin,
       });
       
-      console.log(`✅ Added room ${room.room_no}: IN=${checkinDatetime}, OUT=${checkoutDatetime}`);
+      console.log(`✅ Room ${room.room_no}: Display Amount=${leftSideNet}, Pax=${displayPax}`);
     }
     
     setOccupiedRooms(occupiedItems);
     
     // 📊 Final summary
-    console.log('📊 Final occupied rooms summary:');
-    occupiedItems.forEach(item => {
-      console.log(`  Room ${item.room_no}: IN=${item.checkin_datetime}, OUT=${item.checkout_datetime}`);
+    console.log('📊 FINAL OCCUPIED ROOMS SUMMARY:');
+    occupiedItems.forEach((item: any) => {
+      console.log(`  Room ${item.room_no}: ${item.guest_name}`);
+      console.log(`    Amount: ${item.display_amount}`);
+      console.log(`    Pax: ${item.pax_count}`);
+      console.log(`    Tariff: ${item.room_tariff}`);
+      console.log(`    Discount: ${item.discount_amount}`);
+      console.log(`    Extra Pax: ${item.ex_pax} × ${item.ex_pax_charge} = ${item.ex_pax_total}`);
+      console.log(`    Child Paid: ${item.child_paid} × ${item.child_paid_charge} = ${item.child_paid_total}`);
+      console.log(`    Child Unpaid: ${item.child_unpaid} × ${item.child_unpaid_charge} = ${item.child_unpaid_total}`);
+      console.log(`    Driver: ${item.driver_count} × ${item.driver_charge} = ${item.driver_total}`);
+      console.log(`    Grand Total: ${item.grand_total}`);
+      console.log('    ---');
     });
     
   } catch (err) {
