@@ -70,7 +70,7 @@ const getAvailableStatusId = async () => {
 
 exports.getCheckins = async (req, res) => {
     try {
-        // Get Hotel ID
+        // Hotel ID
         let hotelId = req.query.hotelid || req.query.mst_hotelid;
 
         if (!hotelId) {
@@ -84,29 +84,28 @@ exports.getCheckins = async (req, res) => {
             });
         }
 
-        // Optional Checkin ID
         const checkinId = req.query.checkin_id || 0;
 
-        // Call Store Procedure
+        // SP Call
         const [result] = await db.execute(
             "CALL sp_get_checkins(?, ?)",
             [hotelId, checkinId]
         );
 
-        // MySQL SP returns first result set
         const checkins = result[0] || [];
 
-        // Format Dates
+        // ✅ सही मैपिंग - सिर्फ वही फील्ड्स जो SP में मौजूद हैं
         const formattedCheckins = checkins.map(checkin => ({
             ...checkin,
-            checkin_datetime: formatDate(checkin.checkin_datetime),
-            checkout_datetime: formatDate(checkin.checkout_datetime),
-            created_date: checkin.created_date
-                ? formatDate(checkin.created_date)
-                : null,
-            updated_date: checkin.updated_date
-                ? formatDate(checkin.updated_date)
-                : null
+            // SP में checkout_datetime नहीं है, detail_checkout_datetime है
+            detail_checkin_datetime: formatDate(checkin.detail_checkin_datetime),
+            detail_checkout_datetime: formatDate(checkin.detail_checkout_datetime),
+            
+            // SP में created_date/updated_date नहीं हैं, 
+            // इसलिए या तो इन्हें हटा दें, या SP में जोड़ें।
+            // अगर SP में जोड़ दें, तो इसे अनकमेंट करें:
+            // created_date: formatDate(checkin.created_date),
+            // updated_date: formatDate(checkin.updated_date)
         }));
 
         return res.status(200).json({
@@ -117,7 +116,6 @@ exports.getCheckins = async (req, res) => {
 
     } catch (error) {
         console.error("Error fetching checkins:", error);
-
         return res.status(500).json({
             success: false,
             message: "Database error",
