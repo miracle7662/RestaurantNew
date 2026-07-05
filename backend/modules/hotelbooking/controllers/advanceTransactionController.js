@@ -388,7 +388,18 @@ exports.addAdvanceTransaction = async (req, res) => {
     // (prevents ER_BAD_NULL_ERROR: Column 'hotel_id' cannot be null)
     const hotelIdForDb = normalizedHotelId;
 
-
+    // ---- FIX: Auto-fetch detail_id if missing ----
+    let finalDetailId = detail_id || null;
+    if (!finalDetailId && checkin_id && room_id) {
+      const [rows] = await connection.query(
+        `SELECT detail_id FROM checkin_detail_master WHERE checkin_id = ? AND room_id = ? LIMIT 1`,
+        [checkin_id, room_id]
+      );
+      if (rows && rows.length > 0) {
+        finalDetailId = rows[0].detail_id;
+      }
+    }
+    // -----------------------------------------------
 
     const userId = created_by_id || getCurrentUserId(req) || 1;
     const now = new Date();
@@ -440,8 +451,7 @@ exports.addAdvanceTransaction = async (req, res) => {
     `, [
       hotelIdForDb,
       checkin_id,
-
-      detail_id || null,
+      finalDetailId,               // <-- fixed
       room_id || null,
       guest_name,
       room_no,
@@ -502,9 +512,6 @@ exports.addAdvanceTransaction = async (req, res) => {
     let folioDebit           = 0;
     let folioCredit          = 0;
 
-  
-
-
     switch (transaction_type) {
       case 'Booking Receipt':
         folioTransactionType = 'Advance Receipt';
@@ -543,8 +550,7 @@ exports.addAdvanceTransaction = async (req, res) => {
     `, [
       checkin_id,
       hotelIdForDb,
-
-      detail_id || null,
+      finalDetailId,               // <-- fixed
       room_id || null,
       folioTransactionType,
       formattedTransactionDateTime,

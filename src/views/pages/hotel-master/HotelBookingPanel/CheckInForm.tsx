@@ -903,7 +903,7 @@ const CheckInForm = () => {
         const fragmentName = getFragmentName(guest.fragment_id)
         formik.setFieldValue('title', fragmentName || 'MR')
 
-        formik.setFieldValue('guestId', Number(guest.id || guest.guest_id))
+        formik.setFieldValue('guestId', guest.id || guest.guest_id)
         formik.setFieldValue('fragment_id', guest.fragment_id || null)
         formik.setFieldValue('firstName', firstName)
         formik.setFieldValue('lastName', lastName)
@@ -1024,7 +1024,7 @@ const CheckInForm = () => {
       console.log('Guest creation response:', response)
 
       const newGuest: any = response.data || response
-      const newGuestId = Number(newGuest.id || newGuest.guest_id || newGuest.guestId)
+      const newGuestId = newGuest.id || newGuest.guest_id || newGuest.guestId
 
       if (documents && documents.length > 0 && newGuestId) {
         console.log('Saving documents for new guest:', newGuestId, documents)
@@ -1502,13 +1502,6 @@ const CheckInForm = () => {
     setShowDocScanModal(true)
   }
 
-  const getLocalDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
   const formik = useFormik<CheckInFormData>({
     enableReinitialize: true,
     validateOnChange: false,
@@ -1532,9 +1525,9 @@ const CheckInForm = () => {
       companyId: null,
       gst: '',
 
-       arrivalDate: getLocalDate(new Date()),
-  arrivalTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-  departureDate: getLocalDate(new Date(Date.now() + 86400000)), // या new Date() + 1 day local
+      arrivalDate: new Date().toISOString().split('T')[0],
+      arrivalTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+      departureDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
       departureTime: '10:00',
       adults: 1,
       pax: 0,
@@ -1999,11 +1992,10 @@ const CheckInForm = () => {
     
     let departureDateStr = ''
     if (arrivalDate && nights && nights > 0) {
-     const arrival = new Date(arrivalDate) 
+      const arrival = new Date(arrivalDate)
       const departure = new Date(arrival)
       departure.setDate(departure.getDate() + Number(nights))
-     departure.setDate(departure.getDate() + Number(nights))
-departureDateStr = getLocalDate(departure) // local date में convert
+      departureDateStr = departure.toISOString().split('T')[0]
     } else {
       const today = new Date()
       const tomorrow = new Date(today)
