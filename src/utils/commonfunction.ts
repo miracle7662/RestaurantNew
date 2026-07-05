@@ -1093,7 +1093,7 @@ export const fetchOccupiedRooms = async (
     let allCheckins: any[] = [];
     
     try {
-      const checkinsRes = await CheckInService.getCheckins({
+      const checkinsRes = await CheckInService.get({
         hotelId: hotelId,
         checkinId: 0
       });
