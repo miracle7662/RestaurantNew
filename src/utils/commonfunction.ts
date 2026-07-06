@@ -1034,7 +1034,7 @@ export const fetchOccupiedRooms = async (
   
   try {
     // ============================================================
-    // STEP 1-4: Rooms, Categories, RoomMap, Occupied IDs (same)
+    // STEP 1-4: Rooms, Categories, RoomMap, Occupied IDs
     // ============================================================
     console.log('📡 Fetching all rooms...');
     const roomsRes = await RoomService.getRooms(hotelId);
@@ -1094,12 +1094,14 @@ export const fetchOccupiedRooms = async (
     });
     const allCheckins = (checkinsRes.data || []) as any[];
     console.log(`✅ Total check-in records: ${allCheckins.length}`);
+    
     if (allCheckins.length === 0) {
       console.log('⚠️ No check-in records found');
       setOccupiedRooms([]);
       setLoadingOccupied(false);
       return;
     }
+    
     if (allCheckins.length > 0) {
       console.log('📋 Sample record fields:', Object.keys(allCheckins[0]));
       console.log('📋 Sample record:', allCheckins[0]);
@@ -1120,6 +1122,7 @@ export const fetchOccupiedRooms = async (
       }
       checkinGroupMap.get(checkinId)!.push(checkin);
       
+      // Latest checkin for each room
       if (!roomCheckinMap.has(roomId)) {
         roomCheckinMap.set(roomId, checkin);
       } else {
@@ -1133,24 +1136,40 @@ export const fetchOccupiedRooms = async (
     });
 
     // ============================================================
-    // STEP 7: Build Booking Meta-Data (without financials)
+    // STEP 7: Build Booking Meta-Data
     // ============================================================
     console.log('📊 Building booking meta-data map...');
     const bookingMetaMap = new Map<number, {
       totalRooms: number;
       roomNumbers: string[];
+      roomIds: number[];
       guestName: string;
       checkinDatetime: string;
       checkoutDatetime: string;
       bookingType: string;
+      checkinGrandTotal: number;
+      checkinTotalAdvance: number;
+      checkinTotalDiscount: number;
+      checkinBalance: number;
+      // 🟢 Total net amount of all rooms in this checkin
+      totalRoomsNetAmount: number;
+      // 🟢 Room-wise net amounts map
+      roomNetAmounts: Map<number, number>;
     }>();
     
     for (const [checkinId, rooms] of checkinGroupMap) {
       const roomNumbers: string[] = [];
+      const roomIds: number[] = [];
+      const roomNetAmounts = new Map<number, number>();
       let guestName = '';
       let checkinDatetime = '';
       let checkoutDatetime = '';
       let bookingType = '';
+      let checkinGrandTotal = 0;
+      let checkinTotalAdvance = 0;
+      let checkinTotalDiscount = 0;
+      let checkinBalance = 0;
+      let totalRoomsNetAmount = 0;
       
       const firstRoom = rooms[0];
       if (firstRoom) {
@@ -1158,36 +1177,57 @@ export const fetchOccupiedRooms = async (
         bookingType = firstRoom.booking || 'WALK-IN-GUEST';
         checkinDatetime = firstRoom.detail_checkin_datetime || firstRoom.checkin_datetime || new Date().toISOString();
         checkoutDatetime = firstRoom.detail_checkout_datetime || firstRoom.checkout_datetime || new Date().toISOString();
+        checkinGrandTotal = Number(firstRoom.checkin_grand_total) || Number(firstRoom.total_amount) || 0;
+        checkinTotalAdvance = Number(firstRoom.tot_advance) || 0;
+        checkinTotalDiscount = Number(firstRoom.tot_discount_amount) || 0;
+        checkinBalance = Number(firstRoom.checkin_balance) || Number(firstRoom.balance_payable) || 0;
       }
       
       for (const roomData of rooms) {
         const roomNumber = roomData.room_number || roomData.room_no || `Room ${roomData.room_id}`;
         roomNumbers.push(roomNumber);
+        if (roomData.room_id) {
+          roomIds.push(Number(roomData.room_id));
+        }
+        // 🟢 Calculate room net amount
+        const roomNetAmount = Number(roomData.room_net_amount) || 0;
+        roomNetAmounts.set(Number(roomData.room_id), roomNetAmount);
+        totalRoomsNetAmount += roomNetAmount;
       }
       
       bookingMetaMap.set(checkinId, {
         totalRooms: rooms.length,
         roomNumbers,
+        roomIds,
         guestName,
         checkinDatetime,
         checkoutDatetime,
-        bookingType
+        bookingType,
+        checkinGrandTotal,
+        checkinTotalAdvance,
+        checkinTotalDiscount,
+        checkinBalance,
+        totalRoomsNetAmount, // 🟢 All rooms net total
+        roomNetAmounts // 🟢 Room-wise net amounts
       });
     }
 
     // ============================================================
-    // STEP 8: Build Occupied Items (using SP columns)
+    // STEP 8: Build Occupied Items
     // ============================================================
     console.log('📊 Building occupied items...');
     const occupiedItems: any[] = [];
     
     for (const roomId of occupiedRoomIds) {
       const room = roomMap.get(roomId);
-      if (!room) continue;
+      if (!room) {
+        console.log(`⚠️ Room ${roomId} not found in roomMap`);
+        continue;
+      }
       
       const checkin = roomCheckinMap.get(roomId);
       if (!checkin) {
-        console.log(`⚠️ No check-in found for room ${room.room_no}`);
+        console.log(`⚠️ No check-in found for room ${room.room_no} (ID: ${roomId})`);
         continue;
       }
       
@@ -1195,13 +1235,15 @@ export const fetchOccupiedRooms = async (
       const roomStatusId = room.room_status_id;
       
       const allRoomsForCheckin = checkinGroupMap.get(checkinId) || [];
+      
+      // Find specific room data for this room
       const roomData = allRoomsForCheckin.find((c: any) => Number(c.room_id) === Number(roomId));
       if (!roomData) {
-        console.log(`⚠️ No room data found for room ${room.room_no}`);
+        console.log(`⚠️ No room data found for room ${room.room_no} in checkin ${checkinId}`);
         continue;
       }
       
-      // ----- Financials from SP (actual columns) -----
+      // ----- Financials from SP -----
       const roomTariff = Number(roomData.room_tariff) || 0;
       const exPaxCharge = Number(roomData.ex_pax_charge) || 0;
       const childPaidAmount = Number(roomData.child_paid_amount) || 0;
@@ -1209,22 +1251,27 @@ export const fetchOccupiedRooms = async (
       const discountAmount = Number(roomData.discount_amount) || 0;
       const discountPercent = Number(roomData.discount_percent) || 0;
       
-      // 🟢 SP से सीधे room_total_amount (without tax) और tax
-      const roomTotalWithoutTax = Number(roomData.room_total_amount) || 0;
-      const roomTax = Number(roomData.tax) || 0;
+      // 🟢 SP से सीधे room net amount
+      const roomNetAmount = Number(roomData.room_net_amount) || 0;
+      const roomBasicAmount = Number(roomData.room_basic_amount) || 0;
+      const roomTotalDebit = Number(roomData.room_total_debit) || 0;
+      const roomTotalCredit = Number(roomData.room_total_credit) || 0;
+      const roomBalance = Number(roomData.room_balance) || 0;
       
-      // Grand Total = without tax + tax
-      const roomGrandTotal = roomTotalWithoutTax + roomTax;
+      // Booking-level totals (Right side)
+      const meta = bookingMetaMap.get(checkinId);
+      const checkinGrandTotal = meta ? meta.checkinGrandTotal : 0;
+      const checkinTotalAdvance = meta ? meta.checkinTotalAdvance : 0;
+      const checkinTotalDiscount = meta ? meta.checkinTotalDiscount : 0;
+      const checkinBalance = meta ? meta.checkinBalance : 0;
+      // 🟢 Right side = Total net of ALL rooms in this checkin
+      const totalRoomsNetAmount = meta ? meta.totalRoomsNetAmount : 0;
       
-      // Booking-level totals
-      const bookingTotal = Number(checkin.total_amount) || 0;    // cm.total_amount
-      const bookingAdvance = Number(checkin.tot_advance) || 0;   // cm.tot_advance
-      
-      // Room advance (pro-rata, since SP doesn't have room-level advance)
+      // Room advance (pro-rata)
       const totalRoomsInBooking = allRoomsForCheckin.length;
-      const roomAdvance = totalRoomsInBooking > 0 ? bookingAdvance / totalRoomsInBooking : 0;
+      const roomAdvance = totalRoomsInBooking > 0 ? checkinTotalAdvance / totalRoomsInBooking : 0;
       
-      // Payment method – not in SP yet
+      // Payment method
       const paymentMethod = checkin.payment_method || 'Cash';
       
       // Pax counts
@@ -1235,11 +1282,14 @@ export const fetchOccupiedRooms = async (
       const driverCount = Number(roomData.driver) || 0;
       const adults = Number(roomData.adults) || 0;
       
-      const leftSideNet = roomGrandTotal - roomAdvance;
-      const rightSideNet = bookingTotal - bookingAdvance;
+      // 🟢 Left side = Room Net Amount
+      const leftSideNet = roomNetAmount;
       
-      const meta = bookingMetaMap.get(checkinId);
+      // 🟢 Right side = Total Net Amount of ALL rooms in this booking
+      const rightSideNet = totalRoomsNetAmount;
+      
       const bookingRoomNumbers = meta ? meta.roomNumbers : [];
+      const bookingRoomIds = meta ? meta.roomIds : [];
       
       const guestName = roomData.guest_name || checkin.guest_name || 'Unknown Guest';
       const booking = roomData.booking || checkin.booking || 'WALK-IN-GUEST';
@@ -1252,7 +1302,15 @@ export const fetchOccupiedRooms = async (
       
       const displayPax = `${adults}:${exPaxCount}:${childPaid}:${childUnpaid}:${driverCount}`;
       
+      // 🟢 Get all room net amounts for this checkin
+      const allRoomNetAmounts = meta ? Array.from(meta.roomNetAmounts.entries()).map(([id, amount]) => ({
+        room_id: id,
+        room_number: roomMap.get(id)?.room_no || `Room ${id}`,
+        net_amount: amount
+      })) : [];
+      
       occupiedItems.push({
+        // Basic Info
         checkin_id: checkinId,
         guest_name: guestName,
         guest_type: booking,
@@ -1260,6 +1318,7 @@ export const fetchOccupiedRooms = async (
         checkin_datetime: checkinDatetime,
         checkout_datetime: checkoutDatetime,
         
+        // Pax Details
         pax,
         ex_pax: exPaxCount,
         child_paid: childPaid,
@@ -1268,55 +1327,74 @@ export const fetchOccupiedRooms = async (
         adults,
         display_pax: displayPax,
         
+        // Room Details
         room_id: room.room_id,
         room_no: room.room_no,
         room_category_name: room.room_category_name || '',
         room_category_id: room.room_category_id || 0,
         
+        // Status
         room_status_id: roomStatusId,
         status: roomStatusId === 2 ? 'Occupied' : 'Bill',
         status_color: room.status_color || '',
         isExpired,
         minutesLeft,
         
+        // Payment
         payment_method: paymentMethod,
         
-        // LEFT SIDE (Room)
+        // ===== LEFT SIDE (Room-wise) =====
         room_tariff: roomTariff,
         ex_pax_charge: exPaxCharge,
         child_paid_amount: childPaidAmount,
         driver_charge: driverCharge,
         discount_percent: discountPercent,
         discount_amount: discountAmount,
-        room_tax: roomTax,
-        room_total_without_tax: roomTotalWithoutTax,
-        room_grand_total: roomGrandTotal,
+        room_basic_amount: roomBasicAmount,
+        room_total_debit: roomTotalDebit,
+        room_total_credit: roomTotalCredit,
+        room_balance: roomBalance,
         room_advance: roomAdvance,
-        net_room_amount: leftSideNet,
+        net_room_amount: leftSideNet, // 🟢 Left side - Individual Room Net
         
-        // RIGHT SIDE (Booking)
+        // ===== RIGHT SIDE (Booking-wise - ALL ROOMS TOTAL) =====
         booking_total_rooms: totalRoomsInBooking,
         booking_room_numbers: bookingRoomNumbers,
-        booking_total_amount: bookingTotal,
-        booking_total_advance: bookingAdvance,
-        total_all_rooms_net: rightSideNet,
+        booking_room_ids: bookingRoomIds,
+        booking_total_amount: checkinGrandTotal,
+        booking_total_advance: checkinTotalAdvance,
+        booking_total_discount: checkinTotalDiscount,
+        booking_balance: checkinBalance,
+        total_all_rooms_net: rightSideNet, // 🟢 Right side - ALL rooms net total
+        all_room_net_amounts: allRoomNetAmounts, // 🟢 All rooms with their net amounts
         
         // Raw Data (Debug)
         roomData: roomData,
         checkin: checkin,
         all_rooms: allRoomsForCheckin,
+        meta: meta,
       });
       
       console.log(`✅ Room ${room.room_no}: LEFT=${leftSideNet}, RIGHT=${rightSideNet}, Pax=${displayPax}`);
     }
     
+    // Sort by room number
+    occupiedItems.sort((a, b) => {
+      const aNum = parseInt(String(a.room_no).replace(/\D/g, '')) || 0;
+      const bNum = parseInt(String(b.room_no).replace(/\D/g, '')) || 0;
+      return aNum - bNum;
+    });
+    
     setOccupiedRooms(occupiedItems);
     
     console.log('📊 FINAL OCCUPIED ROOMS SUMMARY:');
+    console.log(`✅ Total occupied rooms: ${occupiedItems.length}`);
     occupiedItems.forEach((item: any) => {
       console.log(`  Room ${item.room_no}: ${item.guest_name}`);
-      console.log(`    LEFT (Room Net): ${item.net_room_amount}`);
-      console.log(`    RIGHT (Booking Net): ${item.total_all_rooms_net}`);
+      console.log(`    LEFT (Room Net): ₹${item.net_room_amount.toFixed(2)}`);
+      console.log(`    RIGHT (All Rooms Net): ₹${item.total_all_rooms_net.toFixed(2)}`);
+      console.log(`    Total Rooms in Booking: ${item.booking_total_rooms}`);
+      console.log(`    All Room Net Amounts:`, item.all_room_net_amounts);
       console.log(`    Pax: ${item.display_pax}`);
       console.log('    ---');
     });
