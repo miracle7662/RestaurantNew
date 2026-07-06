@@ -1,6 +1,6 @@
 import { CheckIn } from '@/common/hotel/checkIn';
 import { Detail } from '@/common/hotel/detail';
-import { GuestRoomCharge } from '@/common/hotel/guestRoomCharges';
+
 
 export interface OccupiedRoomItem {
   room_no: string;
@@ -17,6 +17,7 @@ export interface OccupiedRoomItem {
   child_paid:number;
   child_unpaid:number;
   child_count: number;
+  driver: number;
   driver_count: number;
  
   payment_method: string;
@@ -45,7 +46,7 @@ export interface OccupiedRoomItem {
   per_day_base_price?: number;
   guest_room_charges_total?: number;
   checkin_total_amount?: number;
-  guest_room_charges_per_day?: (GuestRoomCharge & { per_day_total?: number })[];
+  guest_room_charges_per_day?:number;
   room_tariff_from_category?: number;
   room_category_name?: string;
   converted_category_name?: string;

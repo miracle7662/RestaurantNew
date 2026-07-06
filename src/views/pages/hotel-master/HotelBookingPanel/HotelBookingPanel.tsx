@@ -1855,7 +1855,7 @@ const hideCheckinSection =
                               <span style={{ opacity: 0.5 }}>:</span>{item.ex_pax || 0}
                               <span style={{ opacity: 0.5 }}>:</span>{item.child_paid || 0}
                               <span style={{ opacity: 0.5 }}>:</span>{item.child_unpaid || 0}
-                               <span style={{ opacity: 0.5 }}>:</span>{item.driver || 0}
+                               <span style={{ opacity: 0.5 }}>:</span>{item.driver_count || 0}
                             </span>
                             <span>| {item.payment_method || 'Cash'}</span>
                           </div>
