@@ -12,9 +12,13 @@ export interface OccupiedRoomItem {
   folio_total: number;
   total_charge: number;
   adults: number;
+  pax:number;
+  ex_pax: number;
+  child_paid:number;
+  child_unpaid:number;
   child_count: number;
   driver_count: number;
-  ex_pax: number;
+ 
   payment_method: string;
   checkin?: CheckIn;
   detail?: Detail;
