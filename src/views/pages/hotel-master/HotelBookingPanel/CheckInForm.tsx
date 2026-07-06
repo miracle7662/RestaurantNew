@@ -1741,6 +1741,7 @@ const CheckInForm = () => {
           total_amount: round2(totalAmountAllNights),
           status: 'active',
           created_by_id: user?.id,
+           payment_method: values.paymentMethod || 'Cash', // <-- ADD THIS LINE
         }
 
         // ---- 2. Details Payload (full details per room) ----
