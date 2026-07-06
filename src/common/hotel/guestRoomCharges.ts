@@ -40,6 +40,8 @@ export interface GuestRoomCharge {
   particulars?: string;
   discount_percent?: number;
   payment_method?: string;
+   detail_checkin_datetime: string;
+  detail_checkout_datetime: string;
 }
 
 export interface GuestRoomChargePayload {
@@ -68,6 +70,8 @@ export interface GuestRoomChargePayload {
   total_amount?: number | null;
   checkin_datetime?: string | null;
   checkout_datetime?: string | null;
+   detail_checkin_datetime: string;
+  detail_checkout_datetime: string;
   // Additional fields for display
   room_no?: string;
   room_number?: string;

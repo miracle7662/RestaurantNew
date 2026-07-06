@@ -713,10 +713,10 @@ const hideCheckinSection =
           for (const [roomId, roomCharges] of chargesByRoom) {
             const regular = roomCharges.filter((c) => c.category_id != null)
             const latest = [...regular].sort(
-              (a, b) => new Date(b.checkout_datetime || 0).getTime() - new Date(a.checkout_datetime || 0).getTime(),
+              (a, b) => new Date(b.detail_checkout_datetime || 0).getTime() - new Date(a.detail_checkout_datetime || 0).getTime(),
             )[0]
 
-            if (latest?.checkout_datetime && getLocalYMD(new Date(latest.checkout_datetime)) === todayStr) {
+            if (latest?.detail_checkout_datetime && getLocalYMD(new Date(latest.detail_checkout_datetime)) === todayStr) {
               const room = rawRooms.find((r) => r.room_id === roomId)
               const totalCharges = roomCharges.reduce((s, c) => s + (Number(c.total_amount) || 0), 0)
               const hasRoomSpecific = [...advRoomMap.keys()].some((k) => k !== 0)
@@ -732,10 +732,10 @@ const hideCheckinSection =
                 exPax: checkin.ex_pax || 0,
                 child: (checkin.child_paid || 0) + (checkin.child_unpaid || 0),
                 driver: Number(checkin.driver) || 0,
-                checkinDatetime: checkin.checkin_datetime,
-                checkoutDatetime: latest.checkout_datetime,
+                checkinDatetime: checkin.detail_checkin_datetime ?? '',
+                checkoutDatetime: latest.detail_checkout_datetime,
                 totalPrice: latest.total_amount || 0,
-                minutesLeft: getMinutesLeft(latest.checkout_datetime),
+                minutesLeft: getMinutesLeft(latest.detail_checkout_datetime),
                 totalNights: checkin.total_nights,
                 totalAmount: totalCharges - advance,
                 regNo: checkin.reg_no,

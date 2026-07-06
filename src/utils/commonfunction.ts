@@ -1039,6 +1039,16 @@ export const fetchOccupiedRooms = async (
     const roomsRes = await RoomService.getRooms(hotelId);
     const allRooms = (roomsRes.data?.rooms || []) as any[];
     console.log(`✅ Total rooms found: ${allRooms.length}`);
+
+    // 🔍 DEBUG: raw room_status_id + status_color as it comes fresh from backend
+    // Agar extend ke baad bhi status_color yahin purana dikhe, to backend/SP me
+    // status_color recompute nahi ho raha — issue backend side hai, frontend side nahi.
+    console.log('🔍 [RAW ROOMS FROM API]', allRooms.map(r => ({
+      room_no: r.room_no,
+      room_status_id: r.room_status_id,
+      status_color: r.status_color,
+      status_name: r.status_name,
+    })));
     
     console.log('📡 Fetching room categories...');
     const metaRes = await RoomService.getHotelBookingMeta(hotelId);
@@ -1106,6 +1116,16 @@ export const fetchOccupiedRooms = async (
       console.log('📋 Sample record:', allCheckins[0]);
     }
 
+    // 🔍 DEBUG: har checkin ka raw detail_checkin/checkout_datetime dekho
+    // Agar ye already truncated/date-only aa rahi hai (e.g. "2026-07-06" bina time ke),
+    // to yehi minutesLeft/expired calculation ko galat kar dega.
+    console.log('🔍 [RAW CHECKINS - datetime fields]', allCheckins.map((c: any) => ({
+      checkin_id: c.checkin_id,
+      room_id: c.room_id,
+      detail_checkin_datetime: c.detail_checkin_datetime,
+      detail_checkout_datetime: c.detail_checkout_datetime,
+    })));
+
     // ============================================================
     // STEP 6: Group by checkin_id and room
     // ============================================================
@@ -1121,18 +1141,61 @@ export const fetchOccupiedRooms = async (
       }
       checkinGroupMap.get(checkinId)!.push(checkin);
       
-      // Latest checkin for each room
+      // 🔧 FIX: Extend Day sirf checkout_datetime badalta hai, checkin_datetime same
+      // rehta hai — isliye checkin_datetime se "latest" pick karna galat tha
+      // (purani/expired row hi selected reh jaati thi extend ke baad bhi).
+      // Ab checkout_datetime (jo extend par actually badalta hai) aur detail_id
+      // (jo hamesha increasing/naya hota hai naye row ke liye) dono se latest decide karo.
+      // Already-closed/merged rows (is_checkout=1) ko bhi skip/deprioritize karo.
       if (!roomCheckinMap.has(roomId)) {
         roomCheckinMap.set(roomId, checkin);
       } else {
         const existing = roomCheckinMap.get(roomId);
-        const existingDate = new Date(existing.detail_checkin_datetime || existing.detail_checkin_datetime || 0);
-        const newDate = new Date(checkin.detail_checkin_datetime || checkin.detail_checkin_datetime || 0);
-        if (newDate > existingDate) {
+
+        const existingIsClosed = Number(existing.is_checkout) === 1;
+        const newIsClosed = Number(checkin.is_checkout) === 1;
+
+        // Active (non-checked-out) row hamesha priority le closed row par
+        if (existingIsClosed && !newIsClosed) {
           roomCheckinMap.set(roomId, checkin);
+        } else if (!existingIsClosed && newIsClosed) {
+          // existing already active hai, closed wali se replace mat karo
+        } else {
+          // dono same closed-status me hain, ab detail_id / checkout_datetime se latest nikalo
+          const existingDetailId = Number(existing.detail_id) || 0;
+          const newDetailId = Number(checkin.detail_id) || 0;
+
+          const existingCheckout = new Date(existing.detail_checkout_datetime || 0).getTime();
+          const newCheckout = new Date(checkin.detail_checkout_datetime || 0).getTime();
+
+          if (newDetailId > existingDetailId || newCheckout > existingCheckout) {
+            roomCheckinMap.set(roomId, checkin);
+          }
         }
       }
     });
+
+    // 🔍 DEBUG: agar kisi room ke liye multiple detail rows aa rahi hain
+    // (extend ke baad ye normal hai), unka comparison yahan dikh jayega
+    const roomIdCounts = new Map<number, number>();
+    allCheckins.forEach((c: any) => {
+      roomIdCounts.set(c.room_id, (roomIdCounts.get(c.room_id) || 0) + 1);
+    });
+    const duplicateRooms = [...roomIdCounts.entries()].filter(([, count]) => count > 1);
+    if (duplicateRooms.length > 0) {
+      console.log('🔍 [MULTIPLE DETAIL ROWS PER ROOM]', duplicateRooms.map(([roomId]) => ({
+        room_id: roomId,
+        rows: allCheckins
+          .filter((c: any) => c.room_id === roomId)
+          .map((c: any) => ({
+            detail_id: c.detail_id,
+            is_checkout: c.is_checkout,
+            checkin: c.detail_checkin_datetime,
+            checkout: c.detail_checkout_datetime,
+          })),
+        selected: roomCheckinMap.get(roomId)?.detail_id,
+      })));
+    }
 
     // ============================================================
     // STEP 7: Build Booking Meta-Data
@@ -1235,8 +1298,29 @@ export const fetchOccupiedRooms = async (
       
       const allRoomsForCheckin = checkinGroupMap.get(checkinId) || [];
       
-      // Find specific room data for this room
-      const roomData = allRoomsForCheckin.find((c: any) => Number(c.room_id) === Number(roomId));
+      // 🔧 FIX: Pehle .find() sirf FIRST matching row utha leta tha — agar extend
+      // ke baad room ki purani (expired) aur nayi (extended) dono detail rows
+      // maujood hain to purani hi mil jaati thi, chahe roomCheckinMap ne sahi
+      // (latest/active) row select ki ho. Ab dono jagah same "latest" row use
+      // ho, taaki checkout_datetime consistently naya (extended) hi aaye.
+      const matchingRoomRows = allRoomsForCheckin.filter((c: any) => Number(c.room_id) === Number(roomId));
+      let roomData = matchingRoomRows.find((c: any) => Number(c.is_checkout) !== 1) || matchingRoomRows[0];
+      if (matchingRoomRows.length > 1) {
+        // Multiple rows found — pick the one with highest detail_id / latest checkout_datetime
+        roomData = matchingRoomRows.reduce((latest: any, curr: any) => {
+          if (!latest) return curr;
+          const latestClosed = Number(latest.is_checkout) === 1;
+          const currClosed = Number(curr.is_checkout) === 1;
+          if (latestClosed && !currClosed) return curr;
+          if (!latestClosed && currClosed) return latest;
+          const latestDetailId = Number(latest.detail_id) || 0;
+          const currDetailId = Number(curr.detail_id) || 0;
+          const latestCheckout = new Date(latest.detail_checkout_datetime || 0).getTime();
+          const currCheckout = new Date(curr.detail_checkout_datetime || 0).getTime();
+          return (currDetailId > latestDetailId || currCheckout > latestCheckout) ? curr : latest;
+        }, null);
+        console.log(`🔍 [MULTI-ROW ROOMDATA] Room ${room.room_no}: ${matchingRoomRows.length} rows found, selected detail_id=${roomData?.detail_id}, checkout=${roomData?.detail_checkout_datetime}`);
+      }
       if (!roomData) {
         console.log(`⚠️ No room data found for room ${room.room_no} in checkin ${checkinId}`);
         continue;
@@ -1298,6 +1382,23 @@ export const fetchOccupiedRooms = async (
       
       const minutesLeft = getMinutesLeft(checkoutDatetime);
       const isExpired = minutesLeft <= 0;
+
+      // 🔍 DEBUG: yahi wo jagah hai jo tile ka color decide karti hai (isExpired/isNear
+      // component me isi minutesLeft se derive hote hain). Extend karne ke baad
+      // checkoutDatetime yahan updated (future) dikhna chahiye. Agar purana hi
+      // dikh raha hai, to matlab backend se refresh hui checkin list me
+      // extend ka naya checkout time nahi aa raha — check karo CheckInService.list()
+      // extend ke baad stale/cached response to nahi de raha, ya SP purani row
+      // return kar rahi hai.
+      console.log(`🕐 [COLOR-CALC] Room ${room.room_no}:`, {
+        roomStatusId,
+        checkoutDatetime,
+        minutesLeft,
+        isExpired,
+        isNear: !isExpired && minutesLeft <= 60,
+        roomData_checkout_raw: roomData.detail_checkout_datetime,
+        checkin_checkout_raw: checkin.detail_checkout_datetime,
+      });
       
       const displayPax = `${adults}:${exPaxCount}:${childPaid}:${childUnpaid}:${driverCount}`;
       
@@ -1390,6 +1491,8 @@ export const fetchOccupiedRooms = async (
     console.log(`✅ Total occupied rooms: ${occupiedItems.length}`);
     occupiedItems.forEach((item: any) => {
       console.log(`  Room ${item.room_no}: ${item.guest_name}`);
+      console.log(`    STATUS_ID: ${item.room_status_id}, STATUS_COLOR (raw): ${item.status_color}`); // 🔍 ADDED
+      console.log(`    CHECKOUT: ${item.detail_checkout_datetime}, minutesLeft: ${item.minutesLeft}, isExpired: ${item.isExpired}`); // 🔍 ADDED
       console.log(`    LEFT (Room Net): ₹${item.net_room_amount.toFixed(2)}`);
       console.log(`    RIGHT (All Rooms Net): ₹${item.total_all_rooms_net.toFixed(2)}`);
       console.log(`    Total Rooms in Booking: ${item.booking_total_rooms}`);
