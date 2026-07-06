@@ -14,6 +14,7 @@ export interface OccupiedRoomItem {
   total_charge: number;
   adults: number;
   pax:number;
+  
   ex_pax: number;
   child_paid:number;
   child_unpaid:number;
