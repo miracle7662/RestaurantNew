@@ -163,6 +163,20 @@ exports.addPostCharge = async (req, res) => {
     const originalCheckinDateTime = checkinData[0]?.checkin_datetime || mysqlDateTime;
     const currentCheckinTotal = Number(checkinData[0]?.total_amount) || 0;
 
+    // ---- Derive detail_id if not provided ----
+let finalDetailId = detail_id || null;
+if (!finalDetailId && checkin_id && guest_id && room_id) {
+  const [detailRows] = await connection.query(
+    `SELECT detail_id FROM checkin_detail_master 
+     WHERE checkin_id = ? AND guest_id = ? AND room_id = ? 
+     LIMIT 1`,
+    [checkin_id, guest_id, room_id]
+  );
+  if (detailRows.length > 0) {
+    finalDetailId = detailRows[0].detail_id;
+  }
+}
+
     // ===============================
     // GET TAX SETTINGS
     // ===============================
@@ -220,7 +234,7 @@ exports.addPostCharge = async (req, res) => {
         created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      checkin_id, guest_id, room_id, detail_id || null, transaction_type,
+      checkin_id, guest_id, room_id, finalDetailId , transaction_type,
       mysqlDateTime, bill_no, doc_no || null, outlet_name || null,
       outlet_option_id || null, outlet_option || null, description || null,
       particulars || null, baseAmount, discountAmount,
@@ -278,7 +292,7 @@ exports.addPostCharge = async (req, res) => {
         updated_by_id, updated_date
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      checkin_id, currentHotelId, detail_id || null, room_id, transaction_type,
+      checkin_id, currentHotelId, finalDetailId, room_id, transaction_type,
       updatedPostDateTime, description || particulars || (transaction_type === 'CHARGE' ? 'Charge' : 'Allowance'),
       transaction_type === 'CHARGE' ? Math.abs(finalTotalAmount) : 0,
       transaction_type === 'ALLOWANCE' ? Math.abs(finalTotalAmount) : 0,
