@@ -124,20 +124,38 @@ exports.getCheckouts = async (req, res) => {
     if (!hotelId) return res.status(400).json({ success: false, message: "Hotel ID not found" });
 
     const [checkouts] = await db.query(`
-  SELECT 
-    cm.*,   
-    cd.*
+SELECT 
+    cm.*,
+
+    GROUP_CONCAT(
+        CONCAT('Room ', cd.room_id, ' (', cd.guest_name, ')')
+        ORDER BY cd.room_id
+        SEPARATOR ' | '
+    ) AS room_details,
+
+    GROUP_CONCAT(
+        cd.guest_name
+        ORDER BY cd.room_id
+        SEPARATOR ', '
+    ) AS guest_name,
+   
+
+    COUNT(cd.room_id) AS total_rooms
+
 FROM checkout_master cm
-LEFT JOIN checkout_detail cd 
-    ON cd.checkout_id = cm.checkout_id 
-    AND cd.room_id = cd.room_id   -- 👈 join on the actual room that was checked out
+INNER JOIN checkout_detail cd
+    ON cd.checkout_id = cm.checkout_id
+    AND cd.is_settle = 0
+
 WHERE cm.hotelid = ?
-  AND cd.is_settle = 0
   AND cm.checkout_date = (
-      SELECT MAX(c2.checkout_date)
-      FROM checkout_master c2
-      WHERE c2.ldg_bill_no = cm.ldg_bill_no
+        SELECT MAX(c2.checkout_date)
+        FROM checkout_master c2
+        WHERE c2.ldg_bill_no = cm.ldg_bill_no
   )
+
+GROUP BY cm.checkout_id
+
 ORDER BY cm.ldg_bill_no;
     `, [hotelId]);
 

@@ -192,8 +192,8 @@ if (Array.isArray(room_ids) && room_ids.length > 0) {
 
       // 2. UPDATE checkin_master (once per checkin)
       await conn.query(
-        `UPDATE checkout_detail SET is_settle = 1 WHERE checkin_id = ?`,
-        [checkinid]
+        `UPDATE checkout_detail SET is_settle = 1 WHERE checkin_id = ? AND room_id = ?`,
+        [checkinid, room_ids[0]]
       );
 
    
