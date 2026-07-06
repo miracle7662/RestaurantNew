@@ -86,7 +86,7 @@ const ReceiptAgainstBillsModal = ({
     // Reuses same API approach as PostChargesModal.
      
     import('@/common/hotel').then(({ departmentApi }) => {
-      return departmentApi.list({ mst_hotelid: hotelId })
+      return departmentApi.list({ hotelid: hotelId })
     })
       .then((res) => {
         const payload = res as any

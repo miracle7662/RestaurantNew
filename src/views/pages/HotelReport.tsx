@@ -346,7 +346,7 @@ const HotelReport = () => {
           payType = folios[0].payment_method || 'Cash'
         }
         
-        const roomCategory = categoryMap.get(checkin.category_id) || checkin.converted_category || '-'
+        const roomCategory = categoryMap.get(checkin.category_id ?? 0) || checkin.converted_category || '-'
         const roomData = roomsData.find(r => r.room_no === checkin.room_no)
         const floorName = floorMap.get(roomData?.floor_id || 0) || '-'
         
@@ -480,7 +480,7 @@ const HotelReport = () => {
         console.warn(`Failed to fetch details for checkin ${checkin.checkin_id}`, err)
         const roomData = roomsData.find(r => r.room_no === checkin.room_no)
         const floorName = floorMap.get(roomData?.floor_id || 0) || '-'
-        const roomCategory = categoryMap.get(checkin.category_id) || checkin.converted_category || '-'
+        const roomCategory = categoryMap.get(checkin.category_id ?? 0)!;
         
         const checkinDate = new Date(checkin.checkin_datetime)
         const checkoutDate = new Date(checkin.checkout_datetime)

@@ -193,76 +193,76 @@ const formatDateTime = (isoString: string): string => {
   return `${day}-${month}-${year} ${hours}:${minutes}`
 }
 
-const numberToWords = (num: number): string => {
-  const ones = [
-    '',
-    'One',
-    'Two',
-    'Three',
-    'Four',
-    'Five',
-    'Six',
-    'Seven',
-    'Eight',
-    'Nine',
-    'Ten',
-    'Eleven',
-    'Twelve',
-    'Thirteen',
-    'Fourteen',
-    'Fifteen',
-    'Sixteen',
-    'Seventeen',
-    'Eighteen',
-    'Nineteen',
-  ]
-  const tens = [
-    '',
-    '',
-    'Twenty',
-    'Thirty',
-    'Forty',
-    'Fifty',
-    'Sixty',
-    'Seventy',
-    'Eighty',
-    'Ninety',
-  ]
+// const numberToWords = (num: number): string => {
+//   const ones = [
+//     '',
+//     'One',
+//     'Two',
+//     'Three',
+//     'Four',
+//     'Five',
+//     'Six',
+//     'Seven',
+//     'Eight',
+//     'Nine',
+//     'Ten',
+//     'Eleven',
+//     'Twelve',
+//     'Thirteen',
+//     'Fourteen',
+//     'Fifteen',
+//     'Sixteen',
+//     'Seventeen',
+//     'Eighteen',
+//     'Nineteen',
+//   ]
+//   const tens = [
+//     '',
+//     '',
+//     'Twenty',
+//     'Thirty',
+//     'Forty',
+//     'Fifty',
+//     'Sixty',
+//     'Seventy',
+//     'Eighty',
+//     'Ninety',
+//   ]
 
-  const convertHundreds = (n: number): string => {
-    if (n >= 100) {
-      return ones[Math.floor(n / 100)] + ' Hundred ' + convertHundreds(n % 100)
-    } else if (n >= 20) {
-      return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '')
-    } else {
-      return ones[n]
-    }
-  }
+//   const convertHundreds = (n: number): string => {
+//     if (n >= 100) {
+//       return ones[Math.floor(n / 100)] + ' Hundred ' + convertHundreds(n % 100)
+//     } else if (n >= 20) {
+//       return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '')
+//     } else {
+//       return ones[n]
+//     }
+//   }
 
-  if (num === 0) return 'Zero Rupees Only'
+//   if (num === 0) return 'Zero Rupees Only'
 
-  const intPart = Math.floor(num)
-  const decPart = Math.round((num - intPart) * 100)
+//   const intPart = Math.floor(num)
+//   const decPart = Math.round((num - intPart) * 100)
 
-  let result = ''
-  if (intPart >= 10000000) {
-    result += convertHundreds(Math.floor(intPart / 10000000)) + ' Crore '
-    const remainder = intPart % 10000000
-    if (remainder > 0) result += convertHundreds(remainder)
-  } else if (intPart >= 100000) {
-    result += convertHundreds(Math.floor(intPart / 100000) % 100) + ' Lakh '
-    result += convertHundreds(intPart % 100000)
-  } else if (intPart >= 1000) {
-    result += convertHundreds(Math.floor(intPart / 1000) % 100) + ' Thousand '
-    result += convertHundreds(intPart % 1000)
-  } else {
-    result += convertHundreds(intPart % 1000)
-  }
+//   let result = ''
+//   if (intPart >= 10000000) {
+//     result += convertHundreds(Math.floor(intPart / 10000000)) + ' Crore '
+//     const remainder = intPart % 10000000
+//     if (remainder > 0) result += convertHundreds(remainder)
+//   } else if (intPart >= 100000) {
+//     result += convertHundreds(Math.floor(intPart / 100000) % 100) + ' Lakh '
+//     result += convertHundreds(intPart % 100000)
+//   } else if (intPart >= 1000) {
+//     result += convertHundreds(Math.floor(intPart / 1000) % 100) + ' Thousand '
+//     result += convertHundreds(intPart % 1000)
+//   } else {
+//     result += convertHundreds(intPart % 1000)
+//   }
 
-  result = result.trim() + ' Rupees'
-  if (decPart > 0) result += ' and ' + convertHundreds(decPart) + ' Paise'
-  return result + ' Only'
-}
+//   result = result.trim() + ' Rupees'
+//   if (decPart > 0) result += ' and ' + convertHundreds(decPart) + ' Paise'
+//   return result + ' Only'
+// }
 
 // ==================== BILL COMPONENT ====================
 
@@ -715,6 +715,7 @@ const tableRows = useMemo(() => {
   const totals = useMemo(() => {
     const firstRow = billData[0] || {}
     const footerSummary = billData[0] || {}
+    console.log('✅ Footer summary:', footerSummary)
     
     // Use backend calculated values from footer summary
     return {
@@ -777,7 +778,7 @@ const tableRows = useMemo(() => {
   const generatedBillNo = propBillNumber ||
     billData[0]?.ldg_bill_no ||
     `INV/${new Date().getFullYear()}/${String(summary?.checkin_id || '0').padStart(4, '0')}`
-  const bookingId = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
+  // const bookingId = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
   const paymentMode = summary?.payment_method || 'Credit Card'
 
   const headerBg = printSettings?.table_header_bg_color || '#1a2744'
@@ -1517,19 +1518,21 @@ const tableRows = useMemo(() => {
 
   const renderHorizontalSummary = useCallback(() => null, [])
 
-  const renderAmountInWords = useCallback(() => {
-    return (
-      <div className="bill-amount-words">
-        <span className="baw-label">Amount in Words: </span>
-        <span className="baw-text">{numberToWords(totals.netTotal)}</span>
-      </div>
-    )
-  }, [totals.netTotal])
+  // const renderAmountInWords = useCallback(() => {
+  //   return (
+  //     <div className="bill-amount-words">
+  //       <span className="baw-label">Amount in Words: </span>
+  //       <span className="baw-text">{numberToWords(totals.netTotal)}</span>
+  //     </div>
+  //   )
+  // }, [totals.netTotal])
 
   const renderPaymentDetails = useCallback(() => {
     const paymentTxnId = propPaymentTransactionId || 
       billData[0]?.reference_number || 
       `TXN${Date.now().toString().slice(-12)}`
+
+       console.log(paymentTxnId);
     
     const paymentDateDisplay = propPaymentDate || invoiceDate
     const paymentBankDisplay = propPaymentBank || paymentMode

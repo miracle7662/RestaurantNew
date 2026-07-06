@@ -364,8 +364,8 @@ const HotelBookingPanel = () => {
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [showAdvanceModal, setShowAdvanceModal] = useState(false)
   const [selectedOccupiedItem, setSelectedOccupiedItem] = useState<OccupiedRoomItem | null>(null)
-  const [showRoomStatusModal, setShowRoomStatusModal] = useState(false)
-  const [selectedRoomForStatus, setSelectedRoomForStatus] = useState<{
+  const [, setShowRoomStatusModal] = useState(false)
+  const [, setSelectedRoomForStatus] = useState<{
     id: number
     number: string
     category: string

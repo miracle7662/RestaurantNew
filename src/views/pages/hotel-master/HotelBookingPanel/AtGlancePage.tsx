@@ -7,7 +7,7 @@ import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import TitleHelmet from '@/components/Common/TitleHelmet'
 import { useAuthContext } from '@/common/context/useAuthContext'
-import CheckInService, { CheckIn } from '@/common/hotel/checkIn'
+import CheckInService from '@/common/hotel/checkIn'
 interface AtGlanceItem {
   floorNo: string
   floorId: number
@@ -516,8 +516,8 @@ const AtGlancePage = () => {
     const rowsHtml = occupiedRows
       .map((item) => {
         const roomType = item.convertedCategory || item.roomCategory || ''
-        const meal = item.mealPlan || item.planName || ''
-        const tariff = Number(item.roomTariff ?? 0)
+        // const meal = item.mealPlan || item.planName || ''
+        // const tariff = Number(item.roomTariff ?? 0)
         const discount = Number(item.discountPercent ?? 0)
         const due = Number(item.dueAmount ?? 0)
 

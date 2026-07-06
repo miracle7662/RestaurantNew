@@ -9,7 +9,7 @@ import FormModal from '@/components/Common/models/FormModal';
 import RoomForm from './RoomForm';
 import { useAuthContext } from '@/common/context/useAuthContext';
 
-type HotelRoom = {
+type Room = {
     room_id: number;
     room_no: string;
     room_name: string;
@@ -60,10 +60,9 @@ const defaultForm: RoomFormData = {
 
 const RoomMaster = () => {
     const { user } = useAuthContext();
-    const hotelId = user?.hotelid;
+    const hotelId = user?.hotel_id;
 
-    const [rooms, setRooms] = useState<HotelRoom[]>([]);
-
+    const [rooms, setRooms] = useState<Room[]>([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -76,7 +75,7 @@ const RoomMaster = () => {
     const [sortField, setSortField] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-    // Load rooms
+    // Load rooms — use getRooms() to get statuses + full room fields
     const loadRooms = async () => {
         if (!hotelId) {
             toast.error('Hotel ID not found. Please login again.');
@@ -84,35 +83,30 @@ const RoomMaster = () => {
         }
         setLoading(true);
         try {
-            const response = await roomApi.list({ hotelid: hotelId });
+            const response = await roomApi.getRooms(hotelId);
             if (response.success) {
-                const apiRooms = Array.isArray(response.data) ? response.data : [];
-                const normalizedRooms: Room[] = apiRooms.map((r: any) => ({
-                    room_id: r.room_id,
-                    room_no: r.room_no,
-                    room_name: r.room_name,
-                    display_name: r.display_name,
-                    room_category_id: r.room_category_id,
-                    category_name: r.category_name,
-                    room_ext_no: r.room_ext_no,
-                    room_status_id: r.room_status_id ?? 0,
-                    room_status: r.room_status,
-                    status_color: r.status_color,
-                    department_id: r.department_id,
-                    department_name: r.department_name,
-                    block_id: r.block_id,
-                    block_name: r.block_name,
-                    floor_id: r.floor_id,
-                    floor_name: r.floor_name,
-                    hotelid: r.hotelid,
-                    created_date: r.created_date,
-                    updated_date: r.updated_date,
-                    created_by_id: r.created_by_id,
-                    updated_by_id: r.updated_by_id,
-                }));
-                setRooms(normalizedRooms);
+                // Build status lookup map: room_status_id → { name, color }
+                const sMap = new Map<number, { name: string; color: string }>();
+                (response.data.statuses || []).forEach((s: any) => {
+                    sMap.set(s.room_status_id, {
+                        name: s.status_name || 'Unknown',
+                        color: s.status_color || '#6c757d',
+                    });
+                });
+
+                // Enrich each room with status_name + status_color from the map
+                const enriched: Room[] = (response.data.rooms || []).map((room: any) => {
+                    const sid = room.room_status_id ?? room.room_status_id;
+                    const statusInfo = sid ? sMap.get(Number(sid)) : undefined;
+                    return {
+                        ...room,
+                        room_status: statusInfo?.name || room.status_name || room.room_status || 'Unknown',
+                        status_color: statusInfo?.color || room.status_color || '#6c757d',
+                    };
+                });
+                setRooms(enriched);
             } else {
-                toast.error((response as any).message || 'Failed to load rooms');
+                toast.error('Failed to load rooms');
                 setRooms([]);
             }
         } catch (error: any) {
@@ -132,7 +126,6 @@ const RoomMaster = () => {
     const filteredRooms = useMemo(() => {
         let result = rooms;
 
-
         const query = search.trim().toLowerCase();
         if (query) {
             result = result.filter((room) =>
@@ -151,10 +144,8 @@ const RoomMaster = () => {
 
         if (sortField) {
             result = [...result].sort((a, b) => {
-                    const aVal = a[sortField as keyof HotelRoom] ?? '';
-
-                const bVal = b[sortField as keyof HotelRoom] ?? '';
-
+                const aVal = a[sortField as keyof Room] ?? '';
+                const bVal = b[sortField as keyof Room] ?? '';
                 if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
                 if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
                 return 0;
@@ -250,51 +241,23 @@ const RoomMaster = () => {
                 const updatePayload = { ...apiPayload };
                 delete updatePayload.created_by_id;
                 const response = await roomApi.update(editingRoom.room_id, updatePayload);
-                if (response.success && response.data) {
-                    const updatedRoomRaw = response.data as any;
-                    const updatedRoom: Room = {
-                        room_id: updatedRoomRaw.room_id,
-                        room_no: updatedRoomRaw.room_no,
-                        room_name: updatedRoomRaw.room_name,
-                        display_name: updatedRoomRaw.display_name,
-                        room_category_id: updatedRoomRaw.room_category_id,
-                        category_name: updatedRoomRaw.category_name,
-                        room_ext_no: updatedRoomRaw.room_ext_no,
-                        room_status_id: updatedRoomRaw.room_status_id ?? 0,
-                        room_status: updatedRoomRaw.room_status,
-                        status_color: updatedRoomRaw.status_color,
-                        department_id: updatedRoomRaw.department_id,
-                        department_name: updatedRoomRaw.department_name,
-                        block_id: updatedRoomRaw.block_id,
-                        block_name: updatedRoomRaw.block_name,
-                        floor_id: updatedRoomRaw.floor_id,
-                        floor_name: updatedRoomRaw.floor_name,
-                        hotelid: updatedRoomRaw.hotelid,
-                        created_date: updatedRoomRaw.created_date,
-                        updated_date: updatedRoomRaw.updated_date,
-                        created_by_id: updatedRoomRaw.created_by_id,
-                        updated_by_id: updatedRoomRaw.updated_by_id,
-                    };
-
-                    setRooms((prev): Room[] =>
-                        prev.map((item): Room => (item.room_id === updatedRoom.room_id ? updatedRoom : item))
-                    );
+                if (response.success) {
                     toast.success('Room updated');
                 } else {
-                    toast.error((response as any)?.message || 'Update failed');
+                    toast.error(response.message || 'Update failed');
                 }
             } else {
                 const response = await roomApi.create(apiPayload);
-                if (response.success && response.data) {
-                    setRooms((prev) => [response.data!, ...prev]);
+                if (response.success) {
                     toast.success('Room added');
                 } else {
-                    toast.error((response as any)?.message || 'Create failed');
+                    toast.error(response.message || 'Create failed');
                 }
             }
 
             setShowModal(false);
             setEditingRoom(null);
+            loadRooms(); // refresh to pick up status_name + status_color
         } catch (error: any) {
             console.error('Failed to save room:', error);
             toast.error(error.message || 'Failed to save room');
@@ -330,24 +293,32 @@ const RoomMaster = () => {
         }
     };
 
-    // Helper for status badge
+    // Helper for status badge — uses hex color directly from backend
     const getStatusBadge = (room: Room) => {
         const status = room.room_status || 'Unknown';
-        const color = room.status_color || 'secondary';
-        
-        const getBgColor = () => {
-            switch (color.toLowerCase()) {
-                case 'success': return 'success';
-                case 'primary': return 'primary';
-                case 'warning': return 'warning';
-                case 'info': return 'info';
-                case 'danger': return 'danger';
-                case 'secondary': return 'secondary';
-                default: return 'secondary';
-            }
-        };
-        
-        return <Badge bg={getBgColor()}>{status}</Badge>;
+        const hexColor = room.status_color || '#6c757d';
+        // Determine text color: white for dark backgrounds, dark for light ones
+        const isLight = /^#([0-9a-f]{3}){1,2}$/i.test(hexColor) && (() => {
+            const hex = hexColor.replace('#', '');
+            const full = hex.length === 3
+                ? hex.split('').map(h => h + h).join('')
+                : hex;
+            const r = parseInt(full.slice(0, 2), 16);
+            const g = parseInt(full.slice(2, 4), 16);
+            const b = parseInt(full.slice(4, 6), 16);
+            return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+        })();
+        return (
+            <Badge
+                style={{
+                    backgroundColor: hexColor,
+                    color: isLight ? '#ffffff' : '#fff',
+                    border: `1px solid ${hexColor}`,
+                }}
+            >
+                {status}
+            </Badge>
+        );
     };
 
     return (

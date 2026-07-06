@@ -35,7 +35,7 @@ interface RoomFormProps {
 
 const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) => {
     const { user } = useAuthContext()
-    const hotelId = user?.hotelid
+    const hotelId = user?.hotel_id
 
     // Dropdown states
     const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])
@@ -49,6 +49,7 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
     const [loadingFloors, setLoadingFloors] = useState(false)
     const [loadingDepartments, setLoadingDepartments] = useState(false)
     const [loadingStatuses, setLoadingStatuses] = useState(false)
+    const [statusesLoaded, setStatusesLoaded] = useState(false)
 
     // Fetch all dropdown data on mount
     useEffect(() => {
@@ -101,7 +102,7 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
 
         // Departments
         setLoadingDepartments(true)
-        DepartmentService.list({ mst_hotelid: hotelId })
+        DepartmentService.list({ hotelid: hotelId })
             .then((res) => {
                 if (res.success) {
                     const data = Array.isArray(res.data) ? res.data : []
@@ -132,7 +133,7 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
                 }
             })
             .catch(console.error)
-            .finally(() => setLoadingStatuses(false))
+            .finally(() => { setLoadingStatuses(false); setStatusesLoaded(true); })
     }, [hotelId])
 
     const formik = useFormik({
@@ -262,18 +263,7 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
                                 </Col>
                             </Row>
 
-                            <Row className="align-items-center g-2 mb-1">
-                                <Col md={4}>Status *</Col>
-                                <Col md={8}>
-                                    <FormikSelect
-                                        name="room_status_id"
-                                        options={statusOptions}
-                                        isLoading={loadingStatuses}
-                                        placeholder="Select status"
-                                        className="w-100"
-                                    />
-                                </Col>
-                            </Row>
+                            
 
                             <Row className="align-items-center g-2 mb-1">
                                 <Col md={4}>Department</Col>
@@ -306,6 +296,20 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
                                         name="floor_id"
                                         options={floorOptions}
                                         isLoading={loadingFloors}
+                                        className="w-100"
+                                    />
+                                </Col>
+                            </Row>
+
+                            <Row className="align-items-center g-2 mb-1">
+                                <Col md={4}>Status *</Col>
+                                <Col md={8}>
+                                    <FormikSelect
+                                        key={`status-${statusesLoaded}-${statusOptions.length}`}
+                                        name="room_status_id"
+                                        options={statusOptions}
+                                        isLoading={loadingStatuses}
+                                        placeholder="Select status"
                                         className="w-100"
                                     />
                                 </Col>

@@ -245,6 +245,7 @@ const SettlementPage = () => {
   const handleSettle = (co: CheckoutMaster) => {
     const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'
     const payType = paymentData.split('|')[0] || 'Cash'
+    co.payment_mode = payType
     setSettlementPayData({
       guestName: co.guest_name || '-',
       guestid: co.guest_id || 0,
@@ -421,7 +422,7 @@ const SettlementPage = () => {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(278px, 1fr))',
                   gap: '8px',
                 }}
               >

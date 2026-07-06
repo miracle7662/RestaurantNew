@@ -1325,6 +1325,7 @@ const PaxChangeComponent = ({
 }: PaxChangeProps) => {
   const { user } = useAuthContext()
   const hotelId = user?.hotel_id
+  console.log('PaxChangeComponent - selectedRoom:', hotelId)
 
   const originalPax = selectedRoom.detail.pax || 0
   const originalExPax = selectedRoom.detail.ex_pax || 0
@@ -5683,7 +5684,7 @@ const ApplyDiscountComponent = ({
   const [loading, setLoading] = useState(false)
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false)
   const [backdatedApply, setBackdatedApply] = useState(false)
-  const [discountDetails, setDiscountDetails] = useState<any[]>([])
+  const [, setDiscountDetails] = useState<any[]>([])
   const [affectedDays, setAffectedDays] = useState<AffectedDay[]>([])
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0)
 

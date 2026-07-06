@@ -1621,7 +1621,7 @@ const CheckInForm = () => {
       try {
         const firstRow = roomRows[0]
         const totalNights = firstRow.nights
-        const guestName = firstRow.guestName
+        // const guestName = firstRow.guestName
         const guestId = firstRow.guestId!
 
         const checkinDateTime = `${firstRow.arrivalDate} ${firstRow.arrivalTime}:00`
@@ -1841,7 +1841,7 @@ const CheckInForm = () => {
         // ---- 3. Room Charges Payload ----
         const roomChargesPayload = roomRows.map((row) => {
           const catId = roomCategories.find((c) => c.category_name === row.type)?.room_category_id
-          const perDayTotalAmount = (row.totalAmount || 0) / totalNights
+          // const perDayTotalAmount = (row.totalAmount || 0) / totalNights
 
           return {
     guest_id: row.guestId || 0,
