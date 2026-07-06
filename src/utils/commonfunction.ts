@@ -48,7 +48,6 @@ export interface CheckinFullDetailsRow {
   booking: string
   plan_name: string
   reg_no: string
-  checkin_datetime: string
   checkout_datetime: string
   hotelid: number
   checkout_id: number
@@ -1127,8 +1126,8 @@ export const fetchOccupiedRooms = async (
         roomCheckinMap.set(roomId, checkin);
       } else {
         const existing = roomCheckinMap.get(roomId);
-        const existingDate = new Date(existing.detail_checkin_datetime || existing.checkin_datetime || 0);
-        const newDate = new Date(checkin.detail_checkin_datetime || checkin.checkin_datetime || 0);
+        const existingDate = new Date(existing.detail_checkin_datetime || existing.detail_checkin_datetime || 0);
+        const newDate = new Date(checkin.detail_checkin_datetime || checkin.detail_checkin_datetime || 0);
         if (newDate > existingDate) {
           roomCheckinMap.set(roomId, checkin);
         }
@@ -1175,8 +1174,8 @@ export const fetchOccupiedRooms = async (
       if (firstRoom) {
         guestName = firstRoom.guest_name || 'Unknown Guest';
         bookingType = firstRoom.booking || 'WALK-IN-GUEST';
-        checkinDatetime = firstRoom.detail_checkin_datetime || firstRoom.checkin_datetime || new Date().toISOString();
-        checkoutDatetime = firstRoom.detail_checkout_datetime || firstRoom.checkout_datetime || new Date().toISOString();
+        checkinDatetime = firstRoom.detail_checkin_datetime || firstRoom.detail_checkin_datetime || new Date().toISOString();
+        checkoutDatetime = firstRoom.detail_checkout_datetime || firstRoom.detail_checkout_datetime || new Date().toISOString();
         checkinGrandTotal = Number(firstRoom.checkin_grand_total) || Number(firstRoom.total_amount) || 0;
         checkinTotalAdvance = Number(firstRoom.tot_advance) || 0;
         checkinTotalDiscount = Number(firstRoom.tot_discount_amount) || 0;
@@ -1294,7 +1293,7 @@ export const fetchOccupiedRooms = async (
       const guestName = roomData.guest_name || checkin.guest_name || 'Unknown Guest';
       const booking = roomData.booking || checkin.booking || 'WALK-IN-GUEST';
       
-      const checkinDatetime = roomData.detail_checkin_datetime || checkin.detail_checkin_datetime || checkin.checkin_datetime || new Date().toISOString();
+      const checkinDatetime = roomData.detail_checkin_datetime || checkin.detail_checkin_datetime || checkin.detail_checkin_datetime || new Date().toISOString();
       const checkoutDatetime = roomData.detail_checkout_datetime || checkin.detail_checkout_datetime || new Date().toISOString();
       
       const minutesLeft = getMinutesLeft(checkoutDatetime);
@@ -1315,8 +1314,8 @@ export const fetchOccupiedRooms = async (
         guest_name: guestName,
         guest_type: booking,
         booking_type: booking,
-        checkin_datetime: checkinDatetime,
-        checkout_datetime: checkoutDatetime,
+        detail_checkin_datetime: checkinDatetime,
+        detail_checkout_datetime: checkoutDatetime,
         
         // Pax Details
         pax,

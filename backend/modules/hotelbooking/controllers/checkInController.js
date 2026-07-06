@@ -10,6 +10,20 @@ const getCurrentUserHotelId = (req) => req.user?.hotel_id || null;
 // Helper to format MySQL datetime
 const formatDateTime = (dateTimeStr) => {
     if (!dateTimeStr) return null;
+    
+    // Agar already MySQL format mein hai toh wahi return karo
+    if (typeof dateTimeStr === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateTimeStr)) {
+        return dateTimeStr;
+    }
+    
+    // Agar ISO format mein hai (YYYY-MM-DDTHH:mm:ss)
+    if (typeof dateTimeStr === 'string') {
+        const match = dateTimeStr.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+        if (match) {
+            return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}:${match[6]}`;
+        }
+    }
+    
     const d = new Date(dateTimeStr);
     if (isNaN(d.getTime())) return null;
     
@@ -22,10 +36,15 @@ const formatDateTime = (dateTimeStr) => {
     
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
-
 // Helper to format date for MySQL (KEEPS LOCAL DATE)
 const formatDate = (date) => {
     if (!date) return null;
+    
+    // Agar already MySQL format mein hai toh wahi return karo
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) {
+        return date.split(' ')[0];
+    }
+    
     const d = new Date(date);
     if (isNaN(d.getTime())) return null;
     
@@ -35,7 +54,6 @@ const formatDate = (date) => {
     
     return `${year}-${month}-${day}`;
 };
-
 
 // Helper to get value or null
 const getValueOrNull = (value) => value !== undefined && value !== null && value !== '' ? value : null;
@@ -410,17 +428,29 @@ exports.addCheckin = async (req, res) => {
 
     // ----- Helpers -----
     const formatDateTime = (val) => {
-      if (!val) return null;
-      if (val instanceof Date) return val;
-      if (typeof val === 'string') {
-        const d = new Date(val);
-        if (!isNaN(d.getTime())) {
-          return d.toISOString().slice(0, 19).replace('T', ' ');
-        }
-        return val;
-      }
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  if (typeof val === 'string') {
+    // Agar already MySQL format mein hai toh wahi return karo
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(val)) {
       return val;
-    };
+    }
+    
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      // Local time components use karo, UTC nahi
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const seconds = String(d.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+    return val;
+  }
+  return val;
+};
 
     const toStr = (val) => (val !== undefined && val !== null && val !== '') ? String(val) : null;
     const toNum = (val) => (val !== undefined && val !== null) ? Number(val) : 0;

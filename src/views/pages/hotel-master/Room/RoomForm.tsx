@@ -35,7 +35,7 @@ interface RoomFormProps {
 
 const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) => {
     const { user } = useAuthContext()
-    const hotelId = user?.hotel_id
+    const hotelId = user?.hotelid
 
     // Dropdown states
     const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])

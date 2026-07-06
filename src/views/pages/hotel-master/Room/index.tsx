@@ -60,7 +60,7 @@ const defaultForm: RoomFormData = {
 
 const RoomMaster = () => {
     const { user } = useAuthContext();
-    const hotelId = user?.hotel_id;
+    const hotelId = user?.hotelid;
 
     const [rooms, setRooms] = useState<Room[]>([]);
     const [search, setSearch] = useState('');

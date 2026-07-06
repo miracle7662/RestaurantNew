@@ -242,25 +242,46 @@ const toRoom = (
   }
 }
 
-const formatDateTime = (isoString: string): string => {
-  if (!isoString) return 'N/A'
-  const d = new Date(isoString)
-  const day = d.getDate().toString().padStart(2, '0')
-  const month = d.toLocaleString('default', { month: 'short' }).replace('.', '')
-  const year = d.getFullYear()
-  const hours = d.getHours().toString().padStart(2, '0')
-  const minutes = d.getMinutes().toString().padStart(2, '0')
-  return `${day}-${month}-${year} ${hours}:${minutes}`
-}
+const formatDateTime = (val: any): string | null => {
+  if (!val) return null;
+  if (val instanceof Date) {
+    const d = val;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+  if (typeof val === 'string') {
+    // Agar already MySQL format mein hai
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(val)) {
+      return val;
+    }
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const seconds = String(d.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+    return val;
+  }
+  return null;
+};
 
 const getLocalYMD = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-const getMinutesLeft = (checkoutDatetime: string): number => {
-  if (!checkoutDatetime) return 999
-  const diffMs = new Date(checkoutDatetime).getTime() - Date.now()
+const getMinutesLeft = (detail_checkout_datetime: string): number => {
+  if (!detail_checkout_datetime) return 999
+  const diffMs = new Date(detail_checkout_datetime).getTime() - Date.now()
   return Math.floor(diffMs / 60000)
 }
 
@@ -1727,7 +1748,7 @@ const hideCheckinSection =
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '6px', alignContent: 'start', padding: '0 8px', width: '100%' }}>
                   {occupiedRooms.map((item) => {
-                    const checkoutTime = item.checkout_datetime || item.latest_charge_checkout_datetime || new Date().toISOString();
+                    const checkoutTime = item.detail_checkout_datetime || item.latest_charge_checkout_datetime || new Date().toISOString();
                     const minutesLeft = getMinutesLeft(checkoutTime);
                     
                     const isBillRoom = item.room_status_id === 7;
@@ -1816,8 +1837,8 @@ const hideCheckinSection =
                           backgroundColor: backgroundColor, 
                           color: textColor 
                         }}>
-<div>IN : {formatDateTime(item.checkin_datetime || '')}</div>
-                          <div>OUT : {formatDateTime(item.checkout_datetime || item.latest_charge_checkout_datetime || '')}</div>
+                          <div>IN : {formatDateTime(item.detail_checkin_datetime || '')}</div>
+                          <div>OUT : {formatDateTime(item.detail_checkout_datetime ||  '')}</div>
                           <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : (item.guest_type || 'WALK-IN-GUEST')}</div>
                           <div className="charges-line">
                             <span style={{ 

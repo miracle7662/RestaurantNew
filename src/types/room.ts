@@ -5,8 +5,9 @@ import { Detail } from '@/common/hotel/detail';
 export interface OccupiedRoomItem {
   room_no: string;
   guest_name: string;
-  checkin_datetime: string;
-  checkout_datetime: string;
+  detail_checkin_datetime: string;
+  detail_checkout_datetime: string;
+  
   guest_type: string;
   original_charge: number;
   folio_total: number;
