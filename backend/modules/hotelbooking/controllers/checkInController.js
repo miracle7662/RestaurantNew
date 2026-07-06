@@ -113,18 +113,11 @@ exports.getCheckins = async (req, res) => {
         const checkins = result[0] || [];
 
         // ✅ सही मैपिंग - सिर्फ वही फील्ड्स जो SP में मौजूद हैं
-        const formattedCheckins = checkins.map(checkin => ({
-            ...checkin,
-            // SP में checkout_datetime नहीं है, detail_checkout_datetime है
-            detail_checkin_datetime: formatDate(checkin.detail_checkin_datetime),
-            detail_checkout_datetime: formatDate(checkin.detail_checkout_datetime),
-            
-            // SP में created_date/updated_date नहीं हैं, 
-            // इसलिए या तो इन्हें हटा दें, या SP में जोड़ें।
-            // अगर SP में जोड़ दें, तो इसे अनकमेंट करें:
-            // created_date: formatDate(checkin.created_date),
-            // updated_date: formatDate(checkin.updated_date)
-        }));
+       const formattedCheckins = checkins.map(checkin => ({
+    ...checkin,
+    detail_checkin_datetime: formatDateTime(checkin.detail_checkin_datetime),   // ✅ formatDate → formatDateTime
+    detail_checkout_datetime: formatDateTime(checkin.detail_checkout_datetime), // ✅ formatDate → formatDateTime
+}));
 
         return res.status(200).json({
             success: true,
