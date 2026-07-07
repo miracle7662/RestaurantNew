@@ -208,7 +208,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 }) => {
   const printRef = useRef<HTMLDivElement>(null)
   const fetchCalledRef = useRef(false)
-  const [isPdfReady, setIsPdfReady] = useState(false)
   
   const [printSettings, setPrintSettings] = useState<BillPrintSetting | null>(null)
   const [settingsLoading, setSettingsLoading] = useState(true)
@@ -272,7 +271,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             })
           }
           setBillData(filteredData)
-          setIsPdfReady(true)
         } else {
           setBillError(response.message || 'Failed to fetch bill data')
         }
@@ -291,14 +289,15 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     return () => {
       if (!show) {
         fetchCalledRef.current = false
-        setIsPdfReady(false)
       }
     }
   }, [show, checkoutId, ldgBillNo, selectedRooms])
 
   // ========== BUILD DISPLAY ROWS ==========
   const displayRows = useMemo(() => {
-    if (!billData.length) return []
+    if (!billData.length) {
+      return []
+    }
 
     const rows: DisplayDetailRow[] = []
     const cumulativeMap = new Map<string, number>()
@@ -500,6 +499,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       }
       
       const item = dateMap.get(dateKey)!
+      
       const type = charge.transaction_type
       
       if (!charge.isPostCharge) {
@@ -687,8 +687,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const getBillStyles = useCallback(() => {
     const fontSize = getFontSize()
     return `
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
+    .bill-wrap * { box-sizing: border-box; }
     .bill-wrap {
       font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
       font-size: ${fontSize};
@@ -699,98 +698,104 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       flex-direction: column;
       min-height: 100vh;
     }
-    
+    .bill-layout-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      height: 100%;
+      flex: 1;
+    }
+    .bill-layout-top {
+      flex: 1 0 auto;
+    }
+    .bill-layout-bottom {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 2px solid ${headerBg};
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+    .bill-spacer {
+      flex: 1 1 auto;
+      min-height: 15px;
+    }
     .bill-wrap .text-left { text-align: left; }
     .bill-wrap .text-center { text-align: center; }
     .bill-wrap .text-right { text-align: right; }
-    .bill-wrap .mt-1 { margin-top: 4px; }
-    .bill-wrap .mt-2 { margin-top: 8px; }
-    .bill-wrap .mt-3 { margin-top: 12px; }
-    .bill-wrap .mb-1 { margin-bottom: 4px; }
-    .bill-wrap .mb-2 { margin-bottom: 8px; }
-    .bill-wrap .mb-3 { margin-bottom: 12px; }
-    
+    .bill-wrap .mt-1 { margin-top: 5px; }
+    .bill-wrap .mt-2 { margin-top: 10px; }
+    .bill-wrap .mt-3 { margin-top: 15px; }
+    .bill-wrap .mb-1 { margin-bottom: 5px; }
+    .bill-wrap .mb-2 { margin-bottom: 10px; }
+    .bill-wrap .mb-3 { margin-bottom: 15px; }
     .bill-wrap .bill-divider {
       border: none;
       border-top: 1px solid #d0d0d0;
-      margin: 6px 0;
+      margin: 10px 0;
     }
-    
     .bill-wrap .bill-info-box {
       border: 1px solid #c8c8c8;
       border-radius: 3px;
       overflow: hidden;
-      margin-bottom: 6px;
+      margin-bottom: 12px;
       height: 100%;
     }
-    
     .bill-wrap .bill-info-box-header {
       background: ${headerBg};
       color: ${headerText};
       text-align: center;
       font-weight: 700;
-      font-size: 7pt;
+      font-size: 7.5pt;
       letter-spacing: 0.5px;
-      padding: 3px 8px;
+      padding: 4px 8px;
     }
-    
     .bill-wrap .bill-info-box-body {
-      padding: 5px 10px;
+      padding: 8px 10px;
     }
-    
     .bill-wrap .bill-detail-table {
       width: 100%;
       border-collapse: collapse;
     }
-    
     .bill-wrap .bill-detail-table td {
-      padding: 1px 4px;
-      font-size: 7pt;
+      padding: 2px 4px;
+      font-size: 7.5pt;
       vertical-align: top;
     }
-    
     .bill-wrap .bdt-label {
       font-weight: 600;
       color: #333;
       white-space: nowrap;
-      width: 80px;
+      width: 90px;
     }
-    
     .bill-wrap .bdt-colon {
-      padding: 1px 4px;
+      padding: 2px 4px;
       color: #555;
       width: 10px;
     }
-    
     .bill-wrap .bdt-value {
       color: #222;
     }
-    
     .bill-wrap .two-column-layout {
       display: flex;
-      gap: 10px;
-      margin-bottom: 6px;
+      gap: 12px;
+      margin-bottom: 12px;
       align-items: stretch;
-      flex: 1;
     }
-    
     .bill-wrap .two-column-layout > div {
       flex: 1;
       min-width: 0;
       display: flex;
       flex-direction: column;
     }
-    
     .bill-wrap .two-column-layout > div > .bill-info-box {
       flex: 1;
       display: flex;
       flex-direction: column;
     }
-    
     .bill-wrap .two-column-layout > div > .bill-info-box > .bill-info-box-body {
       flex: 1;
     }
-    
     .bill-wrap .bill-charges-table {
       width: 100%;
       border-collapse: collapse;
@@ -798,142 +803,116 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       font-size: ${fontSize};
       table-layout: auto;
     }
-    
     .bill-wrap .bill-charges-table thead tr th {
       background: ${headerBg};
       color: ${headerText};
       font-weight: 700;
-      padding: 3px 5px;
+      padding: 5px 6px;
       border: 1px solid ${headerBg};
       white-space: nowrap;
-      font-size: 6.5pt;
-    }
-    
-    .bill-wrap .bill-charges-table tbody tr td {
-      border: 1px solid #d4d4d4;
-      padding: 3px 5px;
-      vertical-align: middle;
       font-size: 7pt;
     }
-    
+    .bill-wrap .bill-charges-table tbody tr td {
+      border: 1px solid #d4d4d4;
+      padding: 5px 6px;
+      vertical-align: middle;
+      font-size: 7.5pt;
+    }
     .bill-wrap .bill-charges-table tbody tr:nth-child(even) td {
       background: #f9f9f9;
     }
-    
     .bill-wrap .bill-charges-table tfoot tr td {
       border: 1px solid #d4d4d4;
-      padding: 3px 5px;
-      font-size: 7pt;
+      padding: 5px 6px;
+      font-size: 7.5pt;
     }
-    
     .bill-wrap .bct-right { text-align: right; }
     .bill-wrap .bct-center { text-align: center; }
     .bill-wrap .bct-left { text-align: left; }
-    
-    .bill-wrap .col-srno { width: 25px; }
-    .bill-wrap .col-room { width: 40px; }
-    .bill-wrap .col-date { width: 60px; }
-    .bill-wrap .col-amount { width: 50px; }
-    .bill-wrap .col-small { width: 45px; }
-    
-    .bill-wrap .bill-hotel-logo {
-      max-height: 45px;
-      max-width: 120px;
-      object-fit: contain;
+    .bill-wrap .col-srno { width: 30px; }
+    .bill-wrap .col-room { width: 45px; }
+    .bill-wrap .col-date { width: 70px; }
+    .bill-wrap .col-amount { width: 65px; }
+    .bill-wrap .col-small { width: 55px; }
+    .bill-wrap .bill-amount-words {
+      border: 1px solid #d4d4d4;
+      border-top: none;
+      padding: 6px 10px;
+      font-size: 7.5pt;
+      margin-bottom: 12px;
+      margin-top: 0;
     }
-    
+    .bill-wrap .baw-label { font-style: italic; color: #555; margin-right: 3px; }
+    .bill-wrap .baw-text { font-style: italic; color: #222; }
     .bill-wrap .bill-thankyou {
       font-family: 'Dancing Script', 'Brush Script MT', cursive;
-      font-size: 16pt;
+      font-size: 20pt;
       color: ${headerBg};
       line-height: 1.2;
     }
-    
-    .bill-hotel-name {
-      font-size: 13pt;
-      font-weight: 800;
-      color: ${headerBg};
-      letter-spacing: 0.5px;
+    .bill-wrap .bill-hotel-logo {
+      max-height: 55px;
+      max-width: 140px;
+      object-fit: contain;
     }
-    
-    .bill-hotel-address {
-      font-size: 7pt;
-      color: #666;
-    }
-    
-    .bill-hotel-contact {
-      font-size: 6.5pt;
-      color: #666;
-    }
-    
-    .bill-title {
-      font-size: 10pt;
-      font-weight: 800;
-      color: ${headerBg};
-      letter-spacing: 1px;
-      margin: 4px 0;
-    }
-    
-    .bill-layout-container {
+    .bill-wrap .bill-info-row {
       display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      height: 100%;
-      padding: 3px 0;
-    }
-    
-    .bill-layout-top {
-      flex: 1 0 auto;
-    }
-    
-    .bill-layout-bottom {
-      flex-shrink: 0;
-      margin-top: auto;
-      padding-top: 6px;
-      border-top: 2px solid ${headerBg};
-    }
-    
-    .bill-spacer {
-      flex: 1 1 auto;
-      min-height: 15px;
-    }
-    
-    .bill-total-paid-box {
-      background: ${headerBg};
-      color: ${headerText};
-      padding: 4px 16px;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 6px 10px;
+      background: #f8f9fa;
+      border: 1px solid #dde2ea;
       border-radius: 3px;
-      font-weight: 700;
-      font-size: 9pt;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 4px;
-      margin-bottom: 4px;
-      margin-left: auto;
-      width: fit-content;
+      margin-bottom: 12px;
+      font-size: 7.5pt;
     }
-    
-    @media print {
-      .bill-layout-container {
-        min-height: 100vh !important;
-        height: 100% !important;
+    .bill-wrap .bill-info-row > div {
+      flex: 1;
+      min-width: 140px;
+    }
+    .bill-wrap .bill-info-row strong {
+      color: #333;
+    }
+    .bill-wrap .status-paid {
+      color: #1a7a3a;
+      font-weight: 700;
+    }
+   @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
       }
-      .bill-total-paid-box {
-        margin-top: 4px;
-        margin-bottom: 4px;
+    .bill-layout-container {
+        height: auto !important;
+        min-height: var(--page-content-height, 100vh) !important;
+        display: flex !important;
+        flex-direction: column !important;
       }
       .bill-wrap {
-        min-height: 100vh !important;
+        height: auto !important;
+        min-height: var(--page-content-height, 100vh) !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+      .bill-layout-top {
+        flex: 1 1 auto !important;
       }
       .bill-spacer {
-        min-height: 20px !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
       }
       .bill-layout-bottom {
-        margin-top: auto !important;
+        flex: 0 0 auto !important;
+        margin-top: 0 !important;
         padding-top: 6px !important;
         border-top: 2px solid ${headerBg} !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
+    
     }
   `
   }, [headerBg, headerText, getFontSize])
@@ -944,58 +923,60 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const printWindow = window.open('', '_blank', 'width=800,height=700')
     if (!printWindow) return
 
-    const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top_mm || 8
-
+const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top_mm || 8
+    const pageBottomMargin = printSettings?.margin_bottom_mm || 8
+    const isA4Print = (printSettings?.default_print_size || 'A4') === 'A4'
+    const pageHeightMm = isA4Print ? 297 : null
+    const pageContentHeightCss = pageHeightMm
+      ? `${pageHeightMm - effectiveTopMargin - pageBottomMargin}mm`
+      : '100vh'
+      
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>Hotel Bill - ${summary?.guest_name || 'Guest'}</title>
           <style>
-            * { 
+           * { 
               box-sizing: border-box; 
               margin: 0; 
               padding: 0; 
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+              color-adjust: exact;
             }
             @page {
-              size: A4;
+              size: ${printSettings?.default_print_size === 'A4' ? 'A4' : 'auto'};
               margin: ${effectiveTopMargin}mm ${printSettings?.margin_right_mm || 8}mm ${printSettings?.margin_bottom_mm || 8}mm ${printSettings?.margin_left_mm || 8}mm;
             }
-            html, body {
-              height: 100%;
-              margin: 0;
+           body { 
+              background: white; 
+              margin: 0; 
               padding: 0;
-              background: white;
+              --page-content-height: ${pageContentHeightCss};
             }
-            .print-container {
+           .print-container {
               width: 100%;
-              height: 100%;
-              margin: 0;
-              padding: 0;
-              display: flex;
-              flex-direction: column;
+              max-width: 950px;
+              margin: 0 auto;
+              padding: 15px 25px 25px 25px;
             }
             ${getBillStyles()}
             @media print {
-              html, body {
-                height: 100%;
+              body {
                 margin: 0;
                 padding: 0;
               }
               .print-container {
-                height: 100%;
-                margin: 0;
-                padding: 0;
-              }
-              .bill-wrap {
-                height: 100%;
-                min-height: 100vh !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
               }
             }
           </style>
         </head>
         <body>
-          <div class="print-container">
+          <div class="print-container bill-wrap">
             ${printContents}
           </div>
         </body>
@@ -1009,17 +990,13 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }, 300)
   }, [summary, printSettings, showTopHeaderSection, getBillStyles])
 
-  // ========== HANDLE DOWNLOAD PDF - FIXED VERSION ==========
+  // ========== HANDLE DOWNLOAD PDF ==========
   const handleDownloadPDF = useCallback(async () => {
-    if (!printRef.current) {
-      alert('Bill content not ready. Please wait.')
-      return
-    }
+    const billEl = printRef.current
+    if (!billEl) return
 
     setPdfLoading(true)
-    
     try {
-      // Load required libraries
       const loadScript = (src: string): Promise<void> =>
         new Promise((resolve, reject) => {
           if (document.querySelector(`script[src="${src}"]`)) {
@@ -1041,83 +1018,69 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       const html2canvas = (window as any).html2canvas
       const { jsPDF } = (window as any).jspdf
 
-      if (!html2canvas || !jsPDF) {
-        throw new Error('Required libraries failed to load')
-      }
+      const printSize = printSettings?.default_print_size || 'A4'
+      const isA4 = printSize !== 'thermal_80mm' && printSize !== 'thermal_58mm'
+      const pdfW = isA4 ? 210 : printSize === 'thermal_80mm' ? 80 : 58
 
-      // Get the bill element
-      const billElement = printRef.current
-      
-      // Force a reflow to ensure all content is rendered
-      billElement.style.display = 'block'
-      billElement.style.visibility = 'visible'
-      billElement.style.opacity = '1'
-      
-      // Small delay to ensure rendering is complete
-      await new Promise(resolve => setTimeout(resolve, 100))
-
-      // Capture the full bill content
-      const canvas = await html2canvas(billElement, {
+      const canvas = await html2canvas(billEl, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
-        width: billElement.scrollWidth || 794,
-        height: billElement.scrollHeight || 1123,
-        windowHeight: billElement.scrollHeight || 1123,
-        onclone: (document: any) => {
-          // Ensure all content is visible in the cloned document
-          const clonedElement = document.querySelector('.bill-wrap')
-          if (clonedElement) {
-            clonedElement.style.display = 'block'
-            clonedElement.style.visibility = 'visible'
-            clonedElement.style.opacity = '1'
-            clonedElement.style.minHeight = '100vh'
-          }
-        }
       })
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95)
-      const imgWidth = 190 // A4 width in mm with margins
-      const imgHeight = (canvas.height / canvas.width) * imgWidth
+      const imgData = canvas.toDataURL('image/jpeg', 0.92)
+      const imgW =
+        pdfW - (printSettings?.margin_left_mm || 8) - (printSettings?.margin_right_mm || 8)
+      const imgH = (canvas.height / canvas.width) * imgW
+
+      const topMargin = !showTopHeaderSection
+        ? printSettings?.top_margin_when_header_hidden || 20
+        : printSettings?.margin_top_mm || 8
+      const bottomMargin = printSettings?.margin_bottom_mm || 8
+      const leftMargin = printSettings?.margin_left_mm || 8
+
+      const pageContentH = (isA4 ? 297 : 999) - topMargin - bottomMargin
+      const orientation = imgH <= pageContentH ? 'portrait' : 'portrait'
 
       const pdf = new jsPDF({
-        orientation: 'portrait',
+        orientation: orientation,
         unit: 'mm',
-        format: 'a4',
+        format: isA4 ? 'a4' : [pdfW, imgH + topMargin + bottomMargin],
       })
 
-      // Handle multi-page if content is taller than A4
-      const pageHeight = 277 // A4 height in mm with margins
-      let remainingHeight = imgHeight
-      let yPosition = 10
-      let pageNum = 0
-
-      while (remainingHeight > 0) {
-        if (pageNum > 0) {
-          pdf.addPage()
-          yPosition = 10
+      if (imgH <= pageContentH) {
+        pdf.addImage(imgData, 'JPEG', leftMargin, topMargin, imgW, imgH)
+      } else {
+        const pageHeightPx = (pageContentH / imgW) * canvas.width
+        let yOffset = 0
+        let page = 0
+        while (yOffset < canvas.height) {
+          if (page > 0) pdf.addPage()
+          const sliceH = Math.min(pageHeightPx, canvas.height - yOffset)
+          const sliceCanvas = document.createElement('canvas')
+          sliceCanvas.width = canvas.width
+          sliceCanvas.height = sliceH
+          const ctx = sliceCanvas.getContext('2d')!
+          ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
+          const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92)
+          const sliceImgH = (sliceH / canvas.width) * imgW
+          const yPos = page === 0 ? topMargin : bottomMargin
+          pdf.addImage(sliceData, 'JPEG', leftMargin, yPos, imgW, sliceImgH)
+          yOffset += sliceH
+          page++
         }
-        
-        const currentHeight = Math.min(remainingHeight, pageHeight - 20)
-        pdf.addImage(imgData, 'JPEG', 10, yPosition, imgWidth, currentHeight)
-        
-        remainingHeight -= currentHeight
-        pageNum++
       }
 
-      // Save the PDF
       const guestName = summary?.guest_name?.replace(/[^a-zA-Z0-9 ]/g, '') || 'Guest'
-      const safeBillNo = generatedBillNo.replace(/\//g, '-').replace(/[^a-zA-Z0-9-]/g, '')
-      pdf.save(`Bill_${guestName}_${safeBillNo}.pdf`)
-      
-    } catch (error) {
-      console.error('PDF generation failed:', error)
-      alert('PDF generation failed. Please use Print instead.\n\nError: ' + (error as Error).message)
+      pdf.save(`Bill_${guestName}_${generatedBillNo.replace(/\//g, '-')}.pdf`)
+    } catch (err) {
+      console.error('PDF generation failed:', err)
+      alert('PDF generation failed. Please try Print instead.')
     } finally {
       setPdfLoading(false)
     }
-  }, [summary, generatedBillNo])
+  }, [printSettings, showTopHeaderSection, summary, generatedBillNo])
 
   // ========== RENDER FUNCTIONS ==========
 
@@ -1148,166 +1111,160 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       <div className="mb-2">
         {logoEl && <div className={`text-${logoPosition} mb-1`}>{logoEl}</div>}
         {printSettings?.show_hotel_name === 1 && (
-          <div className={`text-${nameAlign} bill-hotel-name`}>
+          <div
+            className={`text-${nameAlign}`}
+            style={{ fontSize: '16pt', fontWeight: 800, color: headerBg }}
+          >
             {firstRow?.hotel_name || 'GRAND VIEW HOTEL'}
           </div>
         )}
         {printSettings?.show_hotel_address === 1 && (
-          <div className={`text-${addressAlign} mt-1 bill-hotel-address`}>
+          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '7.5pt', color: '#666' }}>
             📍 {firstRow?.hotel_address || '123, Park Avenue, City Center, New Delhi - 110001'}
           </div>
         )}
         {printSettings?.show_hotel_contact === 1 && (
-          <div className={`text-${contactAlign} mt-1 bill-hotel-contact`}>
-            📞 {firstRow?.hotel_phone || '+91 11 4567 8900'} &nbsp;|&nbsp; ✉ {firstRow?.hotel_email || 'info@grandviewhotel.com'}
+          <div className={`text-${contactAlign} mt-1`} style={{ fontSize: '7pt', color: '#666' }}>
+            📞 {firstRow?.hotel_phone || '+91 11 4567 8900'} &nbsp;|&nbsp; ✉ {firstRow?.hotel_email || 'info@grandviewhotel.com'} &nbsp;|&nbsp; 🌐 {firstRow?.website || 'www.grandviewhotel.com'}
           </div>
         )}
         <hr className="bill-divider" />
       </div>
     )
-  }, [billData, printSettings, showTopHeaderSection, topMarginWhenHeaderHidden])
+  }, [billData, printSettings, showTopHeaderSection, topMarginWhenHeaderHidden, headerBg])
 
   const renderBillTitle = useCallback(() => {
     if (printSettings?.show_bill_title !== 1) return null
     const titleAlign = printSettings?.bill_title_position || 'center'
     return (
       <div className={`text-${titleAlign} mb-2`}>
-        <h3 className="bill-title">HOTEL BOOKING BILL</h3>
+        <h3
+          style={{
+            margin: 0,
+            fontWeight: 800,
+            letterSpacing: '0.5px',
+            color: headerBg,
+            fontSize: '12pt',
+          }}
+        >
+          HOTEL BOOKING BILL
+        </h3>
       </div>
     )
-  }, [printSettings])
+  }, [printSettings, headerBg])
 
-  const renderGuestDetails = useCallback(() => {
-    if (printSettings?.show_guest_details !== 1) return null
-    return (
-      <div className="bill-info-box">
-        <div className="bill-info-box-header">GUEST DETAILS</div>
-        <div className="bill-info-box-body">
-          <table className="bill-detail-table">
-            <tbody>
-              {printSettings?.show_guest_name === 1 && (
-                <tr>
-                  <td className="bdt-label">Name</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{summary?.guest_name || '-'}</td>
-                </tr>
-              )}
-              {printSettings?.show_guest_mobile === 1 && (
-                <tr>
-                  <td className="bdt-label">Phone</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{summary?.guest_mobile || '-'}</td>
-                </tr>
-              )}
-              {printSettings?.show_guest_email === 1 && (
-                <tr>
-                  <td className="bdt-label">Email</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{summary?.guest_email || '-'}</td>
-                </tr>
-              )}
-              {printSettings?.show_guest_address === 1 && (
-                <tr>
-                  <td className="bdt-label">Address</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{summary?.guest_address || '-'}</td>
-                </tr>
-              )}
-              {printSettings?.show_guest_id_proof === 1 && (
-                <tr>
-                  <td className="bdt-label">ID Proof</td>
-                  <td className="bdt-colon">:</td>
-                  <td className="bdt-value">{summary?.guest_id_proof || '-'}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+  // ========== RENDER GUEST DETAILS (Left Column) ==========
+const renderGuestDetails = useCallback(() => {
+  if (printSettings?.show_guest_details !== 1) return null
+  
+  return (
+    <div className="bill-info-box" style={{ height: '100%' }}>
+      <div className="bill-info-box-header">GUEST DETAILS</div>
+      <div className="bill-info-box-body" style={{ padding: '6px 10px' }}>
+        <table className="bill-detail-table" style={{ width: '100%' }}>
+          <tbody>
+            {printSettings?.show_guest_name === 1 && (
+              <tr>
+                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '7.5pt' }}>Name</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '7.5pt' }}>:</td>
+                <td className="bdt-value" style={{ fontWeight: 600, fontSize: '7.5pt' }}>{summary?.guest_name || '-'}</td>
+              </tr>
+            )}
+            {printSettings?.show_guest_mobile === 1 && (
+              <tr>
+                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '7.5pt' }}>Phone</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '7.5pt' }}>:</td>
+                <td className="bdt-value" style={{ fontSize: '7.5pt' }}>{summary?.guest_mobile || '-'}</td>
+              </tr>
+            )}
+            {printSettings?.show_guest_email === 1 && (
+              <tr>
+                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '7.5pt' }}>Email</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '7.5pt' }}>:</td>
+                <td className="bdt-value" style={{ wordBreak: 'break-all', fontSize: '7.5pt' }}>{summary?.guest_email || '-'}</td>
+              </tr>
+            )}
+            {printSettings?.show_guest_address === 1 && (
+              <tr>
+                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '7.5pt' }}>Address</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '7.5pt' }}>:</td>
+                <td className="bdt-value" style={{ fontSize: '7.5pt' }}>{summary?.guest_address || '-'}</td>
+              </tr>
+            )}
+            {printSettings?.show_guest_id_proof === 1 && (
+              <tr>
+                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '7.5pt' }}>ID Proof</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '7.5pt' }}>:</td>
+                <td className="bdt-value" style={{ fontSize: '7.5pt' }}>{summary?.guest_id_proof || '-'}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}, [printSettings, summary])
+// ========== RENDER BOOKING & INVOICE DETAILS (Right Column) ==========
+// ========== RENDER BOOKING & INVOICE DETAILS (Right Column) ==========
+const renderBookingDetails = useCallback(() => {
+  if (printSettings?.show_booking_details !== 1) return null
+  
+  const invoiceNo = propBillNumber || billData[0]?.ldg_bill_no || generatedBillNo
+  const invoiceDateDisplay = propPaymentDate || invoiceDate
+  const bookingIdDisplay = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
+  const roomTypeDisplay = summary?.room_categories_str || '-'
+  const roomNumbersDisplay = checkedOutRoomsStr || summary?.room_numbers_str || '-'
+  const nightsDisplay = summary?.total_days || 0
+  const tariffPlanDisplay = summary?.plan_name || 'Room Only'
+  const guestsDisplay = `${summary?.total_adults || 0} Adults${(summary?.total_child_paid || 0) > 0 ? `, ${summary?.total_child_paid} Child` : ''}${(summary?.total_driver || 0) > 0 ? `, ${summary?.total_driver} Driver` : ''}`
+
+  return (
+    <div className="bill-info-box" style={{ height: '100%' }}>
+      <div className="bill-info-box-header">BOOKING & INVOICE DETAILS</div>
+      <div className="bill-info-box-body">
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'auto 1fr auto 1fr', 
+          gap: '2px 8px',
+          fontSize: '7.5pt',
+          alignItems: 'baseline'
+        }}>
+          {/* Row 1 */}
+          <span style={{ fontWeight: 600, minWidth: '65px' }}>Invoice No.</span>
+          <span style={{ fontWeight: 700, color: headerBg }}>{invoiceNo}</span>
+          <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>Invoice Date</span>
+          <span>{invoiceDateDisplay}</span>
+          
+          {/* Row 2 */}
+          <span style={{ fontWeight: 600, minWidth: '65px' }}>Booking ID</span>
+          <span style={{ fontWeight: 600 }}>{bookingIdDisplay}</span>
+          <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>Room Type</span>
+          <span style={{ fontWeight: 600 }}>{roomTypeDisplay}</span>
+          
+          {/* Row 3 */}
+          <span style={{ fontWeight: 600, minWidth: '65px' }}>Arrival Date</span>
+          <span>{checkinDateDisplay}</span>
+          <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>No. of Nights</span>
+          <span>{nightsDisplay}</span>
+          
+          {/* Row 4 */}
+          <span style={{ fontWeight: 600, minWidth: '65px' }}>Check-out Date</span>
+          <span>{checkoutDateDisplay}</span>
+          <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>Guests / Plan</span>
+          <span>{guestsDisplay} {tariffPlanDisplay ? `(${tariffPlanDisplay})` : ''}</span>
+          
+          {/* Row 5 */}
+          <span style={{ fontWeight: 600, minWidth: '65px' }}>Room No(s).</span>
+          <span style={{ fontWeight: 600 }}>{roomNumbersDisplay}</span>
         </div>
       </div>
-    )
-  }, [printSettings, summary])
-
-  const renderBookingDetails = useCallback(() => {
-    if (printSettings?.show_booking_details !== 1) return null
-    
-    const invoiceNo = propBillNumber || billData[0]?.ldg_bill_no || generatedBillNo
-    const invoiceDateDisplay = propPaymentDate || invoiceDate
-    const bookingIdDisplay = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
-    const roomTypeDisplay = summary?.room_categories_str || '-'
-    const roomNumbersDisplay = checkedOutRoomsStr || summary?.room_numbers_str || '-'
-    const nightsDisplay = summary?.total_days || 0
-    const tariffPlanDisplay = summary?.plan_name || 'Room Only'
-    const guestsDisplay = `${summary?.total_adults || 0} Adults${(summary?.total_child_paid || 0) > 0 ? `, ${summary?.total_child_paid} Child` : ''}${(summary?.total_driver || 0) > 0 ? `, ${summary?.total_driver} Driver` : ''}`
-
-    return (
-      <div className="bill-info-box">
-        <div className="bill-info-box-header">BOOKING & INVOICE DETAILS</div>
-        <div className="bill-info-box-body">
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '1fr 1fr', 
-            gap: '2px 15px',
-            fontSize: '7pt'
-          }}>
-            <div>
-              <div style={{ display: 'flex', padding: '2px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '75px' }}>Invoice No.</span>
-                <span style={{ margin: '0 4px' }}>:</span>
-                <span style={{ fontWeight: 700, color: headerBg }}>{invoiceNo}</span>
-              </div>
-              <div style={{ display: 'flex', padding: '2px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '75px' }}>Booking ID</span>
-                <span style={{ margin: '0 4px' }}>:</span>
-                <span style={{ fontWeight: 600 }}>{bookingIdDisplay}</span>
-              </div>
-              <div style={{ display: 'flex', padding: '2px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '75px' }}>Arrival Date</span>
-                <span style={{ margin: '0 4px' }}>:</span>
-                <span>{checkinDateDisplay}</span>
-              </div>
-              <div style={{ display: 'flex', padding: '2px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '75px' }}>Check-out Date</span>
-                <span style={{ margin: '0 4px' }}>:</span>
-                <span>{checkoutDateDisplay}</span>
-              </div>
-              <div style={{ display: 'flex', padding: '2px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '75px' }}>Room No(s).</span>
-                <span style={{ margin: '0 4px' }}>:</span>
-                <span>{roomNumbersDisplay}</span>
-              </div>
-            </div>
-            <div>
-              <div style={{ display: 'flex', padding: '2px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '75px' }}>Invoice Date</span>
-                <span style={{ margin: '0 4px' }}>:</span>
-                <span>{invoiceDateDisplay}</span>
-              </div>
-              <div style={{ display: 'flex', padding: '2px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '75px' }}>Room Type</span>
-                <span style={{ margin: '0 4px' }}>:</span>
-                <span style={{ fontWeight: 600 }}>{roomTypeDisplay}</span>
-              </div>
-              <div style={{ display: 'flex', padding: '2px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '75px' }}>No. of Nights</span>
-                <span style={{ margin: '0 4px' }}>:</span>
-                <span>{nightsDisplay}</span>
-              </div>
-              <div style={{ display: 'flex', padding: '2px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '75px' }}>Guests / Plan</span>
-                <span style={{ margin: '0 4px' }}>:</span>
-                <span>{guestsDisplay} {tariffPlanDisplay ? `(${tariffPlanDisplay})` : ''}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }, [printSettings, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, summary, headerBg, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate])
-
+    </div>
+  )
+}, [printSettings, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate, summary, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, headerBg])  // ========== RENDER CHARGES TABLE ==========
   const renderChargesTable = useCallback(() => {
     if (tableRows.length === 0) {
       return (
-        <div style={{ padding: '15px', textAlign: 'center', color: '#999' }}>
+        <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
           No charges to display.
         </div>
       )
@@ -1328,6 +1285,8 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>)
     headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>)
     headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
+
+    const totalCols = headers.length
 
     const bodyRows: React.ReactElement[] = []
     let runningIndex = 1
@@ -1363,6 +1322,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       bodyRows.push(<tr key={row.id}>{cells}</tr>)
     })
 
+    // Calculate totals from tableRows
     const totalTariff = tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
     const totalExPax = tableRows.reduce((sum, row) => sum + row.exPax, 0)
     const totalCgst = tableRows.reduce((sum, row) => sum + row.cgst, 0)
@@ -1427,8 +1387,21 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       </td>
     )
 
+    const summaryRows: React.ReactElement[] = []
+
+    summaryRows.push(
+      <tr key="summary_grand_total" style={{ background: headerBg, color: headerText }}>
+        <td colSpan={totalCols - 1} className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
+          TOTAL PAID (INR)
+        </td>
+        <td className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
+          ₹{formatAmt(totalAmount)}
+        </td>
+      </tr>
+    )
+
     return (
-      <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
         <table className="bill-charges-table">
           <thead>
             <tr>{headers}</tr>
@@ -1436,254 +1409,186 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           <tbody>{bodyRows}</tbody>
           <tfoot>
             <tr key="footer1">{footerCells}</tr>
+            {summaryRows}
           </tfoot>
         </table>
       </div>
     )
-  }, [printSettings, tableRows])
+  }, [printSettings, tableRows, headerBg, headerText])
 
-  const renderPaymentDetails = useCallback(() => {
-    const paymentTxnId = propPaymentTransactionId || 
-      billData[0]?.reference_number || 
-      `TXN${Date.now().toString().slice(-12)}`
+  // ========== RENDER PAYMENT DETAILS (Left Bottom) ==========
+  // ========== RENDER PAYMENT DETAILS (Left Bottom) ==========
+// ========== RENDER PAYMENT DETAILS (Left Bottom) ==========
+const renderPaymentDetails = useCallback(() => {
+   
+    billData[0]?.reference_number || 
+    `TXN${Date.now().toString().slice(-12)}`
 
-    const paymentDateDisplay = propPaymentDate || invoiceDate
-    const paymentBankDisplay = propPaymentBank || paymentMode
+  const paymentDateDisplay = propPaymentDate || invoiceDate
+  const paymentBankDisplay = propPaymentBank || paymentMode
 
-    return (
-      <div className="bill-info-box">
-        <div className="bill-info-box-header">PAYMENT DETAILS</div>
-        <div className="bill-info-box-body">
-          <table className="bill-detail-table">
-            <tbody>
-              <tr>
-                <td className="bdt-label">Paid Amount</td>
-                <td className="bdt-colon">:</td>
-                <td className="bdt-value">INR {formatAmt(totals.netTotal)}</td>
-              </tr>
-              <tr>
-                <td className="bdt-label">Payment Date</td>
-                <td className="bdt-colon">:</td>
-                <td className="bdt-value">{paymentDateDisplay}</td>
-              </tr>
-              <tr>
-                <td className="bdt-label">Bank / Card</td>
-                <td className="bdt-colon">:</td>
-                <td className="bdt-value">{paymentBankDisplay}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+  return (
+    <div className="bill-info-box" style={{ height: '100%' }}>
+      <div className="bill-info-box-header">PAYMENT DETAILS</div>
+      <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
+        <table className="bill-detail-table" style={{ width: '100%' }}>
+          <tbody>
+            <tr>
+              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '7.5pt', fontWeight: 600 }}>Paid Amount</td>
+              <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt' }}>:</td>
+              <td className="bdt-value" style={{ fontWeight: 700, fontSize: '8pt' }}>
+                INR {formatAmt(totals.netTotal)}
+              </td>
+            </tr>
+            <tr>
+              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '7.5pt', fontWeight: 600 }}>Payment Date</td>
+              <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt' }}>:</td>
+              <td className="bdt-value" style={{ fontSize: '7.5pt' }}>{paymentDateDisplay}</td>
+            </tr>
+            <tr>
+              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '7.5pt', fontWeight: 600 }}>Payment Mode</td>
+              <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt' }}>:</td>
+              <td className="bdt-value" style={{ fontSize: '7.5pt', fontWeight: 600 }}>{paymentBankDisplay}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    )
-  }, [propPaymentTransactionId, billData, propPaymentDate, invoiceDate, propPaymentBank, paymentMode, totals.netTotal])
+    </div>
+  )
+}, [propPaymentTransactionId, billData, propPaymentDate, invoiceDate, propPaymentBank, paymentMode, totals.netTotal])
 
-  const renderSummaryBox = useCallback(() => {
-    const firstRow = billData[0] || {}
-    const discountAmount = toNumber(firstRow.discount_amount || 0)
-    const grossTotal = toNumber(firstRow.total_amount || 0)
-    const netTotal = roundToTwo(grossTotal - discountAmount)
-    const advanceTotal = toNumber(firstRow.advance_amt || 0)
-    const finalAmount = roundToTwo(netTotal - advanceTotal)
+// ========== RENDER BILL SUMMARY (Right Bottom) ==========
+const renderSummaryBox = useCallback(() => {
+  const firstRow = billData[0] || {}
+  const discountAmount = toNumber(firstRow.discount_amount || 0)
+  const grossTotal = toNumber(firstRow.total_amount || 0)
+  const netTotal = roundToTwo(grossTotal - discountAmount)
+  const advanceTotal = toNumber(firstRow.advance_amt || 0)
+  const finalAmount = roundToTwo(netTotal - advanceTotal)
 
-    return (
-      <div className="bill-info-box">
-        <div className="bill-info-box-header">BILL SUMMARY</div>
-        <div className="bill-info-box-body">
-          <table style={{ 
-            width: '100%', 
-            borderCollapse: 'collapse',
-            fontSize: '8pt'
-          }}>
-            <tbody>
+  return (
+    <div className="bill-info-box" style={{ height: '100%' }}>
+      <div className="bill-info-box-header">BILL SUMMARY</div>
+      <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
+        <table className="bill-detail-table" style={{ width: '100%' }}>
+          <tbody>
+            <tr>
+              <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '7.5pt', fontWeight: 600 }}>TOTAL AMOUNT</td>
+              <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt' }}>:</td>
+              <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 700, fontSize: '7.5pt', paddingRight: '4px' }}>
+                ₹{formatAmt(grossTotal)}
+              </td>
+            </tr>
+            {discountAmount > 0 && (
               <tr>
-                <td style={{ 
-                  padding: '2px 6px', 
-                  fontWeight: 600,
-                  borderBottom: '1px solid #e0e0e0'
-                }}>
-                  TOTAL AMOUNT
-                </td>
-                <td style={{ 
-                  padding: '2px 6px', 
-                  textAlign: 'right',
-                  fontWeight: 600,
-                  borderBottom: '1px solid #e0e0e0'
-                }}>
-                  ₹{formatAmt(grossTotal)}
+                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '7.5pt', fontWeight: 600, color: '#c0392b' }}>Discount</td>
+                <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt', color: '#c0392b' }}>:</td>
+                <td className="bdt-value" style={{ textAlign: 'right', color: '#c0392b', fontWeight: 600, fontSize: '7.5pt', paddingRight: '4px' }}>
+                  -₹{formatAmt(discountAmount)}
                 </td>
               </tr>
-              {discountAmount > 0 && (
-                <tr>
-                  <td style={{ 
-                    padding: '2px 6px', 
-                    color: '#c0392b',
-                    fontWeight: 600,
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    Discount
-                  </td>
-                  <td style={{ 
-                    padding: '2px 6px', 
-                    textAlign: 'right',
-                    color: '#c0392b',
-                    fontWeight: 600,
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    -₹{formatAmt(discountAmount)}
-                  </td>
-                </tr>
-              )}
+            )}
+            <tr>
+              <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '7.5pt', fontWeight: 700, borderTop: '1px solid #e0e0e0', paddingTop: '4px' }}>NET TOTAL</td>
+              <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt', borderTop: '1px solid #e0e0e0', paddingTop: '4px' }}>:</td>
+              <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 700, fontSize: '7.5pt', borderTop: '1px solid #e0e0e0', paddingTop: '4px', paddingRight: '4px' }}>
+                ₹{formatAmt(netTotal)}
+              </td>
+            </tr>
+            {advanceTotal > 0 && (
               <tr>
-                <td style={{ 
-                  padding: '2px 6px', 
-                  fontWeight: 700,
-                  borderBottom: '1px solid #e0e0e0'
-                }}>
-                  NET TOTAL
-                </td>
-                <td style={{ 
-                  padding: '2px 6px', 
-                  textAlign: 'right',
-                  fontWeight: 700,
-                  borderBottom: '1px solid #e0e0e0'
-                }}>
-                  ₹{formatAmt(netTotal)}
+                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '7.5pt', fontWeight: 600, color: '#e67e22' }}>Advance</td>
+                <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt', color: '#e67e22' }}>:</td>
+                <td className="bdt-value" style={{ textAlign: 'right', color: '#e67e22', fontWeight: 600, fontSize: '7.5pt', paddingRight: '4px' }}>
+                  -₹{formatAmt(advanceTotal)}
                 </td>
               </tr>
-              {advanceTotal > 0 && (
-                <tr>
-                  <td style={{ 
-                    padding: '2px 6px', 
-                    color: '#e67e22',
-                    fontWeight: 600,
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    Advance
-                  </td>
-                  <td style={{ 
-                    padding: '2px 6px', 
-                    textAlign: 'right',
-                    color: '#e67e22',
-                    fontWeight: 600,
-                    borderBottom: '1px solid #e0e0e0'
-                  }}>
-                    -₹{formatAmt(advanceTotal)}
-                  </td>
-                </tr>
-              )}
-              {advanceTotal > 0 && (
-                <tr>
-                  <td style={{ 
-                    padding: '2px 6px', 
-                    fontWeight: 800,
-                    fontSize: '9pt',
-                    color: headerBg
-                  }}>
-                    BALANCE AMOUNT
-                  </td>
-                  <td style={{ 
-                    padding: '2px 6px', 
-                    textAlign: 'right',
-                    fontWeight: 800,
-                    fontSize: '9pt',
-                    color: headerBg
-                  }}>
-                    ₹{formatAmt(finalAmount)}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            )}
+            {advanceTotal > 0 && (
+              <tr>
+                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '8pt', fontWeight: 800, color: headerBg, borderTop: '2px solid #e0e0e0', paddingTop: '4px' }}>BALANCE AMOUNT</td>
+                <td className="bdt-colon" style={{ width: '8px', fontSize: '8pt', borderTop: '2px solid #e0e0e0', paddingTop: '4px' }}>:</td>
+                <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 800, fontSize: '8pt', color: headerBg, borderTop: '2px solid #e0e0e0', paddingTop: '4px', paddingRight: '4px' }}>
+                  ₹{formatAmt(finalAmount)}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
-    )
-  }, [billData, headerBg])
+    </div>
+  )
+}, [billData, headerBg])
+  // ========== RENDER FOOTER (REMOVED - not shown in image) ==========
+  // Footer is removed as per the image requirement
 
-  const renderFooter = useCallback(() => {
-    const firstRow = billData[0]
-    return (
-      <div className="text-center mt-2">
-        {printSettings?.show_thankyou_message === 1 && (
-          <div className="bill-thankyou">
-            {printSettings?.thankyou_message_text || 'Thank You!'}
-          </div>
-        )}
-        {printSettings?.show_footer_note === 1 && (
-          <div className="mt-1" style={{ fontSize: '8pt', color: '#555' }}>
-            {printSettings?.footer_note_text || 'We look forward to welcoming you again.'}
-          </div>
-        )}
-        <div className="mt-1" style={{ fontSize: '7pt', color: '#999' }}>
-          {printSettings?.show_gst_details === 1 && <div>GSTIN: {firstRow?.trn_gstno || '07AABCG1234F1Z5'}</div>}
-          {printSettings?.show_company_pan === 1 && <div>PAN: {firstRow?.panno || 'AABCG1234F'}</div>}
-          {printSettings?.show_fssai === 1 && <div>FSSAI: {firstRow?.fssai_no || '12345678901234'}</div>}
-        </div>
-        {printSettings?.custom_footer_text && (
-          <div className="mt-1" style={{ fontSize: '7pt', color: '#999' }}>
-            {printSettings.custom_footer_text}
-          </div>
-        )}
-      </div>
-    )
-  }, [billData, printSettings])
-
-  // ========== MAIN LAYOUT ==========
-  const renderLayout = useCallback(() => {
-    return (
-      <div className="bill-layout-container">
-        {/* Top Section */}
-        <div className="bill-layout-top">
-          {renderHotelHeader()}
-          {renderBillTitle()}
-
-          {/* Guest & Booking Details side-by-side */}
-          <div className="two-column-layout">
-            <div>
-              {printSettings?.show_guest_details === 1 && renderGuestDetails()}
-            </div>
-            <div>
-              {printSettings?.show_booking_details === 1 && renderBookingDetails()}
-            </div>
-          </div>
-
-          {/* Charges Table */}
-          {renderChargesTable()}
-
-          {/* TOTAL PAID (INR) - right aligned */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px', marginBottom: '4px' }}>
-            <div className="bill-total-paid-box">
-              <span>Total Paid (INR)</span>
-              <span>₹{formatAmt(totals.totalAmount)}</span>
-            </div>
+  // ========== RENDER LAYOUT ==========
+  // ========== RENDER LAYOUT ==========
+const renderLayout = useCallback(() => {
+  return (
+    <div className="bill-layout-container">
+      {/* TOP SECTION: Header + Two Column (Guest Details | Booking & Invoice Details) */}
+      <div className="bill-layout-top">
+        {renderHotelHeader()}
+        {renderBillTitle()}
+        
+        {/* Two Column: Guest Details (Left) | Booking & Invoice Details (Right) with flex */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          marginBottom: '12px',
+          alignItems: 'stretch'
+        }}>
+          {/* Guest Details - Fixed width */}
+          <div style={{ flex: '0 0 auto', width: '300px' }}>
+            {printSettings?.show_guest_details === 1 && renderGuestDetails()}
           </div>
           
-          {/* Spacer to push footer down */}
-          <div className="bill-spacer" />
-        </div>
-
-        {/* Bottom Section - Payment Details & Bill Summary side-by-side */}
-        <div className="bill-layout-bottom">
-          <div className="two-column-layout">
-            {renderPaymentDetails()}
-            {renderSummaryBox()}
+          {/* Booking & Invoice Details - Takes remaining space */}
+          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+            {printSettings?.show_booking_details === 1 && renderBookingDetails()}
           </div>
-          {renderFooter()}
         </div>
+        
+        {/* Room Charges Table */}
+        {renderChargesTable()}
+        
+        <div className="bill-spacer" />
       </div>
-    )
-  }, [
-    printSettings,
-    renderHotelHeader,
-    renderBillTitle,
-    renderGuestDetails,
-    renderBookingDetails,
-    renderChargesTable,
-    renderPaymentDetails,
-    renderSummaryBox,
-    renderFooter,
-    totals.totalAmount,
-  ])
+      
+      {/* BOTTOM SECTION: Payment Details | Bill Summary (Always at bottom) */}
+      {/* BOTTOM SECTION: Payment Details | Bill Summary (Always at bottom) */}
+<div className="bill-layout-bottom" style={{ 
+  pageBreakInside: 'avoid', 
+  breakInside: 'avoid',
+  paddingTop: '4px',
+  marginTop: 'auto'
+}}>
+  <div style={{ 
+    display: 'flex', 
+    gap: '10px',
+    marginBottom: 0,
+  }}>
+    <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+      {renderPaymentDetails()}
+    </div>
+    <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+      {renderSummaryBox()}
+    </div>
+  </div>
+</div>
+    </div>
+  )
+}, [
+  renderHotelHeader,
+  renderBillTitle,
+  renderGuestDetails,
+  renderBookingDetails,
+  renderChargesTable,
+  renderPaymentDetails,
+  renderSummaryBox,
+  printSettings,
+])
 
   // ========== LOADING/ERROR STATES ==========
   if (settingsLoading || billLoading) {
@@ -1796,46 +1701,24 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           width: 100%;
           max-width: 950px;
           margin: 0 auto;
-          padding: 12px 20px 15px 20px;
+          padding: 15px 25px 25px 25px;
           box-shadow: 0 6px 24px rgba(0,0,0,0.13);
           border-radius: 3px;
-          min-height: 100vh;
-          height: auto;
-          display: flex;
-          flex-direction: column;
         }
-
         @media print {
           .bill-a4-paper { 
             box-shadow: none; 
             width: 100% !important; 
-            padding: 5px 12px !important;
+            padding: 0 !important;
             margin: 0 !important;
-            min-height: 100vh !important;
-            height: auto !important;
-            display: flex !important;
-            flex-direction: column !important;
           }
           .no-print { display: none !important; }
           body { 
             margin: 0 !important; 
             padding: 0 !important;
             background: white !important;
-            min-height: 100vh !important;
-          }
-          .bill-modal-action-bar { display: none !important; }
-          .bill-spacer {
-            min-height: 20px !important;
-          }
-          .bill-layout-container {
-            min-height: 100vh !important;
-          }
-          .bill-layout-bottom {
-            margin-top: auto !important;
-            padding-top: 6px !important;
           }
         }
-
         ${getBillStyles()}
       `}</style>
 

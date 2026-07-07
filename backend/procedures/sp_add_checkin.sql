@@ -66,6 +66,8 @@ SELECT
     cm.message,
 
     cm.status,
+    
+    COALESCE(cm.payment_method, 'Cash') AS payment_method,  /* <-- ADDED payment_method */
 
 /* ===========================================================
    ROOM DETAILS
