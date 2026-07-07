@@ -54,7 +54,7 @@ BEGIN
 
         cm.total_nights,
 
-        NULL AS payment_mode,
+        COALESCE(cm.payment_method, 'Cash') AS payment_mode,  -- <-- ADDED payment_method
 
         ROUND(IFNULL(cm.total_amount, 0), 2) AS total_amount,
         ROUND(
@@ -165,7 +165,7 @@ BEGIN
 
         MAX(x.guest_name)               AS guest_name,
 
-        MAX(x.payment_mode)             AS payment_mode,
+        MAX(x.payment_mode)             AS payment_mode,  -- <-- ADDED payment_mode
 
         MAX(x.description)              AS description,
 
@@ -230,7 +230,7 @@ BEGIN
             cd.checkout_detail_id             AS charge_id,
 
             COALESCE(cd.guest_name, (SELECT guest_name FROM guest_name_cte)) AS guest_name,
-            NULL AS payment_mode,
+            (SELECT COALESCE(payment_method, 'Cash') FROM checkout_master WHERE checkout_id = p_checkout_id) AS payment_mode,  -- <-- ADDED payment_mode
 
             'ROOM CHARGES'                    AS transaction_type,
             CONCAT('Room Charges (', cd.room_number, ')') AS description
@@ -298,7 +298,7 @@ BEGIN
             cf.folio_id AS charge_id,
 
             (SELECT guest_name FROM guest_name_cte) AS guest_name,
-            NULL AS payment_mode,
+            (SELECT COALESCE(payment_method, 'Cash') FROM checkout_master WHERE checkout_id = p_checkout_id) AS payment_mode,  -- <-- ADDED payment_mode
 
             'ROOM EXTENSION' AS transaction_type,
 
@@ -373,7 +373,7 @@ BEGIN
             cf.folio_id AS charge_id,
 
             (SELECT guest_name FROM guest_name_cte) AS guest_name,
-            NULL AS payment_mode,
+            (SELECT COALESCE(payment_method, 'Cash') FROM checkout_master WHERE checkout_id = p_checkout_id) AS payment_mode,  -- <-- ADDED payment_mode
 
             'FOOD' AS transaction_type,
 
@@ -449,7 +449,7 @@ BEGIN
             cf.folio_id AS charge_id,
 
             (SELECT guest_name FROM guest_name_cte) AS guest_name,
-            NULL AS payment_mode,
+            (SELECT COALESCE(payment_method, 'Cash') FROM checkout_master WHERE checkout_id = p_checkout_id) AS payment_mode,  -- <-- ADDED payment_mode
 
             'CHARGE' AS transaction_type,
 
@@ -524,7 +524,7 @@ BEGIN
             cf.folio_id AS charge_id,
 
             (SELECT guest_name FROM guest_name_cte) AS guest_name,
-            NULL AS payment_mode,
+            (SELECT COALESCE(payment_method, 'Cash') FROM checkout_master WHERE checkout_id = p_checkout_id) AS payment_mode,  -- <-- ADDED payment_mode
 
             CASE
                 WHEN UPPER(TRIM(cf.transaction_type)) = 'ADVANCE ADDITION'
@@ -602,7 +602,7 @@ BEGIN
         ROUND(IFNULL(cm.tot_cess_amount, 0), 2)        AS cess,
         ROUND(IFNULL(cm.tot_service_charge_amount, 0), 2) AS service_charge,
 
-        NULL AS payment_mode
+        COALESCE(cm.payment_method, 'Cash') AS payment_mode  -- <-- ADDED payment_mode
 
     FROM checkout_master cm
     WHERE cm.checkout_id = p_checkout_id;
