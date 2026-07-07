@@ -68,4 +68,6 @@ export interface OccupiedRoomItem {
   total_all_rooms_net?: number;
   total_allowances?: number;
   status_color?: string;
+  company_name?: string;
+  
 }

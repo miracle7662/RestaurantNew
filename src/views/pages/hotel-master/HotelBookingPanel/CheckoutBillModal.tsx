@@ -464,7 +464,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       reg_no: firstRow.reg_no,
       booking_ref: firstRow.booking,
       plan_name: firstRow.plan_name,
-      checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [],
+      checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [], 
+      company_name: firstRow.company_name || '-',
+
     }
   }, [displayRows, billData])
 
@@ -947,7 +949,7 @@ const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top
             }
             @page {
               size: ${printSettings?.default_print_size === 'A4' ? 'A4' : 'auto'};
-              margin: ${effectiveTopMargin}mm ${printSettings?.margin_right_mm || 8}mm ${printSettings?.margin_bottom_mm || 8}mm ${printSettings?.margin_left_mm || 8}mm;
+              margin: ${effectiveTopMargin}mm ${printSettings?.margin_right_mm || 10}mm ${printSettings?.margin_bottom_mm || 8}mm ${printSettings?.margin_left_mm || 10}mm;
             }
            body { 
               background: white; 
@@ -1113,19 +1115,25 @@ const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top
         {printSettings?.show_hotel_name === 1 && (
           <div
             className={`text-${nameAlign}`}
-            style={{ fontSize: '16pt', fontWeight: 800, color: headerBg }}
+            style={{ fontSize: '19pt', fontWeight: 'bold', }}
           >
             {firstRow?.hotel_name || 'GRAND VIEW HOTEL'}
           </div>
         )}
         {printSettings?.show_hotel_address === 1 && (
-          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '9pt', color: '#666' }}>
+          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '10pt',  fontWeight: 'bold', color: '#0a0a0a' }}>
             📍 {firstRow?.hotel_address || '123, Park Avenue, City Center, New Delhi - 110001'}
           </div>
         )}
         {printSettings?.show_hotel_contact === 1 && (
-          <div className={`text-${contactAlign} mt-1`} style={{ fontSize: '7pt', color: '#666' }}>
+          <div className={`text-${contactAlign} mt-1`} style={{ fontSize: '10pt',  fontWeight: 'bold', color: '#060000' }}>
             📞 {firstRow?.hotel_phone || '+91 11 4567 8900'} &nbsp;|&nbsp; ✉ {firstRow?.hotel_email || 'info@grandviewhotel.com'} &nbsp;|&nbsp; 🌐 {firstRow?.website || 'www.grandviewhotel.com'}
+            
+          </div>
+        )}
+        {printSettings?.show_hotel_contact === 1 && (
+          <div className={`text-${contactAlign} mt-1`} style={{ fontSize: '10pt',  fontWeight: 'bold', color: '#060000' }}>
+             📍 {firstRow?.trn_gstno || 'GST'} 
           </div>
         )}
         <hr className="bill-divider" />
@@ -1165,39 +1173,39 @@ const renderGuestDetails = useCallback(() => {
           <tbody>
             {printSettings?.show_guest_name === 1 && (
               <tr>
-                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Name</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
-                <td className="bdt-value" style={{ fontWeight: 600, fontSize: '10pt' }}>{summary?.guest_name || '-'}</td>
+                <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '12pt' }}>Name</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '12pt' }}>:</td>
+                <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '12pt',  color: headerBg }}>{summary?.guest_name || '-'}</td>
               </tr>
             )}
 
             {printSettings?.show_guest_address === 1 && (
               <tr>
-                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Address</td>
+                <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Address</td>
                 <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
-                <td className="bdt-value" style={{ fontSize: '10pt' }}>{summary?.guest_address || '-'}</td>
+                <td className="bdt-value" style={{ fontWeight: 'bold',fontSize: '10pt' }}>{summary?.guest_address || '-'}</td>
               </tr>
             )}
             {printSettings?.show_guest_mobile === 1 && (
               <tr>
-                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Phone</td>
+                <td className="bdt-label" style={{  fontWeight: 'bold',  width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Phone</td>
                 <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
-                <td className="bdt-value" style={{ fontSize: '10pt' }}>{summary?.guest_mobile || '-'}</td>
+                <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '10pt' }}>{summary?.guest_mobile || '-'}</td>
               </tr>
             )}
             {printSettings?.show_guest_email === 1 && (
               <tr>
-                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Company</td>
+                <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Company</td>
                 <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
-                <td className="bdt-value" style={{ wordBreak: 'break-all', fontSize: '10pt' }}>{summary?.guest_email || '-'}</td>
+                <td className="bdt-value" style={{ wordBreak: 'break-all', fontSize: '10pt', fontWeight: 'bold' }}>{summary?.company_name || '-'}</td>
               </tr>
             )}
             
             {printSettings?.show_guest_id_proof === 1 && (
               <tr>
-                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>GSTIN</td>
+                <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>GSTIN</td>
                 <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
-                <td className="bdt-value" style={{ fontSize: '10pt' }}>{summary?.guest_id_proof || '-'}</td>
+                <td className="bdt-value" style={{ fontSize: '10pt', fontWeight: 'bold' }}>{summary?.guest_id_proof || '-'}</td>
               </tr>
             )}
           </tbody>
@@ -1206,7 +1214,7 @@ const renderGuestDetails = useCallback(() => {
     </div>
   )
 }, [printSettings, summary])
-// ========== RENDER BOOKING & INVOICE DETAILS (Right Column) ==========
+
 // ========== RENDER BOOKING & INVOICE DETAILS (Right Column) ==========
 const renderBookingDetails = useCallback(() => {
   if (printSettings?.show_booking_details !== 1) return null
@@ -1220,49 +1228,94 @@ const renderBookingDetails = useCallback(() => {
   const tariffPlanDisplay = summary?.plan_name || 'Room Only'
   const guestsDisplay = `${summary?.total_adults || 0} Adults${(summary?.total_child_paid || 0) > 0 ? `, ${summary?.total_child_paid} Child` : ''}${(summary?.total_driver || 0) > 0 ? `, ${summary?.total_driver} Driver` : ''}`
 
+  // Get first row from billData for checkin/checkout datetime with time
+  const firstRow = billData[0] || {}
+  
+  // Format datetime with time
+  const formatDateTimeFull = (datetime: string) => {
+    if (!datetime) return '-'
+    const d = new Date(datetime)
+    const day = d.getDate().toString().padStart(2, '0')
+    const month = d.toLocaleString('default', { month: 'long' })
+    const year = d.getFullYear()
+    const hours = d.getHours().toString().padStart(2, '0')
+    const minutes = d.getMinutes().toString().padStart(2, '0')
+    return `${day} ${month} ${year} ${hours}:${minutes}`
+  }
+
+  // Get checkin and checkout datetime with time from first row
+  const checkinDateTime = firstRow?.checkin_datetime || summary?.original_checkin_datetime
+  const checkoutDateTime = firstRow?.checkout_datetime || summary?.final_checkout_datetime
+  
+  const checkinDisplay = checkinDateTime ? formatDateTimeFull(checkinDateTime) : checkinDateDisplay
+  const checkoutDisplay = checkoutDateTime ? formatDateTimeFull(checkoutDateTime) : checkoutDateDisplay
+
   return (
     <div className="bill-info-box" style={{ height: '100%' }}>
       <div className="bill-info-box-header">BOOKING & INVOICE DETAILS</div>
-      <div className="bill-info-box-body">
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'auto 1fr auto 1fr', 
-          gap: '2px 8px',
-          fontSize: '9pt',
-          alignItems: 'baseline'
+      <div className="bill-info-box-body" style={{ padding: '8px 12px' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '2px 30px',
+          fontSize: '9pt'
         }}>
-          {/* Row 1 */}
-          <span style={{ fontWeight: 600, minWidth: '65px' }}>Invoice No.</span>
-          <span style={{ fontWeight: 700, color: headerBg }}>{invoiceNo}</span>
-          <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>Invoice Date</span>
-          <span>{invoiceDateDisplay}</span>
-          
-          {/* Row 2 */}
-          <span style={{ fontWeight: 600, minWidth: '65px' }}>Register No</span>
-          <span style={{ fontWeight: 600 }}>{bookingIdDisplay}</span>
-          <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>Guests / Plan</span>
-          <span>{guestsDisplay} {tariffPlanDisplay ? `(${tariffPlanDisplay})` : ''}</span>
-          
-          {/* Row 3 */}
-          <span style={{ fontWeight: 600, minWidth: '65px' }}>Arrival Date</span>
-          <span>{checkinDateDisplay}</span>
-          <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>No. of Nights</span>
-          <span>{nightsDisplay}</span>
-          
-          {/* Row 4 */}
-         <span style={{ fontWeight: 600, minWidth: '65px' }}>Departure Date</span>
-         <span>{checkoutDateDisplay}</span>
-         <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>Room Type</span>
-         <span style={{ fontWeight: 600 }}>{roomTypeDisplay}</span>
-          
-          {/* Row 5 */}
-          <span style={{ fontWeight: 600, minWidth: '65px' }}>Room No(s).</span>
-          <span style={{ fontWeight: 600 }}>{roomNumbersDisplay}</span>
+          {/* LEFT COLUMN */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'auto auto 1fr',
+            gap: '3px 5px',
+            alignItems: 'baseline'
+          }}>
+            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Invoice No.</span>
+            <span style={{ fontWeight: 'bold' }}>:</span>
+            <span style={{ fontWeight: 'bold', color: headerBg }}>{invoiceNo}</span>
+
+            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Register No</span>
+            <span style={{ fontWeight: 'bold' }}>:</span>
+            <span style={{ fontWeight: 'bold' }}>{bookingIdDisplay}</span>
+
+            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Arrival Date</span>
+            <span style={{ fontWeight: 'bold' }}>:</span>
+            <span style={{ fontWeight: 'bold' }}>{checkinDisplay}</span>
+
+            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Departure Date</span>
+            <span style={{ fontWeight: 'bold' }}>:</span>
+            <span style={{ fontWeight: 'bold' }}>{checkoutDisplay}</span>
+
+            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', alignSelf: 'start' }}>Room No(s).</span>
+            <span style={{ fontWeight: 'bold', alignSelf: 'start' }}>:</span>
+            <span style={{ fontWeight: 'bold', wordBreak: 'break-word' }}>{roomNumbersDisplay}</span>
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'auto auto 1fr',
+            gap: '3px 4px',
+            alignItems: 'baseline'
+          }}>
+            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Invoice Date</span>
+            <span style={{ fontWeight: 'bold' }}>:</span>
+            <span style={{ fontWeight: 'bold', color: headerBg }}>{invoiceDateDisplay}</span>
+
+            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Guests / Plan</span>
+            <span style={{ fontWeight: 'bold' }}>:</span>
+            <span style={{ fontWeight: 'bold' }}>{guestsDisplay} {tariffPlanDisplay ? `(${tariffPlanDisplay})` : ''}</span>
+
+            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>No. of Nights</span>
+            <span style={{ fontWeight: 'bold' }}>:</span>
+            <span style={{ fontWeight: 'bold' }}>{nightsDisplay}</span>
+
+            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', alignSelf: 'start' }}>Room Type</span>
+            <span style={{ fontWeight: 'bold', alignSelf: 'start' }}>:</span>
+            <span style={{ fontWeight: 'bold', wordBreak: 'break-word' }}>{roomTypeDisplay}</span>
+          </div>
         </div>
       </div>
     </div>
   )
-}, [printSettings, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate, summary, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, headerBg])  // ========== RENDER CHARGES TABLE ==========
+}, [printSettings, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate, summary, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, headerBg])
 const renderChargesTable = useCallback(() => {
   if (tableRows.length === 0) {
     return (
@@ -1305,28 +1358,28 @@ const renderChargesTable = useCallback(() => {
     const mainIndex = runningIndex++
     
     const cells: React.ReactElement[] = []
-    if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>)
+    if (showRowNums) cells.push(<td key="srno" className="bct-center" style={{ fontWeight: 'bold' }}>{mainIndex}</td>)
     cells.push(
-      <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'normal' }}>
+      <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'bold' }}>
         {row.roomNumber || 'N/A'}
       </td>
     )
-    cells.push(<td key="date" className="bct-left">{row.date || 'N/A'}</td>)
-    cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff || 0)}</td>)
-    cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax || 0)}</td>)
-    cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst || 0)}</td>)
-    cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst || 0)}</td>)
-    cells.push(<td key="food" className="bct-right">{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
+    cells.push(<td key="date" className="bct-left" style={{ fontWeight: 'bold' }}>{row.date || 'N/A'}</td>)
+    cells.push(<td key="tariff" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.roomTariff || 0)}</td>)
+    cells.push(<td key="expax" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.exPax || 0)}</td>)
+    cells.push(<td key="cgst" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.cgst || 0)}</td>)
+    cells.push(<td key="sgst" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.sgst || 0)}</td>)
+    cells.push(<td key="food" className="bct-right" style={{ fontWeight: 'bold' }}>{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
     // Only add POST column if there are values (silent color for rows)
     if (hasPostValues) {
-      cells.push(<td key="post" className="bct-right">{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>)
+      cells.push(<td key="post" className="bct-right" style={{ fontWeight: 'bold' }}>{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>)
     }
     // Only add ALLOWANCE column if there are values (silent color for rows)
     if (hasAllowanceValues) {
-      cells.push(<td key="allowance" className="bct-right">{row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}</td>)
+      cells.push(<td key="allowance" className="bct-right" style={{ fontWeight: 'bold' }}>{row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}</td>)
     }
     cells.push(
-      <td key="total" className="bct-right" style={{ fontWeight: 600 }}>
+      <td key="total" className="bct-right" style={{ fontWeight: 'bold' }}>
         {formatAmtDisplay(row.total || 0)}
       </td>
     )
@@ -1475,14 +1528,14 @@ const renderPaymentDetails = useCallback(() => {
           <tbody>
            
             <tr>
-              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '9pt', fontWeight: 600 }}>Payment Date</td>
+              <td className="bdt-label" style={{  width: '80px', minWidth: '80px', fontSize: '9pt', fontWeight: 'bold' }}>Payment Date</td>
               <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
-              <td className="bdt-value" style={{ fontSize: '9pt' }}>{paymentDateDisplay}</td>
+              <td className="bdt-value" style={{  fontWeight: 'bold',fontSize: '9pt' }}>{paymentDateDisplay}</td>
             </tr>
             <tr>
-              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '9pt', fontWeight: 600 }}>Payment Mode</td>
+              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '9pt', fontWeight: 'bold' }}>Payment Mode</td>
               <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
-              <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 600 }}>{paymentBankDisplay}</td>
+              <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 'bold' }}>{paymentBankDisplay}</td>
             </tr>
           </tbody>
         </table>
@@ -1507,9 +1560,9 @@ const renderSummaryBox = useCallback(() => {
         <table className="bill-detail-table" style={{ width: '100%' }}>
           <tbody>
             <tr>
-              <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 600 }}>TOTAL AMOUNT</td>
+              <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 'bold' }}>TOTAL AMOUNT</td>
               <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
-              <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 700, fontSize: '9pt', paddingRight: '4px' }}>
+              <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '9pt', paddingRight: '4px' }}>
                 ₹{formatAmt(grossTotal)}
               </td>
             </tr>
@@ -1574,7 +1627,7 @@ const renderLayout = useCallback(() => {
           alignItems: 'stretch'
         }}>
           {/* Guest Details - Fixed width */}
-          <div style={{ flex: '0 0 auto', width: '300px' }}>
+          <div style={{ flex: '0 0 auto', width: '250px' }}>
             {printSettings?.show_guest_details === 1 && renderGuestDetails()}
           </div>
           

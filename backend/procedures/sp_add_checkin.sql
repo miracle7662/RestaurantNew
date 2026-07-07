@@ -67,7 +67,7 @@ SELECT
 
     cm.status,
     
-    COALESCE(cm.payment_method, 'Cash') AS payment_method,  /* <-- ADDED payment_method */
+    COALESCE(cm.payment_method, 'Cash') AS payment_method,
 
 /* ===========================================================
    ROOM DETAILS
@@ -180,7 +180,9 @@ SELECT
     COALESCE(gm.mobile, cdm.mobile) AS mobile,
     COALESCE(gm.address, cdm.address) AS address,
     COALESCE(gm.email, cdm.emailed) AS email,
-    COALESCE(comp.company_name, cdm.company_name) AS company_name,
+    
+    /* FIXED: Only get company_name from company_master, no fallback to cdm.company_name */
+    COALESCE(comp.company_name, '') AS company_name,
 
 /* ===========================================================
    FOLIO SUMMARY (Room-wise)

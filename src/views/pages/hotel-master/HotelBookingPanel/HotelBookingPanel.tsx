@@ -1839,7 +1839,7 @@ const hideCheckinSection =
                         }}>
                           <div>IN : {formatDateTime(item.detail_checkin_datetime || '')}</div>
                           <div>OUT : {formatDateTime(item.detail_checkout_datetime ||  '')}</div>
-                          <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : (item.guest_type || 'WALK-IN-GUEST')}</div>
+                          <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : (item.company_name || 'WAL-IN-GUEST')}</div>
                           <div className="charges-line">
                             <span style={{ 
                               color: isExpired ? '#ffffff' : (isBillRoom ? getContrastColor(backgroundColor) : '#000'), 
