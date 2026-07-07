@@ -466,6 +466,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       plan_name: firstRow.plan_name,
       checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [], 
       company_name: firstRow.company_name || '-',
+      gst_no:  firstRow.gst_no || '-',
 
     }
   }, [displayRows, billData])
@@ -1205,7 +1206,7 @@ const renderGuestDetails = useCallback(() => {
               <tr>
                 <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>GSTIN</td>
                 <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
-                <td className="bdt-value" style={{ fontSize: '10pt', fontWeight: 'bold' }}>{summary?.guest_id_proof || '-'}</td>
+                <td className="bdt-value" style={{ fontSize: '10pt', fontWeight: 'bold' }}>{summary?.gst_no || '-'}</td>
               </tr>
             )}
           </tbody>
