@@ -746,7 +746,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       color: ${headerText};
       text-align: center;
       font-weight: 700;
-      font-size: 7.5pt;
+      font-size: 9pt;
       letter-spacing: 0.5px;
       padding: 4px 8px;
     }
@@ -759,7 +759,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
     .bill-wrap .bill-detail-table td {
       padding: 2px 4px;
-      font-size: 7.5pt;
+      font-size: 9pt;
       vertical-align: top;
     }
     .bill-wrap .bdt-label {
@@ -816,7 +816,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       border: 1px solid #d4d4d4;
       padding: 5px 6px;
       vertical-align: middle;
-      font-size: 7.5pt;
+      font-size: 9pt;
     }
     .bill-wrap .bill-charges-table tbody tr:nth-child(even) td {
       background: #f9f9f9;
@@ -824,7 +824,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     .bill-wrap .bill-charges-table tfoot tr td {
       border: 1px solid #d4d4d4;
       padding: 5px 6px;
-      font-size: 7.5pt;
+      font-size: 9pt;
     }
     .bill-wrap .bct-right { text-align: right; }
     .bill-wrap .bct-center { text-align: center; }
@@ -838,7 +838,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       border: 1px solid #d4d4d4;
       border-top: none;
       padding: 6px 10px;
-      font-size: 7.5pt;
+      font-size: 9pt;
       margin-bottom: 12px;
       margin-top: 0;
     }
@@ -865,7 +865,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       border: 1px solid #dde2ea;
       border-radius: 3px;
       margin-bottom: 12px;
-      font-size: 7.5pt;
+      font-size: 9pt;
     }
     .bill-wrap .bill-info-row > div {
       flex: 1;
@@ -1119,7 +1119,7 @@ const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top
           </div>
         )}
         {printSettings?.show_hotel_address === 1 && (
-          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '7.5pt', color: '#666' }}>
+          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '9pt', color: '#666' }}>
             📍 {firstRow?.hotel_address || '123, Park Avenue, City Center, New Delhi - 110001'}
           </div>
         )}
@@ -1165,37 +1165,39 @@ const renderGuestDetails = useCallback(() => {
           <tbody>
             {printSettings?.show_guest_name === 1 && (
               <tr>
-                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '7.5pt' }}>Name</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '7.5pt' }}>:</td>
-                <td className="bdt-value" style={{ fontWeight: 600, fontSize: '7.5pt' }}>{summary?.guest_name || '-'}</td>
+                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Name</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
+                <td className="bdt-value" style={{ fontWeight: 600, fontSize: '10pt' }}>{summary?.guest_name || '-'}</td>
+              </tr>
+            )}
+
+            {printSettings?.show_guest_address === 1 && (
+              <tr>
+                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Address</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
+                <td className="bdt-value" style={{ fontSize: '10pt' }}>{summary?.guest_address || '-'}</td>
               </tr>
             )}
             {printSettings?.show_guest_mobile === 1 && (
               <tr>
-                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '7.5pt' }}>Phone</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '7.5pt' }}>:</td>
-                <td className="bdt-value" style={{ fontSize: '7.5pt' }}>{summary?.guest_mobile || '-'}</td>
+                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Phone</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
+                <td className="bdt-value" style={{ fontSize: '10pt' }}>{summary?.guest_mobile || '-'}</td>
               </tr>
             )}
             {printSettings?.show_guest_email === 1 && (
               <tr>
-                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '7.5pt' }}>Email</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '7.5pt' }}>:</td>
-                <td className="bdt-value" style={{ wordBreak: 'break-all', fontSize: '7.5pt' }}>{summary?.guest_email || '-'}</td>
+                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Company</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
+                <td className="bdt-value" style={{ wordBreak: 'break-all', fontSize: '10pt' }}>{summary?.guest_email || '-'}</td>
               </tr>
             )}
-            {printSettings?.show_guest_address === 1 && (
-              <tr>
-                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '7.5pt' }}>Address</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '7.5pt' }}>:</td>
-                <td className="bdt-value" style={{ fontSize: '7.5pt' }}>{summary?.guest_address || '-'}</td>
-              </tr>
-            )}
+            
             {printSettings?.show_guest_id_proof === 1 && (
               <tr>
-                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '7.5pt' }}>ID Proof</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '7.5pt' }}>:</td>
-                <td className="bdt-value" style={{ fontSize: '7.5pt' }}>{summary?.guest_id_proof || '-'}</td>
+                <td className="bdt-label" style={{ width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>GSTIN</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
+                <td className="bdt-value" style={{ fontSize: '10pt' }}>{summary?.guest_id_proof || '-'}</td>
               </tr>
             )}
           </tbody>
@@ -1226,7 +1228,7 @@ const renderBookingDetails = useCallback(() => {
           display: 'grid', 
           gridTemplateColumns: 'auto 1fr auto 1fr', 
           gap: '2px 8px',
-          fontSize: '7.5pt',
+          fontSize: '9pt',
           alignItems: 'baseline'
         }}>
           {/* Row 1 */}
@@ -1261,151 +1263,200 @@ const renderBookingDetails = useCallback(() => {
     </div>
   )
 }, [printSettings, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate, summary, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, headerBg])  // ========== RENDER CHARGES TABLE ==========
-  const renderChargesTable = useCallback(() => {
-    if (tableRows.length === 0) {
-      return (
-        <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-          No charges to display.
-        </div>
-      )
-    }
+const renderChargesTable = useCallback(() => {
+  if (tableRows.length === 0) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+        No charges to display.
+      </div>
+    )
+  }
 
-    const showRowNums = printSettings?.show_row_numbers === 1
+  const showRowNums = printSettings?.show_row_numbers === 1
 
-    const headers: React.ReactElement[] = []
-    if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
-    headers.push(<th key="room" className="col-room bct-left">ROOM</th>)
-    headers.push(<th key="date" className="col-date bct-left">DATE</th>)
-    headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
-    headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
-    headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
-    headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
-    headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
+  // Check if POST and ALLOWANCE have any values
+  const hasPostValues = tableRows.some(row => row.postTotal > 0)
+  const hasAllowanceValues = tableRows.some(row => row.allowanceTotal > 0)
+
+  const headers: React.ReactElement[] = []
+  if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
+  headers.push(<th key="room" className="col-room bct-left">ROOM</th>)
+  headers.push(<th key="date" className="col-date bct-left">DATE</th>)
+  headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
+  headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
+  headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
+  headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
+  headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
+  // Only add POST header if there are values
+  if (hasPostValues) {
     headers.push(<th key="post" className="col-amount bct-right">POST</th>)
-    headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>)
+  }
+  // Only add ALLOWANCE header if there are values
+  if (hasAllowanceValues) {
     headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>)
-    headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
+  }
+  headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
 
 
-    const bodyRows: React.ReactElement[] = []
-    let runningIndex = 1
+  const bodyRows: React.ReactElement[] = []
+  let runningIndex = 1
 
-    tableRows.forEach((row) => {
-      const mainIndex = runningIndex++
-      
-      const cells: React.ReactElement[] = []
-      if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>)
-      cells.push(
-        <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'normal' }}>
-          {row.roomNumber || 'N/A'}
-        </td>
-      )
-      cells.push(<td key="date" className="bct-left">{row.date || 'N/A'}</td>)
-      cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff || 0)}</td>)
-      cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax || 0)}</td>)
-      cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst || 0)}</td>)
-      cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst || 0)}</td>)
-      cells.push(<td key="food" className="bct-right">{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
-      cells.push(<td key="post" className="bct-right">{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>)
-      cells.push(<td key="advance" className="bct-right" style={{ color: row.advanceTotal > 0 ? '#c0392b' : 'inherit' }}>
-        {row.advanceTotal > 0 ? formatAmtDisplay(row.advanceTotal) : '-'}
-      </td>)
-      cells.push(<td key="allowance" className="bct-right" style={{ color: row.allowanceTotal > 0 ? '#c0392b' : 'inherit' }}>
-        {row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}
-      </td>)
-      cells.push(
-        <td key="total" className="bct-right" style={{ fontWeight: 600 }}>
-          {formatAmtDisplay(row.total || 0)}
-        </td>
-      )
-      bodyRows.push(<tr key={row.id}>{cells}</tr>)
-    })
-
-    // Calculate totals from tableRows
-    const totalTariff = tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
-    const totalExPax = tableRows.reduce((sum, row) => sum + row.exPax, 0)
-    const totalCgst = tableRows.reduce((sum, row) => sum + row.cgst, 0)
-    const totalSgst = tableRows.reduce((sum, row) => sum + row.sgst, 0)
-    const totalFood = tableRows.reduce((sum, row) => sum + row.food, 0)
-    const totalPost = tableRows.reduce((sum, row) => sum + row.postTotal, 0)
-    const totalAdvance = tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
-    const totalAllowance = tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
-    const totalAmount = tableRows.reduce((sum, row) => sum + row.total, 0)
-
-    const footerCells: React.ReactElement[] = []
-    const labelColSpan = showRowNums ? 3 : 2
+  tableRows.forEach((row) => {
+    const mainIndex = runningIndex++
     
-    footerCells.push(
-      <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ fontWeight: 700 }}>
-        Total
+    const cells: React.ReactElement[] = []
+    if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>)
+    cells.push(
+      <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'normal' }}>
+        {row.roomNumber || 'N/A'}
       </td>
     )
-    footerCells.push(
-      <td key="total_tariff" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totalTariff)}
+    cells.push(<td key="date" className="bct-left">{row.date || 'N/A'}</td>)
+    cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff || 0)}</td>)
+    cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax || 0)}</td>)
+    cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst || 0)}</td>)
+    cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst || 0)}</td>)
+    cells.push(<td key="food" className="bct-right">{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
+    // Only add POST column if there are values (silent color for rows)
+    if (hasPostValues) {
+      cells.push(<td key="post" className="bct-right">{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>)
+    }
+    // Only add ALLOWANCE column if there are values (silent color for rows)
+    if (hasAllowanceValues) {
+      cells.push(<td key="allowance" className="bct-right">{row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}</td>)
+    }
+    cells.push(
+      <td key="total" className="bct-right" style={{ fontWeight: 600 }}>
+        {formatAmtDisplay(row.total || 0)}
       </td>
     )
+    bodyRows.push(<tr key={row.id}>{cells}</tr>)
+  })
+
+  // Calculate totals from tableRows
+  const totalTariff = tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
+  const totalExPax = tableRows.reduce((sum, row) => sum + row.exPax, 0)
+  const totalCgst = tableRows.reduce((sum, row) => sum + row.cgst, 0)
+  const totalSgst = tableRows.reduce((sum, row) => sum + row.sgst, 0)
+  const totalFood = tableRows.reduce((sum, row) => sum + row.food, 0)
+  const totalPost = tableRows.reduce((sum, row) => sum + row.postTotal, 0)
+  const totalAllowance = tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
+  const totalAmount = tableRows.reduce((sum, row) => sum + row.total, 0)
+
+  const footerCells: React.ReactElement[] = []
+  
+  // Calculate colSpan for the label - FIXED
+  // Count all columns that come BEFORE the value columns (TARIFF, EX.PAX, CGST, SGST, FOOD, POST, ALLOWANCE, TOTAL)
+  let labelColSpan = 0;
+  if (showRowNums) labelColSpan += 1; // # column
+  labelColSpan += 1; // ROOM column
+  labelColSpan += 1; // DATE column
+  // POST and ALLOWANCE are value columns, so they should NOT be included in labelColSpan
+  // They will be displayed as separate columns in footer
+
+  footerCells.push(
+    <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ 
+      fontWeight: 800,
+      background: '#f0f0f0'
+    }}>
+      Total
+    </td>
+  )
+  
+  // Value columns - these will always be in same order
+  footerCells.push(
+    <td key="total_tariff" className="bct-right" style={{ 
+      fontWeight: 800,
+      background: '#f0f0f0'
+    }}>
+      {formatAmtDisplay(totalTariff)}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_expax" className="bct-right" style={{ 
+      fontWeight: 800,
+      background: '#f0f0f0'
+    }}>
+      {formatAmtDisplay(totalExPax)}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_cgst" className="bct-right" style={{ 
+      fontWeight: 800,
+      background: '#f0f0f0'
+    }}>
+      {formatAmtDisplay(totalCgst)}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_sgst" className="bct-right" style={{ 
+      fontWeight: 800,
+      background: '#f0f0f0'
+    }}>
+      {formatAmtDisplay(totalSgst)}
+    </td>
+  )
+  footerCells.push(
+    <td key="total_food" className="bct-right" style={{ 
+      fontWeight: 800,
+      background: '#f0f0f0'
+    }}>
+      {totalFood > 0 ? formatAmtDisplay(totalFood) : '-'}
+    </td>
+  )
+  
+  // Only add POST footer if there are values
+  if (hasPostValues) {
     footerCells.push(
-      <td key="total_expax" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totalExPax)}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_cgst" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totalCgst)}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_sgst" className="bct-right" style={{ fontWeight: 700 }}>
-        {formatAmtDisplay(totalSgst)}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_food" className="bct-right" style={{ fontWeight: 700 }}>
-        {totalFood > 0 ? formatAmtDisplay(totalFood) : '-'}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_post" className="bct-right" style={{ fontWeight: 700 }}>
+      <td key="total_post" className="bct-right" style={{ 
+        fontWeight: 800,
+        background: '#f0f0f0'
+      }}>
         {totalPost > 0 ? formatAmtDisplay(totalPost) : '-'}
       </td>
     )
+  }
+  
+  // Only add ALLOWANCE footer if there are values
+  if (hasAllowanceValues) {
     footerCells.push(
-      <td key="total_advance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
-        {totalAdvance > 0 ? formatAmtDisplay(totalAdvance) : '-'}
-      </td>
-    )
-    footerCells.push(
-      <td key="total_allowance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
+      <td key="total_allowance" className="bct-right" style={{ 
+        fontWeight: 800,
+        background: '#f0f0f0'
+      }}>
         {totalAllowance > 0 ? formatAmtDisplay(totalAllowance) : '-'}
       </td>
     )
-    footerCells.push(
-      <td key="total_amount" className="bct-right" style={{ fontWeight: 800, background: '#f0f0f0' }}>
-        {formatAmtDisplay(totalAmount)}
-      </td>
-    )
+  }
+  
+  // TOTAL footer with dark highlight
+  footerCells.push(
+    <td key="total_amount" className="bct-right" style={{ 
+      fontWeight: 800, 
+     background: '#f0f0f0'
+     
+    }}>
+      {formatAmtDisplay(totalAmount)}
+    </td>
+  )
 
-    const summaryRows: React.ReactElement[] = []
+  const summaryRows: React.ReactElement[] = []
 
-   
-
-    return (
-      <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
-        <table className="bill-charges-table">
-          <thead>
-            <tr>{headers}</tr>
-          </thead>
-          <tbody>{bodyRows}</tbody>
-          <tfoot>
-            <tr key="footer1">{footerCells}</tr>
-            {summaryRows}
-          </tfoot>
-        </table>
-      </div>
-    )
-  }, [printSettings, tableRows, headerBg, headerText])
-
+  return (
+    <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
+      <table className="bill-charges-table">
+        <thead>
+          <tr>{headers}</tr>
+        </thead>
+        <tbody>{bodyRows}</tbody>
+        <tfoot>
+          <tr key="footer1">{footerCells}</tr>
+          {summaryRows}
+        </tfoot>
+      </table>
+    </div>
+  )
+}, [printSettings, tableRows, headerBg, headerText])
  
 // ========== RENDER PAYMENT DETAILS (Left Bottom) ==========
 const renderPaymentDetails = useCallback(() => {
@@ -1424,14 +1475,14 @@ const renderPaymentDetails = useCallback(() => {
           <tbody>
            
             <tr>
-              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '7.5pt', fontWeight: 600 }}>Payment Date</td>
-              <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt' }}>:</td>
-              <td className="bdt-value" style={{ fontSize: '7.5pt' }}>{paymentDateDisplay}</td>
+              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '9pt', fontWeight: 600 }}>Payment Date</td>
+              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
+              <td className="bdt-value" style={{ fontSize: '9pt' }}>{paymentDateDisplay}</td>
             </tr>
             <tr>
-              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '7.5pt', fontWeight: 600 }}>Payment Mode</td>
-              <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt' }}>:</td>
-              <td className="bdt-value" style={{ fontSize: '7.5pt', fontWeight: 600 }}>{paymentBankDisplay}</td>
+              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '9pt', fontWeight: 600 }}>Payment Mode</td>
+              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
+              <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 600 }}>{paymentBankDisplay}</td>
             </tr>
           </tbody>
         </table>
@@ -1456,33 +1507,33 @@ const renderSummaryBox = useCallback(() => {
         <table className="bill-detail-table" style={{ width: '100%' }}>
           <tbody>
             <tr>
-              <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '7.5pt', fontWeight: 600 }}>TOTAL AMOUNT</td>
-              <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt' }}>:</td>
-              <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 700, fontSize: '7.5pt', paddingRight: '4px' }}>
+              <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 600 }}>TOTAL AMOUNT</td>
+              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
+              <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 700, fontSize: '9pt', paddingRight: '4px' }}>
                 ₹{formatAmt(grossTotal)}
               </td>
             </tr>
             {discountAmount > 0 && (
               <tr>
-                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '7.5pt', fontWeight: 600, color: '#c0392b' }}>Discount</td>
-                <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt', color: '#c0392b' }}>:</td>
-                <td className="bdt-value" style={{ textAlign: 'right', color: '#c0392b', fontWeight: 600, fontSize: '7.5pt', paddingRight: '4px' }}>
+                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 600, color: '#c0392b' }}>Discount</td>
+                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt', color: '#c0392b' }}>:</td>
+                <td className="bdt-value" style={{ textAlign: 'right', color: '#c0392b', fontWeight: 600, fontSize: '9pt', paddingRight: '4px' }}>
                   -₹{formatAmt(discountAmount)}
                 </td>
               </tr>
             )}
             <tr>
-              <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '7.5pt', fontWeight: 700, borderTop: '1px solid #e0e0e0', paddingTop: '4px' }}>NET TOTAL</td>
-              <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt', borderTop: '1px solid #e0e0e0', paddingTop: '4px' }}>:</td>
-              <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 700, fontSize: '7.5pt', borderTop: '1px solid #e0e0e0', paddingTop: '4px', paddingRight: '4px' }}>
+              <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 700, borderTop: '1px solid #e0e0e0', paddingTop: '4px' }}>NET TOTAL</td>
+              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt', borderTop: '1px solid #e0e0e0', paddingTop: '4px' }}>:</td>
+              <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 700, fontSize: '9pt', borderTop: '1px solid #e0e0e0', paddingTop: '4px', paddingRight: '4px' }}>
                 ₹{formatAmt(netTotal)}
               </td>
             </tr>
             {advanceTotal > 0 && (
               <tr>
-                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '7.5pt', fontWeight: 600, color: '#e67e22' }}>Advance</td>
-                <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt', color: '#e67e22' }}>:</td>
-                <td className="bdt-value" style={{ textAlign: 'right', color: '#e67e22', fontWeight: 600, fontSize: '7.5pt', paddingRight: '4px' }}>
+                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 600, color: '#e67e22' }}>Advance</td>
+                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt', color: '#e67e22' }}>:</td>
+                <td className="bdt-value" style={{ textAlign: 'right', color: '#e67e22', fontWeight: 600, fontSize: '9pt', paddingRight: '4px' }}>
                   -₹{formatAmt(advanceTotal)}
                 </td>
               </tr>
