@@ -1783,7 +1783,6 @@ const hideCheckinSection =
                     const netRoomAmount = item.net_room_amount ?? 0;
                     const netAllRoomsAmount = item.total_all_rooms_net ?? 0;
                     const pendingAdvance = item.pending_advance_for_room || 0;
-                    const bookingType = item.booking_type || 'WALK-IN-GUEST';
                     const totalAllowances = item.total_allowances || 0;
                     const leftIsNegative = netRoomAmount < 0;
 
@@ -1839,7 +1838,7 @@ const hideCheckinSection =
                         }}>
                           <div>IN : {formatDateTime(item.detail_checkin_datetime || '')}</div>
                           <div>OUT : {formatDateTime(item.detail_checkout_datetime ||  '')}</div>
-                          <div>{bookingType === 'AGENT' && item.agent_name ? item.agent_name : (item.company_name || 'WAL-IN-GUEST')}</div>
+                          <div>{ item.company_name || ''} </div>
                           <div className="charges-line">
                             <span style={{ 
                               color: isExpired ? '#ffffff' : (isBillRoom ? getContrastColor(backgroundColor) : '#000'), 
