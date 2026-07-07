@@ -24,7 +24,8 @@ interface AtGlanceItem {
   pax: number
   adults: number
   exPax: number
-  child: number
+  child_paid: number
+  child_unpaid: number
   driver: number
   roomCategory: string
   roomId: number
@@ -34,7 +35,7 @@ interface AtGlanceItem {
   // ---- Occupancy Register fields ----
   checkinId?: number
   regNo?: string
-  companyName?: string
+  company_name?: string
   mealPlan?: string
   roomTariff?: number
   dueAmount?: number
@@ -291,7 +292,8 @@ const AtGlancePage = () => {
           pax: Number((c as any).pax || 0) || 0,
           adults: Number((c as any).adults || 0) || 0,
           exPax: Number((c as any).ex_pax ?? (c as any).exPax ?? 0) || 0,
-          child: Number((c as any).child ?? (c as any).child_unpaid ?? 0) || 0,
+          child_paid: Number((c as any).child_paid ?? (c as any).child_paid ?? 0) || 0,
+          child_unpaid: Number((c as any).child_unpaid || 0) || 0,
           driver: Number((c as any).driver || 0) || 0,
           roomCategory:
             (c as any).roomCategory ??
@@ -310,7 +312,7 @@ const AtGlancePage = () => {
           totalDays: computedTotalDays,
           checkinId: (c as any).checkin_id || undefined,
           regNo: (c as any).reg_no || '',
-          companyName: (c as any).company_name || '',
+          company_name: (c as any).company_name || '',
           mealPlan: (c as any).booking || '',
           roomTariff: Number((c as any).room_tariff ?? 0) || 0,
           dueAmount: Number((c as any).due_amount ?? 0) || 0,
@@ -533,7 +535,7 @@ const AtGlancePage = () => {
               ${item.planName ? `<div class="subtext">${item.planName.toUpperCase()}</div>` : ''}
             </td>
             <td>
-              <div>${item.companyName || ''}</div>
+              <div>${item.company_name || ''}</div>
             
             </td>
             
@@ -970,7 +972,8 @@ const AtGlancePage = () => {
                 <th>ADULTS</th>
                 <th>PAX</th>
                 <th>EX-PAX</th>
-                <th>CHILD</th>
+                <th>CHILD PAID</th>
+                 <th>CHILD UNPAID</th>
                 <th>DRIVER</th>
                 <th>DUE AMOUNT</th>
                 <th>STATUS</th>
@@ -988,7 +991,7 @@ const AtGlancePage = () => {
                       <td>{item.floorNo}</td>
                       <td>{item.roomNo}</td>
                       <td>{item.guest}</td>
-                      <td>{item.companyName}</td>
+                      <td>{item.company_name}</td>
                       <td>{item.totalDays ?? '-'}</td>
                       <td>
                         <div>
@@ -1007,7 +1010,8 @@ const AtGlancePage = () => {
                       <td>{item.adults}</td>
                       <td>{item.pax}</td>
                       <td>{item.exPax}</td>
-                      <td>{item.child}</td>
+                      <td>{item.child_paid}</td>
+                       <td>{item.child_unpaid}</td>
                       <td>{item.driver}</td>
                       <td>{item.dueAmount}</td>
                       <td>{item.status || '-'}</td>
