@@ -43,7 +43,7 @@ export interface CheckinFullDetailsRow {
   guest_name: string
   mobile: string
   address: string
-  company_name: string
+  gmcompany_name: string
   emailed: string
   booking: string
   plan_name: string
@@ -58,6 +58,8 @@ export interface CheckinFullDetailsRow {
   room_number: string
   room_category_name: string
   converted_category_name: string
+  company_id:number
+  // gmcompany_name:string
   room_tariff: number
   discount_percent: number
   cgst_percent: number

@@ -69,5 +69,6 @@ export interface OccupiedRoomItem {
   total_allowances?: number;
   status_color?: string;
   company_name?: string;
+  gmcompany_name?: string;
   
 }
