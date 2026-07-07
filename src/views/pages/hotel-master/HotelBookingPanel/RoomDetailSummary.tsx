@@ -339,47 +339,25 @@ useEffect(() => {
 
 // Sync selected payment mode with combined summary
 // ==================== SYNC PAYMENT MODE WITH SUMMARY ====================
-// ==================== PAYMENT MODE INITIALIZATION ====================
-// This forces payment mode to be set when component loads
 useEffect(() => {
-  if (outletPaymentModes.length === 0) return
-  
-  // If we already have a selected ID, don't override
+  // Don't run if no payment modes or no summary
+  if (outletPaymentModes.length === 0 || !combinedSummary) return
+
+  // Don't override user selection
   if (selectedPaymentModeId) return
 
-  console.log('💳 INIT: Setting default payment mode')
-  
-  // Get payment method from summary or fallback to Cash
-  let paymentMethod = combinedSummary?.payment_method || 'Cash'
-  
-  console.log('💳 INIT: Payment method from summary:', paymentMethod)
+  const paymentMethod = combinedSummary.payment_method || 'Cash'
 
-  // Find matching mode
   const matchedMode = outletPaymentModes.find(
     (m) => m.mode_name?.toLowerCase() === paymentMethod.toLowerCase()
   )
 
   if (matchedMode) {
-    console.log('💳 INIT: Found matching mode:', matchedMode.mode_name)
     setSelectedPaymentModeId(matchedMode.id)
     setSelectedPaymentModeName(matchedMode.mode_name)
-  } else {
-    // Use first available mode
-    const firstMode = outletPaymentModes[0]
-    console.log('💳 INIT: Using first mode:', firstMode.mode_name)
-    setSelectedPaymentModeId(firstMode.id)
-    setSelectedPaymentModeName(firstMode.mode_name)
-    
-    // Update summary
-    if (combinedSummary) {
-      setCombinedSummary({
-        ...combinedSummary,
-        payment_method: firstMode.mode_name || 'Cash',
-        payment_methods: [firstMode.mode_name || 'Cash'],
-      })
-    }
   }
-}, [outletPaymentModes, combinedSummary, selectedPaymentModeId])
+}, [combinedSummary, outletPaymentModes, selectedPaymentModeId])
+
 
 
 const handlePaymentModeChange = (modeId: number) => {
@@ -914,7 +892,7 @@ const handlePaymentModeChange = (modeId: number) => {
     setShowCheckoutModal(true)
   }
 
-const handleConfirmCheckout = async () => {
+ const handleConfirmCheckout = async () => {
   if (!combinedSummary) return
   
   setCheckoutProcessing(true)
@@ -944,34 +922,16 @@ const handleConfirmCheckout = async () => {
 
     const roomIdsCommaString = selectedRoomIds.join(',')
 
-    // ✅ MULTIPLE FALLBACKS for payment method
-    let paymentMethod = 'Cash'
-    
-    // 1. Try selectedPaymentModeName
-    if (selectedPaymentModeName && selectedPaymentModeName.trim() !== '') {
-      paymentMethod = selectedPaymentModeName
-    }
-    // 2. Try combinedSummary.payment_method
-    else if (combinedSummary.payment_method && combinedSummary.payment_method.trim() !== '') {
-      paymentMethod = combinedSummary.payment_method
-    }
-    // 3. Try find by ID
-    else if (selectedPaymentModeId) {
-      const mode = outletPaymentModes.find(m => m.id === selectedPaymentModeId)
-      if (mode && mode.mode_name) {
-        paymentMethod = mode.mode_name
-      }
-    }
-    // 4. Try first available mode
-    else if (outletPaymentModes.length > 0) {
-      paymentMethod = outletPaymentModes[0].mode_name || 'Cash'
-    }
+    // ✅ CRITICAL FIX: Get payment method with proper fallback
+    const paymentMethod = selectedPaymentModeName || 
+                         combinedSummary.payment_method || 
+                         'Cash'
     
     console.log('💳 ===== CHECKOUT PAYMENT DETAILS =====')
     console.log('💳 selectedPaymentModeName:', selectedPaymentModeName)
     console.log('💳 combinedSummary.payment_method:', combinedSummary.payment_method)
-    console.log('💳 selectedPaymentModeId:', selectedPaymentModeId)
     console.log('💳 Final paymentMethod:', paymentMethod)
+    console.log('💳 selectedPaymentModeId:', selectedPaymentModeId)
 
     // Prepare checkout payload
     const checkoutPayload = {
@@ -2286,4 +2246,4 @@ const handleConfirmCheckout = async () => {
   )
 }
 
-export default RoomDetailSummary
+export default RoomDetailSummary 
