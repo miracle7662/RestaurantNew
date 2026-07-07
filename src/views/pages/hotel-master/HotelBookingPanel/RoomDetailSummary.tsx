@@ -338,57 +338,71 @@ useEffect(() => {
 
 
 // Sync selected payment mode with combined summary
+// ==================== SYNC PAYMENT MODE WITH SUMMARY ====================
+// ==================== PAYMENT MODE INITIALIZATION ====================
+// This forces payment mode to be set when component loads
 useEffect(() => {
-  if (!combinedSummary?.payment_method || outletPaymentModes.length === 0) return
+  if (outletPaymentModes.length === 0) return
+  
+  // If we already have a selected ID, don't override
+  if (selectedPaymentModeId) return
 
-  // Find matching payment mode from the list
+  console.log('💳 INIT: Setting default payment mode')
+  
+  // Get payment method from summary or fallback to Cash
+  let paymentMethod = combinedSummary?.payment_method || 'Cash'
+  
+  console.log('💳 INIT: Payment method from summary:', paymentMethod)
+
+  // Find matching mode
   const matchedMode = outletPaymentModes.find(
-    (m) => m.mode_name?.toLowerCase() === combinedSummary.payment_method?.toLowerCase()
+    (m) => m.mode_name?.toLowerCase() === paymentMethod.toLowerCase()
   )
 
   if (matchedMode) {
-    // If found, use that mode
+    console.log('💳 INIT: Found matching mode:', matchedMode.mode_name)
     setSelectedPaymentModeId(matchedMode.id)
     setSelectedPaymentModeName(matchedMode.mode_name)
-  } else if (outletPaymentModes.length > 0) {
-    // If not found, use the first available mode (but don't default to Cash)
-    // Instead, use the actual payment method from the data
+  } else {
+    // Use first available mode
     const firstMode = outletPaymentModes[0]
+    console.log('💳 INIT: Using first mode:', firstMode.mode_name)
     setSelectedPaymentModeId(firstMode.id)
     setSelectedPaymentModeName(firstMode.mode_name)
     
-    // Update the summary to use the actual payment method
-    setCombinedSummary(prev => prev ? {
-      ...prev,
-      payment_method: firstMode.mode_name || 'Cash',
-      payment_methods: [firstMode.mode_name || 'Cash'],
-    } : null)
+    // Update summary
+    if (combinedSummary) {
+      setCombinedSummary({
+        ...combinedSummary,
+        payment_method: firstMode.mode_name || 'Cash',
+        payment_methods: [firstMode.mode_name || 'Cash'],
+      })
+    }
   }
-}, [combinedSummary, outletPaymentModes])
-
+}, [outletPaymentModes, combinedSummary, selectedPaymentModeId])
 
 
 const handlePaymentModeChange = (modeId: number) => {
   const selectedMode = outletPaymentModes.find((m) => m.id === modeId)
   if (!selectedMode) return
 
+  console.log('💳 Payment mode changed to:', selectedMode.mode_name)
+  
   setSelectedPaymentModeId(modeId)
-  setSelectedPaymentModeName(selectedMode.mode_name || '')
+  setSelectedPaymentModeName(selectedMode.mode_name || 'Cash')
   setIsPaymentModeChanging(true)
 
   // Update the combined summary with new payment method
   if (combinedSummary) {
     setCombinedSummary({
       ...combinedSummary,
-      payment_method: selectedMode.mode_name || '',
-      payment_methods: [selectedMode.mode_name || ''],
+      payment_method: selectedMode.mode_name || 'Cash',
+      payment_methods: [selectedMode.mode_name || 'Cash'],
     })
   }
 
-  // toast.success(`Payment method changed to ${selectedMode.mode_name}`)
   setIsPaymentModeChanging(false)
 }
-
   // ==================== FETCH DATA ====================
 
   const fetchData = async () => {
@@ -900,78 +914,121 @@ const handlePaymentModeChange = (modeId: number) => {
     setShowCheckoutModal(true)
   }
 
-  const handleConfirmCheckout = async () => {
-    if (!combinedSummary) return
-    setCheckoutProcessing(true)
+const handleConfirmCheckout = async () => {
+  if (!combinedSummary) return
+  
+  setCheckoutProcessing(true)
+  
+  try {
+    const finalTotalAmount = grandTotal || combinedSummary.total_amount
+
+    // Generate invoice number
+    let invoiceNo = ''
     try {
-      const finalTotalAmount = grandTotal || combinedSummary.total_amount
-
-      let invoiceNo = ''
-      try {
-        const invoiceRes = await CheckoutService.getNextInvoiceNo()
-        if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
-          invoiceNo = invoiceRes.data.ldg_bill_no
-          console.log('Fetched invoice number:', invoiceNo)
-        }
-      } catch (invoiceErr) {
-        console.warn('Could not fetch invoice number; server will auto-assign one', invoiceErr)
+      const invoiceRes = await CheckoutService.getNextInvoiceNo()
+      if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
+        invoiceNo = invoiceRes.data.ldg_bill_no
+        console.log('📄 Fetched invoice number:', invoiceNo)
       }
-
-      const selectedRoomIds = Array.from(selectedRooms)
-        .map(roomNo => {
-          const row = displayRows.find(r => r.room_number === roomNo)
-          return row?.room_id
-        })
-        .filter((id): id is number => id !== null && id !== undefined)
-
-      const roomIdsCommaString = selectedRoomIds.join(',')
-
-      const response = await CheckoutService.performCheckout({
-        checkin_id: combinedSummary.checkin_id,
-        checkout_reason: checkoutReason || 'Regular checkout',
-        payment_id: selectedPaymentModeId ?? undefined,
-        payment_mode: selectedPaymentModeName,
-        payment_method: selectedPaymentModeName,
-        total_amount: finalTotalAmount,
-        room_id: roomIdsCommaString,
-        round_off_amount: 0,
-        net_payable: finalTotalAmount,
-        selected_rooms: Array.from(selectedRooms),
-        invoiceNoFromBody: invoiceNo,
-        is_settle: 0,
-        is_print: 1,
-      })
-
-      if (response.success) {
-        if (response.data?.checkout_id) {
-          setCheckoutId(response.data.checkout_id)
-        }
-
-        if (response.data?.ldg_bill_no) {
-          setGeneratedBillNumber(response.data.ldg_bill_no)
-        } else if (invoiceNo) {
-          setGeneratedBillNumber(invoiceNo)
-        }
-
-        const roomIdsCommaFromResponse = response.data?.checked_out_room_ids_comma ||
-          (response.data?.checked_out_room_ids || []).join(', ')
-
-        toast.success(`Checkout completed for room ID(s): ${roomIdsCommaFromResponse}`)
-
-        setShowCheckoutModal(false)
-        setCheckoutReason('')
-        setCheckoutDone(true)
-        setShowBillModal(true)
-      } else {
-        toast.error(response.message || 'Checkout failed')
-      }
-    } catch (error: any) {
-      console.error('Checkout failed:', error)
-      toast.error(error.response?.data?.message || 'Failed to process checkout')
-    } finally {
-      setCheckoutProcessing(false)
+    } catch (invoiceErr) {
+      console.warn('⚠️ Could not fetch invoice number; server will auto-assign one', invoiceErr)
     }
+
+    // Get selected room IDs
+    const selectedRoomIds = Array.from(selectedRooms)
+      .map(roomNo => {
+        const row = displayRows.find(r => r.room_number === roomNo)
+        return row?.room_id
+      })
+      .filter((id): id is number => id !== null && id !== undefined)
+
+    const roomIdsCommaString = selectedRoomIds.join(',')
+
+    // ✅ MULTIPLE FALLBACKS for payment method
+    let paymentMethod = 'Cash'
+    
+    // 1. Try selectedPaymentModeName
+    if (selectedPaymentModeName && selectedPaymentModeName.trim() !== '') {
+      paymentMethod = selectedPaymentModeName
+    }
+    // 2. Try combinedSummary.payment_method
+    else if (combinedSummary.payment_method && combinedSummary.payment_method.trim() !== '') {
+      paymentMethod = combinedSummary.payment_method
+    }
+    // 3. Try find by ID
+    else if (selectedPaymentModeId) {
+      const mode = outletPaymentModes.find(m => m.id === selectedPaymentModeId)
+      if (mode && mode.mode_name) {
+        paymentMethod = mode.mode_name
+      }
+    }
+    // 4. Try first available mode
+    else if (outletPaymentModes.length > 0) {
+      paymentMethod = outletPaymentModes[0].mode_name || 'Cash'
+    }
+    
+    console.log('💳 ===== CHECKOUT PAYMENT DETAILS =====')
+    console.log('💳 selectedPaymentModeName:', selectedPaymentModeName)
+    console.log('💳 combinedSummary.payment_method:', combinedSummary.payment_method)
+    console.log('💳 selectedPaymentModeId:', selectedPaymentModeId)
+    console.log('💳 Final paymentMethod:', paymentMethod)
+
+    // Prepare checkout payload
+    const checkoutPayload = {
+      checkin_id: combinedSummary.checkin_id,
+      checkout_reason: checkoutReason || 'Regular checkout',
+      payment_id: selectedPaymentModeId ?? undefined,
+      payment_mode: paymentMethod,
+      payment_method: paymentMethod, // ✅ Explicitly set both
+      total_amount: finalTotalAmount,
+      room_id: roomIdsCommaString,
+      round_off_amount: 0,
+      net_payable: finalTotalAmount,
+      selected_rooms: Array.from(selectedRooms),
+      invoiceNoFromBody: invoiceNo,
+      is_settle: 0,
+      is_print: 1,
+    }
+
+    console.log('📤 Sending checkout payload:', JSON.stringify(checkoutPayload, null, 2))
+
+    // Perform checkout
+    const response = await CheckoutService.performCheckout(checkoutPayload)
+
+    if (response.success) {
+      // Set checkout ID
+      if (response.data?.checkout_id) {
+        setCheckoutId(response.data.checkout_id)
+      }
+
+      // Set bill number
+      if (response.data?.ldg_bill_no) {
+        setGeneratedBillNumber(response.data.ldg_bill_no)
+      } else if (invoiceNo) {
+        setGeneratedBillNumber(invoiceNo)
+      }
+
+      // Get checked out rooms
+      const roomIdsCommaFromResponse = response.data?.checked_out_room_ids_comma ||
+        (response.data?.checked_out_room_ids || []).join(', ')
+
+      toast.success(`✅ Checkout completed for room ID(s): ${roomIdsCommaFromResponse}`)
+
+      // Reset and show bill
+      setShowCheckoutModal(false)
+      setCheckoutReason('')
+      setCheckoutDone(true)
+      setShowBillModal(true)
+    } else {
+      toast.error(response.message || '❌ Checkout failed')
+    }
+  } catch (error: any) {
+    console.error('❌ Checkout failed:', error)
+    toast.error(error.response?.data?.message || 'Failed to process checkout')
+  } finally {
+    setCheckoutProcessing(false)
   }
+}
 
   const handleCancelCheckout = () => {
     setShowCheckoutModal(false)
@@ -1677,7 +1734,7 @@ const handlePaymentModeChange = (modeId: number) => {
                             </td>
                             <td>{filteredSummary.guest_name}</td>
                             <td>{filteredSummary.guest_id}</td>
-                           <td>
+                        <td>
   {outletPaymentModes.length > 0 ? (
     <Form.Select
       size="sm"
@@ -1694,6 +1751,7 @@ const handlePaymentModeChange = (modeId: number) => {
         backgroundColor: isPaymentModeChanging ? '#f8f9fa' : '#fff',
       }}
     >
+      <option value="">Select Mode</option>
       {outletPaymentModes.map((mode) => (
         <option key={mode.id} value={mode.id}>
           {mode.mode_name || 'Unknown'}
@@ -1702,7 +1760,7 @@ const handlePaymentModeChange = (modeId: number) => {
     </Form.Select>
   ) : (
     <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-      {combinedSummary?.payment_method || 'No modes'}
+      {combinedSummary?.payment_method || 'Cash'}
     </span>
   )}
 </td>
