@@ -1838,7 +1838,7 @@ const hideCheckinSection =
                         }}>
                           <div>IN : {formatDateTime(item.detail_checkin_datetime || '')}</div>
                           <div>OUT : {formatDateTime(item.detail_checkout_datetime ||  '')}</div>
-                          <div>{ item.gmcompany_name|| item.gmcompany_name || ''} </div>
+                          <div>{ item.company_name || ''} </div>
                           <div className="charges-line">
                             <span style={{ 
                               color: isExpired ? '#ffffff' : (isBillRoom ? getContrastColor(backgroundColor) : '#000'), 

@@ -43,7 +43,7 @@ export interface CheckinFullDetailsRow {
   guest_name: string
   mobile: string
   address: string
-  gmcompany_name: string
+  company_name: string
   emailed: string
   booking: string
   plan_name: string
@@ -1415,10 +1415,12 @@ export const fetchOccupiedRooms = async (
         // Basic Info
         checkin_id: checkinId,
         guest_name: guestName,
+        company_name: roomData?.company_name || checkin?.company_name || '',
         guest_type: booking,
         booking_type: booking,
         detail_checkin_datetime: checkinDatetime,
         detail_checkout_datetime: checkoutDatetime,
+
         
         // Pax Details
         pax,
