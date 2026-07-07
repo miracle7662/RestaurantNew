@@ -406,70 +406,112 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
     return rows
   }, [billData])
+// ========== BUILD SUMMARY ==========
+const summary = useMemo(() => {
+  if (!billData.length || !displayRows.length) return null
 
-  // ========== BUILD SUMMARY ==========
-  const summary = useMemo(() => {
-    if (!billData.length || !displayRows.length) return null
+  // Get unique room numbers and categories from ALL rows
+  const roomNumbers = Array.from(new Set(displayRows.map(r => r.room_number).filter(Boolean)))
+  const roomCategories = Array.from(
+    new Set(displayRows.map(r => r.room_category_name).filter(Boolean))
+  )
 
-    const firstRow = billData[0]
+  // Aggregate totals across ALL rows
+  const totalRoomTariff = displayRows.reduce((sum, row) => sum + (row.room_tariff_per_day || 0), 0)
+  const totalExPax = displayRows.reduce((sum, row) => sum + (row.ex_pax_total || 0), 0)
+  const totalAmount = displayRows.reduce((sum, row) => sum + (row.total_amount || 0), 0)
+  const totalDiscount = displayRows.reduce((sum, row) => sum + (row.discount_amount || 0), 0)
+  const totalCgst = displayRows.reduce((sum, row) => sum + (row.cgst_amount || 0), 0)
+  const totalSgst = displayRows.reduce((sum, row) => sum + (row.sgst_amount || 0), 0)
+  
+  // Aggregate guest counts across ALL rows
+  // Use ex_pax for adults count (since this is the main adult count in your data)
+  const totalExPaxCount = displayRows.reduce((sum, row) => sum + (row.ex_pax || 0), 0)
+  const totalAdults = displayRows.reduce((sum, row) => sum + (row.adults || 0), 0)
+  const totalPax = displayRows.reduce((sum, row) => sum + (row.pax || 0), 0)
+  
+  // CHILD counts - use child_unpaid or child_count
+  const totalChildUnpaid = displayRows.reduce((sum, row) => sum + (row.child_unpaid || 0), 0)
+  const totalChildCount = displayRows.reduce((sum, row) => sum + (row.child_count || 0), 0)
+  const totalChildPaid = displayRows.reduce((sum, row) => sum + (row.child_paid || 0), 0)
+  
+  // DRIVER counts
+  const totalDriver = displayRows.reduce((sum, row) => sum + (row.driver || 0), 0)
+  const totalDriverCount = displayRows.reduce((sum, row) => sum + (row.driver_count || 0), 0)
 
-    const guestMobile = firstRow.guest_mobile || firstRow.mobile || '-'
-    const guestEmail = firstRow.guest_email || firstRow.emailed || '-'
-    const guestAddress = firstRow.guest_address || firstRow.address || '-'
-    const guestName = firstRow.guest_name || firstRow.guestName || 'Guest'
+  // Get first row for shared data (guest name, checkin, checkout, etc.)
+  const firstRow = billData[0]
 
-    const roomNumbers = Array.from(new Set(displayRows.map(r => r.room_number).filter(Boolean)))
-    const roomCategories = Array.from(
-      new Set(displayRows.map(r => r.room_category_name).filter(Boolean))
-    )
+  // Determine which child count to use (prefer child_unpaid as it's shown in your data)
+  const totalChild = totalChildUnpaid > 0 ? totalChildUnpaid : totalChildCount
 
-    return {
-      checkin_id: firstRow.checkin_id,
-      guest_id: firstRow.guest_id,
-      guest_name: guestName,
-      guest_mobile: guestMobile,
-      guest_email: guestEmail,
-      guest_address: guestAddress,
-      room_numbers: roomNumbers,
-      room_categories: roomCategories,
-      converted_categories: [],
-      room_numbers_str: roomNumbers.join(', ') || '-',
-      room_categories_str: roomCategories.join(', ') || '-',
-      converted_categories_str: '-',
-      total_room_tariff: toNumber(firstRow.total_amount || 0),
-      total_ex_pax_charge: toNumber(firstRow.ex_pax || 0),
-      total_child_paid_amount: 0,
-      total_driver_charge: 0,
-      total_tax_amount: toNumber(firstRow.cgst_amt || 0) + toNumber(firstRow.sgst_amt || 0),
-      total_amount: toNumber(firstRow.total_amount || 0),
-      total_days: firstRow.total_nights || 0,
-      total_adults: firstRow.adults || 0,
-      total_pax: firstRow.pax || 0,
-      total_ex_pax: firstRow.ex_pax || 0,
-      total_child_paid: 0,
-      total_child_unpaid: firstRow.child_unpaid || 0,
-      total_driver: firstRow.driver || 0,
-      avg_discount_percent: firstRow.discount_percent || 0,
-      avg_tax_percent: firstRow.tax || 18,
-      has_extensions: false,
-      extension_count: 0,
-      extension_days: 0,
-      payment_methods: [firstRow.payment_mode || 'Cash'],
-      payment_method: firstRow.payment_mode || 'Cash',
-      charges_ids: [],
-      selected: true,
-      original_checkin_datetime: firstRow.checkin_datetime,
-      final_checkout_datetime: firstRow.checkout_datetime,
-      guest_id_proof: '-',
-      reg_no: firstRow.reg_no,
-      booking_ref: firstRow.booking,
-      plan_name: firstRow.plan_name,
-      checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [], 
-      company_name: firstRow.company_name || '-',
-      gst_no:  firstRow.gst_no || '-',
+  // Use ex_pax for adults as it's the main adult count in your data
+  // If ex_pax is 0, fallback to adults or pax
+  let totalAdultCount = totalExPaxCount > 0 ? totalExPaxCount : totalAdults
+  if (totalAdultCount === 0) totalAdultCount = totalPax
 
-    }
-  }, [displayRows, billData])
+  // Build guest display string with totals from ALL rooms
+  const guestsDisplayParts = []
+  if (totalAdultCount > 0) guestsDisplayParts.push(`${totalAdultCount} Adults`)
+  if (totalChild > 0) guestsDisplayParts.push(`${totalChild} Child`)
+  if (totalDriver > 0 || totalDriverCount > 0) {
+    const driverTotal = totalDriver > 0 ? totalDriver : totalDriverCount
+    guestsDisplayParts.push(`${driverTotal} Driver`)
+  }
+  const guestsDisplay = guestsDisplayParts.join(', ') || '-'
+
+  // Build room numbers string from ALL rooms
+  const roomNumbersStr = roomNumbers.join(', ') || '-'
+
+  return {
+    checkin_id: firstRow.checkin_id,
+    guest_id: firstRow.guest_id,
+    guest_name: firstRow.guest_name || firstRow.guestName || 'Guest',
+    guest_mobile: firstRow.guest_mobile || firstRow.mobile || '-',
+    guest_email: firstRow.guest_email || firstRow.emailed || '-',
+    guest_address: firstRow.guest_address || firstRow.address || '-',
+    room_numbers: roomNumbers,
+    room_categories: roomCategories,
+    converted_categories: [],
+    room_numbers_str: roomNumbersStr,
+    room_categories_str: roomCategories.join(', ') || '-',
+    converted_categories_str: '-',
+    total_room_tariff: totalRoomTariff,
+    total_ex_pax_charge: totalExPax,
+    total_child_paid_amount: totalChildPaid,
+    total_child_unpaid_amount: totalChildUnpaid,
+    total_driver_charge: 0,
+    total_tax_amount: totalCgst + totalSgst,
+    total_amount: totalAmount,
+    total_days: firstRow.total_nights || 0,
+    total_adults: totalAdultCount,
+    total_pax: totalPax,
+    total_ex_pax: totalExPaxCount,
+    total_child_paid: totalChildPaid,
+    total_child_unpaid: totalChildUnpaid,
+    total_child: totalChild,
+    total_driver: totalDriver > 0 ? totalDriver : totalDriverCount,
+    avg_discount_percent: displayRows.reduce((sum, row) => sum + (row.discount_percent || 0), 0) / (displayRows.length || 1),
+    avg_tax_percent: firstRow.tax || 18,
+    has_extensions: false,
+    extension_count: 0,
+    extension_days: 0,
+    payment_methods: Array.from(new Set(displayRows.map(r => r.payment_method).filter(Boolean))),
+    payment_method: displayRows.find(r => r.payment_method)?.payment_method || 'Cash',
+    charges_ids: [],
+    selected: true,
+    original_checkin_datetime: firstRow.checkin_datetime,
+    final_checkout_datetime: firstRow.checkout_datetime,
+    guest_id_proof: '-',
+    reg_no: firstRow.reg_no,
+    booking_ref: firstRow.booking,
+    plan_name: firstRow.plan_name,
+    checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [],
+    company_name: firstRow.company_name || '-',
+    gst_no: firstRow.gst_no || '-',
+    guests_display: guestsDisplay,
+  }
+}, [displayRows, billData])
 
   // ========== GENERATE TABLE ROWS ==========
   const tableRows = useMemo(() => {
@@ -1122,7 +1164,7 @@ const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top
           </div>
         )}
         {printSettings?.show_hotel_address === 1 && (
-          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '10pt',  fontWeight: 'bold', color: '#0a0a0a' }}>
+          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '10pt',  fontWeight: 'bold' }}>
             📍 {firstRow?.hotel_address || '123, Park Avenue, City Center, New Delhi - 110001'}
           </div>
         )}
@@ -1174,9 +1216,9 @@ const renderGuestDetails = useCallback(() => {
           <tbody>
             {printSettings?.show_guest_name === 1 && (
               <tr>
-                <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '12pt' }}>Name</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '12pt' }}>:</td>
-                <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '12pt',  color: headerBg }}>{summary?.guest_name || '-'}</td>
+                <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Name</td>
+                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
+                <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '10pt',  color: headerBg }}>{summary?.guest_name || '-'}</td>
               </tr>
             )}
 
@@ -1217,6 +1259,7 @@ const renderGuestDetails = useCallback(() => {
 }, [printSettings, summary])
 
 // ========== RENDER BOOKING & INVOICE DETAILS (Right Column) ==========
+// ========== RENDER BOOKING & INVOICE DETAILS (Right Column) ==========
 const renderBookingDetails = useCallback(() => {
   if (printSettings?.show_booking_details !== 1) return null
   
@@ -1227,7 +1270,9 @@ const renderBookingDetails = useCallback(() => {
   const roomNumbersDisplay = checkedOutRoomsStr || summary?.room_numbers_str || '-'
   const nightsDisplay = summary?.total_days || 0
   const tariffPlanDisplay = summary?.plan_name || 'Room Only'
-  const guestsDisplay = `${summary?.total_adults || 0} Adults${(summary?.total_child_paid || 0) > 0 ? `, ${summary?.total_child_paid} Child` : ''}${(summary?.total_driver || 0) > 0 ? `, ${summary?.total_driver} Driver` : ''}`
+  
+  // Use the aggregated guests display from summary
+  const guestsDisplay = summary?.guests_display || `${summary?.total_adults || 0} Adults${(summary?.total_child_paid || 0) > 0 ? `, ${summary?.total_child_paid} Child` : ''}${(summary?.total_driver || 0) > 0 ? `, ${summary?.total_driver} Driver` : ''}`
 
   // Get first row from billData for checkin/checkout datetime with time
   const firstRow = billData[0] || {}
@@ -1547,11 +1592,11 @@ const renderPaymentDetails = useCallback(() => {
 
 // ========== RENDER BILL SUMMARY (Right Bottom) ==========
 const renderSummaryBox = useCallback(() => {
-  const firstRow = billData[0] || {}
-  const discountAmount = toNumber(firstRow.discount_amount || 0)
-  const grossTotal = toNumber(firstRow.total_amount || 0)
+  // Aggregate across ALL rows
+  const grossTotal = displayRows.reduce((sum, row) => sum + (row.total_amount || 0), 0)
+  const discountAmount = displayRows.reduce((sum, row) => sum + (row.discount_amount || 0), 0)
+  const advanceTotal = displayRows.reduce((sum, row) => sum + (row.post_charges || 0), 0)
   const netTotal = roundToTwo(grossTotal - discountAmount)
-  const advanceTotal = toNumber(firstRow.advance_amt || 0)
   const finalAmount = roundToTwo(netTotal - advanceTotal)
 
   return (
@@ -1606,7 +1651,7 @@ const renderSummaryBox = useCallback(() => {
       </div>
     </div>
   )
-}, [billData, headerBg])
+}, [displayRows, headerBg])
   // ========== RENDER FOOTER (REMOVED - not shown in image) ==========
   // Footer is removed as per the image requirement
 
