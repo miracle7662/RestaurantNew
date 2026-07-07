@@ -81,6 +81,7 @@ sp_perform_checkout:BEGIN
     DECLARE v_new_checkout_id INT DEFAULT 0;
     DECLARE v_done INT DEFAULT 0;
     DECLARE v_cur_checkout_id INT;
+    DECLARE v_merge_triggered TINYINT DEFAULT 0;
 
     -- Cursor for merge
     DECLARE merge_cursor CURSOR FOR
@@ -213,9 +214,17 @@ sp_perform_checkout:BEGIN
     END IF;
 
     -- -----------------------------------------------------------------
-    -- 7. MERGE MODE (unchanged - payment_method not needed at master level)
+    -- 7. MERGE MODE (Modified to also trigger when multiple masters exist)
     -- -----------------------------------------------------------------
-    IF v_merge_mode = 1 THEN
+    IF v_merge_mode = 1 OR (SELECT COUNT(*) FROM Checkout_Master WHERE checkin_id = p_checkin_id) > 1 THEN
+        -- If triggered from normal checkout, set flag
+        IF v_merge_mode = 0 THEN
+            SET v_merge_triggered = 1;
+            SET v_all_checked_out_room_ids = (SELECT GROUP_CONCAT(DISTINCT room_id) 
+                                              FROM checkin_detail_master 
+                                              WHERE checkin_id = p_checkin_id AND is_checkout = 1);
+        END IF;
+        
         OPEN merge_cursor;
         SET v_done = 0;
         SET v_keeper_checkout_id = 0;
@@ -461,28 +470,56 @@ sp_perform_checkout:BEGIN
         SET v_remaining_active = 0;
 
         COMMIT;
-        SELECT JSON_OBJECT(
-            'success', TRUE,
-            'message', 'Merged all checkout bills into one.',
-            'checkout_id', v_keeper_checkout_id,
-            'checkin_id', p_checkin_id,
-            'is_partial', 0,
-            'ldg_bill_no', v_ldg_bill_no,
-            'checked_out_rooms', v_processed_rooms_json,
-            'checked_out_room_ids', v_processed_room_ids_json,
-            'merge_performed', 1,
-            'data', JSON_OBJECT(
+        
+        -- Return appropriate message based on how merge was triggered
+        IF v_merge_triggered = 1 THEN
+            SELECT JSON_OBJECT(
+                'success', TRUE,
+                'message', 'Merged all checkout bills into one after normal checkout.',
                 'checkout_id', v_keeper_checkout_id,
                 'checkin_id', p_checkin_id,
                 'is_partial', 0,
                 'ldg_bill_no', v_ldg_bill_no,
-                'aggregated_values', JSON_OBJECT(
-                    'advance_amt', v_advance_amt,
-                    'total_amount', v_total_computed,
-                    'net_payable', COALESCE(p_net_payable, v_total_computed)
+                'checked_out_rooms', v_processed_rooms_json,
+                'checked_out_room_ids', v_processed_room_ids_json,
+                'merge_performed', 1,
+                'merge_triggered_by', 'normal_checkout',
+                'data', JSON_OBJECT(
+                    'checkout_id', v_keeper_checkout_id,
+                    'checkin_id', p_checkin_id,
+                    'is_partial', 0,
+                    'ldg_bill_no', v_ldg_bill_no,
+                    'aggregated_values', JSON_OBJECT(
+                        'advance_amt', v_advance_amt,
+                        'total_amount', v_total_computed,
+                        'net_payable', COALESCE(p_net_payable, v_total_computed)
+                    )
                 )
-            )
-        ) AS result;
+            ) AS result;
+        ELSE
+            SELECT JSON_OBJECT(
+                'success', TRUE,
+                'message', 'Merged all checkout bills into one.',
+                'checkout_id', v_keeper_checkout_id,
+                'checkin_id', p_checkin_id,
+                'is_partial', 0,
+                'ldg_bill_no', v_ldg_bill_no,
+                'checked_out_rooms', v_processed_rooms_json,
+                'checked_out_room_ids', v_processed_room_ids_json,
+                'merge_performed', 1,
+                'data', JSON_OBJECT(
+                    'checkout_id', v_keeper_checkout_id,
+                    'checkin_id', p_checkin_id,
+                    'is_partial', 0,
+                    'ldg_bill_no', v_ldg_bill_no,
+                    'aggregated_values', JSON_OBJECT(
+                        'advance_amt', v_advance_amt,
+                        'total_amount', v_total_computed,
+                        'net_payable', COALESCE(p_net_payable, v_total_computed)
+                    )
+                )
+            ) AS result;
+        END IF;
         LEAVE sp_perform_checkout;
     END IF;
 
@@ -1096,6 +1133,277 @@ sp_perform_checkout:BEGIN
     END IF;
 
     COMMIT;
+
+    -- Check if multiple checkout masters exist and trigger merge
+    IF (SELECT COUNT(*) FROM Checkout_Master WHERE checkin_id = p_checkin_id) > 1 THEN
+        SET v_merge_mode = 1;
+        SET v_all_checked_out_room_ids = (SELECT GROUP_CONCAT(DISTINCT room_id) 
+                                          FROM checkin_detail_master 
+                                          WHERE checkin_id = p_checkin_id AND is_checkout = 1);
+        -- The merge will execute when procedure loops back, but we need to return merge result
+        -- So we'll execute merge logic here by calling the merge section
+        -- Reinitialize for merge execution
+        SET v_done = 0;
+        SET v_keeper_checkout_id = 0;
+        
+        OPEN merge_cursor;
+        read_loop_after_normal: LOOP
+            FETCH merge_cursor INTO v_cur_checkout_id;
+            IF v_done THEN
+                LEAVE read_loop_after_normal;
+            END IF;
+            IF v_keeper_checkout_id = 0 THEN
+                SET v_keeper_checkout_id = v_cur_checkout_id;
+            ELSE
+                -- Copy all child records from v_cur_checkout_id to keeper
+                INSERT INTO Checkout_Detail (
+                    checkin_id, checkout_id, hotelid, room_id, room_number,
+                    room_category_id, room_category_name,
+                    converted_category_id, converted_category_name,
+                    guest_id, guest_name, address, mobile,
+                    company_id, company_name, emailed,
+                    checkin_datetime, checkout_datetime, no_of_days,
+                    adults, pax, ex_pax,
+                    child_paid, child_unpaid, driver,
+                    room_tariff,
+                    ex_pax_charge, child_paid_amount, driver_charge,
+                    discount_percent, discount_amount,
+                    tax_percen_room,
+                    cgst_percent, cgst_amount,
+                    sgst_percent, sgst_amount,
+                    igst_percent, igst_amount,
+                    tax_percen_ex,
+                    ex_cgst_percent, ex_cgst_amount,
+                    ex_sgst_percent, ex_sgst_amount,
+                    ex_igst_percent, ex_igst_amount,
+                    tax_percen_child,
+                    child_cgst_percent, child_cgst_amount,
+                    child_sgst_percent, child_sgst_amount,
+                    child_igst_percent, child_igst_amount,
+                    tax_percen_driver,
+                    driver_cgst_percent, driver_cgst_amount,
+                    driver_sgst_percent, driver_sgst_amount,
+                    driver_igst_percent, driver_igst_amount,
+                    service_charge, service_charge_amount,
+                    cess_percent, cess_amount,
+                    parent_detail_id,
+                    is_checkout,
+                    merged,
+                    is_settle,
+                    tax,
+                    created_date, updated_date,
+                    created_by_id, updated_by_id
+                )
+                SELECT
+                    checkin_id, v_keeper_checkout_id, hotelid, room_id, room_number,
+                    room_category_id, room_category_name,
+                    converted_category_id, converted_category_name,
+                    guest_id, guest_name, address, mobile,
+                    company_id, company_name, emailed,
+                    checkin_datetime, checkout_datetime, no_of_days,
+                    adults, pax, ex_pax,
+                    child_paid, child_unpaid, driver,
+                    room_tariff,
+                    ex_pax_charge, child_paid_amount, driver_charge,
+                    discount_percent, discount_amount,
+                    tax_percen_room,
+                    cgst_percent, cgst_amount,
+                    sgst_percent, sgst_amount,
+                    igst_percent, igst_amount,
+                    tax_percen_ex,
+                    ex_cgst_percent, ex_cgst_amount,
+                    ex_sgst_percent, ex_sgst_amount,
+                    ex_igst_percent, ex_igst_amount,
+                    tax_percen_child,
+                    child_cgst_percent, child_cgst_amount,
+                    child_sgst_percent, child_sgst_amount,
+                    child_igst_percent, child_igst_amount,
+                    tax_percen_driver,
+                    driver_cgst_percent, driver_cgst_amount,
+                    driver_sgst_percent, driver_sgst_amount,
+                    driver_igst_percent, driver_igst_amount,
+                    service_charge, service_charge_amount,
+                    cess_percent, cess_amount,
+                    parent_detail_id,
+                    1, merged, is_settle, tax,
+                    created_date, v_now, created_by_id, v_user_id
+                FROM Checkout_Detail
+                WHERE checkout_id = v_cur_checkout_id;
+
+                INSERT INTO Checkout_Folio_Master (
+                    checkin_id, checkout_id, hotel_id, detail_id, room_id,
+                    transaction_type, transaction_datetime,
+                    description, debit_amount, credit_amount,
+                    reference_number, payment_method,
+                    created_by_id, created_date, updated_by_id, updated_date
+                )
+                SELECT
+                    checkin_id, v_keeper_checkout_id, hotel_id, detail_id, room_id,
+                    transaction_type, transaction_datetime,
+                    description, debit_amount, credit_amount,
+                    reference_number, payment_method,
+                    created_by_id, created_date, v_user_id, v_now
+                FROM Checkout_Folio_Master
+                WHERE checkout_id = v_cur_checkout_id;
+
+                INSERT INTO Checkout_Room_Charges (
+                    checkin_id, checkout_id, guest_id, room_id, category_id,
+                    pax_count, pax_price, pax_tax,
+                    ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
+                    child_count, child_price, child_tax, child_tax_percent, child_total,
+                    driver_count, driver_price, driver_tax, driver_tax_percent, driver_total,
+                    total_amount, checkin_datetime, checkout_datetime,
+                    created_at, updated_at
+                )
+                SELECT
+                    checkin_id, v_keeper_checkout_id, guest_id, room_id, category_id,
+                    pax_count, pax_price, pax_tax,
+                    ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
+                    child_count, child_price, child_tax, child_tax_percent, child_total,
+                    driver_count, driver_price, driver_tax, driver_tax_percent, driver_total,
+                    total_amount, checkin_datetime, checkout_datetime,
+                    NOW(), NOW()
+                FROM Checkout_Room_Charges
+                WHERE checkout_id = v_cur_checkout_id;
+
+                DELETE FROM Checkout_Detail WHERE checkout_id = v_cur_checkout_id;
+                DELETE FROM Checkout_Folio_Master WHERE checkout_id = v_cur_checkout_id;
+                DELETE FROM Checkout_Room_Charges WHERE checkout_id = v_cur_checkout_id;
+                DELETE FROM Checkout_Master WHERE checkout_id = v_cur_checkout_id;
+            END IF;
+        END LOOP;
+        CLOSE merge_cursor;
+
+        -- Recalculate totals for keeper
+        SELECT
+            COALESCE(SUM(room_tariff), 0),
+            COALESCE(SUM(ex_pax_charge), 0),
+            COALESCE(SUM(child_paid_amount), 0),
+            COALESCE(SUM(driver_charge), 0),
+            COALESCE(SUM(discount_amount), 0),
+            COALESCE(SUM(cgst_amount), 0),
+            COALESCE(SUM(sgst_amount), 0),
+            COALESCE(SUM(igst_amount), 0),
+            COALESCE(SUM(ex_cgst_amount), 0),
+            COALESCE(SUM(ex_sgst_amount), 0),
+            COALESCE(SUM(ex_igst_amount), 0),
+            COALESCE(SUM(child_cgst_amount), 0),
+            COALESCE(SUM(child_sgst_amount), 0),
+            COALESCE(SUM(child_igst_amount), 0),
+            COALESCE(SUM(driver_cgst_amount), 0),
+            COALESCE(SUM(driver_sgst_amount), 0),
+            COALESCE(SUM(driver_igst_amount), 0),
+            COALESCE(SUM(cess_amount), 0),
+            COALESCE(SUM(service_charge_amount), 0),
+            COALESCE(MAX(no_of_days), 0)
+        INTO
+            v_room_tariff_sum,
+            v_ex_pax_charge,
+            v_child_paid_amount,
+            v_driver_charge,
+            v_discount_amount,
+            v_cgst_amount,
+            v_sgst_amount,
+            v_igst_amount,
+            v_ex_cgst_amount,
+            v_ex_sgst_amount,
+            v_ex_igst_amount,
+            v_child_cgst_amount,
+            v_child_sgst_amount,
+            v_child_igst_amount,
+            v_driver_cgst_amount,
+            v_driver_sgst_amount,
+            v_driver_igst_amount,
+            v_cess_amount,
+            v_service_charge_amount,
+            v_total_nights
+        FROM Checkout_Detail
+        WHERE checkout_id = v_keeper_checkout_id;
+
+        SELECT
+            COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt','Advance Addition') THEN credit_amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN transaction_type = 'CHARGE' THEN debit_amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN transaction_type = 'ALLOWANCE' THEN credit_amount ELSE 0 END), 0)
+        INTO v_advance_amt, v_post_changes_amt, v_allowances_amt
+        FROM checkin_guest_folio_master
+        WHERE checkin_id = p_checkin_id;
+
+        SET v_total_computed = v_room_tariff_sum + v_ex_pax_charge + v_child_paid_amount + v_driver_charge
+                            + v_cgst_amount + v_sgst_amount + v_igst_amount
+                            + v_ex_cgst_amount + v_ex_sgst_amount + v_ex_igst_amount
+                            + v_child_cgst_amount + v_child_sgst_amount + v_child_igst_amount
+                            + v_driver_cgst_amount + v_driver_sgst_amount + v_driver_igst_amount
+                            + v_cess_amount + v_service_charge_amount
+                            - v_discount_amount;
+
+        SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
+        INTO v_processed_rooms_json
+        FROM (SELECT DISTINCT room_number FROM Checkout_Detail WHERE checkout_id = v_keeper_checkout_id) d;
+
+        SELECT COALESCE(JSON_ARRAYAGG(room_id), JSON_ARRAY())
+        INTO v_processed_room_ids_json
+        FROM (SELECT DISTINCT room_id FROM Checkout_Detail WHERE checkout_id = v_keeper_checkout_id) d;
+
+        UPDATE Checkout_Master
+        SET
+            tot_room_tariff = v_room_tariff_sum,
+            tot_ex_pax_charge = v_ex_pax_charge,
+            tot_child_paid_amount = v_child_paid_amount,
+            tot_driver_charge = v_driver_charge,
+            tot_discount_amount = v_discount_amount,
+            tot_cgst_amount = v_cgst_amount,
+            tot_sgst_amount = v_sgst_amount,
+            tot_igst_amount = v_igst_amount,
+            tot_ex_cgst_amount = v_ex_cgst_amount,
+            tot_ex_sgst_amount = v_ex_sgst_amount,
+            tot_ex_igst_amount = v_ex_igst_amount,
+            tot_child_cgst_amount = v_child_cgst_amount,
+            tot_child_sgst_amount = v_child_sgst_amount,
+            tot_child_igst_amount = v_child_igst_amount,
+            tot_driver_cgst_amount = v_driver_cgst_amount,
+            tot_driver_sgst_amount = v_driver_sgst_amount,
+            tot_driver_igst_amount = v_driver_igst_amount,
+            tot_service_charge_amount = v_service_charge_amount,
+            tot_cess_amount = v_cess_amount,
+            tot_advance = v_advance_amt,
+            total_amount = v_total_computed,
+            total_nights = v_total_nights,
+            checked_out_rooms = v_processed_rooms_json,
+            room_id = v_processed_room_ids_json,
+            updated_by_id = v_user_id,
+            updated_date = v_now,
+            is_partial_checkout = 0,
+            status = 'checked_out'
+        WHERE checkout_id = v_keeper_checkout_id;
+
+        SET v_checkout_id = v_keeper_checkout_id;
+        SET v_ldg_bill_no = (SELECT ldg_bill_no FROM Checkout_Master WHERE checkout_id = v_keeper_checkout_id);
+
+        SELECT JSON_OBJECT(
+            'success', TRUE,
+            'message', 'Merged all checkout bills into one after normal checkout.',
+            'checkout_id', v_keeper_checkout_id,
+            'checkin_id', p_checkin_id,
+            'is_partial', 0,
+            'ldg_bill_no', v_ldg_bill_no,
+            'checked_out_rooms', v_processed_rooms_json,
+            'checked_out_room_ids', v_processed_room_ids_json,
+            'merge_performed', 1,
+            'merge_triggered_by', 'normal_checkout',
+            'data', JSON_OBJECT(
+                'checkout_id', v_keeper_checkout_id,
+                'checkin_id', p_checkin_id,
+                'is_partial', 0,
+                'ldg_bill_no', v_ldg_bill_no,
+                'aggregated_values', JSON_OBJECT(
+                    'advance_amt', v_advance_amt,
+                    'total_amount', v_total_computed,
+                    'net_payable', COALESCE(p_net_payable, v_total_computed)
+                )
+            )
+        ) AS result;
+        LEAVE sp_perform_checkout;
+    END IF;
 
     -- Return success JSON (ADDED payment_method in response)
     SELECT JSON_OBJECT(

@@ -87,7 +87,7 @@ interface DisplayDetailRow {
 
 interface CombinedGuestSummary {
   checkin_id: number
-  guest_id: number
+  guest_id: number | string 
   guest_name: string
   room_numbers: string[]
   room_categories: string[]
@@ -689,7 +689,7 @@ const handlePaymentModeChange = (modeId: number) => {
 
   // ==================== HELPER: Get filtered summary for selected rooms only ====================
 
- const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
+const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
   if (!combinedSummary) return null
 
   // Get rows filtered by selected rooms
@@ -706,16 +706,28 @@ const handlePaymentModeChange = (modeId: number) => {
   const totalAmount = selectedRows.reduce((sum, row) => sum + row.total_amount, 0)
   const totalDiscountAmount = selectedRows.reduce((sum, row) => sum + row.discount_amount, 0)
 
-  // ✅ CORRECTED: Calculate unique days, adults, and pax
-  // 1. Total Days = number of unique bill dates (for room charges only, not post charges)
+  // ✅ FIX: Collect unique guest IDs and names
+  const uniqueGuestIds = new Set<number>()
+  const uniqueGuestNames = new Set<string>()
+  
+  selectedRows.forEach(row => {
+    if (row.guest_id) uniqueGuestIds.add(row.guest_id)
+    if (row.guest_name && row.guest_name !== 'Guest') uniqueGuestNames.add(row.guest_name)
+  })
+
+  // Convert to comma-separated strings
+  const guestIdsStr = Array.from(uniqueGuestIds).join(', ')
+  const guestNamesStr = Array.from(uniqueGuestNames).join(', ')
+
+  // Calculate unique days
   const billDates = new Set(
     selectedRows
       .filter(r => !r.isPostCharge)
       .map(r => r.bill_date_formatted)
   )
-  const totalDays = billDates.size || 1 // At least 1 day
+  const totalDays = billDates.size || 1
 
-  // 2. Adults and Pax: Take max per room (since adults/pax should be consistent across days)
+  // Room-wise aggregations
   const roomAdultsMap = new Map<string, number>()
   const roomPaxMap = new Map<string, number>()
   const roomExPaxMap = new Map<string, number>()
@@ -726,7 +738,6 @@ const handlePaymentModeChange = (modeId: number) => {
     if (!row.isPostCharge) {
       const room = row.room_number
       
-      // Take max adults per room (should be same across days, but just in case)
       if (!roomAdultsMap.has(room) || row.adults > roomAdultsMap.get(room)!) {
         roomAdultsMap.set(room, row.adults)
       }
@@ -752,7 +763,6 @@ const handlePaymentModeChange = (modeId: number) => {
   const totalChildUnpaid = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.child_unpaid), 0)
   const totalDriver = Array.from(roomDriverMap.values()).reduce((sum, val) => sum + val, 0)
 
-  // Get unique values from selected rows
   const uniqueRoomNumbers = Array.from(new Set(selectedRows.map((r) => r.room_number)))
   const uniqueRoomCategories = Array.from(
     new Set(selectedRows.map((r) => r.room_category_name).filter((c) => c !== '-'))
@@ -761,22 +771,21 @@ const handlePaymentModeChange = (modeId: number) => {
     new Set(selectedRows.map((r) => r.converted_category_name).filter((c) => c !== '-'))
   )
 
-  // Extension info
   const hasExtensions = selectedRows.some((row) => row.is_extension)
   const extensionCount = selectedRows.filter((row) => row.is_extension).length
   const extensionDays = selectedRows.filter((row) => row.is_extension).length
 
-  // Average tax percent
   const avgTaxPercent = selectedRows.length > 0
     ? selectedRows.reduce((sum, row) => sum + row.tax_percent, 0) / selectedRows.length
     : 0
 
-  // Credit and debit totals
   const total_credit_amount = selectedRows.reduce((sum, row) => sum + (row.credit_amount || 0), 0)
   const total_debit_amount = selectedRows.reduce((sum, row) => sum + (row.debit_amount || 0), 0)
 
   return {
     ...combinedSummary,
+    guest_id: guestIdsStr || combinedSummary.guest_id, // ✅ Now shows comma-separated IDs
+    guest_name: guestNamesStr || combinedSummary.guest_name, // ✅ Shows comma-separated names
     room_numbers: uniqueRoomNumbers,
     room_numbers_str: uniqueRoomNumbers.join(', '),
     room_categories: uniqueRoomCategories,
@@ -789,9 +798,9 @@ const handlePaymentModeChange = (modeId: number) => {
     total_driver_charge: totalDriverCharge,
     total_tax_amount: totalTaxAmount,
     total_amount: totalAmount,
-    total_days: totalDays, // ✅ Now correctly shows unique days
-    total_adults: totalAdults, // ✅ Now correctly shows total adults across rooms
-    total_pax: totalPax, // ✅ Now correctly shows total pax across rooms
+    total_days: totalDays,
+    total_adults: totalAdults,
+    total_pax: totalPax,
     total_ex_pax: totalExPax,
     total_child_paid: totalChildPaid,
     total_child_unpaid: totalChildUnpaid,
