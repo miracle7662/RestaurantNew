@@ -1147,7 +1147,7 @@ const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top
             fontSize: '12pt',
           }}
         >
-          HOTEL BOOKING BILL
+          INVOICE 
         </h3>
       </div>
     )
@@ -1236,10 +1236,10 @@ const renderBookingDetails = useCallback(() => {
           <span>{invoiceDateDisplay}</span>
           
           {/* Row 2 */}
-          <span style={{ fontWeight: 600, minWidth: '65px' }}>Booking ID</span>
+          <span style={{ fontWeight: 600, minWidth: '65px' }}>Register No</span>
           <span style={{ fontWeight: 600 }}>{bookingIdDisplay}</span>
-          <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>Room Type</span>
-          <span style={{ fontWeight: 600 }}>{roomTypeDisplay}</span>
+          <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>Guests / Plan</span>
+          <span>{guestsDisplay} {tariffPlanDisplay ? `(${tariffPlanDisplay})` : ''}</span>
           
           {/* Row 3 */}
           <span style={{ fontWeight: 600, minWidth: '65px' }}>Arrival Date</span>
@@ -1248,10 +1248,10 @@ const renderBookingDetails = useCallback(() => {
           <span>{nightsDisplay}</span>
           
           {/* Row 4 */}
-          <span style={{ fontWeight: 600, minWidth: '65px' }}>Check-out Date</span>
-          <span>{checkoutDateDisplay}</span>
-          <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>Guests / Plan</span>
-          <span>{guestsDisplay} {tariffPlanDisplay ? `(${tariffPlanDisplay})` : ''}</span>
+         <span style={{ fontWeight: 600, minWidth: '65px' }}>Departure Date</span>
+         <span>{checkoutDateDisplay}</span>
+         <span style={{ fontWeight: 600, minWidth: '65px', paddingLeft: '10px' }}>Room Type</span>
+         <span style={{ fontWeight: 600 }}>{roomTypeDisplay}</span>
           
           {/* Row 5 */}
           <span style={{ fontWeight: 600, minWidth: '65px' }}>Room No(s).</span>
@@ -1286,7 +1286,6 @@ const renderBookingDetails = useCallback(() => {
     headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>)
     headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
 
-    const totalCols = headers.length
 
     const bodyRows: React.ReactElement[] = []
     let runningIndex = 1
@@ -1389,16 +1388,7 @@ const renderBookingDetails = useCallback(() => {
 
     const summaryRows: React.ReactElement[] = []
 
-    summaryRows.push(
-      <tr key="summary_grand_total" style={{ background: headerBg, color: headerText }}>
-        <td colSpan={totalCols - 1} className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
-          TOTAL PAID (INR)
-        </td>
-        <td className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
-          ₹{formatAmt(totalAmount)}
-        </td>
-      </tr>
-    )
+   
 
     return (
       <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
@@ -1416,8 +1406,7 @@ const renderBookingDetails = useCallback(() => {
     )
   }, [printSettings, tableRows, headerBg, headerText])
 
-  // ========== RENDER PAYMENT DETAILS (Left Bottom) ==========
-  // ========== RENDER PAYMENT DETAILS (Left Bottom) ==========
+ 
 // ========== RENDER PAYMENT DETAILS (Left Bottom) ==========
 const renderPaymentDetails = useCallback(() => {
    
@@ -1433,13 +1422,7 @@ const renderPaymentDetails = useCallback(() => {
       <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
         <table className="bill-detail-table" style={{ width: '100%' }}>
           <tbody>
-            <tr>
-              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '7.5pt', fontWeight: 600 }}>Paid Amount</td>
-              <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt' }}>:</td>
-              <td className="bdt-value" style={{ fontWeight: 700, fontSize: '8pt' }}>
-                INR {formatAmt(totals.netTotal)}
-              </td>
-            </tr>
+           
             <tr>
               <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '7.5pt', fontWeight: 600 }}>Payment Date</td>
               <td className="bdt-colon" style={{ width: '8px', fontSize: '7.5pt' }}>:</td>
