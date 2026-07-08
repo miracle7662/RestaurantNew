@@ -76,7 +76,6 @@ interface DisplayDetailRow {
   service_charge_percent?: number
   room_group?: string
   transaction_type?: string
-  // Backend calculated values
   post_charges?: number
   allowance?: number
   food?: number
@@ -193,77 +192,6 @@ const formatDateTime = (isoString: string): string => {
   return `${day}-${month}-${year} ${hours}:${minutes}`
 }
 
-// const numberToWords = (num: number): string => {
-//   const ones = [
-//     '',
-//     'One',
-//     'Two',
-//     'Three',
-//     'Four',
-//     'Five',
-//     'Six',
-//     'Seven',
-//     'Eight',
-//     'Nine',
-//     'Ten',
-//     'Eleven',
-//     'Twelve',
-//     'Thirteen',
-//     'Fourteen',
-//     'Fifteen',
-//     'Sixteen',
-//     'Seventeen',
-//     'Eighteen',
-//     'Nineteen',
-//   ]
-//   const tens = [
-//     '',
-//     '',
-//     'Twenty',
-//     'Thirty',
-//     'Forty',
-//     'Fifty',
-//     'Sixty',
-//     'Seventy',
-//     'Eighty',
-//     'Ninety',
-//   ]
-
-//   const convertHundreds = (n: number): string => {
-//     if (n >= 100) {
-//       return ones[Math.floor(n / 100)] + ' Hundred ' + convertHundreds(n % 100)
-//     } else if (n >= 20) {
-//       return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '')
-//     } else {
-//       return ones[n]
-//     }
-//   }
-
-//   if (num === 0) return 'Zero Rupees Only'
-
-//   const intPart = Math.floor(num)
-//   const decPart = Math.round((num - intPart) * 100)
-
-//   let result = ''
-//   if (intPart >= 10000000) {
-//     result += convertHundreds(Math.floor(intPart / 10000000)) + ' Crore '
-//     const remainder = intPart % 10000000
-//     if (remainder > 0) result += convertHundreds(remainder)
-//   } else if (intPart >= 100000) {
-//     result += convertHundreds(Math.floor(intPart / 100000) % 100) + ' Lakh '
-//     result += convertHundreds(intPart % 100000)
-//   } else if (intPart >= 1000) {
-//     result += convertHundreds(Math.floor(intPart / 1000) % 100) + ' Thousand '
-//     result += convertHundreds(intPart % 1000)
-//   } else {
-//     result += convertHundreds(intPart % 1000)
-//   }
-
-//   result = result.trim() + ' Rupees'
-//   if (decPart > 0) result += ' and ' + convertHundreds(decPart) + ' Paise'
-//   return result + ' Only'
-// }
-
 // ==================== BILL COMPONENT ====================
 
 const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
@@ -280,6 +208,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 }) => {
   const printRef = useRef<HTMLDivElement>(null)
   const fetchCalledRef = useRef(false)
+  const [isPdfReady, setIsPdfReady] = useState(false)
   
   const [printSettings, setPrintSettings] = useState<BillPrintSetting | null>(null)
   const [settingsLoading, setSettingsLoading] = useState(true)
@@ -287,15 +216,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const [billData, setBillData] = useState<any[]>([])
   const [billLoading, setBillLoading] = useState(false)
   const [billError, setBillError] = useState<string | null>(null)
-
-  console.log('🔄 CheckoutBillModal Props:', {
-    show,
-    checkoutId,
-    ldgBillNo,
-    hotelId,
-    selectedRooms,
-    billDataLength: billData.length
-  })
 
   // ========== FETCH PRINT SETTINGS ==========
   useEffect(() => {
@@ -352,18 +272,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             })
           }
           setBillData(filteredData)
-
-          console.log('📦 Raw Bill Data from API:', filteredData.map((r: any) => ({
-            transaction_type: r.transaction_type,
-            post_charges: r.post_charges,
-            allowance: r.allowance,
-            description: r.description,
-            total_amount: r.total_amount,
-            tariff: r.tariff,
-            cgst: r.cgst,
-            sgst: r.sgst,
-            food: r.food
-          })))
+          setIsPdfReady(true)
         } else {
           setBillError(response.message || 'Failed to fetch bill data')
         }
@@ -382,18 +291,14 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     return () => {
       if (!show) {
         fetchCalledRef.current = false
+        setIsPdfReady(false)
       }
     }
   }, [show, checkoutId, ldgBillNo, selectedRooms])
 
-  // ========== BUILD DISPLAY ROWS - USING BACKEND CALCULATED VALUES ==========
+  // ========== BUILD DISPLAY ROWS ==========
   const displayRows = useMemo(() => {
-    console.log('🏗️ Building displayRows from billData:', billData.length)
-    
-    if (!billData.length) {
-      console.log('❌ No billData available')
-      return []
-    }
+    if (!billData.length) return []
 
     const rows: DisplayDetailRow[] = []
     const cumulativeMap = new Map<string, number>()
@@ -402,7 +307,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       const roomNumber = row.room_number || `Room-${row.room_id}`
       const transactionType = (row.transaction_type || '').toUpperCase().trim()
       
-      // Use backend calculated values directly - NO MANUAL CALCULATIONS
       const roomTariff = toNumber(row.tariff || row.room_tariff_per_day || 0)
       const exPaxTotal = toNumber(row.ex_pax || row.ex_pax_total || 0)
       const cgstAmount = toNumber(row.cgst || row.cgst_amount || 0)
@@ -414,7 +318,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       const discountAmount = toNumber(row.discount_amount || 0)
       const discountPercent = toNumber(row.discount_percent || 0)
       
-      // Determine if post charge from transaction_type (using backend classification)
       const isPostCharge = ['CHARGE', 'POST CHARGE', 'POST_CHARGE', 'ALLOWANCE', 'ADVANCE ADDITION', 'FOOD']
         .includes(transactionType)
 
@@ -474,7 +377,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         discount_percent: discountPercent,
         discount_amount: discountAmount,
         tax_percent: row.tax || 18,
-        tax_amount: cgstAmount + sgstAmount + igstAmount, // Use backend calculated taxes
+        tax_amount: cgstAmount + sgstAmount + igstAmount,
         total_amount: totalAmount,
         is_extension: transactionType === 'ROOM EXTENSION',
         isPostCharge: isPostCharge,
@@ -496,228 +399,211 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         service_charge_percent: row.service_charge,
         room_group: roomNumber,
         transaction_type: transactionType,
-        // Store backend calculated values
         post_charges: toNumber(row.post_charges || 0),
         allowance: toNumber(row.allowance || 0),
         food: toNumber(row.food || 0)
       })
     })
 
-    console.log(`✅ Generated ${rows.length} display rows`)
     return rows
   }, [billData])
 
-  
+  // ========== BUILD SUMMARY ==========
+  const summary = useMemo(() => {
+    if (!billData.length || !displayRows.length) return null
 
-  // ========== BUILD SUMMARY - USING BACKEND VALUES ==========
- const summary = useMemo(() => {
-  if (!billData.length || !displayRows.length) return null
+    const firstRow = billData[0]
 
-  const firstRow = billData[0]
+    const guestMobile = firstRow.guest_mobile || firstRow.mobile || '-'
+    const guestEmail = firstRow.guest_email || firstRow.emailed || '-'
+    const guestAddress = firstRow.guest_address || firstRow.address || '-'
+    const guestName = firstRow.guest_name || firstRow.guestName || 'Guest'
 
-  const guestMobile = firstRow.guest_mobile || firstRow.mobile || '-'
-  const guestEmail = firstRow.guest_email || firstRow.emailed || '-'
-  const guestAddress = firstRow.guest_address || firstRow.address || '-'
-  const guestName = firstRow.guest_name || firstRow.guestName || 'Guest'
+    const roomNumbers = Array.from(new Set(displayRows.map(r => r.room_number).filter(Boolean)))
+    const roomCategories = Array.from(
+      new Set(displayRows.map(r => r.room_category_name).filter(Boolean))
+    )
 
-  const roomNumbers = Array.from(new Set(displayRows.map(r => r.room_number).filter(Boolean)))
-  const roomCategories = Array.from(
-    new Set(displayRows.map(r => r.room_category_name).filter(Boolean))
-  )
-
-  return {
-    checkin_id: firstRow.checkin_id,
-    guest_id: firstRow.guest_id,
-    guest_name: guestName,
-    guest_mobile: guestMobile,
-    guest_email: guestEmail,
-    guest_address: guestAddress,
-    room_numbers: roomNumbers,
-    room_categories: roomCategories,
-    converted_categories: [],
-    room_numbers_str: roomNumbers.join(', ') || '-',
-    room_categories_str: roomCategories.join(', ') || '-',
-    converted_categories_str: '-',
-    total_room_tariff: toNumber(firstRow.total_amount || 0),
-    total_ex_pax_charge: toNumber(firstRow.ex_pax || 0),
-    total_child_paid_amount: 0,
-    total_driver_charge: 0,
-    total_tax_amount: toNumber(firstRow.cgst_amt || 0) + toNumber(firstRow.sgst_amt || 0),
-    total_amount: toNumber(firstRow.total_amount || 0),
-    total_days: firstRow.total_nights || 0,
-    total_adults: firstRow.adults || 0,
-    total_pax: firstRow.pax || 0,
-    total_ex_pax: firstRow.ex_pax || 0,
-    total_child_paid: 0,
-    total_child_unpaid: firstRow.child_unpaid || 0,
-    total_driver: firstRow.driver || 0,
-    avg_discount_percent: firstRow.discount_percent || 0,
-    avg_tax_percent: firstRow.tax || 18,
-    has_extensions: false,
-    extension_count: 0,
-    extension_days: 0,
-    payment_methods: [firstRow.payment_mode || 'Cash'],
-    payment_method: firstRow.payment_mode || 'Cash',
-    charges_ids: [],
-    selected: true,
-    original_checkin_datetime: firstRow.checkin_datetime,
-    final_checkout_datetime: firstRow.checkout_datetime,
-    guest_id_proof: '-',
-    reg_no: firstRow.reg_no,
-    booking_ref: firstRow.booking,
-    plan_name: firstRow.plan_name,
-    checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [],
-  }
-}, [displayRows, billData])
-
- // ========== GENERATE TABLE ROWS - USING BACKEND CALCULATED VALUES ==========
-const tableRows = useMemo(() => {
-  console.log('🔨 Building tableRows...')
-  
-  if (!displayRows.length) return []
-
-  // Group by room first, then by date
-  const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
-  
-  displayRows.forEach((charge) => {
-    const roomNum = charge.room_number || 'COMMON'
-    const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
-    
-    if (!roomGroups.has(roomNum)) {
-      roomGroups.set(roomNum, new Map())
+    return {
+      checkin_id: firstRow.checkin_id,
+      guest_id: firstRow.guest_id,
+      guest_name: guestName,
+      guest_mobile: guestMobile,
+      guest_email: guestEmail,
+      guest_address: guestAddress,
+      room_numbers: roomNumbers,
+      room_categories: roomCategories,
+      converted_categories: [],
+      room_numbers_str: roomNumbers.join(', ') || '-',
+      room_categories_str: roomCategories.join(', ') || '-',
+      converted_categories_str: '-',
+      total_room_tariff: toNumber(firstRow.total_amount || 0),
+      total_ex_pax_charge: toNumber(firstRow.ex_pax || 0),
+      total_child_paid_amount: 0,
+      total_driver_charge: 0,
+      total_tax_amount: toNumber(firstRow.cgst_amt || 0) + toNumber(firstRow.sgst_amt || 0),
+      total_amount: toNumber(firstRow.total_amount || 0),
+      total_days: firstRow.total_nights || 0,
+      total_adults: firstRow.adults || 0,
+      total_pax: firstRow.pax || 0,
+      total_ex_pax: firstRow.ex_pax || 0,
+      total_child_paid: 0,
+      total_child_unpaid: firstRow.child_unpaid || 0,
+      total_driver: firstRow.driver || 0,
+      avg_discount_percent: firstRow.discount_percent || 0,
+      avg_tax_percent: firstRow.tax || 18,
+      has_extensions: false,
+      extension_count: 0,
+      extension_days: 0,
+      payment_methods: [firstRow.payment_mode || 'Cash'],
+      payment_method: firstRow.payment_mode || 'Cash',
+      charges_ids: [],
+      selected: true,
+      original_checkin_datetime: firstRow.checkin_datetime,
+      final_checkout_datetime: firstRow.checkout_datetime,
+      guest_id_proof: '-',
+      reg_no: firstRow.reg_no,
+      booking_ref: firstRow.booking,
+      plan_name: firstRow.plan_name,
+      checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [],
     }
-    
-    const dateMap = roomGroups.get(roomNum)!
-    if (!dateMap.has(dateKey)) {
-      dateMap.set(dateKey, {
-        date: dateKey,
-        roomChargeAmount: 0,
-        exPaxAmount: 0,
-        postCharges: [],
-        allowances: [],
-        advances: [],
-        foodCharges: [],
-        cgstAmount: 0,
-        sgstAmount: 0,
-        roomNumbers: new Set([roomNum]),
-      })
-    }
-    
-    const item = dateMap.get(dateKey)!
-    
-    // Use backend calculated values directly - NO MANUAL CALCULATIONS
-    const type = charge.transaction_type
-    
-    if (!charge.isPostCharge) {
-      // Room charges - use backend values
-      item.roomChargeAmount += charge.room_tariff_per_day || 0
-      item.exPaxAmount += charge.ex_pax_total || 0
-      item.cgstAmount += charge.cgst_amount || 0
-      item.sgstAmount += charge.sgst_amount || 0
-    } else if (type === 'FOOD') {
-      const amount = Math.abs(charge.total_amount || 0)
-      item.foodCharges.push({
-        description: charge.description || 'Food',
-        amount,
-        id: charge.id,
-      })
-    } else if (type === 'ADVANCE ADDITION') {
-      const amount = Math.abs(charge.total_amount || 0)
-      item.advances.push({
-        description: charge.description || 'Advance',
-        amount,
-        id: charge.id,
-      })
-    } else if (type === 'ALLOWANCE') {
-      const amount = Math.abs(charge.total_amount || 0)
-      item.allowances.push({
-        description: charge.description || 'Allowance',
-        amount,
-        id: charge.id,
-      })
-    } else if (type === 'CHARGE' || type === 'POST CHARGE' || type === 'POST_CHARGE') {
-      const amount = Math.abs(charge.total_amount || 0)
-      item.postCharges.push({
-        description: charge.description || 'Post Charge',
-        amount,
-        id: charge.id,
-      })
-    }
-  })
+  }, [displayRows, billData])
 
-  // Build rows
-  const rows: TableRowWithIndex[] = []
-  let index = 1
-  
-  const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
-    if (a === 'COMMON') return 1
-    if (b === 'COMMON') return -1
-    const numA = parseInt(a)
-    const numB = parseInt(b)
-    if (!isNaN(numA) && !isNaN(numB)) {
-      return numA - numB
-    }
-    return a.localeCompare(b)
-  })
-  
-  for (const room of sortedRooms) {
-    const dateMap = roomGroups.get(room)!
-    const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
-      const dateA = a.split('/').reverse().join('-')
-      const dateB = b.split('/').reverse().join('-')
-      return new Date(dateA).getTime() - new Date(dateB).getTime()
+  // ========== GENERATE TABLE ROWS ==========
+  const tableRows = useMemo(() => {
+    if (!displayRows.length) return []
+
+    const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
+    
+    displayRows.forEach((charge) => {
+      const roomNum = charge.room_number || 'COMMON'
+      const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
+      
+      if (!roomGroups.has(roomNum)) {
+        roomGroups.set(roomNum, new Map())
+      }
+      
+      const dateMap = roomGroups.get(roomNum)!
+      if (!dateMap.has(dateKey)) {
+        dateMap.set(dateKey, {
+          date: dateKey,
+          roomChargeAmount: 0,
+          exPaxAmount: 0,
+          postCharges: [],
+          allowances: [],
+          advances: [],
+          foodCharges: [],
+          cgstAmount: 0,
+          sgstAmount: 0,
+          roomNumbers: new Set([roomNum]),
+        })
+      }
+      
+      const item = dateMap.get(dateKey)!
+      const type = charge.transaction_type
+      
+      if (!charge.isPostCharge) {
+        item.roomChargeAmount += charge.room_tariff_per_day || 0
+        item.exPaxAmount += charge.ex_pax_total || 0
+        item.cgstAmount += charge.cgst_amount || 0
+        item.sgstAmount += charge.sgst_amount || 0
+      } else if (type === 'FOOD') {
+        const amount = Math.abs(charge.total_amount || 0)
+        item.foodCharges.push({
+          description: charge.description || 'Food',
+          amount,
+          id: charge.id,
+        })
+      } else if (type === 'ADVANCE ADDITION') {
+        const amount = Math.abs(charge.total_amount || 0)
+        item.advances.push({
+          description: charge.description || 'Advance',
+          amount,
+          id: charge.id,
+        })
+      } else if (type === 'ALLOWANCE') {
+        const amount = Math.abs(charge.total_amount || 0)
+        item.allowances.push({
+          description: charge.description || 'Allowance',
+          amount,
+          id: charge.id,
+        })
+      } else if (type === 'CHARGE' || type === 'POST CHARGE' || type === 'POST_CHARGE') {
+        const amount = Math.abs(charge.total_amount || 0)
+        item.postCharges.push({
+          description: charge.description || 'Post Charge',
+          amount,
+          id: charge.id,
+        })
+      }
+    })
+
+    const rows: TableRowWithIndex[] = []
+    let index = 1
+    
+    const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
+      if (a === 'COMMON') return 1
+      if (b === 'COMMON') return -1
+      const numA = parseInt(a)
+      const numB = parseInt(b)
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return numA - numB
+      }
+      return a.localeCompare(b)
     })
     
-    // FIX: Show room number for ALL rows in this room group
-    let isFirstRow = true
-    for (const date of sortedDates) {
-      const item = dateMap.get(date)!
-      
-      const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
-      const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
-      const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
-      const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
-      
-      // Total calculation using backend values
-      const total = item.roomChargeAmount + item.exPaxAmount + foodTotal + postTotal - allowanceTotal - advanceTotal
-      
-      rows.push({
-        id: `row-${room}-${date}`,
-        displayIndex: index++,
-        roomNumber: room, // FIX: Show room number for EVERY row
-        date: date,
-        roomTariff: item.roomChargeAmount,
-        exPax: item.exPaxAmount,
-        cgst: item.cgstAmount,
-        sgst: item.sgstAmount,
-        food: foodTotal,
-        total: total,
-        advanceTotal: advanceTotal,
-        postTotal: postTotal,
-        allowanceTotal: allowanceTotal,
-        postAllowNet: postTotal - allowanceTotal - advanceTotal,
-        postCharges: item.postCharges,
-        allowances: item.allowances,
-        advances: item.advances,
-        foodCharges: item.foodCharges,
-        sacCode: '996311',
-        isFirstRow: isFirstRow,
+    for (const room of sortedRooms) {
+      const dateMap = roomGroups.get(room)!
+      const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
+        const dateA = a.split('/').reverse().join('-')
+        const dateB = b.split('/').reverse().join('-')
+        return new Date(dateA).getTime() - new Date(dateB).getTime()
       })
-      isFirstRow = false
+      
+      let isFirstRow = true
+      for (const date of sortedDates) {
+        const item = dateMap.get(date)!
+        
+        const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
+        const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
+        const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
+        const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
+        
+        const total = item.roomChargeAmount + item.exPaxAmount + foodTotal + postTotal - allowanceTotal - advanceTotal
+        
+        rows.push({
+          id: `row-${room}-${date}`,
+          displayIndex: index++,
+          roomNumber: room,
+          date: date,
+          roomTariff: item.roomChargeAmount,
+          exPax: item.exPaxAmount,
+          cgst: item.cgstAmount,
+          sgst: item.sgstAmount,
+          food: foodTotal,
+          total: total,
+          advanceTotal: advanceTotal,
+          postTotal: postTotal,
+          allowanceTotal: allowanceTotal,
+          postAllowNet: postTotal - allowanceTotal - advanceTotal,
+          postCharges: item.postCharges,
+          allowances: item.allowances,
+          advances: item.advances,
+          foodCharges: item.foodCharges,
+          sacCode: '996311',
+          isFirstRow: isFirstRow,
+        })
+        isFirstRow = false
+      }
     }
-  }
 
-  console.log(`✅ Generated ${rows.length} table rows`)
-  return rows
-}, [displayRows])
+    return rows
+  }, [displayRows])
 
-  // ========== CALCULATE TOTALS - USING BACKEND VALUES ==========
+  // ========== CALCULATE TOTALS ==========
   const totals = useMemo(() => {
     const firstRow = billData[0] || {}
-    const footerSummary = billData[0] || {}
-    console.log('✅ Footer summary:', footerSummary)
     
-    // Use backend calculated values from footer summary
     return {
       totalRoomTariffAmount: roundToTwo(
         tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
@@ -726,38 +612,38 @@ const tableRows = useMemo(() => {
         tableRows.reduce((sum, row) => sum + row.exPax, 0)
       ),
       totalCgstAmount: roundToTwo(
-        firstRow.cgst_amt || // Use backend CGST
+        firstRow.cgst_amt ||
         tableRows.reduce((sum, row) => sum + row.cgst, 0)
       ),
       totalSgstAmount: roundToTwo(
-        firstRow.sgst_amt || // Use backend SGST
+        firstRow.sgst_amt ||
         tableRows.reduce((sum, row) => sum + row.sgst, 0)
       ),
       totalFoodAmount: roundToTwo(
-        firstRow.food_total || // Use backend food total
+        firstRow.food_total ||
         tableRows.reduce((sum, row) => sum + row.food, 0)
       ),
       totalAdvanceAmount: roundToTwo(
-        firstRow.advance_amt || // Use backend advance amount
+        firstRow.advance_amt ||
         firstRow.advance_amount_total ||
         tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
       ),
       totalPostAmount: roundToTwo(
-        firstRow.post_changes_amt || // Use backend post charges
+        firstRow.post_changes_amt ||
         firstRow.post_charges_total ||
         tableRows.reduce((sum, row) => sum + row.postTotal, 0)
       ),
       totalAllowanceAmount: roundToTwo(
-        firstRow.allowances_amt || // Use backend allowances
+        firstRow.allowances_amt ||
         firstRow.allowance_total ||
         tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
       ),
       totalAmount: roundToTwo(
-        firstRow.total_amount || // Use backend total amount
+        firstRow.total_amount ||
         tableRows.reduce((sum, row) => sum + row.total, 0)
       ),
       netTotal: roundToTwo(
-        firstRow.net_payable || // Use backend net payable
+        firstRow.net_payable ||
         firstRow.bill_amount ||
         0
       ),
@@ -778,7 +664,6 @@ const tableRows = useMemo(() => {
   const generatedBillNo = propBillNumber ||
     billData[0]?.ldg_bill_no ||
     `INV/${new Date().getFullYear()}/${String(summary?.checkin_id || '0').padStart(4, '0')}`
-  // const bookingId = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
   const paymentMode = summary?.payment_method || 'Credit Card'
 
   const headerBg = printSettings?.table_header_bg_color || '#1a2744'
@@ -802,88 +687,110 @@ const tableRows = useMemo(() => {
   const getBillStyles = useCallback(() => {
     const fontSize = getFontSize()
     return `
-    .bill-wrap * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     .bill-wrap {
       font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
       font-size: ${fontSize};
       color: #1a1a1a;
       line-height: 1.3;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
+    
     .bill-wrap .text-left { text-align: left; }
     .bill-wrap .text-center { text-align: center; }
     .bill-wrap .text-right { text-align: right; }
-    .bill-wrap .mt-1 { margin-top: 5px; }
-    .bill-wrap .mt-2 { margin-top: 10px; }
-    .bill-wrap .mt-3 { margin-top: 15px; }
-    .bill-wrap .mb-1 { margin-bottom: 5px; }
-    .bill-wrap .mb-2 { margin-bottom: 10px; }
-    .bill-wrap .mb-3 { margin-bottom: 15px; }
+    .bill-wrap .mt-1 { margin-top: 4px; }
+    .bill-wrap .mt-2 { margin-top: 8px; }
+    .bill-wrap .mt-3 { margin-top: 12px; }
+    .bill-wrap .mb-1 { margin-bottom: 4px; }
+    .bill-wrap .mb-2 { margin-bottom: 8px; }
+    .bill-wrap .mb-3 { margin-bottom: 12px; }
+    
     .bill-wrap .bill-divider {
       border: none;
       border-top: 1px solid #d0d0d0;
-      margin: 10px 0;
+      margin: 6px 0;
     }
+    
     .bill-wrap .bill-info-box {
       border: 1px solid #c8c8c8;
       border-radius: 3px;
       overflow: hidden;
-      margin-bottom: 12px;
+      margin-bottom: 6px;
+      height: 100%;
     }
+    
     .bill-wrap .bill-info-box-header {
       background: ${headerBg};
       color: ${headerText};
       text-align: center;
       font-weight: 700;
-      font-size: 7.5pt;
+      font-size: 7pt;
       letter-spacing: 0.5px;
-      padding: 4px 8px;
+      padding: 3px 8px;
     }
+    
     .bill-wrap .bill-info-box-body {
-      padding: 8px 10px;
+      padding: 5px 10px;
     }
+    
     .bill-wrap .bill-detail-table {
       width: 100%;
       border-collapse: collapse;
     }
+    
     .bill-wrap .bill-detail-table td {
-      padding: 2px 4px;
-      font-size: 7.5pt;
+      padding: 1px 4px;
+      font-size: 7pt;
       vertical-align: top;
     }
+    
     .bill-wrap .bdt-label {
       font-weight: 600;
       color: #333;
       white-space: nowrap;
-      width: 90px;
+      width: 80px;
     }
+    
     .bill-wrap .bdt-colon {
-      padding: 2px 4px;
+      padding: 1px 4px;
       color: #555;
       width: 10px;
     }
+    
     .bill-wrap .bdt-value {
       color: #222;
     }
+    
     .bill-wrap .two-column-layout {
       display: flex;
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 10px;
+      margin-bottom: 6px;
       align-items: stretch;
+      flex: 1;
     }
+    
     .bill-wrap .two-column-layout > div {
       flex: 1;
       min-width: 0;
       display: flex;
       flex-direction: column;
     }
+    
     .bill-wrap .two-column-layout > div > .bill-info-box {
       flex: 1;
       display: flex;
       flex-direction: column;
     }
+    
     .bill-wrap .two-column-layout > div > .bill-info-box > .bill-info-box-body {
       flex: 1;
     }
+    
     .bill-wrap .bill-charges-table {
       width: 100%;
       border-collapse: collapse;
@@ -891,117 +798,142 @@ const tableRows = useMemo(() => {
       font-size: ${fontSize};
       table-layout: auto;
     }
+    
     .bill-wrap .bill-charges-table thead tr th {
       background: ${headerBg};
       color: ${headerText};
       font-weight: 700;
-      padding: 5px 6px;
+      padding: 3px 5px;
       border: 1px solid ${headerBg};
       white-space: nowrap;
-      font-size: 7pt;
+      font-size: 6.5pt;
     }
+    
     .bill-wrap .bill-charges-table tbody tr td {
       border: 1px solid #d4d4d4;
-      padding: 5px 6px;
+      padding: 3px 5px;
       vertical-align: middle;
-      font-size: 7.5pt;
+      font-size: 7pt;
     }
+    
     .bill-wrap .bill-charges-table tbody tr:nth-child(even) td {
       background: #f9f9f9;
     }
+    
     .bill-wrap .bill-charges-table tfoot tr td {
       border: 1px solid #d4d4d4;
-      padding: 5px 6px;
-      font-size: 7.5pt;
+      padding: 3px 5px;
+      font-size: 7pt;
     }
+    
     .bill-wrap .bct-right { text-align: right; }
     .bill-wrap .bct-center { text-align: center; }
     .bill-wrap .bct-left { text-align: left; }
-    .bill-wrap .col-srno { width: 30px; }
-    .bill-wrap .col-room { width: 45px; }
-    .bill-wrap .col-date { width: 70px; }
-    .bill-wrap .col-amount { width: 65px; }
-    .bill-wrap .col-small { width: 55px; }
-    .bill-wrap .bill-amount-words {
-      border: 1px solid #d4d4d4;
-      border-top: none;
-      padding: 6px 10px;
-      font-size: 7.5pt;
-      margin-bottom: 12px;
-      margin-top: 0;
+    
+    .bill-wrap .col-srno { width: 25px; }
+    .bill-wrap .col-room { width: 40px; }
+    .bill-wrap .col-date { width: 60px; }
+    .bill-wrap .col-amount { width: 50px; }
+    .bill-wrap .col-small { width: 45px; }
+    
+    .bill-wrap .bill-hotel-logo {
+      max-height: 45px;
+      max-width: 120px;
+      object-fit: contain;
     }
-    .bill-wrap .baw-label { font-style: italic; color: #555; margin-right: 3px; }
-    .bill-wrap .baw-text { font-style: italic; color: #222; }
+    
     .bill-wrap .bill-thankyou {
       font-family: 'Dancing Script', 'Brush Script MT', cursive;
-      font-size: 20pt;
+      font-size: 16pt;
       color: ${headerBg};
       line-height: 1.2;
     }
-    .bill-wrap .bill-hotel-logo {
-      max-height: 55px;
-      max-width: 140px;
-      object-fit: contain;
-    }
-    .bill-wrap .bill-info-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      padding: 6px 10px;
-      background: #f8f9fa;
-      border: 1px solid #dde2ea;
-      border-radius: 3px;
-      margin-bottom: 12px;
-      font-size: 7.5pt;
-    }
-    .bill-wrap .bill-info-row > div {
-      flex: 1;
-      min-width: 140px;
-    }
-    .bill-wrap .bill-info-row strong {
-      color: #333;
-    }
-    .bill-wrap .status-paid {
-      color: #1a7a3a;
-      font-weight: 700;
-    }
-    .bill-horizontal-summary {
-      width: 260px;
-      margin-left: auto;
-      border-collapse: collapse;
-      margin-top: 10px;
-      margin-bottom: 10px;
-      font-size: ${fontSize};
-    }
-    .bill-horizontal-summary td {
-      padding: 5px 10px;
-      border: 1px solid #d4d4d4;
-    }
-    .bill-horizontal-summary .summary-label {
-      font-weight: 600;
-      background: #f5f5f5;
-      text-align: left;
-      width: 130px;
-    }
-    .bill-horizontal-summary .summary-amount {
-      text-align: right;
-      font-weight: 600;
-      width: 130px;
-    }
-    .bill-horizontal-summary .discount-row .summary-label,
-    .bill-horizontal-summary .discount-row .summary-amount {
-      color: #cc0000;
-    }
-    .bill-horizontal-summary .total-row td {
-      background: #e8f0fe;
+    
+    .bill-hotel-name {
+      font-size: 13pt;
       font-weight: 800;
+      color: ${headerBg};
+      letter-spacing: 0.5px;
     }
-    .bill-horizontal-summary .grand-total-row td {
+    
+    .bill-hotel-address {
+      font-size: 7pt;
+      color: #666;
+    }
+    
+    .bill-hotel-contact {
+      font-size: 6.5pt;
+      color: #666;
+    }
+    
+    .bill-title {
+      font-size: 10pt;
+      font-weight: 800;
+      color: ${headerBg};
+      letter-spacing: 1px;
+      margin: 4px 0;
+    }
+    
+    .bill-layout-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      height: 100%;
+      padding: 3px 0;
+    }
+    
+    .bill-layout-top {
+      flex: 1 0 auto;
+    }
+    
+    .bill-layout-bottom {
+      flex-shrink: 0;
+      margin-top: auto;
+      padding-top: 6px;
+      border-top: 2px solid ${headerBg};
+    }
+    
+    .bill-spacer {
+      flex: 1 1 auto;
+      min-height: 15px;
+    }
+    
+    .bill-total-paid-box {
       background: ${headerBg};
       color: ${headerText};
-      font-weight: 800;
+      padding: 4px 16px;
+      border-radius: 3px;
+      font-weight: 700;
       font-size: 9pt;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 4px;
+      margin-bottom: 4px;
+      margin-left: auto;
+      width: fit-content;
+    }
+    
+    @media print {
+      .bill-layout-container {
+        min-height: 100vh !important;
+        height: 100% !important;
+      }
+      .bill-total-paid-box {
+        margin-top: 4px;
+        margin-bottom: 4px;
+      }
+      .bill-wrap {
+        min-height: 100vh !important;
+      }
+      .bill-spacer {
+        min-height: 20px !important;
+      }
+      .bill-layout-bottom {
+        margin-top: auto !important;
+        padding-top: 6px !important;
+        border-top: 2px solid ${headerBg} !important;
+      }
     }
   `
   }, [headerBg, headerText, getFontSize])
@@ -1026,28 +958,38 @@ const tableRows = useMemo(() => {
               padding: 0; 
             }
             @page {
-              size: ${printSettings?.default_print_size === 'A4' ? 'A4' : 'auto'};
+              size: A4;
               margin: ${effectiveTopMargin}mm ${printSettings?.margin_right_mm || 8}mm ${printSettings?.margin_bottom_mm || 8}mm ${printSettings?.margin_left_mm || 8}mm;
             }
-            body { 
-              background: white; 
-              margin: 0; 
+            html, body {
+              height: 100%;
+              margin: 0;
               padding: 0;
+              background: white;
             }
             .print-container {
               width: 100%;
+              height: 100%;
               margin: 0;
               padding: 0;
+              display: flex;
+              flex-direction: column;
             }
             ${getBillStyles()}
             @media print {
-              body {
+              html, body {
+                height: 100%;
                 margin: 0;
                 padding: 0;
               }
               .print-container {
+                height: 100%;
                 margin: 0;
                 padding: 0;
+              }
+              .bill-wrap {
+                height: 100%;
+                min-height: 100vh !important;
               }
             }
           </style>
@@ -1067,13 +1009,17 @@ const tableRows = useMemo(() => {
     }, 300)
   }, [summary, printSettings, showTopHeaderSection, getBillStyles])
 
-  // ========== HANDLE DOWNLOAD PDF ==========
+  // ========== HANDLE DOWNLOAD PDF - FIXED VERSION ==========
   const handleDownloadPDF = useCallback(async () => {
-    const billEl = printRef.current
-    if (!billEl) return
+    if (!printRef.current) {
+      alert('Bill content not ready. Please wait.')
+      return
+    }
 
     setPdfLoading(true)
+    
     try {
+      // Load required libraries
       const loadScript = (src: string): Promise<void> =>
         new Promise((resolve, reject) => {
           if (document.querySelector(`script[src="${src}"]`)) {
@@ -1095,69 +1041,83 @@ const tableRows = useMemo(() => {
       const html2canvas = (window as any).html2canvas
       const { jsPDF } = (window as any).jspdf
 
-      const printSize = printSettings?.default_print_size || 'A4'
-      const isA4 = printSize !== 'thermal_80mm' && printSize !== 'thermal_58mm'
-      const pdfW = isA4 ? 210 : printSize === 'thermal_80mm' ? 80 : 58
+      if (!html2canvas || !jsPDF) {
+        throw new Error('Required libraries failed to load')
+      }
 
-      const canvas = await html2canvas(billEl, {
+      // Get the bill element
+      const billElement = printRef.current
+      
+      // Force a reflow to ensure all content is rendered
+      billElement.style.display = 'block'
+      billElement.style.visibility = 'visible'
+      billElement.style.opacity = '1'
+      
+      // Small delay to ensure rendering is complete
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Capture the full bill content
+      const canvas = await html2canvas(billElement, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
+        width: billElement.scrollWidth || 794,
+        height: billElement.scrollHeight || 1123,
+        windowHeight: billElement.scrollHeight || 1123,
+        onclone: (document: any) => {
+          // Ensure all content is visible in the cloned document
+          const clonedElement = document.querySelector('.bill-wrap')
+          if (clonedElement) {
+            clonedElement.style.display = 'block'
+            clonedElement.style.visibility = 'visible'
+            clonedElement.style.opacity = '1'
+            clonedElement.style.minHeight = '100vh'
+          }
+        }
       })
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.92)
-      const imgW =
-        pdfW - (printSettings?.margin_left_mm || 8) - (printSettings?.margin_right_mm || 8)
-      const imgH = (canvas.height / canvas.width) * imgW
-
-      const topMargin = !showTopHeaderSection
-        ? printSettings?.top_margin_when_header_hidden || 20
-        : printSettings?.margin_top_mm || 8
-      const bottomMargin = printSettings?.margin_bottom_mm || 8
-      const leftMargin = printSettings?.margin_left_mm || 8
-
-      const pageContentH = (isA4 ? 297 : 999) - topMargin - bottomMargin
-      const orientation = imgH <= pageContentH ? 'portrait' : 'portrait'
+      const imgData = canvas.toDataURL('image/jpeg', 0.95)
+      const imgWidth = 190 // A4 width in mm with margins
+      const imgHeight = (canvas.height / canvas.width) * imgWidth
 
       const pdf = new jsPDF({
-        orientation: orientation,
+        orientation: 'portrait',
         unit: 'mm',
-        format: isA4 ? 'a4' : [pdfW, imgH + topMargin + bottomMargin],
+        format: 'a4',
       })
 
-      if (imgH <= pageContentH) {
-        pdf.addImage(imgData, 'JPEG', leftMargin, topMargin, imgW, imgH)
-      } else {
-        const pageHeightPx = (pageContentH / imgW) * canvas.width
-        let yOffset = 0
-        let page = 0
-        while (yOffset < canvas.height) {
-          if (page > 0) pdf.addPage()
-          const sliceH = Math.min(pageHeightPx, canvas.height - yOffset)
-          const sliceCanvas = document.createElement('canvas')
-          sliceCanvas.width = canvas.width
-          sliceCanvas.height = sliceH
-          const ctx = sliceCanvas.getContext('2d')!
-          ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
-          const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92)
-          const sliceImgH = (sliceH / canvas.width) * imgW
-          const yPos = page === 0 ? topMargin : bottomMargin
-          pdf.addImage(sliceData, 'JPEG', leftMargin, yPos, imgW, sliceImgH)
-          yOffset += sliceH
-          page++
+      // Handle multi-page if content is taller than A4
+      const pageHeight = 277 // A4 height in mm with margins
+      let remainingHeight = imgHeight
+      let yPosition = 10
+      let pageNum = 0
+
+      while (remainingHeight > 0) {
+        if (pageNum > 0) {
+          pdf.addPage()
+          yPosition = 10
         }
+        
+        const currentHeight = Math.min(remainingHeight, pageHeight - 20)
+        pdf.addImage(imgData, 'JPEG', 10, yPosition, imgWidth, currentHeight)
+        
+        remainingHeight -= currentHeight
+        pageNum++
       }
 
+      // Save the PDF
       const guestName = summary?.guest_name?.replace(/[^a-zA-Z0-9 ]/g, '') || 'Guest'
-      pdf.save(`Bill_${guestName}_${generatedBillNo.replace(/\//g, '-')}.pdf`)
-    } catch (err) {
-      console.error('PDF generation failed:', err)
-      alert('PDF generation failed. Please try Print instead.')
+      const safeBillNo = generatedBillNo.replace(/\//g, '-').replace(/[^a-zA-Z0-9-]/g, '')
+      pdf.save(`Bill_${guestName}_${safeBillNo}.pdf`)
+      
+    } catch (error) {
+      console.error('PDF generation failed:', error)
+      alert('PDF generation failed. Please use Print instead.\n\nError: ' + (error as Error).message)
     } finally {
       setPdfLoading(false)
     }
-  }, [printSettings, showTopHeaderSection, summary, generatedBillNo])
+  }, [summary, generatedBillNo])
 
   // ========== RENDER FUNCTIONS ==========
 
@@ -1188,47 +1148,34 @@ const tableRows = useMemo(() => {
       <div className="mb-2">
         {logoEl && <div className={`text-${logoPosition} mb-1`}>{logoEl}</div>}
         {printSettings?.show_hotel_name === 1 && (
-          <div
-            className={`text-${nameAlign}`}
-            style={{ fontSize: '16pt', fontWeight: 800, color: headerBg }}
-          >
+          <div className={`text-${nameAlign} bill-hotel-name`}>
             {firstRow?.hotel_name || 'GRAND VIEW HOTEL'}
           </div>
         )}
         {printSettings?.show_hotel_address === 1 && (
-          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '7.5pt', color: '#666' }}>
+          <div className={`text-${addressAlign} mt-1 bill-hotel-address`}>
             📍 {firstRow?.hotel_address || '123, Park Avenue, City Center, New Delhi - 110001'}
           </div>
         )}
         {printSettings?.show_hotel_contact === 1 && (
-          <div className={`text-${contactAlign} mt-1`} style={{ fontSize: '7pt', color: '#666' }}>
-            📞 {firstRow?.hotel_phone || '+91 11 4567 8900'} &nbsp;|&nbsp; ✉ {firstRow?.hotel_email || 'info@grandviewhotel.com'} &nbsp;|&nbsp; 🌐 {firstRow?.website || 'www.grandviewhotel.com'}
+          <div className={`text-${contactAlign} mt-1 bill-hotel-contact`}>
+            📞 {firstRow?.hotel_phone || '+91 11 4567 8900'} &nbsp;|&nbsp; ✉ {firstRow?.hotel_email || 'info@grandviewhotel.com'}
           </div>
         )}
         <hr className="bill-divider" />
       </div>
     )
-  }, [billData, printSettings, showTopHeaderSection, topMarginWhenHeaderHidden, headerBg])
+  }, [billData, printSettings, showTopHeaderSection, topMarginWhenHeaderHidden])
 
   const renderBillTitle = useCallback(() => {
     if (printSettings?.show_bill_title !== 1) return null
     const titleAlign = printSettings?.bill_title_position || 'center'
     return (
       <div className={`text-${titleAlign} mb-2`}>
-        <h3
-          style={{
-            margin: 0,
-            fontWeight: 800,
-            letterSpacing: '0.5px',
-            color: headerBg,
-            fontSize: '12pt',
-          }}
-        >
-          HOTEL BOOKING BILL
-        </h3>
+        <h3 className="bill-title">HOTEL BOOKING BILL</h3>
       </div>
     )
-  }, [printSettings, headerBg])
+  }, [printSettings])
 
   const renderGuestDetails = useCallback(() => {
     if (printSettings?.show_guest_details !== 1) return null
@@ -1299,54 +1246,54 @@ const tableRows = useMemo(() => {
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: '1fr 1fr', 
-            gap: '4px 20px',
-            fontSize: '7.5pt'
+            gap: '2px 15px',
+            fontSize: '7pt'
           }}>
             <div>
-              <div style={{ display: 'flex', padding: '3px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '85px' }}>Invoice No.</span>
+              <div style={{ display: 'flex', padding: '2px 0' }}>
+                <span style={{ fontWeight: 600, minWidth: '75px' }}>Invoice No.</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span style={{ fontWeight: 700, color: headerBg }}>{invoiceNo}</span>
               </div>
-              <div style={{ display: 'flex', padding: '3px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '85px' }}>Booking ID</span>
+              <div style={{ display: 'flex', padding: '2px 0' }}>
+                <span style={{ fontWeight: 600, minWidth: '75px' }}>Booking ID</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span style={{ fontWeight: 600 }}>{bookingIdDisplay}</span>
               </div>
-              <div style={{ display: 'flex', padding: '3px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '85px' }}>Arrival Date</span>
+              <div style={{ display: 'flex', padding: '2px 0' }}>
+                <span style={{ fontWeight: 600, minWidth: '75px' }}>Arrival Date</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{checkinDateDisplay}</span>
               </div>
-              <div style={{ display: 'flex', padding: '3px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '85px' }}>Check-out Date</span>
+              <div style={{ display: 'flex', padding: '2px 0' }}>
+                <span style={{ fontWeight: 600, minWidth: '75px' }}>Check-out Date</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{checkoutDateDisplay}</span>
               </div>
-              <div style={{ display: 'flex', padding: '3px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '85px' }}>Room No(s).</span>
+              <div style={{ display: 'flex', padding: '2px 0' }}>
+                <span style={{ fontWeight: 600, minWidth: '75px' }}>Room No(s).</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{roomNumbersDisplay}</span>
               </div>
             </div>
             <div>
-              <div style={{ display: 'flex', padding: '3px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '85px' }}>Invoice Date</span>
+              <div style={{ display: 'flex', padding: '2px 0' }}>
+                <span style={{ fontWeight: 600, minWidth: '75px' }}>Invoice Date</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{invoiceDateDisplay}</span>
               </div>
-              <div style={{ display: 'flex', padding: '3px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '85px' }}>Room Type</span>
+              <div style={{ display: 'flex', padding: '2px 0' }}>
+                <span style={{ fontWeight: 600, minWidth: '75px' }}>Room Type</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span style={{ fontWeight: 600 }}>{roomTypeDisplay}</span>
               </div>
-              <div style={{ display: 'flex', padding: '3px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '85px' }}>No. of Nights</span>
+              <div style={{ display: 'flex', padding: '2px 0' }}>
+                <span style={{ fontWeight: 600, minWidth: '75px' }}>No. of Nights</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{nightsDisplay}</span>
               </div>
-              <div style={{ display: 'flex', padding: '3px 0' }}>
-                <span style={{ fontWeight: 600, minWidth: '85px' }}>Guests / Plan</span>
+              <div style={{ display: 'flex', padding: '2px 0' }}>
+                <span style={{ fontWeight: 600, minWidth: '75px' }}>Guests / Plan</span>
                 <span style={{ margin: '0 4px' }}>:</span>
                 <span>{guestsDisplay} {tariffPlanDisplay ? `(${tariffPlanDisplay})` : ''}</span>
               </div>
@@ -1357,183 +1304,149 @@ const tableRows = useMemo(() => {
     )
   }, [printSettings, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, summary, headerBg, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate])
 
- const renderChargesTable = useCallback(() => {
-  console.log('🎯 Rendering Charges Table, tableRows:', tableRows.length)
-  
-  if (tableRows.length === 0) {
+  const renderChargesTable = useCallback(() => {
+    if (tableRows.length === 0) {
+      return (
+        <div style={{ padding: '15px', textAlign: 'center', color: '#999' }}>
+          No charges to display.
+        </div>
+      )
+    }
+
+    const showRowNums = printSettings?.show_row_numbers === 1
+
+    const headers: React.ReactElement[] = []
+    if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
+    headers.push(<th key="room" className="col-room bct-left">ROOM</th>)
+    headers.push(<th key="date" className="col-date bct-left">DATE</th>)
+    headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
+    headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
+    headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
+    headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
+    headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
+    headers.push(<th key="post" className="col-amount bct-right">POST</th>)
+    headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>)
+    headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>)
+    headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
+
+    const bodyRows: React.ReactElement[] = []
+    let runningIndex = 1
+
+    tableRows.forEach((row) => {
+      const mainIndex = runningIndex++
+      
+      const cells: React.ReactElement[] = []
+      if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>)
+      cells.push(
+        <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'normal' }}>
+          {row.roomNumber || 'N/A'}
+        </td>
+      )
+      cells.push(<td key="date" className="bct-left">{row.date || 'N/A'}</td>)
+      cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff || 0)}</td>)
+      cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax || 0)}</td>)
+      cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst || 0)}</td>)
+      cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst || 0)}</td>)
+      cells.push(<td key="food" className="bct-right">{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
+      cells.push(<td key="post" className="bct-right">{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>)
+      cells.push(<td key="advance" className="bct-right" style={{ color: row.advanceTotal > 0 ? '#c0392b' : 'inherit' }}>
+        {row.advanceTotal > 0 ? formatAmtDisplay(row.advanceTotal) : '-'}
+      </td>)
+      cells.push(<td key="allowance" className="bct-right" style={{ color: row.allowanceTotal > 0 ? '#c0392b' : 'inherit' }}>
+        {row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}
+      </td>)
+      cells.push(
+        <td key="total" className="bct-right" style={{ fontWeight: 600 }}>
+          {formatAmtDisplay(row.total || 0)}
+        </td>
+      )
+      bodyRows.push(<tr key={row.id}>{cells}</tr>)
+    })
+
+    const totalTariff = tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
+    const totalExPax = tableRows.reduce((sum, row) => sum + row.exPax, 0)
+    const totalCgst = tableRows.reduce((sum, row) => sum + row.cgst, 0)
+    const totalSgst = tableRows.reduce((sum, row) => sum + row.sgst, 0)
+    const totalFood = tableRows.reduce((sum, row) => sum + row.food, 0)
+    const totalPost = tableRows.reduce((sum, row) => sum + row.postTotal, 0)
+    const totalAdvance = tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
+    const totalAllowance = tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
+    const totalAmount = tableRows.reduce((sum, row) => sum + row.total, 0)
+
+    const footerCells: React.ReactElement[] = []
+    const labelColSpan = showRowNums ? 3 : 2
+    
+    footerCells.push(
+      <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ fontWeight: 700 }}>
+        Total
+      </td>
+    )
+    footerCells.push(
+      <td key="total_tariff" className="bct-right" style={{ fontWeight: 700 }}>
+        {formatAmtDisplay(totalTariff)}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_expax" className="bct-right" style={{ fontWeight: 700 }}>
+        {formatAmtDisplay(totalExPax)}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_cgst" className="bct-right" style={{ fontWeight: 700 }}>
+        {formatAmtDisplay(totalCgst)}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_sgst" className="bct-right" style={{ fontWeight: 700 }}>
+        {formatAmtDisplay(totalSgst)}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_food" className="bct-right" style={{ fontWeight: 700 }}>
+        {totalFood > 0 ? formatAmtDisplay(totalFood) : '-'}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_post" className="bct-right" style={{ fontWeight: 700 }}>
+        {totalPost > 0 ? formatAmtDisplay(totalPost) : '-'}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_advance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
+        {totalAdvance > 0 ? formatAmtDisplay(totalAdvance) : '-'}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_allowance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
+        {totalAllowance > 0 ? formatAmtDisplay(totalAllowance) : '-'}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_amount" className="bct-right" style={{ fontWeight: 800, background: '#f0f0f0' }}>
+        {formatAmtDisplay(totalAmount)}
+      </td>
+    )
+
     return (
-      <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-        No charges to display.
+      <div style={{ overflowX: 'auto' }}>
+        <table className="bill-charges-table">
+          <thead>
+            <tr>{headers}</tr>
+          </thead>
+          <tbody>{bodyRows}</tbody>
+          <tfoot>
+            <tr key="footer1">{footerCells}</tr>
+          </tfoot>
+        </table>
       </div>
     )
-  }
-
-  const showRowNums = printSettings?.show_row_numbers === 1
-
-  const headers: React.ReactElement[] = []
-  if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
-  headers.push(<th key="room" className="col-room bct-left">ROOM</th>)
-  headers.push(<th key="date" className="col-date bct-left">DATE</th>)
-  headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
-  headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
-  headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
-  headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
-  headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
-  headers.push(<th key="post" className="col-amount bct-right">POST</th>)
-  headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>)
-  headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>)
-  headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
-
-  const totalCols = headers.length
-
-  const bodyRows: React.ReactElement[] = []
-  let runningIndex = 1
-
-  tableRows.forEach((row) => {
-    const mainIndex = runningIndex++
-    
-    const cells: React.ReactElement[] = []
-    if (showRowNums) cells.push(<td key="srno" className="bct-center">{mainIndex}</td>)
-    cells.push(
-      <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'normal' }}>
-        {row.roomNumber || 'N/A'}
-      </td>
-    )
-    cells.push(<td key="date" className="bct-left">{row.date || 'N/A'}</td>)
-    cells.push(<td key="tariff" className="bct-right">{formatAmtDisplay(row.roomTariff || 0)}</td>)
-    cells.push(<td key="expax" className="bct-right">{formatAmtDisplay(row.exPax || 0)}</td>)
-    cells.push(<td key="cgst" className="bct-right">{formatAmtDisplay(row.cgst || 0)}</td>)
-    cells.push(<td key="sgst" className="bct-right">{formatAmtDisplay(row.sgst || 0)}</td>)
-    cells.push(<td key="food" className="bct-right">{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
-    cells.push(<td key="post" className="bct-right">{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>)
-    cells.push(<td key="advance" className="bct-right" style={{ color: row.advanceTotal > 0 ? '#c0392b' : 'inherit' }}>
-      {row.advanceTotal > 0 ? formatAmtDisplay(row.advanceTotal) : '-'}
-    </td>)
-    cells.push(<td key="allowance" className="bct-right" style={{ color: row.allowanceTotal > 0 ? '#c0392b' : 'inherit' }}>
-      {row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}
-    </td>)
-    cells.push(
-      <td key="total" className="bct-right" style={{ fontWeight: 600 }}>
-        {formatAmtDisplay(row.total || 0)}
-      </td>
-    )
-    bodyRows.push(<tr key={row.id}>{cells}</tr>)
-  })
-
-  // FIX: Calculate totals from tableRows instead of using totals object
-  const totalTariff = tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
-  const totalExPax = tableRows.reduce((sum, row) => sum + row.exPax, 0)
-  const totalCgst = tableRows.reduce((sum, row) => sum + row.cgst, 0)
-  const totalSgst = tableRows.reduce((sum, row) => sum + row.sgst, 0)
-  const totalFood = tableRows.reduce((sum, row) => sum + row.food, 0)
-  const totalPost = tableRows.reduce((sum, row) => sum + row.postTotal, 0)
-  const totalAdvance = tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
-  const totalAllowance = tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
-  const totalAmount = tableRows.reduce((sum, row) => sum + row.total, 0)
-
-  // Footer row - using calculated values
-  const footerCells: React.ReactElement[] = []
-  const labelColSpan = showRowNums ? 3 : 2
-  
-  footerCells.push(
-    <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ fontWeight: 700 }}>
-      Total
-    </td>
-  )
-  footerCells.push(
-    <td key="total_tariff" className="bct-right" style={{ fontWeight: 700 }}>
-      {formatAmtDisplay(totalTariff)}
-    </td>
-  )
-  footerCells.push(
-    <td key="total_expax" className="bct-right" style={{ fontWeight: 700 }}>
-      {formatAmtDisplay(totalExPax)}
-    </td>
-  )
-  footerCells.push(
-    <td key="total_cgst" className="bct-right" style={{ fontWeight: 700 }}>
-      {formatAmtDisplay(totalCgst)}
-    </td>
-  )
-  footerCells.push(
-    <td key="total_sgst" className="bct-right" style={{ fontWeight: 700 }}>
-      {formatAmtDisplay(totalSgst)}
-    </td>
-  )
-  footerCells.push(
-    <td key="total_food" className="bct-right" style={{ fontWeight: 700 }}>
-      {totalFood > 0 ? formatAmtDisplay(totalFood) : '-'}
-    </td>
-  )
-  footerCells.push(
-    <td key="total_post" className="bct-right" style={{ fontWeight: 700 }}>
-      {totalPost > 0 ? formatAmtDisplay(totalPost) : '-'}
-    </td>
-  )
-  footerCells.push(
-    <td key="total_advance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
-      {totalAdvance > 0 ? formatAmtDisplay(totalAdvance) : '-'}
-    </td>
-  )
-  footerCells.push(
-    <td key="total_allowance" className="bct-right" style={{ fontWeight: 700, color: '#c0392b' }}>
-      {totalAllowance > 0 ? formatAmtDisplay(totalAllowance) : '-'}
-    </td>
-  )
-  footerCells.push(
-    <td key="total_amount" className="bct-right" style={{ fontWeight: 800, background: '#f0f0f0' }}>
-      {formatAmtDisplay(totalAmount)}
-    </td>
-  )
-
-  // Grand Total row - using calculated totalAmount
-  const summaryRows: React.ReactElement[] = []
-
-  summaryRows.push(
-    <tr key="summary_grand_total" style={{ background: headerBg, color: headerText }}>
-      <td colSpan={totalCols - 1} className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
-        TOTAL PAID (INR)
-      </td>
-      <td className="bct-right" style={{ fontWeight: 800, fontSize: '9pt' }}>
-        ₹{formatAmt(totalAmount)}
-      </td>
-    </tr>
-  )
-
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="bill-charges-table">
-        <thead>
-          <tr>{headers}</tr>
-        </thead>
-        <tbody>{bodyRows}</tbody>
-        <tfoot>
-          <tr key="footer1">{footerCells}</tr>
-          {summaryRows}
-        </tfoot>
-      </table>
-    </div>
-  )
-}, [printSettings, tableRows, headerBg, headerText])
-
-  const renderHorizontalSummary = useCallback(() => null, [])
-
-  // const renderAmountInWords = useCallback(() => {
-  //   return (
-  //     <div className="bill-amount-words">
-  //       <span className="baw-label">Amount in Words: </span>
-  //       <span className="baw-text">{numberToWords(totals.netTotal)}</span>
-  //     </div>
-  //   )
-  // }, [totals.netTotal])
+  }, [printSettings, tableRows])
 
   const renderPaymentDetails = useCallback(() => {
     const paymentTxnId = propPaymentTransactionId || 
       billData[0]?.reference_number || 
       `TXN${Date.now().toString().slice(-12)}`
 
-       console.log(paymentTxnId);
-    
     const paymentDateDisplay = propPaymentDate || invoiceDate
     const paymentBankDisplay = propPaymentBank || paymentMode
 
@@ -1548,7 +1461,6 @@ const tableRows = useMemo(() => {
                 <td className="bdt-colon">:</td>
                 <td className="bdt-value">INR {formatAmt(totals.netTotal)}</td>
               </tr>
-              
               <tr>
                 <td className="bdt-label">Payment Date</td>
                 <td className="bdt-colon">:</td>
@@ -1566,127 +1478,127 @@ const tableRows = useMemo(() => {
     )
   }, [propPaymentTransactionId, billData, propPaymentDate, invoiceDate, propPaymentBank, paymentMode, totals.netTotal])
 
- const renderSummaryBox = useCallback(() => {
-  const firstRow = billData[0] || {}
-  const discountAmount = toNumber(firstRow.discount_amount || 0)
-  const grossTotal = toNumber(firstRow.total_amount || 0)
-  const netTotal = roundToTwo(grossTotal - discountAmount) // Total after discount
-  const advanceTotal = toNumber(firstRow.advance_amt || 0)
-  const finalAmount = roundToTwo(netTotal - advanceTotal) // Net - Advance
+  const renderSummaryBox = useCallback(() => {
+    const firstRow = billData[0] || {}
+    const discountAmount = toNumber(firstRow.discount_amount || 0)
+    const grossTotal = toNumber(firstRow.total_amount || 0)
+    const netTotal = roundToTwo(grossTotal - discountAmount)
+    const advanceTotal = toNumber(firstRow.advance_amt || 0)
+    const finalAmount = roundToTwo(netTotal - advanceTotal)
 
-  return (
-    <div className="bill-info-box">
-      <div className="bill-info-box-header">BILL SUMMARY</div>
-      <div className="bill-info-box-body">
-        <table style={{ 
-          width: '100%', 
-          borderCollapse: 'collapse',
-          fontSize: '8pt'
-        }}>
-          <tbody>
-            <tr>
-              <td style={{ 
-                padding: '4px 8px', 
-                fontWeight: 700,
-                borderBottom: '1px solid #e0e0e0'
-              }}>
-                TOTAL AMOUNT
-              </td>
-              <td style={{ 
-                padding: '4px 8px', 
-                textAlign: 'right',
-                fontWeight: 700,
-                borderBottom: '1px solid #e0e0e0'
-              }}>
-                ₹{formatAmt(grossTotal)}
-              </td>
-            </tr>
-            {discountAmount > 0 && (
+    return (
+      <div className="bill-info-box">
+        <div className="bill-info-box-header">BILL SUMMARY</div>
+        <div className="bill-info-box-body">
+          <table style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse',
+            fontSize: '8pt'
+          }}>
+            <tbody>
               <tr>
                 <td style={{ 
-                  padding: '4px 8px', 
-                  color: '#c0392b',
+                  padding: '2px 6px', 
                   fontWeight: 600,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  Discount
+                  TOTAL AMOUNT
                 </td>
                 <td style={{ 
-                  padding: '4px 8px', 
+                  padding: '2px 6px', 
                   textAlign: 'right',
-                  color: '#c0392b',
                   fontWeight: 600,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  -₹{formatAmt(discountAmount)}
+                  ₹{formatAmt(grossTotal)}
                 </td>
               </tr>
-            )}
-            <tr>
-              <td style={{ 
-                padding: '4px 8px', 
-                fontWeight: 700,
-                borderBottom: '1px solid #e0e0e0'
-              }}>
-                NET TOTAL
-              </td>
-              <td style={{ 
-                padding: '4px 8px', 
-                textAlign: 'right',
-                fontWeight: 700,
-                borderBottom: '1px solid #e0e0e0'
-              }}>
-                ₹{formatAmt(netTotal)}
-              </td>
-            </tr>
-            {advanceTotal > 0 && (
+              {discountAmount > 0 && (
+                <tr>
+                  <td style={{ 
+                    padding: '2px 6px', 
+                    color: '#c0392b',
+                    fontWeight: 600,
+                    borderBottom: '1px solid #e0e0e0'
+                  }}>
+                    Discount
+                  </td>
+                  <td style={{ 
+                    padding: '2px 6px', 
+                    textAlign: 'right',
+                    color: '#c0392b',
+                    fontWeight: 600,
+                    borderBottom: '1px solid #e0e0e0'
+                  }}>
+                    -₹{formatAmt(discountAmount)}
+                  </td>
+                </tr>
+              )}
               <tr>
                 <td style={{ 
-                  padding: '4px 8px', 
-                  color: '#e67e22',
-                  fontWeight: 600,
+                  padding: '2px 6px', 
+                  fontWeight: 700,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  Advance
+                  NET TOTAL
                 </td>
                 <td style={{ 
-                  padding: '4px 8px', 
+                  padding: '2px 6px', 
                   textAlign: 'right',
-                  color: '#e67e22',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   borderBottom: '1px solid #e0e0e0'
                 }}>
-                  -₹{formatAmt(advanceTotal)}
+                  ₹{formatAmt(netTotal)}
                 </td>
               </tr>
-            )}
-            {advanceTotal > 0 && (
-              <tr>
-                <td style={{ 
-                  padding: '4px 8px', 
-                  fontWeight: 800,
-                  fontSize: '9pt',
-                  color: headerBg
-                }}>
-                  BALANCE AMOUNT
-                </td>
-                <td style={{ 
-                  padding: '4px 8px', 
-                  textAlign: 'right',
-                  fontWeight: 800,
-                  fontSize: '9pt',
-                  color: headerBg
-                }}>
-                  ₹{formatAmt(finalAmount)}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              {advanceTotal > 0 && (
+                <tr>
+                  <td style={{ 
+                    padding: '2px 6px', 
+                    color: '#e67e22',
+                    fontWeight: 600,
+                    borderBottom: '1px solid #e0e0e0'
+                  }}>
+                    Advance
+                  </td>
+                  <td style={{ 
+                    padding: '2px 6px', 
+                    textAlign: 'right',
+                    color: '#e67e22',
+                    fontWeight: 600,
+                    borderBottom: '1px solid #e0e0e0'
+                  }}>
+                    -₹{formatAmt(advanceTotal)}
+                  </td>
+                </tr>
+              )}
+              {advanceTotal > 0 && (
+                <tr>
+                  <td style={{ 
+                    padding: '2px 6px', 
+                    fontWeight: 800,
+                    fontSize: '9pt',
+                    color: headerBg
+                  }}>
+                    BALANCE AMOUNT
+                  </td>
+                  <td style={{ 
+                    padding: '2px 6px', 
+                    textAlign: 'right',
+                    fontWeight: 800,
+                    fontSize: '9pt',
+                    color: headerBg
+                  }}>
+                    ₹{formatAmt(finalAmount)}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  )
-}, [billData, headerBg])
+    )
+  }, [billData, headerBg])
 
   const renderFooter = useCallback(() => {
     const firstRow = billData[0]
@@ -1716,76 +1628,48 @@ const tableRows = useMemo(() => {
     )
   }, [billData, printSettings])
 
+  // ========== MAIN LAYOUT ==========
   const renderLayout = useCallback(() => {
-    const guestPosition = printSettings?.guest_details_position || 'left'
-    const bookingPosition = printSettings?.booking_details_position || 'right'
-
-    const topBottom =
-      guestPosition === 'top' ||
-      bookingPosition === 'top' ||
-      guestPosition === 'bottom' ||
-      bookingPosition === 'bottom'
-
     return (
-      <div>
-        {renderHotelHeader()}
-        {renderBillTitle()}
-        {printSettings?.custom_header_text && (
-          <div className="text-center mb-2" style={{ fontSize: '8pt', color: '#666' }}>
-            {printSettings.custom_header_text}
-          </div>
-        )}
+      <div className="bill-layout-container">
+        {/* Top Section */}
+        <div className="bill-layout-top">
+          {renderHotelHeader()}
+          {renderBillTitle()}
 
-        {topBottom ? (
-          <>
-            {guestPosition === 'top' &&
-              printSettings?.show_guest_details === 1 &&
-              renderGuestDetails()}
-            {bookingPosition === 'top' &&
-              printSettings?.show_booking_details === 1 &&
-              renderBookingDetails()}
-            {renderChargesTable()}
-            {renderHorizontalSummary()}
-            <div className="two-column-layout">
-              {renderPaymentDetails()}
-              {renderSummaryBox()}
+          {/* Guest & Booking Details side-by-side */}
+          <div className="two-column-layout">
+            <div>
+              {printSettings?.show_guest_details === 1 && renderGuestDetails()}
             </div>
-            {guestPosition === 'bottom' &&
-              printSettings?.show_guest_details === 1 &&
-              renderGuestDetails()}
-            {bookingPosition === 'bottom' &&
-              printSettings?.show_booking_details === 1 &&
-              renderBookingDetails()}
-          </>
-        ) : (
-          <>
-            <div className="two-column-layout">
-              <div>
-                {guestPosition === 'left' &&
-                  printSettings?.show_guest_details === 1 &&
-                  renderGuestDetails()}
-                {bookingPosition === 'left' &&
-                  printSettings?.show_booking_details === 1 &&
-                  renderBookingDetails()}
-              </div>
-              <div>
-                {guestPosition === 'right' &&
-                  printSettings?.show_guest_details === 1 &&
-                  renderGuestDetails()}
-                {bookingPosition === 'right' &&
-                  printSettings?.show_booking_details === 1 &&
-                  renderBookingDetails()}
-              </div>
+            <div>
+              {printSettings?.show_booking_details === 1 && renderBookingDetails()}
             </div>
-            {renderChargesTable()}
-            {renderHorizontalSummary()}
-            <div className="two-column-layout">
-              {renderPaymentDetails()}
-              {renderSummaryBox()}
+          </div>
+
+          {/* Charges Table */}
+          {renderChargesTable()}
+
+          {/* TOTAL PAID (INR) - right aligned */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px', marginBottom: '4px' }}>
+            <div className="bill-total-paid-box">
+              <span>Total Paid (INR)</span>
+              <span>₹{formatAmt(totals.totalAmount)}</span>
             </div>
-          </>
-        )}
-        {renderFooter()}
+          </div>
+          
+          {/* Spacer to push footer down */}
+          <div className="bill-spacer" />
+        </div>
+
+        {/* Bottom Section - Payment Details & Bill Summary side-by-side */}
+        <div className="bill-layout-bottom">
+          <div className="two-column-layout">
+            {renderPaymentDetails()}
+            {renderSummaryBox()}
+          </div>
+          {renderFooter()}
+        </div>
       </div>
     )
   }, [
@@ -1795,10 +1679,10 @@ const tableRows = useMemo(() => {
     renderGuestDetails,
     renderBookingDetails,
     renderChargesTable,
-    renderHorizontalSummary,
     renderPaymentDetails,
     renderSummaryBox,
     renderFooter,
+    totals.totalAmount,
   ])
 
   // ========== LOADING/ERROR STATES ==========
@@ -1912,24 +1796,46 @@ const tableRows = useMemo(() => {
           width: 100%;
           max-width: 950px;
           margin: 0 auto;
-          padding: 15px 25px 25px 25px;
+          padding: 12px 20px 15px 20px;
           box-shadow: 0 6px 24px rgba(0,0,0,0.13);
           border-radius: 3px;
+          min-height: 100vh;
+          height: auto;
+          display: flex;
+          flex-direction: column;
         }
+
         @media print {
           .bill-a4-paper { 
             box-shadow: none; 
             width: 100% !important; 
-            padding: 0 !important;
+            padding: 5px 12px !important;
             margin: 0 !important;
+            min-height: 100vh !important;
+            height: auto !important;
+            display: flex !important;
+            flex-direction: column !important;
           }
           .no-print { display: none !important; }
           body { 
             margin: 0 !important; 
             padding: 0 !important;
             background: white !important;
+            min-height: 100vh !important;
+          }
+          .bill-modal-action-bar { display: none !important; }
+          .bill-spacer {
+            min-height: 20px !important;
+          }
+          .bill-layout-container {
+            min-height: 100vh !important;
+          }
+          .bill-layout-bottom {
+            margin-top: auto !important;
+            padding-top: 6px !important;
           }
         }
+
         ${getBillStyles()}
       `}</style>
 
