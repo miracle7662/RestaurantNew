@@ -101,6 +101,8 @@ interface TableRowWithIndex {
   date: string
   roomTariff: number
   exPax: number
+  child: number      // ADD THIS
+  driver: number     // ADD THIS
   cgst: number
   sgst: number
   food: number
@@ -121,6 +123,8 @@ interface GroupedChargeItem {
   date: string
   roomChargeAmount: number
   exPaxAmount: number
+  childAmount: number      // ADD THIS
+  driverAmount: number     // ADD THIS
   postCharges: Array<{ description: string; amount: number; id: string }>
   allowances: Array<{ description: string; amount: number; id: string }>
   advances: Array<{ description: string; amount: number; id: string }>
@@ -294,118 +298,135 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   }, [show, checkoutId, ldgBillNo, selectedRooms])
 
   // ========== BUILD DISPLAY ROWS ==========
-  const displayRows = useMemo(() => {
-    if (!billData.length) {
-      return []
-    }
+ const displayRows = useMemo(() => {
+  if (!billData.length) {
+    return []
+  }
 
-    const rows: DisplayDetailRow[] = []
-    const cumulativeMap = new Map<string, number>()
+  const rows: DisplayDetailRow[] = []
+  const cumulativeMap = new Map<string, number>()
 
-    billData.forEach((row, index) => {
-      const roomNumber = row.room_number || `Room-${row.room_id}`
-      const transactionType = (row.transaction_type || '').toUpperCase().trim()
-      
-      const roomTariff = toNumber(row.tariff || row.room_tariff_per_day || 0)
-      const exPaxTotal = toNumber(row.ex_pax || row.ex_pax_total || 0)
-      const cgstAmount = toNumber(row.cgst || row.cgst_amount || 0)
-      const sgstAmount = toNumber(row.sgst || row.sgst_amount || 0)
-      const igstAmount = toNumber(row.igst || row.igst_amount || 0)
-      const cessAmount = toNumber(row.cess || row.cess_amount || 0)
-      const serviceChargeAmount = toNumber(row.service_charge_amount || 0)
-      const totalAmount = toNumber(row.total_amount || 0)
-      const discountAmount = toNumber(row.discount_amount || 0)
-      const discountPercent = toNumber(row.discount_percent || 0)
-      
-      const isPostCharge = ['CHARGE', 'POST CHARGE', 'POST_CHARGE', 'ALLOWANCE', 'ADVANCE ADDITION', 'FOOD']
-        .includes(transactionType)
+  billData.forEach((row, index) => {
+    const roomNumber = row.room_number || `Room-${row.room_id}`
+    const transactionType = (row.transaction_type || '').toUpperCase().trim()
+    
+    const roomTariff = toNumber(row.tariff || row.room_tariff_per_day || 0)
+    const exPaxTotal = toNumber(row.ex_pax || row.ex_pax_total || 0)
+    const cgstAmount = toNumber(row.cgst || row.cgst_amount || 0)
+    const sgstAmount = toNumber(row.sgst || row.sgst_amount || 0)
+    const igstAmount = toNumber(row.igst || row.igst_amount || 0)
+    const cessAmount = toNumber(row.cess || row.cess_amount || 0)
+    const serviceChargeAmount = toNumber(row.service_charge_amount || 0)
+    const totalAmount = toNumber(row.total_amount || 0)
+    const discountAmount = toNumber(row.discount_amount || 0)
+    const discountPercent = toNumber(row.discount_percent || 0)
+    
+    // Get child and driver values directly from the stored procedure response
+    const childPaid = toNumber(row.child_paid_amount || 0)
+    const childUnpaid = toNumber(row.child_unpaid || 0)
+    // IMPORTANT: Use row.child_total if available, otherwise calculate from paid + unpaid
+    const childTotal = toNumber(row.child_total ||  0)
+    
+    // Get driver values
+    const driverCount = toNumber(row.driver || 0)
+    // IMPORTANT: Use row.driver_total if available from procedure
+    const driverTotal = toNumber(row.driver_charge || 0)
+    
+    // Child count - if available from procedure
+    const childCount = toNumber(row.child_count || 0)
+    
+    const isPostCharge = ['CHARGE', 'POST CHARGE', 'POST_CHARGE', 'ALLOWANCE', 'ADVANCE ADDITION', 'FOOD']
+      .includes(transactionType)
 
-      const prevCumulative = cumulativeMap.get(roomNumber) || 0
-      const cumulativeTotal = roundToTwo(prevCumulative + totalAmount)
-      cumulativeMap.set(roomNumber, cumulativeTotal)
+    const prevCumulative = cumulativeMap.get(roomNumber) || 0
+    const cumulativeTotal = roundToTwo(prevCumulative + totalAmount)
+    cumulativeMap.set(roomNumber, cumulativeTotal)
 
-      const billDateFormatted = row.bill_date 
-        ? formatBillDate(row.bill_date) 
-        : formatBillDate(row.checkin_datetime)
+    const billDateFormatted = row.bill_date 
+      ? formatBillDate(row.bill_date) 
+      : formatBillDate(row.checkin_datetime)
 
-      rows.push({
-        id: `row-${row.room_number || index}-${index}`,
-        guest_room_charges_id: row.charge_id || row.folio_id || index,
-        checkin_id: row.checkin_id || 0,
-        guest_id: row.guest_id || 0,
-        detail_id: row.detail_id,
-        room_id: row.room_id || 0,
-        room_number: roomNumber,
-        room_category_name: row.room_category_name || '-',
-        converted_category_name: row.converted_category_name || '-',
-        bill_date: row.bill_date || row.checkin_datetime,
-        bill_date_formatted: billDateFormatted,
-        checkin_datetime: row.checkin_datetime,
-        checkout_datetime: row.checkout_datetime,
-        no_of_days: row.no_of_days || 1,
-        day_number: 1,
-        original_day_number: 1,
-        room_tariff_per_day: roomTariff,
-        total_room_tariff: roomTariff,
-        ex_pax_count: 0,
-        ex_pax_price: 0,
-        ex_pax_tax: 0,
-        ex_pax_tax_percent: 0,
-        ex_pax_total: exPaxTotal,
-        child_count: 0,
-        child_unpaid: row.child_unpaid || 0,
-        child_price: 0,
-        child_tax: 0,
-        child_tax_percent: 0,
-        child_total: 0,
-        driver_count: 0,
-        driver_price: 0,
-        driver_tax: 0,
-        driver_tax_percent: 0,
-        driver_total: 0,
-        cgst_amount: cgstAmount,
-        sgst_amount: sgstAmount,
-        igst_amount: igstAmount,
-        cess_amount: cessAmount,
-        service_charge_amount: serviceChargeAmount,
-        adults: row.adults || 0,
-        pax: row.pax || 0,
-        ex_pax: row.ex_pax || 0,
-        child_paid: 0,
-        driver: row.driver || 0,
-        discount_percent: discountPercent,
-        discount_amount: discountAmount,
-        tax_percent: row.tax || 18,
-        tax_amount: cgstAmount + sgstAmount + igstAmount,
-        total_amount: totalAmount,
-        is_extension: transactionType === 'ROOM EXTENSION',
-        isPostCharge: isPostCharge,
-        parent_detail_id: null,
-        selected: true,
-        cumulative_total: cumulativeTotal,
-        guest_name: row.guest_name,
-        payment_method: row.payment_method || row.payment_mode || 'Cash',
-        created_at: row.bill_date || row.checkin_datetime,
-        has_checkout_datetime: !!row.checkout_datetime,
-        checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
-        description: row.description || 'Room Charges',
-        particulars: row.particulars || '',
-        department_name: transactionType,
-        cgst_percent: row.cgst_percent,
-        sgst_percent: row.sgst_percent,
-        igst_percent: row.igst_percent,
-        cess_percent: row.cess_percent,
-        service_charge_percent: row.service_charge,
-        room_group: roomNumber,
-        transaction_type: transactionType,
-        post_charges: toNumber(row.post_charges || 0),
-        allowance: toNumber(row.allowance || 0),
-        food: toNumber(row.food || 0)
-      })
+    rows.push({
+      id: `row-${row.room_number || index}-${index}`,
+      guest_room_charges_id: row.charge_id || row.folio_id || index,
+      checkin_id: row.checkin_id || 0,
+      guest_id: row.guest_id || 0,
+      detail_id: row.detail_id,
+      room_id: row.room_id || 0,
+      room_number: roomNumber,
+      room_category_name: row.room_category_name || '-',
+      converted_category_name: row.converted_category_name || '-',
+      bill_date: row.bill_date || row.checkin_datetime,
+      bill_date_formatted: billDateFormatted,
+      checkin_datetime: row.checkin_datetime,
+      checkout_datetime: row.checkout_datetime,
+      no_of_days: row.no_of_days || 1,
+      day_number: 1,
+      original_day_number: 1,
+      room_tariff_per_day: roomTariff,
+      total_room_tariff: roomTariff,
+      ex_pax_count: 0,
+      ex_pax_price: 0,
+      ex_pax_tax: 0,
+      ex_pax_tax_percent: 0,
+      ex_pax_total: exPaxTotal,
+      // CHILD FIELDS - Using values from stored procedure
+      child_count: childCount,
+      child_unpaid: childUnpaid,
+      child_paid: childPaid,
+      child_total: childTotal, // This should now have the total amount
+      child_price: toNumber(row.child_price || 0),
+      child_tax: toNumber(row.child_tax || 0),
+      child_tax_percent: toNumber(row.child_tax_percent || 0),
+      // DRIVER FIELDS - Using values from stored procedure
+      driver_count: driverCount,
+      driver_total: driverTotal, // This should now have the total amount
+      driver_price: toNumber(row.driver_price || 0),
+      driver_tax: toNumber(row.driver_tax || 0),
+      driver_tax_percent: toNumber(row.driver_tax_percent || 0),
+      // GST FIELDS
+      cgst_amount: cgstAmount,
+      sgst_amount: sgstAmount,
+      igst_amount: igstAmount,
+      cess_amount: cessAmount,
+      service_charge_amount: serviceChargeAmount,
+      adults: row.adults || 0,
+      pax: row.pax || 0,
+      ex_pax: row.ex_pax || 0,
+      driver: driverCount,
+      discount_percent: discountPercent,
+      discount_amount: discountAmount,
+      tax_percent: row.tax || 18,
+      tax_amount: cgstAmount + sgstAmount + igstAmount,
+      total_amount: totalAmount,
+      is_extension: transactionType === 'ROOM EXTENSION',
+      isPostCharge: isPostCharge,
+      parent_detail_id: null,
+      selected: true,
+      cumulative_total: cumulativeTotal,
+      guest_name: row.guest_name,
+      payment_method: row.payment_method || row.payment_mode || 'Cash',
+      created_at: row.bill_date || row.checkin_datetime,
+      has_checkout_datetime: !!row.checkout_datetime,
+      checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
+      description: row.description || 'Room Charges',
+      particulars: row.particulars || '',
+      department_name: transactionType,
+      cgst_percent: row.cgst_percent,
+      sgst_percent: row.sgst_percent,
+      igst_percent: row.igst_percent,
+      cess_percent: row.cess_percent,
+      service_charge_percent: row.service_charge,
+      room_group: roomNumber,
+      transaction_type: transactionType,
+      post_charges: toNumber(row.post_charges || 0),
+      allowance: toNumber(row.allowance || 0),
+      food: toNumber(row.food || 0)
     })
+  })
 
-    return rows
-  }, [billData])
+  return rows
+}, [billData])
 // ========== BUILD SUMMARY ==========
 const summary = useMemo(() => {
   if (!billData.length || !displayRows.length) return null
@@ -419,8 +440,7 @@ const summary = useMemo(() => {
   // Aggregate totals across ALL rows
   const totalRoomTariff = displayRows.reduce((sum, row) => sum + (row.room_tariff_per_day || 0), 0)
   const totalExPax = displayRows.reduce((sum, row) => sum + (row.ex_pax_total || 0), 0)
-  const totalAmount = displayRows.reduce((sum, row) => sum + (row.total_amount || 0), 0)
-  const totalDiscount = displayRows.reduce((sum, row) => sum + (row.discount_amount || 0), 0)
+   const totalAmount = displayRows.reduce((sum, row) =>  (row.total_amount || 0), 0)
   const totalCgst = displayRows.reduce((sum, row) => sum + (row.cgst_amount || 0), 0)
   const totalSgst = displayRows.reduce((sum, row) => sum + (row.sgst_amount || 0), 0)
   
@@ -514,187 +534,207 @@ const summary = useMemo(() => {
 }, [displayRows, billData])
 
   // ========== GENERATE TABLE ROWS ==========
-  const tableRows = useMemo(() => {
-    if (!displayRows.length) return []
+const tableRows = useMemo(() => {
+  if (!displayRows.length) return []
 
-    const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
+  const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
+  
+  displayRows.forEach((charge) => {
+    const roomNum = charge.room_number || 'COMMON'
+    const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
     
-    displayRows.forEach((charge) => {
-      const roomNum = charge.room_number || 'COMMON'
-      const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
-      
-      if (!roomGroups.has(roomNum)) {
-        roomGroups.set(roomNum, new Map())
-      }
-      
-      const dateMap = roomGroups.get(roomNum)!
-      if (!dateMap.has(dateKey)) {
-        dateMap.set(dateKey, {
-          date: dateKey,
-          roomChargeAmount: 0,
-          exPaxAmount: 0,
-          postCharges: [],
-          allowances: [],
-          advances: [],
-          foodCharges: [],
-          cgstAmount: 0,
-          sgstAmount: 0,
-          roomNumbers: new Set([roomNum]),
-        })
-      }
-      
-      const item = dateMap.get(dateKey)!
-      
-      const type = charge.transaction_type
-      
-      if (!charge.isPostCharge) {
-        item.roomChargeAmount += charge.room_tariff_per_day || 0
-        item.exPaxAmount += charge.ex_pax_total || 0
-        item.cgstAmount += charge.cgst_amount || 0
-        item.sgstAmount += charge.sgst_amount || 0
-      } else if (type === 'FOOD') {
-        const amount = Math.abs(charge.total_amount || 0)
-        item.foodCharges.push({
-          description: charge.description || 'Food',
-          amount,
-          id: charge.id,
-        })
-      } else if (type === 'ADVANCE ADDITION') {
-        const amount = Math.abs(charge.total_amount || 0)
-        item.advances.push({
-          description: charge.description || 'Advance',
-          amount,
-          id: charge.id,
-        })
-      } else if (type === 'ALLOWANCE') {
-        const amount = Math.abs(charge.total_amount || 0)
-        item.allowances.push({
-          description: charge.description || 'Allowance',
-          amount,
-          id: charge.id,
-        })
-      } else if (type === 'CHARGE' || type === 'POST CHARGE' || type === 'POST_CHARGE') {
-        const amount = Math.abs(charge.total_amount || 0)
-        item.postCharges.push({
-          description: charge.description || 'Post Charge',
-          amount,
-          id: charge.id,
-        })
-      }
-    })
-
-    const rows: TableRowWithIndex[] = []
-    let index = 1
+    if (!roomGroups.has(roomNum)) {
+      roomGroups.set(roomNum, new Map())
+    }
     
-    const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
-      if (a === 'COMMON') return 1
-      if (b === 'COMMON') return -1
-      const numA = parseInt(a)
-      const numB = parseInt(b)
-      if (!isNaN(numA) && !isNaN(numB)) {
-        return numA - numB
-      }
-      return a.localeCompare(b)
-    })
-    
-    for (const room of sortedRooms) {
-      const dateMap = roomGroups.get(room)!
-      const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
-        const dateA = a.split('/').reverse().join('-')
-        const dateB = b.split('/').reverse().join('-')
-        return new Date(dateA).getTime() - new Date(dateB).getTime()
+    const dateMap = roomGroups.get(roomNum)!
+    if (!dateMap.has(dateKey)) {
+      dateMap.set(dateKey, {
+        date: dateKey,
+        roomChargeAmount: 0,
+        exPaxAmount: 0,
+        childAmount: 0,        // ADD THIS
+        driverAmount: 0,       // ADD THIS
+        postCharges: [],
+        allowances: [],
+        advances: [],
+        foodCharges: [],
+        cgstAmount: 0,
+        sgstAmount: 0,
+        roomNumbers: new Set([roomNum]),
       })
-      
-      let isFirstRow = true
-      for (const date of sortedDates) {
-        const item = dateMap.get(date)!
-        
-        const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
-        const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
-        const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
-        const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
-        
-        const total = item.roomChargeAmount + item.exPaxAmount + foodTotal + postTotal - allowanceTotal - advanceTotal
-        
-        rows.push({
-          id: `row-${room}-${date}`,
-          displayIndex: index++,
-          roomNumber: room,
-          date: date,
-          roomTariff: item.roomChargeAmount,
-          exPax: item.exPaxAmount,
-          cgst: item.cgstAmount,
-          sgst: item.sgstAmount,
-          food: foodTotal,
-          total: total,
-          advanceTotal: advanceTotal,
-          postTotal: postTotal,
-          allowanceTotal: allowanceTotal,
-          postAllowNet: postTotal - allowanceTotal - advanceTotal,
-          postCharges: item.postCharges,
-          allowances: item.allowances,
-          advances: item.advances,
-          foodCharges: item.foodCharges,
-          sacCode: '996311',
-          isFirstRow: isFirstRow,
-        })
-        isFirstRow = false
-      }
     }
-
-    return rows
-  }, [displayRows])
-
-  // ========== CALCULATE TOTALS ==========
-  const totals = useMemo(() => {
-    const firstRow = billData[0] || {}
     
-    return {
-      totalRoomTariffAmount: roundToTwo(
-        tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
-      ),
-      totalExPaxAmount: roundToTwo(
-        tableRows.reduce((sum, row) => sum + row.exPax, 0)
-      ),
-      totalCgstAmount: roundToTwo(
-        firstRow.cgst_amt ||
-        tableRows.reduce((sum, row) => sum + row.cgst, 0)
-      ),
-      totalSgstAmount: roundToTwo(
-        firstRow.sgst_amt ||
-        tableRows.reduce((sum, row) => sum + row.sgst, 0)
-      ),
-      totalFoodAmount: roundToTwo(
-        firstRow.food_total ||
-        tableRows.reduce((sum, row) => sum + row.food, 0)
-      ),
-      totalAdvanceAmount: roundToTwo(
-        firstRow.advance_amt ||
-        firstRow.advance_amount_total ||
-        tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
-      ),
-      totalPostAmount: roundToTwo(
-        firstRow.post_changes_amt ||
-        firstRow.post_charges_total ||
-        tableRows.reduce((sum, row) => sum + row.postTotal, 0)
-      ),
-      totalAllowanceAmount: roundToTwo(
-        firstRow.allowances_amt ||
-        firstRow.allowance_total ||
-        tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
-      ),
-      totalAmount: roundToTwo(
-        firstRow.total_amount ||
-        tableRows.reduce((sum, row) => sum + row.total, 0)
-      ),
-      netTotal: roundToTwo(
-        firstRow.net_payable ||
-        firstRow.bill_amount ||
-        0
-      ),
+    const item = dateMap.get(dateKey)!
+    const type = charge.transaction_type
+    
+    if (!charge.isPostCharge) {
+      item.roomChargeAmount += charge.room_tariff_per_day || 0
+      item.exPaxAmount += charge.ex_pax_total || 0
+      // ADD CHILD AND DRIVER AMOUNTS
+      item.childAmount += (charge.child_total || charge.child_paid || 0)
+      item.driverAmount += (charge.driver_total || 0)
+      item.cgstAmount += charge.cgst_amount || 0
+      item.sgstAmount += charge.sgst_amount || 0
+    } else if (type === 'FOOD') {
+      const amount = Math.abs(charge.total_amount || 0)
+      item.foodCharges.push({
+        description: charge.description || 'Food',
+        amount,
+        id: charge.id,
+      })
+    } else if (type === 'ADVANCE ADDITION') {
+      const amount = Math.abs(charge.total_amount || 0)
+      item.advances.push({
+        description: charge.description || 'Advance',
+        amount,
+        id: charge.id,
+      })
+    } else if (type === 'ALLOWANCE') {
+      const amount = Math.abs(charge.total_amount || 0)
+      item.allowances.push({
+        description: charge.description || 'Allowance',
+        amount,
+        id: charge.id,
+      })
+    } else if (type === 'CHARGE' || type === 'POST CHARGE' || type === 'POST_CHARGE') {
+      const amount = Math.abs(charge.total_amount || 0)
+      item.postCharges.push({
+        description: charge.description || 'Post Charge',
+        amount,
+        id: charge.id,
+      })
     }
-  }, [tableRows, billData])
+  })
 
+  const rows: TableRowWithIndex[] = []
+  let index = 1
+  
+  const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
+    if (a === 'COMMON') return 1
+    if (b === 'COMMON') return -1
+    const numA = parseInt(a)
+    const numB = parseInt(b)
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return numA - numB
+    }
+    return a.localeCompare(b)
+  })
+  
+  for (const room of sortedRooms) {
+    const dateMap = roomGroups.get(room)!
+    const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
+      const dateA = a.split('/').reverse().join('-')
+      const dateB = b.split('/').reverse().join('-')
+      return new Date(dateA).getTime() - new Date(dateB).getTime()
+    })
+    
+    let isFirstRow = true
+    for (const date of sortedDates) {
+      const item = dateMap.get(date)!
+      
+      const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
+      const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
+      const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
+      const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
+      
+      // NOW INCLUDE CHILD AND DRIVER AMOUNTS IN TOTAL
+     const total = item.roomChargeAmount + 
+              item.exPaxAmount + 
+              item.childAmount +      
+              item.driverAmount +     
+              item.cgstAmount +       // ADD THIS - Include CGST
+              item.sgstAmount +       // ADD THIS - Include SGST
+              foodTotal + 
+              postTotal - 
+              allowanceTotal - 
+              advanceTotal
+      
+      rows.push({
+        id: `row-${room}-${date}`,
+        displayIndex: index++,
+        roomNumber: room,
+        date: date,
+        roomTariff: item.roomChargeAmount,
+        exPax: item.exPaxAmount,
+        child: item.childAmount,    // ADD THIS
+        driver: item.driverAmount,  // ADD THIS
+        cgst: item.cgstAmount,
+        sgst: item.sgstAmount,
+        food: foodTotal,
+        total: total,
+        advanceTotal: advanceTotal,
+        postTotal: postTotal,
+        allowanceTotal: allowanceTotal,
+        postAllowNet: postTotal - allowanceTotal - advanceTotal,
+        postCharges: item.postCharges,
+        allowances: item.allowances,
+        advances: item.advances,
+        foodCharges: item.foodCharges,
+        sacCode: '996311',
+        isFirstRow: isFirstRow,
+      })
+      isFirstRow = false
+    }
+  }
+
+  return rows
+}, [displayRows])
+  // ========== CALCULATE TOTALS ==========
+const totals = useMemo(() => {
+  const firstRow = billData[0] || {}
+  
+  return {
+    totalRoomTariffAmount: roundToTwo(
+      tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
+    ),
+    totalExPaxAmount: roundToTwo(
+      tableRows.reduce((sum, row) => sum + row.exPax, 0)
+    ),
+    totalChildAmount: roundToTwo(
+      tableRows.reduce((sum, row) => sum + (row.child || 0), 0)
+    ),
+    totalDriverAmount: roundToTwo(
+      tableRows.reduce((sum, row) => sum + (row.driver || 0), 0)
+    ),
+    totalCgstAmount: roundToTwo(
+      firstRow.cgst_amt ||
+      tableRows.reduce((sum, row) => sum + row.cgst, 0)
+    ),
+    totalSgstAmount: roundToTwo(
+      firstRow.sgst_amt ||
+      tableRows.reduce((sum, row) => sum + row.sgst, 0)
+    ),
+    totalFoodAmount: roundToTwo(
+      firstRow.food_total ||
+      tableRows.reduce((sum, row) => sum + row.food, 0)
+    ),
+    totalAdvanceAmount: roundToTwo(
+      firstRow.advance_amt ||
+      firstRow.advance_amount_total ||
+      tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
+    ),
+    totalPostAmount: roundToTwo(
+      firstRow.post_changes_amt ||
+      firstRow.post_charges_total ||
+      tableRows.reduce((sum, row) => sum + row.postTotal, 0)
+    ),
+    totalAllowanceAmount: roundToTwo(
+      firstRow.allowances_amt ||
+      firstRow.allowance_total ||
+      tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
+    ),
+    totalAmount: roundToTwo(
+      firstRow.total_amount ||
+      tableRows.reduce((sum, row) => sum + row.total, 0)
+    ),
+    netTotal: roundToTwo(
+      firstRow.net_payable ||
+      firstRow.bill_amount ||
+      0
+    ),
+  }
+}, [tableRows, billData])
   // ========== DISPLAY VALUES ==========
   const displayCheckedOutRooms = summary?.checked_out_rooms || summary?.room_numbers || []
   const checkedOutRoomsStr = displayCheckedOutRooms.join(', ') || summary?.room_numbers_str || ''
@@ -1362,6 +1402,9 @@ const renderBookingDetails = useCallback(() => {
     </div>
   )
 }, [printSettings, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate, summary, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, headerBg])
+
+
+// ========== RENDER CHARGES TABLE ==========
 const renderChargesTable = useCallback(() => {
   if (tableRows.length === 0) {
     return (
@@ -1373,9 +1416,18 @@ const renderChargesTable = useCallback(() => {
 
   const showRowNums = printSettings?.show_row_numbers === 1
 
-  // Check if POST and ALLOWANCE have any values
+  // Check if POST, ALLOWANCE, CHILD, DRIVER, UNPAID have any values
   const hasPostValues = tableRows.some(row => row.postTotal > 0)
   const hasAllowanceValues = tableRows.some(row => row.allowanceTotal > 0)
+  
+  // Check if CHILD, DRIVER, UNPAID have amount values from stored procedure
+  const hasChildValues = displayRows.some(row =>  (row.child_unpaid || 0) > 0)
+  const hasDriverValues = displayRows.some(row => (row.driver_total || 0) > 0)
+
+  // Calculate aggregated amounts for footer
+  const totalChildAmount = displayRows.reduce((sum, row) => sum + (row.child_total || row.child_paid || 0), 0)
+ 
+  const totalDriverAmount = displayRows.reduce((sum, row) => sum + (row.driver_total || 0), 0)
 
   const headers: React.ReactElement[] = []
   if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
@@ -1383,9 +1435,23 @@ const renderChargesTable = useCallback(() => {
   headers.push(<th key="date" className="col-date bct-left">DATE</th>)
   headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
   headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
+  
+  // Add CHILD column if there are values (shows amount)
+  if (hasChildValues) {
+    headers.push(<th key="child" className="col-amount bct-right">CHILD</th>)
+  }
+  
+  // Add DRIVER column if there are values (shows amount)
+  if (hasDriverValues) {
+    headers.push(<th key="driver" className="col-amount bct-right">DRIVER</th>)
+  }
+  
+ 
+  
   headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
   headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
   headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
+  
   // Only add POST header if there are values
   if (hasPostValues) {
     headers.push(<th key="post" className="col-amount bct-right">POST</th>)
@@ -1396,12 +1462,21 @@ const renderChargesTable = useCallback(() => {
   }
   headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
 
-
   const bodyRows: React.ReactElement[] = []
   let runningIndex = 1
 
   tableRows.forEach((row) => {
     const mainIndex = runningIndex++
+    
+    // Find child and driver data for this room/date combination from displayRows
+    const roomRows = displayRows.filter(r => 
+      r.room_number === row.roomNumber && 
+      r.bill_date_formatted === row.date
+    )
+    
+    // Get AMOUNT values directly from the stored procedure data
+    const childAmount = roomRows.reduce((sum, r) => sum + (r.child_total || r.child_paid || 0), 0)
+    const driverAmount = roomRows.reduce((sum, r) => sum + (r.driver_total || 0), 0)
     
     const cells: React.ReactElement[] = []
     if (showRowNums) cells.push(<td key="srno" className="bct-center" style={{ fontWeight: 'bold' }}>{mainIndex}</td>)
@@ -1413,16 +1488,46 @@ const renderChargesTable = useCallback(() => {
     cells.push(<td key="date" className="bct-left" style={{ fontWeight: 'bold' }}>{row.date || 'N/A'}</td>)
     cells.push(<td key="tariff" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.roomTariff || 0)}</td>)
     cells.push(<td key="expax" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.exPax || 0)}</td>)
+    
+    // Add CHILD column if there are values (show amount)
+    if (hasChildValues) {
+      cells.push(
+        <td key="child" className="bct-right" style={{ fontWeight: 'bold' }}>
+          {childAmount > 0 ? formatAmtDisplay(childAmount) : '-'}
+        </td>
+      )
+    }
+    
+    // Add DRIVER column if there are values (show amount)
+    if (hasDriverValues) {
+      cells.push(
+        <td key="driver" className="bct-right" style={{ fontWeight: 'bold' }}>
+          {driverAmount > 0 ? formatAmtDisplay(driverAmount) : '-'}
+        </td>
+      )
+    }
+    
+    
+    
     cells.push(<td key="cgst" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.cgst || 0)}</td>)
     cells.push(<td key="sgst" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.sgst || 0)}</td>)
     cells.push(<td key="food" className="bct-right" style={{ fontWeight: 'bold' }}>{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
-    // Only add POST column if there are values (silent color for rows)
+    
+    // Only add POST column if there are values
     if (hasPostValues) {
-      cells.push(<td key="post" className="bct-right" style={{ fontWeight: 'bold' }}>{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>)
+      cells.push(
+        <td key="post" className="bct-right" style={{ fontWeight: 'bold' }}>
+          {row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}
+        </td>
+      )
     }
-    // Only add ALLOWANCE column if there are values (silent color for rows)
+    // Only add ALLOWANCE column if there are values
     if (hasAllowanceValues) {
-      cells.push(<td key="allowance" className="bct-right" style={{ fontWeight: 'bold' }}>{row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}</td>)
+      cells.push(
+        <td key="allowance" className="bct-right" style={{ fontWeight: 'bold' }}>
+          {row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}
+        </td>
+      )
     }
     cells.push(
       <td key="total" className="bct-right" style={{ fontWeight: 'bold' }}>
@@ -1444,14 +1549,12 @@ const renderChargesTable = useCallback(() => {
 
   const footerCells: React.ReactElement[] = []
   
-  // Calculate colSpan for the label - FIXED
-  // Count all columns that come BEFORE the value columns (TARIFF, EX.PAX, CGST, SGST, FOOD, POST, ALLOWANCE, TOTAL)
+  // Calculate colSpan for the label
   let labelColSpan = 0;
   if (showRowNums) labelColSpan += 1; // # column
   labelColSpan += 1; // ROOM column
   labelColSpan += 1; // DATE column
-  // POST and ALLOWANCE are value columns, so they should NOT be included in labelColSpan
-  // They will be displayed as separate columns in footer
+  // CHILD, DRIVER, UNPAID are value columns, so they should NOT be included in labelColSpan
 
   footerCells.push(
     <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ 
@@ -1479,6 +1582,34 @@ const renderChargesTable = useCallback(() => {
       {formatAmtDisplay(totalExPax)}
     </td>
   )
+  
+  // Add CHILD footer if there are values (show amount)
+  if (hasChildValues) {
+    footerCells.push(
+      <td key="total_child" className="bct-right" style={{ 
+        fontWeight: 800,
+        background: '#f0f0f0'
+      }}>
+        {totalChildAmount > 0 ? formatAmtDisplay(totalChildAmount) : '-'}
+      </td>
+    )
+  }
+  
+  // Add DRIVER footer if there are values (show amount)
+  if (hasDriverValues) {
+    footerCells.push(
+      <td key="total_driver" className="bct-right" style={{ 
+        fontWeight: 800,
+        background: '#f0f0f0'
+      }}>
+        {totalDriverAmount > 0 ? formatAmtDisplay(totalDriverAmount) : '-'}
+      </td>
+    )
+  }
+  
+  // Add UNPAID footer if there are values (show child_unpaid amount)
+  
+  
   footerCells.push(
     <td key="total_cgst" className="bct-right" style={{ 
       fontWeight: 800,
@@ -1532,14 +1663,11 @@ const renderChargesTable = useCallback(() => {
   footerCells.push(
     <td key="total_amount" className="bct-right" style={{ 
       fontWeight: 800, 
-     background: '#f0f0f0'
-     
+      background: '#f0f0f0'
     }}>
       {formatAmtDisplay(totalAmount)}
     </td>
   )
-
-  const summaryRows: React.ReactElement[] = []
 
   return (
     <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
@@ -1550,12 +1678,11 @@ const renderChargesTable = useCallback(() => {
         <tbody>{bodyRows}</tbody>
         <tfoot>
           <tr key="footer1">{footerCells}</tr>
-          {summaryRows}
         </tfoot>
       </table>
     </div>
   )
-}, [printSettings, tableRows, headerBg, headerText])
+}, [printSettings, tableRows, displayRows, headerBg, headerText])
  
 // ========== RENDER PAYMENT DETAILS (Left Bottom) ==========
 const renderPaymentDetails = useCallback(() => {
