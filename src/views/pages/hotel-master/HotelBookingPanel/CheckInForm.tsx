@@ -1437,24 +1437,30 @@ const CheckInForm = () => {
     const childMode = modeCharges.find((m: any) => m.mode_name === 'CHILD')
     const driverMode = modeCharges.find((m: any) => m.mode_name === 'DRIVER')
 
-    const compute = (mode: any, count: number) => {
-      if (!mode || count <= 0) return { price: 0, tax: 0, taxPercent: 0, total: 0 }
-      const perNightPrice = mode.charges * count
-      let taxPercent = 0
-      if (mode.is_tax_applicable && mode.tax_type) {
-        taxPercent = taxMapLocal.get(Number(mode.tax_type)) || 0
-      }
-      const perNightTax = (perNightPrice * taxPercent) / 100
-      const perNightTotal = perNightPrice + perNightTax
+   const compute = (mode: any, count: number) => {
+  if (!mode || count <= 0) return { price: 0, tax: 0, taxPercent: 0, total: 0 }
+  
+  // Get the per-person charge from the database
+  const perPersonCharge = Number(mode.charges) || 0;
+  
+  // Calculate total for all persons
+  const perNightPrice = perPersonCharge * count;
+  
+  let taxPercent = 0;
+  if (mode.is_tax_applicable && mode.tax_type) {
+    taxPercent = taxMapLocal.get(Number(mode.tax_type)) || 0;
+  }
+  
+  const perNightTax = (perNightPrice * taxPercent) / 100;
+  const perNightTotal = perNightPrice + perNightTax;
 
-      return {
-        price: round2(perNightPrice),
-        tax: round2(perNightTax),
-        taxPercent,
-        total: round2(perNightTotal),
-      }
-    }
-
+  return {
+    price: round2(perPersonCharge),  // Return per-person price
+    tax: round2(perNightTax),        // Total tax for all persons
+    taxPercent,
+    total: round2(perNightTotal),    // Total for all persons
+  };
+}
     const exPaxCalc = compute(extraPaxMode, counts.exPax)
     const childCalc = compute(childMode, counts.childPaid)
     const driverCalc = compute(driverMode, counts.driver)
