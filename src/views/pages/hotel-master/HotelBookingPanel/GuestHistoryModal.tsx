@@ -217,12 +217,12 @@ const GuestHistoryModal = ({
 
                     {/* GUEST NAME */}
                     <td>
-                      {item.guest_name || '-'}
+                      {item.name || '-'}
                     </td>
 
                     {/* ROOM NO */}
                     <td className="fw-bold">
-                      {item.room_no || '-'}
+                      {item.checked_out_rooms || '-'}
                     </td>
 
                     {/* ARRIVAL */}

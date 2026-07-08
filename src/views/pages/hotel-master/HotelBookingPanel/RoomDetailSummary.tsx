@@ -697,90 +697,123 @@ const handlePaymentModeChange = (modeId: number) => {
 
   // ==================== HELPER: Get filtered summary for selected rooms only ====================
 
-  const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
-    if (!combinedSummary) return null
+ const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
+  if (!combinedSummary) return null
 
-    // Get rows filtered by selected rooms
-    const selectedRows = displayRows.filter((row) => selectedRooms.has(row.room_number))
+  // Get rows filtered by selected rooms
+  const selectedRows = displayRows.filter((row) => selectedRooms.has(row.room_number))
 
-    if (selectedRows.length === 0) return null
+  if (selectedRows.length === 0) return null
 
-  
-    // Calculate totals from selected rows
-    const totalRoomTariff = selectedRows.reduce((sum, row) => sum + row.room_tariff, 0)
-    const totalExPaxCharge = selectedRows.reduce((sum, row) => sum + row.ex_pax_total, 0)
-    const totalChildPaidAmount = selectedRows.reduce((sum, row) => sum + row.child_total, 0)
-    const totalDriverCharge = selectedRows.reduce((sum, row) => sum + row.driver_total, 0)
-    const totalTaxAmount = selectedRows.reduce((sum, row) => sum + row.tax_amount, 0)
-    const totalAmount = selectedRows.reduce((sum, row) => sum + row.total_amount, 0)
+  // Calculate totals from selected rows
+  const totalRoomTariff = selectedRows.reduce((sum, row) => sum + row.room_tariff, 0)
+  const totalExPaxCharge = selectedRows.reduce((sum, row) => sum + row.ex_pax_total, 0)
+  const totalChildPaidAmount = selectedRows.reduce((sum, row) => sum + row.child_total, 0)
+  const totalDriverCharge = selectedRows.reduce((sum, row) => sum + row.driver_total, 0)
+  const totalTaxAmount = selectedRows.reduce((sum, row) => sum + row.tax_amount, 0)
+  const totalAmount = selectedRows.reduce((sum, row) => sum + row.total_amount, 0)
+  const totalDiscountAmount = selectedRows.reduce((sum, row) => sum + row.discount_amount, 0)
 
-    const totalDiscountAmount = selectedRows.reduce((sum, row) => sum + row.discount_amount, 0)
+  // ✅ CORRECTED: Calculate unique days, adults, and pax
+  // 1. Total Days = number of unique bill dates (for room charges only, not post charges)
+  const billDates = new Set(
+    selectedRows
+      .filter(r => !r.isPostCharge)
+      .map(r => r.bill_date_formatted)
+  )
+  const totalDays = billDates.size || 1 // At least 1 day
 
+  // 2. Adults and Pax: Take max per room (since adults/pax should be consistent across days)
+  const roomAdultsMap = new Map<string, number>()
+  const roomPaxMap = new Map<string, number>()
+  const roomExPaxMap = new Map<string, number>()
+  const roomChildMap = new Map<string, number>()
+  const roomDriverMap = new Map<string, number>()
 
-    
+  selectedRows.forEach(row => {
+    if (!row.isPostCharge) {
+      const room = row.room_number
+      
+      // Take max adults per room (should be same across days, but just in case)
+      if (!roomAdultsMap.has(room) || row.adults > roomAdultsMap.get(room)!) {
+        roomAdultsMap.set(room, row.adults)
+      }
+      if (!roomPaxMap.has(room) || row.pax > roomPaxMap.get(room)!) {
+        roomPaxMap.set(room, row.pax)
+      }
+      if (!roomExPaxMap.has(room) || row.ex_pax_count > roomExPaxMap.get(room)!) {
+        roomExPaxMap.set(room, row.ex_pax_count)
+      }
+      if (!roomChildMap.has(room) || row.child_count > roomChildMap.get(room)!) {
+        roomChildMap.set(room, row.child_count)
+      }
+      if (!roomDriverMap.has(room) || row.driver_count > roomDriverMap.get(room)!) {
+        roomDriverMap.set(room, row.driver_count)
+      }
+    }
+  })
 
-    // Get unique values from selected rows
-    const uniqueRoomNumbers = Array.from(new Set(selectedRows.map((r) => r.room_number)))
-    const uniqueRoomCategories = Array.from(
-      new Set(selectedRows.map((r) => r.room_category_name).filter((c) => c !== '-'))
-    )
-    const uniqueConvertedCategories = Array.from(
-      new Set(selectedRows.map((r) => r.converted_category_name).filter((c) => c !== '-'))
-    )
+  const totalAdults = Array.from(roomAdultsMap.values()).reduce((sum, val) => sum + val, 0)
+  const totalPax = Array.from(roomPaxMap.values()).reduce((sum, val) => sum + val, 0)
+  const totalExPax = Array.from(roomExPaxMap.values()).reduce((sum, val) => sum + val, 0)
+  const totalChildPaid = Array.from(roomChildMap.values()).reduce((sum, val) => sum + val, 0)
+  const totalChildUnpaid = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.child_unpaid), 0)
+  const totalDriver = Array.from(roomDriverMap.values()).reduce((sum, val) => sum + val, 0)
 
-    // Calculate aggregates
-    const totalDays = selectedRows.length
-    const totalAdults = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.adults), 0)
-    const totalPax = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.pax), 0)
-    const totalExPax = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.ex_pax_count), 0)
-    const totalChildPaid = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.child_count), 0)
-    const totalChildUnpaid = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.child_unpaid), 0)
-    const totalDriver = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.driver_count), 0)
-     // ✅ Calculate credit and debit from rows if needed
+  // Get unique values from selected rows
+  const uniqueRoomNumbers = Array.from(new Set(selectedRows.map((r) => r.room_number)))
+  const uniqueRoomCategories = Array.from(
+    new Set(selectedRows.map((r) => r.room_category_name).filter((c) => c !== '-'))
+  )
+  const uniqueConvertedCategories = Array.from(
+    new Set(selectedRows.map((r) => r.converted_category_name).filter((c) => c !== '-'))
+  )
+
+  // Extension info
+  const hasExtensions = selectedRows.some((row) => row.is_extension)
+  const extensionCount = selectedRows.filter((row) => row.is_extension).length
+  const extensionDays = selectedRows.filter((row) => row.is_extension).length
+
+  // Average tax percent
+  const avgTaxPercent = selectedRows.length > 0
+    ? selectedRows.reduce((sum, row) => sum + row.tax_percent, 0) / selectedRows.length
+    : 0
+
+  // Credit and debit totals
   const total_credit_amount = selectedRows.reduce((sum, row) => sum + (row.credit_amount || 0), 0)
   const total_debit_amount = selectedRows.reduce((sum, row) => sum + (row.debit_amount || 0), 0)
 
-    // Average tax percent
-    const avgTaxPercent = selectedRows.length > 0
-      ? selectedRows.reduce((sum, row) => sum + row.tax_percent, 0) / selectedRows.length
-      : 0
-
-    // Extension info
-    const hasExtensions = selectedRows.some((row) => row.is_extension)
-    const extensionCount = selectedRows.filter((row) => row.is_extension).length
-    const extensionDays = selectedRows.filter((row) => row.is_extension).length
-
-    return {
-      ...combinedSummary,
-      room_numbers: uniqueRoomNumbers,
-      room_numbers_str: uniqueRoomNumbers.join(', '),
-      room_categories: uniqueRoomCategories,
-      room_categories_str: uniqueRoomCategories.join(', '),
-      converted_categories: uniqueConvertedCategories,
-      converted_categories_str: uniqueConvertedCategories.join(', '),
-      total_room_tariff: totalRoomTariff,
-      total_ex_pax_charge: totalExPaxCharge,
-      total_child_paid_amount: totalChildPaidAmount,
-      total_driver_charge: totalDriverCharge,
-      total_tax_amount: totalTaxAmount,
-      total_amount: totalAmount,
-      total_days: totalDays,
-      total_adults: totalAdults,
-      total_pax: totalPax,
-      total_ex_pax: totalExPax,
-      total_child_paid: totalChildPaid,
-      total_child_unpaid: totalChildUnpaid,
-      total_driver: totalDriver,
-      avg_tax_percent: avgTaxPercent,
-      has_extensions: hasExtensions,
-      extension_count: extensionCount,
-      extension_days: extensionDays,
-      total_discount_amount: totalDiscountAmount,
-       total_credit_amount: total_credit_amount,
+  return {
+    ...combinedSummary,
+    room_numbers: uniqueRoomNumbers,
+    room_numbers_str: uniqueRoomNumbers.join(', '),
+    room_categories: uniqueRoomCategories,
+    room_categories_str: uniqueRoomCategories.join(', '),
+    converted_categories: uniqueConvertedCategories,
+    converted_categories_str: uniqueConvertedCategories.join(', '),
+    total_room_tariff: totalRoomTariff,
+    total_ex_pax_charge: totalExPaxCharge,
+    total_child_paid_amount: totalChildPaidAmount,
+    total_driver_charge: totalDriverCharge,
+    total_tax_amount: totalTaxAmount,
+    total_amount: totalAmount,
+    total_days: totalDays, // ✅ Now correctly shows unique days
+    total_adults: totalAdults, // ✅ Now correctly shows total adults across rooms
+    total_pax: totalPax, // ✅ Now correctly shows total pax across rooms
+    total_ex_pax: totalExPax,
+    total_child_paid: totalChildPaid,
+    total_child_unpaid: totalChildUnpaid,
+    total_driver: totalDriver,
+    avg_tax_percent: avgTaxPercent,
+    has_extensions: hasExtensions,
+    extension_count: extensionCount,
+    extension_days: extensionDays,
+    total_discount_amount: totalDiscountAmount,
+    total_credit_amount: total_credit_amount,
     total_debit_amount: total_debit_amount,
-     payment_method: combinedSummary.payment_method || 'Cash',
-    }
+    payment_method: combinedSummary.payment_method || 'Cash',
   }
+}
 
   // ==================== HANDLER FUNCTIONS ====================
 

@@ -1075,7 +1075,7 @@ const CheckInForm = () => {
     try {
       const payload = {
         ...companyData,
-        mst_hotelid: hotelId,
+        hotelid: hotelId,
         created_by_id: user?.id,
       }
 

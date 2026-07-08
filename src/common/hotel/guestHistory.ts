@@ -8,6 +8,7 @@ export interface GuestHistoryCheckout {
   guest_id: number;
   reg_no: string;
   guest_name: string;
+  name: string;
   room_no: string;
   checkin_datetime: string;
   checkout_datetime: string;

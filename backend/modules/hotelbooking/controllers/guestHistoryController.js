@@ -18,29 +18,61 @@ exports.getGuestHistory = async (req, res) => {
     }
 
     const [checkouts] = await db.query(`
-      SELECT 
-        checkout_id,
-        checkin_id,
-        guest_id,
-        reg_no,
-        guest_name,
-        room_no,
-        checkin_datetime,
-        checkout_datetime,
-        pax,
-        ex_pax,
-        child_paid,
-        driver,
-        total_amount,
-        status,
-        hotelid,
-        checkout_date,
-        checkout_reason,
-        is_partial_checkout,
-        checked_out_rooms
-      FROM Checkout_Master 
-      WHERE guest_id = ? AND hotelid = ?
-      ORDER BY checkout_datetime DESC
+       SELECT 
+          cm.checkout_id,
+        cm.checkin_id,
+        cm.guest_id,
+        gm.name,
+        cm.ldg_bill_no,
+        cm.reg_no,
+        cm.booking,
+        cm.plan_name,
+        cm.checkin_datetime,
+        cm.room_no,
+        cm.tot_room_tariff,
+        cm.tot_ex_pax_charge,
+        cm.tot_child_paid_amount,
+        cm.tot_driver_charge,
+        cm.tot_discount_amount,
+        cm.tot_cgst_amount,
+        cm.tot_sgst_amount,
+        cm.tot_igst_amount,
+        cm.tot_ex_cgst_amount,
+        cm.tot_ex_sgst_amount,
+        cm.tot_ex_igst_amount,
+        cm.tot_child_cgst_amount,
+        cm.tot_child_sgst_amount,
+        cm.tot_child_igst_amount,
+        cm.tot_driver_cgst_amount,
+        cm.tot_driver_sgst_amount,
+        cm.tot_driver_igst_amount,
+        cm.tot_service_charge_amount,
+        cm.tot_cess_amount,
+        cm.tot_advance,
+        cm.hotelid,
+        cm.total_amount,
+        cm.total_nights,
+        cm.id_type,
+        cm.id_number,
+        cm.department_id,
+        cm.department_name,
+        cm.special_instruction,
+        cm.message,
+        cm.created_by_id,
+        cm.created_date,
+        cm.updated_by_id,
+        cm.updated_date,
+        cm.status,
+        cm.checkout_date,
+        cm.checkout_by_id,
+        cm.checkout_reason,
+        cm.is_partial_checkout,
+        cm.checked_out_rooms,
+        cm.room_id
+      FROM Checkout_Master cm
+      LEFT JOIN guest_master gm ON cm.guest_id = gm.guest_id AND cm.hotelid = gm.hotelid
+      WHERE cm.guest_id = ? AND cm.hotelid = ?
+      ORDER BY cm.checkout_date DESC, cm.checkout_id DESC
     `, [guestId, hotelId]);
 
     res.json({ 
