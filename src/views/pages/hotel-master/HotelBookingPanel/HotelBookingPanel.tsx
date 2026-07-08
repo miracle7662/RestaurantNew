@@ -2006,22 +2006,46 @@ const hideCheckinSection =
 
       {/* ===== MODALS ===== */}
 
-      <DayExtendModal
-        show={extendDayModal.show}
-        occupiedItem={extendDayModal.occupiedItem}
-        siblingRooms={extendDayModal.siblingRooms}
-        extending={extendDayModal.loading || false}
-        onHide={() => setExtendDayModal({ 
-          show: false, 
-          occupiedItem: null, 
-          siblingRooms: [],
-          room: null,
-          checkin: null,
-          loading: false 
-        })}
-        onExtend={handleExtendDay}
-      />
-
+     <DayExtendModal
+  show={extendDayModal.show}
+  occupiedItem={extendDayModal.occupiedItem}
+  siblingRooms={extendDayModal.siblingRooms}
+  extending={extendDayModal.loading || false}
+  onHide={() => {
+    // Save the data before closing
+    const { occupiedItem, checkin } = extendDayModal;
+    
+    // Close the modal and reset state
+    setExtendDayModal({ 
+      show: false, 
+      occupiedItem: null, 
+      siblingRooms: [],
+      room: null,
+      checkin: null,
+      loading: false 
+    });
+    
+    // Navigate to RoomDetailSummary with the occupied item data
+    if (occupiedItem) {
+      navigate('/hotel/room-detail', {
+        state: {
+          occupiedItem: occupiedItem,
+          checkin_id: occupiedItem.checkin_id,
+        }
+      });
+    } else if (checkin) {
+      navigate('/hotel/room-detail', {
+        state: {
+          checkin_id: checkin.checkin_id,
+        }
+      });
+    } else {
+      // Fallback - go back to previous page
+      navigate(-1);
+    }
+  }}
+  onExtend={handleExtendDay}
+/>
       <DisplaySettings
         show={showSettings}
         onHide={() => setShowSettings(false)}

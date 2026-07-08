@@ -120,7 +120,7 @@ const DayExtendModal: React.FC<DayExtendModalProps> = ({
           <p className="text-muted text-center mb-4">
             Checkout:{' '}
             <strong className="text-danger">
-              {occupiedItem.checkout_datetime ? formatDateTime(occupiedItem.checkout_datetime) : 'N/A'}
+              {occupiedItem.detail_checkout_datetime ? formatDateTime(occupiedItem.detail_checkout_datetime) : 'N/A'}
             </strong>
           </p>
 
