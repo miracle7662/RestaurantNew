@@ -32,15 +32,16 @@ interface DisplayDetailRow {
   ex_pax_total: number
   child_count: number
   child_unpaid: number
+  child_paid: number
+  child_total: number
   child_price: number
   child_tax: number
   child_tax_percent: number
-  child_total: number
   driver_count: number
+  driver_total: number
   driver_price: number
   driver_tax: number
   driver_tax_percent: number
-  driver_total: number
   cgst_amount: number
   sgst_amount: number
   igst_amount: number
@@ -49,7 +50,6 @@ interface DisplayDetailRow {
   adults: number
   pax: number
   ex_pax: number
-  child_paid: number
   driver: number
   discount_percent: number
   discount_amount: number
@@ -101,8 +101,9 @@ interface TableRowWithIndex {
   date: string
   roomTariff: number
   exPax: number
-  child: number      // ADD THIS
-  driver: number     // ADD THIS
+  child: number
+  driver: number
+  discount: number
   cgst: number
   sgst: number
   food: number
@@ -123,8 +124,9 @@ interface GroupedChargeItem {
   date: string
   roomChargeAmount: number
   exPaxAmount: number
-  childAmount: number      // ADD THIS
-  driverAmount: number     // ADD THIS
+  childAmount: number
+  driverAmount: number
+  discountAmount: number
   postCharges: Array<{ description: string; amount: number; id: string }>
   allowances: Array<{ description: string; amount: number; id: string }>
   advances: Array<{ description: string; amount: number; id: string }>
@@ -298,443 +300,435 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   }, [show, checkoutId, ldgBillNo, selectedRooms])
 
   // ========== BUILD DISPLAY ROWS ==========
- const displayRows = useMemo(() => {
-  if (!billData.length) {
-    return []
-  }
+  const displayRows = useMemo(() => {
+    if (!billData.length) {
+      return []
+    }
 
-  const rows: DisplayDetailRow[] = []
-  const cumulativeMap = new Map<string, number>()
+    const rows: DisplayDetailRow[] = []
+    const cumulativeMap = new Map<string, number>()
 
-  billData.forEach((row, index) => {
-    const roomNumber = row.room_number || `Room-${row.room_id}`
-    const transactionType = (row.transaction_type || '').toUpperCase().trim()
-    
-    const roomTariff = toNumber(row.tariff || row.room_tariff_per_day || 0)
-    const exPaxTotal = toNumber(row.ex_pax || row.ex_pax_total || 0)
-    const cgstAmount = toNumber(row.cgst || row.cgst_amount || 0)
-    const sgstAmount = toNumber(row.sgst || row.sgst_amount || 0)
-    const igstAmount = toNumber(row.igst || row.igst_amount || 0)
-    const cessAmount = toNumber(row.cess || row.cess_amount || 0)
-    const serviceChargeAmount = toNumber(row.service_charge_amount || 0)
-    const totalAmount = toNumber(row.total_amount || 0)
-    const discountAmount = toNumber(row.discount_amount || 0)
-    const discountPercent = toNumber(row.discount_percent || 0)
-    
-    // Get child and driver values directly from the stored procedure response
-    const childPaid = toNumber(row.child_paid_amount || 0)
-    const childUnpaid = toNumber(row.child_unpaid || 0)
-    // IMPORTANT: Use row.child_total if available, otherwise calculate from paid + unpaid
-    const childTotal = toNumber(row.child_total ||  0)
-    
-    // Get driver values
-    const driverCount = toNumber(row.driver || 0)
-    // IMPORTANT: Use row.driver_total if available from procedure
-    const driverTotal = toNumber(row.driver_charge || 0)
-    
-    // Child count - if available from procedure
-    const childCount = toNumber(row.child_count || 0)
-    
-    const isPostCharge = ['CHARGE', 'POST CHARGE', 'POST_CHARGE', 'ALLOWANCE', 'ADVANCE ADDITION', 'FOOD']
-      .includes(transactionType)
+    billData.forEach((row, index) => {
+      const roomNumber = row.room_number || `Room-${row.room_id}`
+      const transactionType = (row.transaction_type || '').toUpperCase().trim()
+      
+      // DIRECTLY USE VALUES FROM STORED PROCEDURE
+      const roomTariff = toNumber(row.tariff || 0)
+      const exPaxTotal = toNumber(row.ex_pax || 0)
+      const cgstAmount = toNumber(row.cgst || 0)
+      const sgstAmount = toNumber(row.sgst || 0)
+      const igstAmount = toNumber(row.igst || 0)
+      const cessAmount = toNumber(row.cess || 0)
+      const serviceChargeAmount = toNumber(row.service_charge || 0)
+      const totalAmount = toNumber(row.dtotal_amount || row.total_amount || 0)
+      const discountAmount = toNumber(row.discount_amount || 0)
+      const discountPercent = toNumber(row.discount_percent || 0)
+      
+      // CHILD - USE STORED PROCEDURE VALUES
+      const childPaid = toNumber(row.child_paid_amount || 0)
+      const childUnpaid = toNumber(row.child_unpaid || 0)
+      const childTotal = toNumber(row.child_paid_amount || 0) // child_paid_amount from SP
+      
+      // DRIVER - USE STORED PROCEDURE VALUES
+      const driverTotal = toNumber(row.driver_charge || 0)
+      const driverCount = toNumber(row.driver || 0)
+      
+      // CHILD COUNT from SP
+      const childCount = toNumber(row.child_count || 0)
+      
+      const isPostCharge = ['CHARGE', 'POST CHARGE', 'POST_CHARGE', 'ALLOWANCE', 'ADVANCE ADDITION', 'FOOD']
+        .includes(transactionType)
 
-    const prevCumulative = cumulativeMap.get(roomNumber) || 0
-    const cumulativeTotal = roundToTwo(prevCumulative + totalAmount)
-    cumulativeMap.set(roomNumber, cumulativeTotal)
+      const prevCumulative = cumulativeMap.get(roomNumber) || 0
+      const cumulativeTotal = roundToTwo(prevCumulative + totalAmount)
+      cumulativeMap.set(roomNumber, cumulativeTotal)
 
-    const billDateFormatted = row.bill_date 
-      ? formatBillDate(row.bill_date) 
-      : formatBillDate(row.checkin_datetime)
+      const billDateFormatted = row.bill_date 
+        ? formatBillDate(row.bill_date) 
+        : formatBillDate(row.checkin_datetime)
 
-    rows.push({
-      id: `row-${row.room_number || index}-${index}`,
-      guest_room_charges_id: row.charge_id || row.folio_id || index,
-      checkin_id: row.checkin_id || 0,
-      guest_id: row.guest_id || 0,
-      detail_id: row.detail_id,
-      room_id: row.room_id || 0,
-      room_number: roomNumber,
-      room_category_name: row.room_category_name || '-',
-      converted_category_name: row.converted_category_name || '-',
-      bill_date: row.bill_date || row.checkin_datetime,
-      bill_date_formatted: billDateFormatted,
-      checkin_datetime: row.checkin_datetime,
-      checkout_datetime: row.checkout_datetime,
-      no_of_days: row.no_of_days || 1,
-      day_number: 1,
-      original_day_number: 1,
-      room_tariff_per_day: roomTariff,
-      total_room_tariff: roomTariff,
-      ex_pax_count: 0,
-      ex_pax_price: 0,
-      ex_pax_tax: 0,
-      ex_pax_tax_percent: 0,
-      ex_pax_total: exPaxTotal,
-      // CHILD FIELDS - Using values from stored procedure
-      child_count: childCount,
-      child_unpaid: childUnpaid,
-      child_paid: childPaid,
-      child_total: childTotal, // This should now have the total amount
-      child_price: toNumber(row.child_price || 0),
-      child_tax: toNumber(row.child_tax || 0),
-      child_tax_percent: toNumber(row.child_tax_percent || 0),
-      // DRIVER FIELDS - Using values from stored procedure
-      driver_count: driverCount,
-      driver_total: driverTotal, // This should now have the total amount
-      driver_price: toNumber(row.driver_price || 0),
-      driver_tax: toNumber(row.driver_tax || 0),
-      driver_tax_percent: toNumber(row.driver_tax_percent || 0),
-      // GST FIELDS
-      cgst_amount: cgstAmount,
-      sgst_amount: sgstAmount,
-      igst_amount: igstAmount,
-      cess_amount: cessAmount,
-      service_charge_amount: serviceChargeAmount,
-      adults: row.adults || 0,
-      pax: row.pax || 0,
-      ex_pax: row.ex_pax || 0,
-      driver: driverCount,
-      discount_percent: discountPercent,
-      discount_amount: discountAmount,
-      tax_percent: row.tax || 18,
-      tax_amount: cgstAmount + sgstAmount + igstAmount,
-      total_amount: totalAmount,
-      is_extension: transactionType === 'ROOM EXTENSION',
-      isPostCharge: isPostCharge,
-      parent_detail_id: null,
-      selected: true,
-      cumulative_total: cumulativeTotal,
-      guest_name: row.guest_name,
-      payment_method: row.payment_method || row.payment_mode || 'Cash',
-      created_at: row.bill_date || row.checkin_datetime,
-      has_checkout_datetime: !!row.checkout_datetime,
-      checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
-      description: row.description || 'Room Charges',
-      particulars: row.particulars || '',
-      department_name: transactionType,
-      cgst_percent: row.cgst_percent,
-      sgst_percent: row.sgst_percent,
-      igst_percent: row.igst_percent,
-      cess_percent: row.cess_percent,
-      service_charge_percent: row.service_charge,
-      room_group: roomNumber,
-      transaction_type: transactionType,
-      post_charges: toNumber(row.post_charges || 0),
-      allowance: toNumber(row.allowance || 0),
-      food: toNumber(row.food || 0)
+      rows.push({
+        id: `row-${row.room_number || index}-${index}`,
+        guest_room_charges_id: row.charge_id || row.folio_id || index,
+        checkin_id: row.checkin_id || 0,
+        guest_id: row.guest_id || 0,
+        detail_id: row.detail_id,
+        room_id: row.room_id || 0,
+        room_number: roomNumber,
+        room_category_name: row.room_category_name || '-',
+        converted_category_name: row.converted_category_name || '-',
+        bill_date: row.bill_date || row.checkin_datetime,
+        bill_date_formatted: billDateFormatted,
+        checkin_datetime: row.checkin_datetime,
+        checkout_datetime: row.checkout_datetime,
+        no_of_days: row.no_of_days || 1,
+        day_number: 1,
+        original_day_number: 1,
+        room_tariff_per_day: roomTariff,
+        total_room_tariff: roomTariff,
+        ex_pax_count: 0,
+        ex_pax_price: 0,
+        ex_pax_tax: 0,
+        ex_pax_tax_percent: 0,
+        ex_pax_total: exPaxTotal,
+        child_count: childCount,
+        child_unpaid: childUnpaid,
+        child_paid: childPaid,
+        child_total: childTotal,
+        child_price: toNumber(row.child_price || 0),
+        child_tax: toNumber(row.child_tax || 0),
+        child_tax_percent: toNumber(row.child_tax_percent || 0),
+        driver_count: driverCount,
+        driver_total: driverTotal,
+        driver_price: toNumber(row.driver_price || 0),
+        driver_tax: toNumber(row.driver_tax || 0),
+        driver_tax_percent: toNumber(row.driver_tax_percent || 0),
+        cgst_amount: cgstAmount,
+        sgst_amount: sgstAmount,
+        igst_amount: igstAmount,
+        cess_amount: cessAmount,
+        service_charge_amount: serviceChargeAmount,
+        adults: row.adults || 0,
+        pax: row.pax || 0,
+        ex_pax: row.ex_pax || 0,
+        driver: driverCount,
+        discount_percent: discountPercent,
+        discount_amount: discountAmount,
+        tax_percent: row.tax || 18,
+        tax_amount: cgstAmount + sgstAmount + igstAmount,
+        total_amount: totalAmount,
+        is_extension: transactionType === 'ROOM EXTENSION',
+        isPostCharge: isPostCharge,
+        parent_detail_id: null,
+        selected: true,
+        cumulative_total: cumulativeTotal,
+        guest_name: row.guest_name,
+        payment_method: row.payment_mode || 'Cash',
+        created_at: row.bill_date || row.checkin_datetime,
+        has_checkout_datetime: !!row.checkout_datetime,
+        checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
+        description: row.description || 'Room Charges',
+        particulars: row.particulars || '',
+        department_name: transactionType,
+        cgst_percent: row.cgst_percent,
+        sgst_percent: row.sgst_percent,
+        igst_percent: row.igst_percent,
+        cess_percent: row.cess_percent,
+        service_charge_percent: row.service_charge,
+        room_group: roomNumber,
+        transaction_type: transactionType,
+        post_charges: toNumber(row.post_charges || 0),
+        allowance: toNumber(row.allowance || 0),
+        food: toNumber(row.food || 0)
+      })
     })
-  })
 
-  return rows
-}, [billData])
-// ========== BUILD SUMMARY ==========
-const summary = useMemo(() => {
-  if (!billData.length || !displayRows.length) return null
+    return rows
+  }, [billData])
 
-  // Get unique room numbers and categories from ALL rows
-  const roomNumbers = Array.from(new Set(displayRows.map(r => r.room_number).filter(Boolean)))
-  const roomCategories = Array.from(
-    new Set(displayRows.map(r => r.room_category_name).filter(Boolean))
-  )
+  // ========== BUILD SUMMARY ==========
+  const summary = useMemo(() => {
+    if (!billData.length || !displayRows.length) return null
 
-  // Aggregate totals across ALL rows
-  const totalRoomTariff = displayRows.reduce((sum, row) => sum + (row.room_tariff_per_day || 0), 0)
-  const totalExPax = displayRows.reduce((sum, row) => sum + (row.ex_pax_total || 0), 0)
-   const totalAmount = displayRows.reduce((sum, row) =>  (row.total_amount || 0), 0)
-  const totalCgst = displayRows.reduce((sum, row) => sum + (row.cgst_amount || 0), 0)
-  const totalSgst = displayRows.reduce((sum, row) => sum + (row.sgst_amount || 0), 0)
-  
-  // Aggregate guest counts across ALL rows
-  // Use ex_pax for adults count (since this is the main adult count in your data)
-  const totalExPaxCount = displayRows.reduce((sum, row) => sum + (row.ex_pax || 0), 0)
-  const totalAdults = displayRows.reduce((sum, row) => sum + (row.adults || 0), 0)
-  const totalPax = displayRows.reduce((sum, row) => sum + (row.pax || 0), 0)
-  
-  // CHILD counts - use child_unpaid or child_count
-  const totalChildUnpaid = displayRows.reduce((sum, row) => sum + (row.child_unpaid || 0), 0)
-  const totalChildCount = displayRows.reduce((sum, row) => sum + (row.child_count || 0), 0)
-  const totalChildPaid = displayRows.reduce((sum, row) => sum + (row.child_paid || 0), 0)
-  
-  // DRIVER counts
-  const totalDriver = displayRows.reduce((sum, row) => sum + (row.driver || 0), 0)
-  const totalDriverCount = displayRows.reduce((sum, row) => sum + (row.driver_count || 0), 0)
+    // Get unique room numbers and categories from ALL rows
+    const roomNumbers = Array.from(new Set(displayRows.map(r => r.room_number).filter(Boolean)))
+    const roomCategories = Array.from(
+      new Set(displayRows.map(r => r.room_category_name).filter(Boolean))
+    )
 
-  // Get first row for shared data (guest name, checkin, checkout, etc.)
-  const firstRow = billData[0]
+    // Aggregate totals across ALL rows - USING STORED PROCEDURE VALUES
+    const totalRoomTariff = displayRows.reduce((sum, row) => sum + (row.room_tariff_per_day || 0), 0)
+    const totalExPax = displayRows.reduce((sum, row) => sum + (row.ex_pax_total || 0), 0)
+    const totalAmount = displayRows.reduce((sum, row) => sum + (row.total_amount || 0), 0)
+    const totalCgst = displayRows.reduce((sum, row) => sum + (row.cgst_amount || 0), 0)
+    const totalSgst = displayRows.reduce((sum, row) => sum + (row.sgst_amount || 0), 0)
+    
+    const totalExPaxCount = displayRows.reduce((sum, row) => sum + (row.ex_pax || 0), 0)
+    const totalAdults = displayRows.reduce((sum, row) => sum + (row.adults || 0), 0)
+    const totalPax = displayRows.reduce((sum, row) => sum + (row.pax || 0), 0)
+    
+    const totalChildUnpaid = displayRows.reduce((sum, row) => sum + (row.child_unpaid || 0), 0)
+    const totalChildCount = displayRows.reduce((sum, row) => sum + (row.child_count || 0), 0)
+    const totalChildPaid = displayRows.reduce((sum, row) => sum + (row.child_paid || 0), 0)
+    
+    const totalDriver = displayRows.reduce((sum, row) => sum + (row.driver || 0), 0)
+    const totalDriverCount = displayRows.reduce((sum, row) => sum + (row.driver_count || 0), 0)
 
-  // Determine which child count to use (prefer child_unpaid as it's shown in your data)
-  const totalChild = totalChildUnpaid > 0 ? totalChildUnpaid : totalChildCount
+    const firstRow = billData[0]
 
-  // Use ex_pax for adults as it's the main adult count in your data
-  // If ex_pax is 0, fallback to adults or pax
-  let totalAdultCount = totalExPaxCount > 0 ? totalExPaxCount : totalAdults
-  if (totalAdultCount === 0) totalAdultCount = totalPax
+    const totalChild = totalChildUnpaid > 0 ? totalChildUnpaid : totalChildCount
 
-  // Build guest display string with totals from ALL rooms
-  const guestsDisplayParts = []
-  if (totalAdultCount > 0) guestsDisplayParts.push(`${totalAdultCount} Adults`)
-  if (totalChild > 0) guestsDisplayParts.push(`${totalChild} Child`)
-  if (totalDriver > 0 || totalDriverCount > 0) {
-    const driverTotal = totalDriver > 0 ? totalDriver : totalDriverCount
-    guestsDisplayParts.push(`${driverTotal} Driver`)
-  }
-  const guestsDisplay = guestsDisplayParts.join(', ') || '-'
+    let totalAdultCount = totalExPaxCount > 0 ? totalExPaxCount : totalAdults
+    if (totalAdultCount === 0) totalAdultCount = totalPax
 
-  // Build room numbers string from ALL rooms
-  const roomNumbersStr = roomNumbers.join(', ') || '-'
+    const guestsDisplayParts = []
+    if (totalAdultCount > 0) guestsDisplayParts.push(`${totalAdultCount} Adults`)
+    if (totalChild > 0) guestsDisplayParts.push(`${totalChild} Child`)
+    if (totalDriver > 0 || totalDriverCount > 0) {
+      const driverTotal = totalDriver > 0 ? totalDriver : totalDriverCount
+      guestsDisplayParts.push(`${driverTotal} Driver`)
+    }
+    const guestsDisplay = guestsDisplayParts.join(', ') || '-'
 
-  return {
-    checkin_id: firstRow.checkin_id,
-    guest_id: firstRow.guest_id,
-    guest_name: firstRow.guest_name || firstRow.guestName || 'Guest',
-    guest_mobile: firstRow.guest_mobile || firstRow.mobile || '-',
-    guest_email: firstRow.guest_email || firstRow.emailed || '-',
-    guest_address: firstRow.guest_address || firstRow.address || '-',
-    room_numbers: roomNumbers,
-    room_categories: roomCategories,
-    converted_categories: [],
-    room_numbers_str: roomNumbersStr,
-    room_categories_str: roomCategories.join(', ') || '-',
-    converted_categories_str: '-',
-    total_room_tariff: totalRoomTariff,
-    total_ex_pax_charge: totalExPax,
-    total_child_paid_amount: totalChildPaid,
-    total_child_unpaid_amount: totalChildUnpaid,
-    total_driver_charge: 0,
-    total_tax_amount: totalCgst + totalSgst,
-    total_amount: totalAmount,
-    total_days: firstRow.total_nights || 0,
-    total_adults: totalAdultCount,
-    total_pax: totalPax,
-    total_ex_pax: totalExPaxCount,
-    total_child_paid: totalChildPaid,
-    total_child_unpaid: totalChildUnpaid,
-    total_child: totalChild,
-    total_driver: totalDriver > 0 ? totalDriver : totalDriverCount,
-    avg_discount_percent: displayRows.reduce((sum, row) => sum + (row.discount_percent || 0), 0) / (displayRows.length || 1),
-    avg_tax_percent: firstRow.tax || 18,
-    has_extensions: false,
-    extension_count: 0,
-    extension_days: 0,
-    payment_methods: Array.from(new Set(displayRows.map(r => r.payment_method).filter(Boolean))),
-    payment_method: displayRows.find(r => r.payment_method)?.payment_method || 'Cash',
-    charges_ids: [],
-    selected: true,
-    original_checkin_datetime: firstRow.checkin_datetime,
-    final_checkout_datetime: firstRow.checkout_datetime,
-    guest_id_proof: '-',
-    reg_no: firstRow.reg_no,
-    booking_ref: firstRow.booking,
-    plan_name: firstRow.plan_name,
-    checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [],
-    company_name: firstRow.company_name || '-',
-    gst_no: firstRow.gst_no || '-',
-    guests_display: guestsDisplay,
-  }
-}, [displayRows, billData])
+    const roomNumbersStr = roomNumbers.join(', ') || '-'
+
+    return {
+      checkin_id: firstRow.checkin_id,
+      guest_id: firstRow.guest_id,
+      guest_name: firstRow.guest_name || firstRow.guestName || 'Guest',
+      guest_mobile: firstRow.guest_mobile || firstRow.mobile || '-',
+      guest_email: firstRow.guest_email || firstRow.emailed || '-',
+      guest_address: firstRow.guest_address || firstRow.address || '-',
+      room_numbers: roomNumbers,
+      room_categories: roomCategories,
+      converted_categories: [],
+      room_numbers_str: roomNumbersStr,
+      room_categories_str: roomCategories.join(', ') || '-',
+      converted_categories_str: '-',
+      total_room_tariff: totalRoomTariff,
+      total_ex_pax_charge: totalExPax,
+      total_child_paid_amount: totalChildPaid,
+      total_child_unpaid_amount: totalChildUnpaid,
+      total_driver_charge: 0,
+      total_tax_amount: totalCgst + totalSgst,
+      total_amount: totalAmount,
+      total_days: firstRow.total_nights || 0,
+      total_adults: totalAdultCount,
+      total_pax: totalPax,
+      total_ex_pax: totalExPaxCount,
+      total_child_paid: totalChildPaid,
+      total_child_unpaid: totalChildUnpaid,
+      total_child: totalChild,
+      total_driver: totalDriver > 0 ? totalDriver : totalDriverCount,
+      avg_discount_percent: displayRows.reduce((sum, row) => sum + (row.discount_percent || 0), 0) / (displayRows.length || 1),
+      avg_tax_percent: firstRow.tax || 18,
+      has_extensions: false,
+      extension_count: 0,
+      extension_days: 0,
+      payment_methods: Array.from(new Set(displayRows.map(r => r.payment_method).filter(Boolean))),
+      payment_method: displayRows.find(r => r.payment_method)?.payment_method || 'Cash',
+      charges_ids: [],
+      selected: true,
+      original_checkin_datetime: firstRow.checkin_datetime,
+      final_checkout_datetime: firstRow.checkout_datetime,
+      guest_id_proof: '-',
+      reg_no: firstRow.reg_no,
+      booking_ref: firstRow.booking,
+      plan_name: firstRow.plan_name,
+      checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [],
+      company_name: firstRow.company_name || '-',
+      gst_no: firstRow.gst_no || '-',
+      guests_display: guestsDisplay,
+    }
+  }, [displayRows, billData])
 
   // ========== GENERATE TABLE ROWS ==========
-const tableRows = useMemo(() => {
-  if (!displayRows.length) return []
+  const tableRows = useMemo(() => {
+    if (!displayRows.length) return []
 
-  const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
-  
-  displayRows.forEach((charge) => {
-    const roomNum = charge.room_number || 'COMMON'
-    const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
+    const roomGroups = new Map<string, Map<string, GroupedChargeItem>>()
     
-    if (!roomGroups.has(roomNum)) {
-      roomGroups.set(roomNum, new Map())
-    }
-    
-    const dateMap = roomGroups.get(roomNum)!
-    if (!dateMap.has(dateKey)) {
-      dateMap.set(dateKey, {
-        date: dateKey,
-        roomChargeAmount: 0,
-        exPaxAmount: 0,
-        childAmount: 0,        // ADD THIS
-        driverAmount: 0,       // ADD THIS
-        postCharges: [],
-        allowances: [],
-        advances: [],
-        foodCharges: [],
-        cgstAmount: 0,
-        sgstAmount: 0,
-        roomNumbers: new Set([roomNum]),
-      })
-    }
-    
-    const item = dateMap.get(dateKey)!
-    const type = charge.transaction_type
-    
-    if (!charge.isPostCharge) {
-      item.roomChargeAmount += charge.room_tariff_per_day || 0
-      item.exPaxAmount += charge.ex_pax_total || 0
-      // ADD CHILD AND DRIVER AMOUNTS
-      item.childAmount += (charge.child_total || charge.child_paid || 0)
-      item.driverAmount += (charge.driver_total || 0)
-      item.cgstAmount += charge.cgst_amount || 0
-      item.sgstAmount += charge.sgst_amount || 0
-    } else if (type === 'FOOD') {
-      const amount = Math.abs(charge.total_amount || 0)
-      item.foodCharges.push({
-        description: charge.description || 'Food',
-        amount,
-        id: charge.id,
-      })
-    } else if (type === 'ADVANCE ADDITION') {
-      const amount = Math.abs(charge.total_amount || 0)
-      item.advances.push({
-        description: charge.description || 'Advance',
-        amount,
-        id: charge.id,
-      })
-    } else if (type === 'ALLOWANCE') {
-      const amount = Math.abs(charge.total_amount || 0)
-      item.allowances.push({
-        description: charge.description || 'Allowance',
-        amount,
-        id: charge.id,
-      })
-    } else if (type === 'CHARGE' || type === 'POST CHARGE' || type === 'POST_CHARGE') {
-      const amount = Math.abs(charge.total_amount || 0)
-      item.postCharges.push({
-        description: charge.description || 'Post Charge',
-        amount,
-        id: charge.id,
-      })
-    }
-  })
+    displayRows.forEach((charge) => {
+      const roomNum = charge.room_number || 'COMMON'
+      const dateKey = charge.bill_date_formatted || formatDate(charge.bill_date)
+      
+      if (!roomGroups.has(roomNum)) {
+        roomGroups.set(roomNum, new Map())
+      }
+      
+      const dateMap = roomGroups.get(roomNum)!
+      if (!dateMap.has(dateKey)) {
+        dateMap.set(dateKey, {
+          date: dateKey,
+          roomChargeAmount: 0,
+          exPaxAmount: 0,
+          childAmount: 0,
+          driverAmount: 0,
+          discountAmount: 0,
+          postCharges: [],
+          allowances: [],
+          advances: [],
+          foodCharges: [],
+          cgstAmount: 0,
+          sgstAmount: 0,
+          roomNumbers: new Set([roomNum]),
+        })
+      }
+      
+      const item = dateMap.get(dateKey)!
+      const type = charge.transaction_type
+      
+      if (!charge.isPostCharge) {
+       item.roomChargeAmount += charge.room_tariff_per_day || 0
+item.exPaxAmount += charge.ex_pax_total || 0
+item.childAmount += (charge.child_total || charge.child_paid || 0)
+item.driverAmount += (charge.driver_total || 0)
+item.discountAmount += (charge.discount_amount || 0)  // ← This is adding discount
+item.cgstAmount += charge.cgst_amount || 0
+item.sgstAmount += charge.sgst_amount || 0
+      } else if (type === 'FOOD') {
+        const amount = Math.abs(charge.total_amount || 0)
+        item.foodCharges.push({
+          description: charge.description || 'Food',
+          amount,
+          id: charge.id,
+        })
+      } else if (type === 'ADVANCE ADDITION') {
+        const amount = Math.abs(charge.total_amount || 0)
+        item.advances.push({
+          description: charge.description || 'Advance',
+          amount,
+          id: charge.id,
+        })
+      } else if (type === 'ALLOWANCE') {
+        const amount = Math.abs(charge.total_amount || 0)
+        item.allowances.push({
+          description: charge.description || 'Allowance',
+          amount,
+          id: charge.id,
+        })
+      } else if (type === 'CHARGE' || type === 'POST CHARGE' || type === 'POST_CHARGE') {
+        const amount = Math.abs(charge.total_amount || 0)
+        item.postCharges.push({
+          description: charge.description || 'Post Charge',
+          amount,
+          id: charge.id,
+        })
+      }
+    })
 
-  const rows: TableRowWithIndex[] = []
-  let index = 1
-  
-  const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
-    if (a === 'COMMON') return 1
-    if (b === 'COMMON') return -1
-    const numA = parseInt(a)
-    const numB = parseInt(b)
-    if (!isNaN(numA) && !isNaN(numB)) {
-      return numA - numB
-    }
-    return a.localeCompare(b)
-  })
-  
-  for (const room of sortedRooms) {
-    const dateMap = roomGroups.get(room)!
-    const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
-      const dateA = a.split('/').reverse().join('-')
-      const dateB = b.split('/').reverse().join('-')
-      return new Date(dateA).getTime() - new Date(dateB).getTime()
+    const rows: TableRowWithIndex[] = []
+    let index = 1
+    
+    const sortedRooms = Array.from(roomGroups.keys()).sort((a, b) => {
+      if (a === 'COMMON') return 1
+      if (b === 'COMMON') return -1
+      const numA = parseInt(a)
+      const numB = parseInt(b)
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return numA - numB
+      }
+      return a.localeCompare(b)
     })
     
-    let isFirstRow = true
-    for (const date of sortedDates) {
-      const item = dateMap.get(date)!
-      
-      const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
-      const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
-      const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
-      const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
-      
-      // NOW INCLUDE CHILD AND DRIVER AMOUNTS IN TOTAL
-     const total = item.roomChargeAmount + 
-              item.exPaxAmount + 
-              item.childAmount +      
-              item.driverAmount +     
-              item.cgstAmount +       // ADD THIS - Include CGST
-              item.sgstAmount +       // ADD THIS - Include SGST
-              foodTotal + 
-              postTotal - 
-              allowanceTotal - 
-              advanceTotal
-      
-      rows.push({
-        id: `row-${room}-${date}`,
-        displayIndex: index++,
-        roomNumber: room,
-        date: date,
-        roomTariff: item.roomChargeAmount,
-        exPax: item.exPaxAmount,
-        child: item.childAmount,    // ADD THIS
-        driver: item.driverAmount,  // ADD THIS
-        cgst: item.cgstAmount,
-        sgst: item.sgstAmount,
-        food: foodTotal,
-        total: total,
-        advanceTotal: advanceTotal,
-        postTotal: postTotal,
-        allowanceTotal: allowanceTotal,
-        postAllowNet: postTotal - allowanceTotal - advanceTotal,
-        postCharges: item.postCharges,
-        allowances: item.allowances,
-        advances: item.advances,
-        foodCharges: item.foodCharges,
-        sacCode: '996311',
-        isFirstRow: isFirstRow,
+    for (const room of sortedRooms) {
+      const dateMap = roomGroups.get(room)!
+      const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
+        const dateA = a.split('/').reverse().join('-')
+        const dateB = b.split('/').reverse().join('-')
+        return new Date(dateA).getTime() - new Date(dateB).getTime()
       })
-      isFirstRow = false
+      
+      let isFirstRow = true
+      for (const date of sortedDates) {
+        const item = dateMap.get(date)!
+        
+        const postTotal = item.postCharges.reduce((sum, p) => sum + p.amount, 0)
+        const foodTotal = item.foodCharges.reduce((sum, f) => sum + f.amount, 0)
+        const allowanceTotal = item.allowances.reduce((sum, a) => sum + a.amount, 0)
+        const advanceTotal = item.advances.reduce((sum, a) => sum + a.amount, 0)
+        
+        // CALCULATE TOTAL FROM STORED PROCEDURE VALUES
+        const dtotal_amount = item.roomChargeAmount + 
+                      item.exPaxAmount + 
+                      item.childAmount +      
+                      item.driverAmount +     
+                      item.cgstAmount +       
+                      item.sgstAmount +       
+                      foodTotal + 
+                      postTotal - 
+                      allowanceTotal - 
+                      advanceTotal -
+                      item.discountAmount     
+        
+        rows.push({
+          id: `row-${room}-${date}`,
+          displayIndex: index++,
+          roomNumber: room,
+          date: date,
+          roomTariff: item.roomChargeAmount,
+          exPax: item.exPaxAmount,
+          child: item.childAmount,
+          driver: item.driverAmount,
+          discount: item.discountAmount,
+          cgst: item.cgstAmount,
+          sgst: item.sgstAmount,
+          food: foodTotal,
+          total: dtotal_amount,
+          advanceTotal: advanceTotal,
+          postTotal: postTotal,
+          allowanceTotal: allowanceTotal,
+          postAllowNet: postTotal - allowanceTotal - advanceTotal,
+          postCharges: item.postCharges,
+          allowances: item.allowances,
+          advances: item.advances,
+          foodCharges: item.foodCharges,
+          sacCode: '996311',
+          isFirstRow: isFirstRow,
+        })
+        isFirstRow = false
+      }
     }
-  }
 
-  return rows
-}, [displayRows])
+    return rows
+  }, [displayRows])
+
   // ========== CALCULATE TOTALS ==========
-const totals = useMemo(() => {
-  const firstRow = billData[0] || {}
-  
-  return {
-    totalRoomTariffAmount: roundToTwo(
-      tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
-    ),
-    totalExPaxAmount: roundToTwo(
-      tableRows.reduce((sum, row) => sum + row.exPax, 0)
-    ),
-    totalChildAmount: roundToTwo(
-      tableRows.reduce((sum, row) => sum + (row.child || 0), 0)
-    ),
-    totalDriverAmount: roundToTwo(
-      tableRows.reduce((sum, row) => sum + (row.driver || 0), 0)
-    ),
-    totalCgstAmount: roundToTwo(
-      firstRow.cgst_amt ||
-      tableRows.reduce((sum, row) => sum + row.cgst, 0)
-    ),
-    totalSgstAmount: roundToTwo(
-      firstRow.sgst_amt ||
-      tableRows.reduce((sum, row) => sum + row.sgst, 0)
-    ),
-    totalFoodAmount: roundToTwo(
-      firstRow.food_total ||
-      tableRows.reduce((sum, row) => sum + row.food, 0)
-    ),
-    totalAdvanceAmount: roundToTwo(
-      firstRow.advance_amt ||
-      firstRow.advance_amount_total ||
-      tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
-    ),
-    totalPostAmount: roundToTwo(
-      firstRow.post_changes_amt ||
-      firstRow.post_charges_total ||
-      tableRows.reduce((sum, row) => sum + row.postTotal, 0)
-    ),
-    totalAllowanceAmount: roundToTwo(
-      firstRow.allowances_amt ||
-      firstRow.allowance_total ||
-      tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
-    ),
-    totalAmount: roundToTwo(
-      firstRow.total_amount ||
-      tableRows.reduce((sum, row) => sum + row.total, 0)
-    ),
-    netTotal: roundToTwo(
-      firstRow.net_payable ||
-      firstRow.bill_amount ||
-      0
-    ),
-  }
-}, [tableRows, billData])
+  const totals = useMemo(() => {
+    const firstRow = billData[0] || {}
+    
+    return {
+      totalRoomTariffAmount: roundToTwo(
+        tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
+      ),
+      totalExPaxAmount: roundToTwo(
+        tableRows.reduce((sum, row) => sum + row.exPax, 0)
+      ),
+      totalChildAmount: roundToTwo(
+        tableRows.reduce((sum, row) => sum + (row.child || 0), 0)
+      ),
+      totalDriverAmount: roundToTwo(
+        tableRows.reduce((sum, row) => sum + (row.driver || 0), 0)
+      ),
+      totalCgstAmount: roundToTwo(
+        firstRow.cgst_amt ||
+        tableRows.reduce((sum, row) => sum + row.cgst, 0)
+      ),
+      totalSgstAmount: roundToTwo(
+        firstRow.sgst_amt ||
+        tableRows.reduce((sum, row) => sum + row.sgst, 0)
+      ),
+      totalFoodAmount: roundToTwo(
+        firstRow.food_total ||
+        tableRows.reduce((sum, row) => sum + row.food, 0)
+      ),
+      totalAdvanceAmount: roundToTwo(
+        firstRow.advance_amt ||
+        firstRow.advance_amount_total ||
+        tableRows.reduce((sum, row) => sum + row.advanceTotal, 0)
+      ),
+      totalPostAmount: roundToTwo(
+        firstRow.post_changes_amt ||
+        firstRow.post_charges_total ||
+        tableRows.reduce((sum, row) => sum + row.postTotal, 0)
+      ),
+      totalAllowanceAmount: roundToTwo(
+        firstRow.allowances_amt ||
+        firstRow.allowance_total ||
+        tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
+      ),
+      totalAmount: roundToTwo(
+        firstRow.total_amount ||
+        tableRows.reduce((sum, row) => sum + row.total, 0)
+      ),
+      netTotal: roundToTwo(
+        firstRow.net_payable ||
+        firstRow.bill_amount ||
+        0
+      ),
+    }
+  }, [tableRows, billData])
+
   // ========== DISPLAY VALUES ==========
   const displayCheckedOutRooms = summary?.checked_out_rooms || summary?.room_numbers || []
   const checkedOutRoomsStr = displayCheckedOutRooms.join(', ') || summary?.room_numbers_str || ''
@@ -794,13 +788,13 @@ const totals = useMemo(() => {
       flex: 1 0 auto;
     }
     .bill-layout-bottom {
-  flex-shrink: 0;
-  margin-top: auto;
-  padding-top: 6px;
-  border-top: 2px solid ${headerBg};
-  page-break-inside: avoid;
-  break-inside: avoid;
-}
+      flex-shrink: 0;
+      margin-top: auto;
+      padding-top: 6px;
+      border-top: 2px solid ${headerBg};
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
     .bill-spacer {
       flex: 1 1 auto;
       min-height: 15px;
@@ -1008,7 +1002,7 @@ const totals = useMemo(() => {
     const printWindow = window.open('', '_blank', 'width=800,height=700')
     if (!printWindow) return
 
-const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top_mm || 8
+    const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top_mm || 8
     const pageBottomMargin = printSettings?.margin_bottom_mm || 8
     const isA4Print = (printSettings?.default_print_size || 'A4') === 'A4'
     const pageHeightMm = isA4Print ? 297 : null
@@ -1245,610 +1239,584 @@ const effectiveTopMargin = !showTopHeaderSection ? 0 : printSettings?.margin_top
   }, [printSettings, headerBg])
 
   // ========== RENDER GUEST DETAILS (Left Column) ==========
-const renderGuestDetails = useCallback(() => {
-  if (printSettings?.show_guest_details !== 1) return null
-  
-  return (
-    <div className="bill-info-box" style={{ height: '100%' }}>
-      <div className="bill-info-box-header">GUEST DETAILS</div>
-      <div className="bill-info-box-body" style={{ padding: '6px 10px' }}>
-        <table className="bill-detail-table" style={{ width: '100%' }}>
-          <tbody>
-            {printSettings?.show_guest_name === 1 && (
-              <tr>
-                <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Name</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
-                <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '10pt',  color: headerBg }}>{summary?.guest_name || '-'}</td>
-              </tr>
-            )}
+  const renderGuestDetails = useCallback(() => {
+    if (printSettings?.show_guest_details !== 1) return null
+    
+    return (
+      <div className="bill-info-box" style={{ height: '100%' }}>
+        <div className="bill-info-box-header">GUEST DETAILS</div>
+        <div className="bill-info-box-body" style={{ padding: '6px 10px' }}>
+          <table className="bill-detail-table" style={{ width: '100%' }}>
+            <tbody>
+              {printSettings?.show_guest_name === 1 && (
+                <tr>
+                  <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Name</td>
+                  <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
+                  <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '10pt',  color: headerBg }}>{summary?.guest_name || '-'}</td>
+                </tr>
+              )}
 
-            {printSettings?.show_guest_address === 1 && (
-              <tr>
-                <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Address</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
-                <td className="bdt-value" style={{ fontWeight: 'bold',fontSize: '10pt' }}>{summary?.guest_address || '-'}</td>
-              </tr>
-            )}
-            {printSettings?.show_guest_mobile === 1 && (
-              <tr>
-                <td className="bdt-label" style={{  fontWeight: 'bold',  width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Phone</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
-                <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '10pt' }}>{summary?.guest_mobile || '-'}</td>
-              </tr>
-            )}
-            {printSettings?.show_guest_email === 1 && (
-              <tr>
-                <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Company</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
-                <td className="bdt-value" style={{ wordBreak: 'break-all', fontSize: '10pt', fontWeight: 'bold' }}>{summary?.company_name || '-'}</td>
-              </tr>
-            )}
-            
-            {printSettings?.show_guest_id_proof === 1 && (
-              <tr>
-                <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>GSTIN</td>
-                <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
-                <td className="bdt-value" style={{ fontSize: '10pt', fontWeight: 'bold' }}>{summary?.gst_no || '-'}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              {printSettings?.show_guest_address === 1 && (
+                <tr>
+                  <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Address</td>
+                  <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
+                  <td className="bdt-value" style={{ fontWeight: 'bold',fontSize: '10pt' }}>{summary?.guest_address || '-'}</td>
+                </tr>
+              )}
+              {printSettings?.show_guest_mobile === 1 && (
+                <tr>
+                  <td className="bdt-label" style={{  fontWeight: 'bold',  width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Phone</td>
+                  <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
+                  <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '10pt' }}>{summary?.guest_mobile || '-'}</td>
+                </tr>
+              )}
+              {printSettings?.show_guest_email === 1 && (
+                <tr>
+                  <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>Company</td>
+                  <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
+                  <td className="bdt-value" style={{ wordBreak: 'break-all', fontSize: '10pt', fontWeight: 'bold' }}>{summary?.company_name || '-'}</td>
+                </tr>
+              )}
+              
+              {printSettings?.show_guest_id_proof === 1 && (
+                <tr>
+                  <td className="bdt-label" style={{  fontWeight: 'bold', width: '60px', minWidth: '60px', maxWidth: '60px', fontSize: '10pt' }}>GSTIN</td>
+                  <td className="bdt-colon" style={{ width: '6px', minWidth: '6px', fontSize: '10pt' }}>:</td>
+                  <td className="bdt-value" style={{ fontSize: '10pt', fontWeight: 'bold' }}>{summary?.gst_no || '-'}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  )
-}, [printSettings, summary])
+    )
+  }, [printSettings, summary])
 
-// ========== RENDER BOOKING & INVOICE DETAILS (Right Column) ==========
-// ========== RENDER BOOKING & INVOICE DETAILS (Right Column) ==========
-const renderBookingDetails = useCallback(() => {
-  if (printSettings?.show_booking_details !== 1) return null
-  
-  const invoiceNo = propBillNumber || billData[0]?.ldg_bill_no || generatedBillNo
-  const invoiceDateDisplay = propPaymentDate || invoiceDate
-  const bookingIdDisplay = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
-  const roomTypeDisplay = summary?.room_categories_str || '-'
-  const roomNumbersDisplay = checkedOutRoomsStr || summary?.room_numbers_str || '-'
-  const nightsDisplay = summary?.total_days || 0
-  const tariffPlanDisplay = summary?.plan_name || 'Room Only'
-  
-  // Use the aggregated guests display from summary
-  const guestsDisplay = summary?.guests_display || `${summary?.total_adults || 0} Adults${(summary?.total_child_paid || 0) > 0 ? `, ${summary?.total_child_paid} Child` : ''}${(summary?.total_driver || 0) > 0 ? `, ${summary?.total_driver} Driver` : ''}`
+  // ========== RENDER BOOKING & INVOICE DETAILS (Right Column) ==========
+  const renderBookingDetails = useCallback(() => {
+    if (printSettings?.show_booking_details !== 1) return null
+    
+    const invoiceNo = propBillNumber || billData[0]?.ldg_bill_no || generatedBillNo
+    const invoiceDateDisplay = propPaymentDate || invoiceDate
+    const bookingIdDisplay = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
+    const roomTypeDisplay = summary?.room_categories_str || '-'
+    const roomNumbersDisplay = checkedOutRoomsStr || summary?.room_numbers_str || '-'
+    const nightsDisplay = summary?.total_days || 0
+    const tariffPlanDisplay = summary?.plan_name || 'Room Only'
+    
+    const guestsDisplay = summary?.guests_display || `${summary?.total_adults || 0} Adults${(summary?.total_child_paid || 0) > 0 ? `, ${summary?.total_child_paid} Child` : ''}${(summary?.total_driver || 0) > 0 ? `, ${summary?.total_driver} Driver` : ''}`
 
-  // Get first row from billData for checkin/checkout datetime with time
-  const firstRow = billData[0] || {}
-  
-  // Format datetime with time
-  const formatDateTimeFull = (datetime: string) => {
-    if (!datetime) return '-'
-    const d = new Date(datetime)
-    const day = d.getDate().toString().padStart(2, '0')
-    const month = d.toLocaleString('default', { month: 'long' })
-    const year = d.getFullYear()
-    const hours = d.getHours().toString().padStart(2, '0')
-    const minutes = d.getMinutes().toString().padStart(2, '0')
-    return `${day} ${month} ${year} ${hours}:${minutes}`
-  }
+    const firstRow = billData[0] || {}
+    
+    const formatDateTimeFull = (datetime: string) => {
+      if (!datetime) return '-'
+      const d = new Date(datetime)
+      const day = d.getDate().toString().padStart(2, '0')
+      const month = d.toLocaleString('default', { month: 'long' })
+      const year = d.getFullYear()
+      const hours = d.getHours().toString().padStart(2, '0')
+      const minutes = d.getMinutes().toString().padStart(2, '0')
+      return `${day} ${month} ${year} ${hours}:${minutes}`
+    }
 
-  // Get checkin and checkout datetime with time from first row
-  const checkinDateTime = firstRow?.checkin_datetime || summary?.original_checkin_datetime
-  const checkoutDateTime = firstRow?.checkout_datetime || summary?.final_checkout_datetime
-  
-  const checkinDisplay = checkinDateTime ? formatDateTimeFull(checkinDateTime) : checkinDateDisplay
-  const checkoutDisplay = checkoutDateTime ? formatDateTimeFull(checkoutDateTime) : checkoutDateDisplay
+    const checkinDateTime = firstRow?.checkin_datetime || summary?.original_checkin_datetime
+    const checkoutDateTime = firstRow?.checkout_datetime || summary?.final_checkout_datetime
+    
+    const checkinDisplay = checkinDateTime ? formatDateTimeFull(checkinDateTime) : checkinDateDisplay
+    const checkoutDisplay = checkoutDateTime ? formatDateTimeFull(checkoutDateTime) : checkoutDateDisplay
 
-  return (
-    <div className="bill-info-box" style={{ height: '100%' }}>
-      <div className="bill-info-box-header">BOOKING & INVOICE DETAILS</div>
-      <div className="bill-info-box-body" style={{ padding: '8px 12px' }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '2px 30px',
-          fontSize: '9pt'
-        }}>
-          {/* LEFT COLUMN */}
+    return (
+      <div className="bill-info-box" style={{ height: '100%' }}>
+        <div className="bill-info-box-header">BOOKING & INVOICE DETAILS</div>
+        <div className="bill-info-box-body" style={{ padding: '8px 12px' }}>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'auto auto 1fr',
-            gap: '3px 5px',
-            alignItems: 'baseline'
+            gridTemplateColumns: '1fr 1fr',
+            gap: '2px 30px',
+            fontSize: '9pt'
           }}>
-            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Invoice No.</span>
-            <span style={{ fontWeight: 'bold' }}>:</span>
-            <span style={{ fontWeight: 'bold', color: headerBg }}>{invoiceNo}</span>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'auto auto 1fr',
+              gap: '3px 5px',
+              alignItems: 'baseline'
+            }}>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Invoice No.</span>
+              <span style={{ fontWeight: 'bold' }}>:</span>
+              <span style={{ fontWeight: 'bold', color: headerBg }}>{invoiceNo}</span>
 
-            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Register No</span>
-            <span style={{ fontWeight: 'bold' }}>:</span>
-            <span style={{ fontWeight: 'bold' }}>{bookingIdDisplay}</span>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Register No</span>
+              <span style={{ fontWeight: 'bold' }}>:</span>
+              <span style={{ fontWeight: 'bold' }}>{bookingIdDisplay}</span>
 
-            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Arrival Date</span>
-            <span style={{ fontWeight: 'bold' }}>:</span>
-            <span style={{ fontWeight: 'bold' }}>{checkinDisplay}</span>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Arrival Date</span>
+              <span style={{ fontWeight: 'bold' }}>:</span>
+              <span style={{ fontWeight: 'bold' }}>{checkinDisplay}</span>
 
-            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Departure Date</span>
-            <span style={{ fontWeight: 'bold' }}>:</span>
-            <span style={{ fontWeight: 'bold' }}>{checkoutDisplay}</span>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Departure Date</span>
+              <span style={{ fontWeight: 'bold' }}>:</span>
+              <span style={{ fontWeight: 'bold' }}>{checkoutDisplay}</span>
 
-            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', alignSelf: 'start' }}>Room No(s).</span>
-            <span style={{ fontWeight: 'bold', alignSelf: 'start' }}>:</span>
-            <span style={{ fontWeight: 'bold', wordBreak: 'break-word' }}>{roomNumbersDisplay}</span>
-          </div>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', alignSelf: 'start' }}>Room No(s).</span>
+              <span style={{ fontWeight: 'bold', alignSelf: 'start' }}>:</span>
+              <span style={{ fontWeight: 'bold', wordBreak: 'break-word' }}>{roomNumbersDisplay}</span>
+            </div>
 
-          {/* RIGHT COLUMN */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'auto auto 1fr',
-            gap: '3px 4px',
-            alignItems: 'baseline'
-          }}>
-            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Invoice Date</span>
-            <span style={{ fontWeight: 'bold' }}>:</span>
-            <span style={{ fontWeight: 'bold', color: headerBg }}>{invoiceDateDisplay}</span>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'auto auto 1fr',
+              gap: '3px 4px',
+              alignItems: 'baseline'
+            }}>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Invoice Date</span>
+              <span style={{ fontWeight: 'bold' }}>:</span>
+              <span style={{ fontWeight: 'bold', color: headerBg }}>{invoiceDateDisplay}</span>
 
-            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Guests / Plan</span>
-            <span style={{ fontWeight: 'bold' }}>:</span>
-            <span style={{ fontWeight: 'bold' }}>{guestsDisplay} {tariffPlanDisplay ? `(${tariffPlanDisplay})` : ''}</span>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Guests / Plan</span>
+              <span style={{ fontWeight: 'bold' }}>:</span>
+              <span style={{ fontWeight: 'bold' }}>{guestsDisplay} {tariffPlanDisplay ? `(${tariffPlanDisplay})` : ''}</span>
 
-            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>No. of Nights</span>
-            <span style={{ fontWeight: 'bold' }}>:</span>
-            <span style={{ fontWeight: 'bold' }}>{nightsDisplay}</span>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>No. of Nights</span>
+              <span style={{ fontWeight: 'bold' }}>:</span>
+              <span style={{ fontWeight: 'bold' }}>{nightsDisplay}</span>
 
-            <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', alignSelf: 'start' }}>Room Type</span>
-            <span style={{ fontWeight: 'bold', alignSelf: 'start' }}>:</span>
-            <span style={{ fontWeight: 'bold', wordBreak: 'break-word' }}>{roomTypeDisplay}</span>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', alignSelf: 'start' }}>Room Type</span>
+              <span style={{ fontWeight: 'bold', alignSelf: 'start' }}>:</span>
+              <span style={{ fontWeight: 'bold', wordBreak: 'break-word' }}>{roomTypeDisplay}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  )
-}, [printSettings, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate, summary, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, headerBg])
-
-
-// ========== RENDER CHARGES TABLE ==========
-const renderChargesTable = useCallback(() => {
-  if (tableRows.length === 0) {
-    return (
-      <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-        No charges to display.
-      </div>
     )
-  }
+  }, [printSettings, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate, summary, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, headerBg])
 
-  const showRowNums = printSettings?.show_row_numbers === 1
+  // ========== RENDER CHARGES TABLE ==========
+  const renderChargesTable = useCallback(() => {
+    if (tableRows.length === 0) {
+      return (
+        <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+          No charges to display.
+        </div>
+      )
+    }
 
-  // Check if POST, ALLOWANCE, CHILD, DRIVER, UNPAID have any values
-  const hasPostValues = tableRows.some(row => row.postTotal > 0)
-  const hasAllowanceValues = tableRows.some(row => row.allowanceTotal > 0)
-  
-  // Check if CHILD, DRIVER, UNPAID have amount values from stored procedure
-  const hasChildValues = displayRows.some(row =>  (row.child_unpaid || 0) > 0)
-  const hasDriverValues = displayRows.some(row => (row.driver_total || 0) > 0)
+    const showRowNums = printSettings?.show_row_numbers === 1
 
-  // Calculate aggregated amounts for footer
-  const totalChildAmount = displayRows.reduce((sum, row) => sum + (row.child_total || row.child_paid || 0), 0)
- 
-  const totalDriverAmount = displayRows.reduce((sum, row) => sum + (row.driver_total || 0), 0)
+    const hasPostValues = tableRows.some(row => row.postTotal > 0)
+    const hasAllowanceValues = tableRows.some(row => row.allowanceTotal > 0)
+    const hasChildValues = displayRows.some(row => (row.child_unpaid || 0) > 0)
+    const hasDriverValues = displayRows.some(row => (row.driver_total || 0) > 0)
+    const hasDiscountValues = displayRows.some(row => (row.discount_amount || 0) > 0)
 
-  const headers: React.ReactElement[] = []
-  if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
-  headers.push(<th key="room" className="col-room bct-left">ROOM</th>)
-  headers.push(<th key="date" className="col-date bct-left">DATE</th>)
-  headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
-  headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
-  
-  // Add CHILD column if there are values (shows amount)
-  if (hasChildValues) {
-    headers.push(<th key="child" className="col-amount bct-right">CHILD</th>)
-  }
-  
-  // Add DRIVER column if there are values (shows amount)
-  if (hasDriverValues) {
-    headers.push(<th key="driver" className="col-amount bct-right">DRIVER</th>)
-  }
-  
- 
-  
-  headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
-  headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
-  headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
-  
-  // Only add POST header if there are values
-  if (hasPostValues) {
-    headers.push(<th key="post" className="col-amount bct-right">POST</th>)
-  }
-  // Only add ALLOWANCE header if there are values
-  if (hasAllowanceValues) {
-    headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>)
-  }
-  headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
+    const totalChildAmount = displayRows.reduce((sum, row) => sum + (row.child_total || row.child_paid || 0), 0)
+    const totalDriverAmount = displayRows.reduce((sum, row) => sum + (row.driver_total || 0), 0)
+    const totalDiscountAmount = displayRows.reduce((sum, row) => sum + (row.discount_amount || 0), 0)
 
-  const bodyRows: React.ReactElement[] = []
-  let runningIndex = 1
-
-  tableRows.forEach((row) => {
-    const mainIndex = runningIndex++
+    const headers: React.ReactElement[] = []
+    if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
+    headers.push(<th key="room" className="col-room bct-left">ROOM</th>)
+    headers.push(<th key="date" className="col-date bct-left">DATE</th>)
+    headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
+    headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
     
-    // Find child and driver data for this room/date combination from displayRows
-    const roomRows = displayRows.filter(r => 
-      r.room_number === row.roomNumber && 
-      r.bill_date_formatted === row.date
-    )
-    
-    // Get AMOUNT values directly from the stored procedure data
-    const childAmount = roomRows.reduce((sum, r) => sum + (r.child_total || r.child_paid || 0), 0)
-    const driverAmount = roomRows.reduce((sum, r) => sum + (r.driver_total || 0), 0)
-    
-    const cells: React.ReactElement[] = []
-    if (showRowNums) cells.push(<td key="srno" className="bct-center" style={{ fontWeight: 'bold' }}>{mainIndex}</td>)
-    cells.push(
-      <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'bold' }}>
-        {row.roomNumber || 'N/A'}
-      </td>
-    )
-    cells.push(<td key="date" className="bct-left" style={{ fontWeight: 'bold' }}>{row.date || 'N/A'}</td>)
-    cells.push(<td key="tariff" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.roomTariff || 0)}</td>)
-    cells.push(<td key="expax" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.exPax || 0)}</td>)
-    
-    // Add CHILD column if there are values (show amount)
     if (hasChildValues) {
-      cells.push(
-        <td key="child" className="bct-right" style={{ fontWeight: 'bold' }}>
-          {childAmount > 0 ? formatAmtDisplay(childAmount) : '-'}
-        </td>
-      )
+      headers.push(<th key="child" className="col-amount bct-right">CHILD</th>)
     }
     
-    // Add DRIVER column if there are values (show amount)
     if (hasDriverValues) {
-      cells.push(
-        <td key="driver" className="bct-right" style={{ fontWeight: 'bold' }}>
-          {driverAmount > 0 ? formatAmtDisplay(driverAmount) : '-'}
-        </td>
-      )
+      headers.push(<th key="driver" className="col-amount bct-right">DRIVER</th>)
     }
     
+    if (hasDiscountValues) {
+      headers.push(<th key="discount" className="col-amount bct-right">DISCOUNT</th>)
+    }
     
+    headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
+    headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
+    headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
     
-    cells.push(<td key="cgst" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.cgst || 0)}</td>)
-    cells.push(<td key="sgst" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.sgst || 0)}</td>)
-    cells.push(<td key="food" className="bct-right" style={{ fontWeight: 'bold' }}>{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
-    
-    // Only add POST column if there are values
     if (hasPostValues) {
-      cells.push(
-        <td key="post" className="bct-right" style={{ fontWeight: 'bold' }}>
-          {row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}
-        </td>
-      )
+      headers.push(<th key="post" className="col-amount bct-right">POST</th>)
     }
-    // Only add ALLOWANCE column if there are values
     if (hasAllowanceValues) {
+      headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>)
+    }
+    headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
+
+    const bodyRows: React.ReactElement[] = []
+    let runningIndex = 1
+
+    tableRows.forEach((row) => {
+      const mainIndex = runningIndex++
+      
+      const roomRows = displayRows.filter(r => 
+        r.room_number === row.roomNumber && 
+        r.bill_date_formatted === row.date
+      )
+      
+      const childAmount = roomRows.reduce((sum, r) => sum + (r.child_total || r.child_paid || 0), 0)
+      const driverAmount = roomRows.reduce((sum, r) => sum + (r.driver_total || 0), 0)
+      const discountAmount = roomRows.reduce((sum, r) => sum + (r.discount_amount || 0), 0)
+      
+      const cells: React.ReactElement[] = []
+      if (showRowNums) cells.push(<td key="srno" className="bct-center" style={{ fontWeight: 'bold' }}>{mainIndex}</td>)
       cells.push(
-        <td key="allowance" className="bct-right" style={{ fontWeight: 'bold' }}>
-          {row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}
+        <td key="room" className="bct-left" style={{ fontWeight: row.isFirstRow ? 'bold' : 'bold' }}>
+          {row.roomNumber || 'N/A'}
+        </td>
+      )
+      cells.push(<td key="date" className="bct-left" style={{ fontWeight: 'bold' }}>{row.date || 'N/A'}</td>)
+      cells.push(<td key="tariff" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.roomTariff || 0)}</td>)
+      cells.push(<td key="expax" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.exPax || 0)}</td>)
+      
+      if (hasChildValues) {
+        cells.push(
+          <td key="child" className="bct-right" style={{ fontWeight: 'bold' }}>
+            {childAmount > 0 ? formatAmtDisplay(childAmount) : '-'}
+          </td>
+        )
+      }
+      
+      if (hasDriverValues) {
+        cells.push(
+          <td key="driver" className="bct-right" style={{ fontWeight: 'bold' }}>
+            {driverAmount > 0 ? formatAmtDisplay(driverAmount) : '-'}
+          </td>
+        )
+      }
+      
+      if (hasDiscountValues) {
+        cells.push(
+          <td key="discount" className="bct-right" style={{ fontWeight: 'bold', color: '#c0392b' }}>
+            {discountAmount > 0 ? formatAmtDisplay(discountAmount) : '-'}
+          </td>
+        )
+      }
+      
+      cells.push(<td key="cgst" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.cgst || 0)}</td>)
+      cells.push(<td key="sgst" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.sgst || 0)}</td>)
+      cells.push(<td key="food" className="bct-right" style={{ fontWeight: 'bold' }}>{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
+      
+      if (hasPostValues) {
+        cells.push(
+          <td key="post" className="bct-right" style={{ fontWeight: 'bold' }}>
+            {row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}
+          </td>
+        )
+      }
+      if (hasAllowanceValues) {
+        cells.push(
+          <td key="allowance" className="bct-right" style={{ fontWeight: 'bold' }}>
+            {row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}
+          </td>
+        )
+      }
+      cells.push(
+        <td key="total" className="bct-right" style={{ fontWeight: 'bold' }}>
+          {formatAmtDisplay(row.total || 0)}
+        </td>
+      )
+      bodyRows.push(<tr key={row.id}>{cells}</tr>)
+    })
+
+    const totalTariff = tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
+    const totalExPax = tableRows.reduce((sum, row) => sum + row.exPax, 0)
+    const totalCgst = tableRows.reduce((sum, row) => sum + row.cgst, 0)
+    const totalSgst = tableRows.reduce((sum, row) => sum + row.sgst, 0)
+    const totalFood = tableRows.reduce((sum, row) => sum + row.food, 0)
+    const totalPost = tableRows.reduce((sum, row) => sum + row.postTotal, 0)
+    const totalAllowance = tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
+    const totalAmount = tableRows.reduce((sum, row) => sum + row.total, 0)
+
+    const footerCells: React.ReactElement[] = []
+    
+    let labelColSpan = 0;
+    if (showRowNums) labelColSpan += 1;
+    labelColSpan += 1;
+    labelColSpan += 1;
+
+    footerCells.push(
+      <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ 
+        fontWeight: 800,
+        background: '#f0f0f0'
+      }}>
+        Total
+      </td>
+    )
+    
+    footerCells.push(
+      <td key="total_tariff" className="bct-right" style={{ 
+        fontWeight: 800,
+        background: '#f0f0f0'
+      }}>
+        {formatAmtDisplay(totalTariff)}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_expax" className="bct-right" style={{ 
+        fontWeight: 800,
+        background: '#f0f0f0'
+      }}>
+        {formatAmtDisplay(totalExPax)}
+      </td>
+    )
+    
+    if (hasChildValues) {
+      footerCells.push(
+        <td key="total_child" className="bct-right" style={{ 
+          fontWeight: 800,
+          background: '#f0f0f0'
+        }}>
+          {totalChildAmount > 0 ? formatAmtDisplay(totalChildAmount) : '-'}
         </td>
       )
     }
-    cells.push(
-      <td key="total" className="bct-right" style={{ fontWeight: 'bold' }}>
-        {formatAmtDisplay(row.total || 0)}
-      </td>
-    )
-    bodyRows.push(<tr key={row.id}>{cells}</tr>)
-  })
-
-  // Calculate totals from tableRows
-  const totalTariff = tableRows.reduce((sum, row) => sum + row.roomTariff, 0)
-  const totalExPax = tableRows.reduce((sum, row) => sum + row.exPax, 0)
-  const totalCgst = tableRows.reduce((sum, row) => sum + row.cgst, 0)
-  const totalSgst = tableRows.reduce((sum, row) => sum + row.sgst, 0)
-  const totalFood = tableRows.reduce((sum, row) => sum + row.food, 0)
-  const totalPost = tableRows.reduce((sum, row) => sum + row.postTotal, 0)
-  const totalAllowance = tableRows.reduce((sum, row) => sum + row.allowanceTotal, 0)
-  const totalAmount = tableRows.reduce((sum, row) => sum + row.total, 0)
-
-  const footerCells: React.ReactElement[] = []
-  
-  // Calculate colSpan for the label
-  let labelColSpan = 0;
-  if (showRowNums) labelColSpan += 1; // # column
-  labelColSpan += 1; // ROOM column
-  labelColSpan += 1; // DATE column
-  // CHILD, DRIVER, UNPAID are value columns, so they should NOT be included in labelColSpan
-
-  footerCells.push(
-    <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ 
-      fontWeight: 800,
-      background: '#f0f0f0'
-    }}>
-      Total
-    </td>
-  )
-  
-  // Value columns - these will always be in same order
-  footerCells.push(
-    <td key="total_tariff" className="bct-right" style={{ 
-      fontWeight: 800,
-      background: '#f0f0f0'
-    }}>
-      {formatAmtDisplay(totalTariff)}
-    </td>
-  )
-  footerCells.push(
-    <td key="total_expax" className="bct-right" style={{ 
-      fontWeight: 800,
-      background: '#f0f0f0'
-    }}>
-      {formatAmtDisplay(totalExPax)}
-    </td>
-  )
-  
-  // Add CHILD footer if there are values (show amount)
-  if (hasChildValues) {
-    footerCells.push(
-      <td key="total_child" className="bct-right" style={{ 
-        fontWeight: 800,
-        background: '#f0f0f0'
-      }}>
-        {totalChildAmount > 0 ? formatAmtDisplay(totalChildAmount) : '-'}
-      </td>
-    )
-  }
-  
-  // Add DRIVER footer if there are values (show amount)
-  if (hasDriverValues) {
-    footerCells.push(
-      <td key="total_driver" className="bct-right" style={{ 
-        fontWeight: 800,
-        background: '#f0f0f0'
-      }}>
-        {totalDriverAmount > 0 ? formatAmtDisplay(totalDriverAmount) : '-'}
-      </td>
-    )
-  }
-  
-  // Add UNPAID footer if there are values (show child_unpaid amount)
-  
-  
-  footerCells.push(
-    <td key="total_cgst" className="bct-right" style={{ 
-      fontWeight: 800,
-      background: '#f0f0f0'
-    }}>
-      {formatAmtDisplay(totalCgst)}
-    </td>
-  )
-  footerCells.push(
-    <td key="total_sgst" className="bct-right" style={{ 
-      fontWeight: 800,
-      background: '#f0f0f0'
-    }}>
-      {formatAmtDisplay(totalSgst)}
-    </td>
-  )
-  footerCells.push(
-    <td key="total_food" className="bct-right" style={{ 
-      fontWeight: 800,
-      background: '#f0f0f0'
-    }}>
-      {totalFood > 0 ? formatAmtDisplay(totalFood) : '-'}
-    </td>
-  )
-  
-  // Only add POST footer if there are values
-  if (hasPostValues) {
-    footerCells.push(
-      <td key="total_post" className="bct-right" style={{ 
-        fontWeight: 800,
-        background: '#f0f0f0'
-      }}>
-        {totalPost > 0 ? formatAmtDisplay(totalPost) : '-'}
-      </td>
-    )
-  }
-  
-  // Only add ALLOWANCE footer if there are values
-  if (hasAllowanceValues) {
-    footerCells.push(
-      <td key="total_allowance" className="bct-right" style={{ 
-        fontWeight: 800,
-        background: '#f0f0f0'
-      }}>
-        {totalAllowance > 0 ? formatAmtDisplay(totalAllowance) : '-'}
-      </td>
-    )
-  }
-  
-  // TOTAL footer with dark highlight
-  footerCells.push(
-    <td key="total_amount" className="bct-right" style={{ 
-      fontWeight: 800, 
-      background: '#f0f0f0'
-    }}>
-      {formatAmtDisplay(totalAmount)}
-    </td>
-  )
-
-  return (
-    <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
-      <table className="bill-charges-table">
-        <thead>
-          <tr>{headers}</tr>
-        </thead>
-        <tbody>{bodyRows}</tbody>
-        <tfoot>
-          <tr key="footer1">{footerCells}</tr>
-        </tfoot>
-      </table>
-    </div>
-  )
-}, [printSettings, tableRows, displayRows, headerBg, headerText])
- 
-// ========== RENDER PAYMENT DETAILS (Left Bottom) ==========
-const renderPaymentDetails = useCallback(() => {
-   
-    billData[0]?.reference_number || 
-    `TXN${Date.now().toString().slice(-12)}`
-
-  const paymentDateDisplay = propPaymentDate || invoiceDate
-  const paymentBankDisplay = propPaymentBank || paymentMode
-
-  return (
-    <div className="bill-info-box" style={{ height: '100%' }}>
-      <div className="bill-info-box-header">PAYMENT DETAILS</div>
-      <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
-        <table className="bill-detail-table" style={{ width: '100%' }}>
-          <tbody>
-           
-            <tr>
-              <td className="bdt-label" style={{  width: '80px', minWidth: '80px', fontSize: '9pt', fontWeight: 'bold' }}>Payment Date</td>
-              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
-              <td className="bdt-value" style={{  fontWeight: 'bold',fontSize: '9pt' }}>{paymentDateDisplay}</td>
-            </tr>
-            <tr>
-              <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '9pt', fontWeight: 'bold' }}>Payment Mode</td>
-              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
-              <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 'bold' }}>{paymentBankDisplay}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}, [propPaymentTransactionId, billData, propPaymentDate, invoiceDate, propPaymentBank, paymentMode, totals.netTotal])
-
-// ========== RENDER BILL SUMMARY (Right Bottom) ==========
-const renderSummaryBox = useCallback(() => {
-  // Aggregate across ALL rows
-  const grossTotal = displayRows.reduce((sum, row) => sum + (row.total_amount || 0), 0)
-  const discountAmount = displayRows.reduce((sum, row) => sum + (row.discount_amount || 0), 0)
-  const advanceTotal = displayRows.reduce((sum, row) => sum + (row.post_charges || 0), 0)
-  const netTotal = roundToTwo(grossTotal - discountAmount)
-  const finalAmount = roundToTwo(netTotal - advanceTotal)
-
-  return (
-    <div className="bill-info-box" style={{ height: '100%' }}>
-      <div className="bill-info-box-header">BILL SUMMARY</div>
-      <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
-        <table className="bill-detail-table" style={{ width: '100%' }}>
-          <tbody>
-            <tr>
-              <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 'bold' }}>TOTAL AMOUNT</td>
-              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
-              <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '9pt', paddingRight: '4px' }}>
-                ₹{formatAmt(grossTotal)}
-              </td>
-            </tr>
-            {discountAmount > 0 && (
-              <tr>
-                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 600, color: '#c0392b' }}>Discount</td>
-                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt', color: '#c0392b' }}>:</td>
-                <td className="bdt-value" style={{ textAlign: 'right', color: '#c0392b', fontWeight: 600, fontSize: '9pt', paddingRight: '4px' }}>
-                  -₹{formatAmt(discountAmount)}
-                </td>
-              </tr>
-            )}
-            <tr>
-              <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 700, borderTop: '1px solid #e0e0e0', paddingTop: '4px' }}>NET TOTAL</td>
-              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt', borderTop: '1px solid #e0e0e0', paddingTop: '4px' }}>:</td>
-              <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 700, fontSize: '9pt', borderTop: '1px solid #e0e0e0', paddingTop: '4px', paddingRight: '4px' }}>
-                ₹{formatAmt(netTotal)}
-              </td>
-            </tr>
-            {advanceTotal > 0 && (
-              <tr>
-                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 600, color: '#e67e22' }}>Advance</td>
-                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt', color: '#e67e22' }}>:</td>
-                <td className="bdt-value" style={{ textAlign: 'right', color: '#e67e22', fontWeight: 600, fontSize: '9pt', paddingRight: '4px' }}>
-                  -₹{formatAmt(advanceTotal)}
-                </td>
-              </tr>
-            )}
-            {advanceTotal > 0 && (
-              <tr>
-                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '8pt', fontWeight: 800, color: headerBg, borderTop: '2px solid #e0e0e0', paddingTop: '4px' }}>BALANCE AMOUNT</td>
-                <td className="bdt-colon" style={{ width: '8px', fontSize: '8pt', borderTop: '2px solid #e0e0e0', paddingTop: '4px' }}>:</td>
-                <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 800, fontSize: '8pt', color: headerBg, borderTop: '2px solid #e0e0e0', paddingTop: '4px', paddingRight: '4px' }}>
-                  ₹{formatAmt(finalAmount)}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}, [displayRows, headerBg])
-  // ========== RENDER FOOTER (REMOVED - not shown in image) ==========
-  // Footer is removed as per the image requirement
-
-  // ========== RENDER LAYOUT ==========
-  // ========== RENDER LAYOUT ==========
-const renderLayout = useCallback(() => {
-  return (
-    <div className="bill-layout-container">
-      {/* TOP SECTION: Header + Two Column (Guest Details | Booking & Invoice Details) */}
-      <div className="bill-layout-top">
-        {renderHotelHeader()}
-        {renderBillTitle()}
-        
-        {/* Two Column: Guest Details (Left) | Booking & Invoice Details (Right) with flex */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '12px', 
-          marginBottom: '12px',
-          alignItems: 'stretch'
+    
+    if (hasDriverValues) {
+      footerCells.push(
+        <td key="total_driver" className="bct-right" style={{ 
+          fontWeight: 800,
+          background: '#f0f0f0'
         }}>
-          {/* Guest Details - Fixed width */}
-          <div style={{ flex: '0 0 auto', width: '250px' }}>
-            {printSettings?.show_guest_details === 1 && renderGuestDetails()}
+          {totalDriverAmount > 0 ? formatAmtDisplay(totalDriverAmount) : '-'}
+        </td>
+      )
+    }
+    
+    if (hasDiscountValues) {
+      footerCells.push(
+        <td key="total_discount" className="bct-right" style={{ 
+          fontWeight: 800,
+          background: '#f0f0f0',
+          color: '#c0392b'
+        }}>
+          {totalDiscountAmount > 0 ? formatAmtDisplay(totalDiscountAmount) : '-'}
+        </td>
+      )
+    }
+    
+    footerCells.push(
+      <td key="total_cgst" className="bct-right" style={{ 
+        fontWeight: 800,
+        background: '#f0f0f0'
+      }}>
+        {formatAmtDisplay(totalCgst)}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_sgst" className="bct-right" style={{ 
+        fontWeight: 800,
+        background: '#f0f0f0'
+      }}>
+        {formatAmtDisplay(totalSgst)}
+      </td>
+    )
+    footerCells.push(
+      <td key="total_food" className="bct-right" style={{ 
+        fontWeight: 800,
+        background: '#f0f0f0'
+      }}>
+        {totalFood > 0 ? formatAmtDisplay(totalFood) : '-'}
+      </td>
+    )
+    
+    if (hasPostValues) {
+      footerCells.push(
+        <td key="total_post" className="bct-right" style={{ 
+          fontWeight: 800,
+          background: '#f0f0f0'
+        }}>
+          {totalPost > 0 ? formatAmtDisplay(totalPost) : '-'}
+        </td>
+      )
+    }
+    
+    if (hasAllowanceValues) {
+      footerCells.push(
+        <td key="total_allowance" className="bct-right" style={{ 
+          fontWeight: 800,
+          background: '#f0f0f0'
+        }}>
+          {totalAllowance > 0 ? formatAmtDisplay(totalAllowance) : '-'}
+        </td>
+      )
+    }
+    
+    footerCells.push(
+      <td key="total_amount" className="bct-right" style={{ 
+        fontWeight: 800, 
+        background: '#f0f0f0'
+      }}>
+        {formatAmtDisplay(totalAmount)}
+      </td>
+    )
+
+    return (
+      <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
+        <table className="bill-charges-table">
+          <thead>
+            <tr>{headers}</tr>
+          </thead>
+          <tbody>{bodyRows}</tbody>
+          <tfoot>
+            <tr key="footer1">{footerCells}</tr>
+          </tfoot>
+        </table>
+      </div>
+    )
+  }, [printSettings, tableRows, displayRows, headerBg, headerText])
+
+  // ========== RENDER PAYMENT DETAILS (Left Bottom) ==========
+  const renderPaymentDetails = useCallback(() => {
+    const paymentDateDisplay = propPaymentDate || invoiceDate
+    const paymentBankDisplay = propPaymentBank || paymentMode
+
+    return (
+      <div className="bill-info-box" style={{ height: '100%' }}>
+        <div className="bill-info-box-header">PAYMENT DETAILS</div>
+        <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
+          <table className="bill-detail-table" style={{ width: '100%' }}>
+            <tbody>
+              <tr>
+                <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '9pt', fontWeight: 'bold' }}>Payment Date</td>
+                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
+                <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '9pt' }}>{paymentDateDisplay}</td>
+              </tr>
+              <tr>
+                <td className="bdt-label" style={{ width: '80px', minWidth: '80px', fontSize: '9pt', fontWeight: 'bold' }}>Payment Mode</td>
+                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
+                <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 'bold' }}>{paymentBankDisplay}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }, [propPaymentDate, invoiceDate, propPaymentBank, paymentMode])
+
+  // ========== RENDER BILL SUMMARY (Right Bottom) ==========
+  const renderSummaryBox = useCallback(() => {
+    // DIRECTLY USE VALUES FROM STORED PROCEDURE
+   const firstRow = billData[0] || {}
+const grossTotal = toNumber(firstRow.bill_amount || 0)
+const discountAmount = toNumber(firstRow.discount_amount || 0)
+const advanceTotal = toNumber(firstRow.advance_amt || 0)
+const netTotal = toNumber(firstRow.net_payable || firstRow.bill_amount || 0)
+    const finalAmount = roundToTwo(netTotal - advanceTotal)
+
+    return (
+      <div className="bill-info-box" style={{ height: '100%' }}>
+        <div className="bill-info-box-header">BILL SUMMARY</div>
+        <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
+          <table className="bill-detail-table" style={{ width: '100%' }}>
+            <tbody>
+              <tr>
+                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 'bold' }}>TOTAL AMOUNT</td>
+                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
+                <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '9pt', paddingRight: '4px' }}>
+                  ₹{formatAmt(grossTotal)}
+                </td>
+              </tr>
+              {discountAmount > 0 && (
+                <tr>
+                  <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 600, color: '#c0392b' }}>Discount</td>
+                  <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt', color: '#c0392b' }}>:</td>
+                  <td className="bdt-value" style={{ textAlign: 'right', color: '#c0392b', fontWeight: 600, fontSize: '9pt', paddingRight: '4px' }}>
+                    -₹{formatAmt(discountAmount)}
+                  </td>
+                </tr>
+              )}
+              <tr>
+                <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 700, borderTop: '1px solid #e0e0e0', paddingTop: '4px' }}>NET TOTAL</td>
+                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt', borderTop: '1px solid #e0e0e0', paddingTop: '4px' }}>:</td>
+                <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 700, fontSize: '9pt', borderTop: '1px solid #e0e0e0', paddingTop: '4px', paddingRight: '4px' }}>
+                  ₹{formatAmt(netTotal)}
+                </td>
+              </tr>
+              {advanceTotal > 0 && (
+                <tr>
+                  <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '9pt', fontWeight: 600, color: '#e67e22' }}>Advance</td>
+                  <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt', color: '#e67e22' }}>:</td>
+                  <td className="bdt-value" style={{ textAlign: 'right', color: '#e67e22', fontWeight: 600, fontSize: '9pt', paddingRight: '4px' }}>
+                    -₹{formatAmt(advanceTotal)}
+                  </td>
+                </tr>
+              )}
+              {advanceTotal > 0 && (
+                <tr>
+                  <td className="bdt-label" style={{ width: '100px', minWidth: '100px', fontSize: '8pt', fontWeight: 800, color: headerBg, borderTop: '2px solid #e0e0e0', paddingTop: '4px' }}>BALANCE AMOUNT</td>
+                  <td className="bdt-colon" style={{ width: '8px', fontSize: '8pt', borderTop: '2px solid #e0e0e0', paddingTop: '4px' }}>:</td>
+                  <td className="bdt-value" style={{ textAlign: 'right', fontWeight: 800, fontSize: '8pt', color: headerBg, borderTop: '2px solid #e0e0e0', paddingTop: '4px', paddingRight: '4px' }}>
+                    ₹{formatAmt(finalAmount)}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }, [billData, totals, headerBg])
+
+  // ========== RENDER LAYOUT ==========
+  const renderLayout = useCallback(() => {
+    return (
+      <div className="bill-layout-container">
+        <div className="bill-layout-top">
+          {renderHotelHeader()}
+          {renderBillTitle()}
+          
+          <div style={{ 
+            display: 'flex', 
+            gap: '12px', 
+            marginBottom: '12px',
+            alignItems: 'stretch'
+          }}>
+            <div style={{ flex: '0 0 auto', width: '250px' }}>
+              {printSettings?.show_guest_details === 1 && renderGuestDetails()}
+            </div>
+            
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+              {printSettings?.show_booking_details === 1 && renderBookingDetails()}
+            </div>
           </div>
           
-          {/* Booking & Invoice Details - Takes remaining space */}
-          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-            {printSettings?.show_booking_details === 1 && renderBookingDetails()}
-          </div>
+          {renderChargesTable()}
+          
+          <div className="bill-spacer" />
         </div>
         
-        {/* Room Charges Table */}
-        {renderChargesTable()}
-        
-        <div className="bill-spacer" />
+        <div className="bill-layout-bottom" style={{ 
+          pageBreakInside: 'avoid', 
+          breakInside: 'avoid',
+          paddingTop: '4px',
+          marginTop: 'auto'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '10px',
+            marginBottom: 0,
+          }}>
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+              {renderPaymentDetails()}
+            </div>
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+              {renderSummaryBox()}
+            </div>
+          </div>
+        </div>
       </div>
-      
-      {/* BOTTOM SECTION: Payment Details | Bill Summary (Always at bottom) */}
-      {/* BOTTOM SECTION: Payment Details | Bill Summary (Always at bottom) */}
-<div className="bill-layout-bottom" style={{ 
-  pageBreakInside: 'avoid', 
-  breakInside: 'avoid',
-  paddingTop: '4px',
-  marginTop: 'auto'
-}}>
-  <div style={{ 
-    display: 'flex', 
-    gap: '10px',
-    marginBottom: 0,
-  }}>
-    <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-      {renderPaymentDetails()}
-    </div>
-    <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-      {renderSummaryBox()}
-    </div>
-  </div>
-</div>
-    </div>
-  )
-}, [
-  renderHotelHeader,
-  renderBillTitle,
-  renderGuestDetails,
-  renderBookingDetails,
-  renderChargesTable,
-  renderPaymentDetails,
-  renderSummaryBox,
-  printSettings,
-])
+    )
+  }, [
+    renderHotelHeader,
+    renderBillTitle,
+    renderGuestDetails,
+    renderBookingDetails,
+    renderChargesTable,
+    renderPaymentDetails,
+    renderSummaryBox,
+    printSettings,
+  ])
 
   // ========== LOADING/ERROR STATES ==========
   if (settingsLoading || billLoading) {
