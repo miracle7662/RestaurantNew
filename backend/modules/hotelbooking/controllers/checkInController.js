@@ -421,29 +421,29 @@ exports.addCheckin = async (req, res) => {
 
     // ----- Helpers -----
     const formatDateTime = (val) => {
-  if (!val) return null;
-  if (val instanceof Date) return val;
-  if (typeof val === 'string') {
-    // Agar already MySQL format mein hai toh wahi return karo
-    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(val)) {
+      if (!val) return null;
+      if (val instanceof Date) return val;
+      if (typeof val === 'string') {
+        // Agar already MySQL format mein hai toh wahi return karo
+        if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(val)) {
+          return val;
+        }
+        
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) {
+          // Local time components use karo, UTC nahi
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const hours = String(d.getHours()).padStart(2, '0');
+          const minutes = String(d.getMinutes()).padStart(2, '0');
+          const seconds = String(d.getSeconds()).padStart(2, '0');
+          return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+        return val;
+      }
       return val;
-    }
-    
-    const d = new Date(val);
-    if (!isNaN(d.getTime())) {
-      // Local time components use karo, UTC nahi
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const hours = String(d.getHours()).padStart(2, '0');
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      const seconds = String(d.getSeconds()).padStart(2, '0');
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-    }
-    return val;
-  }
-  return val;
-};
+    };
 
     const toStr = (val) => (val !== undefined && val !== null && val !== '') ? String(val) : null;
     const toNum = (val) => (val !== undefined && val !== null) ? Number(val) : 0;
@@ -647,7 +647,14 @@ exports.addCheckin = async (req, res) => {
       folioEntriesJson = JSON.stringify(cleaned);
     }
 
-    // ----- Build parameters (42 total) -----
+    // ============================================================
+    // 🔥 GET PAYMENT METHOD from body
+    // ============================================================
+    const paymentMethod = toStr(body.payment_method) || toStr(body.paymentMethod) || 'Cash'; // Default to Cash if not provided
+
+    console.log('💳 Payment Method:', paymentMethod);
+
+    // ----- Build parameters (43 total - added payment_method) -----
     const params = [
       body.guest_id ? Number(body.guest_id) : null,
       toStr(body.booking),
@@ -688,6 +695,7 @@ exports.addCheckin = async (req, res) => {
       toNum(body.total_amount),
       toStr(body.status) || 'active',
       Number(userId),
+      paymentMethod, // <-- NEW PARAMETER: payment_method
       detailsJson,
       roomChargesJson,
       folioEntriesJson
@@ -734,6 +742,7 @@ exports.addCheckin = async (req, res) => {
           data: masterRow[0],
           checkin_id: parsedResult.checkin_id,
           reg_no: parsedResult.reg_no,
+          payment_method: paymentMethod, // <-- Return payment method in response
           room_ids: roomIdsString,
           debug: parsedResult.debug
         });
