@@ -362,88 +362,98 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   }, [displayRows, billData])
 
   // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
-  const tableRows = useMemo(() => {
-    if (!displayRows.length) return []
+ // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
+const tableRows = useMemo(() => {
+  if (!displayRows.length) return []
 
-    // Group by room and date
-    const grouped = new Map<string, Map<string, DisplayDetailRow[]>>()
+  // Group by room and date
+  const grouped = new Map<string, Map<string, DisplayDetailRow[]>>()
+  
+  displayRows.forEach((charge) => {
+    const room = charge.room_number || 'COMMON'
+    const date = charge.bill_date_formatted || formatDate(charge.bill_date)
     
-    displayRows.forEach((charge) => {
-      const room = charge.room_number || 'COMMON'
-      const date = charge.bill_date_formatted || formatDate(charge.bill_date)
-      
-      if (!grouped.has(room)) {
-        grouped.set(room, new Map())
-      }
-      const roomMap = grouped.get(room)!
-      if (!roomMap.has(date)) {
-        roomMap.set(date, [])
-      }
-      roomMap.get(date)!.push(charge)
-    })
-
-    const rows: TableRowWithIndex[] = []
-    let index = 1
-    
-    const sortedRooms = Array.from(grouped.keys()).sort((a, b) => {
-      if (a === 'COMMON') return 1
-      if (b === 'COMMON') return -1
-      const numA = parseInt(a)
-      const numB = parseInt(b)
-      if (!isNaN(numA) && !isNaN(numB)) return numA - numB
-      return a.localeCompare(b)
-    })
-    
-    for (const room of sortedRooms) {
-      const dateMap = grouped.get(room)!
-      const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
-        const dateA = a.split('/').reverse().join('-')
-        const dateB = b.split('/').reverse().join('-')
-        return new Date(dateA).getTime() - new Date(dateB).getTime()
-      })
-      
-      let isFirstRow = true
-      for (const date of sortedDates) {
-        const charges = dateMap.get(date) || []
-        
-        // SUM values from SP - NO MANUAL CALCULATION
-        const tariff = charges.reduce((sum, c) => sum + c.tariff, 0)
-        const ex_pax = charges.reduce((sum, c) => sum + c.ex_pax, 0)
-        const child_paid_amount = charges.reduce((sum, c) => sum + c.child_paid_amount, 0)
-        const driver_charge = charges.reduce((sum, c) => sum + c.driver_charge, 0)
-        const discount_amount = charges.reduce((sum, c) => sum + c.discount_amount, 0)
-        const cgst = charges.reduce((sum, c) => sum + c.cgst, 0)
-        const sgst = charges.reduce((sum, c) => sum + c.sgst, 0)
-        const food = charges.reduce((sum, c) => sum + c.food, 0)
-        const post_charges = charges.reduce((sum, c) => sum + c.post_charges, 0)
-        const allowance = charges.reduce((sum, c) => sum + c.allowance, 0)
-        // TOTAL DIRECT FROM SP - dtotal_amount is already calculated by SP
-        const total = charges.reduce((sum, c) => sum + c.total_amount, 0)
-        
-        rows.push({
-          id: `row-${room}-${date}`,
-          displayIndex: index++,
-          roomNumber: room,
-          date: date,
-          tariff,
-          ex_pax,
-          child_paid_amount,
-          driver_charge,
-          discount_amount,
-          cgst,
-          sgst,
-          food,
-          post_charges,
-          allowance,
-          total,
-          isFirstRow,
-        })
-        isFirstRow = false
-      }
+    if (!grouped.has(room)) {
+      grouped.set(room, new Map())
     }
+    const roomMap = grouped.get(room)!
+    if (!roomMap.has(date)) {
+      roomMap.set(date, [])
+    }
+    roomMap.get(date)!.push(charge)
+  })
 
-    return rows
-  }, [displayRows])
+  const rows: TableRowWithIndex[] = []
+  let index = 1
+  
+  const sortedRooms = Array.from(grouped.keys()).sort((a, b) => {
+    if (a === 'COMMON') return 1
+    if (b === 'COMMON') return -1
+    const numA = parseInt(a)
+    const numB = parseInt(b)
+    if (!isNaN(numA) && !isNaN(numB)) return numA - numB
+    return a.localeCompare(b)
+  })
+  
+  for (const room of sortedRooms) {
+    const dateMap = grouped.get(room)!
+    const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
+      const dateA = a.split('/').reverse().join('-')
+      const dateB = b.split('/').reverse().join('-')
+      return new Date(dateA).getTime() - new Date(dateB).getTime()
+    })
+    
+    let isFirstRow = true
+    for (const date of sortedDates) {
+      const charges = dateMap.get(date) || []
+      
+      // SUM values from SP - NO MANUAL CALCULATION
+      const tariff = charges.reduce((sum, c) => sum + c.tariff, 0)
+      const ex_pax = charges.reduce((sum, c) => sum + c.ex_pax, 0)
+      const child_paid_amount = charges.reduce((sum, c) => sum + c.child_paid_amount, 0)
+      const driver_charge = charges.reduce((sum, c) => sum + c.driver_charge, 0)
+      const discount_amount = charges.reduce((sum, c) => sum + c.discount_amount, 0)
+      const cgst = charges.reduce((sum, c) => sum + c.cgst, 0)
+      const sgst = charges.reduce((sum, c) => sum + c.sgst, 0)
+      const food = charges.reduce((sum, c) => sum + c.food, 0)
+      
+      // 🔥 ONLY sum allowance where transaction_type is 'ALLOWANCE'
+      const allowance = charges
+        .filter(c => c.transaction_type === 'ALLOWANCE')
+        .reduce((sum, c) => sum + c.allowance, 0)
+      
+      // 🔥 ONLY sum post_charges where transaction_type is 'CHARGE' or 'POST CHARGE'
+      const post_charges = charges
+        .filter(c => c.transaction_type === 'CHARGE' || c.transaction_type === 'POST CHARGE')
+        .reduce((sum, c) => sum + c.post_charges, 0)
+      
+      // TOTAL DIRECT FROM SP - dtotal_amount is already calculated by SP
+      const total = charges.reduce((sum, c) => sum + c.total_amount, 0)
+      
+      rows.push({
+        id: `row-${room}-${date}`,
+        displayIndex: index++,
+        roomNumber: room,
+        date: date,
+        tariff,
+        ex_pax,
+        child_paid_amount,
+        driver_charge,
+        discount_amount,
+        cgst,
+        sgst,
+        food,
+        post_charges,
+        allowance,  // 🔥 Now only ₹200.00
+        total,
+        isFirstRow,
+      })
+      isFirstRow = false
+    }
+  }
+
+  return rows
+}, [displayRows])
 
   const totals = useMemo(() => {
     const firstRow = billData[0] || {}
