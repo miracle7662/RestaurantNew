@@ -208,6 +208,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 }) => {
   const printRef = useRef<HTMLDivElement>(null)
   const fetchCalledRef = useRef(false)
+  const [isPdfReady, setIsPdfReady] = useState(false)
   
   const [printSettings, setPrintSettings] = useState<BillPrintSetting | null>(null)
   const [settingsLoading, setSettingsLoading] = useState(true)
@@ -271,6 +272,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             })
           }
           setBillData(filteredData)
+          setIsPdfReady(true)
         } else {
           setBillError(response.message || 'Failed to fetch bill data')
         }
@@ -289,6 +291,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     return () => {
       if (!show) {
         fetchCalledRef.current = false
+        setIsPdfReady(false)
       }
     }
   }, [show, checkoutId, ldgBillNo, selectedRooms])
@@ -871,7 +874,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       margin: 4px 0;
     }
     
-    /* ===== LAYOUT CONTAINER ===== */
     .bill-layout-container {
       display: flex;
       flex-direction: column;
@@ -896,7 +898,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       min-height: 15px;
     }
     
-    /* ===== TOTAL PAID BOX ===== */
     .bill-total-paid-box {
       background: ${headerBg};
       color: ${headerText};
@@ -927,6 +928,11 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       }
       .bill-spacer {
         min-height: 20px !important;
+      }
+      .bill-layout-bottom {
+        margin-top: auto !important;
+        padding-top: 6px !important;
+        border-top: 2px solid ${headerBg} !important;
       }
     }
   `
@@ -1003,13 +1009,17 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }, 300)
   }, [summary, printSettings, showTopHeaderSection, getBillStyles])
 
-  // ========== HANDLE DOWNLOAD PDF ==========
+  // ========== HANDLE DOWNLOAD PDF - FIXED VERSION ==========
   const handleDownloadPDF = useCallback(async () => {
-    const billEl = printRef.current
-    if (!billEl) return
+    if (!printRef.current) {
+      alert('Bill content not ready. Please wait.')
+      return
+    }
 
     setPdfLoading(true)
+    
     try {
+      // Load required libraries
       const loadScript = (src: string): Promise<void> =>
         new Promise((resolve, reject) => {
           if (document.querySelector(`script[src="${src}"]`)) {
@@ -1031,18 +1041,45 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       const html2canvas = (window as any).html2canvas
       const { jsPDF } = (window as any).jspdf
 
-      const canvas = await html2canvas(billEl, {
+      if (!html2canvas || !jsPDF) {
+        throw new Error('Required libraries failed to load')
+      }
+
+      // Get the bill element
+      const billElement = printRef.current
+      
+      // Force a reflow to ensure all content is rendered
+      billElement.style.display = 'block'
+      billElement.style.visibility = 'visible'
+      billElement.style.opacity = '1'
+      
+      // Small delay to ensure rendering is complete
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Capture the full bill content
+      const canvas = await html2canvas(billElement, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
-        width: 794,
-        height: 1123,
+        width: billElement.scrollWidth || 794,
+        height: billElement.scrollHeight || 1123,
+        windowHeight: billElement.scrollHeight || 1123,
+        onclone: (document: any) => {
+          // Ensure all content is visible in the cloned document
+          const clonedElement = document.querySelector('.bill-wrap')
+          if (clonedElement) {
+            clonedElement.style.display = 'block'
+            clonedElement.style.visibility = 'visible'
+            clonedElement.style.opacity = '1'
+            clonedElement.style.minHeight = '100vh'
+          }
+        }
       })
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.92)
-      const imgW = 190
-      const imgH = (canvas.height / canvas.width) * imgW
+      const imgData = canvas.toDataURL('image/jpeg', 0.95)
+      const imgWidth = 190 // A4 width in mm with margins
+      const imgHeight = (canvas.height / canvas.width) * imgWidth
 
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -1050,13 +1087,33 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         format: 'a4',
       })
 
-      pdf.addImage(imgData, 'JPEG', 10, 10, imgW, imgH)
+      // Handle multi-page if content is taller than A4
+      const pageHeight = 277 // A4 height in mm with margins
+      let remainingHeight = imgHeight
+      let yPosition = 10
+      let pageNum = 0
 
+      while (remainingHeight > 0) {
+        if (pageNum > 0) {
+          pdf.addPage()
+          yPosition = 10
+        }
+        
+        const currentHeight = Math.min(remainingHeight, pageHeight - 20)
+        pdf.addImage(imgData, 'JPEG', 10, yPosition, imgWidth, currentHeight)
+        
+        remainingHeight -= currentHeight
+        pageNum++
+      }
+
+      // Save the PDF
       const guestName = summary?.guest_name?.replace(/[^a-zA-Z0-9 ]/g, '') || 'Guest'
-      pdf.save(`Bill_${guestName}_${generatedBillNo.replace(/\//g, '-')}.pdf`)
-    } catch (err) {
-      console.error('PDF generation failed:', err)
-      alert('PDF generation failed. Please try Print instead.')
+      const safeBillNo = generatedBillNo.replace(/\//g, '-').replace(/[^a-zA-Z0-9-]/g, '')
+      pdf.save(`Bill_${guestName}_${safeBillNo}.pdf`)
+      
+    } catch (error) {
+      console.error('PDF generation failed:', error)
+      alert('PDF generation failed. Please use Print instead.\n\nError: ' + (error as Error).message)
     } finally {
       setPdfLoading(false)
     }
@@ -1271,8 +1328,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     headers.push(<th key="advance" className="col-amount bct-right">ADVANCE</th>)
     headers.push(<th key="allowance" className="col-amount bct-right">ALLOWANCE</th>)
     headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
-
-    const totalCols = headers.length
 
     const bodyRows: React.ReactElement[] = []
     let runningIndex = 1
@@ -1573,16 +1628,16 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     )
   }, [billData, printSettings])
 
-  // ========== MAIN LAYOUT - SCREENSHOT PROPORTION ==========
+  // ========== MAIN LAYOUT ==========
   const renderLayout = useCallback(() => {
     return (
       <div className="bill-layout-container">
-        {/* शीर्ष भाग */}
+        {/* Top Section */}
         <div className="bill-layout-top">
           {renderHotelHeader()}
           {renderBillTitle()}
 
-          {/* Guest आणि Booking Details साइड-बाय-साइड - स्क्रीनशॉटप्रमाणे */}
+          {/* Guest & Booking Details side-by-side */}
           <div className="two-column-layout">
             <div>
               {printSettings?.show_guest_details === 1 && renderGuestDetails()}
@@ -1592,10 +1647,10 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             </div>
           </div>
 
-          {/* चार्जेस टेबल */}
+          {/* Charges Table */}
           {renderChargesTable()}
 
-          {/* TOTAL PAID (INR) - स्क्रीनशॉटप्रमाणे उजवीकडे */}
+          {/* TOTAL PAID (INR) - right aligned */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px', marginBottom: '4px' }}>
             <div className="bill-total-paid-box">
               <span>Total Paid (INR)</span>
@@ -1603,11 +1658,11 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
             </div>
           </div>
           
-          {/* हा spacer भाग तळाशी ढकलण्यासाठी */}
+          {/* Spacer to push footer down */}
           <div className="bill-spacer" />
         </div>
 
-        {/* तळ भाग - Payment Details आणि Bill Summary साइड-बाय-साइड */}
+        {/* Bottom Section - Payment Details & Bill Summary side-by-side */}
         <div className="bill-layout-bottom">
           <div className="two-column-layout">
             {renderPaymentDetails()}
@@ -1771,6 +1826,13 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
           .bill-modal-action-bar { display: none !important; }
           .bill-spacer {
             min-height: 20px !important;
+          }
+          .bill-layout-container {
+            min-height: 100vh !important;
+          }
+          .bill-layout-bottom {
+            margin-top: auto !important;
+            padding-top: 6px !important;
           }
         }
 
