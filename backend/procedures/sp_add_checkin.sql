@@ -4,7 +4,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_checkout_bill`(
 BEGIN
 
     /* ==========================================================
-       RESULT SET 1 : HEADER
+       RESULT SET 1 : HEADER (Unchanged)
     ========================================================== */
 
     WITH guest_info AS (
@@ -97,7 +97,7 @@ BEGIN
 
 
     /* ==========================================================
-       RESULT SET 2 : BILL DETAILS
+       RESULT SET 2 : BILL DETAILS (UPDATED with child_total and driver_total)
     ========================================================== */
 
     WITH guest_name_cte AS (
@@ -116,7 +116,10 @@ BEGIN
         ROUND(SUM(x.tariff), 2)          AS tariff,
         ROUND(SUM(x.ex_pax), 2)          AS ex_pax,
 
-       -- GST CALCULATIONS (All components combined)
+        ROUND(SUM(x.child_paid_amount), 2)          AS child_paid_amount,
+        ROUND(SUM(x.driver_charge), 2)          AS driver_charge,
+
+        -- GST CALCULATIONS (All components combined)
         ROUND(SUM(x.cgst + x.ex_cgst_amount + x.child_cgst_amount + x.driver_cgst_amount), 2) AS cgst,
         ROUND(SUM(x.sgst + x.ex_sgst_amount + x.child_sgst_amount + x.driver_sgst_amount), 2) AS sgst,
         ROUND(SUM(x.igst + x.ex_igst_amount + x.child_igst_amount + x.driver_igst_amount), 2) AS igst,
@@ -148,6 +151,12 @@ BEGIN
         MAX(x.child_paid)               AS child_paid,
         MAX(x.child_unpaid)             AS child_unpaid,
         MAX(x.driver)                   AS driver,
+
+        -- CHILD TOTALS (NEW - Calculate total child amount)
+        ROUND(SUM(x.child_paid + x.child_unpaid), 2) AS child_total,
+        
+        -- DRIVER TOTAL (NEW - Calculate total driver amount)
+        ROUND(SUM(x.driver_total_amount), 2) AS driver_total,
 
         -- EX PAX TAX FIELDS
         MAX(x.ex_cgst_percent)          AS ex_cgst_percent,
@@ -242,6 +251,12 @@ BEGIN
             IFNULL(cd.child_unpaid, 0)         AS child_unpaid,
             IFNULL(cd.driver, 0)               AS driver,
 
+            -- CHILD TOTAL AMOUNT (paid + unpaid)
+            IFNULL(cd.child_paid, 0) + IFNULL(cd.child_unpaid, 0) AS child_total_amount,
+            
+            -- DRIVER TOTAL AMOUNT
+            IFNULL(cd.driver_charge, 0) AS driver_total_amount,
+
             -- EX PAX TAX FIELDS
             IFNULL(cd.ex_cgst_percent, 0)      AS ex_cgst_percent,
             IFNULL(cd.ex_cgst_amount, 0)       AS ex_cgst_amount,
@@ -302,7 +317,7 @@ BEGIN
 
         UNION ALL
 
-        -- ROOM EXTENSION
+        -- ROOM EXTENSION (Unchanged)
         SELECT
             COALESCE(cd.room_number, 'COMMON') AS room_number,
             DATE(cf.transaction_datetime) AS bill_date,
@@ -336,6 +351,9 @@ BEGIN
             0 AS child_paid,
             0 AS child_unpaid,
             0 AS driver,
+
+            0 AS child_total_amount,
+            0 AS driver_total_amount,
 
             -- EX PAX TAX FIELDS (SET TO 0)
             0 AS ex_cgst_percent,
@@ -403,7 +421,7 @@ BEGIN
 
         UNION ALL
 
-        -- FOOD
+        -- FOOD (Unchanged)
         SELECT
             COALESCE(cd.room_number, 'COMMON') AS room_number,
             DATE(cf.transaction_datetime) AS bill_date,
@@ -438,6 +456,9 @@ BEGIN
             0 AS child_paid,
             0 AS child_unpaid,
             0 AS driver,
+
+            0 AS child_total_amount,
+            0 AS driver_total_amount,
 
             -- EX PAX TAX FIELDS (SET TO 0)
             0 AS ex_cgst_percent,
@@ -505,7 +526,7 @@ BEGIN
 
         UNION ALL
 
-        -- POST CHARGES (CHARGE)
+        -- POST CHARGES (CHARGE) (Unchanged)
         SELECT
             COALESCE(cd.room_number, 'COMMON') AS room_number,
             DATE(cf.transaction_datetime) AS bill_date,
@@ -541,6 +562,9 @@ BEGIN
             0 AS child_paid,
             0 AS child_unpaid,
             0 AS driver,
+
+            0 AS child_total_amount,
+            0 AS driver_total_amount,
 
             -- EX PAX TAX FIELDS (SET TO 0)
             0 AS ex_cgst_percent,
@@ -608,7 +632,7 @@ BEGIN
 
         UNION ALL
 
-        -- ALLOWANCE + ADVANCE ADDITION
+        -- ALLOWANCE + ADVANCE ADDITION (Unchanged)
         SELECT
             COALESCE(cd.room_number, 'COMMON') AS room_number,
             DATE(cf.transaction_datetime) AS bill_date,
@@ -643,6 +667,9 @@ BEGIN
             0 AS child_paid,
             0 AS child_unpaid,
             0 AS driver,
+
+            0 AS child_total_amount,
+            0 AS driver_total_amount,
 
             -- EX PAX TAX FIELDS (SET TO 0)
             0 AS ex_cgst_percent,
@@ -739,7 +766,7 @@ BEGIN
 
 
     /* ==========================================================
-       RESULT SET 3 : FOOTER SUMMARY
+       RESULT SET 3 : FOOTER SUMMARY (Unchanged)
     ========================================================== */
 
     SELECT

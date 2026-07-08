@@ -1362,9 +1362,6 @@ const renderBookingDetails = useCallback(() => {
     </div>
   )
 }, [printSettings, propBillNumber, billData, generatedBillNo, propPaymentDate, invoiceDate, summary, checkinDateDisplay, checkoutDateDisplay, checkedOutRoomsStr, headerBg])
-
-
-// ========== RENDER CHARGES TABLE ==========
 const renderChargesTable = useCallback(() => {
   if (tableRows.length === 0) {
     return (
@@ -1376,20 +1373,9 @@ const renderChargesTable = useCallback(() => {
 
   const showRowNums = printSettings?.show_row_numbers === 1
 
-  // Check if POST, ALLOWANCE, CHILD, DRIVER, UNPAID have any values
+  // Check if POST and ALLOWANCE have any values
   const hasPostValues = tableRows.some(row => row.postTotal > 0)
   const hasAllowanceValues = tableRows.some(row => row.allowanceTotal > 0)
-  
-  // Check if CHILD, DRIVER, UNPAID have amount values from stored procedure
-  const hasChildValues = displayRows.some(row => (row.child_total || 0) > 0 || (row.child_paid || 0) > 0 || (row.child_unpaid || 0) > 0)
-  const hasDriverValues = displayRows.some(row => (row.driver_total || 0) > 0)
-  const hasUnpaidValues = displayRows.some(row => (row.child_unpaid || 0) > 0)
-
-  // Calculate aggregated amounts for footer
-  const totalChildAmount = displayRows.reduce((sum, row) => sum + (row.child_total || row.child_paid || 0), 0)
-  const totalChildPaid = displayRows.reduce((sum, row) => sum + (row.child_paid || 0), 0)
-  const totalChildUnpaid = displayRows.reduce((sum, row) => sum + (row.child_unpaid || 0), 0)
-  const totalDriverAmount = displayRows.reduce((sum, row) => sum + (row.driver_total || 0), 0)
 
   const headers: React.ReactElement[] = []
   if (showRowNums) headers.push(<th key="srno" className="col-srno bct-center">#</th>)
@@ -1397,26 +1383,9 @@ const renderChargesTable = useCallback(() => {
   headers.push(<th key="date" className="col-date bct-left">DATE</th>)
   headers.push(<th key="tariff" className="col-amount bct-right">TARIFF</th>)
   headers.push(<th key="expax" className="col-amount bct-right">EX.PAX</th>)
-  
-  // Add CHILD column if there are values (shows amount)
-  if (hasChildValues) {
-    headers.push(<th key="child" className="col-amount bct-right">CHILD</th>)
-  }
-  
-  // Add DRIVER column if there are values (shows amount)
-  if (hasDriverValues) {
-    headers.push(<th key="driver" className="col-amount bct-right">DRIVER</th>)
-  }
-  
-  // Add UNPAID column if there are values (shows child_unpaid amount)
-  if (hasUnpaidValues) {
-    headers.push(<th key="unpaid" className="col-amount bct-right">UNPAID</th>)
-  }
-  
   headers.push(<th key="cgst" className="col-amount bct-right">CGST</th>)
   headers.push(<th key="sgst" className="col-amount bct-right">SGST</th>)
   headers.push(<th key="food" className="col-amount bct-right">FOOD</th>)
-  
   // Only add POST header if there are values
   if (hasPostValues) {
     headers.push(<th key="post" className="col-amount bct-right">POST</th>)
@@ -1427,22 +1396,12 @@ const renderChargesTable = useCallback(() => {
   }
   headers.push(<th key="total" className="col-amount bct-right">TOTAL</th>)
 
+
   const bodyRows: React.ReactElement[] = []
   let runningIndex = 1
 
   tableRows.forEach((row) => {
     const mainIndex = runningIndex++
-    
-    // Find child and driver data for this room/date combination from displayRows
-    const roomRows = displayRows.filter(r => 
-      r.room_number === row.roomNumber && 
-      r.bill_date_formatted === row.date
-    )
-    
-    // Get AMOUNT values directly from the stored procedure data
-    const childAmount = roomRows.reduce((sum, r) => sum + (r.child_total || r.child_paid || 0), 0)
-    const childUnpaidAmount = roomRows.reduce((sum, r) => sum + (r.child_unpaid || 0), 0)
-    const driverAmount = roomRows.reduce((sum, r) => sum + (r.driver_total || 0), 0)
     
     const cells: React.ReactElement[] = []
     if (showRowNums) cells.push(<td key="srno" className="bct-center" style={{ fontWeight: 'bold' }}>{mainIndex}</td>)
@@ -1454,53 +1413,16 @@ const renderChargesTable = useCallback(() => {
     cells.push(<td key="date" className="bct-left" style={{ fontWeight: 'bold' }}>{row.date || 'N/A'}</td>)
     cells.push(<td key="tariff" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.roomTariff || 0)}</td>)
     cells.push(<td key="expax" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.exPax || 0)}</td>)
-    
-    // Add CHILD column if there are values (show amount)
-    if (hasChildValues) {
-      cells.push(
-        <td key="child" className="bct-right" style={{ fontWeight: 'bold' }}>
-          {childAmount > 0 ? formatAmtDisplay(childAmount) : '-'}
-        </td>
-      )
-    }
-    
-    // Add DRIVER column if there are values (show amount)
-    if (hasDriverValues) {
-      cells.push(
-        <td key="driver" className="bct-right" style={{ fontWeight: 'bold' }}>
-          {driverAmount > 0 ? formatAmtDisplay(driverAmount) : '-'}
-        </td>
-      )
-    }
-    
-    // Add UNPAID column if there are values (show child_unpaid amount)
-    if (hasUnpaidValues) {
-      cells.push(
-        <td key="unpaid" className="bct-right" style={{ fontWeight: 'bold' }}>
-          {childUnpaidAmount > 0 ? formatAmtDisplay(childUnpaidAmount) : '-'}
-        </td>
-      )
-    }
-    
     cells.push(<td key="cgst" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.cgst || 0)}</td>)
     cells.push(<td key="sgst" className="bct-right" style={{ fontWeight: 'bold' }}>{formatAmtDisplay(row.sgst || 0)}</td>)
     cells.push(<td key="food" className="bct-right" style={{ fontWeight: 'bold' }}>{row.food > 0 ? formatAmtDisplay(row.food) : '-'}</td>)
-    
-    // Only add POST column if there are values
+    // Only add POST column if there are values (silent color for rows)
     if (hasPostValues) {
-      cells.push(
-        <td key="post" className="bct-right" style={{ fontWeight: 'bold' }}>
-          {row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}
-        </td>
-      )
+      cells.push(<td key="post" className="bct-right" style={{ fontWeight: 'bold' }}>{row.postTotal > 0 ? formatAmtDisplay(row.postTotal) : '-'}</td>)
     }
-    // Only add ALLOWANCE column if there are values
+    // Only add ALLOWANCE column if there are values (silent color for rows)
     if (hasAllowanceValues) {
-      cells.push(
-        <td key="allowance" className="bct-right" style={{ fontWeight: 'bold' }}>
-          {row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}
-        </td>
-      )
+      cells.push(<td key="allowance" className="bct-right" style={{ fontWeight: 'bold' }}>{row.allowanceTotal > 0 ? formatAmtDisplay(row.allowanceTotal) : '-'}</td>)
     }
     cells.push(
       <td key="total" className="bct-right" style={{ fontWeight: 'bold' }}>
@@ -1522,12 +1444,14 @@ const renderChargesTable = useCallback(() => {
 
   const footerCells: React.ReactElement[] = []
   
-  // Calculate colSpan for the label
+  // Calculate colSpan for the label - FIXED
+  // Count all columns that come BEFORE the value columns (TARIFF, EX.PAX, CGST, SGST, FOOD, POST, ALLOWANCE, TOTAL)
   let labelColSpan = 0;
   if (showRowNums) labelColSpan += 1; // # column
   labelColSpan += 1; // ROOM column
   labelColSpan += 1; // DATE column
-  // CHILD, DRIVER, UNPAID are value columns, so they should NOT be included in labelColSpan
+  // POST and ALLOWANCE are value columns, so they should NOT be included in labelColSpan
+  // They will be displayed as separate columns in footer
 
   footerCells.push(
     <td key="total_label" colSpan={labelColSpan} className="bct-right" style={{ 
@@ -1555,43 +1479,6 @@ const renderChargesTable = useCallback(() => {
       {formatAmtDisplay(totalExPax)}
     </td>
   )
-  
-  // Add CHILD footer if there are values (show amount)
-  if (hasChildValues) {
-    footerCells.push(
-      <td key="total_child" className="bct-right" style={{ 
-        fontWeight: 800,
-        background: '#f0f0f0'
-      }}>
-        {totalChildAmount > 0 ? formatAmtDisplay(totalChildAmount) : '-'}
-      </td>
-    )
-  }
-  
-  // Add DRIVER footer if there are values (show amount)
-  if (hasDriverValues) {
-    footerCells.push(
-      <td key="total_driver" className="bct-right" style={{ 
-        fontWeight: 800,
-        background: '#f0f0f0'
-      }}>
-        {totalDriverAmount > 0 ? formatAmtDisplay(totalDriverAmount) : '-'}
-      </td>
-    )
-  }
-  
-  // Add UNPAID footer if there are values (show child_unpaid amount)
-  if (hasUnpaidValues) {
-    footerCells.push(
-      <td key="total_unpaid" className="bct-right" style={{ 
-        fontWeight: 800,
-        background: '#f0f0f0'
-      }}>
-        {totalChildUnpaid > 0 ? formatAmtDisplay(totalChildUnpaid) : '-'}
-      </td>
-    )
-  }
-  
   footerCells.push(
     <td key="total_cgst" className="bct-right" style={{ 
       fontWeight: 800,
@@ -1645,11 +1532,14 @@ const renderChargesTable = useCallback(() => {
   footerCells.push(
     <td key="total_amount" className="bct-right" style={{ 
       fontWeight: 800, 
-      background: '#f0f0f0'
+     background: '#f0f0f0'
+     
     }}>
       {formatAmtDisplay(totalAmount)}
     </td>
   )
+
+  const summaryRows: React.ReactElement[] = []
 
   return (
     <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
@@ -1660,11 +1550,12 @@ const renderChargesTable = useCallback(() => {
         <tbody>{bodyRows}</tbody>
         <tfoot>
           <tr key="footer1">{footerCells}</tr>
+          {summaryRows}
         </tfoot>
       </table>
     </div>
   )
-}, [printSettings, tableRows, displayRows, headerBg, headerText])
+}, [printSettings, tableRows, headerBg, headerText])
  
 // ========== RENDER PAYMENT DETAILS (Left Bottom) ==========
 const renderPaymentDetails = useCallback(() => {
