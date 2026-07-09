@@ -1509,7 +1509,7 @@ const CheckInForm = () => {
   }
 
   const formik = useFormik<CheckInFormData>({
-    enableReinitialize: true,
+   
     validateOnChange: false,
     validateOnBlur: false,
     initialValues: {
