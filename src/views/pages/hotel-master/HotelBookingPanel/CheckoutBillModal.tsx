@@ -23,6 +23,7 @@ interface DisplayDetailRow {
   allowance: number
   discount_amount: number
   total_amount: number  // dtotal_amount from SP
+  
   room_id: number
   room_category_name: string
   converted_category_name: string
@@ -114,18 +115,6 @@ const formatDate = (isoString: string): string => {
   const year = d.getFullYear().toString().slice(-2)
   return `${day}/${month}/${year}`
 }
-
-const formatDateTime = (isoString: string): string => {
-  if (!isoString) return '-'
-  const d = new Date(isoString)
-  const day = d.getDate().toString().padStart(2, '0')
-  const month = (d.getMonth() + 1).toString().padStart(2, '0')
-  const year = d.getFullYear()
-  const hours = d.getHours().toString().padStart(2, '0')
-  const minutes = d.getMinutes().toString().padStart(2, '0')
-  return `${day}/${month}/${year} ${hours}:${minutes}`
-}
-
 
 const formatDateLong = (isoString: string): string => {
   if (!isoString) return '-'
@@ -293,8 +282,8 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         room_id: row.room_id || 0,
         room_category_name: row.room_category_name || '-',
         converted_category_name: row.converted_category_name || '-',
-        checkin_datetime: row.checkin_datetime,
-        checkout_datetime: row.checkout_datetime,
+        checkin_datetime: row.checkin_datetimecmcm,
+        checkout_datetime: row.checkout_datetimecm,
         no_of_days: row.no_of_days || 1,
         adults: row.adults || 0,
         pax: row.pax || 0,
@@ -367,8 +356,8 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       sgst_amt: toNumber(firstRow.sgst_amt || 0),
       igst_amt: toNumber(firstRow.igst_amt || 0),
       payment_mode: firstRow.payment_mode || 'Cash',
-      original_checkin_datetime: firstRow.checkin_datetime,
-      final_checkout_datetime: firstRow.checkout_datetime,
+      original_checkin_datetime: firstRow.checkin_datetimecm,
+      final_checkout_datetime: firstRow.checkout_datetimecm,
       checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [],
     }
   }, [displayRows, billData])
@@ -496,7 +485,7 @@ const tableRows = useMemo(() => {
     ? formatDateLong(summary.final_checkout_datetime)
     : '-'
  
-   const invoiceDate = formatDateTime(new Date().toISOString())
+  const invoiceDate = formatDate(new Date().toISOString())
   const generatedBillNo = propBillNumber ||
     billData[0]?.ldg_bill_no ||
     `INV/${new Date().getFullYear()}/${String(summary?.checkin_id || '0').padStart(4, '0')}`
@@ -1048,11 +1037,11 @@ const tableRows = useMemo(() => {
       return `${day} ${month} ${year} ${hours}:${minutes}`
     }
 
-    const checkinDateTime = firstRow?.checkin_datetime || summary?.original_checkin_datetime
-    const checkoutDateTime = firstRow?.checkout_datetime || summary?.final_checkout_datetime
-    
-    const checkinDisplay = checkinDateTime ? formatDateTimeFull(checkinDateTime) : checkinDateDisplay
-    const checkoutDisplay = checkoutDateTime ? formatDateTimeFull(checkoutDateTime) : checkoutDateDisplay
+    const checkinDateTime = firstRow?.checkin_datetimecm || null
+const checkoutDateTime = firstRow?.checkout_datetimecm || null
+
+const checkinDisplay = checkinDateTime ? formatDateTimeFull(checkinDateTime) : '-'
+const checkoutDisplay = checkoutDateTime ? formatDateTimeFull(checkoutDateTime) : '-'
 
     return (
       <div className="bill-info-box" style={{ height: '100%' }}>
