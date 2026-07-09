@@ -1121,6 +1121,18 @@ export const fetchOccupiedRooms = async (
     if (allCheckins.length > 0) {
       console.log('🔍 First checkin record:', allCheckins[0]);
       console.log('🔍 Available fields:', Object.keys(allCheckins[0]));
+
+      // 🔎 GUEST_ID DEBUG: find every field name that looks like it holds a guest id
+      const guestLikeKeys = Object.keys(allCheckins[0]).filter((k) =>
+        k.toLowerCase().includes('guest')
+      );
+      console.log('🔎 [GUEST_ID DEBUG] Keys containing "guest":', guestLikeKeys);
+      console.log('🔎 [GUEST_ID DEBUG] Values for those keys:',
+        guestLikeKeys.reduce((acc: any, k) => {
+          acc[k] = allCheckins[0][k];
+          return acc;
+        }, {})
+      );
       
       // Log room-wise data for each room
       allCheckins.forEach((c: any) => {
@@ -1134,7 +1146,7 @@ export const fetchOccupiedRooms = async (
           room_post_charges: c.room_post_charges,
           room_allowances: c.room_allowances,
           room_net_balance: c.room_net_balance,
-        });
+        }); 
       });
     }
 
@@ -1252,9 +1264,22 @@ export const fetchOccupiedRooms = async (
         const driverCount = Number(roomData.driver) || 0;
         const adults = Number(roomData.adults) || 0;
         const displayPax = `${adults}:${exPaxCount}:${childPaid}:${childUnpaid}:${driverCount}`;
+
+        // Compute guest_id with fallback chain + warn if still 0
+        const resolvedGuestId = Number(
+          roomData.guest_id ||
+          roomData.detail_guest_id ||
+          roomData.checkin_guest_id ||
+          roomData.guest_master_id
+        ) || 0;
+
+        if (!resolvedGuestId) {
+          console.warn(`⚠️ [GUEST_ID DEBUG] guest_id could NOT be resolved for Room ${room.room_no} (checkin #${checkinId}). Check API response field names.`);
+        }
         
         occupiedItems.push({
           // Basic Info
+          guest_id: resolvedGuestId,
           checkin_id: checkinId,
           detail_id: roomData.detail_id,
           guest_name: roomData.guest_name || 'Unknown Guest',
@@ -1284,12 +1309,7 @@ export const fetchOccupiedRooms = async (
           display_pax: displayPax,
           original_pax: pax,
           
-          // ============================================================
-          // LEFT SIDE - Room-wise (from checkin_detail_master)
-          // These are displayed as "Amount" on the left side of the tile
-          // ============================================================
           left_side: {
-            // Room Charges
             room_tariff: roomTariff,
             ex_pax_charge: roomExPaxCharge,
             child_paid_amount: roomChildPaidAmount,
@@ -1299,15 +1319,10 @@ export const fetchOccupiedRooms = async (
             tax_amount: roomTaxAmount,
             service_charge: roomServiceCharge,
             cess_amount: roomCessAmount,
-            // Gross total (before advance)
             gross_amount: roomGross,
-            // Net amount after advance
             net_amount: roomNet,
           },
           
-          // ============================================================
-          // FOLIO - Advance, Post Charges, Allowances (from checkin_guest_folio_master)
-          // ============================================================
           folio: {
             post_charges: roomPostCharges,
             advance: roomAdvance,
@@ -1315,9 +1330,6 @@ export const fetchOccupiedRooms = async (
             net_balance: roomNetBalance,
           },
           
-          // ============================================================
-          // RIGHT SIDE - Checkin-wise totals
-          // ============================================================
           right_side: {
             total_room_charges: checkinTotalRoomCharges,
             total_discount: checkinTotalDiscount,
@@ -1334,28 +1346,21 @@ export const fetchOccupiedRooms = async (
             room_ids: roomIds,
           },
           
-          // ============================================================
-          // TOP-LEVEL FIELDS for UI
-          // ============================================================
-          // The amount shown on the left side of the tile (Room-wise)
-          net_room_amount: roomNet, // Room Net after advance
-          // The amount shown on the right side of the tile (Checkin-wise)
-          total_all_rooms_net: checkinTotalNet, // Checkin Total Net
-          room_total_amount: roomGross, // Room Gross before advance
-          total_all_rooms_amount: checkinTotalRoomCharges, // All rooms gross
+          net_room_amount: roomNet,
+          total_all_rooms_net: checkinTotalNet,
+          room_total_amount: roomGross,
+          total_all_rooms_amount: checkinTotalRoomCharges,
           total_advance: checkinTotalAdvance,
           room_advance: roomAdvance,
           room_post_charges: roomPostCharges,
           room_allowances: roomAllowances,
           payment_method: 'Cash',
           
-          // Raw data for debugging
           _raw: roomData,
         });
       }
     }
     
-    // Sort by room number
     occupiedItems.sort((a, b) => {
       const aNum = parseInt(String(a.room_no).replace(/\D/g, '')) || 0;
       const bNum = parseInt(String(b.room_no).replace(/\D/g, '')) || 0;
@@ -1364,15 +1369,17 @@ export const fetchOccupiedRooms = async (
     
     setOccupiedRooms(occupiedItems);
     
-    // ============================================================
-    // FINAL DEBUG OUTPUT
-    // ============================================================
     console.log('📊 FINAL OCCUPIED ROOMS SUMMARY:');
     console.log(`✅ Total occupied rooms: ${occupiedItems.length}`);
+
+    // 🔎 GUEST_ID DEBUG: final summary of resolved guest ids
+    console.log('🔎 [GUEST_ID DEBUG] Final guest_id map:',
+      occupiedItems.map((i) => ({ room_no: i.room_no, guest_id: i.guest_id }))
+    );
     
     occupiedItems.forEach((item: any) => {
       console.log(`\n🏨 Room ${item.room_no} (Checkin #${item.checkin_id})`);
-      console.log(`   Guest: ${item.guest_name}`);
+      console.log(`   Guest: ${item.guest_name} (guest_id: ${item.guest_id})`);
       console.log(`   LEFT SIDE (Room-wise):`);
       console.log(`     Room Tariff: ₹${item.left_side?.room_tariff?.toFixed(2) || '0.00'}`);
       console.log(`     Discount: -₹${item.left_side?.discount_amount?.toFixed(2) || '0.00'}`);
