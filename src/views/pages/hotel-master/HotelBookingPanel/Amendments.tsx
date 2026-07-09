@@ -3205,31 +3205,39 @@ const ChangeRoomCategoryComponent = ({
 
         const chargeRoomCalc = computeDayTaxes(newTariff, charge.pax_tax_percent || 0, newTax)
 
-        await GuestRoomChargesService.update(chargeId, {
-          guest_id: selectedRoom.checkin.guest_id,
-          room_id: selectedRoom.detail.room_id,
-          checkin_id: selectedRoom.checkin.checkin_id,
-          category_id: newCategoryId,
-          pax_price: newTariff,
-          pax_tax: chargeRoomCalc.taxAmount,
-          ex_pax_price: chargeExtras.exPax.price,
-          ex_pax_tax: chargeExtras.exPax.tax,
-          ex_pax_tax_percent: chargeExtras.exPax.taxPercent,
-          ex_pax_total: chargeExtras.exPax.total,
-          child_price: chargeExtras.child.price,
-          child_tax: chargeExtras.child.tax,
-          child_tax_percent: chargeExtras.child.taxPercent,
-          child_total: chargeExtras.child.total,
-          driver_price: chargeExtras.driver.price,
-          driver_tax: chargeExtras.driver.tax,
-          driver_tax_percent: chargeExtras.driver.taxPercent,
-          driver_total: chargeExtras.driver.total,
-          total_amount:
-            chargeRoomCalc.totalAfterTax +
-            chargeExtras.exPax.total +
-            chargeExtras.child.total +
-            chargeExtras.driver.total,
-        })
+      await GuestRoomChargesService.update(chargeId, {
+  guest_id: selectedRoom.checkin.guest_id,
+  room_id: selectedRoom.detail.room_id,
+  checkin_id: selectedRoom.checkin.checkin_id,
+  category_id: newCategoryId,
+
+  detail_checkin_datetime: selectedRoom.detail.detail_checkin_datetime,
+  detail_checkout_datetime: selectedRoom.detail.detail_checkout_datetime,
+
+  pax_price: newTariff,
+  pax_tax: chargeRoomCalc.taxAmount,
+
+  ex_pax_price: chargeExtras.exPax.price,
+  ex_pax_tax: chargeExtras.exPax.tax,
+  ex_pax_tax_percent: chargeExtras.exPax.taxPercent,
+  ex_pax_total: chargeExtras.exPax.total,
+
+  child_price: chargeExtras.child.price,
+  child_tax: chargeExtras.child.tax,
+  child_tax_percent: chargeExtras.child.taxPercent,
+  child_total: chargeExtras.child.total,
+
+  driver_price: chargeExtras.driver.price,
+  driver_tax: chargeExtras.driver.tax,
+  driver_tax_percent: chargeExtras.driver.taxPercent,
+  driver_total: chargeExtras.driver.total,
+
+  total_amount:
+    chargeRoomCalc.totalAfterTax +
+    chargeExtras.exPax.total +
+    chargeExtras.child.total +
+    chargeExtras.driver.total,
+})
       }
 
       // ---- 3. Update current detail (only if its checkout date is today or future) ----
@@ -3279,6 +3287,8 @@ const ChangeRoomCategoryComponent = ({
               guest_id: selectedRoom.checkin.guest_id,
               room_id: selectedRoom.detail.room_id,
               checkin_id: selectedRoom.checkin.checkin_id,
+                 detail_checkin_datetime: selectedRoom.detail.detail_checkin_datetime,
+    detail_checkout_datetime: selectedRoom.detail.detail_checkout_datetime,
               category_id: newCategoryId,
               pax_price: newTariff,
               pax_tax: roomCalc.taxAmount,
@@ -5274,23 +5284,29 @@ const SwapRoomComponent = ({ selectedRoom, occupiedRooms, onClose, onRefresh }: 
       const chargesArray2 = (charges2.data || []).filter(
         (c: any) => Number(c.room_id) === Number(tgtRoomId),
       )
+// Guest A's charges: keep checkin_id/guest_id, update room_id to their NEW room (B)
+const updatePromises1 = chargesArray1.map((charge: any) =>
+  GuestRoomChargesService.update(charge.guest_room_charges_id, {
+    room_id: tgtRoomId,
+    guest_id: selectedRoom.checkin.guest_id,
+    checkin_id: selectedRoom.checkin.checkin_id,
 
-      // Guest A's charges: keep checkin_id/guest_id, update room_id to their NEW room (B)
-      const updatePromises1 = chargesArray1.map((charge: any) =>
-        GuestRoomChargesService.update(charge.guest_room_charges_id, {
-          room_id: tgtRoomId,
-          guest_id: selectedRoom.checkin.guest_id,
-          checkin_id: selectedRoom.checkin.checkin_id,
-        }),
-      )
-      // Guest B's charges: keep checkin_id/guest_id, update room_id to their NEW room (A)
-      const updatePromises2 = chargesArray2.map((charge: any) =>
-        GuestRoomChargesService.update(charge.guest_room_charges_id, {
-          room_id: selRoomId,
-          guest_id: targetRoom.checkin.guest_id,
-          checkin_id: targetRoom.checkin.checkin_id,
-        }),
-      )
+    detail_checkin_datetime: selectedRoom.detail.detail_checkin_datetime,
+    detail_checkout_datetime: selectedRoom.detail.detail_checkout_datetime,
+  }),
+)
+
+// Guest B's charges: keep checkin_id/guest_id, update room_id to their NEW room (A)
+const updatePromises2 = chargesArray2.map((charge: any) =>
+  GuestRoomChargesService.update(charge.guest_room_charges_id, {
+    room_id: selRoomId,
+    guest_id: targetRoom.checkin.guest_id,
+    checkin_id: targetRoom.checkin.checkin_id,
+
+    detail_checkin_datetime: targetRoom.detail.detail_checkin_datetime,
+    detail_checkout_datetime: targetRoom.detail.detail_checkout_datetime,
+  }),
+)
       await Promise.all([...updatePromises1, ...updatePromises2])
 
       // ── 4. Swap Advance Transactions ─────────────────────────────────────────

@@ -11,7 +11,8 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_perform_checkout`(
     IN p_payment_mode VARCHAR(50),
     IN p_is_settle TINYINT,
     IN p_is_print TINYINT,
-    IN p_user_id INT
+    IN p_user_id INT,
+    IN p_checkout_datetime DATETIME
 )
 sp_perform_checkout:BEGIN
     DECLARE v_now DATETIME;
@@ -29,7 +30,7 @@ sp_perform_checkout:BEGIN
     DECLARE v_active_room_count INT DEFAULT 0;
     DECLARE v_all_checked_out_room_ids VARCHAR(2000) DEFAULT '';
 
-    -- Aggregates (for normal checkout or recalc)
+    -- Aggregates
     DECLARE v_room_tariff_sum DECIMAL(10,2) DEFAULT 0;
     DECLARE v_adults INT DEFAULT 0;
     DECLARE v_pax INT DEFAULT 0;
@@ -57,7 +58,7 @@ sp_perform_checkout:BEGIN
     DECLARE v_service_charge_amount DECIMAL(10,2) DEFAULT 0;
     DECLARE v_total_nights INT DEFAULT 0;
 
-    -- Folio aggregates (guest-level)
+    -- Folio aggregates
     DECLARE v_advance_amt DECIMAL(10,2) DEFAULT 0;
     DECLARE v_post_changes_amt DECIMAL(10,2) DEFAULT 0;
     DECLARE v_allowances_amt DECIMAL(10,2) DEFAULT 0;
@@ -83,7 +84,7 @@ sp_perform_checkout:BEGIN
     DECLARE v_cur_checkout_id INT;
     DECLARE v_merge_triggered TINYINT DEFAULT 0;
 
-    -- ✅ FIX: Variable to store final payment method
+    -- Final payment method
     DECLARE v_final_payment_method VARCHAR(50);
 
     -- Cursor for merge
@@ -116,12 +117,11 @@ sp_perform_checkout:BEGIN
     END;
 
     START TRANSACTION;
-    SET v_now = NOW();
+    SET v_now = IFNULL(p_checkout_datetime, NOW());
     SET v_user_id = COALESCE(p_user_id, 1);
     SET v_error_msg = 'Starting checkout process';
     SET v_debug_msg = 'Initializing';
     
-    -- ✅ FIX: Resolve payment method - prioritize p_payment_method, then p_payment_mode
     SET v_final_payment_method = COALESCE(p_payment_method, p_payment_mode, 'Cash');
     SET v_debug_msg = CONCAT('Payment resolved: method=', v_final_payment_method);
 
@@ -147,7 +147,7 @@ sp_perform_checkout:BEGIN
         END WHILE;
     END IF;
 
-    -- 3. Get room IDs for all selected rooms (regardless of is_checkout)
+    -- 3. Get room IDs for all selected rooms
     IF v_selected_rooms_str != '' THEN
         SELECT GROUP_CONCAT(DISTINCT room_id)
         INTO v_selected_room_ids_all
@@ -156,19 +156,19 @@ sp_perform_checkout:BEGIN
           AND FIND_IN_SET(room_number COLLATE utf8mb4_general_ci, v_selected_rooms_str) > 0;
     END IF;
 
-    -- 4. Get active rooms (is_checkout = 0)
+    -- 4. Get active rooms count
     SELECT COUNT(*) INTO v_active_room_count
     FROM checkin_detail_master
     WHERE checkin_id = p_checkin_id AND is_checkout = 0;
 
-    -- 5. Get all checked-out room IDs for this checkin
+    -- 5. Get all checked-out room IDs
     SELECT GROUP_CONCAT(DISTINCT room_id) INTO v_all_checked_out_room_ids
     FROM checkin_detail_master
     WHERE checkin_id = p_checkin_id AND is_checkout = 1;
 
-    -- 6. Determine operation: normal, merge, or split
+    -- 6. Determine operation
     IF v_active_room_count > 0 THEN
-        -- Normal checkout: active rooms exist
+        -- Normal checkout
         IF v_selected_rooms_str != '' THEN
             SELECT GROUP_CONCAT(DISTINCT room_id)
             INTO v_active_room_ids
@@ -179,12 +179,18 @@ sp_perform_checkout:BEGIN
         END IF;
 
         IF v_active_room_ids IS NULL OR v_active_room_ids = '' THEN
+            SELECT GROUP_CONCAT(DISTINCT room_id)
+            INTO v_active_room_ids
+            FROM checkin_detail_master
+            WHERE checkin_id = p_checkin_id AND is_checkout = 0;
+        END IF;
+
+        IF v_active_room_ids IS NULL OR v_active_room_ids = '' THEN
             SELECT JSON_OBJECT('success', FALSE, 'message', 'No active rooms selected.') AS result;
             ROLLBACK;
             LEAVE sp_perform_checkout;
         END IF;
 
-        -- Mark selected active rooms as checked out
         UPDATE checkin_detail_master
         SET is_checkout = 1, updated_by_id = v_user_id, updated_date = v_now
         WHERE checkin_id = p_checkin_id
@@ -195,7 +201,7 @@ sp_perform_checkout:BEGIN
         SET v_split_mode = 0;
 
     ELSE
-        -- No active rooms – all rooms are already checked out
+        -- All rooms are already checked out
         IF v_selected_room_ids_all IS NULL OR v_selected_room_ids_all = '' THEN
             SELECT JSON_OBJECT('success', FALSE, 'message', 'No rooms selected.') AS result;
             ROLLBACK;
@@ -206,11 +212,9 @@ sp_perform_checkout:BEGIN
         SET @checked_out_count = (SELECT COUNT(*) FROM checkin_detail_master WHERE checkin_id = p_checkin_id AND is_checkout = 1);
 
         IF @selected_count = @checked_out_count AND @selected_count > 0 THEN
-            -- MERGE: selected all checked-out rooms
             SET v_merge_mode = 1;
             SET v_split_mode = 0;
         ELSEIF @selected_count < @checked_out_count AND @selected_count > 0 THEN
-            -- SPLIT: selected a proper subset
             SET v_split_mode = 1;
             SET v_merge_mode = 0;
         ELSE
@@ -220,11 +224,10 @@ sp_perform_checkout:BEGIN
         END IF;
     END IF;
 
-    -- -----------------------------------------------------------------
-    -- 7. MERGE MODE - ✅ FIXED: Added payment_method in UPDATE
-    -- -----------------------------------------------------------------
+    -- =================================================================
+    -- 7. MERGE MODE
+    -- =================================================================
     IF v_merge_mode = 1 OR (SELECT COUNT(*) FROM Checkout_Master WHERE checkin_id = p_checkin_id) > 1 THEN
-        -- If triggered from normal checkout, set flag
         IF v_merge_mode = 0 THEN
             SET v_merge_triggered = 1;
             SET v_all_checked_out_room_ids = (SELECT GROUP_CONCAT(DISTINCT room_id) 
@@ -244,8 +247,6 @@ sp_perform_checkout:BEGIN
             IF v_keeper_checkout_id = 0 THEN
                 SET v_keeper_checkout_id = v_cur_checkout_id;
             ELSE
-                -- Copy all child records from v_cur_checkout_id to keeper
-                -- Checkout_Detail
                 INSERT INTO Checkout_Detail (
                     checkin_id, checkout_id, hotelid, room_id, room_number,
                     room_category_id, room_category_name,
@@ -290,7 +291,7 @@ sp_perform_checkout:BEGIN
                     converted_category_id, converted_category_name,
                     guest_id, guest_name, address, mobile,
                     company_id, company_name, emailed,
-                    checkin_datetime, checkout_datetime, no_of_days,
+                    checkin_datetime, v_now, no_of_days,
                     adults, pax, ex_pax,
                     child_paid, child_unpaid, driver,
                     room_tariff,
@@ -320,25 +321,6 @@ sp_perform_checkout:BEGIN
                 FROM Checkout_Detail
                 WHERE checkout_id = v_cur_checkout_id;
 
-                -- ✅ FIX: Use v_final_payment_method for Checkout_Folio_Master
-                INSERT INTO Checkout_Folio_Master (
-                    checkin_id, checkout_id, hotel_id, detail_id, room_id,
-                    transaction_type, transaction_datetime,
-                    description, debit_amount, credit_amount,
-                    reference_number, payment_method,
-                    created_by_id, created_date, updated_by_id, updated_date
-                )
-                SELECT
-                    checkin_id, v_keeper_checkout_id, hotel_id, detail_id, room_id,
-                    transaction_type, transaction_datetime,
-                    description, debit_amount, credit_amount,
-                    reference_number, 
-                    COALESCE(v_final_payment_method, payment_method, 'Cash') AS payment_method,
-                    created_by_id, created_date, v_user_id, v_now
-                FROM Checkout_Folio_Master
-                WHERE checkout_id = v_cur_checkout_id;
-
-                -- Checkout_Room_Charges
                 INSERT INTO Checkout_Room_Charges (
                     checkin_id, checkout_id, guest_id, room_id, category_id,
                     pax_count, pax_price, pax_tax,
@@ -359,16 +341,55 @@ sp_perform_checkout:BEGIN
                 FROM Checkout_Room_Charges
                 WHERE checkout_id = v_cur_checkout_id;
 
-                -- Delete the merged checkout master and its children (already copied)
                 DELETE FROM Checkout_Detail WHERE checkout_id = v_cur_checkout_id;
-                DELETE FROM Checkout_Folio_Master WHERE checkout_id = v_cur_checkout_id;
                 DELETE FROM Checkout_Room_Charges WHERE checkout_id = v_cur_checkout_id;
                 DELETE FROM Checkout_Master WHERE checkout_id = v_cur_checkout_id;
             END IF;
         END LOOP;
         CLOSE merge_cursor;
 
-        -- Recalculate totals for keeper
+        -- =============================================================
+        -- FIX: Re-insert ALL folio records from checkin_guest_folio_master
+        -- =============================================================
+        DELETE FROM Checkout_Folio_Master WHERE checkout_id = v_keeper_checkout_id;
+
+        INSERT INTO Checkout_Folio_Master (
+            checkin_id, checkout_id, hotel_id, detail_id, room_id,
+            transaction_type, transaction_datetime,
+            description, debit_amount, credit_amount,
+            reference_number, payment_method,
+            created_by_id, created_date, updated_by_id, updated_date
+        )
+        SELECT
+            cgfm.checkin_id, 
+            v_keeper_checkout_id, 
+            cgfm.hotel_id, 
+            cgfm.detail_id, 
+            cgfm.room_id,
+            cgfm.transaction_type, 
+            cgfm.transaction_datetime,
+            cgfm.description, 
+            cgfm.debit_amount, 
+            cgfm.credit_amount,
+            cgfm.reference_number, 
+            COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
+            cgfm.created_by_id, 
+            cgfm.created_date, 
+            v_user_id, 
+            v_now
+        FROM checkin_guest_folio_master cgfm
+        WHERE cgfm.checkin_id = p_checkin_id
+          AND (
+              cgfm.room_id IS NULL
+              OR EXISTS (
+                  SELECT 1 
+                  FROM Checkout_Detail cd 
+                  WHERE cd.checkout_id = v_keeper_checkout_id 
+                    AND cd.room_id = cgfm.room_id
+              )
+          );
+
+        -- Recalculate totals
         SELECT
             COALESCE(SUM(room_tariff), 0),
             COALESCE(SUM(ex_pax_charge), 0),
@@ -414,7 +435,6 @@ sp_perform_checkout:BEGIN
         FROM Checkout_Detail
         WHERE checkout_id = v_keeper_checkout_id;
 
-        -- Folio aggregates
         SELECT
             COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt','Advance Addition') THEN credit_amount ELSE 0 END), 0),
             COALESCE(SUM(CASE WHEN transaction_type = 'CHARGE' THEN debit_amount ELSE 0 END), 0),
@@ -431,7 +451,6 @@ sp_perform_checkout:BEGIN
                             + v_cess_amount + v_service_charge_amount
                             - v_discount_amount;
 
-        -- Build JSON arrays for keeper
         SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
         INTO v_processed_rooms_json
         FROM (SELECT DISTINCT room_number FROM Checkout_Detail WHERE checkout_id = v_keeper_checkout_id) d;
@@ -440,7 +459,6 @@ sp_perform_checkout:BEGIN
         INTO v_processed_room_ids_json
         FROM (SELECT DISTINCT room_id FROM Checkout_Detail WHERE checkout_id = v_keeper_checkout_id) d;
 
-        -- ✅ FIX: Update keeper master with payment_method
         UPDATE Checkout_Master
         SET
             tot_room_tariff = v_room_tariff_sum,
@@ -467,7 +485,7 @@ sp_perform_checkout:BEGIN
             total_nights = v_total_nights,
             checked_out_rooms = v_processed_rooms_json,
             room_id = v_processed_room_ids_json,
-            payment_method = v_final_payment_method,  -- ✅ FIX: Set payment method
+            payment_method = v_final_payment_method,
             updated_by_id = v_user_id,
             updated_date = v_now,
             is_partial_checkout = 0,
@@ -480,67 +498,38 @@ sp_perform_checkout:BEGIN
 
         COMMIT;
         
-        -- Return appropriate message based on how merge was triggered
-        IF v_merge_triggered = 1 THEN
-            SELECT JSON_OBJECT(
-                'success', TRUE,
-                'message', 'Merged all checkout bills into one after normal checkout.',
+        SELECT JSON_OBJECT(
+            'success', TRUE,
+            'message', CASE WHEN v_merge_triggered = 1 THEN 'Merged all checkout bills into one after normal checkout.' ELSE 'Merged all checkout bills into one.' END,
+            'checkout_id', v_keeper_checkout_id,
+            'checkin_id', p_checkin_id,
+            'is_partial', 0,
+            'ldg_bill_no', v_ldg_bill_no,
+            'payment_method', v_final_payment_method,
+            'checked_out_rooms', v_processed_rooms_json,
+            'checked_out_room_ids', v_processed_room_ids_json,
+            'merge_performed', 1,
+            'folio_records_copied', (SELECT COUNT(*) FROM Checkout_Folio_Master WHERE checkout_id = v_keeper_checkout_id),
+            'data', JSON_OBJECT(
                 'checkout_id', v_keeper_checkout_id,
                 'checkin_id', p_checkin_id,
                 'is_partial', 0,
                 'ldg_bill_no', v_ldg_bill_no,
-                'payment_method', v_final_payment_method,  -- ✅ FIX: Include in response
-                'checked_out_rooms', v_processed_rooms_json,
-                'checked_out_room_ids', v_processed_room_ids_json,
-                'merge_performed', 1,
-                'merge_triggered_by', 'normal_checkout',
-                'data', JSON_OBJECT(
-                    'checkout_id', v_keeper_checkout_id,
-                    'checkin_id', p_checkin_id,
-                    'is_partial', 0,
-                    'ldg_bill_no', v_ldg_bill_no,
-                    'payment_method', v_final_payment_method,
-                    'aggregated_values', JSON_OBJECT(
-                        'advance_amt', v_advance_amt,
-                        'total_amount', v_total_computed,
-                        'net_payable', COALESCE(p_net_payable, v_total_computed)
-                    )
+                'payment_method', v_final_payment_method,
+                'aggregated_values', JSON_OBJECT(
+                    'advance_amt', v_advance_amt,
+                    'total_amount', v_total_computed,
+                    'net_payable', COALESCE(p_net_payable, v_total_computed)
                 )
-            ) AS result;
-        ELSE
-            SELECT JSON_OBJECT(
-                'success', TRUE,
-                'message', 'Merged all checkout bills into one.',
-                'checkout_id', v_keeper_checkout_id,
-                'checkin_id', p_checkin_id,
-                'is_partial', 0,
-                'ldg_bill_no', v_ldg_bill_no,
-                'payment_method', v_final_payment_method,  -- ✅ FIX: Include in response
-                'checked_out_rooms', v_processed_rooms_json,
-                'checked_out_room_ids', v_processed_room_ids_json,
-                'merge_performed', 1,
-                'data', JSON_OBJECT(
-                    'checkout_id', v_keeper_checkout_id,
-                    'checkin_id', p_checkin_id,
-                    'is_partial', 0,
-                    'ldg_bill_no', v_ldg_bill_no,
-                    'payment_method', v_final_payment_method,
-                    'aggregated_values', JSON_OBJECT(
-                        'advance_amt', v_advance_amt,
-                        'total_amount', v_total_computed,
-                        'net_payable', COALESCE(p_net_payable, v_total_computed)
-                    )
-                )
-            ) AS result;
-        END IF;
+            )
+        ) AS result;
         LEAVE sp_perform_checkout;
     END IF;
 
-    -- -----------------------------------------------------------------
-    -- 8. SPLIT MODE - ✅ FIXED: Added payment_method in UPDATE
-    -- -----------------------------------------------------------------
+    -- =================================================================
+    -- 8. SPLIT MODE
+    -- =================================================================
     IF v_split_mode = 1 THEN
-        -- Identify the source checkout master that currently contains these rooms
         SELECT DISTINCT cm.checkout_id INTO v_source_checkout_id
         FROM Checkout_Master cm
         INNER JOIN Checkout_Detail cd ON cm.checkout_id = cd.checkout_id
@@ -554,10 +543,8 @@ sp_perform_checkout:BEGIN
             LEAVE sp_perform_checkout;
         END IF;
 
-        -- Generate new bill number for the new split bill
         SET v_ldg_bill_no = generate_next_invoice_no();
 
-        -- ✅ FIX: Create a new Checkout_Master with payment_method
         INSERT INTO Checkout_Master (
             checkin_id, guest_id, ldg_bill_no, reg_no, booking, plan_name,
             checkin_datetime, room_no,
@@ -571,7 +558,7 @@ sp_perform_checkout:BEGIN
             hotelid, total_amount, total_nights,
             id_type, id_number, department_id, department_name,
             special_instruction, message,
-            payment_method,  -- ✅ FIX: Include payment_method
+            payment_method,
             created_by_id, created_date, updated_by_id, updated_date,
             status, checkout_date, checkout_by_id, checkout_reason,
             is_partial_checkout, checked_out_rooms, room_id
@@ -583,7 +570,7 @@ sp_perform_checkout:BEGIN
             cm.hotelid, 0, 0,
             cm.id_type, cm.id_number, cm.department_id, cm.department_name,
             cm.special_instruction, cm.message,
-            v_final_payment_method,  -- ✅ FIX: Use resolved payment method
+            v_final_payment_method,
             cm.created_by_id, cm.created_date, v_user_id, v_now,
             'checked_out', v_now, v_user_id, COALESCE(p_checkout_reason, 'Split checkout'),
             0, JSON_ARRAY(), JSON_ARRAY()
@@ -592,31 +579,94 @@ sp_perform_checkout:BEGIN
 
         SET v_new_checkout_id = LAST_INSERT_ID();
 
-        -- Move selected room records from source to new checkout
-        -- Checkout_Detail
         UPDATE Checkout_Detail
         SET checkout_id = v_new_checkout_id, updated_by_id = v_user_id, updated_date = v_now
         WHERE checkout_id = v_source_checkout_id
           AND FIND_IN_SET(room_id, v_selected_room_ids_all) > 0;
 
-        -- ✅ FIX: Checkout_Folio_Master - Update with payment_method
-        UPDATE Checkout_Folio_Master
-        SET 
-            checkout_id = v_new_checkout_id, 
-            payment_method = v_final_payment_method,  -- ✅ FIX: Set payment method
-            updated_by_id = v_user_id, 
-            updated_date = v_now
-        WHERE checkout_id = v_source_checkout_id
-          AND room_id IS NOT NULL
-          AND FIND_IN_SET(room_id, v_selected_room_ids_all) > 0;
-
-        -- Checkout_Room_Charges
         UPDATE Checkout_Room_Charges
         SET checkout_id = v_new_checkout_id, updated_at = v_now
         WHERE checkout_id = v_source_checkout_id
           AND FIND_IN_SET(room_id, v_selected_room_ids_all) > 0;
 
-        -- Recalculate totals for source master (remaining rooms)
+        -- =============================================================
+        -- FIX: Insert fresh folio records for new checkout
+        -- =============================================================
+        DELETE FROM Checkout_Folio_Master WHERE checkout_id = v_new_checkout_id;
+
+        INSERT INTO Checkout_Folio_Master (
+            checkin_id, checkout_id, hotel_id, detail_id, room_id,
+            transaction_type, transaction_datetime,
+            description, debit_amount, credit_amount,
+            reference_number, payment_method,
+            created_by_id, created_date, updated_by_id, updated_date
+        )
+        SELECT
+            cgfm.checkin_id, 
+            v_new_checkout_id, 
+            cgfm.hotel_id, 
+            cgfm.detail_id, 
+            cgfm.room_id,
+            cgfm.transaction_type, 
+            cgfm.transaction_datetime,
+            cgfm.description, 
+            cgfm.debit_amount, 
+            cgfm.credit_amount,
+            cgfm.reference_number, 
+            COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
+            cgfm.created_by_id, 
+            cgfm.created_date, 
+            v_user_id, 
+            v_now
+        FROM checkin_guest_folio_master cgfm
+        WHERE cgfm.checkin_id = p_checkin_id
+          AND (
+              cgfm.room_id IS NULL
+              OR FIND_IN_SET(cgfm.room_id, v_selected_room_ids_all) > 0
+          );
+
+        -- =============================================================
+        -- FIX: Re-insert folio records for source checkout (remaining rooms)
+        -- =============================================================
+        DELETE FROM Checkout_Folio_Master WHERE checkout_id = v_source_checkout_id;
+
+        INSERT INTO Checkout_Folio_Master (
+            checkin_id, checkout_id, hotel_id, detail_id, room_id,
+            transaction_type, transaction_datetime,
+            description, debit_amount, credit_amount,
+            reference_number, payment_method,
+            created_by_id, created_date, updated_by_id, updated_date
+        )
+        SELECT
+            cgfm.checkin_id, 
+            v_source_checkout_id, 
+            cgfm.hotel_id, 
+            cgfm.detail_id, 
+            cgfm.room_id,
+            cgfm.transaction_type, 
+            cgfm.transaction_datetime,
+            cgfm.description, 
+            cgfm.debit_amount, 
+            cgfm.credit_amount,
+            cgfm.reference_number, 
+            COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
+            cgfm.created_by_id, 
+            cgfm.created_date, 
+            v_user_id, 
+            v_now
+        FROM checkin_guest_folio_master cgfm
+        WHERE cgfm.checkin_id = p_checkin_id
+          AND (
+              cgfm.room_id IS NULL
+              OR EXISTS (
+                  SELECT 1 
+                  FROM Checkout_Detail cd 
+                  WHERE cd.checkout_id = v_source_checkout_id 
+                    AND cd.room_id = cgfm.room_id
+              )
+          );
+
+        -- Recalculate totals
         SELECT
             COALESCE(SUM(room_tariff), 0),
             COALESCE(SUM(ex_pax_charge), 0),
@@ -662,7 +712,6 @@ sp_perform_checkout:BEGIN
         FROM Checkout_Detail
         WHERE checkout_id = v_source_checkout_id;
 
-        -- Recalculate totals for new split master (selected rooms)
         SELECT
             COALESCE(SUM(room_tariff), 0),
             COALESCE(SUM(ex_pax_charge), 0),
@@ -708,7 +757,6 @@ sp_perform_checkout:BEGIN
         FROM Checkout_Detail
         WHERE checkout_id = v_new_checkout_id;
 
-        -- Compute totals
         SET v_total_computed = v_room_tariff_sum + v_ex_pax_charge + v_child_paid_amount + v_driver_charge
                             + v_cgst_amount + v_sgst_amount + v_igst_amount
                             + v_ex_cgst_amount + v_ex_sgst_amount + v_ex_igst_amount
@@ -725,7 +773,6 @@ sp_perform_checkout:BEGIN
                          + @new_cess_amount + @new_service_charge_amount
                          - @new_discount_amount;
 
-        -- Folio aggregates (guest-level, same for both)
         SELECT
             COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt','Advance Addition') THEN credit_amount ELSE 0 END), 0),
             COALESCE(SUM(CASE WHEN transaction_type = 'CHARGE' THEN debit_amount ELSE 0 END), 0),
@@ -734,7 +781,6 @@ sp_perform_checkout:BEGIN
         FROM checkin_guest_folio_master
         WHERE checkin_id = p_checkin_id;
 
-        -- Build JSON for source (remaining rooms)
         SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
         INTO v_processed_rooms_json
         FROM (SELECT DISTINCT room_number FROM Checkout_Detail WHERE checkout_id = v_source_checkout_id) d;
@@ -743,7 +789,6 @@ sp_perform_checkout:BEGIN
         INTO v_processed_room_ids_json
         FROM (SELECT DISTINCT room_id FROM Checkout_Detail WHERE checkout_id = v_source_checkout_id) d;
 
-        -- ✅ FIX: Update source master with payment_method
         UPDATE Checkout_Master
         SET
             tot_room_tariff = v_room_tariff_sum,
@@ -770,14 +815,13 @@ sp_perform_checkout:BEGIN
             total_nights = v_total_nights,
             checked_out_rooms = v_processed_rooms_json,
             room_id = v_processed_room_ids_json,
-            payment_method = v_final_payment_method,  -- ✅ FIX: Set payment method
+            payment_method = v_final_payment_method,
             updated_by_id = v_user_id,
             updated_date = v_now,
             is_partial_checkout = CASE WHEN (SELECT COUNT(*) FROM Checkout_Detail WHERE checkout_id = v_source_checkout_id) > 0 THEN 0 ELSE 1 END,
             status = CASE WHEN (SELECT COUNT(*) FROM Checkout_Detail WHERE checkout_id = v_source_checkout_id) > 0 THEN 'checked_out' ELSE 'partial_checkout' END
         WHERE checkout_id = v_source_checkout_id;
 
-        -- Build JSON for new master (selected rooms)
         SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
         INTO @new_rooms_json
         FROM (SELECT DISTINCT room_number FROM Checkout_Detail WHERE checkout_id = v_new_checkout_id) d;
@@ -786,7 +830,6 @@ sp_perform_checkout:BEGIN
         INTO @new_room_ids_json
         FROM (SELECT DISTINCT room_id FROM Checkout_Detail WHERE checkout_id = v_new_checkout_id) d;
 
-        -- ✅ FIX: Update new master with payment_method
         UPDATE Checkout_Master
         SET
             tot_room_tariff = @new_room_tariff_sum,
@@ -813,19 +856,18 @@ sp_perform_checkout:BEGIN
             total_nights = @new_total_nights,
             checked_out_rooms = @new_rooms_json,
             room_id = @new_room_ids_json,
-            payment_method = v_final_payment_method,  -- ✅ FIX: Set payment method
+            payment_method = v_final_payment_method,
             updated_by_id = v_user_id,
             updated_date = v_now,
             is_partial_checkout = 0,
             status = 'checked_out'
         WHERE checkout_id = v_new_checkout_id;
 
-        -- If source master becomes empty (no detail records), delete it
         IF (SELECT COUNT(*) FROM Checkout_Detail WHERE checkout_id = v_source_checkout_id) = 0 THEN
             DELETE FROM Checkout_Master WHERE checkout_id = v_source_checkout_id;
             SET v_checkout_id = v_new_checkout_id;
         ELSE
-            SET v_checkout_id = v_new_checkout_id;  -- return the new bill as primary
+            SET v_checkout_id = v_new_checkout_id;
         END IF;
 
         COMMIT;
@@ -835,9 +877,11 @@ sp_perform_checkout:BEGIN
             'new_checkout_id', v_new_checkout_id,
             'source_checkout_id', v_source_checkout_id,
             'new_bill_no', v_ldg_bill_no,
-            'payment_method', v_final_payment_method,  -- ✅ FIX: Include in response
+            'payment_method', v_final_payment_method,
             'selected_rooms', @new_rooms_json,
             'remaining_rooms', v_processed_rooms_json,
+            'folio_records_copied_new', (SELECT COUNT(*) FROM Checkout_Folio_Master WHERE checkout_id = v_new_checkout_id),
+            'folio_records_copied_source', (SELECT COUNT(*) FROM Checkout_Folio_Master WHERE checkout_id = v_source_checkout_id),
             'data', JSON_OBJECT(
                 'checkout_id', v_new_checkout_id,
                 'checkin_id', p_checkin_id,
@@ -854,11 +898,9 @@ sp_perform_checkout:BEGIN
         LEAVE sp_perform_checkout;
     END IF;
 
-    -- -----------------------------------------------------------------
-    -- 9. NORMAL CHECKOUT (active rooms exist) - ✅ ALREADY HAS PAYMENT_METHOD
-    -- -----------------------------------------------------------------
-    -- We already have v_active_room_ids, and the rooms are marked as checked out.
-    -- Compute aggregates from selected active rooms
+    -- =================================================================
+    -- 9. NORMAL CHECKOUT
+    -- =================================================================
     SELECT
         COALESCE(SUM(room_tariff), 0),
         COALESCE(SUM(adults), 0),
@@ -900,7 +942,6 @@ sp_perform_checkout:BEGIN
     WHERE checkin_id = p_checkin_id
       AND FIND_IN_SET(room_id, v_active_room_ids) > 0;
 
-    -- Build JSON arrays of processed rooms
     SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
     INTO v_processed_rooms_json
     FROM (SELECT DISTINCT room_number FROM checkin_detail_master WHERE checkin_id = p_checkin_id AND FIND_IN_SET(room_id, v_active_room_ids) > 0) d;
@@ -909,7 +950,6 @@ sp_perform_checkout:BEGIN
     INTO v_processed_room_ids_json
     FROM (SELECT DISTINCT room_id FROM checkin_detail_master WHERE checkin_id = p_checkin_id AND FIND_IN_SET(room_id, v_active_room_ids) > 0) d;
 
-    -- Compute total if not provided
     SET v_total_computed = COALESCE(p_total_amount,
         v_room_tariff_sum + v_ex_pax_charge + v_child_paid_amount + v_driver_charge
         + v_cgst_amount + v_sgst_amount + v_igst_amount
@@ -920,7 +960,6 @@ sp_perform_checkout:BEGIN
         - v_discount_amount
     );
 
-    -- Folio aggregates (guest-level)
     SELECT
         COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt','Advance Addition') THEN credit_amount ELSE 0 END), 0),
         COALESCE(SUM(CASE WHEN transaction_type = 'CHARGE' THEN debit_amount ELSE 0 END), 0),
@@ -929,19 +968,16 @@ sp_perform_checkout:BEGIN
     FROM checkin_guest_folio_master
     WHERE checkin_id = p_checkin_id;
 
-    -- Count remaining active rooms
     SELECT COUNT(*) INTO v_remaining_active
     FROM checkin_detail_master
     WHERE checkin_id = p_checkin_id AND is_checkout = 0;
 
-    -- Generate new invoice number
     IF p_invoice_no IS NULL OR p_invoice_no = '' THEN
         SET v_ldg_bill_no = generate_next_invoice_no();
     ELSE
         SET v_ldg_bill_no = p_invoice_no;
     END IF;
 
-    -- Insert new Checkout_Master (with payment_method)
     INSERT INTO Checkout_Master (
         checkin_id, guest_id, ldg_bill_no, reg_no, booking, plan_name,
         checkin_datetime, room_no,
@@ -958,7 +994,7 @@ sp_perform_checkout:BEGIN
         created_by_id, created_date, updated_by_id, updated_date,
         status, checkout_date, checkout_by_id, checkout_reason,
         is_partial_checkout, checked_out_rooms, room_id,
-        payment_method  -- <-- payment_method column
+        payment_method
     )
     SELECT
         cm.checkin_id, cm.guest_id, v_ldg_bill_no, cm.reg_no, cm.booking, cm.plan_name,
@@ -975,20 +1011,18 @@ sp_perform_checkout:BEGIN
         cm.special_instruction, cm.message,
         cm.created_by_id, cm.created_date, v_user_id, v_now,
         CASE WHEN v_remaining_active = 0 THEN 'checked_out' ELSE 'partial_checkout' END,
-        v_now,  -- checkout date
+        v_now,
         v_user_id,
         COALESCE(p_checkout_reason, 'Regular checkout'),
         CASE WHEN v_remaining_active > 0 THEN 1 ELSE 0 END,
         v_processed_rooms_json,
         v_processed_room_ids_json,
-        v_final_payment_method  -- ✅ FIX: Use resolved payment method
+        v_final_payment_method
     FROM CheckIn_Master cm
     WHERE cm.checkin_id = p_checkin_id;
 
     SET v_checkout_id = LAST_INSERT_ID();
 
-    -- Insert child records for the processed rooms
-    -- Checkout_Detail
     INSERT INTO Checkout_Detail (
         checkin_id, checkout_id, hotelid, room_id, room_number,
         room_category_id, room_category_name,
@@ -1045,7 +1079,7 @@ sp_perform_checkout:BEGIN
         company_name,
         emailed,
         checkin_datetime,
-        checkout_datetime,
+         v_now, 
         no_of_days,
         adults,
         pax,
@@ -1104,23 +1138,40 @@ sp_perform_checkout:BEGIN
     WHERE checkin_id = p_checkin_id
       AND FIND_IN_SET(room_id, v_active_room_ids) > 0;
 
-    -- ✅ FIX: Checkout_Folio_Master - Use v_final_payment_method
+    -- =============================================================
+    -- FIX: Insert ALL folio records including room_id = NULL
+    -- =============================================================
     INSERT INTO Checkout_Folio_Master (
-        checkin_id, checkout_id, hotel_id, detail_id, room_id, transaction_type, transaction_datetime,
-        description, debit_amount, credit_amount, reference_number, payment_method,
+        checkin_id, checkout_id, hotel_id, detail_id, room_id,
+        transaction_type, transaction_datetime,
+        description, debit_amount, credit_amount,
+        reference_number, payment_method,
         created_by_id, created_date, updated_by_id, updated_date
     )
     SELECT
-        checkin_id, v_checkout_id, hotel_id, detail_id, room_id, transaction_type, transaction_datetime,
-        description, debit_amount, credit_amount, reference_number, 
-        COALESCE(v_final_payment_method, payment_method, 'Cash') AS payment_method,
-        created_by_id, created_date, v_user_id, v_now
-    FROM checkin_guest_folio_master
-    WHERE checkin_id = p_checkin_id
-      AND room_id IS NOT NULL
-      AND FIND_IN_SET(room_id, v_active_room_ids) > 0;
+        cgfm.checkin_id, 
+        v_checkout_id, 
+        cgfm.hotel_id, 
+        cgfm.detail_id, 
+        cgfm.room_id,
+        cgfm.transaction_type, 
+        cgfm.transaction_datetime,
+        cgfm.description, 
+        cgfm.debit_amount, 
+        cgfm.credit_amount,
+        cgfm.reference_number, 
+        COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
+        cgfm.created_by_id, 
+        cgfm.created_date, 
+        v_user_id, 
+        v_now
+    FROM checkin_guest_folio_master cgfm
+    WHERE cgfm.checkin_id = p_checkin_id
+      AND (
+          cgfm.room_id IS NULL
+          OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0
+      );
 
-    -- Checkout_Room_Charges
     INSERT INTO Checkout_Room_Charges (
         checkin_id, checkout_id, guest_id, room_id, category_id,
         pax_count, pax_price, pax_tax,
@@ -1136,20 +1187,18 @@ sp_perform_checkout:BEGIN
         cgrc.ex_pax_count, cgrc.ex_pax_price, cgrc.ex_pax_tax, cgrc.ex_pax_tax_percent, cgrc.ex_pax_total,
         cgrc.child_count, cgrc.child_price, cgrc.child_tax, cgrc.child_tax_percent, cgrc.child_total,
         cgrc.driver_count, cgrc.driver_price, cgrc.driver_tax, cgrc.driver_tax_percent, cgrc.driver_total,
-        cgrc.total_amount, cgrc.checkin_datetime, cgrc.checkout_datetime,
+        cgrc.total_amount, cgrc.checkin_datetime, v_now,
         NOW(), NOW()
     FROM checkin_guest_room_charges cgrc
     WHERE cgrc.checkin_id = p_checkin_id
       AND FIND_IN_SET(cgrc.room_id, v_active_room_ids) > 0;
 
-    -- Update CheckIn_Master status if all rooms are now checked out
     IF v_remaining_active = 0 THEN
         UPDATE CheckIn_Master
         SET status = 'checked_out', updated_by_id = v_user_id, updated_date = v_now
         WHERE checkin_id = p_checkin_id;
     END IF;
 
-    -- Update room_master status to 'Bill/Settlement' for processed rooms
     IF v_room_ids_to_update IS NOT NULL AND v_room_ids_to_update != '' THEN
         UPDATE room_master
         SET room_status_id = 7, updated_by_id = v_user_id, updated_date = v_now
@@ -1164,9 +1213,7 @@ sp_perform_checkout:BEGIN
         SET v_all_checked_out_room_ids = (SELECT GROUP_CONCAT(DISTINCT room_id) 
                                           FROM checkin_detail_master 
                                           WHERE checkin_id = p_checkin_id AND is_checkout = 1);
-        -- The merge will execute when procedure loops back, but we need to return merge result
-        -- So we'll execute merge logic here by calling the merge section
-        -- Reinitialize for merge execution
+        
         SET v_done = 0;
         SET v_keeper_checkout_id = 0;
         
@@ -1179,7 +1226,6 @@ sp_perform_checkout:BEGIN
             IF v_keeper_checkout_id = 0 THEN
                 SET v_keeper_checkout_id = v_cur_checkout_id;
             ELSE
-                -- Copy all child records from v_cur_checkout_id to keeper
                 INSERT INTO Checkout_Detail (
                     checkin_id, checkout_id, hotelid, room_id, room_number,
                     room_category_id, room_category_name,
@@ -1224,7 +1270,7 @@ sp_perform_checkout:BEGIN
                     converted_category_id, converted_category_name,
                     guest_id, guest_name, address, mobile,
                     company_id, company_name, emailed,
-                    checkin_datetime, checkout_datetime, no_of_days,
+                    checkin_datetime,  v_now, no_of_days,
                     adults, pax, ex_pax,
                     child_paid, child_unpaid, driver,
                     room_tariff,
@@ -1254,24 +1300,6 @@ sp_perform_checkout:BEGIN
                 FROM Checkout_Detail
                 WHERE checkout_id = v_cur_checkout_id;
 
-                -- ✅ FIX: Use v_final_payment_method for Checkout_Folio_Master
-                INSERT INTO Checkout_Folio_Master (
-                    checkin_id, checkout_id, hotel_id, detail_id, room_id,
-                    transaction_type, transaction_datetime,
-                    description, debit_amount, credit_amount,
-                    reference_number, payment_method,
-                    created_by_id, created_date, updated_by_id, updated_date
-                )
-                SELECT
-                    checkin_id, v_keeper_checkout_id, hotel_id, detail_id, room_id,
-                    transaction_type, transaction_datetime,
-                    description, debit_amount, credit_amount,
-                    reference_number, 
-                    COALESCE(v_final_payment_method, payment_method, 'Cash') AS payment_method,
-                    created_by_id, created_date, v_user_id, v_now
-                FROM Checkout_Folio_Master
-                WHERE checkout_id = v_cur_checkout_id;
-
                 INSERT INTO Checkout_Room_Charges (
                     checkin_id, checkout_id, guest_id, room_id, category_id,
                     pax_count, pax_price, pax_tax,
@@ -1293,14 +1321,54 @@ sp_perform_checkout:BEGIN
                 WHERE checkout_id = v_cur_checkout_id;
 
                 DELETE FROM Checkout_Detail WHERE checkout_id = v_cur_checkout_id;
-                DELETE FROM Checkout_Folio_Master WHERE checkout_id = v_cur_checkout_id;
                 DELETE FROM Checkout_Room_Charges WHERE checkout_id = v_cur_checkout_id;
                 DELETE FROM Checkout_Master WHERE checkout_id = v_cur_checkout_id;
             END IF;
         END LOOP;
         CLOSE merge_cursor;
 
-        -- Recalculate totals for keeper
+        -- =============================================================
+        -- FIX: Re-insert ALL folio records for merged checkout
+        -- =============================================================
+        DELETE FROM Checkout_Folio_Master WHERE checkout_id = v_keeper_checkout_id;
+
+        INSERT INTO Checkout_Folio_Master (
+            checkin_id, checkout_id, hotel_id, detail_id, room_id,
+            transaction_type, transaction_datetime,
+            description, debit_amount, credit_amount,
+            reference_number, payment_method,
+            created_by_id, created_date, updated_by_id, updated_date
+        )
+        SELECT
+            cgfm.checkin_id, 
+            v_keeper_checkout_id, 
+            cgfm.hotel_id, 
+            cgfm.detail_id, 
+            cgfm.room_id,
+            cgfm.transaction_type, 
+            cgfm.transaction_datetime,
+            cgfm.description, 
+            cgfm.debit_amount, 
+            cgfm.credit_amount,
+            cgfm.reference_number, 
+            COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
+            cgfm.created_by_id, 
+            cgfm.created_date, 
+            v_user_id, 
+            v_now
+        FROM checkin_guest_folio_master cgfm
+        WHERE cgfm.checkin_id = p_checkin_id
+          AND (
+              cgfm.room_id IS NULL
+              OR EXISTS (
+                  SELECT 1 
+                  FROM Checkout_Detail cd 
+                  WHERE cd.checkout_id = v_keeper_checkout_id 
+                    AND cd.room_id = cgfm.room_id
+              )
+          );
+
+        -- Recalculate totals
         SELECT
             COALESCE(SUM(room_tariff), 0),
             COALESCE(SUM(ex_pax_charge), 0),
@@ -1370,7 +1438,6 @@ sp_perform_checkout:BEGIN
         INTO v_processed_room_ids_json
         FROM (SELECT DISTINCT room_id FROM Checkout_Detail WHERE checkout_id = v_keeper_checkout_id) d;
 
-        -- ✅ FIX: Update keeper master with payment_method
         UPDATE Checkout_Master
         SET
             tot_room_tariff = v_room_tariff_sum,
@@ -1397,7 +1464,7 @@ sp_perform_checkout:BEGIN
             total_nights = v_total_nights,
             checked_out_rooms = v_processed_rooms_json,
             room_id = v_processed_room_ids_json,
-            payment_method = v_final_payment_method,  -- ✅ FIX: Set payment method
+            payment_method = v_final_payment_method,
             updated_by_id = v_user_id,
             updated_date = v_now,
             is_partial_checkout = 0,
@@ -1414,11 +1481,12 @@ sp_perform_checkout:BEGIN
             'checkin_id', p_checkin_id,
             'is_partial', 0,
             'ldg_bill_no', v_ldg_bill_no,
-            'payment_method', v_final_payment_method,  -- ✅ FIX: Include in response
+            'payment_method', v_final_payment_method,
+             'checkout_datetime', v_now,  -- ✅ ADD THIS
             'checked_out_rooms', v_processed_rooms_json,
             'checked_out_room_ids', v_processed_room_ids_json,
             'merge_performed', 1,
-            'merge_triggered_by', 'normal_checkout',
+            'folio_records_copied', (SELECT COUNT(*) FROM Checkout_Folio_Master WHERE checkout_id = v_keeper_checkout_id),
             'data', JSON_OBJECT(
                 'checkout_id', v_keeper_checkout_id,
                 'checkin_id', p_checkin_id,
@@ -1435,7 +1503,7 @@ sp_perform_checkout:BEGIN
         LEAVE sp_perform_checkout;
     END IF;
 
-    -- ✅ FIX: Return success JSON with payment_method
+    -- Return success JSON
     SELECT JSON_OBJECT(
         'success', TRUE,
         'message', CASE
@@ -1446,9 +1514,10 @@ sp_perform_checkout:BEGIN
         'checkin_id', p_checkin_id,
         'is_partial', CASE WHEN v_remaining_active > 0 THEN 1 ELSE 0 END,
         'ldg_bill_no', v_ldg_bill_no,
-        'payment_method', v_final_payment_method,  -- ✅ FIX: Include payment method in response
+        'payment_method', v_final_payment_method,
         'checked_out_rooms', v_processed_rooms_json,
         'checked_out_room_ids', v_processed_room_ids_json,
+        'folio_records_copied', (SELECT COUNT(*) FROM Checkout_Folio_Master WHERE checkout_id = v_checkout_id),
         'room_ids_updated', v_room_ids_to_update,
         'rooms_updated_count', CASE
             WHEN v_room_ids_to_update IS NOT NULL AND v_room_ids_to_update != ''
@@ -1460,7 +1529,7 @@ sp_perform_checkout:BEGIN
             'checkin_id', p_checkin_id,
             'is_partial', CASE WHEN v_remaining_active > 0 THEN 1 ELSE 0 END,
             'ldg_bill_no', v_ldg_bill_no,
-            'payment_method', v_final_payment_method,  -- ✅ FIX: Include payment method in data
+            'payment_method', v_final_payment_method,
             'aggregated_values', JSON_OBJECT(
                 'advance_amt', v_advance_amt,
                 'post_changes_amt', v_post_changes_amt,

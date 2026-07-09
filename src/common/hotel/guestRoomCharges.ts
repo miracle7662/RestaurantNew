@@ -82,6 +82,7 @@ export interface GuestRoomChargePayload {
   particulars?: string;
   discount_percent?: number;
   payment_method?: string;
+  
 }
 
 export interface BulkChargePayload {

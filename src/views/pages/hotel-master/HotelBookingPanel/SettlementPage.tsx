@@ -382,8 +382,8 @@ const SettlementPage = () => {
                           padding: '4px 6px',
                         }}
                       >
-                        <div>IN : {formatDateTime(item.checkin_datetime)}</div>
-                        <div>OUT : {formatDateTime(item.checkout_datetime)}</div>
+                        <div>IN : {formatDateTime(item.detail_checkin_datetime)}</div>
+                        <div>OUT : {formatDateTime(item.detail_checkout_datetime)}</div>
                         <div
                           style={{ fontSize: '0.6rem', fontWeight: 600, color: '#0d4f6e', marginTop: 2 }}
                         >
@@ -429,10 +429,10 @@ const SettlementPage = () => {
                 {checkoutData.map((co) => {
                   const totalAmt = Number(co.total_amount) || 0
                   const matchedOcc = occupiedRooms.find((o) => o.room_no === co.room_no)
-                  const bestCheckoutDt = matchedOcc?.checkout_datetime
-                    ? matchedOcc.checkout_datetime
-                    : hasMeaningfulTime(co.checkout_datetime)
-                      ? co.checkout_datetime
+                  const bestCheckoutDt = matchedOcc?.detail_checkout_datetime
+                    ? matchedOcc.detail_checkout_datetime
+                    : hasMeaningfulTime(co.detail_checkout_datetime)
+                      ? co.detail_checkout_datetime
                       : co.checkout_date || co.checkout_datetime || ''
                   const checkoutDateDisplay = bestCheckoutDt ? formatDateTime(bestCheckoutDt) : '-'
                   const paymentData = checkoutPaymentMap.get(co.checkout_id) || 'Cash|-'

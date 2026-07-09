@@ -334,11 +334,15 @@ exports.getNextInvoiceNo = async (req, res) => {
 exports.performCheckout = async (req, res) => {
   let connection;
   try {
-    console.log('🔵 [performCheckout] Starting...');
+    console.log('🔵 ==========================================');
+    console.log('🔵 [performCheckout] STARTING...');
+    console.log('🔵 ==========================================');
     console.log('🔵 Request body:', JSON.stringify(req.body, null, 2));
 
     connection = await db.getConnection();
+    console.log('🔵 Database connection acquired successfully');
     await connection.beginTransaction();
+    console.log('🔵 Transaction started');
 
     const {
       checkin_id,
@@ -353,11 +357,67 @@ exports.performCheckout = async (req, res) => {
       payment_mode,
       is_settle,
       is_print,
+      checkout_datetime,  // ✅ ADD THIS - extract from request body
     } = req.body;
 
     const userId = getCurrentUserId(req);
+    console.log(`🔵 User ID: ${userId}`);
+    console.log(`🔵 Checkin ID: ${checkin_id}`);
+    console.log(`🔵 Selected Rooms: ${JSON.stringify(selected_rooms)}`);
+    console.log(`🔵 Payment Method: ${payment_method || 'Cash'}`);
+    console.log(`🔵 Checkout DateTime: ${checkout_datetime || 'Will use server time'}`);
+    console.log(`🔵 Total Amount: ${total_amount}`);
+    console.log(`🔵 Net Payable: ${net_payable}`);
+    console.log(`🔵 Invoice No: ${invoiceNoFromBody || 'Auto generate'}`);
 
-    // Parameters must match the stored procedure signature exactly
+    // Check if checkin exists
+    console.log('🔵 Checking if checkin exists...');
+    const [checkinCheck] = await connection.execute(
+      'SELECT checkin_id, status FROM CheckIn_Master WHERE checkin_id = ?',
+      [checkin_id]
+    );
+    
+    if (!checkinCheck || checkinCheck.length === 0) {
+      console.error('🔴 Checkin not found!');
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Check-in record not found'
+      });
+    }
+
+    // Check folio transactions
+    console.log('🔵 Checking folio transactions...');
+    const [folioCheck] = await connection.execute(
+      `SELECT COUNT(*) as folio_count, 
+              SUM(CASE WHEN transaction_type IN ('Booking Receipt','Advance Addition') THEN credit_amount ELSE 0 END) as total_advance,
+              SUM(CASE WHEN transaction_type = 'CHARGE' THEN debit_amount ELSE 0 END) as total_charges,
+              SUM(CASE WHEN transaction_type = 'ALLOWANCE' THEN credit_amount ELSE 0 END) as total_allowance
+       FROM checkin_guest_folio_master 
+       WHERE checkin_id = ?`,
+      [checkin_id]
+    );
+
+    // Check room charges
+    console.log('🔵 Checking room charges...');
+    const [roomChargesCheck] = await connection.execute(
+      `SELECT COUNT(*) as charge_count, 
+              SUM(total_amount) as total_charges
+       FROM checkin_guest_room_charges 
+       WHERE checkin_id = ?`,
+      [checkin_id]
+    );
+
+    // Check active rooms
+    console.log('🔵 Checking active rooms...');
+    const [activeRooms] = await connection.execute(
+      `SELECT room_id, room_number, is_checkout 
+       FROM checkin_detail_master 
+       WHERE checkin_id = ?`,
+      [checkin_id]
+    );
+
+    // ✅ UPDATE PARAMETERS - NOW 14 PARAMETERS
     const params = [
       checkin_id,
       checkout_reason || 'Regular checkout',
@@ -365,70 +425,78 @@ exports.performCheckout = async (req, res) => {
       total_amount || 0,
       round_off_amount || 0,
       net_payable || 0,
-      JSON.stringify(selected_rooms),          // expects a JSON array
+      JSON.stringify(selected_rooms),
       invoiceNoFromBody || null,
       payment_id || null,
       payment_mode || payment_method || 'Cash',
       is_settle || 0,
       is_print || 1,
       userId,
+      checkout_datetime || null,  // ✅ ADD THIS - 14th parameter
     ];
 
+    console.log('🔵 ==========================================');
     console.log('🔵 Calling sp_perform_checkout with params:');
-    console.log(`   checkin_id: ${params[0]}`);
-    console.log(`   checkout_reason: ${params[1]}`);
-    console.log(`   payment_method: ${params[2]}`);
-    console.log(`   total_amount: ${params[3]}`);
-    console.log(`   round_off_amount: ${params[4]}`);
-    console.log(`   net_payable: ${params[5]}`);
-    console.log(`   selected_rooms (JSON): ${params[6]}`);
-    console.log(`   invoiceNoFromBody: ${params[7]}`);
-    console.log(`   payment_id: ${params[8]}`);
-    console.log(`   payment_mode: ${params[9]}`);
-    console.log(`   is_settle: ${params[10]}`);
-    console.log(`   is_print: ${params[11]}`);
-    console.log(`   userId: ${params[12]}`);
+    console.log('🔵 ==========================================');
+    console.log(`   [1] checkin_id: ${params[0]} (${typeof params[0]})`);
+    console.log(`   [2] checkout_reason: ${params[1]} (${typeof params[1]})`);
+    console.log(`   [3] payment_method: ${params[2]} (${typeof params[2]})`);
+    console.log(`   [4] total_amount: ${params[3]} (${typeof params[3]})`);
+    console.log(`   [5] round_off_amount: ${params[4]} (${typeof params[4]})`);
+    console.log(`   [6] net_payable: ${params[5]} (${typeof params[5]})`);
+    console.log(`   [7] selected_rooms: ${params[6]} (${typeof params[6]})`);
+    console.log(`   [8] invoiceNo: ${params[7]} (${typeof params[7]})`);
+    console.log(`   [9] payment_id: ${params[8]} (${typeof params[8]})`);
+    console.log(`   [10] payment_mode: ${params[9]} (${typeof params[9]})`);
+    console.log(`   [11] is_settle: ${params[10]} (${typeof params[10]})`);
+    console.log(`   [12] is_print: ${params[11]} (${typeof params[11]})`);
+    console.log(`   [13] userId: ${params[12]} (${typeof params[12]})`);
+    console.log(`   [14] checkout_datetime: ${params[13] || 'NULL'} (${typeof params[13]})`); // ✅ ADD THIS
+    console.log('🔵 ==========================================');
 
-    // Execute stored procedure – returns multiple result sets
+    // Execute stored procedure - NOW WITH 14 PARAMETERS
+    console.log('🔵 Executing stored procedure...');
     const [results] = await connection.execute(
-      `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, // ✅ 14 placeholders
       params
     );
-
-    console.log('🔵 Raw results from stored procedure:');
-    console.log(JSON.stringify(results, null, 2));
+    console.log('🔵 Stored procedure executed successfully');
 
     await connection.commit();
+    console.log('🔵 Transaction committed successfully');
 
-    // Extract first row from first result set
+    // Process results
     let result = null;
     if (results && results.length > 0 && results[0] && results[0].length > 0) {
       const firstRow = results[0][0];
-      console.log('🔵 First row:', JSON.stringify(firstRow, null, 2));
+      console.log('🔵 First row from result set:', JSON.stringify(firstRow, null, 2));
 
-      // The procedure returns a JSON column named 'result'
       if (firstRow && firstRow.result) {
         try {
           result = typeof firstRow.result === 'string'
             ? JSON.parse(firstRow.result)
             : firstRow.result;
-          console.log('🔵 Parsed result:', JSON.stringify(result, null, 2));
+          console.log('🔵 Parsed result successfully:');
+          console.log(JSON.stringify(result, null, 2));
         } catch (parseError) {
           console.error('🔴 Failed to parse result JSON:', parseError);
           throw new Error('Invalid JSON response from stored procedure');
         }
       } else {
-        console.warn('⚠️ No result field in row, using raw row as fallback');
         result = firstRow;
+        console.log('🔵 Using raw row as result:', JSON.stringify(result, null, 2));
       }
     } else {
-      console.warn('⚠️ Stored procedure returned no rows');
       throw new Error('No data returned from stored procedure');
     }
 
     // Check outcome
     if (result && result.success === true) {
-      console.log('✅ Checkout successful');
+      console.log('✅ Checkout SUCCESSFUL');
+      console.log(`✅ Checkout ID: ${result.checkout_id}`);
+      console.log(`✅ LDG Bill No: ${result.ldg_bill_no}`);
+      console.log(`✅ Checkout Time: ${result.checkout_datetime || 'Set by database'}`);
+
       return res.status(200).json({
         success: true,
         message: result.message,
@@ -436,22 +504,19 @@ exports.performCheckout = async (req, res) => {
         checkin_id: result.checkin_id,
         ldg_bill_no: result.ldg_bill_no,
         is_partial: result.is_partial,
+        payment_method: result.payment_method,
+        checkout_datetime: result.checkout_datetime,
         checked_out_rooms: result.checked_out_rooms,
         checked_out_room_ids: result.checked_out_room_ids,
         rooms_updated_count: result.rooms_updated_count,
         data: result.data,
       });
     } else {
-      // Build detailed error message
       const errorMsg = result?.message || 'Checkout failed';
-      const sqlError = result?.sql_error || '';
-      const errno = result?.errno || '';
-      const debug = result?.debug || '';
-      console.error('❌ Checkout failed:', errorMsg, sqlError, errno, debug);
-      throw new Error(`${errorMsg}${sqlError ? ` (SQL: ${sqlError})` : ''}`);
+      throw new Error(errorMsg);
     }
   } catch (error) {
-    // Rollback on error
+    console.error('🔴 EXCEPTION CAUGHT:', error);
     if (connection) {
       try {
         await connection.rollback();
@@ -460,25 +525,15 @@ exports.performCheckout = async (req, res) => {
         console.error('🔴 Rollback failed:', rollbackError);
       }
     }
-    console.error('🔴 Checkout error caught in controller:');
-    console.error('   Message:', error.message);
-    console.error('   Stack:', error.stack);
-    if (error.sql) console.error('   SQL:', error.sql);
-    if (error.sqlMessage) console.error('   SQL Message:', error.sqlMessage);
-
+    
     return res.status(500).json({
       success: false,
       message: error.message || 'Checkout failed',
-      ...(process.env.NODE_ENV !== 'production' && {
-        sqlError: error.sqlError,
-        errno: error.errno,
-        debug: error.debug,
-      }),
     });
   } finally {
     if (connection) {
       connection.release();
-      console.log('🔵 Connection released');
+      console.log('🔵 Database connection released');
     }
   }
 };

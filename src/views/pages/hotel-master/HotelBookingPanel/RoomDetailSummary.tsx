@@ -901,7 +901,7 @@ const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
     setShowCheckoutModal(true)
   }
 
- const handleConfirmCheckout = async () => {
+const handleConfirmCheckout = async () => {
   if (!combinedSummary) return
   
   setCheckoutProcessing(true)
@@ -931,7 +931,19 @@ const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
 
     const roomIdsCommaString = selectedRoomIds.join(',')
 
-    // ✅ CRITICAL FIX: Get payment method with proper fallback
+    // ✅ FIX: Format datetime for MySQL (YYYY-MM-DD HH:MM:SS)
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const seconds = String(now.getSeconds()).padStart(2, '0')
+    const currentDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+    
+    console.log('🕐 Current checkout datetime (MySQL format):', currentDateTime)
+
+    // Get payment method with proper fallback
     const paymentMethod = selectedPaymentModeName || 
                          combinedSummary.payment_method || 
                          'Cash'
@@ -942,13 +954,13 @@ const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
     console.log('💳 Final paymentMethod:', paymentMethod)
     console.log('💳 selectedPaymentModeId:', selectedPaymentModeId)
 
-    // Prepare checkout payload
+    // Prepare checkout payload WITH formatted DATE/TIME
     const checkoutPayload = {
       checkin_id: combinedSummary.checkin_id,
       checkout_reason: checkoutReason || 'Regular checkout',
       payment_id: selectedPaymentModeId ?? undefined,
       payment_mode: paymentMethod,
-      payment_method: paymentMethod, // ✅ Explicitly set both
+      payment_method: paymentMethod,
       total_amount: finalTotalAmount,
       room_id: roomIdsCommaString,
       round_off_amount: 0,
@@ -957,6 +969,7 @@ const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
       invoiceNoFromBody: invoiceNo,
       is_settle: 0,
       is_print: 1,
+      checkout_datetime: currentDateTime, // ✅ MySQL-compatible format
     }
 
     console.log('📤 Sending checkout payload:', JSON.stringify(checkoutPayload, null, 2))

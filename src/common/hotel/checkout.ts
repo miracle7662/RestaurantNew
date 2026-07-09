@@ -72,6 +72,9 @@ export interface CheckoutMaster {
   checkout_reason: string;
   is_partial_checkout?: number;
   checked_out_rooms?: string;
+
+   detail_checkin_datetime: string;
+  detail_checkout_datetime: string;
 }
 
 export interface BillPreviewResponse {

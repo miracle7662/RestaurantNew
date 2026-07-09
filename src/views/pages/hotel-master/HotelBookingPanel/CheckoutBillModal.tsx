@@ -106,6 +106,17 @@ const formatAmtDisplay = (amt: number): string => {
   return `₹${rounded.toFixed(2)}`
 }
 
+const formatDateTime = (isoString: string): string => {
+  if (!isoString) return '-'
+  const d = new Date(isoString)
+  const day = d.getDate().toString().padStart(2, '0')
+  const month = (d.getMonth() + 1).toString().padStart(2, '0')
+  const year = d.getFullYear()
+  const hours = d.getHours().toString().padStart(2, '0')
+  const minutes = d.getMinutes().toString().padStart(2, '0')
+  return `${day}/${month}/${year} ${hours}:${minutes}`
+}
+
 const formatDate = (isoString: string): string => {
   if (!isoString) return '-'
   const d = new Date(isoString)
@@ -484,7 +495,7 @@ const tableRows = useMemo(() => {
     ? formatDateLong(summary.final_checkout_datetime)
     : '-'
  
-  const invoiceDate = formatDate(new Date().toISOString())
+  const invoiceDate = formatDateTime(new Date().toISOString())
   const generatedBillNo = propBillNumber ||
     billData[0]?.ldg_bill_no ||
     `INV/${new Date().getFullYear()}/${String(summary?.checkin_id || '0').padStart(4, '0')}`
