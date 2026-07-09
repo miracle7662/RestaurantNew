@@ -228,6 +228,10 @@ sp_perform_checkout:BEGIN
     -- 7. MERGE MODE
     -- =================================================================
     IF v_merge_mode = 1 OR (SELECT COUNT(*) FROM Checkout_Master WHERE checkin_id = p_checkin_id) > 1 THEN
+        -- ✅ REFRESH v_now to current time for merge
+        SET v_now = NOW();
+        SET v_debug_msg = CONCAT('Merge: v_now refreshed to ', v_now);
+        
         IF v_merge_mode = 0 THEN
             SET v_merge_triggered = 1;
             SET v_all_checked_out_room_ids = (SELECT GROUP_CONCAT(DISTINCT room_id) 
@@ -336,7 +340,7 @@ sp_perform_checkout:BEGIN
                     ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
                     child_count, child_price, child_tax, child_tax_percent, child_total,
                     driver_count, driver_price, driver_tax, driver_tax_percent, driver_total,
-                    total_amount, checkin_datetime, checkout_datetime,
+                    total_amount, checkin_datetime, v_now,  -- ✅ Changed to v_now
                     NOW(), NOW()
                 FROM Checkout_Room_Charges
                 WHERE checkout_id = v_cur_checkout_id;
@@ -506,6 +510,7 @@ sp_perform_checkout:BEGIN
             'is_partial', 0,
             'ldg_bill_no', v_ldg_bill_no,
             'payment_method', v_final_payment_method,
+            'checkout_datetime', v_now,  -- ✅ ADD THIS
             'checked_out_rooms', v_processed_rooms_json,
             'checked_out_room_ids', v_processed_room_ids_json,
             'merge_performed', 1,
@@ -580,10 +585,13 @@ sp_perform_checkout:BEGIN
         SET v_new_checkout_id = LAST_INSERT_ID();
 
         UPDATE Checkout_Detail
-        SET checkout_id = v_new_checkout_id, updated_by_id = v_user_id, updated_date = v_now
-        WHERE checkout_id = v_source_checkout_id
-          AND FIND_IN_SET(room_id, v_selected_room_ids_all) > 0;
-
+SET checkout_id = v_new_checkout_id, 
+    checkout_datetime = v_now,  -- ✅ ADD THIS
+    updated_by_id = v_user_id, 
+    updated_date = v_now
+WHERE checkout_id = v_source_checkout_id
+  AND FIND_IN_SET(room_id, v_selected_room_ids_all) > 0;
+  
         UPDATE Checkout_Room_Charges
         SET checkout_id = v_new_checkout_id, updated_at = v_now
         WHERE checkout_id = v_source_checkout_id
@@ -878,6 +886,7 @@ sp_perform_checkout:BEGIN
             'source_checkout_id', v_source_checkout_id,
             'new_bill_no', v_ldg_bill_no,
             'payment_method', v_final_payment_method,
+            'checkout_datetime', v_now,  -- ✅ ADD THIS
             'selected_rooms', @new_rooms_json,
             'remaining_rooms', v_processed_rooms_json,
             'folio_records_copied_new', (SELECT COUNT(*) FROM Checkout_Folio_Master WHERE checkout_id = v_new_checkout_id),
@@ -1209,6 +1218,10 @@ sp_perform_checkout:BEGIN
 
     -- Check if multiple checkout masters exist and trigger merge
     IF (SELECT COUNT(*) FROM Checkout_Master WHERE checkin_id = p_checkin_id) > 1 THEN
+        -- ✅ REFRESH v_now to current time for merge
+        SET v_now = NOW();
+        SET v_debug_msg = CONCAT('Merge after normal: v_now refreshed to ', v_now);
+        
         SET v_merge_mode = 1;
         SET v_all_checked_out_room_ids = (SELECT GROUP_CONCAT(DISTINCT room_id) 
                                           FROM checkin_detail_master 
@@ -1315,7 +1328,7 @@ sp_perform_checkout:BEGIN
                     ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
                     child_count, child_price, child_tax, child_tax_percent, child_total,
                     driver_count, driver_price, driver_tax, driver_tax_percent, driver_total,
-                    total_amount, checkin_datetime, checkout_datetime,
+                    total_amount, checkin_datetime, v_now,  -- ✅ Changed to v_now
                     NOW(), NOW()
                 FROM Checkout_Room_Charges
                 WHERE checkout_id = v_cur_checkout_id;
@@ -1482,7 +1495,7 @@ sp_perform_checkout:BEGIN
             'is_partial', 0,
             'ldg_bill_no', v_ldg_bill_no,
             'payment_method', v_final_payment_method,
-             'checkout_datetime', v_now,  -- ✅ ADD THIS
+            'checkout_datetime', v_now,  -- ✅ ADD THIS
             'checked_out_rooms', v_processed_rooms_json,
             'checked_out_room_ids', v_processed_room_ids_json,
             'merge_performed', 1,
@@ -1515,6 +1528,7 @@ sp_perform_checkout:BEGIN
         'is_partial', CASE WHEN v_remaining_active > 0 THEN 1 ELSE 0 END,
         'ldg_bill_no', v_ldg_bill_no,
         'payment_method', v_final_payment_method,
+        'checkout_datetime', v_now,  -- ✅ ADD THIS
         'checked_out_rooms', v_processed_rooms_json,
         'checked_out_room_ids', v_processed_room_ids_json,
         'folio_records_copied', (SELECT COUNT(*) FROM Checkout_Folio_Master WHERE checkout_id = v_checkout_id),
