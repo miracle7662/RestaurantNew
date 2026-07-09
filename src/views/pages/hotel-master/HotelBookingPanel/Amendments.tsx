@@ -1616,26 +1616,33 @@ const PaxChangeComponent = ({
       console.log('[PAX] Updated checkin_master:', checkinPayload)
 
       // ========== 3. UPDATE or CREATE guest_room_charges ==========
-      const chargesPayload = {
-        guest_id: selectedRoom.checkin.guest_id,
-        room_id: selectedRoom.detail.room_id,
-        ex_pax_count: tempExPax,
-        ex_pax_price: exPaxCalc.price,
-        ex_pax_tax: exPaxCalc.tax,
-        ex_pax_tax_percent: exPaxCalc.taxPercent,
-        ex_pax_total: exPaxCalc.total,
-        child_count: tempChildPaid,
-        child_price: childCalc.price,
-        child_tax: childCalc.tax,
-        child_tax_percent: childCalc.taxPercent,
-        child_total: childCalc.total,
-        driver_count: tempDriver,
-        driver_price: driverCalc.price,
-        driver_tax: driverCalc.tax,
-        driver_tax_percent: driverCalc.taxPercent,
-        driver_total: driverCalc.total,
-        total_amount: newTotal,
-      }
+     const chargesPayload = {
+  guest_id: selectedRoom.checkin.guest_id,
+  room_id: selectedRoom.detail.room_id,
+
+  detail_checkin_datetime: selectedRoom.detail.detail_checkin_datetime,
+  detail_checkout_datetime: selectedRoom.detail.detail_checkout_datetime,
+
+  ex_pax_count: tempExPax,
+  ex_pax_price: exPaxCalc.price,
+  ex_pax_tax: exPaxCalc.tax,
+  ex_pax_tax_percent: exPaxCalc.taxPercent,
+  ex_pax_total: exPaxCalc.total,
+
+  child_count: tempChildPaid,
+  child_price: childCalc.price,
+  child_tax: childCalc.tax,
+  child_tax_percent: childCalc.taxPercent,
+  child_total: childCalc.total,
+
+  driver_count: tempDriver,
+  driver_price: driverCalc.price,
+  driver_tax: driverCalc.tax,
+  driver_tax_percent: driverCalc.taxPercent,
+  driver_total: driverCalc.total,
+
+  total_amount: newTotal,
+}
 
       const paxChargesId = selectedRoom.charges?.checkin_guest_room_charges_id || selectedRoom.charges?.id
       if (paxChargesId) {
@@ -2371,8 +2378,9 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
         driver_tax: driverCalc.perNightTax,
         driver_tax_percent: driverCalc.taxPercent,
         total_amount: dayTotal,
-        checkin_datetime: formatLocalDateTimeString(dayCheckinDate),
-        checkout_datetime: formatLocalDateTimeString(dayCheckoutDate),
+         // ✅ Rename these fields
+  detail_checkin_datetime: formatLocalDateTimeString(dayCheckinDate),
+  detail_checkout_datetime: formatLocalDateTimeString(dayCheckoutDate),
       }
       await GuestRoomChargesService.create(chargePayload)
 
