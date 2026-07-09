@@ -17,7 +17,7 @@ export const calculateDayExtensionPrice = (
   exPaxCount: number,
   childCount: number,
   driverCount: number,
-  extensionDays: number = 1,
+  extensionDays: number ,
   originalPax: number = item.original_pax ?? item.adults,
 ) => {
   const perDayBasePrice = Number(item.detail?.room_tariff) || Number(item.original_charge) || 0;
