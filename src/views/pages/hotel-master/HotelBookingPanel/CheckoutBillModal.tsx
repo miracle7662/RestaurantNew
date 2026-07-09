@@ -107,6 +107,20 @@ const formatAmtDisplay = (amt: number): string => {
   return `₹${rounded.toFixed(2)}`
 }
 
+const formatDateTime = (isoString: string): string => {
+  if (!isoString) return '-'
+  const d = new Date(isoString)
+  const day = d.getDate().toString().padStart(2, '0')
+  const month = (d.getMonth() + 1).toString().padStart(2, '0')
+  const year = d.getFullYear()
+  let hours = d.getHours()
+  const minutes = d.getMinutes().toString().padStart(2, '0')
+  const ampm = hours >= 12 ? 'PM' : 'AM'
+  hours = hours % 12 || 12 // Convert to 12-hour format (0 becomes 12)
+  const hoursStr = hours.toString().padStart(2, '0')
+  return `${day}/${month}/${year} ${hoursStr}:${minutes} ${ampm}`
+}
+
 const formatDate = (isoString: string): string => {
   if (!isoString) return '-'
   const d = new Date(isoString)
@@ -485,7 +499,7 @@ const tableRows = useMemo(() => {
     ? formatDateLong(summary.final_checkout_datetime)
     : '-'
  
-  const invoiceDate = formatDate(new Date().toISOString())
+   const invoiceDate = formatDateTime(new Date().toISOString())
   const generatedBillNo = propBillNumber ||
     billData[0]?.ldg_bill_no ||
     `INV/${new Date().getFullYear()}/${String(summary?.checkin_id || '0').padStart(4, '0')}`
@@ -1040,8 +1054,8 @@ const tableRows = useMemo(() => {
     const checkinDateTime = firstRow?.checkin_datetimecm || null
 const checkoutDateTime = firstRow?.checkout_datetimecm || null
 
-const checkinDisplay = checkinDateTime ? formatDateTimeFull(checkinDateTime) : '-'
-const checkoutDisplay = checkoutDateTime ? formatDateTimeFull(checkoutDateTime) : '-'
+const checkinDisplay = checkinDateTime ? formatDateTime(checkinDateTime) : '-'
+const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-'
 
     return (
       <div className="bill-info-box" style={{ height: '100%' }}>
