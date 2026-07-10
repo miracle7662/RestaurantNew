@@ -86,6 +86,9 @@ sp_perform_checkout:BEGIN
 
     -- Final payment method
     DECLARE v_final_payment_method VARCHAR(50);
+    
+    -- Use provided checkout datetime or current time
+    DECLARE v_checkout_dt DATETIME;
 
     -- Cursor for merge
     DECLARE merge_cursor CURSOR FOR
@@ -117,13 +120,17 @@ sp_perform_checkout:BEGIN
     END;
 
     START TRANSACTION;
-    SET v_now = IFNULL(p_checkout_datetime, NOW());
+    
+    -- ✅ FIX: Use provided checkout datetime or current time
+    SET v_checkout_dt = IFNULL(p_checkout_datetime, NOW());
+    SET v_now = NOW(); -- Keep for internal timestamps
     SET v_user_id = COALESCE(p_user_id, 1);
     SET v_error_msg = 'Starting checkout process';
     SET v_debug_msg = 'Initializing';
     
     SET v_final_payment_method = COALESCE(p_payment_method, p_payment_mode, 'Cash');
     SET v_debug_msg = CONCAT('Payment resolved: method=', v_final_payment_method);
+    SET v_debug_msg = CONCAT('Checkout datetime: ', v_checkout_dt);
 
     -- 1. Validate checkin
     SELECT hotelid INTO v_hotel_id FROM CheckIn_Master WHERE checkin_id = p_checkin_id;
@@ -228,9 +235,8 @@ sp_perform_checkout:BEGIN
     -- 7. MERGE MODE
     -- =================================================================
     IF v_merge_mode = 1 OR (SELECT COUNT(*) FROM Checkout_Master WHERE checkin_id = p_checkin_id) > 1 THEN
-        -- ✅ REFRESH v_now to current time for merge
-        SET v_now = NOW();
-        SET v_debug_msg = CONCAT('Merge: v_now refreshed to ', v_now);
+        -- ✅ Use v_checkout_dt for merge
+        SET v_debug_msg = CONCAT('Merge: checkout datetime = ', v_checkout_dt);
         
         IF v_merge_mode = 0 THEN
             SET v_merge_triggered = 1;
@@ -251,6 +257,7 @@ sp_perform_checkout:BEGIN
             IF v_keeper_checkout_id = 0 THEN
                 SET v_keeper_checkout_id = v_cur_checkout_id;
             ELSE
+                -- ✅ FIX: Use v_checkout_dt for checkout_datetime
                 INSERT INTO Checkout_Detail (
                     checkin_id, checkout_id, hotelid, room_id, room_number,
                     room_category_id, room_category_name,
@@ -295,7 +302,7 @@ sp_perform_checkout:BEGIN
                     converted_category_id, converted_category_name,
                     guest_id, guest_name, address, mobile,
                     company_id, company_name, emailed,
-                    checkin_datetime, v_now, no_of_days,
+                    checkin_datetime, v_checkout_dt, no_of_days,  -- ✅ FIXED
                     adults, pax, ex_pax,
                     child_paid, child_unpaid, driver,
                     room_tariff,
@@ -325,6 +332,7 @@ sp_perform_checkout:BEGIN
                 FROM Checkout_Detail
                 WHERE checkout_id = v_cur_checkout_id;
 
+                -- ✅ FIX: Use v_checkout_dt for checkout_datetime
                 INSERT INTO Checkout_Room_Charges (
                     checkin_id, checkout_id, guest_id, room_id, category_id,
                     pax_count, pax_price, pax_tax,
@@ -340,7 +348,7 @@ sp_perform_checkout:BEGIN
                     ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
                     child_count, child_price, child_tax, child_tax_percent, child_total,
                     driver_count, driver_price, driver_tax, driver_tax_percent, driver_total,
-                    total_amount, checkin_datetime, v_now,  -- ✅ Changed to v_now
+                    total_amount, checkin_datetime, v_checkout_dt,  -- ✅ FIXED
                     NOW(), NOW()
                 FROM Checkout_Room_Charges
                 WHERE checkout_id = v_cur_checkout_id;
@@ -463,6 +471,7 @@ sp_perform_checkout:BEGIN
         INTO v_processed_room_ids_json
         FROM (SELECT DISTINCT room_id FROM Checkout_Detail WHERE checkout_id = v_keeper_checkout_id) d;
 
+        -- ✅ FIX: Use v_checkout_dt for checkout_date
         UPDATE Checkout_Master
         SET
             tot_room_tariff = v_room_tariff_sum,
@@ -492,6 +501,7 @@ sp_perform_checkout:BEGIN
             payment_method = v_final_payment_method,
             updated_by_id = v_user_id,
             updated_date = v_now,
+            checkout_date = v_checkout_dt,  -- ✅ FIXED
             is_partial_checkout = 0,
             status = 'checked_out'
         WHERE checkout_id = v_keeper_checkout_id;
@@ -510,7 +520,7 @@ sp_perform_checkout:BEGIN
             'is_partial', 0,
             'ldg_bill_no', v_ldg_bill_no,
             'payment_method', v_final_payment_method,
-            'checkout_datetime', v_now,  -- ✅ ADD THIS
+            'checkout_datetime', v_checkout_dt,  -- ✅ FIXED
             'checked_out_rooms', v_processed_rooms_json,
             'checked_out_room_ids', v_processed_room_ids_json,
             'merge_performed', 1,
@@ -550,6 +560,7 @@ sp_perform_checkout:BEGIN
 
         SET v_ldg_bill_no = generate_next_invoice_no();
 
+        -- ✅ FIX: Use v_checkout_dt for checkout_date
         INSERT INTO Checkout_Master (
             checkin_id, guest_id, ldg_bill_no, reg_no, booking, plan_name,
             checkin_datetime, room_no,
@@ -577,7 +588,7 @@ sp_perform_checkout:BEGIN
             cm.special_instruction, cm.message,
             v_final_payment_method,
             cm.created_by_id, cm.created_date, v_user_id, v_now,
-            'checked_out', v_now, v_user_id, COALESCE(p_checkout_reason, 'Split checkout'),
+            'checked_out', v_checkout_dt, v_user_id, COALESCE(p_checkout_reason, 'Split checkout'),  -- ✅ FIXED
             0, JSON_ARRAY(), JSON_ARRAY()
         FROM Checkout_Master cm
         WHERE cm.checkout_id = v_source_checkout_id;
@@ -585,15 +596,14 @@ sp_perform_checkout:BEGIN
         SET v_new_checkout_id = LAST_INSERT_ID();
 
         UPDATE Checkout_Detail
-SET checkout_id = v_new_checkout_id, 
-    checkout_datetime = v_now,  -- ✅ ADD THIS
-    updated_by_id = v_user_id, 
-    updated_date = v_now
-WHERE checkout_id = v_source_checkout_id
-  AND FIND_IN_SET(room_id, v_selected_room_ids_all) > 0;
-  
+        SET checkout_id = v_new_checkout_id, updated_by_id = v_user_id, updated_date = v_now,
+            checkout_datetime = v_checkout_dt  -- ✅ FIXED
+        WHERE checkout_id = v_source_checkout_id
+          AND FIND_IN_SET(room_id, v_selected_room_ids_all) > 0;
+
         UPDATE Checkout_Room_Charges
-        SET checkout_id = v_new_checkout_id, updated_at = v_now
+        SET checkout_id = v_new_checkout_id, updated_at = v_now,
+            checkout_datetime = v_checkout_dt  -- ✅ FIXED
         WHERE checkout_id = v_source_checkout_id
           AND FIND_IN_SET(room_id, v_selected_room_ids_all) > 0;
 
@@ -797,6 +807,7 @@ WHERE checkout_id = v_source_checkout_id
         INTO v_processed_room_ids_json
         FROM (SELECT DISTINCT room_id FROM Checkout_Detail WHERE checkout_id = v_source_checkout_id) d;
 
+        -- ✅ FIX: Use v_checkout_dt for checkout_date
         UPDATE Checkout_Master
         SET
             tot_room_tariff = v_room_tariff_sum,
@@ -826,6 +837,7 @@ WHERE checkout_id = v_source_checkout_id
             payment_method = v_final_payment_method,
             updated_by_id = v_user_id,
             updated_date = v_now,
+            checkout_date = v_checkout_dt,  -- ✅ FIXED
             is_partial_checkout = CASE WHEN (SELECT COUNT(*) FROM Checkout_Detail WHERE checkout_id = v_source_checkout_id) > 0 THEN 0 ELSE 1 END,
             status = CASE WHEN (SELECT COUNT(*) FROM Checkout_Detail WHERE checkout_id = v_source_checkout_id) > 0 THEN 'checked_out' ELSE 'partial_checkout' END
         WHERE checkout_id = v_source_checkout_id;
@@ -838,6 +850,7 @@ WHERE checkout_id = v_source_checkout_id
         INTO @new_room_ids_json
         FROM (SELECT DISTINCT room_id FROM Checkout_Detail WHERE checkout_id = v_new_checkout_id) d;
 
+        -- ✅ FIX: Use v_checkout_dt for checkout_date
         UPDATE Checkout_Master
         SET
             tot_room_tariff = @new_room_tariff_sum,
@@ -867,6 +880,7 @@ WHERE checkout_id = v_source_checkout_id
             payment_method = v_final_payment_method,
             updated_by_id = v_user_id,
             updated_date = v_now,
+            checkout_date = v_checkout_dt,  -- ✅ FIXED
             is_partial_checkout = 0,
             status = 'checked_out'
         WHERE checkout_id = v_new_checkout_id;
@@ -886,7 +900,7 @@ WHERE checkout_id = v_source_checkout_id
             'source_checkout_id', v_source_checkout_id,
             'new_bill_no', v_ldg_bill_no,
             'payment_method', v_final_payment_method,
-            'checkout_datetime', v_now,  -- ✅ ADD THIS
+            'checkout_datetime', v_checkout_dt,  -- ✅ FIXED
             'selected_rooms', @new_rooms_json,
             'remaining_rooms', v_processed_rooms_json,
             'folio_records_copied_new', (SELECT COUNT(*) FROM Checkout_Folio_Master WHERE checkout_id = v_new_checkout_id),
@@ -987,6 +1001,7 @@ WHERE checkout_id = v_source_checkout_id
         SET v_ldg_bill_no = p_invoice_no;
     END IF;
 
+    -- ✅ FIX: Use v_checkout_dt for checkout_date
     INSERT INTO Checkout_Master (
         checkin_id, guest_id, ldg_bill_no, reg_no, booking, plan_name,
         checkin_datetime, room_no,
@@ -1020,7 +1035,7 @@ WHERE checkout_id = v_source_checkout_id
         cm.special_instruction, cm.message,
         cm.created_by_id, cm.created_date, v_user_id, v_now,
         CASE WHEN v_remaining_active = 0 THEN 'checked_out' ELSE 'partial_checkout' END,
-        v_now,
+        v_checkout_dt,  -- ✅ FIXED
         v_user_id,
         COALESCE(p_checkout_reason, 'Regular checkout'),
         CASE WHEN v_remaining_active > 0 THEN 1 ELSE 0 END,
@@ -1032,6 +1047,7 @@ WHERE checkout_id = v_source_checkout_id
 
     SET v_checkout_id = LAST_INSERT_ID();
 
+    -- ✅ FIX: Use v_checkout_dt for checkout_datetime in Checkout_Detail
     INSERT INTO Checkout_Detail (
         checkin_id, checkout_id, hotelid, room_id, room_number,
         room_category_id, room_category_name,
@@ -1088,7 +1104,7 @@ WHERE checkout_id = v_source_checkout_id
         company_name,
         emailed,
         checkin_datetime,
-         v_now, 
+        v_checkout_dt,  -- ✅ FIXED: Use the provided checkout datetime
         no_of_days,
         adults,
         pax,
@@ -1140,7 +1156,7 @@ WHERE checkout_id = v_source_checkout_id
         is_settle,
         tax,
         created_date,
-        v_now,
+        v_now,  -- internal timestamp
         created_by_id,
         v_user_id
     FROM checkin_detail_master
@@ -1181,6 +1197,7 @@ WHERE checkout_id = v_source_checkout_id
           OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0
       );
 
+    -- ✅ FIX: Use v_checkout_dt for checkout_datetime in Checkout_Room_Charges
     INSERT INTO Checkout_Room_Charges (
         checkin_id, checkout_id, guest_id, room_id, category_id,
         pax_count, pax_price, pax_tax,
@@ -1196,7 +1213,7 @@ WHERE checkout_id = v_source_checkout_id
         cgrc.ex_pax_count, cgrc.ex_pax_price, cgrc.ex_pax_tax, cgrc.ex_pax_tax_percent, cgrc.ex_pax_total,
         cgrc.child_count, cgrc.child_price, cgrc.child_tax, cgrc.child_tax_percent, cgrc.child_total,
         cgrc.driver_count, cgrc.driver_price, cgrc.driver_tax, cgrc.driver_tax_percent, cgrc.driver_total,
-        cgrc.total_amount, cgrc.checkin_datetime, v_now,
+        cgrc.total_amount, cgrc.checkin_datetime, v_checkout_dt,  -- ✅ FIXED
         NOW(), NOW()
     FROM checkin_guest_room_charges cgrc
     WHERE cgrc.checkin_id = p_checkin_id
@@ -1218,9 +1235,8 @@ WHERE checkout_id = v_source_checkout_id
 
     -- Check if multiple checkout masters exist and trigger merge
     IF (SELECT COUNT(*) FROM Checkout_Master WHERE checkin_id = p_checkin_id) > 1 THEN
-        -- ✅ REFRESH v_now to current time for merge
-        SET v_now = NOW();
-        SET v_debug_msg = CONCAT('Merge after normal: v_now refreshed to ', v_now);
+        -- ✅ Use v_checkout_dt for merge
+        SET v_debug_msg = CONCAT('Merge after normal: checkout datetime = ', v_checkout_dt);
         
         SET v_merge_mode = 1;
         SET v_all_checked_out_room_ids = (SELECT GROUP_CONCAT(DISTINCT room_id) 
@@ -1239,6 +1255,7 @@ WHERE checkout_id = v_source_checkout_id
             IF v_keeper_checkout_id = 0 THEN
                 SET v_keeper_checkout_id = v_cur_checkout_id;
             ELSE
+                -- ✅ FIX: Use v_checkout_dt for checkout_datetime
                 INSERT INTO Checkout_Detail (
                     checkin_id, checkout_id, hotelid, room_id, room_number,
                     room_category_id, room_category_name,
@@ -1283,7 +1300,7 @@ WHERE checkout_id = v_source_checkout_id
                     converted_category_id, converted_category_name,
                     guest_id, guest_name, address, mobile,
                     company_id, company_name, emailed,
-                    checkin_datetime,  v_now, no_of_days,
+                    checkin_datetime, v_checkout_dt, no_of_days,  -- ✅ FIXED
                     adults, pax, ex_pax,
                     child_paid, child_unpaid, driver,
                     room_tariff,
@@ -1313,6 +1330,7 @@ WHERE checkout_id = v_source_checkout_id
                 FROM Checkout_Detail
                 WHERE checkout_id = v_cur_checkout_id;
 
+                -- ✅ FIX: Use v_checkout_dt for checkout_datetime
                 INSERT INTO Checkout_Room_Charges (
                     checkin_id, checkout_id, guest_id, room_id, category_id,
                     pax_count, pax_price, pax_tax,
@@ -1328,7 +1346,7 @@ WHERE checkout_id = v_source_checkout_id
                     ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
                     child_count, child_price, child_tax, child_tax_percent, child_total,
                     driver_count, driver_price, driver_tax, driver_tax_percent, driver_total,
-                    total_amount, checkin_datetime, v_now,  -- ✅ Changed to v_now
+                    total_amount, checkin_datetime, v_checkout_dt,  -- ✅ FIXED
                     NOW(), NOW()
                 FROM Checkout_Room_Charges
                 WHERE checkout_id = v_cur_checkout_id;
@@ -1451,6 +1469,7 @@ WHERE checkout_id = v_source_checkout_id
         INTO v_processed_room_ids_json
         FROM (SELECT DISTINCT room_id FROM Checkout_Detail WHERE checkout_id = v_keeper_checkout_id) d;
 
+        -- ✅ FIX: Use v_checkout_dt for checkout_date
         UPDATE Checkout_Master
         SET
             tot_room_tariff = v_room_tariff_sum,
@@ -1480,6 +1499,7 @@ WHERE checkout_id = v_source_checkout_id
             payment_method = v_final_payment_method,
             updated_by_id = v_user_id,
             updated_date = v_now,
+            checkout_date = v_checkout_dt,  -- ✅ FIXED
             is_partial_checkout = 0,
             status = 'checked_out'
         WHERE checkout_id = v_keeper_checkout_id;
@@ -1495,7 +1515,7 @@ WHERE checkout_id = v_source_checkout_id
             'is_partial', 0,
             'ldg_bill_no', v_ldg_bill_no,
             'payment_method', v_final_payment_method,
-            'checkout_datetime', v_now,  -- ✅ ADD THIS
+            'checkout_datetime', v_checkout_dt,  -- ✅ FIXED
             'checked_out_rooms', v_processed_rooms_json,
             'checked_out_room_ids', v_processed_room_ids_json,
             'merge_performed', 1,
@@ -1528,7 +1548,7 @@ WHERE checkout_id = v_source_checkout_id
         'is_partial', CASE WHEN v_remaining_active > 0 THEN 1 ELSE 0 END,
         'ldg_bill_no', v_ldg_bill_no,
         'payment_method', v_final_payment_method,
-        'checkout_datetime', v_now,  -- ✅ ADD THIS
+        'checkout_datetime', v_checkout_dt,  -- ✅ FIXED
         'checked_out_rooms', v_processed_rooms_json,
         'checked_out_room_ids', v_processed_room_ids_json,
         'folio_records_copied', (SELECT COUNT(*) FROM Checkout_Folio_Master WHERE checkout_id = v_checkout_id),

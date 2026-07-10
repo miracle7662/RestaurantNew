@@ -1,5 +1,8 @@
-// CheckInForm.tsx (MySQL Compatible Version - With Front Desk Settings Integration)
-// UPDATED: Payload aligned with sp_add_checkin stored procedure
+// CheckInForm.tsx (Fixed Version)
+// FIXES:
+// 1. Guest selection required before adding rooms
+// 2. All selected rooms must be added before check-in
+
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Container, Row, Col, Form as BootstrapForm, Button, Card } from 'react-bootstrap'
@@ -1508,6 +1511,22 @@ const CheckInForm = () => {
     setShowDocScanModal(true)
   }
 
+  // ========== FIX 1: Guest validation before adding room ==========
+  const validateGuestBeforeAdd = () => {
+    if (!values.guestId) {
+      toast.error('Please select or add a guest first before adding a room')
+      return false
+    }
+    return true
+  }
+
+  // ========== FIX 2: Check if all selected rooms are added ==========
+  const areAllRoomsAdded = (): boolean => {
+    if (initialSelectedRooms.length === 0) return false
+    const addedRoomIds = new Set(roomRows.map(row => row.roomId))
+    return initialSelectedRooms.every(room => addedRoomIds.has(room.roomId))
+  }
+
   const formik = useFormik<CheckInFormData>({
    
     validateOnChange: false,
@@ -1617,8 +1636,18 @@ const CheckInForm = () => {
     }),
 
     onSubmit: async (values) => {
+      // ========== FIX 2: Validate all rooms are added before check-in ==========
       if (roomRows.length === 0) {
         toast.error('Please add at least one room')
+        return
+      }
+
+      if (!areAllRoomsAdded()) {
+        const missingRooms = initialSelectedRooms
+          .filter(room => !roomRows.some(row => row.roomId === room.roomId))
+          .map(room => room.roomNumber)
+          .join(', ')
+        toast.error(`Please add all selected rooms before check-in. Missing: ${missingRooms}`)
         return
       }
 
@@ -2343,7 +2372,13 @@ const CheckInForm = () => {
     }),
   }
 
+  // ========== FIX 1: Add guest validation in handleAddOrUpdateRow ==========
   const handleAddOrUpdateRow = () => {
+    // Check if guest is selected
+    if (!validateGuestBeforeAdd()) {
+      return
+    }
+
     const selectedRoomId = values.roomNo
     if (!selectedRoomId) {
       toast.error('Please select a room')
@@ -2487,7 +2522,17 @@ const CheckInForm = () => {
       setRoomRows([...roomRows, newRow])
       setSelectedRowId(null)
       setRoomChargeEditable(false)
-      toast.success('Room added')
+      
+      // ========== FIX 2: Show progress toast ==========
+      const addedCount = roomRows.length + 1
+      const totalCount = initialSelectedRooms.length
+      if (addedCount < totalCount) {
+        toast.success(`Room added (${addedCount}/${totalCount} rooms added)`)
+      } else if (addedCount === totalCount) {
+        toast.success(`All ${totalCount} rooms added! Ready for check-in.`)
+      } else {
+        toast.success('Room added')
+      }
     }
 
     setFieldValue('roomNo', null)
@@ -2547,6 +2592,26 @@ const CheckInForm = () => {
     const num = Number(value)
     if (isNaN(num)) return '0'
     return num.toFixed(digits)
+  }
+
+  // ========== FIX 2: Check if check-in button should be disabled ==========
+  const isCheckInDisabled = () => {
+    if (submitting) return true
+    if (roomRows.length === 0) return true
+    return !areAllRoomsAdded()
+  }
+
+  // ========== FIX 2: Get missing rooms message for tooltip ==========
+  const getMissingRoomsMessage = () => {
+    if (roomRows.length === 0) return 'Please add at least one room'
+    if (!areAllRoomsAdded()) {
+      const missing = initialSelectedRooms
+        .filter(room => !roomRows.some(row => row.roomId === room.roomId))
+        .map(room => room.roomNumber)
+        .join(', ')
+      return `Please add all rooms: ${missing}`
+    }
+    return ''
   }
 
   return (
@@ -2737,6 +2802,8 @@ const CheckInForm = () => {
                 </span>
               )}
             </span>
+            {/* ========== FIX 2: Show room addition progress ========== */}
+           
             {frontDeskSettings && (
               <span className="ms-3 d-flex align-items-center">
                 <span className="badge bg-secondary fs-small">
@@ -4188,13 +4255,18 @@ const CheckInForm = () => {
                 Cancel
               </Button>
 
+              {/* ========== FIX 2: Disabled check-in button with tooltip ========== */}
               <Button
                 variant="primary"
                 size="sm"
                 type="submit"
                 form="checkin-form"
-                disabled={submitting}>
-                {submitting ? 'Processing...' : 'Check In (F9)'}
+                disabled={isCheckInDisabled()}
+                title={getMissingRoomsMessage()}>
+                {submitting ? 'Processing...' : 
+                  !areAllRoomsAdded() && roomRows.length > 0 ? 
+                  `Add ${initialSelectedRooms.length - roomRows.length} more room(s)` : 
+                  'Check In (F9)'}
               </Button>
             </div>
           </div>

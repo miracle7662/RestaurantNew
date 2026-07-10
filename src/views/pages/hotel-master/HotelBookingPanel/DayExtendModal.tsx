@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import { OccupiedRoomItem } from '@/types/room';
-import { calculateDayExtensionPrice } from '@/utils/dayExtension';
 
 interface DayExtendModalProps {
   show: boolean;
@@ -43,7 +42,6 @@ const DayExtendModal: React.FC<DayExtendModalProps> = ({
   const [editableDriver, setEditableDriver] = useState(0);
   const [extensionDays, setExtensionDays] = useState(1);
   const [autoExtendSiblings, setAutoExtendSiblings] = useState(siblingRooms.length > 0);
-  const [calculatedPrice, setCalculatedPrice] = useState<any>(null);
 
   // Reset form when occupiedItem changes
   useEffect(() => {
@@ -56,20 +54,7 @@ const DayExtendModal: React.FC<DayExtendModalProps> = ({
     }
   }, [occupiedItem, siblingRooms]);
 
-  // Recalculate price on any change
-  useEffect(() => {
-    if (occupiedItem) {
-      const price = calculateDayExtensionPrice(
-        occupiedItem,
-        editableExPax,
-        editableChild,
-        editableDriver,
-        extensionDays,
-        occupiedItem.original_pax ?? occupiedItem.adults,
-      );
-      setCalculatedPrice(price);
-    }
-  }, [occupiedItem, editableExPax, editableChild, editableDriver, extensionDays]);
+  
 
   if (!occupiedItem) return null;
 
@@ -124,65 +109,7 @@ const DayExtendModal: React.FC<DayExtendModalProps> = ({
             </strong>
           </p>
 
-          {/* Sibling rooms info */}
-          {siblingRooms.length > 0 && autoExtendSiblings && (
-            <div className="alert alert-info py-2 px-3 mb-3" style={{ fontSize: '0.75rem' }}>
-              <i className="fi fi-rr-info me-1"></i>
-              {siblingRooms.length} sibling room(s) will also be auto-extended:{' '}
-              <strong>{siblingRooms.map((r) => r.room_no).join(', ')}</strong>
-            </div>
-          )}
 
-          {/* Price Breakdown */}
-          {calculatedPrice && (
-            <div className="extend-charge-breakdown mb-3">
-
-              {extensionDays > 1 && (
-                <p style={{ fontSize: '0.75rem', color: '#6c757d' }}>
-                  <span>Extension Days:</span>
-                  <span>× {extensionDays}</span>
-                </p>
-              )}
-
-              <p className="total-line">
-                <span>Day Extension Total:</span>
-                <span>₹{Number(calculatedPrice?.totalPrice ?? 0).toFixed(2)}</span>
-              </p>
-
-              <p style={{ fontSize: '0.72rem', color: '#6c757d', marginTop: 4 }}>
-                <i className="fi fi-rr-info me-1" />
-                Day extension uses room tariff only. Post charges &amp; allowances are not included.
-              </p>
-            </div>
-          )}
-
-          {/* Form inputs */}
-          <div className="mb-3">
-            <label className="form-label">Extension Days</label>
-            <input
-              type="number"
-              className="form-control form-control-sm"
-              min="1"
-              value={extensionDays}
-              onChange={(e) => setExtensionDays(Math.max(1, parseInt(e.target.value) || 1))}
-            />
-          </div>
-         
-
-          {siblingRooms.length > 0 && (
-            <div className="form-check mb-3">
-              <input
-                className="form-check-input"
-                type="checkbox"
-                id="autoExtendSiblings"
-                checked={autoExtendSiblings}
-                onChange={(e) => setAutoExtendSiblings(e.target.checked)}
-              />
-              <label className="form-check-label" htmlFor="autoExtendSiblings">
-                Auto-extend {siblingRooms.length} sibling room(s)
-              </label>
-            </div>
-          )}
 
           {/* Action Buttons */}
           <div className="d-flex gap-3 justify-content-center mt-4">
