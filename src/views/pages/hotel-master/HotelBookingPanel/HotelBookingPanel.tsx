@@ -367,7 +367,7 @@ const HotelBookingPanel = () => {
     show: boolean
     occupiedItem: OccupiedRoomItem | null
     siblingRooms: OccupiedRoomItem[]
-    room: { id: number; number: string } | null
+    room: {room_id: number; number: string;} | null;
     checkin: any | null
     loading?: boolean
   }>({ 
@@ -789,16 +789,26 @@ const hideCheckinSection =
 
   // ==================== EXTEND ROOM ====================
 
-  const handleExtendDay = async () => {
-    if (!extendDayModal.room || !extendDayModal.checkin) return
+const handleExtendDay = async () => {
+    console.log('🔎 EXTEND CLICKED:', extendDayModal)
 
-    const { room, checkin } = extendDayModal
+    const { room, occupiedItem } = extendDayModal
+
+    // 🔧 FIX: `extendDayModal.checkin` null aa raha tha (kahin bhi set nahi ho
+    // raha tha jab modal open hota hai). checkin_id `occupiedItem` me pehle se
+    // maujood hai, isliye seedha wahin se le rahe hain — `checkin` object pe
+    // depend hi nahi kar rahe ab.
+    if (!room || !occupiedItem?.checkin_id) {
+      console.warn('🔎 EXTEND ABORTED - missing data:', { room, occupiedItem })
+      toast.error('Missing checkin or room information')
+      return
+    }
 
     setExtendDayModal((prev) => ({ ...prev, loading: true }))
 
     try {
-      const checkinId = checkin.checkin_id
-      const clickedRoomId = room.id
+      const checkinId = occupiedItem.checkin_id
+      const clickedRoomId = room.room_id ?? room.room_id
 
       if (!checkinId || !clickedRoomId) {
         toast.error('Missing checkin or room information')
@@ -828,6 +838,7 @@ const hideCheckinSection =
           roomId: roomId,
           extensionDays: 1,
         })
+        console.log('🔎 EXTEND API RESPONSE:', roomId, response)
         if (response.success) {
           anySuccess = true
         } else {
@@ -897,7 +908,7 @@ const hideCheckinSection =
         show: true, 
         occupiedItem: item, 
         siblingRooms: siblings,
-        room: item.room_id && item.room_no ? { id: item.room_id, number: item.room_no } : null,
+        room: item.room_id && item.room_no ? { room_id: item.room_id, number: item.room_no } : null,
         checkin: item.checkin || null,
         loading: false
       })
