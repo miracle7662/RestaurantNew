@@ -1150,16 +1150,43 @@ export const fetchOccupiedRooms = async (
       });
     }
 
+    
     // ============================================================
     // STEP 6: Group by checkin_id
     // ============================================================
     const checkinGroupMap = new Map<number, any[]>();
+    const roomCheckinMap = new Map<number, any>();
     allCheckins.forEach((checkin: any) => {
       const checkinId = checkin.checkin_id;
+      const roomId = checkin.room_id;
       if (!checkinGroupMap.has(checkinId)) {
         checkinGroupMap.set(checkinId, []);
       }
       checkinGroupMap.get(checkinId)!.push(checkin);
+
+       // Get latest room detail
+      if (!roomCheckinMap.has(roomId)) {
+        roomCheckinMap.set(roomId, checkin);
+      } else {
+        const existing = roomCheckinMap.get(roomId);
+        const existingIsClosed = Number(existing.is_checkout) === 1;
+        const newIsClosed = Number(checkin.is_checkout) === 1;
+
+        if (existingIsClosed && !newIsClosed) {
+          roomCheckinMap.set(roomId, checkin);
+        } else if (!existingIsClosed && newIsClosed) {
+          // Keep existing
+        } else {
+          const existingDetailId = Number(existing.detail_id) || 0;
+          const newDetailId = Number(checkin.detail_id) || 0;
+          const existingCheckout = new Date(existing.detail_checkout_datetime || 0).getTime();
+          const newCheckout = new Date(checkin.detail_checkout_datetime || 0).getTime();
+
+          if (newDetailId > existingDetailId || newCheckout > existingCheckout) {
+            roomCheckinMap.set(roomId, checkin);
+          }
+        }
+      }
     });
 
     // ============================================================
@@ -1380,6 +1407,7 @@ export const fetchOccupiedRooms = async (
       }
     }
     
+
     // Sort by room number
     occupiedItems.sort((a, b) => {
       const aNum = parseInt(String(a.room_no).replace(/\D/g, '')) || 0;
@@ -1388,6 +1416,7 @@ export const fetchOccupiedRooms = async (
     });
     
     setOccupiedRooms(occupiedItems);
+    
     
     // ============================================================
     // FINAL DEBUG OUTPUT
