@@ -1188,7 +1188,7 @@ export const fetchOccupiedRooms = async (
       const roomIds = rooms.map((r: any) => Number(r.room_id)).filter(Boolean);
       
       // Calculate total rooms in this checkin
-      const totalRoomsInCheckin = rooms.length;
+      // const totalRoomsInCheckin = rooms.length;
       
       for (const roomData of rooms) {
         const roomId = Number(roomData.room_id);
