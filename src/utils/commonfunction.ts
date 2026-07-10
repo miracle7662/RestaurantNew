@@ -1121,6 +1121,18 @@ export const fetchOccupiedRooms = async (
     if (allCheckins.length > 0) {
       console.log('🔍 First checkin record:', allCheckins[0]);
       console.log('🔍 Available fields:', Object.keys(allCheckins[0]));
+
+       // 🔎 GUEST_ID DEBUG: find every field name that looks like it holds a guest id
+      const guestLikeKeys = Object.keys(allCheckins[0]).filter((k) =>
+        k.toLowerCase().includes('guest')
+      );
+      console.log('🔎 [GUEST_ID DEBUG] Keys containing "guest":', guestLikeKeys);
+      console.log('🔎 [GUEST_ID DEBUG] Values for those keys:',
+        guestLikeKeys.reduce((acc: any, k) => {
+          acc[k] = allCheckins[0][k];
+          return acc;
+        }, {})
+      );
       
       // Log room-wise data for each room
       allCheckins.forEach((c: any) => {
@@ -1252,9 +1264,22 @@ export const fetchOccupiedRooms = async (
         const driverCount = Number(roomData.driver) || 0;
         const adults = Number(roomData.adults) || 0;
         const displayPax = `${adults}:${exPaxCount}:${childPaid}:${childUnpaid}:${driverCount}`;
+
+           // Compute guest_id with fallback chain + warn if still 0
+        const resolvedGuestId = Number(
+          roomData.guest_id ||
+          roomData.detail_guest_id ||
+          roomData.checkin_guest_id ||
+          roomData.guest_master_id
+        ) || 0;
+
+        if (!resolvedGuestId) {
+          console.warn(`⚠️ [GUEST_ID DEBUG] guest_id could NOT be resolved for Room ${room.room_no} (checkin #${checkinId}). Check API response field names.`);
+        }
         
         occupiedItems.push({
           // Basic Info
+          guest_id: resolvedGuestId,
           checkin_id: checkinId,
           detail_id: roomData.detail_id,
           guest_name: roomData.guest_name || 'Unknown Guest',
