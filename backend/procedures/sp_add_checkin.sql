@@ -265,12 +265,12 @@ END IF;
 -- =================================================================
 -- 7. MERGE MODE
 -- =================================================================
--- ✅ FIX (change 1 of 2): Only run merge when explicitly requested
+-- FIX (change 1 of 2): Only run merge when explicitly requested
 -- (v_merge_mode = 1). The old "OR (SELECT COUNT(*) FROM Checkout_Master
 -- WHERE checkin_id = p_checkin_id) > 1" auto-triggered a merge after
 -- every individual checkout, which is removed here.
 IF v_merge_mode = 1 THEN
-    -- ✅ Use v_checkout_dt for merge
+    -- Use v_checkout_dt for merge
     SET v_debug_msg = CONCAT('Merge: checkout datetime = ', v_checkout_dt);
 
     IF v_merge_mode = 0 THEN
@@ -1259,7 +1259,7 @@ END IF;
 
 COMMIT;
 
--- ✅ FIX (change 2 of 2): Automatic post-checkout merge block REMOVED.
+-- FIX (change 2 of 2): Automatic post-checkout merge block REMOVED.
 -- Previously, after every normal checkout this block ran:
 --   IF (SELECT COUNT(*) FROM Checkout_Master WHERE checkin_id = p_checkin_id) > 1 THEN
 --       ... auto-merge all Checkout_Master rows for this checkin ...

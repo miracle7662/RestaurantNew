@@ -377,9 +377,9 @@ const MENU_ITEMS: MenuItemTypes[] = [
       },
 
        {
-        key: 'company-master',
+        key: 'Settelement',
         label: 'Settelement',
-        url: '/hotel-master/Company-master',
+        url: '/hotel-master/Editsettelment',
          icon: 'fi fi-rr-book',
         parentKey: 'hotel-master',
       },

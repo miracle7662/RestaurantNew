@@ -55,6 +55,8 @@ export const MENU_PERMISSION_MAP: Record<string, string> = {
   'HotelBookingPanel': 'hotel-master',
   'HotelReport'     : 'pages',
 
+  'Settelement'     : 'hotel-master',
+
   'registration'    : 'registration',
   'registration-hotels-users': 'registration',
 

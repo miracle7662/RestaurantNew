@@ -107,22 +107,30 @@ exports.createSettlement = async (req, res) => {
       checkout_id,
       created_by_id,
       updated_by_id,
-      checkout_date = null
+      checkout_date = null,
+      checkin_datetime = null,
+      checkout_datetime = null,
+      total_nights = 1,
+      reg_no = null,
+      ldg_bill_no = null,
+      mobile = '',
+      is_settle = 1,
+      room_no = ''
     } = req.body;
 
     // Determine which rooms to settle
-   let roomsToSettle = [];
+    let roomsToSettle = [];
 
-if (Array.isArray(room_ids) && room_ids.length > 0) {
-  roomsToSettle = room_ids.map(Number);
-} else if (typeof room_id === "string" && room_id.includes(",")) {
-  roomsToSettle = room_id
-    .split(",")
-    .map(id => Number(id.trim()))
-    .filter(id => !Number.isNaN(id));
-} else if (room_id != null) {
-  roomsToSettle = [Number(room_id)];
-}
+    if (Array.isArray(room_ids) && room_ids.length > 0) {
+      roomsToSettle = room_ids.map(Number);
+    } else if (typeof room_id === "string" && room_id.includes(",")) {
+      roomsToSettle = room_id
+        .split(",")
+        .map(id => Number(id.trim()))
+        .filter(id => !Number.isNaN(id));
+    } else if (room_id != null) {
+      roomsToSettle = [Number(room_id)];
+    }
 
     // Required fields check (room_id no longer required, but room_ids or room_id must exist)
     if (
@@ -142,42 +150,67 @@ if (Array.isArray(room_ids) && room_ids.length > 0) {
       });
     }
 
+    // Use the first room_id if multiple rooms are selected
+    const primaryRoomId = roomsToSettle.length > 0 ? roomsToSettle[0] : (room_id || null);
+
+    // Only fields that exist in the CREATE TABLE statement
     const insertData = {
-      userid,
-      PaymentTypeID,
-      PaymentType,
-      Amount,
-      TipAmount,
-      Batch,
-      Name: Name || guest_name,
-      HotelID,
-      InsertDate: nowMySQL(),
+      // Checkin/Checkout fields
+      checkout_id: checkout_id,
+      checkinid: checkinid,
+      
+      // Bill/Registration
+      ldg_bill_no: ldg_bill_no || bill_no || null,
+      reg_no: reg_no || registration_no || null,
+      registration_no: registration_no || null,
+      bill_no: bill_no || null,
+      
+      // Guest info
+      guest_id: guest_id || null,
+      guest_name: guest_name || '',
+      mobile: mobile || MobileNo || '',
+      
+      // Room info
+      room_id: primaryRoomId,
+      room_name: room_name || '',
+      room_no: room_no || '',
+      
+      // Hotel & Outlet
+      hotelid: HotelID,
+      outletid: outletid,
+      outletname: outletname || '',
+      
+      // Payment
+      PaymentTypeID: PaymentTypeID,
+      PaymentType: PaymentType,
+      Amount: Amount,
+      TipAmount: TipAmount || 0,
+      Receive: Receive || 0,
+      Refund: Refund || 0,
+      
+      // Amounts
+      total_amount: total_amount || 0,
+      discount_amount: discount || 0,
+      advance_amt: total_advance || 0,
+      
+      // Status flags
+      is_settle: is_settle || 1,
       isSettled: 1,
-      RefferedBy,
-      customerid,
-      CustomerName: CustomerName || guest_name,
-      MobileNo,
-      Address,
-      Refund,
-      Receive,
-      Name2,
-      Name3,
-      table_name,
-      outletid,
-      outletname,
-      guest_id,
-      guest_name,
-      discount,
-      total_advance,
-      total_amount,
-      bill_no,
-      registration_no,
-      room_name,
-      checkinid,
-      checkout_id,
+      
+      // Dates
+      checkin_datetime: checkin_datetime || null,
+      checkout_datetime: checkout_datetime || null,
+      checkout_date: checkout_date || null,
+      total_nights: total_nights || 1,
+      
+      // User tracking
+      userid: userid,
       created_by_id: created_by_id || userid,
       updated_by_id: updated_by_id || userid,
-      checkout_date
+      
+      // Timestamps
+      InsertDate: nowMySQL(),
+      UpdateDate: nowMySQL()
     };
 
     const conn = await db.getConnection();
@@ -190,10 +223,6 @@ if (Array.isArray(room_ids) && room_ids.length > 0) {
         [insertData]
       );
 
-   
-
-   
-
       // 4. UPDATE checkin_detail_master AND room_master FOR EACH ROOM
       for (const rid of roomsToSettle) {
         await conn.query(
@@ -201,11 +230,11 @@ if (Array.isArray(room_ids) && room_ids.length > 0) {
           [checkinid, rid]
         );
 
-           // 2. UPDATE checkin_master (once per checkin)
-      await conn.query(
-        `UPDATE checkout_detail SET is_settle = 1 WHERE checkin_id = ? AND room_id = ?`,
-        [checkinid, rid]
-      );
+        // 2. UPDATE checkout_detail 
+        await conn.query(
+          `UPDATE checkout_detail SET is_settle = 1 WHERE checkin_id = ? AND room_id = ?`,
+          [checkinid, rid]
+        );
       
         await conn.query(
           `UPDATE room_master SET room_status_id = 4 WHERE room_id = ?`,  // 4 = Clean/Vacant
