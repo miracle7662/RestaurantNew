@@ -1327,7 +1327,7 @@ const handleExtendDay = async () => {
                 </Button>
                 <Button size="sm" variant={statusFilter === 'available' ? 'success' : 'outline-success'} className="fw-semibold px-3 same-btn"
                   onClick={() => handleStatusFilterClick('available')}>
-                  <i className="fi fi-rr-bed-empty me-1"></i>VACCOUNT [{stats.available}]
+                  <i className="fi fi-rr-bed-empty me-1"></i>VACCANT [{stats.available}]
                 </Button>
                 <Button size="sm" variant={statusFilter === 'occupied' ? 'primary' : 'outline-primary'} className="fw-semibold px-3 same-btn"
                   onClick={() => handleStatusFilterClick('occupied')}>

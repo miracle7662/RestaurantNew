@@ -6,8 +6,8 @@ import {
   Row,
   Col,
   Alert,
-  Spinner,
-  Badge
+  Spinner
+  // Badge,
 } from 'react-bootstrap';
 import { useAuthContext } from '@/common';
 import LdgSettlementService, { LdgSettlement } from '@/common/hotel/ldgsettlement';
