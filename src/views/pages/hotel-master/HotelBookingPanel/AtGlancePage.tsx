@@ -43,25 +43,20 @@ interface AtGlanceItem {
 
 const formatDateTime = (isoString: string): string => {
   if (!isoString) return 'N/A';
-
-  // If it's only a date (YYYY-MM-DD), show date only
-  if (/^\d{4}-\d{2}-\d{2}$/.test(isoString)) {
-    const d = new Date(isoString + 'T00:00:00'); // treat as local date
-    const day = d.getDate().toString().padStart(2, '0');
-    const month = d.toLocaleString('default', { month: 'short' }).replace('.', '');
-    const year = d.getFullYear();
-    return `${day}-${month}-${year}`;
-  }
-
-  // Otherwise, assume full ISO string with time
   const d = new Date(isoString);
   if (isNaN(d.getTime())) return 'N/A';
+
   const day = d.getDate().toString().padStart(2, '0');
   const month = d.toLocaleString('default', { month: 'short' }).replace('.', '');
   const year = d.getFullYear();
-  const hours = d.getHours().toString().padStart(2, '0');
+
+  let hours = d.getHours();
   const minutes = d.getMinutes().toString().padStart(2, '0');
-  return `${day}-${month}-${year} ${hours}:${minutes}`;
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12; // convert to 12-hour
+  const timeStr = `${hours}:${minutes} ${ampm}`;
+
+  return `${day}-${month}-${year} ${timeStr}`;
 };
 
 const formatAmount = (amt: number): string => {

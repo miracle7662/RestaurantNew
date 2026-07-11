@@ -2103,7 +2103,7 @@ const handleExtendDay = async () => {
           hotelId={hotelId || 0}
           userId={user?.id}
           mode={postChargesMode}
-          onSuccess={() => {}}
+          onSuccess={() => { fetchOccupiedRoomsData() }}  
           existingCharges={[]}
           onChargesUpdated={() => {}}
         />
@@ -2119,7 +2119,7 @@ const handleExtendDay = async () => {
           detailId={selectedOccupiedItem.detail_id}
           hotelId={hotelId || 0}
           userId={user?.id}
-          onSuccess={() => {}}
+          onSuccess={() => { fetchOccupiedRoomsData() }}  
         />
       )}
 
@@ -2134,7 +2134,7 @@ const handleExtendDay = async () => {
           hotelId={hotelId || 0}
           userId={user?.id}
           roomId={selectedOccupiedItem.room_id}
-          onSuccess={() => {}}
+          onSuccess={() => { fetchOccupiedRoomsData() }} 
         />
       )}
 
