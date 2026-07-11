@@ -1133,6 +1133,25 @@ export const fetchOccupiedRooms = async (
           return acc;
         }, {})
       );
+
+      // 🔎 PAYMENT DEBUG: find every field name that looks like payment info
+      const paymentLikeKeys = Object.keys(allCheckins[0]).filter((k) => {
+        const lower = k.toLowerCase();
+        return (
+          lower.includes('payment') ||
+          lower.includes('pay_mode') ||
+          lower.includes('paymode') ||
+          lower.includes('mode') ||
+          lower === 'pay_method'
+        );
+      });
+      console.log('🔎 [PAYMENT DEBUG] Keys containing "payment"/"mode":', paymentLikeKeys);
+      console.log('🔎 [PAYMENT DEBUG] Values for those keys:',
+        paymentLikeKeys.reduce((acc: any, k) => {
+          acc[k] = allCheckins[0][k];
+          return acc;
+        }, {})
+      );
       
       // Log room-wise data for each room
       allCheckins.forEach((c: any) => {
@@ -1303,6 +1322,30 @@ export const fetchOccupiedRooms = async (
         if (!resolvedGuestId) {
           console.warn(`⚠️ [GUEST_ID DEBUG] guest_id could NOT be resolved for Room ${room.room_no} (checkin #${checkinId}). Check API response field names.`);
         }
+
+        // ============================================================
+        // PAYMENT METHOD - fallback chain across possible backend field names
+        // ============================================================
+        const resolvedPaymentMethod =
+          roomData.payment_method ||
+          roomData.payment_mode ||
+          roomData.pay_mode ||
+          roomData.paymode ||
+          roomData.mode_of_payment ||
+          roomData.checkin_payment_method ||
+          'Cash';
+
+        if (
+          resolvedPaymentMethod === 'Cash' &&
+          !roomData.payment_method &&
+          !roomData.payment_mode &&
+          !roomData.pay_mode &&
+          !roomData.paymode &&
+          !roomData.mode_of_payment &&
+          !roomData.checkin_payment_method
+        ) {
+          console.warn(`⚠️ [PAYMENT DEBUG] payment_method could NOT be resolved for Room ${room.room_no} (checkin #${checkinId}). Defaulting to 'Cash'. Check API response field names.`);
+        }
         
         occupiedItems.push({
           // Basic Info
@@ -1312,6 +1355,7 @@ export const fetchOccupiedRooms = async (
           guest_name: roomData.guest_name || 'Unknown Guest',
           company_name: roomData.company_name || '',
           booking_type: roomData.booking || 'WALK-IN-GUEST',
+          
           
           // Room Details
           room_id: room.room_id,
@@ -1399,7 +1443,7 @@ export const fetchOccupiedRooms = async (
           room_advance: roomAdvance,
           room_post_charges: roomPostCharges,
           room_allowances: roomAllowances,
-          payment_method: 'Cash',
+           payment_method: resolvedPaymentMethod,
           
           // Raw data for debugging
           _raw: roomData,
@@ -1441,6 +1485,7 @@ export const fetchOccupiedRooms = async (
       console.log(`     Total Gross: ₹${item.total_all_rooms_amount?.toFixed(2) || '0.00'}`);
       console.log(`     Total Advance: -₹${item.total_advance?.toFixed(2) || '0.00'}`);
       console.log(`     Total Net: ₹${item.total_all_rooms_net?.toFixed(2) || '0.00'}`);
+      
     });
     
   } catch (err) {
