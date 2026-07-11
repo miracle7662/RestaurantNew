@@ -42,15 +42,27 @@ interface AtGlanceItem {
 }
 
 const formatDateTime = (isoString: string): string => {
-  if (!isoString) return 'N/A'
-  const d = new Date(isoString)
-  const day = d.getDate().toString().padStart(2, '0')
-  const month = d.toLocaleString('default', { month: 'short' }).replace('.', '')
-  const year = d.getFullYear()
-  const hours = d.getHours().toString().padStart(2, '0')
-  const minutes = d.getMinutes().toString().padStart(2, '0')
-  return `${day}-${month}-${year} ${hours}:${minutes}`
-}
+  if (!isoString) return 'N/A';
+
+  // If it's only a date (YYYY-MM-DD), show date only
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoString)) {
+    const d = new Date(isoString + 'T00:00:00'); // treat as local date
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = d.toLocaleString('default', { month: 'short' }).replace('.', '');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
+
+  // Otherwise, assume full ISO string with time
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return 'N/A';
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = d.toLocaleString('default', { month: 'short' }).replace('.', '');
+  const year = d.getFullYear();
+  const hours = d.getHours().toString().padStart(2, '0');
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  return `${day}-${month}-${year} ${hours}:${minutes}`;
+};
 
 const formatAmount = (amt: number): string => {
   const n = Number(amt)
@@ -61,19 +73,31 @@ const formatAmount = (amt: number): string => {
 
 // Matches the printed "Room Occupancy Register" style: 18/06/2026  11:00 am
 const formatRegisterDateTime = (isoString?: string): string => {
-  if (!isoString) return '-'
-  const d = new Date(isoString)
-  if (isNaN(d.getTime())) return '-'
-  const day = d.getDate().toString().padStart(2, '0')
-  const month = (d.getMonth() + 1).toString().padStart(2, '0')
-  const year = d.getFullYear()
-  let hours = d.getHours()
-  const minutes = d.getMinutes().toString().padStart(2, '0')
-  const ampm = hours >= 12 ? 'pm' : 'am'
-  hours = hours % 12
-  if (hours === 0) hours = 12
-  return `${day}/${month}/${year} ${hours}:${minutes} ${ampm}`
-}
+  if (!isoString) return '-';
+  
+  // If only date, show date only (in DD/MM/YYYY format)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoString)) {
+    const d = new Date(isoString + 'T00:00:00');
+    if (isNaN(d.getTime())) return '-';
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  // Full datetime string
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '-';
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const year = d.getFullYear();
+  let hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  return `${day}/${month}/${year} ${hours}:${minutes} ${ampm}`;
+};
 
 const formatRegisterDate = (d: Date): string => {
   const day = d.getDate().toString().padStart(2, '0')

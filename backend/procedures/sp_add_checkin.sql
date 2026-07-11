@@ -6,6 +6,7 @@ BEGIN
 
 /* ===========================================================
    CTE 1: Latest Room Record from checkin_detail_master
+   Filter: Exclude settled rooms (is_settle = 1)
 =========================================================== */
 WITH latest_room_detail AS (
     SELECT 
@@ -18,6 +19,7 @@ WITH latest_room_detail AS (
             MAX(d2.detail_id) AS detail_id
         FROM checkin_detail_master d2
         WHERE 1=1
+            AND d2.is_settle = 0  -- Exclude settled records
         GROUP BY d2.checkin_id, d2.room_id
     ) x ON d1.detail_id = x.detail_id
 ),
@@ -130,6 +132,7 @@ room_calculations AS (
         cm.special_instruction,
         cm.message,
         cm.status,
+        cm.payment_method,  -- ADDED: payment method from checkin_master
         
         -- Room Detail Fields
         lrd.detail_id,
@@ -275,7 +278,7 @@ room_calculations AS (
 
 /* ===========================================================
    CTE 4: Checkin-wise Aggregation
-   ⚠️ Using simple Debit - Credit = Net
+   Using simple Debit - Credit = Net
 =========================================================== */
 checkin_aggregation AS (
     SELECT
@@ -299,7 +302,7 @@ checkin_aggregation AS (
         SUM(rc.folio_total_debit) AS total_folio_debit,
         SUM(rc.folio_total_credit) AS total_folio_credit,
         
-        -- ⚠️ SIMPLE FORMULA: Net = Total Debit - Total Credit
+        -- Simple Formula: Net = Total Debit - Total Credit
         SUM(rc.folio_total_debit) - SUM(rc.folio_total_credit) AS total_net,
         
         -- Number of Rooms
@@ -358,6 +361,7 @@ SELECT
     rc.special_instruction,
     rc.message,
     rc.status,
+    rc.payment_method,  -- ADDED: payment method from checkin_master
 
     -- Room Detail Fields
     rc.detail_id,
@@ -444,7 +448,7 @@ SELECT
     rc.folio_total_debit AS room_total_debit,
     rc.folio_total_credit AS room_total_credit,
     
-    -- ⚠️ Room Net = Room Total Debit - Room Total Credit
+    -- Room Net = Room Total Debit - Room Total Credit
     rc.folio_total_debit - rc.folio_total_credit AS room_net_balance,
     
     -- Checkin-wise Summary (RIGHT SIDE)
@@ -468,7 +472,7 @@ SELECT
     ca.total_folio_debit AS checkin_total_folio_debit,
     ca.total_folio_credit AS checkin_total_folio_credit,
     
-    -- ⚠️ Checkin Net = Total Debit - Total Credit (Simple Accounting Formula)
+    -- Checkin Net = Total Debit - Total Credit (Simple Accounting Formula)
     ca.total_net AS checkin_total_net
 
 FROM room_calculations rc

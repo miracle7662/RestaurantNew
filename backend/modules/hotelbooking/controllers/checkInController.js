@@ -1211,8 +1211,8 @@ exports.getAtGlance = async (req, res) => {
 
         const formatted = resultSet.map((r) => ({
             ...r,
-            checkin_datetime: formatDate(r.checkin_datetime),
-            checkout_datetime: formatDate(r.checkout_datetime),
+            checkin_datetime: formatDateTime(r.checkin_datetime),
+            checkout_datetime: formatDateTime(r.checkout_datetime),
             totalAmt: Number(r.total_room_amount ?? 0) || 0,
             child: (Number(r.child_unpaid ?? 0) + Number(r.child_paid_amount ?? 0)) || 0
         }));
