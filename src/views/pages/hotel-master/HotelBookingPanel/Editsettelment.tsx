@@ -75,7 +75,7 @@ const EditSettlementPage: React.FC = () => {
   // ── Bill Modal ──────────────────────────────────────────────────
   const [showBillModal, setShowBillModal] = useState(false);
   const [selectedCheckoutId, setSelectedCheckoutId] = useState<number | null>(null);
-  // REMOVED: selectedLdgBillNo and selectedRooms – not needed anymore
+  const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null); // 🔥 FIX: needed so CheckoutBillModal can load print settings
 
   // ── Edit Settlement Modal ──────────────────────────────────────
   const [showSettlementModal, setShowSettlementModal] = useState(false);
@@ -90,9 +90,10 @@ const EditSettlementPage: React.FC = () => {
 
   // ── F8 Password Modal ──────────────────────────────────────────
   const [showF8Modal, setShowF8Modal] = useState(false);
-  // Updated pendingPrintData to only hold checkoutId
+  // 🔥 FIX: pendingPrintData now also carries hotelId so it survives the F8 flow
   const [pendingPrintData, setPendingPrintData] = useState<{
     checkoutId: number;
+    hotelId?: number | null;
   } | null>(null);
   const [f8Error, setF8Error] = useState('');
   const [f8Loading, setF8Loading] = useState(false);
@@ -225,10 +226,14 @@ const EditSettlementPage: React.FC = () => {
   // ── Handle Print Bill ──────────────────────────────────────────
  const handlePrintBill = (group: LdgSettlement) => {
   const checkoutId = group.checkout_id;
+  // 🔥 FIX: resolve hotelId from the settlement row (fallback to filters/user)
+  // so CheckoutBillModal can fetch its print settings correctly.
+  const hotelId = group.hotelid || Number(filters.hotelId) || user?.hotel_id || null;
 
   console.log("🖨️ Print Bill Clicked");
   console.log("📌 Settlement Row:", group);
   console.log("📌 Checkout ID:", checkoutId);
+  console.log("📌 Hotel ID:", hotelId);
   console.log("📌 Bill No:", group.ldg_bill_no);
   console.log("📌 Checkin ID:", group.checkinid);
   console.log("📌 Checkout Date:", group.checkout_date);
@@ -237,18 +242,19 @@ const EditSettlementPage: React.FC = () => {
   // Check if backdated
   if (isBackdated(group.checkout_date || group.InsertDate)) {
     console.log("🔐 Opening F8 Password Modal");
-    setPendingPrintData({ checkoutId });
+    setPendingPrintData({ checkoutId, hotelId }); // 🔥 FIX: carry hotelId through F8 flow
     setF8Error('');
     setShowF8Modal(true);
   } else {
-    console.log("📄 Opening CheckoutBillModal with checkoutId:", checkoutId);
-    openBillModal(checkoutId);
+    console.log("📄 Opening CheckoutBillModal with checkoutId:", checkoutId, "hotelId:", hotelId);
+    openBillModal(checkoutId, hotelId);
   }
 };
 
-  // UPDATED: accept only checkoutId
-  const openBillModal = (checkoutId: number) => {
+  // 🔥 FIX: accept checkoutId AND hotelId
+  const openBillModal = (checkoutId: number, hotelId?: number | null) => {
     setSelectedCheckoutId(checkoutId);
+    setSelectedHotelId(hotelId ?? null); // 🔥 FIX
     setShowBillModal(true);
   };
 
@@ -261,7 +267,7 @@ const EditSettlementPage: React.FC = () => {
     try {
       // Verify password (replace with actual API call if needed)
       // For demo, just proceed
-      openBillModal(pendingPrintData.checkoutId);
+      openBillModal(pendingPrintData.checkoutId, pendingPrintData.hotelId); // 🔥 FIX: pass hotelId along
       setShowF8Modal(false);
       setPendingPrintData(null);
     } catch (error: any) {
@@ -608,16 +614,17 @@ const EditSettlementPage: React.FC = () => {
         description="This bill has been backdated. Please enter your password to proceed with printing."
       />
 
-      {/* Checkout Bill Modal – UPDATED: only checkoutId is passed */}
+      {/* Checkout Bill Modal – 🔥 FIX: hotelId is now passed so print settings (header/guest/booking sections) load correctly */}
       {selectedCheckoutId && (
         <CheckoutBillModal
           show={showBillModal}
           onHide={() => {
             setShowBillModal(false);
             setSelectedCheckoutId(null);
+            setSelectedHotelId(null); // 🔥 FIX
           }}
           checkoutId={selectedCheckoutId}
-          // REMOVED: ldgBillNo, hotelId, selectedRooms props – they are no longer needed
+          hotelId={selectedHotelId ?? undefined} // 🔥 FIX: this was missing and caused printSettings to stay null
         />
       )}
     </>
