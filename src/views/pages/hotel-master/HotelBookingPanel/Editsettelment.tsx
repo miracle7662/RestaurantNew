@@ -75,8 +75,7 @@ const EditSettlementPage: React.FC = () => {
   // ── Bill Modal ──────────────────────────────────────────────────
   const [showBillModal, setShowBillModal] = useState(false);
   const [selectedCheckoutId, setSelectedCheckoutId] = useState<number | null>(null);
-  const [selectedLdgBillNo, setSelectedLdgBillNo] = useState<string | undefined>();
-  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
+  // REMOVED: selectedLdgBillNo and selectedRooms – not needed anymore
 
   // ── Edit Settlement Modal ──────────────────────────────────────
   const [showSettlementModal, setShowSettlementModal] = useState(false);
@@ -91,10 +90,9 @@ const EditSettlementPage: React.FC = () => {
 
   // ── F8 Password Modal ──────────────────────────────────────────
   const [showF8Modal, setShowF8Modal] = useState(false);
+  // Updated pendingPrintData to only hold checkoutId
   const [pendingPrintData, setPendingPrintData] = useState<{
     checkoutId: number;
-    ldgBillNo?: string;
-    rooms: string[];
   } | null>(null);
   const [f8Error, setF8Error] = useState('');
   const [f8Loading, setF8Loading] = useState(false);
@@ -225,35 +223,32 @@ const EditSettlementPage: React.FC = () => {
   };
 
   // ── Handle Print Bill ──────────────────────────────────────────
-  const handlePrintBill = (group: LdgSettlement) => {
-    const checkoutId = group.checkout_id;
-    const ldgBillNo = group.ldg_bill_no || group.bill_no || undefined;
-    const rooms = group.rooms || [group.room_no || group.room_name || ''].filter(Boolean);
+ const handlePrintBill = (group: LdgSettlement) => {
+  const checkoutId = group.checkout_id;
 
-    const printData = {
-      checkoutId,
-      ldgBillNo: ldgBillNo || undefined,
-      rooms: rooms.filter(Boolean)
-    };
+  console.log("🖨️ Print Bill Clicked");
+  console.log("📌 Settlement Row:", group);
+  console.log("📌 Checkout ID:", checkoutId);
+  console.log("📌 Bill No:", group.ldg_bill_no);
+  console.log("📌 Checkin ID:", group.checkinid);
+  console.log("📌 Checkout Date:", group.checkout_date);
+  console.log("📌 Is Backdated:", isBackdated(group.checkout_date || group.InsertDate));
 
-    // Check if backdated
-    if (isBackdated(group.checkout_date || group.InsertDate)) {
-      setPendingPrintData(printData);
-      setF8Error('');
-      setShowF8Modal(true);
-    } else {
-      openBillModal(printData);
-    }
-  };
+  // Check if backdated
+  if (isBackdated(group.checkout_date || group.InsertDate)) {
+    console.log("🔐 Opening F8 Password Modal");
+    setPendingPrintData({ checkoutId });
+    setF8Error('');
+    setShowF8Modal(true);
+  } else {
+    console.log("📄 Opening CheckoutBillModal with checkoutId:", checkoutId);
+    openBillModal(checkoutId);
+  }
+};
 
-  const openBillModal = (data: {
-    checkoutId: number;
-    ldgBillNo?: string;
-    rooms: string[];
-  }) => {
-    setSelectedCheckoutId(data.checkoutId);
-    setSelectedLdgBillNo(data.ldgBillNo);
-    setSelectedRooms(data.rooms);
+  // UPDATED: accept only checkoutId
+  const openBillModal = (checkoutId: number) => {
+    setSelectedCheckoutId(checkoutId);
     setShowBillModal(true);
   };
 
@@ -266,7 +261,7 @@ const EditSettlementPage: React.FC = () => {
     try {
       // Verify password (replace with actual API call if needed)
       // For demo, just proceed
-      openBillModal(pendingPrintData);
+      openBillModal(pendingPrintData.checkoutId);
       setShowF8Modal(false);
       setPendingPrintData(null);
     } catch (error: any) {
@@ -426,14 +421,16 @@ const EditSettlementPage: React.FC = () => {
             <thead className="table-light">
               <tr style={{ fontSize: '12px' }}>
                 <th style={{ width: '3%' }}>ID</th>
-                <th style={{ width: '7%' }}>Date</th>
+                <th style={{ width: '6%' }}>Date</th>
                 <th style={{ width: '7%' }}>Bill No</th>
-                <th style={{ width: '10%' }}>Guest</th>
-                <th style={{ width: '7%' }}>Room(s)</th>
-                <th style={{ width: '5%' }}>Nights</th>
-                <th style={{ width: '10%' }}>Payment</th>
-                <th style={{ width: '7%' }}>Total Amt</th>
-                <th style={{ width: '7%' }}>Settled</th>
+                <th style={{ width: '8%' }}>Guest</th>
+                <th style={{ width: '6%' }}>Room(s)</th>
+                <th style={{ width: '4%' }}>Nights</th>
+                <th style={{ width: '8%' }}>Payment</th>
+                <th style={{ width: '6%' }}>Total Amt</th>
+                <th style={{ width: '6%' }}>Settled</th>
+                <th style={{ width: '6%' }}>Receive</th>
+                <th style={{ width: '6%' }}>Refund</th>
                 <th style={{ width: '4%' }}>Tip</th>
                 <th style={{ width: '8%' }}>Actions</th>
               </tr>
@@ -441,14 +438,14 @@ const EditSettlementPage: React.FC = () => {
             <tbody style={{ fontSize: '12px' }}>
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-4">
+                  <td colSpan={13} className="text-center py-4">
                     <Spinner animation="border" variant="primary" size="sm" className="me-2" />
                     Loading settlements...
                   </td>
                 </tr>
               ) : settlements.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-4 text-muted">
+                  <td colSpan={13} className="text-center py-4 text-muted">
                     No settlements found
                   </td>
                 </tr>
@@ -460,6 +457,8 @@ const EditSettlementPage: React.FC = () => {
                   const totalAmount = toNumber(group.total_amount);
                   const settledAmount = toNumber(group.Amount);
                   const tipAmount = toNumber(group.TipAmount);
+                  const receiveAmount = toNumber(group.Receive);
+                  const refundAmount = toNumber(group.Refund);
                   const roomDisplay = group.rooms?.join(', ') || group.display_room || 'N/A';
 
                   return (
@@ -517,6 +516,12 @@ const EditSettlementPage: React.FC = () => {
                       <td className="fw-bold" style={{ fontSize: '12px' }}>
                         ₹{settledAmount.toFixed(2)}
                       </td>
+                      <td className="fw-bold" style={{ fontSize: '12px' }}>
+                        ₹{receiveAmount.toFixed(2)}
+                      </td>
+                      <td className="fw-bold" style={{ fontSize: '12px', color: '#d9534f' }}>
+                        ₹{refundAmount.toFixed(2)}
+                      </td>
                       <td className="text-success" style={{ fontSize: '11px' }}>
                         {tipAmount > 0 ? `₹${tipAmount.toFixed(2)}` : '-'}
                       </td>
@@ -543,11 +548,6 @@ const EditSettlementPage: React.FC = () => {
                           >
                             <i className="fi fi-rr-print"></i>
                           </Button>
-                          {isBackdatedBill && (
-                            <Badge bg="warning" text="dark" style={{ fontSize: '8px' }}>
-                              Backdated
-                            </Badge>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -603,25 +603,21 @@ const EditSettlementPage: React.FC = () => {
         onSubmit={handleF8PasswordSubmit}
         error={f8Error}
         loading={f8Loading}
-        txnId={pendingPrintData?.ldgBillNo}
+        txnId={pendingPrintData?.checkoutId?.toString()} // we can pass checkoutId as transaction id
         title="F8 Action - Password Required"
         description="This bill has been backdated. Please enter your password to proceed with printing."
       />
 
-      {/* Checkout Bill Modal */}
+      {/* Checkout Bill Modal – UPDATED: only checkoutId is passed */}
       {selectedCheckoutId && (
         <CheckoutBillModal
           show={showBillModal}
           onHide={() => {
             setShowBillModal(false);
             setSelectedCheckoutId(null);
-            setSelectedLdgBillNo(undefined);
-            setSelectedRooms([]);
           }}
           checkoutId={selectedCheckoutId}
-          ldgBillNo={selectedLdgBillNo}
-          hotelId={Number(filters.hotelId) || user?.hotel_id}
-          selectedRooms={selectedRooms}
+          // REMOVED: ldgBillNo, hotelId, selectedRooms props – they are no longer needed
         />
       )}
     </>

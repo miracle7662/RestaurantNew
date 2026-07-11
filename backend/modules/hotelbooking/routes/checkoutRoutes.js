@@ -5,6 +5,7 @@ const controller = require('../controllers/checkoutController');
 
 router.get('/', controller.getCheckouts);
 router.get('/bill-preview', controller.getBillPreview);
+router.get('/bill-checkoutId', getBillByCheckoutId);
 router.get('/:id', controller.getCheckoutById);
 router.get('/by-checkin/:checkin_id', controller.getCheckoutByCheckinId);
 router.get('/backups', controller.getBackupCheckins);

@@ -262,6 +262,40 @@ exports.getBillPreview = async (req, res) => {
     }
 };
 
+// GET /api/checkout/bills-by-date
+const getBillByCheckoutId = async (req, res) => {
+  const { checkoutId } = req.params;
+  if (!checkoutId || isNaN(Number(checkoutId))) {
+    return res.status(400).json({ success: false, message: 'Invalid checkout ID' });
+  }
+
+  try {
+    // Call the existing stored procedure
+    const [results] = await db.query('CALL sp_checkout_bill(?)', [checkoutId]);
+
+    // Result sets:
+    // results[0] – header (single row)
+    // results[1] – bill details (multiple rows)
+    // results[2] – footer summary (single row)
+    const header = results[0]?.[0] || {};
+    const details = results[1] || [];
+    const footer = results[2]?.[0] || {};
+
+    // Structure expected by CheckoutBillModal
+    const billData = {
+      checkoutMaster: header,
+      roomDetails: details,
+      summary: footer,
+      // The modal can compute extra charges/taxes from these
+    };
+
+    res.json({ success: true, data: billData });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 // Helper functions for formatting
 function formatBillDate(dateString) {
     if (!dateString) return '-';

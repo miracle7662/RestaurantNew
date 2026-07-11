@@ -33,7 +33,7 @@ const nowMySQL = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 //       Name: Name || guest_name,
 //       HotelID,
 //       InsertDate: nowMySQL(),
-//       isSettled: 1,
+//       is_settle: 1,
 //       RefferedBy,
 //       customerid,
 //       CustomerName: CustomerName || guest_name,
@@ -195,7 +195,6 @@ exports.createSettlement = async (req, res) => {
       
       // Status flags
       is_settle: is_settle || 1,
-      isSettled: 1,
       
       // Dates
       checkin_datetime: checkin_datetime || null,
@@ -277,7 +276,7 @@ exports.getSettlements = async (req, res) => {
   try {
     const {
       hotelId, outletId, checkinId, roomName, guestName,
-      fromDate, toDate, paymentType, isSettled = '1'
+      fromDate, toDate, paymentType, is_settle = '1'
     } = req.query;
 
     let where = [];
@@ -292,7 +291,7 @@ exports.getSettlements = async (req, res) => {
     if (fromDate) { where.push('InsertDate >= ?'); params.push(fromDate); }
     if (toDate) { where.push('InsertDate <= ?'); params.push(toDate + ' 23:59:59'); }
     if (paymentType) { where.push('PaymentType = ?'); params.push(paymentType); }
-    if (isSettled !== undefined) { where.push('isSettled = ?'); params.push(Number(isSettled)); }
+    if (is_settle !== undefined) { where.push('is_settle = ?'); params.push(Number(is_settle)); }
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const sql = `SELECT * FROM ldgsettlement ${whereSql} ORDER BY SettlementID DESC`;
@@ -326,32 +325,34 @@ exports.updateSettlement = async (req, res) => {
     } = req.body;
 
     // Fetch current record
-    const [oldRows] = await db.query('SELECT * FROM ldgsettlement WHERE SettlementID = ? AND isSettled = 1', [id]);
+    const [oldRows] = await db.query('SELECT * FROM ldgsettlement WHERE SettlementID = ? AND is_settle = 1', [id]);
     if (oldRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Settlement not found or already reversed' });
     }
     const old = oldRows[0];
 
-    // Log changes (requires ldgsettlement_log table)
-    const logSql = `
+    // Build new values (if not provided, keep old)
+    const newPaymentType = PaymentType || old.PaymentType;
+    const newAmount = Amount !== undefined ? Amount : old.Amount;
+    // (other fields can be added similarly)
+
+    // Log the change using the existing log table columns
+    await db.query(`
       INSERT INTO ldgsettlement_log (
-        SettlementID, OldPaymentTypeID, OldPaymentType, OldAmount, OldTipAmount, OldRefund, OldReceive,
-        NewPaymentTypeID, NewPaymentType, NewAmount, NewTipAmount, NewRefund, NewReceive,
-        UpdatedBy, Reason, ChangeDate
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    await db.query(logSql, [
+        SettlementID,
+        OldPaymentType,
+        OldAmount,
+        NewPaymentType,
+        NewAmount,
+        EditedBy
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `, [
       id,
-      old.PaymentTypeID, old.PaymentType, old.Amount, old.TipAmount, old.Refund, old.Receive,
-      PaymentTypeID || old.PaymentTypeID,
-      PaymentType || old.PaymentType,
-      Amount !== undefined ? Amount : old.Amount,
-      TipAmount !== undefined ? TipAmount : old.TipAmount,
-      Refund !== undefined ? Refund : old.Refund,
-      Receive !== undefined ? Receive : old.Receive,
-      updated_by_id,
-      reason,
-      nowMySQL()
+      old.PaymentType,
+      old.Amount,
+      newPaymentType,
+      newAmount,
+      updated_by_id
     ]);
 
     // Build dynamic update
@@ -378,13 +379,13 @@ exports.updateSettlement = async (req, res) => {
   }
 };
 
-// ==================== SOFT DELETE (isSettled = 0) ====================
+// ==================== SOFT DELETE (is_settle = 0) ====================
 exports.deleteSettlement = async (req, res) => {
   try {
     const { id } = req.params;
     const { updated_by_id, reason = '' } = req.body;
 
-    const [oldRows] = await db.query('SELECT * FROM ldgsettlement WHERE SettlementID = ? AND isSettled = 1', [id]);
+    const [oldRows] = await db.query('SELECT * FROM ldgsettlement WHERE SettlementID = ? AND is_settle = 1', [id]);
     if (oldRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Settlement not found or already reversed' });
     }
@@ -399,7 +400,7 @@ exports.deleteSettlement = async (req, res) => {
     `, [id, old.PaymentTypeID, old.PaymentType, old.Amount, old.TipAmount, old.Refund, old.Receive, updated_by_id, reason, nowMySQL()]);
 
     // Soft delete
-    await db.query('UPDATE ldgsettlement SET isSettled = 0, updated_by_id = ? WHERE SettlementID = ?', [updated_by_id, id]);
+    await db.query('UPDATE ldgsettlement SET is_settle = 0, updated_by_id = ? WHERE SettlementID = ?', [updated_by_id, id]);
 
     res.json({ success: true, message: 'Settlement reversed' });
   } catch (error) {
@@ -409,85 +410,213 @@ exports.deleteSettlement = async (req, res) => {
 };
 
 // ==================== REPLACE (batch by OrderNo or TxnNo) ====================
+// ==================== REPLACE (by checkout_id / checkinid / ldg_bill_no) ====================
+// ==================== REPLACE (by checkout_id / checkinid / ldg_bill_no) ====================
+// ==================== REPLACE (by checkout_id and optional identifiers) ====================
+// ==================== REPLACE (by checkout_id, safe conditions) ====================
+// Helper: format date to MySQL DATE (YYYY-MM-DD)
+// Helper: format date to MySQL DATE (YYYY-MM-DD)
+// Helper: format date to MySQL DATE (YYYY-MM-DD)
+// Helper: format date to MySQL DATE (YYYY-MM-DD)
+const formatDate = (date) => {
+  if (!date) return null;
+
+  // If it's already a plain date string "YYYY-MM-DD", return it unchanged
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return date;
+  }
+
+  // If it's "YYYY-MM-DD HH:mm:ss" or "YYYY-MM-DDTHH:mm:ss...", extract the date part
+  if (typeof date === 'string') {
+    const match = date.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) {
+      return match[1]; // just the date part
+    }
+  }
+
+  // Fallback: use Date object but extract local components (not UTC)
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+// ==================== REPLACE (hard delete + global Receive/Refund) ====================
 exports.replaceSettlement = async (req, res) => {
   try {
-    const { OrderNo, TxnNo, newSettlements, HotelID, updated_by_id, checkout_date } = req.body;
+    const {
+      checkoutId,
+      checkinId,
+      ldg_bill_no,
+      newSettlements,
+      HotelID,
+      outletId,
+      updated_by_id,
+      checkout_date,
+      TipAmount: topTipAmount   // top-level tip (if sent)
+    } = req.body;
 
-    if ((!OrderNo && !TxnNo) || !Array.isArray(newSettlements) || !HotelID) {
-      return res.status(400).json({ success: false, message: 'Missing OrderNo/TxnNo, newSettlements array, or HotelID' });
+    // Validation
+    if (!checkoutId || !Array.isArray(newSettlements) || !HotelID) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing checkoutId, newSettlements array, or HotelID'
+      });
     }
 
-    let whereField = OrderNo ? 'OrderNo' : 'TxnNo';
-    let whereValue = OrderNo || TxnNo;
+    // Build WHERE clause (safe conditions only)
+    const whereConditions = [];
+    const whereParams = [];
 
-    // Fetch existing active settlements
+    whereConditions.push('checkout_id = ?');
+    whereParams.push(Number(checkoutId));
+
+    whereConditions.push('hotelid = ?');
+    whereParams.push(Number(HotelID));
+
+    if (outletId !== undefined && outletId !== null && !isNaN(Number(outletId))) {
+      whereConditions.push('outletid = ?');
+      whereParams.push(Number(outletId));
+    }
+
+    if (ldg_bill_no) {
+      whereConditions.push('ldg_bill_no = ?');
+      whereParams.push(String(ldg_bill_no));
+    }
+
+    // Only active settlements
+    whereConditions.push('is_settle = 1');
+
+    const whereSql = whereConditions.join(' AND ');
+
+    // 1️⃣ Fetch existing active settlements (for logging)
     const [existing] = await db.query(
-      `SELECT * FROM ldgsettlement WHERE ${whereField} = ? AND isSettled = 1`,
-      [whereValue]
+      `SELECT * FROM ldgsettlement WHERE ${whereSql}`,
+      whereParams
     );
 
-    // Log old records before deletion
+    // 2️⃣ Log old records (before deletion)
     for (const old of existing) {
       await db.query(`
         INSERT INTO ldgsettlement_log (
-          SettlementID, OldPaymentTypeID, OldPaymentType, OldAmount, OldTipAmount, OldRefund, OldReceive,
-          UpdatedBy, Reason, ChangeDate, Action
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Batch replaced', ?, 'REPLACE_BATCH')
-      `, [old.SettlementID, old.PaymentTypeID, old.PaymentType, old.Amount, old.TipAmount, old.Refund, old.Receive, updated_by_id, nowMySQL()]);
+          SettlementID,
+          OldPaymentType,
+          OldAmount,
+          NewPaymentType,
+          NewAmount,
+          EditedBy
+        ) VALUES (?, ?, ?, ?, ?, ?)
+      `, [
+        old.SettlementID,
+        old.PaymentType || '',
+        old.Amount || 0,
+        null,
+        null,
+        updated_by_id
+      ]);
     }
 
-    // Soft delete all existing
+    // 3️⃣ HARD DELETE old settlements
     await db.query(
-      `UPDATE ldgsettlement SET isSettled = 0, updated_by_id = ? WHERE ${whereField} = ?`,
-      [updated_by_id, whereValue]
+      `DELETE FROM ldgsettlement WHERE ${whereSql}`,
+      whereParams
     );
 
-    // Insert each new settlement
+    // 4️⃣ Compute global Receive & Refund from the first new settlement
+    let receiveAmount = 0;
+    let refundAmount = 0;
+    if (newSettlements.length > 0) {
+      const first = newSettlements[0];
+      receiveAmount = Number(first.Receive) || Number(first.received_amount) || 0;
+      refundAmount  = Number(first.Refund)  || Number(first.refund_amount)  || 0;
+    }
+
+    // 5️⃣ Insert each new settlement
     for (const s of newSettlements) {
       const {
-        PaymentTypeID, PaymentType, Amount, TipAmount = 0, Refund = 0, Receive = 0,
-        customerid, CustomerName, MobileNo, Address, Name, table_name = 'room',
-        outletid, outletname, guest_id, guest_name, discount = 0, total_advance = 0,
-        total_amount, bill_no, registration_no, room_name, checkinid, userid
-      } = s;
-
-      const insertData = {
-       
-        userid: userid || updated_by_id,
         PaymentTypeID,
         PaymentType,
         Amount,
-        TipAmount,
-        Batch: '',
-        Name: Name || CustomerName,
-        HotelID,
-        InsertDate: nowMySQL(),
-        isSettled: 1,
-        RefferedBy: '',
-        customerid: customerid || null,
-        CustomerName: CustomerName || '',
-        MobileNo: MobileNo || '',
-        Address: Address || '',
-        Refund,
-        Receive,
-        Name2: '',
-        Name3: '',
-        table_name,
-        outletid,
-        outletname: outletname || '',
-        guest_id: guest_id || null,
-        guest_name: guest_name || '',
-        discount,
-        total_advance,
+        TipAmount: sTipAmount = 0,
+        customerid,
+        CustomerName,
+        MobileNo,
+        Address,
+        Name,
+        table_name,  // ignored because column doesn't exist
+        outletid: s_outletid,
+        outletname,
+        guest_id,
+        guest_name,
+        discount = 0,
+        total_advance = 0,
         total_amount,
-        bill_no: bill_no || null,
+        bill_no,
+        registration_no,
+        room_name,
+        checkinid: s_checkinid,
+        userid,
+        room_id,
+        room_no,
+        mobile,
+        reg_no,
+        ldg_bill_no: s_ldg_bill_no,
+        checkout_id: s_checkout_id
+      } = s;
+
+      // Determine tip: use top-level if provided, else per‑settlement
+      const tipAmount = topTipAmount !== undefined ? Number(topTipAmount) : (sTipAmount || 0);
+
+      // Credit payment handling (like settlementController)
+      const isCredit = PaymentType && PaymentType.toLowerCase() === 'credit';
+      const finalGuestId = isCredit ? (guest_id || customerid) : (guest_id || customerid);
+      const finalGuestName = isCredit ? (guest_name || CustomerName) : (guest_name || CustomerName);
+      const finalMobile = isCredit ? (mobile || MobileNo) : (mobile || MobileNo);
+
+      const finalCheckoutId = s_checkout_id || checkoutId;
+      const finalLdgBillNo = s_ldg_bill_no || ldg_bill_no || bill_no || null;
+      const finalCheckinId = s_checkinid || checkinId;
+
+      const insertData = {
+        checkout_id: finalCheckoutId,
+        checkinid: finalCheckinId,
+        ldg_bill_no: finalLdgBillNo,
+        reg_no: reg_no || registration_no || null,
         registration_no: registration_no || null,
+        bill_no: bill_no || null,
+        guest_id: finalGuestId || null,
+        guest_name: finalGuestName || '',
+        mobile: finalMobile || '',
+        room_id: room_id || null,
         room_name: room_name || '',
-        checkinid,
+        room_no: room_no || '',
+        hotelid: HotelID,
+        outletid: s_outletid || outletId,
+        outletname: outletname || '',
+        PaymentTypeID,
+        PaymentType,
+        Amount,
+        TipAmount: tipAmount,
+        Receive: receiveAmount,
+        Refund: refundAmount,
+        total_amount: total_amount || 0,
+        discount_amount: discount || 0,
+        advance_amt: total_advance || 0,
+        is_settle: 1,
+        checkin_datetime: null,
+        checkout_datetime: null,
+        checkout_date: formatDate(checkout_date),
+        total_nights: 1,
+        userid: userid || updated_by_id,
         created_by_id: updated_by_id,
         updated_by_id: updated_by_id,
-        checkout_date: checkout_date || null
+        InsertDate: nowMySQL(),
+        UpdateDate: nowMySQL()
       };
+
+      // table_name is NOT included because it doesn't exist in the table
+
       await db.query('INSERT INTO ldgsettlement SET ?', [insertData]);
     }
 

@@ -159,6 +159,13 @@ export interface UpdateRoomsResponse {
   affectedRows: number;
 }
 
+export interface CheckoutBillData {
+  checkoutMaster: any;      // या आप specific fields डिफ़ाइन कर सकते हैं
+  roomDetails: any[];
+  summary: any;
+  // अगर मौजूदा modal को और fields चाहिए, तो उन्हें भी add करें
+}
+
 
 
 const CheckoutService = {
@@ -204,6 +211,12 @@ getBillPreview: async (checkoutId?: number, ldgBillNo?: string): Promise<{
   }>('/checkouts/bill-preview', { params });
 },
 
+  getCheckoutBill: (checkoutId: number): Promise<ApiResponse<CheckoutBillData>> =>
+    HttpClient.get<ApiResponse<CheckoutBillData>>(`/checkout/bill/${checkoutId}`),
 };
+
+// In checkout.ts, inside the CheckoutService object:
+
+
 
 export default CheckoutService;
