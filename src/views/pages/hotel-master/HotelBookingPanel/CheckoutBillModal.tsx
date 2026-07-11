@@ -323,58 +323,87 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   }, [billData])
 
   // ========== BUILD SUMMARY - DIRECT FROM HEADER ROW ==========
-  const summary = useMemo(() => {
-    if (!billData.length || !displayRows.length) return null
+ const summary = useMemo(() => {
+  if (!billData.length || !displayRows.length) return null
 
-    const firstRow = billData[0]
-    
-    // Get unique room numbers
-    const roomNumbers = Array.from(new Set(displayRows.map(r => r.room_number).filter(Boolean)))
-    const roomNumbersStr = roomNumbers.join(', ') || '-'
+  const firstRow = billData[0]
 
-    // Build guest display from SP values
-    const adults = toNumber(firstRow.adults || 0)
-    const childPaid = toNumber(firstRow.child_paid || 0)
-    const driver = toNumber(firstRow.driver || 0)
-    
-    const guestsDisplayParts = []
-    if (adults > 0) guestsDisplayParts.push(`${adults} Adults`)
-    if (childPaid > 0) guestsDisplayParts.push(`${childPaid} Child`)
-    if (driver > 0) guestsDisplayParts.push(`${driver} Driver`)
-    const guestsDisplay = guestsDisplayParts.join(', ') || '-'
-
-    return {
-      checkin_id: firstRow.checkin_id,
-      guest_id: firstRow.guest_id,
-      guest_name: firstRow.guest_name || firstRow.guestName || 'Guest',
-      guest_mobile: firstRow.guest_mobile || firstRow.mobile || '-',
-      guest_email: firstRow.guest_email || firstRow.emailed || '-',
-      guest_address: firstRow.guest_address || firstRow.address || '-',
-      room_numbers_str: roomNumbersStr,
-      room_categories_str: firstRow.room_category_name || '-',
-      total_days: firstRow.total_nights || 0,
-      total_adults: adults,
-      total_child_paid: childPaid,
-      total_driver: driver,
-      reg_no: firstRow.reg_no,
-      plan_name: firstRow.plan_name,
-      company_name: firstRow.company_name || '-',
-      gst_no: firstRow.gst_no || '-',
-      guests_display: guestsDisplay,
-      // DIRECT FROM SP HEADER
-      total_amount: toNumber(firstRow.total_amount || 0),
-      discount_amount: toNumber(firstRow.discount_amount || 0),
-      advance_amt: toNumber(firstRow.advance_amt || 0),
-      net_payable: toNumber(firstRow.net_payable || 0),
-      cgst_amt: toNumber(firstRow.cgst_amt || 0),
-      sgst_amt: toNumber(firstRow.sgst_amt || 0),
-      igst_amt: toNumber(firstRow.igst_amt || 0),
-      payment_mode: firstRow.payment_mode || 'Cash',
-      original_checkin_datetime: firstRow.checkin_datetimecm,
-      final_checkout_datetime: firstRow.checkout_datetimecm,
-      checked_out_rooms: firstRow.checked_out_rooms ? firstRow.checked_out_rooms.split(',') : [],
+  // Aggregate by room to avoid duplicates (each room may have multiple charge rows)
+  const roomMap = new Map<
+    string,
+    { adults: number; child_paid: number; driver: number; category: string }
+  >()
+  displayRows.forEach((row) => {
+    const roomNum = row.room_number
+    if (!roomMap.has(roomNum)) {
+      roomMap.set(roomNum, {
+        adults: toNumber(row.adults || 0),
+        child_paid: toNumber(row.child_paid || 0),
+        driver: toNumber(row.driver || 0),
+        category: row.room_category_name || '-',
+      })
     }
-  }, [displayRows, billData])
+  })
+
+  // Sum across unique rooms
+  let totalAdults = 0,
+    totalChildPaid = 0,
+    totalDriver = 0
+  const categoriesSet = new Set<string>()
+  roomMap.forEach((value) => {
+    totalAdults += value.adults
+    totalChildPaid += value.child_paid
+    totalDriver += value.driver
+    if (value.category) categoriesSet.add(value.category)
+  })
+
+  const roomCategoriesStr = Array.from(categoriesSet).join(', ') || '-'
+
+  // Build guest display
+  const guestsDisplayParts = []
+  if (totalAdults > 0) guestsDisplayParts.push(`${totalAdults} Adults`)
+  if (totalChildPaid > 0) guestsDisplayParts.push(`${totalChildPaid} Child`)
+  if (totalDriver > 0) guestsDisplayParts.push(`${totalDriver} Driver`)
+  const guestsDisplay = guestsDisplayParts.join(', ') || '-'
+
+  // Unique room numbers
+  const roomNumbers = Array.from(roomMap.keys()).filter(Boolean)
+  const roomNumbersStr = roomNumbers.join(', ') || '-'
+
+  return {
+    checkin_id: firstRow.checkin_id,
+    guest_id: firstRow.guest_id,
+    guest_name: firstRow.guest_name || firstRow.guestName || 'Guest',
+    guest_mobile: firstRow.guest_mobile || firstRow.mobile || '-',
+    guest_email: firstRow.guest_email || firstRow.emailed || '-',
+    guest_address: firstRow.guest_address || firstRow.address || '-',
+    room_numbers_str: roomNumbersStr,
+    room_categories_str: roomCategoriesStr,
+    total_days: firstRow.total_nights || 0,
+    total_adults: totalAdults,
+    total_child_paid: totalChildPaid,
+    total_driver: totalDriver,
+    reg_no: firstRow.reg_no,
+    plan_name: firstRow.plan_name,
+    company_name: firstRow.company_name || '-',
+    gst_no: firstRow.gst_no || '-',
+    guests_display: guestsDisplay,
+    // Keep these totals from firstRow (already aggregated by SP)
+    total_amount: toNumber(firstRow.total_amount || 0),
+    discount_amount: toNumber(firstRow.discount_amount || 0),
+    advance_amt: toNumber(firstRow.advance_amt || 0),
+    net_payable: toNumber(firstRow.net_payable || 0),
+    cgst_amt: toNumber(firstRow.cgst_amt || 0),
+    sgst_amt: toNumber(firstRow.sgst_amt || 0),
+    igst_amt: toNumber(firstRow.igst_amt || 0),
+    payment_mode: firstRow.payment_mode || 'Cash',
+    original_checkin_datetime: firstRow.checkin_datetimecm,
+    final_checkout_datetime: firstRow.checkout_datetimecm,
+    checked_out_rooms: firstRow.checked_out_rooms
+      ? firstRow.checked_out_rooms.split(',')
+      : [],
+  }
+}, [displayRows, billData])
 
   // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
  // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
