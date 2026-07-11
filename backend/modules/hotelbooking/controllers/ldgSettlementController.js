@@ -320,8 +320,32 @@ exports.updateSettlement = async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      PaymentTypeID, PaymentType, Amount, TipAmount, Refund, Receive,
-      updated_by_id, reason = ''
+      PaymentTypeID,
+      PaymentType,
+      Amount,
+      TipAmount,
+      Refund,
+      Receive,
+      updated_by_id,
+      reason = '',
+      // --- new fields to support ---
+      guest_id,
+      guest_name,
+      room_id,
+      reg_no,
+      registration_no,
+      bill_no,
+      room_name,
+      mobile,
+      outletid,
+      outletname,
+      total_amount,
+      discount_amount,
+      advance_amt,
+      checkout_date,
+      checkin_datetime,
+      checkout_datetime,
+      total_nights
     } = req.body;
 
     // Fetch current record
@@ -331,45 +355,78 @@ exports.updateSettlement = async (req, res) => {
     }
     const old = oldRows[0];
 
-    // Build new values (if not provided, keep old)
-    const newPaymentType = PaymentType || old.PaymentType;
-    const newAmount = Amount !== undefined ? Amount : old.Amount;
-    // (other fields can be added similarly)
-
-    // Log the change using the existing log table columns
-    await db.query(`
-      INSERT INTO ldgsettlement_log (
-        SettlementID,
-        OldPaymentType,
-        OldAmount,
-        NewPaymentType,
-        NewAmount,
-        EditedBy
-      ) VALUES (?, ?, ?, ?, ?, ?)
-    `, [
-      id,
-      old.PaymentType,
-      old.Amount,
-      newPaymentType,
-      newAmount,
-      updated_by_id
-    ]);
-
-    // Build dynamic update
+    // Build dynamic update SET clause
     const updates = [];
     const values = [];
-    if (PaymentTypeID !== undefined) { updates.push('PaymentTypeID = ?'); values.push(PaymentTypeID); }
-    if (PaymentType !== undefined) { updates.push('PaymentType = ?'); values.push(PaymentType); }
-    if (Amount !== undefined) { updates.push('Amount = ?'); values.push(Amount); }
-    if (TipAmount !== undefined) { updates.push('TipAmount = ?'); values.push(TipAmount); }
-    if (Refund !== undefined) { updates.push('Refund = ?'); values.push(Refund); }
-    if (Receive !== undefined) { updates.push('Receive = ?'); values.push(Receive); }
-    if (updated_by_id !== undefined) { updates.push('updated_by_id = ?'); values.push(updated_by_id); }
 
-    if (updates.length === 0) {
+    // Helper to add a field if provided
+    const addField = (field, value) => {
+      if (value !== undefined) {
+        updates.push(`${field} = ?`);
+        values.push(value);
+      }
+    };
+
+    addField('PaymentTypeID', PaymentTypeID);
+    addField('PaymentType', PaymentType);
+    addField('Amount', Amount);
+    addField('TipAmount', TipAmount);
+    addField('Refund', Refund);
+    addField('Receive', Receive);
+    addField('updated_by_id', updated_by_id);
+
+    // --- newly added fields ---
+    addField('guest_id', guest_id);
+    addField('guest_name', guest_name);
+    addField('room_id', room_id);
+    addField('reg_no', reg_no);
+    addField('registration_no', registration_no);
+    addField('bill_no', bill_no);
+    addField('room_name', room_name);
+    addField('mobile', mobile);
+    addField('outletid', outletid);
+    addField('outletname', outletname);
+    addField('total_amount', total_amount);
+    addField('discount_amount', discount_amount);
+    addField('advance_amt', advance_amt);
+    addField('checkout_date', checkout_date);
+    addField('checkin_datetime', checkin_datetime);
+    addField('checkout_datetime', checkout_datetime);
+    addField('total_nights', total_nights);
+
+    // Always update UpdateDate
+    updates.push('UpdateDate = ?');
+    values.push(nowMySQL());
+
+    if (updates.length === 1) { // only UpdateDate was added
       return res.status(400).json({ success: false, message: 'No fields to update' });
     }
-    values.push(id);
+
+    values.push(id); // for WHERE clause
+
+    // Log the change (only payment fields are logged, but you can extend the log table if needed)
+    // For now, we log only payment changes (as before)
+    if (PaymentType !== undefined || Amount !== undefined) {
+      await db.query(`
+        INSERT INTO ldgsettlement_log (
+          SettlementID,
+          OldPaymentType,
+          OldAmount,
+          NewPaymentType,
+          NewAmount,
+          EditedBy
+        ) VALUES (?, ?, ?, ?, ?, ?)
+      `, [
+        id,
+        old.PaymentType,
+        old.Amount,
+        PaymentType || old.PaymentType,
+        Amount !== undefined ? Amount : old.Amount,
+        updated_by_id
+      ]);
+    }
+
+    // Execute update
     await db.query(`UPDATE ldgsettlement SET ${updates.join(', ')} WHERE SettlementID = ?`, values);
 
     res.json({ success: true, message: 'Settlement updated' });
@@ -378,7 +435,6 @@ exports.updateSettlement = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to update' });
   }
 };
-
 // ==================== SOFT DELETE (is_settle = 0) ====================
 exports.deleteSettlement = async (req, res) => {
   try {
