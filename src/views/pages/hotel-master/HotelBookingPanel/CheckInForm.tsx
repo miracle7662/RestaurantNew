@@ -1673,8 +1673,8 @@ const CheckInForm = () => {
         let totExCgst = 0, totExSgst = 0, totExIgst = 0
         let totChildCgst = 0, totChildSgst = 0, totChildIgst = 0
         let totDriverCgst = 0, totDriverSgst = 0, totDriverIgst = 0
-        let totServiceCharge = 0
-        let totAdvance = safeNumber(values.receivedAmount) || 0
+        const totServiceCharge = 0
+        const totAdvance = safeNumber(values.receivedAmount) || 0
 
         let totalAmountAllNights = 0
 

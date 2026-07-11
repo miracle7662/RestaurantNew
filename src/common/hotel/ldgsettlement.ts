@@ -157,39 +157,30 @@ const LdgSettlementService = {
     limit?: number
     offset?: number
   }): Promise<ApiResponse<LdgSettlement[]>> =>
-    HttpClient.get<ApiResponse<LdgSettlement[]>>('/api/ldg-settlements', { params }),
+    HttpClient.get<ApiResponse<LdgSettlement[]>>('/ldg-settlement', { params }),
 
   // Get settlement by ID
   getById: (id: number): Promise<ApiResponse<LdgSettlement>> =>
-    HttpClient.get<ApiResponse<LdgSettlement>>(`/api/ldg-settlements/${id}`),
-
-  // Get settlements by checkout ID
-  getByCheckout: (checkoutId: number): Promise<ApiResponse<LdgSettlement[]>> =>
-    HttpClient.get<ApiResponse<LdgSettlement[]>>(`/api/ldg-settlements/checkout/${checkoutId}`),
-
-  // Get settlement summary by checkout
-  getSummary: (checkoutId: number): Promise<ApiResponse<SettlementSummary>> =>
-    HttpClient.get<ApiResponse<SettlementSummary>>(`/api/ldg-settlements/summary/${checkoutId}`),
+    HttpClient.get<ApiResponse<LdgSettlement>>(`/ldg-settlement/${id}`),
 
   // Create new settlement
   create: (payload: LdgSettlementPayload): Promise<ApiResponse<LdgSettlement>> =>
-    HttpClient.post<ApiResponse<LdgSettlement>>('/api/ldg-settlements', payload),
+    HttpClient.post<ApiResponse<LdgSettlement>>('/ldg-settlement', payload),
 
   // Update settlement
   update: (id: number, payload: Partial<LdgSettlementPayload>): Promise<ApiResponse<LdgSettlement>> =>
-    HttpClient.put<ApiResponse<LdgSettlement>>(`/api/ldg-settlements/${id}`, payload),
+    HttpClient.put<ApiResponse<LdgSettlement>>(`/ldg-settlement/${id}`, payload),
 
   // Replace settlements (for editing)
   replace: (payload: ReplaceSettlementPayload): Promise<ApiResponse<null>> =>
-    HttpClient.put<ApiResponse<null>>('/api/ldg-settlements/replace', payload),
+    HttpClient.put<ApiResponse<null>>('/ldg-settlement/replace', payload),
 
   // Delete/Reverse settlement
   remove: (id: number, data?: { updated_by_id?: number; reason?: string }): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/api/ldg-settlements/${id}`, { data }),
+    HttpClient.delete<ApiResponse<null>>(`/ldg-settlement/${id}`, { data }),
 
   // Bulk update settlement status
-  updateStatus: (payload: UpdateStatusPayload): Promise<ApiResponse<null>> =>
-    HttpClient.put<ApiResponse<null>>('/api/ldg-settlements/status', payload)
+  
 }
 
 export default LdgSettlementService
