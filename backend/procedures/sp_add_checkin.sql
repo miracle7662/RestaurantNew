@@ -1,5 +1,6 @@
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_checkout_bill`(
-    IN p_checkout_id INT
+    IN p_checkout_id INT,
+    IN p_hotelid INT
 )
 BEGIN
 
@@ -93,7 +94,8 @@ BEGIN
     LEFT JOIN msthotelmasters hm ON hm.hotelid = cm.hotelid
     LEFT JOIN guest_info gi ON gi.checkout_id = cm.checkout_id
     LEFT JOIN cd_totals ct ON ct.checkout_id = cm.checkout_id
-    WHERE cm.checkout_id = p_checkout_id;
+    WHERE cm.checkout_id = p_checkout_id
+      AND cm.hotelid = p_hotelid;   -- <-- added hotel validation
 
 
     /* ==========================================================

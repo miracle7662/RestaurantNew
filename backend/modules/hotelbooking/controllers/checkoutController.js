@@ -170,8 +170,7 @@ exports.getBillPreview = async (req, res) => {
     try {
         const { checkout_id, ldg_bill_no } = req.query;
 
-        console.log('🔍 getBillPreview called with:', { checkout_id, ldg_bill_no });
-
+        // 1. Determine checkoutId
         let checkoutId = checkout_id;
 
         if (!checkoutId && ldg_bill_no) {
@@ -195,22 +194,36 @@ exports.getBillPreview = async (req, res) => {
             });
         }
 
-        console.log('🔄 Calling sp_checkout_bill with checkout_id:', checkoutId);
-        const [results] = await db.execute('CALL sp_checkout_bill(?)', [checkoutId]);
+        // 2. Get hotelId – from user context, query param, or fallback to checkout record
+        let hotelId = req.user?.hotelId || req.query.hotel_id;
+
+        if (!hotelId) {
+            // Fetch hotelId from the checkout record
+            const [hotelResult] = await db.execute(
+                'SELECT hotelid FROM checkout_master WHERE checkout_id = ?',
+                [checkoutId]
+            );
+            if (hotelResult.length > 0) {
+                hotelId = hotelResult[0].hotelid;
+            } else {
+                return res.status(404).json({
+                    success: false,
+                    message: "Checkout record not found"
+                });
+            }
+        }
+
+        console.log('🔍 getBillPreview called with:', { checkout_id, ldg_bill_no, hotelId });
+
+        // 3. Call stored procedure with both parameters
+        const [results] = await db.execute('CALL sp_checkout_bill(?, ?)', [checkoutId, hotelId]);
 
         const headerData = results[0][0] || {};
         const transactionRows = results[1] || [];
         const footerSummary = results[2][0] || {};
 
-        // 🔍 Debug – check guest details
-        console.log('👤 Guest Info:', {
-            guest_name: headerData.guest_name,
-            guest_mobile: headerData.guest_mobile,
-            guest_email: headerData.guest_email,
-            guest_address: headerData.guest_address,
-        });
-
-        // Optional: Map transaction types for frontend
+        // ... rest of the mapping and response unchanged
+        // (keep your existing mapping code)
         const typeMap = {
             'CHARGE': 'Post Charge',
             'ALLOWANCE': 'Allowance',
@@ -231,10 +244,8 @@ exports.getBillPreview = async (req, res) => {
             room_total_amount: row.total_amount || 0,
             post_charges: row.post_charges || 0,
             allowance: row.allowance || 0,
-            // Map transaction_type if needed
             transaction_type: typeMap[row.transaction_type] || row.transaction_type || '',
             description: row.description || '',
-            // Footer values (optional, but keep for compatibility)
             net_payable: footerSummary.net_payable || headerData.net_payable || 0,
             bill_amount: footerSummary.bill_amount || headerData.total_amount || 0,
             discount_amount_total: footerSummary.discount_amount || headerData.discount_amount || 0,
@@ -260,40 +271,6 @@ exports.getBillPreview = async (req, res) => {
             message: error.message
         });
     }
-};
-
-// GET /api/checkout/bills-by-date
-const getBillByCheckoutId = async (req, res) => {
-  const { checkoutId } = req.params;
-  if (!checkoutId || isNaN(Number(checkoutId))) {
-    return res.status(400).json({ success: false, message: 'Invalid checkout ID' });
-  }
-
-  try {
-    // Call the existing stored procedure
-    const [results] = await db.query('CALL sp_checkout_bill(?)', [checkoutId]);
-
-    // Result sets:
-    // results[0] – header (single row)
-    // results[1] – bill details (multiple rows)
-    // results[2] – footer summary (single row)
-    const header = results[0]?.[0] || {};
-    const details = results[1] || [];
-    const footer = results[2]?.[0] || {};
-
-    // Structure expected by CheckoutBillModal
-    const billData = {
-      checkoutMaster: header,
-      roomDetails: details,
-      summary: footer,
-      // The modal can compute extra charges/taxes from these
-    };
-
-    res.json({ success: true, data: billData });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
 };
 
 // Helper functions for formatting
