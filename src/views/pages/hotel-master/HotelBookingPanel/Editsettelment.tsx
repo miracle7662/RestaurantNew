@@ -306,42 +306,70 @@ const EditSettlementPage: React.FC = () => {
     setShowSettlementModal(true);
   };
 
-  const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
-    if (!editingSettlement) return;
+const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
+  if (!editingSettlement) return;
 
-    setEditLoading(true);
+  setEditLoading(true);
 
-    try {
-      await LdgSettlementService.replace({
-        checkoutId: editingSettlement.checkout_id,
-        checkinId: editingSettlement.checkinid,
-        newSettlements: newSettlements.filter(s => s.Amount > 0),
-        HotelID: editingSettlement.hotelid,
-        outletId: editingSettlement.outletid,
-        updated_by_id: user?.id ? Number(user.id) : null,
-        checkout_date: editingSettlement.checkout_date,
-        ldg_bill_no: editingSettlement.ldg_bill_no || editingSettlement.bill_no
-      });
+  try {
+    // 1. Extract all non‑payment fields from the existing settlement
+    const baseData = {
+      guest_id: editingSettlement.guest_id,
+      guest_name: editingSettlement.guest_name,
+      room_id: editingSettlement.room_id,
+      room_name: editingSettlement.room_name,
+      room_no: editingSettlement.room_no,
+      reg_no: editingSettlement.reg_no,
+      registration_no: editingSettlement.registration_no,
+      bill_no: editingSettlement.bill_no,
+      mobile: editingSettlement.mobile,
+      outletid: editingSettlement.outletid,
+      outletname: editingSettlement.outletname,
+      total_amount: editingSettlement.total_amount,
+      discount: editingSettlement.discount_amount,
+      total_advance: editingSettlement.advance_amt,
+      userid: editingSettlement.userid || Number(user?.id),
+    };
 
-      setNotification({
-        show: true,
-        message: 'Settlement updated successfully',
-        type: 'success'
-      });
+    // 2. Merge base data into each payment split
+    const enrichedSettlements = newSettlements.map((s) => ({
+      ...baseData,
+      ...s, // s contains PaymentTypeID, PaymentType, Amount, TipAmount, Receive, Refund
+      // Override tip with top‑level if provided (otherwise keep per‑split tip)
+      TipAmount: tip !== undefined ? tip : (s.TipAmount || 0),
+    }));
 
-      setShowSettlementModal(false);
-      setEditingSettlement(null);
-      fetchSettlements();
-    } catch (err: any) {
-      setNotification({
-        show: true,
-        message: err.response?.data?.message || 'Failed to update settlement',
-        type: 'danger'
-      });
-    } finally {
-      setEditLoading(false);
-    }
-  };
+    // 3. Call replace API with enriched data
+    await LdgSettlementService.replace({
+      checkoutId: editingSettlement.checkout_id,
+      checkinId: editingSettlement.checkinid,
+      newSettlements: enrichedSettlements.filter((s) => s.Amount > 0),
+      HotelID: editingSettlement.hotelid,
+      outletId: editingSettlement.outletid,
+      updated_by_id: Number(user?.id),
+      checkout_date: editingSettlement.checkout_date,
+      ldg_bill_no: editingSettlement.ldg_bill_no || editingSettlement.bill_no,
+    });
+
+    // 4. Success feedback & refresh
+    setNotification({
+      show: true,
+      message: 'Settlement updated successfully',
+      type: 'success',
+    });
+    setShowSettlementModal(false);
+    setEditingSettlement(null);
+    fetchSettlements();
+  } catch (err: any) {
+    setNotification({
+      show: true,
+      message: err.response?.data?.message || 'Failed to update settlement',
+      type: 'danger',
+    });
+  } finally {
+    setEditLoading(false);
+  }
+};
 
   // ── Render ──────────────────────────────────────────────────────
 

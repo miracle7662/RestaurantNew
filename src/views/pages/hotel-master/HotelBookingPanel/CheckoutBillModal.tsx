@@ -323,12 +323,23 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   }, [billData])
 
   // ========== BUILD SUMMARY - DIRECT FROM HEADER ROW ==========
- const summary = useMemo(() => {
+const summary = useMemo(() => {
   if (!billData.length || !displayRows.length) return null
 
   const firstRow = billData[0]
 
-  // Aggregate by room to avoid duplicates (each room may have multiple charge rows)
+  // ---- NEW: collect unique guest names from all rows ----
+  const guestNames = [
+    ...new Set(
+      displayRows
+        .map((row) => row.guest_name)
+        .filter((name) => name && name.trim() !== '')
+    ),
+  ]
+  const guestNameDisplay = guestNames.length ? guestNames.join(', ') : 'Guest'
+  // -------------------------------------------------------
+
+  // Aggregate room-level data (same as before)
   const roomMap = new Map<
     string,
     { adults: number; child_paid: number; driver: number; category: string }
@@ -345,7 +356,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     }
   })
 
-  // Sum across unique rooms
   let totalAdults = 0,
     totalChildPaid = 0,
     totalDriver = 0
@@ -359,21 +369,21 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
   const roomCategoriesStr = Array.from(categoriesSet).join(', ') || '-'
 
-  // Build guest display
   const guestsDisplayParts = []
   if (totalAdults > 0) guestsDisplayParts.push(`${totalAdults} Adults`)
   if (totalChildPaid > 0) guestsDisplayParts.push(`${totalChildPaid} Child`)
   if (totalDriver > 0) guestsDisplayParts.push(`${totalDriver} Driver`)
   const guestsDisplay = guestsDisplayParts.join(', ') || '-'
 
-  // Unique room numbers
   const roomNumbers = Array.from(roomMap.keys()).filter(Boolean)
   const roomNumbersStr = roomNumbers.join(', ') || '-'
 
   return {
     checkin_id: firstRow.checkin_id,
     guest_id: firstRow.guest_id,
-    guest_name: firstRow.guest_name || firstRow.guestName || 'Guest',
+    // ---- Use the combined name here ----
+    guest_name: guestNameDisplay,
+    // ------------------------------------
     guest_mobile: firstRow.guest_mobile || firstRow.mobile || '-',
     guest_email: firstRow.guest_email || firstRow.emailed || '-',
     guest_address: firstRow.guest_address || firstRow.address || '-',
@@ -388,7 +398,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     company_name: firstRow.company_name || '-',
     gst_no: firstRow.gst_no || '-',
     guests_display: guestsDisplay,
-    // Keep these totals from firstRow (already aggregated by SP)
     total_amount: toNumber(firstRow.total_amount || 0),
     discount_amount: toNumber(firstRow.discount_amount || 0),
     advance_amt: toNumber(firstRow.advance_amt || 0),
@@ -404,7 +413,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       : [],
   }
 }, [displayRows, billData])
-
   // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
  // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
 const tableRows = useMemo(() => {
@@ -1012,13 +1020,19 @@ const tableRows = useMemo(() => {
         <div className="bill-info-box-body" style={{ padding: '6px 10px' }}>
           <table className="bill-detail-table" style={{ width: '100%' }}>
             <tbody>
-              {printSettings?.show_guest_name === 1 && (
-                <tr>
-                  <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Name</td>
-                  <td className="bdt-colon" style={{ width: '6px', fontSize: '10pt' }}>:</td>
-                  <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '10pt', color: headerBg }}>{summary?.guest_name || '-'}</td>
-                </tr>
-              )}
+            {printSettings?.show_guest_name === 1 && (
+  <tr>
+    <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Name</td>
+    <td className="bdt-colon" style={{ width: '6px', fontSize: '10pt' }}>:</td>
+    <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '10pt', color: headerBg }}>
+      {summary?.guest_name ? (
+        summary.guest_name.split(', ').map((name, idx) => (
+          <div key={idx}>{name}</div>
+        ))
+      ) : '-'}
+    </td>
+  </tr>
+)}
               {printSettings?.show_guest_address === 1 && (
                 <tr>
                   <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Address</td>
