@@ -19,12 +19,12 @@ import OutletPaymentModeService from '@/common/api/outletpaymentmode';
 
 // ==================== INTERFACES ====================
 
-// Re-define PaymentMode interface to match SettlementModal expectations
+// PaymentMode interface matching SettlementModal expectations
 interface PaymentMode {
   id: number;
   paymenttypeid: number;
   mode_name: string;
-  outletid?: number;
+  outletid: number;  // Required, not optional
   sequence?: number;
 }
 
@@ -75,8 +75,7 @@ const EditSettlementPage: React.FC = () => {
   // ── Bill Modal ──────────────────────────────────────────────────
   const [showBillModal, setShowBillModal] = useState(false);
   const [selectedCheckoutId, setSelectedCheckoutId] = useState<number | null>(null);
-  const [selectedLdgBillNo, setSelectedLdgBillNo] = useState<string | undefined>();
-  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
+  const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null); // 🔥 FIX: needed so CheckoutBillModal can load print settings
 
   // ── Edit Settlement Modal ──────────────────────────────────────
   const [showSettlementModal, setShowSettlementModal] = useState(false);
@@ -91,10 +90,10 @@ const EditSettlementPage: React.FC = () => {
 
   // ── F8 Password Modal ──────────────────────────────────────────
   const [showF8Modal, setShowF8Modal] = useState(false);
+  // 🔥 FIX: pendingPrintData now also carries hotelId so it survives the F8 flow
   const [pendingPrintData, setPendingPrintData] = useState<{
     checkoutId: number;
-    ldgBillNo?: string;
-    rooms: string[];
+    hotelId?: number | null;
   } | null>(null);
   const [f8Error, setF8Error] = useState('');
   const [f8Loading, setF8Loading] = useState(false);
@@ -134,14 +133,17 @@ const EditSettlementPage: React.FC = () => {
           outletid: outletId.toString()
         });
         let data = response.data || [];
-        data = data.sort((a: PaymentMode, b: PaymentMode) => {
+        data = data.sort((a: any, b: any) => {
           if (a.sequence && b.sequence) return a.sequence - b.sequence;
           return (a.id || 0) - (b.id || 0);
         });
-        // Map to ensure outletid exists
-        const mappedData = data.map((item: any) => ({
-          ...item,
-          outletid: item.outletid || Number(outletId)
+        // Map to ensure outletid is always a number (not undefined)
+        const mappedData: PaymentMode[] = data.map((item: any) => ({
+          id: item.id || 0,
+          paymenttypeid: item.paymenttypeid || 0,
+          mode_name: item.mode_name || '',
+          outletid: Number(outletId),  // Ensure outletid is always a number
+          sequence: item.sequence || 0
         }));
         setOutletPaymentModes(mappedData);
       } catch (err) {
@@ -222,35 +224,37 @@ const EditSettlementPage: React.FC = () => {
   };
 
   // ── Handle Print Bill ──────────────────────────────────────────
-  const handlePrintBill = (group: LdgSettlement) => {
-    const checkoutId = group.checkout_id;
-    const ldgBillNo = group.ldg_bill_no || group.bill_no || undefined;
-    const rooms = group.rooms || [group.room_no || group.room_name || ''].filter(Boolean);
+ const handlePrintBill = (group: LdgSettlement) => {
+  const checkoutId = group.checkout_id;
+  // 🔥 FIX: resolve hotelId from the settlement row (fallback to filters/user)
+  // so CheckoutBillModal can fetch its print settings correctly.
+  const hotelId = group.hotelid || Number(filters.hotelId) || user?.hotel_id || null;
 
-    const printData = {
-      checkoutId,
-      ldgBillNo: ldgBillNo || undefined,
-      rooms: rooms.filter(Boolean)
-    };
+  console.log("🖨️ Print Bill Clicked");
+  console.log("📌 Settlement Row:", group);
+  console.log("📌 Checkout ID:", checkoutId);
+  console.log("📌 Hotel ID:", hotelId);
+  console.log("📌 Bill No:", group.ldg_bill_no);
+  console.log("📌 Checkin ID:", group.checkinid);
+  console.log("📌 Checkout Date:", group.checkout_date);
+  console.log("📌 Is Backdated:", isBackdated(group.checkout_date || group.InsertDate));
 
-    // Check if backdated
-    if (isBackdated(group.checkout_date || group.InsertDate)) {
-      setPendingPrintData(printData);
-      setF8Error('');
-      setShowF8Modal(true);
-    } else {
-      openBillModal(printData);
-    }
-  };
+  // Check if backdated
+  if (isBackdated(group.checkout_date || group.InsertDate)) {
+    console.log("🔐 Opening F8 Password Modal");
+    setPendingPrintData({ checkoutId, hotelId }); // 🔥 FIX: carry hotelId through F8 flow
+    setF8Error('');
+    setShowF8Modal(true);
+  } else {
+    console.log("📄 Opening CheckoutBillModal with checkoutId:", checkoutId, "hotelId:", hotelId);
+    openBillModal(checkoutId, hotelId);
+  }
+};
 
-  const openBillModal = (data: {
-    checkoutId: number;
-    ldgBillNo?: string;
-    rooms: string[];
-  }) => {
-    setSelectedCheckoutId(data.checkoutId);
-    setSelectedLdgBillNo(data.ldgBillNo);
-    setSelectedRooms(data.rooms);
+  // 🔥 FIX: accept checkoutId AND hotelId
+  const openBillModal = (checkoutId: number, hotelId?: number | null) => {
+    setSelectedCheckoutId(checkoutId);
+    setSelectedHotelId(hotelId ?? null); // 🔥 FIX
     setShowBillModal(true);
   };
 
@@ -263,7 +267,7 @@ const EditSettlementPage: React.FC = () => {
     try {
       // Verify password (replace with actual API call if needed)
       // For demo, just proceed
-      openBillModal(pendingPrintData);
+      openBillModal(pendingPrintData.checkoutId, pendingPrintData.hotelId); // 🔥 FIX: pass hotelId along
       setShowF8Modal(false);
       setPendingPrintData(null);
     } catch (error: any) {
@@ -342,222 +346,233 @@ const EditSettlementPage: React.FC = () => {
   // ── Render ──────────────────────────────────────────────────────
 
   return (
-    <div className="container-fluid p-3" style={{ minHeight: '100vh' }}>
-      <h3 className="mb-4">🏨 LDG Settlements</h3>
+    <>
+      <div className="container-fluid p-3" style={{ minHeight: '100vh' }}>
+        <h3 className="mb-4">🏨 LDG Settlements</h3>
 
-      {/* Notification */}
-      <Alert
-        show={notification.show}
-        variant={notification.type}
-        dismissible
-        onClose={() => setNotification({ ...notification, show: false })}
-      >
-        {notification.message}
-      </Alert>
+        {/* Notification */}
+        <Alert
+          show={notification.show}
+          variant={notification.type}
+          dismissible
+          onClose={() => setNotification({ ...notification, show: false })}
+        >
+          {notification.message}
+        </Alert>
 
-      {/* Filters */}
-      <div className="p-3 bg-light rounded mb-4 shadow-sm">
-        <Row className="g-3">
-          <Col md={2}>
-            <Form.Control
-              type="text"
-              placeholder="Guest Name"
-              value={filters.guestName}
-              onChange={e => setFilters({ ...filters, guestName: e.target.value })}
-            />
-          </Col>
-          <Col md={2}>
-            <Form.Control
-              type="text"
-              placeholder="Room No"
-              value={filters.roomNo}
-              onChange={e => setFilters({ ...filters, roomNo: e.target.value })}
-            />
-          </Col>
-          <Col md={2}>
-            <Form.Control
-              type="text"
-              placeholder="Bill No"
-              value={filters.ldgBillNo}
-              onChange={e => setFilters({ ...filters, ldgBillNo: e.target.value })}
-            />
-          </Col>
-          <Col md={2}>
-            <Form.Control
-              type="date"
-              value={filters.fromDate}
-              onChange={e => setFilters({ ...filters, fromDate: e.target.value })}
-            />
-          </Col>
-          <Col md={2}>
-            <Form.Control
-              type="date"
-              value={filters.toDate}
-              onChange={e => setFilters({ ...filters, toDate: e.target.value })}
-            />
-          </Col>
-          <Col md={2}>
-            <Form.Select
-              value={filters.paymentType}
-              onChange={e => setFilters({ ...filters, paymentType: e.target.value })}
-            >
-              <option value="">All Payments</option>
-              <option value="Cash">Cash</option>
-              <option value="Card">Card</option>
-              <option value="UPI">UPI</option>
-              <option value="Wallet">Wallet</option>
-            </Form.Select>
-          </Col>
-          <Col md={2}>
-            <Button variant="primary" onClick={fetchSettlements} className="w-100">
-              <i className="fi fi-rr-search me-1"></i> Search
-            </Button>
-          </Col>
-        </Row>
-      </div>
+        {/* Filters */}
+        <div className="p-3 bg-light rounded mb-4 shadow-sm">
+          <Row className="g-3">
+            <Col md={2}>
+              <Form.Control
+                type="text"
+                placeholder="Guest Name"
+                value={filters.guestName}
+                onChange={e => setFilters({ ...filters, guestName: e.target.value })}
+              />
+            </Col>
+            <Col md={2}>
+              <Form.Control
+                type="text"
+                placeholder="Room No"
+                value={filters.roomNo}
+                onChange={e => setFilters({ ...filters, roomNo: e.target.value })}
+              />
+            </Col>
+            <Col md={2}>
+              <Form.Control
+                type="text"
+                placeholder="Bill No"
+                value={filters.ldgBillNo}
+                onChange={e => setFilters({ ...filters, ldgBillNo: e.target.value })}
+              />
+            </Col>
+            <Col md={2}>
+              <Form.Control
+                type="date"
+                value={filters.fromDate}
+                onChange={e => setFilters({ ...filters, fromDate: e.target.value })}
+              />
+            </Col>
+            <Col md={2}>
+              <Form.Control
+                type="date"
+                value={filters.toDate}
+                onChange={e => setFilters({ ...filters, toDate: e.target.value })}
+              />
+            </Col>
+            <Col md={2}>
+              <Form.Select
+                value={filters.paymentType}
+                onChange={e => setFilters({ ...filters, paymentType: e.target.value })}
+              >
+                <option value="">All Payments</option>
+                <option value="Cash">Cash</option>
+                <option value="Card">Card</option>
+                <option value="UPI">UPI</option>
+                <option value="Wallet">Wallet</option>
+              </Form.Select>
+            </Col>
+            <Col md={2}>
+              <Button variant="primary" onClick={fetchSettlements} className="w-100">
+                <i className="fi fi-rr-search me-1"></i> Search
+              </Button>
+            </Col>
+          </Row>
+        </div>
 
-      {/* Table */}
-      <div className="table-responsive" style={{ fontSize: '12px' }}>
-        <Table striped bordered hover responsive size="sm">
-          <thead className="table-light">
-            <tr style={{ fontSize: '12px' }}>
-              <th style={{ width: '3%' }}>ID</th>
-              <th style={{ width: '7%' }}>Date</th>
-              <th style={{ width: '7%' }}>Bill No</th>
-              <th style={{ width: '10%' }}>Guest</th>
-              <th style={{ width: '7%' }}>Room(s)</th>
-              <th style={{ width: '5%' }}>Nights</th>
-              <th style={{ width: '10%' }}>Payment</th>
-              <th style={{ width: '7%' }}>Total Amt</th>
-              <th style={{ width: '7%' }}>Settled</th>
-              <th style={{ width: '4%' }}>Tip</th>
-              <th style={{ width: '8%' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody style={{ fontSize: '12px' }}>
-            {loading ? (
-              <tr>
-                <td colSpan={11} className="text-center py-4">
-                  <Spinner animation="border" variant="primary" size="sm" className="me-2" />
-                  Loading settlements...
-                </td>
+        {/* Table */}
+        <div className="table-responsive" style={{ fontSize: '12px' }}>
+          <Table striped bordered hover responsive size="sm">
+            <thead className="table-light">
+              <tr style={{ fontSize: '12px' }}>
+                <th style={{ width: '3%' }}>ID</th>
+                <th style={{ width: '6%' }}>Date</th>
+                <th style={{ width: '7%' }}>Bill No</th>
+                <th style={{ width: '8%' }}>Guest</th>
+                <th style={{ width: '6%' }}>Room(s)</th>
+                <th style={{ width: '4%' }}>Nights</th>
+                <th style={{ width: '8%' }}>Payment</th>
+                <th style={{ width: '6%' }}>Total Amt</th>
+                <th style={{ width: '6%' }}>Settled</th>
+                <th style={{ width: '6%' }}>Receive</th>
+                <th style={{ width: '6%' }}>Refund</th>
+                <th style={{ width: '4%' }}>Tip</th>
+                <th style={{ width: '8%' }}>Actions</th>
               </tr>
-            ) : settlements.length === 0 ? (
-              <tr>
-                <td colSpan={11} className="text-center py-4 text-muted">
-                  No settlements found
-                </td>
-              </tr>
-            ) : (
-              settlements.map((group, index) => {
-                const isBackdatedBill = isBackdated(
-                  group.checkout_date || group.InsertDate
-                );
-                const totalAmount = toNumber(group.total_amount);
-                const settledAmount = toNumber(group.Amount);
-                const tipAmount = toNumber(group.TipAmount);
-                const roomDisplay = group.rooms?.join(', ') || group.display_room || 'N/A';
+            </thead>
+            <tbody style={{ fontSize: '12px' }}>
+              {loading ? (
+                <tr>
+                  <td colSpan={13} className="text-center py-4">
+                    <Spinner animation="border" variant="primary" size="sm" className="me-2" />
+                    Loading settlements...
+                  </td>
+                </tr>
+              ) : settlements.length === 0 ? (
+                <tr>
+                  <td colSpan={13} className="text-center py-4 text-muted">
+                    No settlements found
+                  </td>
+                </tr>
+              ) : (
+                settlements.map((group, index) => {
+                  const isBackdatedBill = isBackdated(
+                    group.checkout_date || group.InsertDate
+                  );
+                  const totalAmount = toNumber(group.total_amount);
+                  const settledAmount = toNumber(group.Amount);
+                  const tipAmount = toNumber(group.TipAmount);
+                  const receiveAmount = toNumber(group.Receive);
+                  const refundAmount = toNumber(group.Refund);
+                  const roomDisplay = group.rooms?.join(', ') || group.display_room || 'N/A';
 
-                return (
-                  <tr key={group.SettlementIDs?.join('-') || index}>
-                    <td style={{ fontSize: '11px' }}>
-                      {group.SettlementIDs?.join(', ') || group.SettlementID}
-                    </td>
-                    <td style={{ fontSize: '11px' }}>
-                      {group.InsertDate
-                        ? new Date(group.InsertDate).toLocaleDateString('en-GB')
-                        : '-'}
-                    </td>
-                    <td>
-                      <strong style={{ fontSize: '12px' }}>
-                        {group.display_bill_no || group.ldg_bill_no || group.bill_no || '-'}
-                      </strong>
-                      {group.reg_no && (
-                        <br />
-                        <small style={{ fontSize: '10px' }} className="text-muted">
-                          Reg: {group.reg_no}
-                        </small>
-                      )}
-                    </td>
-                    <td>
-                      <strong style={{ fontSize: '12px' }}>
-                        {group.guest_name || 'Guest'}
-                      </strong>
-                      {group.mobile && (
-                        <br />
-                        <small style={{ fontSize: '10px' }} className="text-muted">
-                          {group.mobile}
-                        </small>
-                      )}
-                    </td>
-                    <td style={{ fontSize: '11px' }}>{roomDisplay}</td>
-                    <td className="text-center" style={{ fontSize: '11px' }}>
-                      {group.total_nights || 1}
-                    </td>
-                    <td>
-                      {Object.entries(group.paymentBreakdown || {}).map(
-                        ([type, amount]) => (
-                          <div key={type} style={{ fontSize: '11px' }}>
-                            {type}: ₹{toNumber(amount).toFixed(2)}
-                          </div>
-                        )
-                      )}
-                    </td>
-                    <td className="fw-bold" style={{ fontSize: '12px', backgroundColor: '#f8f9fa' }}>
-                      ₹{totalAmount.toFixed(2)}
-                    </td>
-                    <td className="fw-bold" style={{ fontSize: '12px' }}>
-                      ₹{settledAmount.toFixed(2)}
-                    </td>
-                    <td className="text-success" style={{ fontSize: '11px' }}>
-                      {tipAmount > 0 ? `₹${tipAmount.toFixed(2)}` : '-'}
-                    </td>
-                    <td>
-                      <div className="d-flex gap-1 flex-wrap">
-                        <Button
-                          size="sm"
-                          variant="success"
-                          onClick={() => handleEdit(group)}
-                          disabled={isBackdatedBill}
-                          title={isBackdatedBill ? 'Cannot edit backdated bills' : 'Edit'}
-                          className="px-2 py-1"
-                          style={{ fontSize: '11px' }}
-                        >
-                          <i className="fi fi-rr-edit"></i>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="dark"
-                          onClick={() => handlePrintBill(group)}
-                          title="Print Bill"
-                          className="px-2 py-1"
-                          style={{ fontSize: '11px' }}
-                        >
-                          <i className="fi fi-rr-print"></i>
-                        </Button>
-                        {isBackdatedBill && (
-                          <Badge bg="warning" text="dark" style={{ fontSize: '8px' }}>
-                            Backdated
-                          </Badge>
+                  return (
+                    <tr key={group.SettlementIDs?.join('-') || index}>
+                      <td style={{ fontSize: '11px' }}>
+                        {group.SettlementIDs?.join(', ') || group.SettlementID}
+                      </td>
+                      <td style={{ fontSize: '11px' }}>
+                        {group.InsertDate
+                          ? new Date(group.InsertDate).toLocaleDateString('en-GB')
+                          : '-'}
+                      </td>
+                      <td>
+                        <strong style={{ fontSize: '12px' }}>
+                          {group.display_bill_no || group.ldg_bill_no || group.bill_no || '-'}
+                        </strong>
+                        {group.reg_no && (
+                          <>
+                            <br />
+                            <small style={{ fontSize: '10px' }} className="text-muted">
+                              Reg: {group.reg_no}
+                            </small>
+                          </>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </Table>
-      </div>
+                      </td>
+                      <td>
+                        <strong style={{ fontSize: '12px' }}>
+                          {group.guest_name || 'Guest'}
+                        </strong>
+                        {group.mobile && (
+                          <>
+                            <br />
+                            <small style={{ fontSize: '10px' }} className="text-muted">
+                              {group.mobile}
+                            </small>
+                          </>
+                        )}
+                      </td>
+                      <td style={{ fontSize: '11px' }}>{roomDisplay}</td>
+                      <td className="text-center" style={{ fontSize: '11px' }}>
+                        {group.total_nights || 1}
+                      </td>
+                      <td>
+                        {Object.entries(group.paymentBreakdown || {}).map(
+                          ([type, amount]) => (
+                            <div key={type} style={{ fontSize: '11px' }}>
+                              {type}: ₹{toNumber(amount).toFixed(2)}
+                            </div>
+                          )
+                        )}
+                      </td>
+                      <td className="fw-bold" style={{ fontSize: '12px', backgroundColor: '#f8f9fa' }}>
+                        ₹{totalAmount.toFixed(2)}
+                      </td>
+                      <td className="fw-bold" style={{ fontSize: '12px' }}>
+                        ₹{settledAmount.toFixed(2)}
+                      </td>
+                      <td className="fw-bold" style={{ fontSize: '12px' }}>
+                        ₹{receiveAmount.toFixed(2)}
+                      </td>
+                      <td className="fw-bold" style={{ fontSize: '12px', color: '#d9534f' }}>
+                        ₹{refundAmount.toFixed(2)}
+                      </td>
+                      <td className="text-success" style={{ fontSize: '11px' }}>
+                        {tipAmount > 0 ? `₹${tipAmount.toFixed(2)}` : '-'}
+                      </td>
+                      <td>
+                        <div className="d-flex gap-1 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => handleEdit(group)}
+                            disabled={isBackdatedBill}
+                            title={isBackdatedBill ? 'Cannot edit backdated bills' : 'Edit'}
+                            className="px-2 py-1"
+                            style={{ fontSize: '11px' }}
+                          >
+                            <i className="fi fi-rr-edit"></i>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="dark"
+                            onClick={() => handlePrintBill(group)}
+                            title="Print Bill"
+                            className="px-2 py-1"
+                            style={{ fontSize: '11px' }}
+                          >
+                            <i className="fi fi-rr-print"></i>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </Table>
+        </div>
 
-      {/* Pagination */}
-      <PaginationComponent
-        totalItems={totalItems}
-        pageSize={pageSize}
-        currentPage={currentPage}
-        onPageChange={handlePageChange}
-        onPageSizeChange={handlePageSizeChange}
-      />
+        {/* Pagination */}
+        <PaginationComponent
+          totalItems={totalItems}
+          pageSize={pageSize}
+          currentPage={currentPage}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      </div>
 
       {/* Edit Settlement Modal */}
       <SettlementModal
@@ -594,28 +609,25 @@ const EditSettlementPage: React.FC = () => {
         onSubmit={handleF8PasswordSubmit}
         error={f8Error}
         loading={f8Loading}
-        txnId={pendingPrintData?.ldgBillNo}
+        txnId={pendingPrintData?.checkoutId?.toString()} // we can pass checkoutId as transaction id
         title="F8 Action - Password Required"
         description="This bill has been backdated. Please enter your password to proceed with printing."
       />
 
-      {/* Checkout Bill Modal */}
+      {/* Checkout Bill Modal – 🔥 FIX: hotelId is now passed so print settings (header/guest/booking sections) load correctly */}
       {selectedCheckoutId && (
         <CheckoutBillModal
           show={showBillModal}
           onHide={() => {
             setShowBillModal(false);
             setSelectedCheckoutId(null);
-            setSelectedLdgBillNo(undefined);
-            setSelectedRooms([]);
+            setSelectedHotelId(null); // 🔥 FIX
           }}
           checkoutId={selectedCheckoutId}
-          ldgBillNo={selectedLdgBillNo}
-          hotelId={Number(filters.hotelId) || user?.hotel_id}
-          selectedRooms={selectedRooms}
+          hotelId={selectedHotelId ?? undefined} // 🔥 FIX: this was missing and caused printSettings to stay null
         />
       )}
-    </div>
+    </>
   );
 };
 
