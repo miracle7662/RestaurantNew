@@ -1638,7 +1638,7 @@ const handleExtendDay = async () => {
           {activeHousekeepingTab ? null
             : showSettlementPage ? (
               <div style={{ height: '100%' }}>
-                <SettlementPage onSuccess={() => fetchHotelBookingMetaData()} />
+                <SettlementPage />
               </div>
             ) : showArrivals ? (
               <div style={{ height: '100%', padding: '16px' }}>
