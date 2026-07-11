@@ -1017,33 +1017,45 @@ const handleExtendDay = async () => {
   }
 
   const handleRemoveSelectionForSection = async (roomIds: number[]) => {
-    const toVacate = roomIds.filter((id) => selectedHousekeepingRoomIds.includes(id))
-    if (toVacate.length === 0) {
-      toast.error('No rooms selected. Please select rooms first.')
-      return
-    }
-    try {
-      for (const roomId of toVacate) {
-        const room = rooms.find((r) => r.id === roomId)
-        if (room) {
-          await RoomService.update(roomId, { 
-            ...room.rawData, 
-            room_status_id: 1, 
-            room_status: 'available', 
-            updated_by_id: user?.id 
-          })
-        }
-      }
-      setRawRooms((prev) =>
-        prev.map((r) => toVacate.includes(r.room_id) ? { ...r, room_status_id: 1, room_status: 'available' } : r),
-      )
-      setSelectedHousekeepingRoomIds((prev) => prev.filter((id) => !toVacate.includes(id)))
-      toast.success(`${toVacate.length} room(s) marked as Vacant.`)
-    } catch (err) {
-      console.error('Failed to make rooms vacant:', err)
-      toast.error('Failed to update room status.')
-    }
+  const toVacate = roomIds.filter((id) => selectedHousekeepingRoomIds.includes(id))
+  if (toVacate.length === 0) {
+    toast.error('No rooms selected. Please select rooms first.')
+    return
   }
+  try {
+    for (const roomId of toVacate) {
+      const room = rooms.find((r) => r.id === roomId)
+      if (room) {
+        await RoomService.update(roomId, {
+          ...room.rawData,
+          room_status_id: 1,
+          room_status: 'available',
+          updated_by_id: user?.id
+        })
+      }
+    }
+
+    // ✅ status_color / status_name bhi reset karo, warna tile purane color me hi rehti hai
+    setRawRooms((prev) =>
+      prev.map((r) =>
+        toVacate.includes(r.room_id)
+          ? {
+              ...r,
+              room_status_id: 1,
+              room_status: 'available',
+              status_name: 'Vacant',
+              status_color: uiSettings.color_vacant || '#ffffff',
+            }
+          : r,
+      ),
+    )
+    setSelectedHousekeepingRoomIds((prev) => prev.filter((id) => !toVacate.includes(id)))
+    toast.success(`${toVacate.length} room(s) marked as Vacant.`)
+  } catch (err) {
+    console.error('Failed to make rooms vacant:', err)
+    toast.error('Failed to update room status.')
+  }
+}
 
   const exportCheckoutToExcel = (data: CheckoutAlertItem[], filename: string) => {
     const ws = XLSX.utils.json_to_sheet(
@@ -1345,6 +1357,7 @@ const handleExtendDay = async () => {
                       handleHousekeepingTabClick(null)
                       handleStatusFilterClick('all')
                     } else {
+                       fetchHotelBookingMetaData()      
                       handleStatusFilterClick('cleaning')
                       handleHousekeepingTabClick('all')
                     }
@@ -1625,7 +1638,7 @@ const handleExtendDay = async () => {
           {activeHousekeepingTab ? null
             : showSettlementPage ? (
               <div style={{ height: '100%' }}>
-                <SettlementPage />
+                <SettlementPage onSuccess={() => fetchHotelBookingMetaData()} />
               </div>
             ) : showArrivals ? (
               <div style={{ height: '100%', padding: '16px' }}>
