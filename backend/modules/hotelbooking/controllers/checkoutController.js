@@ -357,7 +357,10 @@ exports.performCheckout = async (req, res) => {
       payment_mode,
       is_settle,
       is_print,
-      checkout_datetime,  // ✅ ADD THIS - extract from request body
+      checkout_datetime,
+      // ✅ NEW PARAMETERS FOR UNDO FUNCTIONALITY
+      is_undo = 0,          // Default: 0 (normal checkout)
+      undo_room_ids = null  // Default: null (no undo)
     } = req.body;
 
     const userId = getCurrentUserId(req);
@@ -369,6 +372,8 @@ exports.performCheckout = async (req, res) => {
     console.log(`🔵 Total Amount: ${total_amount}`);
     console.log(`🔵 Net Payable: ${net_payable}`);
     console.log(`🔵 Invoice No: ${invoiceNoFromBody || 'Auto generate'}`);
+    console.log(`🔵 Is Undo Mode: ${is_undo}`);
+    console.log(`🔵 Undo Room IDs: ${JSON.stringify(undo_room_ids)}`);
 
     // Check if checkin exists
     console.log('🔵 Checking if checkin exists...');
@@ -417,7 +422,7 @@ exports.performCheckout = async (req, res) => {
       [checkin_id]
     );
 
-    // ✅ UPDATE PARAMETERS - NOW 14 PARAMETERS
+    // ✅ UPDATE PARAMETERS - NOW 16 PARAMETERS
     const params = [
       checkin_id,
       checkout_reason || 'Regular checkout',
@@ -432,7 +437,9 @@ exports.performCheckout = async (req, res) => {
       is_settle || 0,
       is_print || 1,
       userId,
-      checkout_datetime || null,  // ✅ ADD THIS - 14th parameter
+      checkout_datetime || null,
+      is_undo,                    // ✅ 15th parameter
+      undo_room_ids ? JSON.stringify(undo_room_ids) : null  // ✅ 16th parameter
     ];
 
     console.log('🔵 ==========================================');
@@ -451,13 +458,15 @@ exports.performCheckout = async (req, res) => {
     console.log(`   [11] is_settle: ${params[10]} (${typeof params[10]})`);
     console.log(`   [12] is_print: ${params[11]} (${typeof params[11]})`);
     console.log(`   [13] userId: ${params[12]} (${typeof params[12]})`);
-    console.log(`   [14] checkout_datetime: ${params[13] || 'NULL'} (${typeof params[13]})`); // ✅ ADD THIS
+    console.log(`   [14] checkout_datetime: ${params[13] || 'NULL'} (${typeof params[13]})`);
+    console.log(`   [15] is_undo: ${params[14]} (${typeof params[14]})`);        // ✅ NEW
+    console.log(`   [16] undo_room_ids: ${params[15] || 'NULL'} (${typeof params[15]})`); // ✅ NEW
     console.log('🔵 ==========================================');
 
-    // Execute stored procedure - NOW WITH 14 PARAMETERS
+    // Execute stored procedure - NOW WITH 16 PARAMETERS
     console.log('🔵 Executing stored procedure...');
     const [results] = await connection.execute(
-      `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, // ✅ 14 placeholders
+      `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, // ✅ 16 placeholders
       params
     );
     console.log('🔵 Stored procedure executed successfully');
@@ -496,6 +505,7 @@ exports.performCheckout = async (req, res) => {
       console.log(`✅ Checkout ID: ${result.checkout_id}`);
       console.log(`✅ LDG Bill No: ${result.ldg_bill_no}`);
       console.log(`✅ Checkout Time: ${result.checkout_datetime || 'Set by database'}`);
+      console.log(`✅ Case Type: ${result.case_type || 'Normal'}`);
 
       return res.status(200).json({
         success: true,
@@ -509,6 +519,9 @@ exports.performCheckout = async (req, res) => {
         checked_out_rooms: result.checked_out_rooms,
         checked_out_room_ids: result.checked_out_room_ids,
         rooms_updated_count: result.rooms_updated_count,
+        case_type: result.case_type || 'Normal Checkout',  // ✅ NEW
+        rooms_undone: result.rooms_undone,                 // ✅ NEW (for undo)
+        rooms_remaining: result.rooms_remaining,           // ✅ NEW (for undo)
         data: result.data,
       });
     } else {
