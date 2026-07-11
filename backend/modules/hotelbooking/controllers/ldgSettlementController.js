@@ -276,14 +276,15 @@ exports.getSettlements = async (req, res) => {
   try {
     const {
       hotelId, outletId, checkinId, roomName, guestName,
-      fromDate, toDate, paymentType, is_settle = '1'
+      fromDate, toDate, paymentType, is_settle = '1',
+      limit = 10, offset = 0
     } = req.query;
 
-    let where = [];
-    let params = [];
+    // Build WHERE clause
+    const where = [];
+    const params = [];
 
-    
-    if (hotelId) { where.push('HotelID = ?'); params.push(Number(hotelId)); }
+    if (hotelId) { where.push('hotelid = ?'); params.push(Number(hotelId)); }
     if (outletId) { where.push('outletid = ?'); params.push(Number(outletId)); }
     if (checkinId) { where.push('checkinid = ?'); params.push(Number(checkinId)); }
     if (roomName) { where.push('room_name LIKE ?'); params.push(`%${roomName}%`); }
@@ -293,17 +294,125 @@ exports.getSettlements = async (req, res) => {
     if (paymentType) { where.push('PaymentType = ?'); params.push(paymentType); }
     if (is_settle !== undefined) { where.push('is_settle = ?'); params.push(Number(is_settle)); }
 
-    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const sql = `SELECT * FROM ldgsettlement ${whereSql} ORDER BY SettlementID DESC`;
-    const [rows] = await db.query(sql, params);
+    const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-    res.json({ success: true, data: rows });
+    // Inner: group by checkout_id and PaymentType, sum amounts
+    const innerSQL = `
+      SELECT
+        checkout_id,
+        PaymentType,
+        SUM(Amount) AS paymentTypeAmount,
+        GROUP_CONCAT(DISTINCT SettlementID) AS SettlementIDs,
+        MAX(guest_name) AS guest_name,
+        MAX(mobile) AS mobile,
+        MAX(ldg_bill_no) AS ldg_bill_no,
+        MAX(bill_no) AS bill_no,
+        MAX(reg_no) AS reg_no,
+        MAX(checkout_date) AS checkout_date,
+        MAX(InsertDate) AS InsertDate,
+        MAX(total_nights) AS total_nights,
+        MAX(total_amount) AS total_amount,
+        SUM(TipAmount) AS TipAmount,
+        SUM(Receive) AS Receive,
+        SUM(Refund) AS Refund,
+        MAX(hotelid) AS hotelid,
+        MAX(outletid) AS outletid,
+        MAX(outletname) AS outletname,
+        GROUP_CONCAT(DISTINCT room_name) AS rooms
+      FROM ldgsettlement
+      ${whereClause}
+      GROUP BY checkout_id, PaymentType
+    `;
+
+    // Outer: group by checkout_id, build paymentBreakdown JSON
+    const outerSQL = `
+      SELECT
+        checkout_id,
+        GROUP_CONCAT(DISTINCT SettlementIDs) AS SettlementIDs,
+        JSON_OBJECTAGG(PaymentType, paymentTypeAmount) AS paymentBreakdown,
+        MAX(guest_name) AS guest_name,
+        MAX(mobile) AS mobile,
+        MAX(ldg_bill_no) AS ldg_bill_no,
+        MAX(bill_no) AS bill_no,
+        MAX(reg_no) AS reg_no,
+        MAX(checkout_date) AS checkout_date,
+        MAX(InsertDate) AS InsertDate,
+        MAX(total_nights) AS total_nights,
+        MAX(total_amount) AS total_amount,
+        SUM(paymentTypeAmount) AS Amount,
+        SUM(TipAmount) AS TipAmount,
+        SUM(Receive) AS Receive,
+        SUM(Refund) AS Refund,
+        MAX(hotelid) AS hotelid,
+        MAX(outletid) AS outletid,
+        MAX(outletname) AS outletname,
+        MAX(rooms) AS rooms
+      FROM (${innerSQL}) AS inner_group
+      GROUP BY checkout_id
+    `;
+
+    // Count distinct checkouts for pagination
+    const countSQL = `
+      SELECT COUNT(DISTINCT checkout_id) AS total
+      FROM (${innerSQL}) AS inner_group
+    `;
+
+    const [countResult] = await db.query(countSQL, params);
+    const totalItems = countResult[0]?.total || 0;
+
+    // Main query with pagination
+    const paginatedSQL = `${outerSQL} ORDER BY checkout_id DESC LIMIT ? OFFSET ?`;
+    const paginatedParams = [...params, Number(limit), Number(offset)];
+    const [rows] = await db.query(paginatedSQL, paginatedParams);
+
+    // Transform rows: parse paymentBreakdown safely, convert strings to arrays
+    const data = rows.map(row => {
+      // paymentBreakdown may already be an object (if driver auto-parses JSON)
+      let paymentBreakdown = {};
+      if (row.paymentBreakdown) {
+        paymentBreakdown = typeof row.paymentBreakdown === 'string'
+          ? JSON.parse(row.paymentBreakdown)
+          : row.paymentBreakdown;
+      }
+
+      // Convert comma-separated strings to arrays
+      const settlementIDs = row.SettlementIDs
+        ? row.SettlementIDs.split(',').map(id => parseInt(id.trim(), 10))
+        : [];
+
+      const rooms = row.rooms
+        ? row.rooms.split(',').map(r => r.trim())
+        : [];
+
+      return {
+        ...row,
+        paymentBreakdown,
+        SettlementIDs: settlementIDs,
+        rooms,
+        // ensure numeric fields are numbers
+        Amount: Number(row.Amount) || 0,
+        TipAmount: Number(row.TipAmount) || 0,
+        Receive: Number(row.Receive) || 0,
+        Refund: Number(row.Refund) || 0,
+        total_amount: Number(row.total_amount) || 0,
+        total_nights: Number(row.total_nights) || 1
+      };
+    });
+
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        total: totalItems,
+        limit: Number(limit),
+        offset: Number(offset)
+      }
+    });
   } catch (error) {
-    console.error(error);
+    console.error('getSettlements error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch settlements' });
   }
 };
-
 // ==================== GET BY ID ====================
 exports.getSettlementById = async (req, res) => {
   try {
