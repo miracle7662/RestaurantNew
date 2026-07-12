@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom"; // 👈 new import
 // Bootstrap CSS must be loaded globally, e.g., in _app.tsx
 // import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -6,7 +7,7 @@ import CheckInService from "@/common/hotel/checkIn";
 import { useAuthContext } from '@/common/context/useAuthContext'
 
 // --------------------------------------------------------------------
-// Types
+// Types (unchanged)
 // --------------------------------------------------------------------
 type SimpleReportKey = "occupancy" | "dailysell" | "payment" | "pending" | "agent";
 type ReportKey = SimpleReportKey | "guest";
@@ -25,7 +26,6 @@ interface FieldDef {
   label: string;
 }
 
-// Matches columns returned by sp_daily_sales_summary
 interface GuestReportRow {
   guest_id: number;
   guest_name: string;
@@ -34,7 +34,6 @@ interface GuestReportRow {
   organisation: string;
   guest_type: string;
   gender: string;
-
   company_id: number;
   company_name: string;
   company_gst: string;
@@ -42,46 +41,37 @@ interface GuestReportRow {
   company_email: string;
   company_credit_limit: number;
   company_credit_allowed: number;
-
   unique_rooms_used: number;
   room_numbers_used: string;
   room_categories_used: string;
   room_details: string;
   most_used_room: string;
   preferred_room_category: string;
-
   total_ldg_bills: number;
   ldg_bill_numbers: string;
   registration_numbers: string;
   booking_references: string;
-
   total_stays: number;
   total_checkouts: number;
   total_room_nights: number;
   avg_stay_duration: number;
-
   total_room_revenue: number;
   total_extra_charges: number;
   total_child_charges: number;
   total_driver_charges: number;
   total_service_charge: number;
   total_cess: number;
-
   total_discounts_received: number;
   total_cgst: number;
   total_sgst: number;
   total_igst: number;
-
   total_spent: number;
   total_advance_paid: number;
-
   first_visit: string;
   last_visit: string;
   customer_lifecycle_days: number;
-
   avg_amount_per_stay: number;
   loyalty_level: string;
-
   total_payment_received: number;
   total_tips_given: number;
   total_refunds_received: number;
@@ -94,7 +84,7 @@ interface GuestReport {
 }
 
 // --------------------------------------------------------------------
-// Static data
+// Static data (unchanged)
 // --------------------------------------------------------------------
 const simpleReports: Record<SimpleReportKey, SimpleReport> = {
   occupancy: {
@@ -249,7 +239,7 @@ const reportMenu: { key: ReportKey; label: string }[] = [
 ];
 
 // --------------------------------------------------------------------
-// Helpers
+// Helpers (unchanged)
 // --------------------------------------------------------------------
 function statusBadgeClass(value: string): string {
   const v = value.toLowerCase();
@@ -281,12 +271,9 @@ function formatCell(value: string | number | null | undefined): React.ReactNode 
   return value;
 }
 
-/**
- * Generic hook that closes a dropdown when the user clicks (or focuses)
- * anywhere outside the given container. This replaces the old
- * onBlur + setTimeout hack, which raced against click handlers inside the
- * menu (e.g. "Select all") and often required two clicks to register.
- */
+// --------------------------------------------------------------------
+// Custom hook for click‑outside (unchanged)
+// --------------------------------------------------------------------
 function useClickOutside<T extends HTMLElement>(
   isOpen: boolean,
   onClose: () => void
@@ -313,13 +300,15 @@ function useClickOutside<T extends HTMLElement>(
 // Main Component
 // --------------------------------------------------------------------
 export default function ReportsPage(): JSX.Element {
-  // -------------------- Auth --------------------
-  const { user } = useAuthContext();
-  const hotelid = user?.hotelid ?? 1; // fallback if not logged in
+  const navigate = useNavigate(); // 👈 new
 
-  // -------------------- State --------------------
+  // -------------------- Auth (unchanged) --------------------
+  const { user } = useAuthContext();
+  const hotelid = user?.hotelid ?? 1;
+
+  // -------------------- State (unchanged) --------------------
   const [activeReport, setActiveReport] = useState<ReportKey>("occupancy");
-  const [fromDate, setFromDate] = useState("2026-01-01"); // wider range to catch existing data
+  const [fromDate, setFromDate] = useState("2026-01-01");
   const [toDate, setToDate] = useState("2026-07-12");
   const [selectedFields, setSelectedFields] = useState<string[]>(guestReport.defaultFields);
 
@@ -337,15 +326,16 @@ export default function ReportsPage(): JSX.Element {
     return initial;
   });
 
-  // Dropdown open states (React-controlled)
+  // Dropdown open states
   const [reportDropdownOpen, setReportDropdownOpen] = useState(false);
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [fieldDropdownOpen, setFieldDropdownOpen] = useState(false);
   const [columnDropdownOpen, setColumnDropdownOpen] = useState(false);
 
-  // Click-outside refs — clicking anywhere else closes the relevant menu,
-  // and clicks *inside* the menu (Select all / Clear all / checkboxes)
-  // always register on the first click.
+  // 👇 NEW: Search state
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Click-outside refs
   const reportRef = useClickOutside<HTMLDivElement>(reportDropdownOpen, () =>
     setReportDropdownOpen(false)
   );
@@ -361,7 +351,7 @@ export default function ReportsPage(): JSX.Element {
 
   const activeLabel = reportMenu.find((r) => r.key === activeReport)?.label ?? "";
 
-  // -------------------- fetchGuestReport --------------------
+  // -------------------- fetchGuestReport (unchanged) --------------------
   const fetchGuestReport = useCallback(
     async (params: {
       hotelid: number;
@@ -375,14 +365,12 @@ export default function ReportsPage(): JSX.Element {
         end_date: params.toDate,
         limit: params.limit ?? 100,
       });
-
-      // API returns { success: true, count: number, data: [...] }
       return (response?.data ?? []) as GuestReportRow[];
     },
     []
   );
 
-  // -------------------- Main fetch effect --------------------
+  // -------------------- Main fetch effect (unchanged) --------------------
   useEffect(() => {
     if (activeReport !== "guest") return;
 
@@ -409,7 +397,7 @@ export default function ReportsPage(): JSX.Element {
     };
   }, [activeReport, fromDate, toDate, hotelid, fetchGuestReport]);
 
-  // -------------------- Refresh handler --------------------
+  // -------------------- Refresh handler (unchanged) --------------------
   const refreshGuestReport = () => {
     if (activeReport !== "guest") return;
     setGuestLoading(true);
@@ -422,7 +410,7 @@ export default function ReportsPage(): JSX.Element {
       .finally(() => setGuestLoading(false));
   };
 
-  // -------------------- Toggle handlers --------------------
+  // -------------------- Toggle handlers (unchanged) --------------------
   const toggleField = (key: string) => {
     setSelectedFields((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
@@ -454,12 +442,36 @@ export default function ReportsPage(): JSX.Element {
     });
   };
 
-  const guestColumns = useMemo(
-    () => guestReport.fields.filter((f) => selectedFields.includes(f.key)),
-    [selectedFields]
-  );
+  // 👇 NEW: Filtering logic
+  const filteredGuestRows = useMemo(() => {
+    if (!searchQuery.trim()) return guestRows;
+    const q = searchQuery.trim().toLowerCase();
+    return guestRows.filter((row) =>
+      Object.values(row).some((val) =>
+        String(val).toLowerCase().includes(q)
+      )
+    );
+  }, [guestRows, searchQuery]);
 
-  // -------------------- Render helpers --------------------
+  // For simple reports, we need to filter rows per report.
+  // We'll create a memoized version of the current simple report with filtered rows.
+  const currentSimpleReport = activeReport !== "guest" ? simpleReports[activeReport] : null;
+
+  const filteredSimpleRows = useMemo(() => {
+    if (!currentSimpleReport) return [];
+    if (!searchQuery.trim()) return currentSimpleReport.rows;
+    const q = searchQuery.trim().toLowerCase();
+    return currentSimpleReport.rows.filter((row) =>
+      row.some((cell) => String(cell).toLowerCase().includes(q))
+    );
+  }, [currentSimpleReport, searchQuery]);
+
+  // We'll create a modified report object for rendering with filtered rows.
+  const filteredReport = currentSimpleReport
+    ? { ...currentSimpleReport, rows: filteredSimpleRows }
+    : null;
+
+  // -------------------- Render helpers (modified to use filtered data) --------------------
   const renderSimpleTable = (report: SimpleReport) => {
     const reportKey = activeReport as SimpleReportKey;
     const visibleColNames = simpleSelectedColumns[reportKey] || report.columns;
@@ -559,11 +571,13 @@ export default function ReportsPage(): JSX.Element {
       );
     }
 
-    if (guestRows.length === 0) {
+    if (filteredGuestRows.length === 0) {
       return (
         <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
           <i className="bi bi-people d-block mb-2" style={{ fontSize: 20 }} />
-          No guest records found for {fromDate} to {toDate}
+          {searchQuery.trim()
+            ? `No guest records match "${searchQuery}"`
+            : `No guest records found for ${fromDate} to ${toDate}`}
           <div>
             <button className="btn btn-sm rp-btn-outline mt-3" onClick={refreshGuestReport}>
               Refresh
@@ -585,7 +599,7 @@ export default function ReportsPage(): JSX.Element {
           </tr>
         </thead>
         <tbody>
-          {guestRows.map((row, i) => (
+          {filteredGuestRows.map((row, i) => (
             <tr key={row.guest_id ?? i}>
               {guestColumns.map((c) => (
                 <td key={c.key} className="text-nowrap">
@@ -597,14 +611,30 @@ export default function ReportsPage(): JSX.Element {
         </tbody>
         <tfoot>
           <tr className="rp-tfoot fw-bold">
-            <td colSpan={Math.max(guestColumns.length, 1)}>Total Guests: {guestRows.length}</td>
+            <td colSpan={Math.max(guestColumns.length, 1)}>Total Guests: {filteredGuestRows.length}</td>
           </tr>
         </tfoot>
       </table>
     );
   };
 
-  const currentSimpleReport = activeReport !== "guest" ? simpleReports[activeReport] : null;
+  const guestColumns = useMemo(
+    () => guestReport.fields.filter((f) => selectedFields.includes(f.key)),
+    [selectedFields]
+  );
+
+  // 👇 NEW: ESC key handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        // Navigate to the Hotel Booking Panel.
+        // Adjust the route according to your app's routing.
+        navigate('/hotel-master/HotelBookingPanel', { replace: true }); // or "/hotel/booking-panel" if that's the exact path
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [navigate]);
 
   // --------------------------------------------------------------------
   // JSX
@@ -709,10 +739,21 @@ export default function ReportsPage(): JSX.Element {
         .rp-app .rp-panel-header {
           color: var(--rp-text-muted);
         }
+        /* 👇 Dropdown scrollbar styles */
+        .rp-app .dropdown-menu {
+          max-height: 280px;
+          overflow-y: auto;
+        }
+        /* Keep the field/column dropdowns scrollable as before */
+        .rp-app .dropdown-menu.rp-panel {
+          max-height: 420px;
+          overflow-y: auto;
+        }
       `}</style>
+
       {/* Toolbar */}
       <div className="d-flex align-items-center gap-3 p-3 border-bottom flex-wrap">
-        {/* Report Selection — proper dropdown, shows the active report name */}
+        {/* Report Selection */}
         <div className="dropdown" style={{ position: "relative" }} ref={reportRef}>
           <button
             className="btn rp-btn-primary dropdown-toggle fw-semibold d-flex align-items-center gap-2"
@@ -732,6 +773,8 @@ export default function ReportsPage(): JSX.Element {
                 left: 0,
                 zIndex: 1000,
                 minWidth: 220,
+                maxHeight: "none", // 👈 scrollbar
+                overflowY: "auto",
               }}
             >
               {reportMenu.map((r) => (
@@ -770,6 +813,16 @@ export default function ReportsPage(): JSX.Element {
           onChange={(e) => setToDate(e.target.value)}
         />
 
+        {/* 👇 NEW: Search bar */}
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Search..."
+          style={{ width: 200 }}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+
         <div className="ms-auto d-flex gap-2">
           {/* Export Dropdown */}
           <div className="dropdown" style={{ position: "relative" }} ref={exportRef}>
@@ -789,6 +842,8 @@ export default function ReportsPage(): JSX.Element {
                   top: "calc(100% + 4px)",
                   right: 0,
                   zIndex: 1000,
+                  maxHeight: "280px",
+                  overflowY: "auto",
                 }}
               >
                 <li>
@@ -824,13 +879,17 @@ export default function ReportsPage(): JSX.Element {
           >
             <i className="bi bi-arrow-clockwise" />&#8635;
           </button>
-          <button className="btn rp-btn-outline-danger" title="Close">
+          <button
+            className="btn rp-btn-outline-danger"
+            title="Close"
+            onClick={() => navigate("/hotel-master/HotelBookingPanel")} // 👈 Close goes to booking panel
+          >
             &#10005;
           </button>
         </div>
       </div>
 
-      {/* Column / Field Selectors */}
+      {/* Column / Field Selectors (unchanged, but dropdowns already have scrollbar via global style) */}
       <div className="d-flex align-items-center justify-content-between px-3 pt-3 pb-2 flex-wrap gap-2">
         <h6 className="fw-bold mb-0">{activeLabel}</h6>
 
@@ -964,7 +1023,7 @@ export default function ReportsPage(): JSX.Element {
       <div className="table-responsive">
         {activeReport === "guest"
           ? renderGuestTable()
-          : renderSimpleTable(currentSimpleReport!)}
+          : filteredReport && renderSimpleTable(filteredReport)}
       </div>
     </div>
   );
