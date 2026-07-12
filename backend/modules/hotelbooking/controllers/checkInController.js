@@ -1231,7 +1231,7 @@ exports.getDailySalesSummary = async (req, res) => {
             hotelid,
             start_date,
             end_date,
-            limit = 100
+           
         } = req.query;
 
         if (!hotelid || !start_date || !end_date) {
@@ -1242,12 +1242,12 @@ exports.getDailySalesSummary = async (req, res) => {
         }
 
         const [result] = await db.query(
-            `CALL hotelbooking_db.sp_daily_sales_summary(?, ?, ?, ?)`,
+            `CALL hotelbooking_db.sp_daily_sales_summary(?, ?, ?)`,
             [
                 Number(hotelid),
                 start_date,
                 end_date,
-                Number(limit)
+               
             ]
         );
 
