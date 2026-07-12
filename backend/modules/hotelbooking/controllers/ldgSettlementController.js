@@ -304,6 +304,9 @@ exports.getSettlements = async (req, res) => {
         SUM(Amount) AS paymentTypeAmount,
         GROUP_CONCAT(DISTINCT SettlementID) AS SettlementIDs,
         MAX(guest_name) AS guest_name,
+        MAX(guest_id) AS guest_id,
+MAX(room_id) AS room_id,
+MAX(checkinid) AS checkinid,
         MAX(mobile) AS mobile,
         MAX(ldg_bill_no) AS ldg_bill_no,
         MAX(bill_no) AS bill_no,
@@ -318,7 +321,8 @@ exports.getSettlements = async (req, res) => {
         MAX(hotelid) AS hotelid,
         MAX(outletid) AS outletid,
         MAX(outletname) AS outletname,
-        GROUP_CONCAT(DISTINCT room_name) AS rooms
+        GROUP_CONCAT(DISTINCT room_id) AS room_ids,
+       GROUP_CONCAT(DISTINCT room_name) AS rooms
       FROM ldgsettlement
       ${whereClause}
       GROUP BY checkout_id, PaymentType
@@ -331,6 +335,9 @@ exports.getSettlements = async (req, res) => {
         GROUP_CONCAT(DISTINCT SettlementIDs) AS SettlementIDs,
         JSON_OBJECTAGG(PaymentType, paymentTypeAmount) AS paymentBreakdown,
         MAX(guest_name) AS guest_name,
+        MAX(guest_id) AS guest_id,
+MAX(room_id) AS room_id,
+MAX(checkinid) AS checkinid,
         MAX(mobile) AS mobile,
         MAX(ldg_bill_no) AS ldg_bill_no,
         MAX(bill_no) AS bill_no,
@@ -346,7 +353,9 @@ exports.getSettlements = async (req, res) => {
         MAX(hotelid) AS hotelid,
         MAX(outletid) AS outletid,
         MAX(outletname) AS outletname,
-        MAX(rooms) AS rooms
+        MAX(rooms) AS rooms,
+       
+        GROUP_CONCAT(DISTINCT room_ids) AS room_ids
       FROM (${innerSQL}) AS inner_group
       GROUP BY checkout_id
     `;
@@ -389,6 +398,10 @@ exports.getSettlements = async (req, res) => {
         paymentBreakdown,
         SettlementIDs: settlementIDs,
         rooms,
+
+         guest_id: row.guest_id ? Number(row.guest_id) : null,
+  room_id: row.room_id ? Number(row.room_id) : null,
+  checkinid: row.checkinid ? Number(row.checkinid) : null,
         // ensure numeric fields are numbers
         Amount: Number(row.Amount) || 0,
         TipAmount: Number(row.TipAmount) || 0,
@@ -398,6 +411,7 @@ exports.getSettlements = async (req, res) => {
         total_nights: Number(row.total_nights) || 1
       };
     });
+    console.log(rows);
 
     res.json({
       success: true,

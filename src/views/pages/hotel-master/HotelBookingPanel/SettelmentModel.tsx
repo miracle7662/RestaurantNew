@@ -43,7 +43,7 @@ interface SettlementModalProps {
   table_name?: string | null;
   // Hotel room booking specific
   guestName?: string;
-  roomNo?: string;
+  checked_out_rooms?: string;
   room_id?: number;
   totalPrice?: number;
 }
@@ -67,7 +67,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   initialCustomerId,
   selectedOutletId,
   guestName,
-  roomNo,
+  checked_out_rooms,
   room_id,
   totalPrice,
 }) => {
@@ -216,7 +216,7 @@ const handleSettle = useCallback(async () => {
         room_id: room_id ?? (window as any)?.__hotel_roomid,
 
         // Ensure backend gets room reference (ldgsettlement.room_name)
-        room_name: roomNo ?? '',
+        room_name: checked_out_rooms ?? '',
 
         // Existing fields already used by backend insertData
         received_amount: cashReceived || 0,
@@ -399,10 +399,10 @@ const handleSettle = useCallback(async () => {
       <Modal.Header closeButton className="pb-2 pt-3 border-0" style={{ background: '#1a2744' }}>
         <Modal.Title className="fw-bold fs-5 w-100 text-white">
           Payment Settlement
-          {(guestName || roomNo) && (
+          {(guestName || checked_out_rooms) && (
             <div style={{ fontSize: '0.75rem', fontWeight: 400, opacity: 0.9, marginTop: 2 }}>
               {guestName && <span className="me-3">👤 {guestName}</span>}
-              {roomNo && <span className="me-3">🚪 Room {roomNo}</span>}
+              {checked_out_rooms && <span className="me-3">🚪 Room {checked_out_rooms}</span>}
               {(totalPrice !== undefined ? totalPrice : grandTotal) > 0 && (
                 <span>💰 ₹{(totalPrice !== undefined ? totalPrice : grandTotal).toFixed(2)}</span>
               )}

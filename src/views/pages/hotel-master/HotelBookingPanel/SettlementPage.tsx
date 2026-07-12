@@ -80,7 +80,7 @@ const SettlementPage = () => {
   const [settlementPayData, setSettlementPayData] = useState<{
     guestName: string
     guestid: number
-    roomNo: string
+    checked_out_rooms: string
     room_id: number
     totalPrice: number
     checkoutId: number
@@ -172,7 +172,7 @@ const SettlementPage = () => {
       guest_email: co.email,
       guest_address: co.address,
       guest_id_proof: co.id_proof,
-      room_numbers: [co.room_no || '-'],
+      room_numbers: [co.checked_out_rooms || '-'],
       room_categories: [],
       converted_categories: [],
       room_numbers_str: co.room_no || '-',
@@ -249,7 +249,7 @@ const SettlementPage = () => {
     setSettlementPayData({
       guestName: co.guest_name || '-',
       guestid: co.guest_id || 0,
-      roomNo: co.room_no || '-',
+      checked_out_rooms: co.checked_out_rooms || '-',
       room_id: typeof co.room_id === 'string'
         ? JSON.parse(co.room_id)
         : co.room_id,
@@ -670,7 +670,7 @@ const SettlementPage = () => {
                   total_amount: settlementPayData.totalPrice,
                   checkinid: settlementPayData.checkinId || 0,
                   checkout_id: settlementPayData.checkoutId,
-                  room_name: settlementPayData.roomNo,
+                  room_name: settlementPayData.checked_out_rooms,
                   room_ids: Array.isArray(settlementPayData.room_id)
                     ? settlementPayData.room_id
                     : [settlementPayData.room_id],
@@ -688,10 +688,10 @@ const SettlementPage = () => {
               }
               setSettledRoomNos((prev) => {
                 const updated = new Set(prev)
-                updated.delete(settlementPayData.roomNo)
+                updated.delete(settlementPayData.checked_out_rooms)
                 return updated
               })
-              toast.success(`Settlement recorded for Room ${settlementPayData.roomNo}`)
+              toast.success(`Settlement recorded for Room ${settlementPayData.checked_out_rooms}`)
               setShowSettlementPayModal(false)
               setSettlementPayData(null)
               await fetchCheckoutData()
@@ -708,7 +708,7 @@ const SettlementPage = () => {
           loading={settlementPayLoading}
           outletPaymentModes={outletPaymentModes}
           guestName={settlementPayData.guestName}
-          roomNo={settlementPayData.roomNo}
+          checked_out_rooms={settlementPayData.checked_out_rooms}
           room_id={settlementPayData.room_id}
           totalPrice={settlementPayData.totalPrice}
           initialCustomerName={settlementPayData.guestName}

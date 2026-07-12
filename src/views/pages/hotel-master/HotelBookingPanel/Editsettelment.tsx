@@ -312,6 +312,7 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
   setEditLoading(true);
 
   try {
+    
     // 1. Extract all non‑payment fields from the existing settlement
     const baseData = {
       guest_id: editingSettlement.guest_id,
@@ -329,7 +330,9 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
       discount: editingSettlement.discount_amount,
       total_advance: editingSettlement.advance_amt,
       userid: editingSettlement.userid || Number(user?.id),
+      
     };
+    console.log("baseData:", baseData);
 
     // 2. Merge base data into each payment split
     const enrichedSettlements = newSettlements.map((s) => ({
