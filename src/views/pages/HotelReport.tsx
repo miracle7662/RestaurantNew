@@ -27,54 +27,64 @@ interface FieldDef {
 
 // Matches columns returned by sp_daily_sales_summary
 interface GuestReportRow {
-  guest_id: string | number;
+  guest_id: number;
   guest_name: string;
   mobile: string;
   email: string;
   organisation: string;
   guest_type: string;
   gender: string;
-  company_id: string | number;
+
+  company_id: number;
   company_name: string;
   company_gst: string;
   company_mobile: string;
   company_email: string;
-  company_credit_limit: string | number;
-  company_credit_allowed: string;
-  unique_rooms_used: string | number;
+  company_credit_limit: number;
+  company_credit_allowed: number;
+
+  unique_rooms_used: number;
   room_numbers_used: string;
   room_categories_used: string;
   room_details: string;
   most_used_room: string;
   preferred_room_category: string;
-  total_ldg_bills: string | number;
+
+  total_ldg_bills: number;
   ldg_bill_numbers: string;
   registration_numbers: string;
   booking_references: string;
-  total_stays: string | number;
-  total_checkouts: string | number;
-  total_room_nights: string | number;
-  avg_stay_duration: string | number;
-  total_room_revenue: string | number;
-  total_extra_charges: string | number;
-  total_child_charges: string | number;
-  total_driver_charges: string | number;
-  total_service_charge: string | number;
-  total_cess: string | number;
-  total_discounts_received: string | number;
-  total_cgst: string | number;
-  total_sgst: string | number;
-  total_igst: string | number;
-  total_spent: string | number;
-  total_advance_paid: string | number;
+
+  total_stays: number;
+  total_checkouts: number;
+  total_room_nights: number;
+  avg_stay_duration: number;
+
+  total_room_revenue: number;
+  total_extra_charges: number;
+  total_child_charges: number;
+  total_driver_charges: number;
+  total_service_charge: number;
+  total_cess: number;
+
+  total_discounts_received: number;
+  total_cgst: number;
+  total_sgst: number;
+  total_igst: number;
+
+  total_spent: number;
+  total_advance_paid: number;
+
   first_visit: string;
   last_visit: string;
-  customer_lifecycle_days: string | number;
-  avg_amount_per_stay: string | number;
+  customer_lifecycle_days: number;
+
+  avg_amount_per_stay: number;
   loyalty_level: string;
-  total_payment_received: string | number;
-  total_tips_given: string | number;
-  total_refunds_received: string | number;
+
+  total_payment_received: number;
+  total_tips_given: number;
+  total_refunds_received: number;
 }
 
 interface GuestReport {
