@@ -46,7 +46,7 @@ interface GuestReportRow {
   most_used_room: string;
   preferred_room_category: string;
   total_ldg_bills: number;
-  ldg_bill_numbers: string;
+  ldg_bill_no: string;
   registration_numbers: string;
   booking_references: string;
   total_stays: number;
@@ -187,7 +187,7 @@ const guestReport: GuestReport = {
     { key: "most_used_room", label: "Most Used Room" },
     { key: "preferred_room_category", label: "Preferred Room Category" },
     { key: "total_ldg_bills", label: "Total LDG Bills" },
-    { key: "ldg_bill_numbers", label: "LDG Bill Numbers" },
+    { key: "ldg_bill_no", label: "LDG Bill Numbers" },
     { key: "registration_numbers", label: "Registration Numbers" },
     { key: "booking_references", label: "Booking References" },
     { key: "total_stays", label: "Total Stays" },
