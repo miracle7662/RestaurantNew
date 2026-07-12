@@ -38,6 +38,7 @@ export interface LdgSettlement {
   updated_by_id: number | null
   InsertDate: string
   UpdateDate: string
+  checked_out_rooms: string
   
   // Grouped/display fields (from API)
   display_bill_no?: string

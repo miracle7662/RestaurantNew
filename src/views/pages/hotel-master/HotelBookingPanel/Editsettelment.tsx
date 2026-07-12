@@ -312,14 +312,13 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
   setEditLoading(true);
 
   try {
-    
-    // 1. Extract all non‑payment fields from the existing settlement
+    // 1️⃣ Build baseData with the correct room info from editingSettlement
     const baseData = {
       guest_id: editingSettlement.guest_id,
       guest_name: editingSettlement.guest_name,
-      room_id: editingSettlement.room_id,
-      room_name: editingSettlement.room_name,
-      room_no: editingSettlement.room_no,
+      room_id: editingSettlement.room_id,          // may be null but we'll override later
+      room_name: editingSettlement.rooms?.[0] || '', // ✅ get first room name
+      room_no: editingSettlement.room_no || '',
       reg_no: editingSettlement.reg_no,
       registration_no: editingSettlement.registration_no,
       bill_no: editingSettlement.bill_no,
@@ -330,19 +329,36 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
       discount: editingSettlement.discount_amount,
       total_advance: editingSettlement.advance_amt,
       userid: editingSettlement.userid || Number(user?.id),
-      
     };
-    console.log("baseData:", baseData);
 
-    // 2. Merge base data into each payment split
-    const enrichedSettlements = newSettlements.map((s) => ({
-      ...baseData,
-      ...s, // s contains PaymentTypeID, PaymentType, Amount, TipAmount, Receive, Refund
-      // Override tip with top‑level if provided (otherwise keep per‑split tip)
-      TipAmount: tip !== undefined ? tip : (s.TipAmount || 0),
-    }));
+    // 2️⃣ Enrich each settlement from the modal, but override crucial fields
+    const enrichedSettlements = newSettlements.map((s) => {
+      // Start with modal data (which may have null room_name/table_name)
+      const merged = {
+        ...baseData,      // baseData has correct room_name
+        ...s,             // modal data may overwrite with null
+        // ✅ Force correct values after spread
+        room_name: baseData.room_name,
+        room_id: baseData.room_id,   // if modal sends null, this restores it
+        room_no: baseData.room_no,
+        // If the modal uses 'table_name' instead of 'room_name', map it as well
+        table_name: baseData.room_name,
+        // Tip amount: use top-level if provided else per-settlement
+        TipAmount: tip !== undefined ? tip : (s.TipAmount || 0),
+      };
 
-    // 3. Call replace API with enriched data
+      // Remove any undefined keys to avoid database issues
+      Object.keys(merged).forEach((key) => {
+        if (merged[key] === undefined) delete merged[key];
+      });
+
+      return merged;
+    });
+
+    // 3️⃣ Debug: Log the payload to verify room_name is present
+    console.log('📦 Final payload for replace:', enrichedSettlements);
+
+    // 4️⃣ Call API
     await LdgSettlementService.replace({
       checkoutId: editingSettlement.checkout_id,
       checkinId: editingSettlement.checkinid,
@@ -354,7 +370,7 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
       ldg_bill_no: editingSettlement.ldg_bill_no || editingSettlement.bill_no,
     });
 
-    // 4. Success feedback & refresh
+    // 5️⃣ Success
     setNotification({
       show: true,
       message: 'Settlement updated successfully',
@@ -363,6 +379,7 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
     setShowSettlementModal(false);
     setEditingSettlement(null);
     fetchSettlements();
+
   } catch (err: any) {
     setNotification({
       show: true,
@@ -373,7 +390,6 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
     setEditLoading(false);
   }
 };
-
   // ── Render ──────────────────────────────────────────────────────
 
   return (
@@ -606,28 +622,38 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
       </div>
 
       {/* Edit Settlement Modal */}
-      <SettlementModal
-        show={showSettlementModal}
-        onHide={() => {
-          setShowSettlementModal(false);
-          setEditingSettlement(null);
-        }}
-        onSettle={handleUpdateSettlement}
-        grandTotal={toNumber(editingSettlement?.total_amount || 0)}
-        subtotal={toNumber(editingSettlement?.total_amount || 0)}
-        loading={editLoading}
-        outletPaymentModes={outletPaymentModes}
-        selectedOutletId={editingSettlement?.outletid || Number(filters.outletId) || null}
-        initialSelectedModes={initialSelectedModes}
-        initialPaymentAmounts={initialPaymentAmounts}
-        initialIsMixed={initialIsMixed}
-        initialTip={initialTip}
-        initialCashReceived={initialCashReceived}
-        table_name={editingSettlement?.room_name || null}
-        initialCustomerName={editingSettlement?.guest_name || ''}
-        initialMobile={editingSettlement?.mobile || ''}
-        initialCustomerId={editingSettlement?.guest_id || null}
-      />
+     <SettlementModal
+  show={showSettlementModal}
+  onHide={() => {
+    setShowSettlementModal(false);
+    setEditingSettlement(null);
+  }}
+  onSettle={handleUpdateSettlement}
+  grandTotal={toNumber(editingSettlement?.total_amount || 0)}
+  subtotal={toNumber(editingSettlement?.total_amount || 0)}
+  loading={editLoading}
+  outletPaymentModes={outletPaymentModes}
+  selectedOutletId={editingSettlement?.outletid || Number(filters.outletId) || null}
+  initialSelectedModes={initialSelectedModes}
+  initialPaymentAmounts={initialPaymentAmounts}
+  initialIsMixed={initialIsMixed}
+  initialTip={initialTip}
+  initialCashReceived={initialCashReceived}
+
+  // ── Header props (match SettlementPage usage) ──
+  guestName={editingSettlement?.guest_name || ''}
+  checked_out_rooms={editingSettlement?.rooms?.join(', ') || ''}
+  totalPrice={toNumber(editingSettlement?.total_amount || 0)}
+
+  // ── Fallbacks for modal compatibility ──
+  table_name={editingSettlement?.rooms?.join(', ') || null}
+  initialCustomerName={editingSettlement?.guest_name || ''}
+  initialMobile={editingSettlement?.mobile || ''}
+  initialCustomerId={editingSettlement?.guest_id || null}
+
+  // ── Safe room_id computation ──
+ 
+/>
 
       {/* F8 Password Modal */}
       <F8PasswordModal
