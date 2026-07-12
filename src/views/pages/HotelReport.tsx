@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 // Bootstrap CSS must be loaded globally, e.g., in _app.tsx
 // import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -271,6 +271,34 @@ function formatCell(value: string | number | null | undefined): React.ReactNode 
   return value;
 }
 
+/**
+ * Generic hook that closes a dropdown when the user clicks (or focuses)
+ * anywhere outside the given container. This replaces the old
+ * onBlur + setTimeout hack, which raced against click handlers inside the
+ * menu (e.g. "Select all") and often required two clicks to register.
+ */
+function useClickOutside<T extends HTMLElement>(
+  isOpen: boolean,
+  onClose: () => void
+) {
+  const ref = useRef<T | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isOpen, onClose]);
+
+  return ref;
+}
+
 // --------------------------------------------------------------------
 // Main Component
 // --------------------------------------------------------------------
@@ -278,8 +306,6 @@ export default function ReportsPage(): JSX.Element {
   // -------------------- Auth --------------------
   const { user } = useAuthContext();
   const hotelid = user?.hotelid ?? 1; // fallback if not logged in
-
-  console.log("🔁 ReportsPage rendered, hotelid =", hotelid);
 
   // -------------------- State --------------------
   const [activeReport, setActiveReport] = useState<ReportKey>("occupancy");
@@ -307,6 +333,22 @@ export default function ReportsPage(): JSX.Element {
   const [fieldDropdownOpen, setFieldDropdownOpen] = useState(false);
   const [columnDropdownOpen, setColumnDropdownOpen] = useState(false);
 
+  // Click-outside refs — clicking anywhere else closes the relevant menu,
+  // and clicks *inside* the menu (Select all / Clear all / checkboxes)
+  // always register on the first click.
+  const reportRef = useClickOutside<HTMLDivElement>(reportDropdownOpen, () =>
+    setReportDropdownOpen(false)
+  );
+  const exportRef = useClickOutside<HTMLDivElement>(exportDropdownOpen, () =>
+    setExportDropdownOpen(false)
+  );
+  const fieldRef = useClickOutside<HTMLDivElement>(fieldDropdownOpen, () =>
+    setFieldDropdownOpen(false)
+  );
+  const columnRef = useClickOutside<HTMLDivElement>(columnDropdownOpen, () =>
+    setColumnDropdownOpen(false)
+  );
+
   const activeLabel = reportMenu.find((r) => r.key === activeReport)?.label ?? "";
 
   // -------------------- fetchGuestReport --------------------
@@ -317,22 +359,15 @@ export default function ReportsPage(): JSX.Element {
       toDate: string;
       limit?: number;
     }): Promise<GuestReportRow[]> => {
-      try {
-        const response = await CheckInService.getDailySalesSummary({
-          hotelid: params.hotelid,
-          start_date: params.fromDate,
-          end_date: params.toDate,
-          limit: params.limit ?? 100,
-        });
+      const response = await CheckInService.getDailySalesSummary({
+        hotelid: params.hotelid,
+        start_date: params.fromDate,
+        end_date: params.toDate,
+        limit: params.limit ?? 100,
+      });
 
-        // API returns { success: true, count: number, data: [...] }
-        const rows = response?.data ?? [];
-        console.log(`✅ Guest report: fetched ${rows.length} rows`);
-        return rows as GuestReportRow[];
-      } catch (error) {
-        console.error("❌ Error fetching guest report:", error);
-        throw error;
-      }
+      // API returns { success: true, count: number, data: [...] }
+      return (response?.data ?? []) as GuestReportRow[];
     },
     []
   );
@@ -386,9 +421,7 @@ export default function ReportsPage(): JSX.Element {
 
   const toggleAllFields = () => {
     setSelectedFields((prev) =>
-      prev.length === guestReport.fields.length
-        ? []
-        : guestReport.fields.map((f) => f.key)
+      prev.length === guestReport.fields.length ? [] : guestReport.fields.map((f) => f.key)
     );
   };
 
@@ -433,7 +466,7 @@ export default function ReportsPage(): JSX.Element {
 
     return (
       <table className="table table-hover align-middle mb-0">
-        <thead className="table-light">
+        <thead className="rp-thead">
           <tr>
             {visible.map((col) => (
               <th key={col} className="text-nowrap">
@@ -462,7 +495,7 @@ export default function ReportsPage(): JSX.Element {
           )}
         </tbody>
         <tfoot>
-          <tr className="table-light fw-bold">
+          <tr className="rp-tfoot fw-bold">
             <td colSpan={amtColIndex}>
               {report.footerLabel} {report.rows.length}
             </td>
@@ -479,8 +512,12 @@ export default function ReportsPage(): JSX.Element {
   const renderGuestTable = () => {
     if (guestLoading) {
       return (
-        <div className="text-center text-muted py-5">
-          <div className="spinner-border spinner-border-sm me-2" role="status" />
+        <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
+          <div
+            className="spinner-border spinner-border-sm me-2"
+            style={{ color: "var(--rp-primary)" }}
+            role="status"
+          />
           Loading guest report...
         </div>
       );
@@ -488,11 +525,38 @@ export default function ReportsPage(): JSX.Element {
 
     if (guestError) {
       return (
-        <div className="text-center text-danger py-5">
+        <div
+          className="text-center py-5 mx-3 my-3 rounded"
+          style={{ background: "var(--rp-danger-soft)", color: "var(--rp-danger)" }}
+        >
+          <i className="bi bi-exclamation-triangle-fill d-block mb-2" style={{ fontSize: 20 }} />
           {guestError}
           <div>
-            <button className="btn btn-sm btn-outline-danger mt-2" onClick={refreshGuestReport}>
+            <button className="btn btn-sm rp-btn-outline-danger mt-3" onClick={refreshGuestReport}>
               Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (guestColumns.length === 0) {
+      return (
+        <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
+          <i className="bi bi-columns-gap d-block mb-2" style={{ fontSize: 20 }} />
+          No fields selected — use <strong>Select Fields</strong> above to choose columns to display
+        </div>
+      );
+    }
+
+    if (guestRows.length === 0) {
+      return (
+        <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
+          <i className="bi bi-people d-block mb-2" style={{ fontSize: 20 }} />
+          No guest records found for {fromDate} to {toDate}
+          <div>
+            <button className="btn btn-sm rp-btn-outline mt-3" onClick={refreshGuestReport}>
+              Refresh
             </button>
           </div>
         </div>
@@ -501,7 +565,7 @@ export default function ReportsPage(): JSX.Element {
 
     return (
       <table className="table table-hover align-middle mb-0">
-        <thead className="table-light">
+        <thead className="rp-thead">
           <tr>
             {guestColumns.map((c) => (
               <th key={c.key} className="text-nowrap">
@@ -511,32 +575,18 @@ export default function ReportsPage(): JSX.Element {
           </tr>
         </thead>
         <tbody>
-          {guestColumns.length === 0 ? (
-            <tr>
-              <td className="text-center text-muted fst-italic py-5">
-                No fields selected — choose fields to display
-              </td>
+          {guestRows.map((row, i) => (
+            <tr key={row.guest_id ?? i}>
+              {guestColumns.map((c) => (
+                <td key={c.key} className="text-nowrap">
+                  {formatCell(row[c.key as keyof GuestReportRow])}
+                </td>
+              ))}
             </tr>
-          ) : guestRows.length === 0 ? (
-            <tr>
-              <td colSpan={guestColumns.length} className="text-center text-muted fst-italic py-5">
-                No records found for selected date range
-              </td>
-            </tr>
-          ) : (
-            guestRows.map((row, i) => (
-              <tr key={row.guest_id ?? i}>
-                {guestColumns.map((c) => (
-                  <td key={c.key} className="text-nowrap">
-                    {formatCell(row[c.key as keyof GuestReportRow])}
-                  </td>
-                ))}
-              </tr>
-            ))
-          )}
+          ))}
         </tbody>
         <tfoot>
-          <tr className="table-light fw-bold">
+          <tr className="rp-tfoot fw-bold">
             <td colSpan={Math.max(guestColumns.length, 1)}>Total Guests: {guestRows.length}</td>
           </tr>
         </tfoot>
@@ -550,20 +600,148 @@ export default function ReportsPage(): JSX.Element {
   // JSX
   // --------------------------------------------------------------------
   return (
-    <div className="bg-white">
+    <div className="rp-app bg-white">
+      <style>{`
+        .rp-app {
+          --rp-primary: #1f3a5f;
+          --rp-primary-hover: #16304c;
+          --rp-primary-soft: #eaf0f6;
+          --rp-accent: #0f766e;
+          --rp-accent-hover: #0b5c56;
+          --rp-accent-soft: #e6f4f2;
+          --rp-danger: #b42318;
+          --rp-danger-hover: #8f1b12;
+          --rp-danger-soft: #fbeae9;
+          --rp-surface: #f8fafc;
+          --rp-border: #e2e8f0;
+          --rp-text: #1e293b;
+          --rp-text-muted: #64748b;
+          color: var(--rp-text);
+        }
+        .rp-app .rp-btn-primary {
+          background: var(--rp-primary);
+          border: 1px solid var(--rp-primary);
+          color: #fff;
+        }
+        .rp-app .rp-btn-primary:hover,
+        .rp-app .rp-btn-primary:focus {
+          background: var(--rp-primary-hover);
+          border-color: var(--rp-primary-hover);
+          color: #fff;
+        }
+        .rp-app .rp-btn-accent {
+          background: var(--rp-accent);
+          border: 1px solid var(--rp-accent);
+          color: #fff;
+        }
+        .rp-app .rp-btn-accent:hover,
+        .rp-app .rp-btn-accent:focus {
+          background: var(--rp-accent-hover);
+          border-color: var(--rp-accent-hover);
+          color: #fff;
+        }
+        .rp-app .rp-btn-outline {
+          background: #fff;
+          border: 1px solid var(--rp-border);
+          color: var(--rp-text);
+        }
+        .rp-app .rp-btn-outline:hover,
+        .rp-app .rp-btn-outline:focus {
+          background: var(--rp-primary-soft);
+          border-color: var(--rp-primary);
+          color: var(--rp-primary);
+        }
+        .rp-app .rp-btn-outline-danger {
+          background: #fff;
+          border: 1px solid var(--rp-border);
+          color: var(--rp-text-muted);
+        }
+        .rp-app .rp-btn-outline-danger:hover,
+        .rp-app .rp-btn-outline-danger:focus {
+          background: var(--rp-danger-soft);
+          border-color: var(--rp-danger);
+          color: var(--rp-danger);
+        }
+        .rp-app .rp-btn-link {
+          color: var(--rp-accent);
+          text-decoration: none;
+          font-weight: 600;
+        }
+        .rp-app .rp-btn-link:hover {
+          color: var(--rp-accent-hover);
+          text-decoration: underline;
+        }
+        .rp-app .rp-dropdown-item.active,
+        .rp-app .rp-dropdown-item:active {
+          background: var(--rp-primary-soft) !important;
+          color: var(--rp-primary) !important;
+        }
+        .rp-app .rp-dropdown-item:hover {
+          background: var(--rp-surface);
+        }
+        .rp-app .rp-thead th {
+          background: var(--rp-surface);
+          color: var(--rp-text-muted);
+          border-bottom: 1px solid var(--rp-border);
+          font-size: 0.78rem;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          font-weight: 600;
+        }
+        .rp-app .rp-tfoot td {
+          background: var(--rp-primary-soft);
+          color: var(--rp-primary);
+          border-top: 1px solid var(--rp-border);
+        }
+        .rp-app .rp-panel {
+          border: 1px solid var(--rp-border);
+        }
+        .rp-app .rp-panel-header {
+          color: var(--rp-text-muted);
+        }
+      `}</style>
       {/* Toolbar */}
       <div className="d-flex align-items-center gap-3 p-3 border-bottom flex-wrap">
-        {/* Report Selection – button group for reliability */}
-        <div className="btn-group" role="group">
-          {reportMenu.map((r) => (
-            <button
-              key={r.key}
-              className={`btn ${activeReport === r.key ? "btn-primary" : "btn-outline-primary"}`}
-              onClick={() => setActiveReport(r.key)}
+        {/* Report Selection — proper dropdown, shows the active report name */}
+        <div className="dropdown" style={{ position: "relative" }} ref={reportRef}>
+          <button
+            className="btn rp-btn-primary dropdown-toggle fw-semibold d-flex align-items-center gap-2"
+            type="button"
+            style={{ minWidth: 220, justifyContent: "space-between" }}
+            onClick={() => setReportDropdownOpen((v) => !v)}
+          >
+            <span>{activeLabel}</span>
+          </button>
+          {reportDropdownOpen && (
+            <ul
+              className="dropdown-menu show shadow-sm"
+              style={{
+                display: "block",
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                left: 0,
+                zIndex: 1000,
+                minWidth: 220,
+              }}
             >
-              {r.label}
-            </button>
-          ))}
+              {reportMenu.map((r) => (
+                <li key={r.key}>
+                  <button
+                    className={`dropdown-item rp-dropdown-item d-flex align-items-center justify-content-between ${
+                      activeReport === r.key ? "active fw-semibold" : ""
+                    }`}
+                    onClick={() => {
+                      setActiveReport(r.key);
+                      setReportDropdownOpen(false);
+                    }}
+                  >
+                    <span>{r.label}</span>
+                    {activeReport === r.key && <i className="bi bi-check-lg" />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Date pickers */}
@@ -583,30 +761,29 @@ export default function ReportsPage(): JSX.Element {
         />
 
         <div className="ms-auto d-flex gap-2">
-          {/* Export Dropdown – React controlled */}
-          <div className="dropdown" style={{ position: "relative" }}>
+          {/* Export Dropdown */}
+          <div className="dropdown" style={{ position: "relative" }} ref={exportRef}>
             <button
-              className="btn btn-success dropdown-toggle fw-semibold"
+              className="btn rp-btn-accent dropdown-toggle fw-semibold"
               type="button"
-              onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
-              onBlur={() => setTimeout(() => setExportDropdownOpen(false), 150)}
+              onClick={() => setExportDropdownOpen((v) => !v)}
             >
               Export
             </button>
             {exportDropdownOpen && (
               <ul
-                className="dropdown-menu show dropdown-menu-end"
+                className="dropdown-menu show dropdown-menu-end shadow-sm"
                 style={{
                   display: "block",
                   position: "absolute",
-                  top: "100%",
+                  top: "calc(100% + 4px)",
                   right: 0,
                   zIndex: 1000,
                 }}
               >
                 <li>
                   <button
-                    className="dropdown-item"
+                    className="dropdown-item rp-dropdown-item"
                     onClick={() => {
                       setExportDropdownOpen(false);
                       // TODO: implement Excel export
@@ -617,7 +794,7 @@ export default function ReportsPage(): JSX.Element {
                 </li>
                 <li>
                   <button
-                    className="dropdown-item"
+                    className="dropdown-item rp-dropdown-item"
                     onClick={() => {
                       setExportDropdownOpen(false);
                       // TODO: implement PDF export
@@ -631,13 +808,13 @@ export default function ReportsPage(): JSX.Element {
           </div>
 
           <button
-            className="btn btn-outline-primary"
+            className="btn rp-btn-outline"
             title="Refresh"
             onClick={activeReport === "guest" ? refreshGuestReport : undefined}
           >
             <i className="bi bi-arrow-clockwise" />&#8635;
           </button>
-          <button className="btn btn-outline-danger" title="Close">
+          <button className="btn rp-btn-outline-danger" title="Close">
             &#10005;
           </button>
         </div>
@@ -648,34 +825,37 @@ export default function ReportsPage(): JSX.Element {
         <h6 className="fw-bold mb-0">{activeLabel}</h6>
 
         {activeReport === "guest" && (
-          <div className="dropdown" style={{ position: "relative" }}>
+          <div className="dropdown" style={{ position: "relative" }} ref={fieldRef}>
             <button
-              className="btn btn-outline-primary btn-sm fw-semibold"
+              className="btn rp-btn-outline btn-sm fw-semibold"
               type="button"
-              onClick={() => setFieldDropdownOpen(!fieldDropdownOpen)}
-              onBlur={() => setTimeout(() => setFieldDropdownOpen(false), 150)}
+              onClick={() => setFieldDropdownOpen((v) => !v)}
             >
               Select Fields
             </button>
             {fieldDropdownOpen && (
               <div
-                className="dropdown-menu show p-3"
+                className="dropdown-menu rp-panel show p-3 shadow-sm"
                 style={{
                   display: "block",
                   width: 360,
                   maxHeight: 420,
                   overflowY: "auto",
                   position: "absolute",
-                  top: "100%",
+                  top: "calc(100% + 4px)",
                   right: 0,
                   zIndex: 1000,
                 }}
               >
                 <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
-                  <span className="small fw-bold text-uppercase text-muted">
+                  <span className="small fw-bold text-uppercase rp-panel-header">
                     Choose columns
                   </span>
-                  <button className="btn btn-link btn-sm p-0" onClick={toggleAllFields}>
+                  <button
+                    type="button"
+                    className="btn btn-link rp-btn-link btn-sm p-0"
+                    onClick={toggleAllFields}
+                  >
                     {selectedFields.length === guestReport.fields.length
                       ? "Clear all"
                       : "Select all"}
@@ -705,35 +885,35 @@ export default function ReportsPage(): JSX.Element {
         )}
 
         {activeReport !== "guest" && currentSimpleReport && (
-          <div className="dropdown" style={{ position: "relative" }}>
+          <div className="dropdown" style={{ position: "relative" }} ref={columnRef}>
             <button
-              className="btn btn-outline-primary btn-sm fw-semibold"
+              className="btn rp-btn-outline btn-sm fw-semibold"
               type="button"
-              onClick={() => setColumnDropdownOpen(!columnDropdownOpen)}
-              onBlur={() => setTimeout(() => setColumnDropdownOpen(false), 150)}
+              onClick={() => setColumnDropdownOpen((v) => !v)}
             >
               Select Columns
             </button>
             {columnDropdownOpen && (
               <div
-                className="dropdown-menu show p-3"
+                className="dropdown-menu rp-panel show p-3 shadow-sm"
                 style={{
                   display: "block",
                   width: 360,
                   maxHeight: 420,
                   overflowY: "auto",
                   position: "absolute",
-                  top: "100%",
+                  top: "calc(100% + 4px)",
                   right: 0,
                   zIndex: 1000,
                 }}
               >
                 <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
-                  <span className="small fw-bold text-uppercase text-muted">
+                  <span className="small fw-bold text-uppercase rp-panel-header">
                     Choose columns
                   </span>
                   <button
-                    className="btn btn-link btn-sm p-0"
+                    type="button"
+                    className="btn btn-link rp-btn-link btn-sm p-0"
                     onClick={() => toggleAllSimpleColumns(activeReport as SimpleReportKey)}
                   >
                     {simpleSelectedColumns[activeReport as SimpleReportKey]?.length ===
