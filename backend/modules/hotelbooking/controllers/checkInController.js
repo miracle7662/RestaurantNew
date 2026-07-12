@@ -1225,6 +1225,49 @@ exports.getAtGlance = async (req, res) => {
 };
 
 
+exports.getDailySalesSummary = async (req, res) => {
+    try {
+        const {
+            hotelid,
+            start_date,
+            end_date,
+            limit = 100
+        } = req.query;
+
+        if (!hotelid || !start_date || !end_date) {
+            return res.status(400).json({
+                success: false,
+                message: "hotelid, start_date and end_date are required."
+            });
+        }
+
+        const [result] = await db.query(
+            `CALL hotelbooking_db.sp_daily_sales_summary(?, ?, ?, ?)`,
+            [
+                Number(hotelid),
+                start_date,
+                end_date,
+                Number(limit)
+            ]
+        );
+
+        res.status(200).json({
+            success: true,
+            count: result[0].length,
+            data: result[0]
+        });
+
+    } catch (error) {
+        console.error("getDailySalesSummary error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch daily sales summary.",
+            error: error.message
+        });
+    }
+};
+
+
 // ----------------------------------------------------------------------
 // POST /checkins/:checkinId/extend-day – EXTEND DAY SINGLE API
 // FIXED: Proper cumulative calculation for day extensions

@@ -287,6 +287,68 @@ export interface ExtendDayResponse {
   checkin: CheckIn | null;
 }
 
+
+export interface DailySalesSummary {
+  guest_id: number;
+  guest_name: string;
+  mobile: string;
+  email: string;
+  organisation: string;
+  guest_type: string;
+  gender: string;
+
+  company_id: number;
+  company_name: string;
+  company_gst: string;
+  company_mobile: string;
+  company_email: string;
+  company_credit_limit: number;
+  company_credit_allowed: number;
+
+  unique_rooms_used: number;
+  room_numbers_used: string;
+  room_categories_used: string;
+  room_details: string;
+  most_used_room: string;
+  preferred_room_category: string;
+
+  total_ldg_bills: number;
+  ldg_bill_numbers: string;
+  registration_numbers: string;
+  booking_references: string;
+
+  total_stays: number;
+  total_checkouts: number;
+  total_room_nights: number;
+  avg_stay_duration: number;
+
+  total_room_revenue: number;
+  total_extra_charges: number;
+  total_child_charges: number;
+  total_driver_charges: number;
+  total_service_charge: number;
+  total_cess: number;
+
+  total_discounts_received: number;
+  total_cgst: number;
+  total_sgst: number;
+  total_igst: number;
+
+  total_spent: number;
+  total_advance_paid: number;
+
+  first_visit: string;
+  last_visit: string;
+  customer_lifecycle_days: number;
+
+  avg_amount_per_stay: number;
+  loyalty_level: string;
+
+  total_payment_received: number;
+  total_tips_given: number;
+  total_refunds_received: number;
+}
+
 // ============================================================================
 // SERVICE
 // ============================================================================
@@ -340,6 +402,20 @@ const CheckInService = {
    */
   getAtGlance: (params?: { hotelid?: number }): Promise<ApiResponse<any[]>> =>
     HttpClient.get<ApiResponse<any[]>>('/checkins/at-glance', { params }),
+
+  /**
+ * Daily Sales Summary
+ */
+getDailySalesSummary: (params: {
+  hotelid: number;
+  start_date: string;
+  end_date: string;
+  limit?: number;
+}): Promise<ApiResponse<DailySalesSummary[]>> =>
+  HttpClient.get<ApiResponse<DailySalesSummary[]>>(
+    "/checkins/daily-sales-summary",
+    { params }
+  ),
 
   /**
    * Create a new checkin.
