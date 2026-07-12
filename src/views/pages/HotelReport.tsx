@@ -1,13 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom"; // 👈 new import
-// Bootstrap CSS must be loaded globally, e.g., in _app.tsx
-// import "bootstrap/dist/css/bootstrap.min.css";
-
+import { useNavigate } from "react-router-dom";
 import CheckInService from "@/common/hotel/checkIn";
-import { useAuthContext } from '@/common/context/useAuthContext'
+import { useAuthContext } from "@/common/context/useAuthContext";
+import { PaymentModeSummary } from "@/common/hotel/checkIn"; // 👈 imported type
 
 // --------------------------------------------------------------------
-// Types (unchanged)
+// Types
 // --------------------------------------------------------------------
 type SimpleReportKey = "occupancy" | "dailysell" | "payment" | "pending" | "agent";
 type ReportKey = SimpleReportKey | "guest";
@@ -84,7 +82,7 @@ interface GuestReport {
 }
 
 // --------------------------------------------------------------------
-// Static data (unchanged)
+// Static data
 // --------------------------------------------------------------------
 const simpleReports: Record<SimpleReportKey, SimpleReport> = {
   occupancy: {
@@ -129,13 +127,14 @@ const simpleReports: Record<SimpleReportKey, SimpleReport> = {
     footerCol: 5,
     footerAmtCol: 8,
   },
+  // 👇 Updated payment columns to match summary data
   payment: {
     title: "Payment Mode Report",
-    columns: ["#", "Date", "Guest", "Room No", "Pay Type", "Amount", "Reference No"],
+    columns: ["#", "Payment Mode", "Transactions", "Total Amount", "Net Amount", "Contribution %"],
     rows: [],
-    footerLabel: "Total Transactions:",
-    footerCol: 5,
-    footerAmtCol: 5,
+    footerLabel: "Total Payment Modes:",
+    footerCol: 2, // index of "Transactions"
+    footerAmtCol: 3, // index of "Total Amount"
   },
   pending: {
     title: "Pending Payment Report",
@@ -239,7 +238,7 @@ const reportMenu: { key: ReportKey; label: string }[] = [
 ];
 
 // --------------------------------------------------------------------
-// Helpers (unchanged)
+// Helpers
 // --------------------------------------------------------------------
 function statusBadgeClass(value: string): string {
   const v = value.toLowerCase();
@@ -272,12 +271,9 @@ function formatCell(value: string | number | null | undefined): React.ReactNode 
 }
 
 // --------------------------------------------------------------------
-// Custom hook for click‑outside (unchanged)
+// Custom hook for click‑outside
 // --------------------------------------------------------------------
-function useClickOutside<T extends HTMLElement>(
-  isOpen: boolean,
-  onClose: () => void
-) {
+function useClickOutside<T extends HTMLElement>(isOpen: boolean, onClose: () => void) {
   const ref = useRef<T | null>(null);
 
   useEffect(() => {
@@ -300,22 +296,27 @@ function useClickOutside<T extends HTMLElement>(
 // Main Component
 // --------------------------------------------------------------------
 export default function ReportsPage(): JSX.Element {
-  const navigate = useNavigate(); // 👈 new
-
-  // -------------------- Auth (unchanged) --------------------
+  const navigate = useNavigate();
   const { user } = useAuthContext();
   const hotelid = user?.hotelid ?? 1;
 
-  // -------------------- State (unchanged) --------------------
+  // -------------------- State --------------------
   const [activeReport, setActiveReport] = useState<ReportKey>("occupancy");
   const [fromDate, setFromDate] = useState("2026-01-01");
   const [toDate, setToDate] = useState("2026-07-12");
   const [selectedFields, setSelectedFields] = useState<string[]>(guestReport.defaultFields);
 
+  // Guest report state
   const [guestRows, setGuestRows] = useState<GuestReportRow[]>([]);
   const [guestLoading, setGuestLoading] = useState(false);
   const [guestError, setGuestError] = useState<string | null>(null);
 
+  // Payment report state 👇
+  const [paymentData, setPaymentData] = useState<PaymentModeSummary[]>([]);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  // Column selection for simple reports (including payment)
   const [simpleSelectedColumns, setSimpleSelectedColumns] = useState<
     Record<SimpleReportKey, string[]>
   >(() => {
@@ -332,7 +333,7 @@ export default function ReportsPage(): JSX.Element {
   const [fieldDropdownOpen, setFieldDropdownOpen] = useState(false);
   const [columnDropdownOpen, setColumnDropdownOpen] = useState(false);
 
-  // 👇 NEW: Search state
+  // Search state
   const [searchQuery, setSearchQuery] = useState("");
 
   // Click-outside refs
@@ -351,7 +352,7 @@ export default function ReportsPage(): JSX.Element {
 
   const activeLabel = reportMenu.find((r) => r.key === activeReport)?.label ?? "";
 
-  // -------------------- fetchGuestReport (unchanged) --------------------
+  // -------------------- fetchGuestReport --------------------
   const fetchGuestReport = useCallback(
     async (params: {
       hotelid: number;
@@ -370,7 +371,27 @@ export default function ReportsPage(): JSX.Element {
     []
   );
 
-  // -------------------- Main fetch effect (unchanged) --------------------
+  // -------------------- fetchPaymentReport --------------------
+  const fetchPaymentReport = useCallback(async () => {
+    setPaymentLoading(true);
+    setPaymentError(null);
+    try {
+      const response = await CheckInService.getPaymentModeSummary({
+        hotelid,
+        start_date: fromDate,
+        end_date: toDate,
+      });
+      setPaymentData(response.data || []);
+    } catch (err: unknown) {
+      setPaymentError(err instanceof Error ? err.message : "Failed to load payment report");
+      setPaymentData([]);
+    } finally {
+      setPaymentLoading(false);
+    }
+  }, [hotelid, fromDate, toDate]);
+
+  // -------------------- Effects --------------------
+  // Guest report effect
   useEffect(() => {
     if (activeReport !== "guest") return;
 
@@ -397,7 +418,13 @@ export default function ReportsPage(): JSX.Element {
     };
   }, [activeReport, fromDate, toDate, hotelid, fetchGuestReport]);
 
-  // -------------------- Refresh handler (unchanged) --------------------
+  // Payment report effect 👇
+  useEffect(() => {
+    if (activeReport !== "payment") return;
+    fetchPaymentReport();
+  }, [activeReport, fetchPaymentReport]);
+
+  // -------------------- Refresh handlers --------------------
   const refreshGuestReport = () => {
     if (activeReport !== "guest") return;
     setGuestLoading(true);
@@ -410,7 +437,7 @@ export default function ReportsPage(): JSX.Element {
       .finally(() => setGuestLoading(false));
   };
 
-  // -------------------- Toggle handlers (unchanged) --------------------
+  // -------------------- Toggle handlers --------------------
   const toggleField = (key: string) => {
     setSelectedFields((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
@@ -442,36 +469,53 @@ export default function ReportsPage(): JSX.Element {
     });
   };
 
-  // 👇 NEW: Filtering logic
+  // -------------------- Data filtering --------------------
   const filteredGuestRows = useMemo(() => {
     if (!searchQuery.trim()) return guestRows;
     const q = searchQuery.trim().toLowerCase();
     return guestRows.filter((row) =>
-      Object.values(row).some((val) =>
-        String(val).toLowerCase().includes(q)
-      )
+      Object.values(row).some((val) => String(val).toLowerCase().includes(q))
     );
   }, [guestRows, searchQuery]);
 
-  // For simple reports, we need to filter rows per report.
-  // We'll create a memoized version of the current simple report with filtered rows.
-  const currentSimpleReport = activeReport !== "guest" ? simpleReports[activeReport] : null;
+  // Build a dynamic report object for non‑guest reports (including payment)
+  const currentReport = useMemo(() => {
+    if (activeReport === "guest") return null;
+    const base = simpleReports[activeReport as SimpleReportKey];
+    if (!base) return null;
 
+    // For payment, use API data
+    if (activeReport === "payment") {
+      const rows = paymentData.map((item, index) => [
+        index + 1,
+        item.payment_mode || "",
+        item.total_transactions || 0,
+        item.total_amount || 0,
+        item.net_amount || 0,
+        item.percentage_contribution || 0,
+      ]);
+      return { ...base, rows };
+    }
+
+    // Other simple reports use static rows (currently empty)
+    return { ...base, rows: base.rows };
+  }, [activeReport, paymentData]);
+
+  // Filter rows for the current report (including payment)
   const filteredSimpleRows = useMemo(() => {
-    if (!currentSimpleReport) return [];
-    if (!searchQuery.trim()) return currentSimpleReport.rows;
+    if (!currentReport) return [];
+    if (!searchQuery.trim()) return currentReport.rows;
     const q = searchQuery.trim().toLowerCase();
-    return currentSimpleReport.rows.filter((row) =>
+    return currentReport.rows.filter((row) =>
       row.some((cell) => String(cell).toLowerCase().includes(q))
     );
-  }, [currentSimpleReport, searchQuery]);
+  }, [currentReport, searchQuery]);
 
-  // We'll create a modified report object for rendering with filtered rows.
-  const filteredReport = currentSimpleReport
-    ? { ...currentSimpleReport, rows: filteredSimpleRows }
+  const filteredReport = currentReport
+    ? { ...currentReport, rows: filteredSimpleRows }
     : null;
 
-  // -------------------- Render helpers (modified to use filtered data) --------------------
+  // -------------------- Render helpers --------------------
   const renderSimpleTable = (report: SimpleReport) => {
     const reportKey = activeReport as SimpleReportKey;
     const visibleColNames = simpleSelectedColumns[reportKey] || report.columns;
@@ -623,13 +667,11 @@ export default function ReportsPage(): JSX.Element {
     [selectedFields]
   );
 
-  // 👇 NEW: ESC key handler
+  // -------------------- ESC key handler --------------------
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        // Navigate to the Hotel Booking Panel.
-        // Adjust the route according to your app's routing.
-        navigate('/hotel-master/HotelBookingPanel', { replace: true }); // or "/hotel/booking-panel" if that's the exact path
+        navigate("/hotel-master/HotelBookingPanel", { replace: true });
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -739,12 +781,10 @@ export default function ReportsPage(): JSX.Element {
         .rp-app .rp-panel-header {
           color: var(--rp-text-muted);
         }
-        /* 👇 Dropdown scrollbar styles */
         .rp-app .dropdown-menu {
           max-height: 280px;
           overflow-y: auto;
         }
-        /* Keep the field/column dropdowns scrollable as before */
         .rp-app .dropdown-menu.rp-panel {
           max-height: 420px;
           overflow-y: auto;
@@ -773,7 +813,7 @@ export default function ReportsPage(): JSX.Element {
                 left: 0,
                 zIndex: 1000,
                 minWidth: 220,
-                maxHeight: "none", // 👈 scrollbar
+                maxHeight: "none",
                 overflowY: "auto",
               }}
             >
@@ -813,7 +853,7 @@ export default function ReportsPage(): JSX.Element {
           onChange={(e) => setToDate(e.target.value)}
         />
 
-        {/* 👇 NEW: Search bar */}
+        {/* Search bar */}
         <input
           type="text"
           className="form-control"
@@ -875,21 +915,27 @@ export default function ReportsPage(): JSX.Element {
           <button
             className="btn rp-btn-outline"
             title="Refresh"
-            onClick={activeReport === "guest" ? refreshGuestReport : undefined}
+            onClick={
+              activeReport === "guest"
+                ? refreshGuestReport
+                : activeReport === "payment"
+                ? fetchPaymentReport
+                : undefined
+            }
           >
             <i className="bi bi-arrow-clockwise" />&#8635;
           </button>
           <button
             className="btn rp-btn-outline-danger"
             title="Close"
-            onClick={() => navigate("/hotel-master/HotelBookingPanel")} // 👈 Close goes to booking panel
+            onClick={() => navigate("/hotel-master/HotelBookingPanel")}
           >
             &#10005;
           </button>
         </div>
       </div>
 
-      {/* Column / Field Selectors (unchanged, but dropdowns already have scrollbar via global style) */}
+      {/* Column / Field Selectors */}
       <div className="d-flex align-items-center justify-content-between px-3 pt-3 pb-2 flex-wrap gap-2">
         <h6 className="fw-bold mb-0">{activeLabel}</h6>
 
@@ -953,7 +999,7 @@ export default function ReportsPage(): JSX.Element {
           </div>
         )}
 
-        {activeReport !== "guest" && currentSimpleReport && (
+        {activeReport !== "guest" && currentReport && (
           <div className="dropdown" style={{ position: "relative" }} ref={columnRef}>
             <button
               className="btn rp-btn-outline btn-sm fw-semibold"
@@ -986,13 +1032,13 @@ export default function ReportsPage(): JSX.Element {
                     onClick={() => toggleAllSimpleColumns(activeReport as SimpleReportKey)}
                   >
                     {simpleSelectedColumns[activeReport as SimpleReportKey]?.length ===
-                    currentSimpleReport.columns.length
+                    currentReport.columns.length
                       ? "Clear all"
                       : "Select all"}
                   </button>
                 </div>
                 <div className="row row-cols-2 g-1">
-                  {currentSimpleReport.columns.map((col) => (
+                  {currentReport.columns.map((col) => (
                     <div className="col" key={col}>
                       <div className="form-check">
                         <input
@@ -1019,11 +1065,39 @@ export default function ReportsPage(): JSX.Element {
         )}
       </div>
 
-      {/* Table */}
+      {/* Table Area */}
       <div className="table-responsive">
-        {activeReport === "guest"
-          ? renderGuestTable()
-          : filteredReport && renderSimpleTable(filteredReport)}
+        {activeReport === "guest" ? (
+          renderGuestTable()
+        ) : (
+          <>
+            {activeReport === "payment" && paymentLoading && (
+              <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
+                <div
+                  className="spinner-border spinner-border-sm me-2"
+                  style={{ color: "var(--rp-primary)" }}
+                  role="status"
+                />
+                Loading payment report...
+              </div>
+            )}
+            {activeReport === "payment" && paymentError && (
+              <div
+                className="text-center py-5 mx-3 my-3 rounded"
+                style={{ background: "var(--rp-danger-soft)", color: "var(--rp-danger)" }}
+              >
+                <i className="bi bi-exclamation-triangle-fill d-block mb-2" style={{ fontSize: 20 }} />
+                {paymentError}
+                <div>
+                  <button className="btn btn-sm rp-btn-outline-danger mt-3" onClick={fetchPaymentReport}>
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+            {!paymentLoading && !paymentError && filteredReport && renderSimpleTable(filteredReport)}
+          </>
+        )}
       </div>
     </div>
   );

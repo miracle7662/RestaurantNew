@@ -349,6 +349,33 @@ export interface DailySalesSummary {
   total_refunds_received: number;
 }
 
+export interface PaymentModeSummary {
+  payment_mode: string;
+  PaymentTypeID: number;
+
+  total_transactions: number;
+  unique_checkouts: number;
+  unique_guests: number;
+  unique_companies: number;
+
+  total_amount: number;
+  avg_transaction_amount: number;
+  min_transaction: number;
+  max_transaction: number;
+
+  total_tips: number;
+  total_refunds: number;
+  net_amount: number;
+
+  percentage_contribution: number;
+  daily_average: number;
+
+  guest_names: string;
+  company_names: string;
+
+  payment_volume_category: string;
+}
+
 // ============================================================================
 // SERVICE
 // ============================================================================
@@ -417,6 +444,19 @@ getDailySalesSummary: (params: {
     { params }
   ),
 
+
+  /**
+ * Payment Mode Summary
+ */
+getPaymentModeSummary: (params: {
+  hotelid: number;
+  start_date: string;
+  end_date: string;
+}): Promise<ApiResponse<PaymentModeSummary[]>> =>
+  HttpClient.get<ApiResponse<PaymentModeSummary[]>>(
+    "/checkins/payment-mode-summary",
+    { params }
+  ),
   /**
    * Create a new checkin.
    */

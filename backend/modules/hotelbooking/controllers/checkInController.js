@@ -1268,6 +1268,34 @@ exports.getDailySalesSummary = async (req, res) => {
 };
 
 
+exports.getPaymentModeSummary = async (req, res) => {
+    try {
+        const { hotelid, start_date, end_date } = req.query;
+
+        const [rows] = await db.query(
+            `CALL sp_payment_mode_summary(?, ?, ?)`,
+            [
+                hotelid,
+                start_date,
+                end_date
+            ]
+        );
+
+        res.status(200).json({
+            success: true,
+            data: rows[0] // Stored Procedure ka first result set
+        });
+
+    } catch (error) {
+        console.error("getPaymentModeSummary error:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+
 // ----------------------------------------------------------------------
 // POST /checkins/:checkinId/extend-day – EXTEND DAY SINGLE API
 // FIXED: Proper cumulative calculation for day extensions
