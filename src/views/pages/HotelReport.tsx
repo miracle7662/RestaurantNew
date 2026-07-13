@@ -579,6 +579,7 @@ export default function ReportsPage(): JSX.Element {
     );
   };
 
+  // -------- UPDATED renderDetailTable with Room chunking and TypeScript fix --------
   const renderDetailTable = () => {
     if (detailLoading) {
       return (
@@ -636,6 +637,8 @@ export default function ReportsPage(): JSX.Element {
       );
     }
 
+    const isPaymentReport = activeReport === "payment";
+
     const renderCell = (row: DailyBookingRow, fieldKey: string) => {
       if (fieldKey === "checkin_datetime") {
         return (
@@ -646,18 +649,47 @@ export default function ReportsPage(): JSX.Element {
           </>
         );
       }
-     return formatCell(row[fieldKey as keyof DailyBookingRow] as string | number | null | undefined);
+      // Chunk room numbers for Payment Report
+      if (fieldKey === "room_numbers_used" && isPaymentReport) {
+        const rooms = row.room_numbers_used
+          .split(',')
+          .map(r => r.trim())
+          .filter(r => r);
+        const chunks: string[] = [];
+        for (let i = 0; i < rooms.length; i += 3) {
+          chunks.push(rooms.slice(i, i + 3).join(', '));
+        }
+        return (
+          <>
+            {chunks.map((chunk, idx) => (
+              <React.Fragment key={idx}>
+                {chunk}
+                {idx < chunks.length - 1 && <br />}
+              </React.Fragment>
+            ))}
+          </>
+        );
+      }
+      return formatCell(row[fieldKey as keyof DailyBookingRow] as string | number | null | undefined);
     };
 
     return (
       <table className="table table-hover align-middle mb-0">
         <thead className="rp-thead">
           <tr>
-            {columns.map((c) => (
-              <th key={c.key} className="text-nowrap">
-                {c.label}
-              </th>
-            ))}
+            {columns.map((c) => {
+              const isRoom = isPaymentReport && c.key === "room_numbers_used";
+              // ---- FIX: cast style to React.CSSProperties ----
+              const thStyle = isRoom
+                ? ({ padding: "0.3rem 0.2rem", maxWidth: "150px", whiteSpace: "normal", wordBreak: "break-word" } as React.CSSProperties)
+                : {};
+              const thClassName = isRoom ? "" : "text-nowrap";
+              return (
+                <th key={c.key} className={thClassName} style={thStyle}>
+                  {c.label}
+                </th>
+              );
+            })}
             {visiblePaymentModes.map((mode) => (
               <th key={mode} className="text-nowrap">
                 {mode}
@@ -668,11 +700,19 @@ export default function ReportsPage(): JSX.Element {
         <tbody>
           {filteredDetailRows.map((row, i) => (
             <tr key={i}>
-              {columns.map((c) => (
-                <td key={c.key} className="text-nowrap">
-                  {renderCell(row, c.key)}
-                </td>
-              ))}
+              {columns.map((c) => {
+                const isRoom = isPaymentReport && c.key === "room_numbers_used";
+                // ---- FIX: cast style to React.CSSProperties ----
+                const tdStyle = isRoom
+                  ? ({ padding: "0.3rem 0.2rem", maxWidth: "150px", whiteSpace: "normal", wordBreak: "break-word" } as React.CSSProperties)
+                  : {};
+                const tdClassName = isRoom ? "" : "text-nowrap";
+                return (
+                  <td key={c.key} className={tdClassName} style={tdStyle}>
+                    {renderCell(row, c.key)}
+                  </td>
+                );
+              })}
               {visiblePaymentModes.map((mode) => (
                 <td key={mode} className="text-nowrap">
                   ₹{getBreakdownAmount(row, mode).toLocaleString("en-IN")}
