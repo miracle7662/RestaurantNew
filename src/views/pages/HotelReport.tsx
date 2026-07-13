@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { useNavigate } from "react-router-dom";
 import CheckInService from "@/common/hotel/checkIn";
 import { useAuthContext } from "@/common/context/useAuthContext";
-import { PaymentModeSummary } from "@/common/hotel/checkIn";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -46,6 +45,7 @@ interface DailyBookingRow {
   payment_breakdown: Record<string, number>;
 }
 
+// -------- REPORT FIELD DEFINITIONS --------
 const guestReport = {
   title: "Daily Sell Report (Guest Details)",
   fields: [
@@ -82,6 +82,18 @@ const guestReport = {
   ],
 };
 
+const paymentReport = {
+  title: "Payment Mode Report (Detailed)",
+  fields: [
+    { key: "ldg_bill_no", label: "Bill No" },
+    { key: "guest_name", label: "Guest Name" },
+    { key: "room_numbers_used", label: "Room" },
+    { key: "checkin_datetime", label: "Check‑in / Check‑out" },
+  ],
+  defaultFields: ["ldg_bill_no", "guest_name", "room_numbers_used", "checkin_datetime"],
+};
+
+// -------- SIMPLE REPORTS (used for Pending and Agent) --------
 const simpleReports: Record<SimpleReportKey, SimpleReport> = {
   payment: {
     title: "Payment Mode Report",
@@ -129,6 +141,10 @@ const reportMenu: { key: ReportKey; label: string }[] = [
 // --------------------------------------------------------------------
 // Helpers
 // --------------------------------------------------------------------
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
 function statusBadgeClass(value: string): string {
   const v = value.toLowerCase();
   if (v === "paid" || v === "gold" || v === "platinum")
@@ -183,15 +199,17 @@ export default function ReportsPage(): JSX.Element {
   const hotelid = user?.hotelid ?? 1;
 
   const [activeReport, setActiveReport] = useState<ReportKey>("dailysell");
-  const [fromDate, setFromDate] = useState("2026-01-01");
-  const [toDate, setToDate] = useState("2026-07-12");
+  
+  // ---- Removed hard-coded dates ----
+  const today = new Date();
+  const [fromDate, setFromDate] = useState(formatDate(today));
+  const [toDate, setToDate] = useState(formatDate(today));
 
   const [detailRows, setDetailRows] = useState<DailyBookingRow[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [selectedFields, setSelectedFields] = useState<string[]>(guestReport.defaultFields);
 
-  const [paymentData, setPaymentData] = useState<PaymentModeSummary[]>([]);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
@@ -238,7 +256,6 @@ export default function ReportsPage(): JSX.Element {
       const rawData = response?.data ?? [];
 
       return rawData.map((item: any) => {
-        // Try both possible field names (snake_case and camelCase)
         let breakdown: Record<string, number> = {};
         try {
           const raw = item.payment_breakdown || item.paymentBreakdown;
@@ -254,9 +271,6 @@ export default function ReportsPage(): JSX.Element {
           breakdown = {};
         }
 
-        // 🛡️ FALLBACK: if breakdown is empty but total_payment_received > 0,
-        // use a default payment mode (here "Cash").
-        // You can change "Cash" to something else or make it configurable.
         if (Object.keys(breakdown).length === 0) {
           const paid = Number(item.total_payment_received) || 0;
           if (paid > 0) {
@@ -265,7 +279,6 @@ export default function ReportsPage(): JSX.Element {
           }
         }
 
-        // Convert all numeric fields to numbers
         return {
           ldg_bill_no: item.ldg_bill_no ?? "",
           guest_name: item.guest_name ?? "",
@@ -280,7 +293,7 @@ export default function ReportsPage(): JSX.Element {
           taxable_value: Number(item.taxable_value) || 0,
           total_cgst: Number(item.total_cgst) || 0,
           total_sgst: Number(item.total_sgst) || 0,
-          total_spent: Number(item.total) || 0,
+          total_spent: Number(item.total_spent) || 0,
           payment_mode: item.payment_mode ?? "",
           payment_breakdown: breakdown,
         };
@@ -293,15 +306,13 @@ export default function ReportsPage(): JSX.Element {
     setPaymentLoading(true);
     setPaymentError(null);
     try {
-      const response = await CheckInService.getPaymentModeSummary({
+      await CheckInService.getPaymentModeSummary({
         hotelid,
         start_date: fromDate,
         end_date: toDate,
       });
-      setPaymentData(response.data || []);
     } catch (err: unknown) {
       setPaymentError(err instanceof Error ? err.message : "Failed to load payment report");
-      setPaymentData([]);
     } finally {
       setPaymentLoading(false);
     }
@@ -309,9 +320,23 @@ export default function ReportsPage(): JSX.Element {
 
   // -------------------- Effects --------------------
   const isDetailReport = useMemo(
-    () => ["dailysell", "guest", "dailysellguest"].includes(activeReport),
+    () => ["dailysell", "guest", "dailysellguest", "payment"].includes(activeReport),
     [activeReport]
   );
+
+  const currentFieldList = useMemo(() => {
+    if (activeReport === "payment") return paymentReport.fields;
+    if (["dailysell", "guest", "dailysellguest"].includes(activeReport)) return guestReport.fields;
+    return [];
+  }, [activeReport]);
+
+  useEffect(() => {
+    if (activeReport === "payment") {
+      setSelectedFields(paymentReport.defaultFields);
+    } else if (["dailysell", "guest", "dailysellguest"].includes(activeReport)) {
+      setSelectedFields(guestReport.defaultFields);
+    }
+  }, [activeReport]);
 
   useEffect(() => {
     if (!isDetailReport) return;
@@ -341,9 +366,9 @@ export default function ReportsPage(): JSX.Element {
   }, [isDetailReport, fromDate, toDate, hotelid, fetchDailyBookings]);
 
   useEffect(() => {
-    if (activeReport !== "payment") return;
-    fetchPaymentReport();
-  }, [activeReport, fetchPaymentReport]);
+    if (activeReport === "payment") return;
+    // Other simple reports do not need this data
+  }, [activeReport]);
 
   // -------------------- Refresh --------------------
   const refreshDetailReport = () => {
@@ -366,8 +391,9 @@ export default function ReportsPage(): JSX.Element {
   };
 
   const toggleAllFields = () => {
+    const allKeys = currentFieldList.map((f) => f.key);
     setSelectedFields((prev) =>
-      prev.length === guestReport.fields.length ? [] : guestReport.fields.map((f) => f.key)
+      prev.length === allKeys.length ? [] : allKeys
     );
   };
 
@@ -395,7 +421,7 @@ export default function ReportsPage(): JSX.Element {
     if (!searchQuery.trim()) return detailRows;
     const q = searchQuery.trim().toLowerCase();
     return detailRows.filter((row) =>
-      Object.values(row).some((val) => String(val).toLowerCase().includes(q))
+      Object.values(row).some((val) => String(val as any).toLowerCase().includes(q))
     );
   }, [detailRows, searchQuery]);
 
@@ -427,20 +453,8 @@ export default function ReportsPage(): JSX.Element {
     if (isDetailReport) return null;
     const base = simpleReports[activeReport as SimpleReportKey];
     if (!base) return null;
-
-    if (activeReport === "payment") {
-      const rows = paymentData.map((item, index) => [
-        index + 1,
-        item.payment_mode || "",
-        item.total_transactions || 0,
-        item.total_amount || 0,
-        item.net_amount || 0,
-        item.percentage_contribution || 0,
-      ]);
-      return { ...base, rows };
-    }
     return { ...base, rows: base.rows };
-  }, [activeReport, isDetailReport, paymentData]);
+  }, [activeReport, isDetailReport]);
 
   const filteredSimpleRows = useMemo(() => {
     if (!currentReport) return [];
@@ -596,7 +610,7 @@ export default function ReportsPage(): JSX.Element {
       );
     }
 
-    const columns = guestReport.fields.filter((f) => selectedFields.includes(f.key));
+    const columns = currentFieldList.filter((f) => selectedFields.includes(f.key));
     if (columns.length === 0) {
       return (
         <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
@@ -902,7 +916,7 @@ export default function ReportsPage(): JSX.Element {
                     onClick={() => {
                       setExportDropdownOpen(false);
                       if (isDetailReport) {
-                        const cols = guestReport.fields.filter((f) =>
+                        const cols = currentFieldList.filter((f) =>
                           selectedFields.includes(f.key)
                         );
                         exportToExcel(filteredDetailRows, cols);
@@ -920,7 +934,7 @@ export default function ReportsPage(): JSX.Element {
                     onClick={() => {
                       setExportDropdownOpen(false);
                       if (isDetailReport) {
-                        const cols = guestReport.fields.filter((f) =>
+                        const cols = currentFieldList.filter((f) =>
                           selectedFields.includes(f.key)
                         );
                         exportToPDF(filteredDetailRows, cols);
@@ -939,7 +953,7 @@ export default function ReportsPage(): JSX.Element {
           <button
             className="btn rp-btn-outline"
             title="Refresh"
-            onClick={isDetailReport ? refreshDetailReport : fetchPaymentReport}
+            onClick={isDetailReport ? refreshDetailReport : () => {}}
           >
             <i className="bi bi-arrow-clockwise" />&#8635;
           </button>
@@ -989,13 +1003,13 @@ export default function ReportsPage(): JSX.Element {
                     className="btn btn-link rp-btn-link btn-sm p-0"
                     onClick={toggleAllFields}
                   >
-                    {selectedFields.length === guestReport.fields.length
+                    {selectedFields.length === currentFieldList.length
                       ? "Clear all"
                       : "Select all"}
                   </button>
                 </div>
                 <div className="row row-cols-2 g-1">
-                  {guestReport.fields.map((f) => (
+                  {currentFieldList.map((f) => (
                     <div className="col" key={f.key}>
                       <div className="form-check">
                         <input
