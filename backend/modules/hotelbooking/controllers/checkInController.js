@@ -1227,41 +1227,38 @@ exports.getAtGlance = async (req, res) => {
 
 exports.getDailySalesSummary = async (req, res) => {
     try {
-        const {
-            hotelid,
-            start_date,
-            end_date,
-           
-        } = req.query;
+        const { hotelid, start_date, end_date } = req.query;
 
         if (!hotelid || !start_date || !end_date) {
             return res.status(400).json({
                 success: false,
-                message: "hotelid, start_date and end_date are required."
+                message: 'hotelid, start_date and end_date are required.'
             });
         }
 
         const [result] = await db.query(
-            `CALL hotelbooking_db.sp_daily_sales_summary(?, ?, ?)`,
-            [
-                Number(hotelid),
-                start_date,
-                end_date,
-               
-            ]
+            'CALL hotelbooking_db.sp_daily_sales_summary(?, ?, ?)',
+            [Number(hotelid), start_date, end_date]
         );
+
+        let rows = result[0] || [];
+
+        // 🔥 Do NOT parse payment_breakdown – send the raw string as is.
+        // The frontend will parse it safely.
+        // If it's null or undefined, we leave it as is; the frontend will handle it.
+        // No need to manipulate rows.
 
         res.status(200).json({
             success: true,
-            count: result[0].length,
-            data: result[0]
+            count: rows.length,
+            data: rows
         });
 
     } catch (error) {
-        console.error("getDailySalesSummary error:", error);
+        console.error('getDailySalesSummary error:', error);
         res.status(500).json({
             success: false,
-            message: "Failed to fetch daily sales summary.",
+            message: 'Failed to fetch daily sales summary.',
             error: error.message
         });
     }

@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import CheckInService from "@/common/hotel/checkIn";
 import { useAuthContext } from "@/common/context/useAuthContext";
 import { PaymentModeSummary } from "@/common/hotel/checkIn";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 // --------------------------------------------------------------------
 // Types
 // --------------------------------------------------------------------
-type SimpleReportKey = "dailysell" | "payment" | "pending" | "agent"; // removed "occupancy"
-type ReportKey = SimpleReportKey | "guest" | "dailysellguest"; // added dailysellguest
+type SimpleReportKey = "payment" | "pending" | "agent";
+type ReportKey = SimpleReportKey | "dailysell" | "guest" | "dailysellguest";
 
 interface SimpleReport {
   title: string;
@@ -24,87 +27,62 @@ interface FieldDef {
   label: string;
 }
 
-interface GuestReportRow {
-  guest_id: number;
-  guest_name: string;
-  mobile: string;
-  email: string;
-  organisation: string;
-  guest_type: string;
-  gender: string;
-  company_id: number;
-  company_name: string;
-  company_gst: string;
-  company_mobile: string;
-  company_email: string;
-  company_credit_limit: number;
-  company_credit_allowed: number;
-  unique_rooms_used: number;
-  room_numbers_used: string;
-  room_categories_used: string;
-  room_details: string;
-  most_used_room: string;
-  preferred_room_category: string;
-  total_ldg_bills: number;
+interface DailyBookingRow {
   ldg_bill_no: string;
-  registration_numbers: string;
-  booking_references: string;
-  total_stays: number;
-  total_checkouts: number;
-  total_room_nights: number;
-  avg_stay_duration: number;
-  total_room_revenue: number;
-  total_extra_charges: number;
-  total_child_charges: number;
-  total_driver_charges: number;
-  total_service_charge: number;
-  total_cess: number;
+  guest_name: string;
+  room_numbers_used: string;
+  checkin_datetime: string;
+  checkout_datetime: string;
+  total_payment_received: number;
+  net_amount: number;
   total_discounts_received: number;
+  total_tips_given: number;
+  gross_amount: number;
+  taxable_value: number;
   total_cgst: number;
   total_sgst: number;
-  total_igst: number;
   total_spent: number;
-  total_advance_paid: number;
-  first_visit: string;
-  last_visit: string;
-  customer_lifecycle_days: number;
-  avg_amount_per_stay: number;
-  loyalty_level: string;
-  total_payment_received: number;
-  total_tips_given: number;
-  total_refunds_received: number;
+  payment_mode: string;
+  payment_breakdown: Record<string, number>;
 }
 
-interface GuestReport {
-  title: string;
-  fields: FieldDef[];
-  defaultFields: string[];
-}
+const guestReport = {
+  title: "Daily Sell Report (Guest Details)",
+  fields: [
+    { key: "ldg_bill_no", label: "Bill No" },
+    { key: "guest_name", label: "Guest Name" },
+    { key: "room_numbers_used", label: "Room" },
+    { key: "checkin_datetime", label: "Check‑in / Check‑out" },
+    { key: "total_payment_received", label: "Settlement Amount" },
+    { key: "net_amount", label: "Net Amount" },
+    { key: "total_discounts_received", label: "Discount" },
+    { key: "total_tips_given", label: "Tip" },
+    { key: "gross_amount", label: "Gross Amount" },
+    { key: "taxable_value", label: "Taxable Value" },
+    { key: "total_cgst", label: "CGST" },
+    { key: "total_sgst", label: "SGST" },
+    { key: "total_spent", label: "Total" },
+    { key: "payment_mode", label: "Payment" },
+  ],
+  defaultFields: [
+    "ldg_bill_no",
+    "guest_name",
+    "room_numbers_used",
+    "checkin_datetime",
+    "total_payment_received",
+    "net_amount",
+    "total_discounts_received",
+    "total_tips_given",
+    "gross_amount",
+    "taxable_value",
+    "total_cgst",
+    "total_sgst",
+    "total",
+    "payment_mode",
+  ],
+};
 
-// --------------------------------------------------------------------
-// Static data
-// --------------------------------------------------------------------
 const simpleReports: Record<SimpleReportKey, SimpleReport> = {
-  // occupancy removed
-  dailysell: {
-    title: "Daily Sell Report",
-    columns: [
-      "#",
-      "Date",
-      "Room No",
-      "Room Category",
-      "Guest",
-      "Nights",
-      "Rate",
-      "Tax",
-      "Total Amt",
-      "Pay Type",
-    ],
-    rows: [],
-    footerLabel: "Total Bookings:",
-    footerCol: 5,
-    footerAmtCol: 8,
-  },
   payment: {
     title: "Payment Mode Report",
     columns: ["#", "Payment Mode", "Transactions", "Total Amount", "Net Amount", "Contribution %"],
@@ -140,79 +118,12 @@ const simpleReports: Record<SimpleReportKey, SimpleReport> = {
   },
 };
 
-const guestReport: GuestReport = {
-  title: "Guest Report",
-  fields: [
-    { key: "guest_id", label: "Guest ID" },
-    { key: "guest_name", label: "Guest Name" },
-    { key: "mobile", label: "Mobile" },
-    { key: "email", label: "Email" },
-    { key: "organisation", label: "Organisation" },
-    { key: "guest_type", label: "Guest Type" },
-    { key: "gender", label: "Gender" },
-    { key: "company_id", label: "Company ID" },
-    { key: "company_name", label: "Company Name" },
-    { key: "company_gst", label: "Company GST" },
-    { key: "company_mobile", label: "Company Mobile" },
-    { key: "company_email", label: "Company Email" },
-    { key: "company_credit_limit", label: "Company Credit Limit" },
-    { key: "company_credit_allowed", label: "Company Credit Allowed" },
-    { key: "unique_rooms_used", label: "Unique Rooms Used" },
-    { key: "room_numbers_used", label: "Room Numbers Used" },
-    { key: "room_categories_used", label: "Room Categories Used" },
-    { key: "room_details", label: "Room Details" },
-    { key: "most_used_room", label: "Most Used Room" },
-    { key: "preferred_room_category", label: "Preferred Room Category" },
-    { key: "total_ldg_bills", label: "Total LDG Bills" },
-    { key: "ldg_bill_no", label: "LDG Bill Numbers" },
-    { key: "registration_numbers", label: "Registration Numbers" },
-    { key: "booking_references", label: "Booking References" },
-    { key: "total_stays", label: "Total Stays" },
-    { key: "total_checkouts", label: "Total Checkouts" },
-    { key: "total_room_nights", label: "Total Room Nights" },
-    { key: "avg_stay_duration", label: "Avg Stay Duration" },
-    { key: "total_room_revenue", label: "Total Room Revenue" },
-    { key: "total_extra_charges", label: "Total Extra Charges" },
-    { key: "total_child_charges", label: "Total Child Charges" },
-    { key: "total_driver_charges", label: "Total Driver Charges" },
-    { key: "total_service_charge", label: "Total Service Charge" },
-    { key: "total_cess", label: "Total Cess" },
-    { key: "total_discounts_received", label: "Total Discounts Received" },
-    { key: "total_cgst", label: "Total CGST" },
-    { key: "total_sgst", label: "Total SGST" },
-    { key: "total_igst", label: "Total IGST" },
-    { key: "total_spent", label: "Total Spent" },
-    { key: "total_advance_paid", label: "Total Advance Paid" },
-    { key: "first_visit", label: "First Visit" },
-    { key: "last_visit", label: "Last Visit" },
-    { key: "customer_lifecycle_days", label: "Customer Lifecycle Days" },
-    { key: "avg_amount_per_stay", label: "Avg Amount Per Stay" },
-    { key: "loyalty_level", label: "Loyalty Level" },
-    { key: "total_payment_received", label: "Total Payment Received" },
-    { key: "total_tips_given", label: "Total Tips Given" },
-    { key: "total_refunds_received", label: "Total Refunds Received" },
-  ],
-  defaultFields: [
-    "guest_name",
-    "mobile",
-    "email",
-    "guest_type",
-    "total_stays",
-    "total_room_nights",
-    "total_spent",
-    "last_visit",
-    "loyalty_level",
-  ],
-};
-
 const reportMenu: { key: ReportKey; label: string }[] = [
-  // occupancy removed
   { key: "dailysell", label: "Daily Sell Report" },
   { key: "payment", label: "Payment Mode Report" },
   { key: "pending", label: "Pending Payment Report" },
   { key: "agent", label: "Agent Booking Report" },
   { key: "guest", label: "Guest Report" },
-  { key: "dailysellguest", label: "Daily Sell Guest Report" }, // new
 ];
 
 // --------------------------------------------------------------------
@@ -248,25 +159,18 @@ function formatCell(value: string | number | null | undefined): React.ReactNode 
   return value;
 }
 
-// --------------------------------------------------------------------
-// Custom hook for click‑outside
-// --------------------------------------------------------------------
 function useClickOutside<T extends HTMLElement>(isOpen: boolean, onClose: () => void) {
   const ref = useRef<T | null>(null);
-
   useEffect(() => {
     if (!isOpen) return;
-
     const handlePointerDown = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) {
         onClose();
       }
     };
-
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [isOpen, onClose]);
-
   return ref;
 }
 
@@ -278,23 +182,19 @@ export default function ReportsPage(): JSX.Element {
   const { user } = useAuthContext();
   const hotelid = user?.hotelid ?? 1;
 
-  // -------------------- State --------------------
-  const [activeReport, setActiveReport] = useState<ReportKey>("dailysell"); // default changed to dailysell
+  const [activeReport, setActiveReport] = useState<ReportKey>("dailysell");
   const [fromDate, setFromDate] = useState("2026-01-01");
   const [toDate, setToDate] = useState("2026-07-12");
+
+  const [detailRows, setDetailRows] = useState<DailyBookingRow[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [selectedFields, setSelectedFields] = useState<string[]>(guestReport.defaultFields);
 
-  // Guest report state
-  const [guestRows, setGuestRows] = useState<GuestReportRow[]>([]);
-  const [guestLoading, setGuestLoading] = useState(false);
-  const [guestError, setGuestError] = useState<string | null>(null);
-
-  // Payment report state
   const [paymentData, setPaymentData] = useState<PaymentModeSummary[]>([]);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  // Column selection for simple reports (including payment)
   const [simpleSelectedColumns, setSimpleSelectedColumns] = useState<
     Record<SimpleReportKey, string[]>
   >(() => {
@@ -305,16 +205,12 @@ export default function ReportsPage(): JSX.Element {
     return initial;
   });
 
-  // Dropdown open states
   const [reportDropdownOpen, setReportDropdownOpen] = useState(false);
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [fieldDropdownOpen, setFieldDropdownOpen] = useState(false);
   const [columnDropdownOpen, setColumnDropdownOpen] = useState(false);
-
-  // Search state
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Click-outside refs
   const reportRef = useClickOutside<HTMLDivElement>(reportDropdownOpen, () =>
     setReportDropdownOpen(false)
   );
@@ -330,26 +226,69 @@ export default function ReportsPage(): JSX.Element {
 
   const activeLabel = reportMenu.find((r) => r.key === activeReport)?.label ?? "";
 
-  // -------------------- fetchGuestReport --------------------
-  const fetchGuestReport = useCallback(
-    async (params: {
-      hotelid: number;
-      fromDate: string;
-      toDate: string;
-      limit?: number;
-    }): Promise<GuestReportRow[]> => {
+  // -------------------- API calls --------------------
+  const fetchDailyBookings = useCallback(
+    async (params: { hotelid: number; fromDate: string; toDate: string }): Promise<DailyBookingRow[]> => {
       const response = await CheckInService.getDailySalesSummary({
         hotelid: params.hotelid,
         start_date: params.fromDate,
         end_date: params.toDate,
-        limit: params.limit ?? 100,
+        limit: 1000,
       });
-      return (response?.data ?? []) as GuestReportRow[];
+      const rawData = response?.data ?? [];
+
+      return rawData.map((item: any) => {
+        // Try both possible field names (snake_case and camelCase)
+        let breakdown: Record<string, number> = {};
+        try {
+          const raw = item.payment_breakdown || item.paymentBreakdown;
+          if (raw) {
+            if (typeof raw === "string") {
+              breakdown = JSON.parse(raw.trim());
+            } else if (typeof raw === "object") {
+              breakdown = { ...raw };
+            }
+          }
+        } catch (e) {
+          console.error(`❌ Parse error for ${item.ldg_bill_no}:`, e);
+          breakdown = {};
+        }
+
+        // 🛡️ FALLBACK: if breakdown is empty but total_payment_received > 0,
+        // use a default payment mode (here "Cash").
+        // You can change "Cash" to something else or make it configurable.
+        if (Object.keys(breakdown).length === 0) {
+          const paid = Number(item.total_payment_received) || 0;
+          if (paid > 0) {
+            breakdown = { Cash: paid };
+            console.log(`🔄 Fallback breakdown for ${item.ldg_bill_no}:`, breakdown);
+          }
+        }
+
+        // Convert all numeric fields to numbers
+        return {
+          ldg_bill_no: item.ldg_bill_no ?? "",
+          guest_name: item.guest_name ?? "",
+          room_numbers_used: item.room_numbers_used ?? "",
+          checkin_datetime: item.checkin_datetime ?? "",
+          checkout_datetime: item.checkout_datetime ?? "",
+          total_payment_received: Number(item.total_payment_received) || 0,
+          net_amount: Number(item.net_amount) || 0,
+          total_discounts_received: Number(item.total_discounts_received) || 0,
+          total_tips_given: Number(item.total_tips_given) || 0,
+          gross_amount: Number(item.gross_amount) || 0,
+          taxable_value: Number(item.taxable_value) || 0,
+          total_cgst: Number(item.total_cgst) || 0,
+          total_sgst: Number(item.total_sgst) || 0,
+          total_spent: Number(item.total) || 0,
+          payment_mode: item.payment_mode ?? "",
+          payment_breakdown: breakdown,
+        };
+      });
     },
     []
   );
 
-  // -------------------- fetchPaymentReport --------------------
   const fetchPaymentReport = useCallback(async () => {
     setPaymentLoading(true);
     setPaymentError(null);
@@ -369,50 +308,54 @@ export default function ReportsPage(): JSX.Element {
   }, [hotelid, fromDate, toDate]);
 
   // -------------------- Effects --------------------
-  // Guest-like report effect (for both "guest" and "dailysellguest")
+  const isDetailReport = useMemo(
+    () => ["dailysell", "guest", "dailysellguest"].includes(activeReport),
+    [activeReport]
+  );
+
   useEffect(() => {
-    if (activeReport !== "guest" && activeReport !== "dailysellguest") return;
-
+    if (!isDetailReport) return;
     let cancelled = false;
-    setGuestLoading(true);
-    setGuestError(null);
+    setDetailLoading(true);
+    setDetailError(null);
 
-    fetchGuestReport({ hotelid, fromDate, toDate })
+    fetchDailyBookings({ hotelid, fromDate, toDate })
       .then((rows) => {
-        if (!cancelled) setGuestRows(rows);
+        if (!cancelled) {
+          setDetailRows(rows);
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setGuestError(err instanceof Error ? err.message : "Failed to load guest report");
-          setGuestRows([]);
+          setDetailError(err instanceof Error ? err.message : "Failed to load report");
+          setDetailRows([]);
         }
       })
       .finally(() => {
-        if (!cancelled) setGuestLoading(false);
+        if (!cancelled) setDetailLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [activeReport, fromDate, toDate, hotelid, fetchGuestReport]);
+  }, [isDetailReport, fromDate, toDate, hotelid, fetchDailyBookings]);
 
-  // Payment report effect
   useEffect(() => {
     if (activeReport !== "payment") return;
     fetchPaymentReport();
   }, [activeReport, fetchPaymentReport]);
 
-  // -------------------- Refresh handlers --------------------
-  const refreshGuestReport = () => {
-    if (activeReport !== "guest" && activeReport !== "dailysellguest") return;
-    setGuestLoading(true);
-    setGuestError(null);
-    fetchGuestReport({ hotelid, fromDate, toDate })
-      .then(setGuestRows)
+  // -------------------- Refresh --------------------
+  const refreshDetailReport = () => {
+    if (!isDetailReport) return;
+    setDetailLoading(true);
+    setDetailError(null);
+    fetchDailyBookings({ hotelid, fromDate, toDate })
+      .then(setDetailRows)
       .catch((err: unknown) =>
-        setGuestError(err instanceof Error ? err.message : "Failed to load guest report")
+        setDetailError(err instanceof Error ? err.message : "Failed to load report")
       )
-      .finally(() => setGuestLoading(false));
+      .finally(() => setDetailLoading(false));
   };
 
   // -------------------- Toggle handlers --------------------
@@ -448,22 +391,43 @@ export default function ReportsPage(): JSX.Element {
   };
 
   // -------------------- Data filtering --------------------
-  const filteredGuestRows = useMemo(() => {
-    if (!searchQuery.trim()) return guestRows;
+  const filteredDetailRows = useMemo(() => {
+    if (!searchQuery.trim()) return detailRows;
     const q = searchQuery.trim().toLowerCase();
-    return guestRows.filter((row) =>
+    return detailRows.filter((row) =>
       Object.values(row).some((val) => String(val).toLowerCase().includes(q))
     );
-  }, [guestRows, searchQuery]);
+  }, [detailRows, searchQuery]);
 
-  // Build a dynamic report object for non‑guest reports (including payment)
+  const getBreakdownAmount = (row: DailyBookingRow, modeName: string): number => {
+    const normalizedMode = modeName.trim().toLowerCase();
+    const key = Object.keys(row.payment_breakdown || {}).find(
+      (k) => k.trim().toLowerCase() === normalizedMode
+    );
+    return key ? Number(row.payment_breakdown[key]) || 0 : 0;
+  };
+
+  const paymentModeTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    filteredDetailRows.forEach((row) => {
+      Object.entries(row.payment_breakdown || {}).forEach(([mode, amt]) => {
+        totals[mode] = (totals[mode] || 0) + (Number(amt) || 0);
+      });
+    });
+    return totals;
+  }, [filteredDetailRows]);
+
+  const visiblePaymentModes = useMemo(
+    () => Object.keys(paymentModeTotals).filter((mode) => paymentModeTotals[mode] > 0),
+    [paymentModeTotals]
+  );
+
+  // -------------------- Report builders --------------------
   const currentReport = useMemo(() => {
-    // If it's a guest-like report, return null (handled separately)
-    if (activeReport === "guest" || activeReport === "dailysellguest") return null;
+    if (isDetailReport) return null;
     const base = simpleReports[activeReport as SimpleReportKey];
     if (!base) return null;
 
-    // For payment, use API data
     if (activeReport === "payment") {
       const rows = paymentData.map((item, index) => [
         index + 1,
@@ -475,12 +439,9 @@ export default function ReportsPage(): JSX.Element {
       ]);
       return { ...base, rows };
     }
-
-    // Other simple reports use static rows (currently empty)
     return { ...base, rows: base.rows };
-  }, [activeReport, paymentData]);
+  }, [activeReport, isDetailReport, paymentData]);
 
-  // Filter rows for the current report (including payment)
   const filteredSimpleRows = useMemo(() => {
     if (!currentReport) return [];
     if (!searchQuery.trim()) return currentReport.rows;
@@ -493,6 +454,56 @@ export default function ReportsPage(): JSX.Element {
   const filteredReport = currentReport
     ? { ...currentReport, rows: filteredSimpleRows }
     : null;
+
+  // -------------------- Export functions --------------------
+  const exportToExcel = (data: DailyBookingRow[], columns: FieldDef[]) => {
+    const excelData = data.map((row) => {
+      const obj: Record<string, any> = {};
+      columns.forEach((col) => {
+        let value = row[col.key as keyof DailyBookingRow];
+        if (col.key === "checkin_datetime") {
+          value = `${row.checkin_datetime}\n${row.checkout_datetime}`;
+        }
+        obj[col.label] = value ?? "-";
+      });
+      visiblePaymentModes.forEach((mode) => {
+        obj[mode] = getBreakdownAmount(row, mode);
+      });
+      return obj;
+    });
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, activeLabel);
+    XLSX.writeFile(wb, `${activeLabel}.xlsx`);
+  };
+
+  const exportToPDF = (data: DailyBookingRow[], columns: FieldDef[]) => {
+    const doc = new jsPDF();
+    doc.text(activeLabel, 14, 16);
+
+    const tableHeaders = [...columns.map((c) => c.label), ...visiblePaymentModes];
+    const tableRows = data.map((row) => {
+      const base = columns.map((c) => {
+        let value = row[c.key as keyof DailyBookingRow];
+        if (c.key === "checkin_datetime") {
+          value = `${row.checkin_datetime}\n${row.checkout_datetime}`;
+        }
+        return value ?? "-";
+      });
+      const modeVals = visiblePaymentModes.map((mode) => getBreakdownAmount(row, mode));
+      return [...base, ...modeVals];
+    });
+
+    (doc as any).autoTable({
+      head: [tableHeaders],
+      body: tableRows,
+      startY: 22,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [31, 58, 95] },
+    });
+
+    doc.save(`${activeLabel}.pdf`);
+  };
 
   // -------------------- Render helpers --------------------
   const renderSimpleTable = (report: SimpleReport) => {
@@ -554,8 +565,8 @@ export default function ReportsPage(): JSX.Element {
     );
   };
 
-  const renderGuestTable = () => {
-    if (guestLoading) {
+  const renderDetailTable = () => {
+    if (detailLoading) {
       return (
         <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
           <div
@@ -563,21 +574,21 @@ export default function ReportsPage(): JSX.Element {
             style={{ color: "var(--rp-primary)" }}
             role="status"
           />
-          Loading guest report...
+          Loading report...
         </div>
       );
     }
 
-    if (guestError) {
+    if (detailError) {
       return (
         <div
           className="text-center py-5 mx-3 my-3 rounded"
           style={{ background: "var(--rp-danger-soft)", color: "var(--rp-danger)" }}
         >
           <i className="bi bi-exclamation-triangle-fill d-block mb-2" style={{ fontSize: 20 }} />
-          {guestError}
+          {detailError}
           <div>
-            <button className="btn btn-sm rp-btn-outline-danger mt-3" onClick={refreshGuestReport}>
+            <button className="btn btn-sm rp-btn-outline-danger mt-3" onClick={refreshDetailReport}>
               Retry
             </button>
           </div>
@@ -585,7 +596,8 @@ export default function ReportsPage(): JSX.Element {
       );
     }
 
-    if (guestColumns.length === 0) {
+    const columns = guestReport.fields.filter((f) => selectedFields.includes(f.key));
+    if (columns.length === 0) {
       return (
         <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
           <i className="bi bi-columns-gap d-block mb-2" style={{ fontSize: 20 }} />
@@ -594,15 +606,15 @@ export default function ReportsPage(): JSX.Element {
       );
     }
 
-    if (filteredGuestRows.length === 0) {
+    if (filteredDetailRows.length === 0) {
       return (
         <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
           <i className="bi bi-people d-block mb-2" style={{ fontSize: 20 }} />
           {searchQuery.trim()
-            ? `No guest records match "${searchQuery}"`
-            : `No guest records found for ${fromDate} to ${toDate}`}
+            ? `No records match "${searchQuery}"`
+            : `No records found for ${fromDate} to ${toDate}`}
           <div>
-            <button className="btn btn-sm rp-btn-outline mt-3" onClick={refreshGuestReport}>
+            <button className="btn btn-sm rp-btn-outline mt-3" onClick={refreshDetailReport}>
               Refresh
             </button>
           </div>
@@ -610,23 +622,46 @@ export default function ReportsPage(): JSX.Element {
       );
     }
 
+    const renderCell = (row: DailyBookingRow, fieldKey: string) => {
+      if (fieldKey === "checkin_datetime") {
+        return (
+          <>
+            {row.checkin_datetime}
+            <br />
+            {row.checkout_datetime}
+          </>
+        );
+      }
+      return formatCell(row[fieldKey as keyof DailyBookingRow]);
+    };
+
     return (
       <table className="table table-hover align-middle mb-0">
         <thead className="rp-thead">
           <tr>
-            {guestColumns.map((c) => (
+            {columns.map((c) => (
               <th key={c.key} className="text-nowrap">
                 {c.label}
+              </th>
+            ))}
+            {visiblePaymentModes.map((mode) => (
+              <th key={mode} className="text-nowrap">
+                {mode}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {filteredGuestRows.map((row, i) => (
-            <tr key={row.guest_id ?? i}>
-              {guestColumns.map((c) => (
+          {filteredDetailRows.map((row, i) => (
+            <tr key={i}>
+              {columns.map((c) => (
                 <td key={c.key} className="text-nowrap">
-                  {formatCell(row[c.key as keyof GuestReportRow])}
+                  {renderCell(row, c.key)}
+                </td>
+              ))}
+              {visiblePaymentModes.map((mode) => (
+                <td key={mode} className="text-nowrap">
+                  ₹{getBreakdownAmount(row, mode).toLocaleString("en-IN")}
                 </td>
               ))}
             </tr>
@@ -634,20 +669,17 @@ export default function ReportsPage(): JSX.Element {
         </tbody>
         <tfoot>
           <tr className="rp-tfoot fw-bold">
-            <td colSpan={Math.max(guestColumns.length, 1)}>Total Guests: {filteredGuestRows.length}</td>
+            <td colSpan={Math.max(columns.length, 1)}>
+              Total Records: {filteredDetailRows.length}
+            </td>
+            {visiblePaymentModes.map((mode) => (
+              <td key={mode}>₹{(paymentModeTotals[mode] || 0).toLocaleString("en-IN")}</td>
+            ))}
           </tr>
         </tfoot>
       </table>
     );
   };
-
-  const guestColumns = useMemo(
-    () => guestReport.fields.filter((f) => selectedFields.includes(f.key)),
-    [selectedFields]
-  );
-
-  // Determine if current report is guest-like
-  const isGuestLike = activeReport === "guest" || activeReport === "dailysellguest";
 
   // -------------------- ESC key handler --------------------
   useEffect(() => {
@@ -775,7 +807,6 @@ export default function ReportsPage(): JSX.Element {
 
       {/* Toolbar */}
       <div className="d-flex align-items-center gap-3 p-3 border-bottom flex-wrap">
-        {/* Report Selection */}
         <div className="dropdown" style={{ position: "relative" }} ref={reportRef}>
           <button
             className="btn rp-btn-primary dropdown-toggle fw-semibold d-flex align-items-center gap-2"
@@ -819,7 +850,6 @@ export default function ReportsPage(): JSX.Element {
           )}
         </div>
 
-        {/* Date pickers */}
         <input
           type="date"
           className="form-control"
@@ -835,7 +865,6 @@ export default function ReportsPage(): JSX.Element {
           onChange={(e) => setToDate(e.target.value)}
         />
 
-        {/* Search bar */}
         <input
           type="text"
           className="form-control"
@@ -846,7 +875,6 @@ export default function ReportsPage(): JSX.Element {
         />
 
         <div className="ms-auto d-flex gap-2">
-          {/* Export Dropdown */}
           <div className="dropdown" style={{ position: "relative" }} ref={exportRef}>
             <button
               className="btn rp-btn-accent dropdown-toggle fw-semibold"
@@ -873,7 +901,14 @@ export default function ReportsPage(): JSX.Element {
                     className="dropdown-item rp-dropdown-item"
                     onClick={() => {
                       setExportDropdownOpen(false);
-                      // TODO: implement Excel export
+                      if (isDetailReport) {
+                        const cols = guestReport.fields.filter((f) =>
+                          selectedFields.includes(f.key)
+                        );
+                        exportToExcel(filteredDetailRows, cols);
+                      } else {
+                        alert("Excel export for this report not implemented yet.");
+                      }
                     }}
                   >
                     Export as Excel
@@ -884,7 +919,14 @@ export default function ReportsPage(): JSX.Element {
                     className="dropdown-item rp-dropdown-item"
                     onClick={() => {
                       setExportDropdownOpen(false);
-                      // TODO: implement PDF export
+                      if (isDetailReport) {
+                        const cols = guestReport.fields.filter((f) =>
+                          selectedFields.includes(f.key)
+                        );
+                        exportToPDF(filteredDetailRows, cols);
+                      } else {
+                        alert("PDF export for this report not implemented yet.");
+                      }
                     }}
                   >
                     Export as PDF
@@ -897,13 +939,7 @@ export default function ReportsPage(): JSX.Element {
           <button
             className="btn rp-btn-outline"
             title="Refresh"
-            onClick={
-              isGuestLike
-                ? refreshGuestReport
-                : activeReport === "payment"
-                ? fetchPaymentReport
-                : undefined
-            }
+            onClick={isDetailReport ? refreshDetailReport : fetchPaymentReport}
           >
             <i className="bi bi-arrow-clockwise" />&#8635;
           </button>
@@ -921,7 +957,7 @@ export default function ReportsPage(): JSX.Element {
       <div className="d-flex align-items-center justify-content-between px-3 pt-3 pb-2 flex-wrap gap-2">
         <h6 className="fw-bold mb-0">{activeLabel}</h6>
 
-        {isGuestLike && (
+        {isDetailReport && (
           <div className="dropdown" style={{ position: "relative" }} ref={fieldRef}>
             <button
               className="btn rp-btn-outline btn-sm fw-semibold"
@@ -981,7 +1017,7 @@ export default function ReportsPage(): JSX.Element {
           </div>
         )}
 
-        {!isGuestLike && currentReport && (
+        {!isDetailReport && currentReport && (
           <div className="dropdown" style={{ position: "relative" }} ref={columnRef}>
             <button
               className="btn rp-btn-outline btn-sm fw-semibold"
@@ -1049,8 +1085,8 @@ export default function ReportsPage(): JSX.Element {
 
       {/* Table Area */}
       <div className="table-responsive">
-        {isGuestLike ? (
-          renderGuestTable()
+        {isDetailReport ? (
+          renderDetailTable()
         ) : (
           <>
             {activeReport === "payment" && paymentLoading && (
