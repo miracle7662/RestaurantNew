@@ -376,6 +376,61 @@ export interface PaymentModeSummary {
   payment_volume_category: string;
 }
 
+
+export interface DailySalesReport {
+  Date: string;
+  Day: string;
+  TotalBills: number;
+  BillRange: string;
+  RoomAmount: number;
+  FoodAmount: number;
+  ServiceCharge: number;
+  CESS: number;
+  TaxAmount: number;
+  CGST: number;
+  SGST: number;
+  IGST: number;
+  GrossAmount: number;
+  Discount: number;
+  NetAmount: number;
+  Advance: number;
+  SettlementAmount: number;
+  TipAmount: number;
+  DueAmount: number;
+  PaymentModes: string;
+}
+
+
+
+export interface MonthlySalesReport {
+  Year: number;
+  Month: number;
+  "Month Name": string;
+  "Total Bills": number;
+  "Bill Range": string;
+  "Room Amount": number;
+  "Food Amount": number;
+  "Service Charge": number;
+  CESS: number;
+  "Tax Amount": number;
+  CGST: number;
+  SGST: number;
+  IGST: number;
+  "Gross Amount": number;
+  Discount: number;
+  "Net Amount": number;
+  Advance: number;
+  "Settlement Amount": number;
+  "Tip Amount": number;
+  "Due Amount": number;
+  "Payment Modes": string;
+}
+
+export interface DailySalesSummaryReportResponse {
+  dailySummary: DailySalesReport[];
+  monthlySummary: MonthlySalesReport[];
+}
+
 // ============================================================================
 // SERVICE
 // ============================================================================
@@ -455,6 +510,19 @@ getPaymentModeSummary: (params: {
 }): Promise<ApiResponse<PaymentModeSummary[]>> =>
   HttpClient.get<ApiResponse<PaymentModeSummary[]>>(
     "/checkins/payment-mode-summary",
+    { params }
+  ),
+
+  /**
+ * Daily Sales Summary Report
+ */
+getDailySalesSummaryReport: (params: {
+  hotelid: number;
+  start_date: string;
+  end_date: string;
+}): Promise<ApiResponse<DailySalesSummaryReportResponse>> =>
+  HttpClient.get<ApiResponse<DailySalesSummaryReportResponse>>(
+    "/checkins/daily-sales-summary-report",
     { params }
   ),
   /**

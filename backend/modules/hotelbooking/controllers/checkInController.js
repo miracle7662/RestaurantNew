@@ -1265,6 +1265,50 @@ exports.getDailySalesSummary = async (req, res) => {
 };
 
 
+
+exports.getDailySalesSummaryReport = async (req, res) => {
+    try {
+        const hotelId =
+            req.query.hotelid ||
+            (req.body && req.body.hotelid) ||
+            getCurrentUserHotelId(req);
+
+        const { start_date, end_date } = req.query;
+
+        if (!hotelId || !start_date || !end_date) {
+            return res.status(400).json({
+                success: false,
+                message: "hotelid, start_date and end_date are required"
+            });
+        }
+
+        const [results] = await db.query(
+            "CALL sp_daily_sales_summary_report(?, ?, ?)",
+            [hotelId, start_date, end_date]
+        );
+
+        const dailySummary = results[0] || [];
+        const monthlySummary = results[1] || [];
+
+        // ✅ CHANGE HERE: Wrap in 'data' key
+        return res.status(200).json({
+            success: true,
+            data: {
+                dailySummary,
+                monthlySummary
+            }
+        });
+
+    } catch (error) {
+        console.error("getDailySalesSummaryReport error:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.sqlMessage || error.message
+        });
+    }
+};
+
+
 // exports.getGuestSummary = async (req, res) => {
 //     try {
 //         const {

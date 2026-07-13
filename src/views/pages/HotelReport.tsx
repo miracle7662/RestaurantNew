@@ -5,12 +5,17 @@ import { useAuthContext } from "@/common/context/useAuthContext";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import {
+  DailySalesSummaryReportResponse,
+  DailySalesReport,
+  MonthlySalesReport,
+} from "@/common/hotel/checkIn";
 
 // --------------------------------------------------------------------
 // Types
 // --------------------------------------------------------------------
 type SimpleReportKey = "payment" | "pending" | "agent";
-type ReportKey = SimpleReportKey | "dailysell" | "guest" | "dailysellguest";
+type ReportKey = SimpleReportKey | "dailysell" | "guest" | "dailysellguest" | "dailysummary";
 
 interface SimpleReport {
   title: string;
@@ -128,6 +133,54 @@ const paymentReport = {
   defaultFields: ["ldg_bill_no", "guest_name", "room_numbers_used", "checkin_datetime"],
 };
 
+// -------- DAILY SUMMARY REPORT FIELDS --------
+const dailySummaryFields: FieldDef[] = [
+  { key: "Date", label: "Date" },
+  { key: "Day", label: "Day" },
+  { key: "Total Bills", label: "Total Bills" },
+  { key: "Bill Range", label: "Bill Range" },
+  { key: "Room Amount", label: "Room Amount" },
+  { key: "Food Amount", label: "Food Amount" },
+  { key: "Service Charge", label: "Service Charge" },
+  { key: "CESS", label: "CESS" },
+  { key: "Tax Amount", label: "Tax Amount" },
+  { key: "CGST", label: "CGST" },
+  { key: "SGST", label: "SGST" },
+  { key: "IGST", label: "IGST" },
+  { key: "Gross Amount", label: "Gross Amount" },
+  { key: "Discount", label: "Discount" },
+  { key: "Net Amount", label: "Net Amount" },
+  { key: "Advance", label: "Advance" },
+  { key: "Settlement Amount", label: "Settlement Amount" },
+  { key: "Tip Amount", label: "Tip Amount" },
+  { key: "Due Amount", label: "Due Amount" },
+  { key: "Payment Modes", label: "Payment Modes" },
+];
+
+const monthlySummaryFields: FieldDef[] = [
+  { key: "Year", label: "Year" },
+  { key: "Month", label: "Month" },
+  { key: "Month Name", label: "Month Name" },
+  { key: "Total Bills", label: "Total Bills" },
+  { key: "Bill Range", label: "Bill Range" },
+  { key: "Room Amount", label: "Room Amount" },
+  { key: "Food Amount", label: "Food Amount" },
+  { key: "Service Charge", label: "Service Charge" },
+  { key: "CESS", label: "CESS" },
+  { key: "Tax Amount", label: "Tax Amount" },
+  { key: "CGST", label: "CGST" },
+  { key: "SGST", label: "SGST" },
+  { key: "IGST", label: "IGST" },
+  { key: "Gross Amount", label: "Gross Amount" },
+  { key: "Discount", label: "Discount" },
+  { key: "Net Amount", label: "Net Amount" },
+  { key: "Advance", label: "Advance" },
+  { key: "Settlement Amount", label: "Settlement Amount" },
+  { key: "Tip Amount", label: "Tip Amount" },
+  { key: "Due Amount", label: "Due Amount" },
+  { key: "Payment Modes", label: "Payment Modes" },
+];
+
 // -------- SIMPLE REPORTS (Pending, Agent) - unchanged --------
 const simpleReports: Record<SimpleReportKey, SimpleReport> = {
   payment: {
@@ -171,6 +224,7 @@ const reportMenu: { key: ReportKey; label: string }[] = [
   { key: "pending", label: "Pending Payment Report" },
   { key: "agent", label: "Agent Booking Report" },
   { key: "guest", label: "Guest Report" },
+  { key: "dailysummary", label: "Daily Summary Report" }, // <-- NEW
 ];
 
 // --------------------------------------------------------------------
@@ -247,6 +301,11 @@ export default function ReportsPage(): JSX.Element {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
+  // ----- DAILY SUMMARY STATE -----
+  const [summaryData, setSummaryData] = useState<DailySalesSummaryReportResponse | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
   const [simpleSelectedColumns, setSimpleSelectedColumns] = useState<
     Record<SimpleReportKey, string[]>
   >(() => {
@@ -262,6 +321,8 @@ export default function ReportsPage(): JSX.Element {
   const [fieldDropdownOpen, setFieldDropdownOpen] = useState(false);
   const [columnDropdownOpen, setColumnDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // Ensure hotelid is valid before making any API calls
+const isValidHotel = user?.hotelid && user.hotelid > 0;
 
   const reportRef = useClickOutside<HTMLDivElement>(reportDropdownOpen, () =>
     setReportDropdownOpen(false)
@@ -363,6 +424,31 @@ export default function ReportsPage(): JSX.Element {
     }
   }, [hotelid, fromDate, toDate]);
 
+  // ----- DAILY SUMMARY FETCH -----
+ const fetchDailySummary = useCallback(async () => {
+  if (!isValidHotel) {
+    setSummaryError("Hotel ID not available");
+    return;
+  }
+  setSummaryLoading(true);
+  setSummaryError(null);
+  try {
+    const response = await CheckInService.getDailySalesSummaryReport({
+      hotelid: hotelid, // ab yeh valid hoga
+      start_date: fromDate,
+      end_date: toDate,
+    });
+    console.log("Summary API response:", response);
+console.log("data:", response.data);
+    setSummaryData(response.data ?? null);
+  } catch (err: unknown) {
+    setSummaryError(err instanceof Error ? err.message : "Failed to load summary report");
+    setSummaryData(null);
+  } finally {
+    setSummaryLoading(false);
+  }
+}, [hotelid, fromDate, toDate, isValidHotel]);
+
   // -------------------- Effects --------------------
   const isDetailReport = useMemo(
     () => ["dailysell", "guest", "dailysellguest", "payment"].includes(activeReport),
@@ -410,10 +496,12 @@ export default function ReportsPage(): JSX.Element {
     };
   }, [isDetailReport, fromDate, toDate, hotelid, fetchDailyBookings]);
 
+  // Trigger summary fetch when report is active
   useEffect(() => {
-    if (activeReport === "payment") return;
-    // Other simple reports do not need this data
-  }, [activeReport]);
+    if (activeReport === "dailysummary") {
+      fetchDailySummary();
+    }
+  }, [activeReport, fetchDailySummary]);
 
   // -------------------- Refresh --------------------
   const refreshDetailReport = () => {
@@ -808,6 +896,117 @@ export default function ReportsPage(): JSX.Element {
     );
   };
 
+  // ----- RENDER DAILY SUMMARY TABLES -----
+  const renderSummaryTables = () => {
+    if (summaryLoading) {
+      return (
+        <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
+          <div
+            className="spinner-border spinner-border-sm me-2"
+            style={{ color: "var(--rp-primary)" }}
+            role="status"
+          />
+          Loading summary report...
+        </div>
+      );
+    }
+
+    if (summaryError) {
+      return (
+        <div
+          className="text-center py-5 mx-3 my-3 rounded"
+          style={{ background: "var(--rp-danger-soft)", color: "var(--rp-danger)" }}
+        >
+          <i className="bi bi-exclamation-triangle-fill d-block mb-2" style={{ fontSize: 20 }} />
+          {summaryError}
+          <div>
+            <button className="btn btn-sm rp-btn-outline-danger mt-3" onClick={fetchDailySummary}>
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (!summaryData) {
+      return (
+        <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
+          No summary data available for the selected date range.
+        </div>
+      );
+    }
+
+    const { dailySummary, monthlySummary } = summaryData;
+
+    return (
+      <div>
+        <h6 className="fw-bold mt-3 mb-2">Daily Summary</h6>
+        <div className="table-responsive">
+          <table className="table table-hover align-middle mb-3">
+            <thead className="rp-thead">
+              <tr>
+                {dailySummaryFields.map((f) => (
+                  <th key={f.key} className="text-nowrap">{f.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {dailySummary.length === 0 ? (
+                <tr>
+                  <td colSpan={dailySummaryFields.length} className="text-center text-muted fst-italic py-5">
+                    No daily records
+                  </td>
+                </tr>
+              ) : (
+                dailySummary.map((row, i) => (
+                  <tr key={i}>
+                    {dailySummaryFields.map((f) => (
+                      <td key={f.key} className="text-nowrap">
+                        {row[f.key as keyof DailySalesReport] ?? "-"}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <h6 className="fw-bold mt-4 mb-2">Monthly Summary</h6>
+        <div className="table-responsive">
+          <table className="table table-hover align-middle">
+            <thead className="rp-thead">
+              <tr>
+                {monthlySummaryFields.map((f) => (
+                  <th key={f.key} className="text-nowrap">{f.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {monthlySummary.length === 0 ? (
+                <tr>
+                  <td colSpan={monthlySummaryFields.length} className="text-center text-muted fst-italic py-5">
+                    No monthly records
+                  </td>
+                </tr>
+              ) : (
+                monthlySummary.map((row, i) => (
+                  <tr key={i}>
+                    {monthlySummaryFields.map((f) => (
+                      <td key={f.key} className="text-nowrap">
+                        {row[f.key as keyof MonthlySalesReport] ?? "-"}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   // -------------------- ESC key handler --------------------
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1028,7 +1227,18 @@ export default function ReportsPage(): JSX.Element {
                     className="dropdown-item rp-dropdown-item"
                     onClick={() => {
                       setExportDropdownOpen(false);
-                      if (isDetailReport) {
+                      if (activeReport === "dailysummary") {
+                        if (summaryData) {
+                          const wb = XLSX.utils.book_new();
+                          const dailySheet = XLSX.utils.json_to_sheet(summaryData.dailySummary);
+                          XLSX.utils.book_append_sheet(wb, dailySheet, "Daily");
+                          const monthlySheet = XLSX.utils.json_to_sheet(summaryData.monthlySummary);
+                          XLSX.utils.book_append_sheet(wb, monthlySheet, "Monthly");
+                          XLSX.writeFile(wb, "Daily_Summary_Report.xlsx");
+                        } else {
+                          alert("No summary data to export.");
+                        }
+                      } else if (isDetailReport) {
                         const cols = currentFieldList.filter((f) =>
                           selectedFields.includes(f.key)
                         );
@@ -1046,7 +1256,38 @@ export default function ReportsPage(): JSX.Element {
                     className="dropdown-item rp-dropdown-item"
                     onClick={() => {
                       setExportDropdownOpen(false);
-                      if (isDetailReport) {
+                      if (activeReport === "dailysummary") {
+                        if (summaryData) {
+                          const doc = new jsPDF();
+                          doc.text("Daily Summary Report", 14, 16);
+                          // Daily table
+                          (doc as any).autoTable({
+                            head: [dailySummaryFields.map((f) => f.label)],
+                            body: summaryData.dailySummary.map((row) =>
+                              dailySummaryFields.map((f) => row[f.key as keyof DailySalesReport] ?? "-")
+                            ),
+                            startY: 22,
+                            styles: { fontSize: 8 },
+                            headStyles: { fillColor: [31, 58, 95] },
+                            tableWidth: 'auto',
+                          });
+                          // Monthly table
+                          const finalY = (doc as any).lastAutoTable.finalY + 10;
+                          (doc as any).autoTable({
+                            head: [monthlySummaryFields.map((f) => f.label)],
+                            body: summaryData.monthlySummary.map((row) =>
+                              monthlySummaryFields.map((f) => row[f.key as keyof MonthlySalesReport] ?? "-")
+                            ),
+                            startY: finalY,
+                            styles: { fontSize: 8 },
+                            headStyles: { fillColor: [31, 58, 95] },
+                            tableWidth: 'auto',
+                          });
+                          doc.save("Daily_Summary_Report.pdf");
+                        } else {
+                          alert("No summary data to export.");
+                        }
+                      } else if (isDetailReport) {
                         const cols = currentFieldList.filter((f) =>
                           selectedFields.includes(f.key)
                         );
@@ -1066,7 +1307,13 @@ export default function ReportsPage(): JSX.Element {
           <button
             className="btn rp-btn-outline"
             title="Refresh"
-            onClick={isDetailReport ? refreshDetailReport : () => {}}
+            onClick={() => {
+              if (activeReport === "dailysummary") {
+                fetchDailySummary();
+              } else if (isDetailReport) {
+                refreshDetailReport();
+              }
+            }}
           >
             <i className="bi bi-arrow-clockwise" />&#8635;
           </button>
@@ -1144,7 +1391,7 @@ export default function ReportsPage(): JSX.Element {
           </div>
         )}
 
-        {!isDetailReport && currentReport && (
+        {!isDetailReport && currentReport && activeReport !== "dailysummary" && (
           <div className="dropdown" style={{ position: "relative" }} ref={columnRef}>
             <button
               className="btn rp-btn-outline btn-sm fw-semibold"
@@ -1214,6 +1461,8 @@ export default function ReportsPage(): JSX.Element {
       <div className="table-responsive">
         {isDetailReport ? (
           renderDetailTable()
+        ) : activeReport === "dailysummary" ? (
+          renderSummaryTables()
         ) : (
           <>
             {activeReport === "payment" && paymentLoading && (
