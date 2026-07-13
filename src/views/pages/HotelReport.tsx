@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { useNavigate } from "react-router-dom";
 import CheckInService from "@/common/hotel/checkIn";
 import { useAuthContext } from "@/common/context/useAuthContext";
-import { PaymentModeSummary } from "@/common/hotel/checkIn"; // 👈 imported type
+import { PaymentModeSummary } from "@/common/hotel/checkIn";
 
 // --------------------------------------------------------------------
 // Types
 // --------------------------------------------------------------------
-type SimpleReportKey = "occupancy" | "dailysell" | "payment" | "pending" | "agent";
-type ReportKey = SimpleReportKey | "guest";
+type SimpleReportKey = "dailysell" | "payment" | "pending" | "agent"; // removed "occupancy"
+type ReportKey = SimpleReportKey | "guest" | "dailysellguest"; // added dailysellguest
 
 interface SimpleReport {
   title: string;
@@ -85,29 +85,7 @@ interface GuestReport {
 // Static data
 // --------------------------------------------------------------------
 const simpleReports: Record<SimpleReportKey, SimpleReport> = {
-  occupancy: {
-    title: "Occupancy Report",
-    columns: [
-      "#",
-      "Room No",
-      "Room Category",
-      "Converted Category",
-      "Guest",
-      "Total Days",
-      "Total Amt",
-      "Discount %",
-      "Pay Type",
-      "Adults",
-      "Pax",
-      "Ex-Pax",
-      "Child",
-      "Driver",
-    ],
-    rows: [],
-    footerLabel: "Total Rooms:",
-    footerCol: 5,
-    footerAmtCol: 6,
-  },
+  // occupancy removed
   dailysell: {
     title: "Daily Sell Report",
     columns: [
@@ -127,14 +105,13 @@ const simpleReports: Record<SimpleReportKey, SimpleReport> = {
     footerCol: 5,
     footerAmtCol: 8,
   },
-  // 👇 Updated payment columns to match summary data
   payment: {
     title: "Payment Mode Report",
     columns: ["#", "Payment Mode", "Transactions", "Total Amount", "Net Amount", "Contribution %"],
     rows: [],
     footerLabel: "Total Payment Modes:",
-    footerCol: 2, // index of "Transactions"
-    footerAmtCol: 3, // index of "Total Amount"
+    footerCol: 2,
+    footerAmtCol: 3,
   },
   pending: {
     title: "Pending Payment Report",
@@ -229,12 +206,13 @@ const guestReport: GuestReport = {
 };
 
 const reportMenu: { key: ReportKey; label: string }[] = [
-  { key: "occupancy", label: "Occupancy Report" },
+  // occupancy removed
   { key: "dailysell", label: "Daily Sell Report" },
   { key: "payment", label: "Payment Mode Report" },
   { key: "pending", label: "Pending Payment Report" },
   { key: "agent", label: "Agent Booking Report" },
   { key: "guest", label: "Guest Report" },
+  { key: "dailysellguest", label: "Daily Sell Guest Report" }, // new
 ];
 
 // --------------------------------------------------------------------
@@ -301,7 +279,7 @@ export default function ReportsPage(): JSX.Element {
   const hotelid = user?.hotelid ?? 1;
 
   // -------------------- State --------------------
-  const [activeReport, setActiveReport] = useState<ReportKey>("occupancy");
+  const [activeReport, setActiveReport] = useState<ReportKey>("dailysell"); // default changed to dailysell
   const [fromDate, setFromDate] = useState("2026-01-01");
   const [toDate, setToDate] = useState("2026-07-12");
   const [selectedFields, setSelectedFields] = useState<string[]>(guestReport.defaultFields);
@@ -311,7 +289,7 @@ export default function ReportsPage(): JSX.Element {
   const [guestLoading, setGuestLoading] = useState(false);
   const [guestError, setGuestError] = useState<string | null>(null);
 
-  // Payment report state 👇
+  // Payment report state
   const [paymentData, setPaymentData] = useState<PaymentModeSummary[]>([]);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -391,9 +369,9 @@ export default function ReportsPage(): JSX.Element {
   }, [hotelid, fromDate, toDate]);
 
   // -------------------- Effects --------------------
-  // Guest report effect
+  // Guest-like report effect (for both "guest" and "dailysellguest")
   useEffect(() => {
-    if (activeReport !== "guest") return;
+    if (activeReport !== "guest" && activeReport !== "dailysellguest") return;
 
     let cancelled = false;
     setGuestLoading(true);
@@ -418,7 +396,7 @@ export default function ReportsPage(): JSX.Element {
     };
   }, [activeReport, fromDate, toDate, hotelid, fetchGuestReport]);
 
-  // Payment report effect 👇
+  // Payment report effect
   useEffect(() => {
     if (activeReport !== "payment") return;
     fetchPaymentReport();
@@ -426,7 +404,7 @@ export default function ReportsPage(): JSX.Element {
 
   // -------------------- Refresh handlers --------------------
   const refreshGuestReport = () => {
-    if (activeReport !== "guest") return;
+    if (activeReport !== "guest" && activeReport !== "dailysellguest") return;
     setGuestLoading(true);
     setGuestError(null);
     fetchGuestReport({ hotelid, fromDate, toDate })
@@ -480,7 +458,8 @@ export default function ReportsPage(): JSX.Element {
 
   // Build a dynamic report object for non‑guest reports (including payment)
   const currentReport = useMemo(() => {
-    if (activeReport === "guest") return null;
+    // If it's a guest-like report, return null (handled separately)
+    if (activeReport === "guest" || activeReport === "dailysellguest") return null;
     const base = simpleReports[activeReport as SimpleReportKey];
     if (!base) return null;
 
@@ -666,6 +645,9 @@ export default function ReportsPage(): JSX.Element {
     () => guestReport.fields.filter((f) => selectedFields.includes(f.key)),
     [selectedFields]
   );
+
+  // Determine if current report is guest-like
+  const isGuestLike = activeReport === "guest" || activeReport === "dailysellguest";
 
   // -------------------- ESC key handler --------------------
   useEffect(() => {
@@ -916,7 +898,7 @@ export default function ReportsPage(): JSX.Element {
             className="btn rp-btn-outline"
             title="Refresh"
             onClick={
-              activeReport === "guest"
+              isGuestLike
                 ? refreshGuestReport
                 : activeReport === "payment"
                 ? fetchPaymentReport
@@ -939,7 +921,7 @@ export default function ReportsPage(): JSX.Element {
       <div className="d-flex align-items-center justify-content-between px-3 pt-3 pb-2 flex-wrap gap-2">
         <h6 className="fw-bold mb-0">{activeLabel}</h6>
 
-        {activeReport === "guest" && (
+        {isGuestLike && (
           <div className="dropdown" style={{ position: "relative" }} ref={fieldRef}>
             <button
               className="btn rp-btn-outline btn-sm fw-semibold"
@@ -999,7 +981,7 @@ export default function ReportsPage(): JSX.Element {
           </div>
         )}
 
-        {activeReport !== "guest" && currentReport && (
+        {!isGuestLike && currentReport && (
           <div className="dropdown" style={{ position: "relative" }} ref={columnRef}>
             <button
               className="btn rp-btn-outline btn-sm fw-semibold"
@@ -1067,7 +1049,7 @@ export default function ReportsPage(): JSX.Element {
 
       {/* Table Area */}
       <div className="table-responsive">
-        {activeReport === "guest" ? (
+        {isGuestLike ? (
           renderGuestTable()
         ) : (
           <>

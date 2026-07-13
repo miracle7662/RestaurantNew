@@ -313,7 +313,7 @@ export interface DailySalesSummary {
   preferred_room_category: string;
 
   total_ldg_bills: number;
-  ldg_bill_numbers: string;
+  ldg_bill_no: string;
   registration_numbers: string;
   booking_references: string;
 
