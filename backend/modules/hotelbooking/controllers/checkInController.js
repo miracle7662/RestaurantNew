@@ -1242,6 +1242,7 @@ exports.getDailySalesSummary = async (req, res) => {
         );
 
         let rows = result[0] || [];
+        console.log(rows[0]);   // <-- Add this
 
         // 🔥 Do NOT parse payment_breakdown – send the raw string as is.
         // The frontend will parse it safely.
