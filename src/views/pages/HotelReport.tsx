@@ -646,7 +646,7 @@ export default function ReportsPage(): JSX.Element {
           </>
         );
       }
-      return formatCell(row[fieldKey as keyof DailyBookingRow]);
+     return formatCell(row[fieldKey as keyof DailyBookingRow] as string | number | null | undefined);
     };
 
     return (
