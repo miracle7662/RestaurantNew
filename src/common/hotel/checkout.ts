@@ -39,6 +39,7 @@ export interface CheckoutMaster {
   message: string;
   payment_id: string;
   payment_mode: string;
+  payment_method?: string  
   is_settle: number;
   is_print: number;
   discount_amount: number;

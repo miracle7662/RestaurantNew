@@ -134,13 +134,14 @@ const SettlementPage = () => {
   const fetchCheckoutData = async () => {
     if (!hotelId) return
     setLoadingCheckout(true)
-    try {
-      const res = await CheckoutService.list({ hotelid: hotelId })
-      const data: CheckoutMaster[] = res.data || []
-      const payMap = new Map<number, string>()
-      data.forEach((co) => {
-        payMap.set(co.checkout_id, `${co.payment_mode || 'Cash'}|${co.ldg_bill_no || '-'}`)
-      })
+   try {
+    const res = await CheckoutService.list({ hotelid: hotelId })
+    const data: CheckoutMaster[] = res.data || []
+    const payMap = new Map<number, string>()
+    data.forEach((co) => {
+      const mode = co.payment_method || 'Cash'   // ✅ use payment_method
+      payMap.set(co.checkout_id, `${mode}|${co.ldg_bill_no || '-'}`)
+    })
       data.sort((a, b) => {
         const numA = parseInt((a.ldg_bill_no || '').replace(/\D/g, '')) || 0
         const numB = parseInt((b.ldg_bill_no || '').replace(/\D/g, '')) || 0

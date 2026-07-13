@@ -124,7 +124,7 @@ exports.getCheckouts = async (req, res) => {
     if (!hotelId) return res.status(400).json({ success: false, message: "Hotel ID not found" });
 
     const [checkouts] = await db.query(`
-SELECT 
+SELECT
     cm.*,
 
     GROUP_CONCAT(
@@ -134,11 +134,10 @@ SELECT
     ) AS room_details,
 
     GROUP_CONCAT(
-        cd.guest_name
-        ORDER BY cd.room_id
+        DISTINCT cd.guest_name
+        ORDER BY cd.guest_name
         SEPARATOR ', '
     ) AS guest_name,
-   
 
     COUNT(cd.room_id) AS total_rooms
 
