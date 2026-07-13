@@ -26,62 +26,96 @@ interface FieldDef {
   label: string;
 }
 
+// Extended to include all 25 fields from the stored procedure
 interface DailyBookingRow {
   ldg_bill_no: string;
-  guest_name: string;
   room_numbers_used: string;
+  guest_name: string;
+  company_name: string;
+  stay: number;
   checkin_datetime: string;
   checkout_datetime: string;
-  total_payment_received: number;
-  net_amount: number;
-  total_discounts_received: number;
-  total_tips_given: number;
+  room_amount: number;
+  food_amount: number;
+  settlement_amount: number;
   gross_amount: number;
+  discount: number;
+  tax_percentage: string; // e.g., "5.00% | 12.00%"
   taxable_value: number;
-  total_cgst: number;
-  total_sgst: number;
-  total_spent: number;
-  payment_mode: string;
-  payment_breakdown: Record<string, number>;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  cess: number;
+  service_charge: number;
+  debit_amount: number;
+  credit_amount: number;
+  advance: number;
+  net_amount: number;
+  due_amount: number;
+  payment_modes: string; // raw string from backend
+  payment_breakdown: Record<string, number>; // parsed from payment_modes
 }
 
-// -------- REPORT FIELD DEFINITIONS --------
+// -------- REPORT FIELD DEFINITIONS (now all 25 fields) --------
 const guestReport = {
   title: "Daily Sell Report (Guest Details)",
   fields: [
     { key: "ldg_bill_no", label: "Bill No" },
     { key: "guest_name", label: "Guest Name" },
+    { key: "company_name", label: "Company" },
     { key: "room_numbers_used", label: "Room" },
-    { key: "checkin_datetime", label: "Check‑in / Check‑out" },
-    { key: "total_payment_received", label: "Settlement Amount" },
-    { key: "net_amount", label: "Net Amount" },
-    { key: "total_discounts_received", label: "Discount" },
-    { key: "total_tips_given", label: "Tip" },
+    { key: "stay", label: "Stay (Nights)" },
+    { key: "checkin_datetime", label: "Check‑in/Check-out" },
+    { key: "room_amount", label: "Room Amount" },
+    { key: "food_amount", label: "Food Amount" },
+    { key: "settlement_amount", label: "Settlement Amount" },
     { key: "gross_amount", label: "Gross Amount" },
+    { key: "discount", label: "Discount" },
+    { key: "tax_percentage", label: "Tax %" },
     { key: "taxable_value", label: "Taxable Value" },
-    { key: "total_cgst", label: "CGST" },
-    { key: "total_sgst", label: "SGST" },
-    { key: "total_spent", label: "Total" },
-    { key: "payment_mode", label: "Payment" },
+    { key: "cgst", label: "CGST" },
+    { key: "sgst", label: "SGST" },
+    { key: "igst", label: "IGST" },
+    { key: "cess", label: "CESS" },
+    { key: "service_charge", label: "Service Charge" },
+    { key: "debit_amount", label: "Debit Amount" },
+    { key: "credit_amount", label: "Credit Amount" },
+    { key: "advance", label: "Advance" },
+    { key: "net_amount", label: "Net Amount" },
+    { key: "due_amount", label: "Due Amount" },
+    { key: "payment_modes", label: "Payment Modes" },
   ],
+  // 🔥 NOW ALL 25 FIELDS ARE SELECTED BY DEFAULT
   defaultFields: [
     "ldg_bill_no",
     "guest_name",
+    "company_name",
     "room_numbers_used",
+    "stay",
     "checkin_datetime",
-    "total_payment_received",
-    "net_amount",
-    "total_discounts_received",
-    "total_tips_given",
+    
+    "room_amount",
+    "food_amount",
+    "settlement_amount",
     "gross_amount",
+    "discount",
+    "tax_percentage",
     "taxable_value",
-    "total_cgst",
-    "total_sgst",
-    "total",
-    "payment_mode",
+    "cgst",
+    "sgst",
+    "igst",
+    "cess",
+    "service_charge",
+    "debit_amount",
+    "credit_amount",
+    "advance",
+    "net_amount",
+    "due_amount",
+    "payment_modes",
   ],
 };
 
+// Payment report uses a simpler subset (unchanged)
 const paymentReport = {
   title: "Payment Mode Report (Detailed)",
   fields: [
@@ -93,7 +127,7 @@ const paymentReport = {
   defaultFields: ["ldg_bill_no", "guest_name", "room_numbers_used", "checkin_datetime"],
 };
 
-// -------- SIMPLE REPORTS (used for Pending and Agent) --------
+// -------- SIMPLE REPORTS (Pending, Agent) - unchanged --------
 const simpleReports: Record<SimpleReportKey, SimpleReport> = {
   payment: {
     title: "Payment Mode Report",
@@ -199,8 +233,7 @@ export default function ReportsPage(): JSX.Element {
   const hotelid = user?.hotelid ?? 1;
 
   const [activeReport, setActiveReport] = useState<ReportKey>("dailysell");
-  
-  // ---- Removed hard-coded dates ----
+
   const today = new Date();
   const [fromDate, setFromDate] = useState(formatDate(today));
   const [toDate, setToDate] = useState(formatDate(today));
@@ -256,45 +289,56 @@ export default function ReportsPage(): JSX.Element {
       const rawData = response?.data ?? [];
 
       return rawData.map((item: any) => {
+        // Parse payment modes from the 'Payment Modes' string
         let breakdown: Record<string, number> = {};
-        try {
-          const raw = item.payment_breakdown || item.paymentBreakdown;
-          if (raw) {
-            if (typeof raw === "string") {
-              breakdown = JSON.parse(raw.trim());
-            } else if (typeof raw === "object") {
-              breakdown = { ...raw };
+        const paymentModesStr = item['Payment Modes'] || '';
+        if (paymentModesStr) {
+          const entries = paymentModesStr.split('|').map((s: string) => s.trim()).filter((s: string) => s);
+          entries.forEach((entry: string) => {
+            const parts = entry.split(':');
+            if (parts.length === 2) {
+              const mode = parts[0].trim();
+              const amount = parseFloat(parts[1].trim());
+              if (!isNaN(amount) && amount > 0) {
+                breakdown[mode] = (breakdown[mode] || 0) + amount;
+              }
             }
-          }
-        } catch (e) {
-          console.error(`❌ Parse error for ${item.ldg_bill_no}:`, e);
-          breakdown = {};
+          });
         }
-
+        // Fallback if breakdown is empty
         if (Object.keys(breakdown).length === 0) {
-          const paid = Number(item.total_payment_received) || 0;
-          if (paid > 0) {
-            breakdown = { Cash: paid };
-            console.log(`🔄 Fallback breakdown for ${item.ldg_bill_no}:`, breakdown);
+          const settlement = Number(item['Settlement Amount']) || 0;
+          if (settlement > 0) {
+            breakdown = { Cash: settlement };
           }
         }
 
         return {
-          ldg_bill_no: item.ldg_bill_no ?? "",
-          guest_name: item.guest_name ?? "",
-          room_numbers_used: item.room_numbers_used ?? "",
-          checkin_datetime: item.checkin_datetime ?? "",
-          checkout_datetime: item.checkout_datetime ?? "",
-          total_payment_received: Number(item.total_payment_received) || 0,
-          net_amount: Number(item.net_amount) || 0,
-          total_discounts_received: Number(item.total_discounts_received) || 0,
-          total_tips_given: Number(item.total_tips_given) || 0,
-          gross_amount: Number(item.gross_amount) || 0,
-          taxable_value: Number(item.taxable_value) || 0,
-          total_cgst: Number(item.total_cgst) || 0,
-          total_sgst: Number(item.total_sgst) || 0,
-          total_spent: Number(item.total_spent) || 0,
-          payment_mode: item.payment_mode ?? "",
+          ldg_bill_no: item['Ldg Bill No'] ?? '',
+          guest_name: item['Guest Name'] ?? '',
+          company_name: item['Company Name'] ?? '',
+          room_numbers_used: item['Room No'] ?? '',
+          stay: Number(item['Stay']) || 0,
+          checkin_datetime: item['Check In'] ?? '',
+          checkout_datetime: item['Check Out'] ?? '',
+          room_amount: Number(item['Room Amount']) || 0,
+          food_amount: Number(item['Food Amount']) || 0,
+          settlement_amount: Number(item['Settlement Amount']) || 0,
+          gross_amount: Number(item['Gross Amount']) || 0,
+          discount: Number(item['Discount']) || 0,
+          tax_percentage: item['Tax%'] ?? '',
+          taxable_value: Number(item['Taxable Value']) || 0,
+          cgst: Number(item['CGST']) || 0,
+          sgst: Number(item['SGST']) || 0,
+          igst: Number(item['IGST']) || 0,
+          cess: Number(item['CESS']) || 0,
+          service_charge: Number(item['Service Charge']) || 0,
+          debit_amount: Number(item['Debit Amount']) || 0,
+          credit_amount: Number(item['Credit Amount']) || 0,
+          advance: Number(item['Advance']) || 0,
+          net_amount: Number(item['Net Amount']) || 0,
+          due_amount: Number(item['Due Amount']) || 0,
+          payment_modes: paymentModesStr,
           payment_breakdown: breakdown,
         };
       });
@@ -334,7 +378,7 @@ export default function ReportsPage(): JSX.Element {
     if (activeReport === "payment") {
       setSelectedFields(paymentReport.defaultFields);
     } else if (["dailysell", "guest", "dailysellguest"].includes(activeReport)) {
-      setSelectedFields(guestReport.defaultFields);
+      setSelectedFields(guestReport.defaultFields); // Now includes all 25 fields
     }
   }, [activeReport]);
 
@@ -475,8 +519,9 @@ export default function ReportsPage(): JSX.Element {
       const obj: Record<string, any> = {};
       columns.forEach((col) => {
         let value = row[col.key as keyof DailyBookingRow];
+        // Special handling for checkin/checkout if needed
         if (col.key === "checkin_datetime") {
-          value = `${row.checkin_datetime}\n${row.checkout_datetime}`;
+          value = `${row.checkin_datetime} → ${row.checkout_datetime}`;
         }
         obj[col.label] = value ?? "-";
       });
@@ -500,7 +545,7 @@ export default function ReportsPage(): JSX.Element {
       const base = columns.map((c) => {
         let value = row[c.key as keyof DailyBookingRow];
         if (c.key === "checkin_datetime") {
-          value = `${row.checkin_datetime}\n${row.checkout_datetime}`;
+          value = `${row.checkin_datetime} → ${row.checkout_datetime}`;
         }
         return value ?? "-";
       });
@@ -579,7 +624,6 @@ export default function ReportsPage(): JSX.Element {
     );
   };
 
-  // -------- UPDATED renderDetailTable with Room chunking and TypeScript fix --------
   const renderDetailTable = () => {
     if (detailLoading) {
       return (
@@ -670,6 +714,11 @@ export default function ReportsPage(): JSX.Element {
           </>
         );
       }
+      // Format numbers as currency for numeric fields (optional)
+      if (typeof row[fieldKey as keyof DailyBookingRow] === 'number') {
+        const num = row[fieldKey as keyof DailyBookingRow] as number;
+        return num.toLocaleString('en-IN');
+      }
       return formatCell(row[fieldKey as keyof DailyBookingRow] as string | number | null | undefined);
     };
 
@@ -679,7 +728,6 @@ export default function ReportsPage(): JSX.Element {
           <tr>
             {columns.map((c) => {
               const isRoom = isPaymentReport && c.key === "room_numbers_used";
-              // ---- FIX: cast style to React.CSSProperties ----
               const thStyle = isRoom
                 ? ({ padding: "0.3rem 0.2rem", maxWidth: "150px", whiteSpace: "normal", wordBreak: "break-word" } as React.CSSProperties)
                 : {};
@@ -702,7 +750,6 @@ export default function ReportsPage(): JSX.Element {
             <tr key={i}>
               {columns.map((c) => {
                 const isRoom = isPaymentReport && c.key === "room_numbers_used";
-                // ---- FIX: cast style to React.CSSProperties ----
                 const tdStyle = isRoom
                   ? ({ padding: "0.3rem 0.2rem", maxWidth: "150px", whiteSpace: "normal", wordBreak: "break-word" } as React.CSSProperties)
                   : {};
