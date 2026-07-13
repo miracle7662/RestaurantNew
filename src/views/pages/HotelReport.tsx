@@ -77,6 +77,10 @@ const guestReport = {
     { key: "checkin_datetime", label: "Check‑in" },
     { key: "checkout_datetime", label: "Check‑out" },
     { key: "room_amount", label: "Room Amount" },
+     // NEW FIELDS
+    { key: "extra_pax_amount", label: "Extra Pax Amount" },
+    { key: "child_amount", label: "Child Amount" },
+    { key: "driver_amount", label: "Driver Amount" },
     { key: "food_amount", label: "Food Amount" },
     { key: "settlement_amount", label: "Settlement Amount" },
     { key: "gross_amount", label: "Gross Amount" },
@@ -94,10 +98,7 @@ const guestReport = {
     { key: "net_amount", label: "Net Amount" },
     { key: "due_amount", label: "Due Amount" },
     { key: "payment_modes", label: "Payment Modes" },
-    // NEW FIELDS
-    { key: "extra_pax_amount", label: "Extra Pax Amount" },
-    { key: "child_amount", label: "Child Amount" },
-    { key: "driver_amount", label: "Driver Amount" },
+   
   ],
   // All 28 fields are selected by default
   defaultFields: [
@@ -151,6 +152,10 @@ const dailySummaryFields: FieldDef[] = [
   { key: "Total Bills", label: "Total Bills" },
   { key: "Bill Range", label: "Bill Range" },
   { key: "Room Amount", label: "Room Amount" },
+   // NEW FIELDS for summary
+  { key: "Extra Pax Amount", label: "Extra Pax Amount" },
+  { key: "Child Amount", label: "Child Amount" },
+  { key: "Driver Amount", label: "Driver Amount" },
   { key: "Food Amount", label: "Food Amount" },
   { key: "Service Charge", label: "Service Charge" },
   { key: "CESS", label: "CESS" },
@@ -166,10 +171,7 @@ const dailySummaryFields: FieldDef[] = [
   { key: "Tip Amount", label: "Tip Amount" },
   { key: "Due Amount", label: "Due Amount" },
   { key: "Payment Modes", label: "Payment Modes" },
-  // NEW FIELDS for summary
-  { key: "Extra Pax Amount", label: "Extra Pax Amount" },
-  { key: "Child Amount", label: "Child Amount" },
-  { key: "Driver Amount", label: "Driver Amount" },
+ 
 ];
 
 const monthlySummaryFields: FieldDef[] = [
@@ -179,6 +181,10 @@ const monthlySummaryFields: FieldDef[] = [
   { key: "Total Bills", label: "Total Bills" },
   { key: "Bill Range", label: "Bill Range" },
   { key: "Room Amount", label: "Room Amount" },
+  // NEW FIELDS for summary
+  { key: "Extra Pax Amount", label: "Extra Pax Amount" },
+  { key: "Child Amount", label: "Child Amount" },
+  { key: "Driver Amount", label: "Driver Amount" },
   { key: "Food Amount", label: "Food Amount" },
   { key: "Service Charge", label: "Service Charge" },
   { key: "CESS", label: "CESS" },
