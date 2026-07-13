@@ -400,8 +400,9 @@ exports.deleteCategory = async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        const { id } = req.params;
-        let hotelId = req.body.hotelid || getCurrentUserHotelId(req);
+     const { id } = req.params;
+     const hotelid = req.body?.hotelid;
+     let hotelId = hotelid || getCurrentUserHotelId(req);
 
         // Verify ownership
         const [existing] = await connection.execute(

@@ -748,7 +748,7 @@ exports.getHotelBookingMeta = async (req, res) => {
 exports.deleteRoom = async (req, res) => {
     try {
         const { id } = req.params;
-        const { hotelid } = req.body;
+        const { hotelid } = req.body || {};
         let hotelId = hotelid || getCurrentUserHotelId(req);
 
 

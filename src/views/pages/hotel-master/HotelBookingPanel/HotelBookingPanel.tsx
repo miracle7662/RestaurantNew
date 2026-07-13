@@ -1860,7 +1860,7 @@ const handleExtendDay = async () => {
                           backgroundColor: backgroundColor, 
                           color: textColor 
                         }}>
-                          <div>IN : {formatDateTime(item.detail_checkin_datetime || '')}</div>
+                          <div>IN : {formatDateTime(item.checkin_datetime || '')}</div>
                           <div>OUT : {formatDateTime(item.detail_checkout_datetime ||  '')}</div>
                           <div>{ item.company_name || ''} </div>
                           <div className="charges-line">

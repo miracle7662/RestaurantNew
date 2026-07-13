@@ -192,8 +192,8 @@ exports.updateBlock = async (req, res) => {
 
 exports.deleteBlock = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { hotelid } = req.body;
+            const { id } = req.params;
+            const hotelid = req.body?.hotelid;
         // Accept hotelid from request body, fallback to user's hotel ID
         let hotelId = hotelid || getCurrentUserHotelId(req);
 

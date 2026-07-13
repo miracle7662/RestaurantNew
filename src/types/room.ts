@@ -7,7 +7,7 @@ export interface OccupiedRoomItem {
   guest_name: string;
   detail_checkin_datetime: string;
   detail_checkout_datetime: string;
-  
+  checkin_datetime: string;
   guest_type: string;
   original_charge: number;
   folio_total: number;

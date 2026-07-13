@@ -195,7 +195,7 @@ exports.updateFloor = async (req, res) => {
 exports.deleteFloor = async (req, res) => {
     try {
         const { id } = req.params;
-        const { hotelid } = req.body;
+        const { hotelid } = req.body || {};
         
         // Accept hotelid from request body, fallback to user's hotel ID
         let hotelId = hotelid || getCurrentUserHotelId(req);

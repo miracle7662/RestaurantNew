@@ -1364,6 +1364,8 @@ export const fetchOccupiedRooms = async (
           room_status_id: room.room_status_id,
           status_color: room.status_color || '',
           
+
+           checkin_datetime: roomData.checkin_datetime,
           // Time Details
           detail_checkin_datetime: roomData.detail_checkin_datetime,
           detail_checkout_datetime: checkoutDatetime,
