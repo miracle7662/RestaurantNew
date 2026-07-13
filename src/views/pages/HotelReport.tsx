@@ -144,7 +144,7 @@ const paymentReport = {
   defaultFields: ["ldg_bill_no", "guest_name", "room_numbers_used", "checkin_datetime"],
 };
 
-// -------- DAILY SUMMARY REPORT FIELDS (unchanged) --------
+// -------- DAILY SUMMARY REPORT FIELDS (updated with new fields) --------
 const dailySummaryFields: FieldDef[] = [
   { key: "Date", label: "Date" },
   { key: "Day", label: "Day" },
@@ -166,6 +166,10 @@ const dailySummaryFields: FieldDef[] = [
   { key: "Tip Amount", label: "Tip Amount" },
   { key: "Due Amount", label: "Due Amount" },
   { key: "Payment Modes", label: "Payment Modes" },
+  // NEW FIELDS for summary
+  { key: "Extra Pax Amount", label: "Extra Pax Amount" },
+  { key: "Child Amount", label: "Child Amount" },
+  { key: "Driver Amount", label: "Driver Amount" },
 ];
 
 const monthlySummaryFields: FieldDef[] = [
@@ -190,6 +194,10 @@ const monthlySummaryFields: FieldDef[] = [
   { key: "Tip Amount", label: "Tip Amount" },
   { key: "Due Amount", label: "Due Amount" },
   { key: "Payment Modes", label: "Payment Modes" },
+  // NEW FIELDS for summary
+  { key: "Extra Pax Amount", label: "Extra Pax Amount" },
+  { key: "Child Amount", label: "Child Amount" },
+  { key: "Driver Amount", label: "Driver Amount" },
 ];
 
 // -------- SIMPLE REPORTS (Pending, Agent) - unchanged --------
@@ -231,12 +239,11 @@ const simpleReports: Record<SimpleReportKey, SimpleReport> = {
 
 const reportMenu: { key: ReportKey; label: string }[] = [
   { key: "dailysell", label: "Daily Sell Report" },
-  { key: "dailysummary", label: "Daily Summary Report" }, // <-- NEW
+  { key: "dailysummary", label: "Daily Summary Report" },
   { key: "payment", label: "Payment Mode Report" },
   { key: "pending", label: "Pending Payment Report" },
   { key: "agent", label: "Agent Booking Report" },
   { key: "guest", label: "Guest Report" },
-  
 ];
 
 // --------------------------------------------------------------------
@@ -317,6 +324,8 @@ export default function ReportsPage(): JSX.Element {
   const [summaryData, setSummaryData] = useState<DailySalesSummaryReportResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  // New state for summary view toggle
+  const [summaryView, setSummaryView] = useState<'daily' | 'monthly'>('daily');
 
   const [simpleSelectedColumns, setSimpleSelectedColumns] = useState<
     Record<SimpleReportKey, string[]>
@@ -920,7 +929,7 @@ console.log("data:", response.data);
     );
   };
 
-  // ----- RENDER DAILY SUMMARY TABLES -----
+  // ----- RENDER DAILY SUMMARY TABLES (updated with view toggle) -----
   const renderSummaryTables = () => {
     if (summaryLoading) {
       return (
@@ -962,63 +971,35 @@ console.log("data:", response.data);
 
     const { dailySummary, monthlySummary } = summaryData;
 
+    // Decide which fields and data to render based on summaryView
+    const isDaily = summaryView === 'daily';
+    const fields = isDaily ? dailySummaryFields : monthlySummaryFields;
+    const data = isDaily ? dailySummary : monthlySummary;
+
     return (
       <div>
-        <h6 className="fw-bold mt-3 mb-2">Daily Summary</h6>
         <div className="table-responsive">
-          <table className="table table-hover align-middle mb-3">
+          <table className="table table-hover align-middle mb-0">
             <thead className="rp-thead">
               <tr>
-                {dailySummaryFields.map((f) => (
+                {fields.map((f) => (
                   <th key={f.key} className="text-nowrap">{f.label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {dailySummary.length === 0 ? (
+              {data.length === 0 ? (
                 <tr>
-                  <td colSpan={dailySummaryFields.length} className="text-center text-muted fst-italic py-5">
-                    No daily records
+                  <td colSpan={fields.length} className="text-center text-muted fst-italic py-5">
+                    No {isDaily ? 'daily' : 'monthly'} records
                   </td>
                 </tr>
               ) : (
-                dailySummary.map((row, i) => (
+                data.map((row, i) => (
                   <tr key={i}>
-                    {dailySummaryFields.map((f) => (
+                    {fields.map((f) => (
                       <td key={f.key} className="text-nowrap">
-                        {row[f.key as keyof DailySalesReport] ?? "-"}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <h6 className="fw-bold mt-4 mb-2">Monthly Summary</h6>
-        <div className="table-responsive">
-          <table className="table table-hover align-middle">
-            <thead className="rp-thead">
-              <tr>
-                {monthlySummaryFields.map((f) => (
-                  <th key={f.key} className="text-nowrap">{f.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {monthlySummary.length === 0 ? (
-                <tr>
-                  <td colSpan={monthlySummaryFields.length} className="text-center text-muted fst-italic py-5">
-                    No monthly records
-                  </td>
-                </tr>
-              ) : (
-                monthlySummary.map((row, i) => (
-                  <tr key={i}>
-                    {monthlySummaryFields.map((f) => (
-                      <td key={f.key} className="text-nowrap">
-                        {row[f.key as keyof MonthlySalesReport] ?? "-"}
+                        {row[f.key as keyof (DailySalesReport | MonthlySalesReport)] ?? "-"}
                       </td>
                     ))}
                   </tr>
@@ -1353,7 +1334,21 @@ console.log("data:", response.data);
 
       {/* Column / Field Selectors */}
       <div className="d-flex align-items-center justify-content-between px-3 pt-3 pb-2 flex-wrap gap-2">
-        <h6 className="fw-bold mb-0">{activeLabel}</h6>
+        <div className="d-flex align-items-center gap-3">
+          <h6 className="fw-bold mb-0">{activeLabel}</h6>
+          {/* Dropdown for Daily Summary View Toggle */}
+          {activeReport === "dailysummary" && (
+            <div className="dropdown" style={{ position: "relative" }}>
+              <button
+                className="btn rp-btn-outline btn-sm dropdown-toggle fw-semibold"
+                type="button"
+                onClick={() => setSummaryView((prev) => (prev === 'daily' ? 'monthly' : 'daily'))}
+              >
+                {summaryView === 'daily' ? 'Daily View' : 'Monthly View'}
+              </button>
+            </div>
+          )}
+        </div>
 
         {isDetailReport && (
           <div className="dropdown" style={{ position: "relative" }} ref={fieldRef}>

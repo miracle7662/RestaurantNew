@@ -627,8 +627,7 @@ exports.deleteGuest = async (req, res) => {
         await connection.beginTransaction();
 
         const { id } = req.params;
-        const { hotelid } = req.body;
-        let hotelId = hotelid || getCurrentUserHotelId(req);
+        let hotelId = req.body?.hotelid || getCurrentUserHotelId(req);
 
         const [guest] = await connection.execute(
             'SELECT hotelid FROM guest_master WHERE guest_id = ?',
