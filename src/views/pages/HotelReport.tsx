@@ -31,7 +31,7 @@ interface FieldDef {
   label: string;
 }
 
-// Extended to include all 25 fields from the stored procedure
+// Extended to include all 28 fields from the stored procedure
 interface DailyBookingRow {
   ldg_bill_no: string;
   room_numbers_used: string;
@@ -59,9 +59,13 @@ interface DailyBookingRow {
   due_amount: number;
   payment_modes: string; // raw string from backend
   payment_breakdown: Record<string, number>; // parsed from payment_modes
+  // NEW FIELDS
+  extra_pax_amount: number;
+  child_amount: number;
+  driver_amount: number;
 }
 
-// -------- REPORT FIELD DEFINITIONS (all 25 fields) --------
+// -------- REPORT FIELD DEFINITIONS (all 28 fields) --------
 const guestReport = {
   title: "Daily Sell Report (Guest Details)",
   fields: [
@@ -90,8 +94,12 @@ const guestReport = {
     { key: "net_amount", label: "Net Amount" },
     { key: "due_amount", label: "Due Amount" },
     { key: "payment_modes", label: "Payment Modes" },
+    // NEW FIELDS
+    { key: "extra_pax_amount", label: "Extra Pax Amount" },
+    { key: "child_amount", label: "Child Amount" },
+    { key: "driver_amount", label: "Driver Amount" },
   ],
-  // All 25 fields are selected by default
+  // All 28 fields are selected by default
   defaultFields: [
     "ldg_bill_no",
     "guest_name",
@@ -118,6 +126,9 @@ const guestReport = {
     "net_amount",
     "due_amount",
     "payment_modes",
+    "extra_pax_amount",
+    "child_amount",
+    "driver_amount",
   ],
 };
 
@@ -133,7 +144,7 @@ const paymentReport = {
   defaultFields: ["ldg_bill_no", "guest_name", "room_numbers_used", "checkin_datetime"],
 };
 
-// -------- DAILY SUMMARY REPORT FIELDS --------
+// -------- DAILY SUMMARY REPORT FIELDS (unchanged) --------
 const dailySummaryFields: FieldDef[] = [
   { key: "Date", label: "Date" },
   { key: "Day", label: "Day" },
@@ -220,11 +231,12 @@ const simpleReports: Record<SimpleReportKey, SimpleReport> = {
 
 const reportMenu: { key: ReportKey; label: string }[] = [
   { key: "dailysell", label: "Daily Sell Report" },
+  { key: "dailysummary", label: "Daily Summary Report" }, // <-- NEW
   { key: "payment", label: "Payment Mode Report" },
   { key: "pending", label: "Pending Payment Report" },
   { key: "agent", label: "Agent Booking Report" },
   { key: "guest", label: "Guest Report" },
-  { key: "dailysummary", label: "Daily Summary Report" }, // <-- NEW
+  
 ];
 
 // --------------------------------------------------------------------
@@ -402,6 +414,10 @@ const isValidHotel = user?.hotelid && user.hotelid > 0;
           due_amount: Number(item['Due Amount']) || 0,
           payment_modes: paymentModesStr,
           payment_breakdown: breakdown,
+          // NEW FIELDS
+          extra_pax_amount: Number(item['Extra Pax Amount']) || 0,
+          child_amount: Number(item['Child Amount']) || 0,
+          driver_amount: Number(item['Driver Amount']) || 0,
         };
       });
     },
@@ -772,7 +788,15 @@ console.log("data:", response.data);
 
     // -------- CONDITIONAL COLUMN VISIBILITY --------
     // These keys will be hidden if all rows have zero/empty values
-    const conditionalKeys = new Set(['food_amount', 'igst', 'cess', 'service_charge']);
+    const conditionalKeys = new Set([
+      'food_amount',
+      'igst',
+      'cess',
+      'service_charge',
+      'extra_pax_amount',
+      'child_amount',
+      'driver_amount',
+    ]);
     const visibleColumns = columns.filter(col => {
       if (!conditionalKeys.has(col.key)) return true;
       // Check if any row has a non-zero value for this field
