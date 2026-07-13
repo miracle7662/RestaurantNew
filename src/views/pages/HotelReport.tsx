@@ -238,7 +238,7 @@ const simpleReports: Record<SimpleReportKey, SimpleReport> = {
 };
 
 const reportMenu: { key: ReportKey; label: string }[] = [
-  { key: "dailysell", label: "Daily Sell Report" },
+  { key: "dailysell", label: "Daily Sales Report" },
   { key: "dailysummary", label: "Daily Summary Report" },
   { key: "payment", label: "Payment Mode Report" },
   { key: "pending", label: "Pending Payment Report" },
