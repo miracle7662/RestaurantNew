@@ -77,7 +77,7 @@ const guestReport = {
     { key: "checkin_datetime", label: "Check‑in" },
     { key: "checkout_datetime", label: "Check‑out" },
     { key: "room_amount", label: "Room Amount" },
-     // NEW FIELDS
+    // NEW FIELDS (placed after Room Amount)
     { key: "extra_pax_amount", label: "Extra Pax Amount" },
     { key: "child_amount", label: "Child Amount" },
     { key: "driver_amount", label: "Driver Amount" },
@@ -98,9 +98,8 @@ const guestReport = {
     { key: "net_amount", label: "Net Amount" },
     { key: "due_amount", label: "Due Amount" },
     { key: "payment_modes", label: "Payment Modes" },
-   
   ],
-  // All 28 fields are selected by default
+  // All fields selected by default (including new ones)
   defaultFields: [
     "ldg_bill_no",
     "guest_name",
@@ -110,6 +109,9 @@ const guestReport = {
     "checkin_datetime",
     "checkout_datetime",
     "room_amount",
+    "extra_pax_amount",
+    "child_amount",
+    "driver_amount",
     "food_amount",
     "settlement_amount",
     "gross_amount",
@@ -127,9 +129,6 @@ const guestReport = {
     "net_amount",
     "due_amount",
     "payment_modes",
-    "extra_pax_amount",
-    "child_amount",
-    "driver_amount",
   ],
 };
 
@@ -145,14 +144,14 @@ const paymentReport = {
   defaultFields: ["ldg_bill_no", "guest_name", "room_numbers_used", "checkin_datetime"],
 };
 
-// -------- DAILY SUMMARY REPORT FIELDS (updated with new fields) --------
+// -------- DAILY SUMMARY REPORT FIELDS (with new fields) --------
 const dailySummaryFields: FieldDef[] = [
   { key: "Date", label: "Date" },
   { key: "Day", label: "Day" },
   { key: "Total Bills", label: "Total Bills" },
   { key: "Bill Range", label: "Bill Range" },
   { key: "Room Amount", label: "Room Amount" },
-   // NEW FIELDS for summary
+  // NEW FIELDS for summary (placed after Room Amount)
   { key: "Extra Pax Amount", label: "Extra Pax Amount" },
   { key: "Child Amount", label: "Child Amount" },
   { key: "Driver Amount", label: "Driver Amount" },
@@ -171,7 +170,6 @@ const dailySummaryFields: FieldDef[] = [
   { key: "Tip Amount", label: "Tip Amount" },
   { key: "Due Amount", label: "Due Amount" },
   { key: "Payment Modes", label: "Payment Modes" },
- 
 ];
 
 const monthlySummaryFields: FieldDef[] = [
@@ -181,7 +179,7 @@ const monthlySummaryFields: FieldDef[] = [
   { key: "Total Bills", label: "Total Bills" },
   { key: "Bill Range", label: "Bill Range" },
   { key: "Room Amount", label: "Room Amount" },
-  // NEW FIELDS for summary
+  // NEW FIELDS for summary (placed after Room Amount)
   { key: "Extra Pax Amount", label: "Extra Pax Amount" },
   { key: "Child Amount", label: "Child Amount" },
   { key: "Driver Amount", label: "Driver Amount" },
@@ -200,10 +198,6 @@ const monthlySummaryFields: FieldDef[] = [
   { key: "Tip Amount", label: "Tip Amount" },
   { key: "Due Amount", label: "Due Amount" },
   { key: "Payment Modes", label: "Payment Modes" },
-  // NEW FIELDS for summary
-  { key: "Extra Pax Amount", label: "Extra Pax Amount" },
-  { key: "Child Amount", label: "Child Amount" },
-  { key: "Driver Amount", label: "Driver Amount" },
 ];
 
 // -------- SIMPLE REPORTS (Pending, Agent) - unchanged --------
@@ -801,7 +795,7 @@ console.log("data:", response.data);
       );
     }
 
-    // -------- CONDITIONAL COLUMN VISIBILITY --------
+    // -------- CONDITIONAL COLUMN VISIBILITY (for detail reports) --------
     // These keys will be hidden if all rows have zero/empty values
     const conditionalKeys = new Set([
       'food_amount',
@@ -935,7 +929,7 @@ console.log("data:", response.data);
     );
   };
 
-  // ----- RENDER DAILY SUMMARY TABLES (updated with view toggle) -----
+  // ----- RENDER DAILY SUMMARY TABLES (with conditional hiding) -----
   const renderSummaryTables = () => {
     if (summaryLoading) {
       return (
@@ -979,8 +973,42 @@ console.log("data:", response.data);
 
     // Decide which fields and data to render based on summaryView
     const isDaily = summaryView === 'daily';
-    const fields = isDaily ? dailySummaryFields : monthlySummaryFields;
+    const allFields = isDaily ? dailySummaryFields : monthlySummaryFields;
     const data = isDaily ? dailySummary : monthlySummary;
+
+    // ----- CONDITIONAL HIDING FOR SUMMARY FIELDS -----
+    // Fields that should be hidden if all rows have zero
+    const conditionalSummaryKeys = new Set([
+      'Extra Pax Amount',
+      'Child Amount',
+      'Driver Amount',
+    ]);
+
+    // Filter fields: keep only those that are not in conditional set OR have at least one non-zero value
+    const visibleFields = allFields.filter(field => {
+      if (!conditionalSummaryKeys.has(field.key)) return true;
+      // Check if any row has a non-zero value for this field
+      return data.some(row => {
+        const val = row[field.key as keyof (DailySalesReport | MonthlySalesReport)];
+        // The value could be a number or a string; we try to parse it
+        if (typeof val === 'number') {
+          return val !== 0;
+        }
+        if (typeof val === 'string') {
+      const num = parseFloat((val as string).replace(/[₹,]/g, ''));
+      return !isNaN(num) && num !== 0;
+    }
+        return false;
+      });
+    });
+
+    if (visibleFields.length === 0) {
+      return (
+        <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
+          No columns to display after conditional filtering.
+        </div>
+      );
+    }
 
     return (
       <div>
@@ -988,7 +1016,7 @@ console.log("data:", response.data);
           <table className="table table-hover align-middle mb-0">
             <thead className="rp-thead">
               <tr>
-                {fields.map((f) => (
+                {visibleFields.map((f) => (
                   <th key={f.key} className="text-nowrap">{f.label}</th>
                 ))}
               </tr>
@@ -996,14 +1024,14 @@ console.log("data:", response.data);
             <tbody>
               {data.length === 0 ? (
                 <tr>
-                  <td colSpan={fields.length} className="text-center text-muted fst-italic py-5">
+                  <td colSpan={visibleFields.length} className="text-center text-muted fst-italic py-5">
                     No {isDaily ? 'daily' : 'monthly'} records
                   </td>
                 </tr>
               ) : (
                 data.map((row, i) => (
                   <tr key={i}>
-                    {fields.map((f) => (
+                    {visibleFields.map((f) => (
                       <td key={f.key} className="text-nowrap">
                         {row[f.key as keyof (DailySalesReport | MonthlySalesReport)] ?? "-"}
                       </td>
