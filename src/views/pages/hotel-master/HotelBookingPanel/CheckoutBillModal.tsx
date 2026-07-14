@@ -1136,11 +1136,11 @@ const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-
 
               <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Arrival Date</span>
               <span style={{ fontWeight: 'bold' }}>:</span>
-              <span style={{ fontWeight: 'bold' }}>{checkinDisplay}</span>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{checkinDisplay}</span>   {/* nowrap added */}
 
               <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Departure Date</span>
               <span style={{ fontWeight: 'bold' }}>:</span>
-              <span style={{ fontWeight: 'bold' }}>{checkoutDisplay}</span>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{checkoutDisplay}</span>  {/* nowrap added */}
 
               <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap', alignSelf: 'start' }}>Room No(s).</span>
               <span style={{ fontWeight: 'bold', alignSelf: 'start' }}>:</span>
