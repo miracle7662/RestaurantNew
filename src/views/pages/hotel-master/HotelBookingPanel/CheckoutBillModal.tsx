@@ -149,6 +149,56 @@ const formatBillDate = (dateString: string): string => {
 }
 
 
+// ==================== NUMBER TO WORDS (INDIAN) ====================
+
+const numberToWords = (num: number): string => {
+  if (isNaN(num) || num < 0) return 'Zero'
+
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+  const convertBelowHundred = (n: number): string => {
+    if (n < 20) return ones[n]
+    const ten = Math.floor(n / 10)
+    const unit = n % 10
+    return tens[ten] + (unit ? ' ' + ones[unit] : '')
+  }
+
+  const convertBelowThousand = (n: number): string => {
+    if (n < 100) return convertBelowHundred(n)
+    const hundred = Math.floor(n / 100)
+    const rest = n % 100
+    return ones[hundred] + ' Hundred' + (rest ? ' ' + convertBelowHundred(rest) : '')
+  }
+
+  if (num < 1000) return convertBelowThousand(num)
+
+  // Indian numbering: lakh (100,000) and crore (10,000,000)
+  const crore = Math.floor(num / 10000000)
+  const lakh = Math.floor((num % 10000000) / 100000)
+  const thousand = Math.floor((num % 100000) / 1000)
+  const remainder = Math.floor(num % 1000)
+
+  let words = ''
+  if (crore) words += convertBelowThousand(crore) + ' Crore '
+  if (lakh) words += convertBelowThousand(lakh) + ' Lakh '
+  if (thousand) words += convertBelowThousand(thousand) + ' Thousand '
+  if (remainder) words += convertBelowThousand(remainder)
+
+  return words.trim()
+}
+
+const amountInWords = (amount: number): string => {
+  const rounded = roundToTwo(amount)
+  const rupees = Math.floor(rounded)
+  const paise = Math.round((rounded - rupees) * 100)
+  let words = numberToWords(rupees) + ' Rupees'
+  if (paise > 0) words += ' and ' + numberToWords(paise) + ' Paise'
+  return words + ' Only'
+}
+
+
 
 // ==================== BILL COMPONENT ====================
 
@@ -1281,29 +1331,40 @@ const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-
   }, [tableRows, printSettings])
 
   // ========== RENDER PAYMENT DETAILS ==========
-  const renderPaymentDetails = useCallback(() => {
-    // const paymentDateDisplay = propPaymentDate || invoiceDate
-    const paymentBankDisplay = propPaymentBank || paymentMode
+ const renderPaymentDetails = useCallback(() => {
+  const paymentBankDisplay = propPaymentBank || paymentMode
+  const totalForWords = totals.netPayable
 
-    return (
-      <div className="bill-info-box" style={{ height: '100%' }}>
-        <div className="bill-info-box-header">PAYMENT DETAILS</div>
-        <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
-          <table className="bill-detail-table" style={{ width: '100%' }}>
-            <tbody>
-             
-              <tr>
-                <td className="bdt-label" style={{ width: '80px', fontSize: '9pt', fontWeight: 'bold' }}>Payment Mode</td>
-                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
-                <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 'bold' }}>{paymentBankDisplay}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+  return (
+    <div className="bill-info-box" style={{ height: '100%' }}>
+      <div className="bill-info-box-header">PAYMENT DETAILS</div>
+      <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
+        <table className="bill-detail-table" style={{ width: '100%' }}>
+          <tbody>
+            <tr>
+              <td className="bdt-label" style={{ width: '80px', fontSize: '9pt', fontWeight: 'bold' }}>
+                Total (in words)
+              </td>
+              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
+              <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'capitalize' }}>
+                {amountInWords(totalForWords)}
+              </td>
+            </tr>
+            <tr>
+              <td className="bdt-label" style={{ width: '80px', fontSize: '9pt', fontWeight: 'bold' }}>
+                Payment Mode
+              </td>
+              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
+              <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 'bold' }}>
+                {paymentBankDisplay}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    )
-  }, [propPaymentDate, invoiceDate, propPaymentBank, paymentMode])
-
+    </div>
+  )
+}, [propPaymentDate, invoiceDate, propPaymentBank, paymentMode, totals.netPayable])
   // ========== RENDER BILL SUMMARY ==========
   const renderSummaryBox = useCallback(() => {
     const grossTotal = totals.totalAmount
