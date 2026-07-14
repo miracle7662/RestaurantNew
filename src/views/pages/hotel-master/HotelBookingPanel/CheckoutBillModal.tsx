@@ -1161,7 +1161,7 @@ const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-
               <span style={{ fontWeight: 'bold' }}>:</span>
               <span style={{ fontWeight: 'bold' }}>{guestsDisplay} {tariffPlanDisplay ? `(${tariffPlanDisplay})` : ''}</span>
 
-              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>No. of Nights</span>
+              <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>No.of Nights</span>
               <span style={{ fontWeight: 'bold' }}>:</span>
               <span style={{ fontWeight: 'bold' }}>{nightsDisplay}</span>
 

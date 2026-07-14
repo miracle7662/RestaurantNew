@@ -127,7 +127,7 @@ interface CombinedGuestSummary {
   booking_ref?: string
   plan_name?: string
   total_discount_amount?: number
-    total_credit_amount?: number    // Total credit from folio
+  total_credit_amount?: number    // Total credit from folio
   total_debit_amount?: number     // Total debit from folio
 }
 
@@ -908,7 +908,8 @@ const handleConfirmCheckout = async () => {
   
   try {
     const finalTotalAmount = grandTotal || combinedSummary.total_amount
-
+    // Compute total nights from selected rooms
+    
     // Generate invoice number
     let invoiceNo = ''
     try {
@@ -940,6 +941,7 @@ const handleConfirmCheckout = async () => {
     const minutes = String(now.getMinutes()).padStart(2, '0')
     const seconds = String(now.getSeconds()).padStart(2, '0')
     const currentDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+    const totalNights = filteredSummary?.total_days || 1;
     
     console.log('🕐 Current checkout datetime (MySQL format):', currentDateTime)
 
@@ -970,6 +972,7 @@ const handleConfirmCheckout = async () => {
       is_settle: 0,
       is_print: 1,
       checkout_datetime: currentDateTime, // ✅ MySQL-compatible format
+      total_nights: totalNights,   // <-- Add this line
     }
 
     console.log('📤 Sending checkout payload:', JSON.stringify(checkoutPayload, null, 2))
