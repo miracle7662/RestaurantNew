@@ -886,6 +886,27 @@ const CheckInForm = () => {
     }
   }
 
+  const handleCompanySelect = async (companyId: string | number | null) => {
+  // Update the form's companyId
+  setFieldValue('companyId', companyId);
+
+  // If no company or "WALK-IN-GUEST", clear GST
+  if (!companyId || companyId === 'WALK-N-GUESTI') {
+    setFieldValue('gst', '');
+    return;
+  }
+
+  try {
+    const response = await CompanyService.get(Number(companyId));
+    const company = response.data || response;
+    // Set the GST number from the fetched company
+    setFieldValue('gst', company.gst_no || '');
+  } catch (error) {
+    console.error('Failed to fetch company GST:', error);
+    setFieldValue('gst', '');
+  }
+};
+
   const loadGuestDetails = async (guestId: number) => {
     if (typeof guestId !== 'number' || isNaN(guestId)) {
       console.error('loadGuestDetails received invalid guestId:', guestId)
@@ -1073,36 +1094,47 @@ const CheckInForm = () => {
     }
   }
 
-  const handleCompanySave = async (companyData: any) => {
-    setSavingCompany(true)
-    try {
-      const payload = {
-        ...companyData,
-        hotelid: hotelId,
-        created_by_id: user?.id,
-      }
+ const handleCompanySave = async (companyData: any) => {
+  setSavingCompany(true);
+  try {
+    const payload = {
+      ...companyData,
+      hotelid: hotelId,
+      created_by_id: user?.id,
+    };
 
-      const response = await CompanyService.create(payload)
-      const newCompany: any = response.data || response
-      const newCompanyId = newCompany.company_id || newCompany.id
+    const response = await CompanyService.create(payload);
+    const newCompany: any = response.data || response;
+    const newCompanyId = newCompany.company_id || newCompany.id;
 
-      toast.success('Company saved successfully')
-      setShowCompanyModal(false)
+    toast.success('Company saved successfully');
+    setShowCompanyModal(false);
 
-      await loadAllCompanies()
-      if (newCompanyId) {
-        formik.setFieldValue('companyId', newCompanyId)
+    await loadAllCompanies(); // refresh dropdown
+
+    if (newCompanyId) {
+      setFieldValue('companyId', newCompanyId);
+
+      // Fetch full company details to get GST
+      try {
+        const detailsResponse = await CompanyService.get(newCompanyId);
+        const company = detailsResponse.data || detailsResponse;
+        setFieldValue('gst', company.gst_no || '');
+      } catch (fetchError) {
+        console.error('Failed to fetch company details:', fetchError);
+        // fallback to response data
         if (newCompany.gst_no) {
-          formik.setFieldValue('gst', String(newCompany.gst_no))
+          setFieldValue('gst', String(newCompany.gst_no));
         }
       }
-    } catch (error) {
-      console.error('Failed to save company:', error)
-      toast.error('Failed to save company')
-    } finally {
-      setSavingCompany(false)
     }
+  } catch (error) {
+    console.error('Failed to save company:', error);
+    toast.error('Failed to save company');
+  } finally {
+    setSavingCompany(false);
   }
+};
 
   const getTariffForPax = (
     tariffs: Array<{ no_of_pax: number; room_tariff: number }>,
@@ -3103,41 +3135,44 @@ const CheckInForm = () => {
                       </Row>
 
                       <Row className="align-items-center g-1 mb-1">
-                        <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                          Company
-                        </Col>
-                        <Col md="auto" style={{ width: '284px' }}>
-                          <Select
-                            options={companyOptions}
-                            isLoading={loadingCompanies}
-                            className="w-100"
-                            styles={selectStyles}
-                            value={companyOptions.find((o) => o.value === values.companyId) || null}
-                            onChange={(opt) => setFieldValue('companyId', opt?.value ?? null)}
-                            onInputChange={(inputValue, { action }) => {
-                              if (action === 'input-change') {
-                                handleCompanySearch(inputValue)
-                              }
-                            }}
-                            onMenuOpen={() => {
-                              if (!companyOptions.length) {
-                                loadAllCompanies()
-                              }
-                            }}
-                            placeholder="Select Company"
-                            isClearable
-                          />
-                        </Col>
-                        <Col md={1}>
-                          <button
-                            type="button"
-                            className="btn btn-success btn-sm w-100 p-0"
-                            style={{ height: '29px' }}
-                            onClick={() => setShowCompanyModal(true)}>
-                            +
-                          </button>
-                        </Col>
-                      </Row>
+  <Col md="auto" className="fs-small" style={{ width: '89px' }}>
+    Company
+  </Col>
+  <Col md="auto" style={{ width: '284px' }}>
+    <Select
+      options={companyOptions}
+      isLoading={loadingCompanies}
+      className="w-100"
+      styles={selectStyles}
+      value={companyOptions.find((o) => o.value === values.companyId) || null}
+      onChange={(opt) => {
+        const val = opt?.value ?? null;
+        handleCompanySelect(val);   // <-- changed here
+      }}
+      onInputChange={(inputValue, { action }) => {
+        if (action === 'input-change') {
+          handleCompanySearch(inputValue);
+        }
+      }}
+      onMenuOpen={() => {
+        if (!companyOptions.length) {
+          loadAllCompanies();
+        }
+      }}
+      placeholder="Select Company"
+      isClearable
+    />
+  </Col>
+  <Col md={1}>
+    <button
+      type="button"
+      className="btn btn-success btn-sm w-100 p-0"
+      style={{ height: '29px' }}
+      onClick={() => setShowCompanyModal(true)}>
+      +
+    </button>
+  </Col>
+</Row>
                       <Row className="align-items-center g-1 mb-1">
                         <Col md="auto" className="fs-small" style={{ width: '89px' }}>
                           GST No

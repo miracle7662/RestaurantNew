@@ -8,22 +8,34 @@ BEGIN
        RESULT SET 1 : HEADER
     ========================================================== */
 
-    WITH guest_info AS (
-        SELECT 
-            cm.checkout_id,
-            MAX(cdm.guest_name) AS guest_name,
-            MAX(cdm.mobile) AS mobile,
-            MAX(cdm.address) AS address,
-            MAX(cdm.emailed) AS emailed,
-            MAX(comp.company_name) AS company_name,
-            MAX(comp.gst_no) AS gst_no
-            
-        FROM checkout_master cm
-        LEFT JOIN checkout_detail cdm ON cdm.checkin_id = cm.checkin_id
-        LEFT JOIN company_master comp ON comp.company_id = cdm.company_id
-        WHERE cm.checkout_id = p_checkout_id
-        GROUP BY cm.checkout_id
-    ),
+WITH guest_info AS (
+    SELECT 
+        cm.checkout_id,
+
+        MAX(gm.name) AS guest_name,
+        MAX(gm.mobile) AS mobile,
+        MAX(gm.address) AS address,
+        MAX(gm.email) AS emailed,
+
+        MAX(comp.company_name) AS company_name,
+        MAX(comp.gst_no) AS gst_no
+
+    FROM checkout_master cm
+
+    LEFT JOIN checkout_detail cdm
+        ON cdm.checkin_id = cm.checkin_id
+       AND cdm.is_checkout = 1
+
+    LEFT JOIN guest_master gm
+        ON gm.guest_id = cdm.guest_id
+
+    LEFT JOIN company_master comp
+        ON comp.company_id = gm.company_id
+
+    WHERE cm.checkout_id = p_checkout_id
+
+    GROUP BY cm.checkout_id
+),
     cd_totals AS (
         SELECT
             checkout_id,

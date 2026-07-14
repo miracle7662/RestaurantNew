@@ -351,7 +351,7 @@ const summary = useMemo(() => {
         adults: toNumber(row.adults || 0),
         child_paid: toNumber(row.child_paid || 0),
         driver: toNumber(row.driver || 0),
-        category: row.room_category_name || '-',
+        category: row.converted_category_name || row.room_category_name || '-',
       })
     }
   })
