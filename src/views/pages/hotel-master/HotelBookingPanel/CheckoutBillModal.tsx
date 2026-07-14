@@ -1282,7 +1282,7 @@ const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-
 
   // ========== RENDER PAYMENT DETAILS ==========
   const renderPaymentDetails = useCallback(() => {
-    const paymentDateDisplay = propPaymentDate || invoiceDate
+    // const paymentDateDisplay = propPaymentDate || invoiceDate
     const paymentBankDisplay = propPaymentBank || paymentMode
 
     return (
