@@ -14,7 +14,8 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_perform_checkout`(
     IN p_user_id INT,
     IN p_checkout_datetime DATETIME,
     IN p_is_undo TINYINT,
-    IN p_undo_room_ids JSON
+    IN p_undo_room_ids JSON,
+    IN p_total_nights INT   -- ✅ NEW PARAMETER
 )
 sp_perform_checkout: BEGIN
     DECLARE v_now DATETIME;
@@ -291,6 +292,11 @@ sp_perform_checkout: BEGIN
                 v_total_nights
             FROM Checkout_Detail
             WHERE checkout_id = p_checkin_id;
+
+            -- ✅ OVERRIDE: Use frontend value if provided
+            IF p_total_nights IS NOT NULL THEN
+                SET v_total_nights = p_total_nights;
+            END IF;
             
             SELECT
                 COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt','Advance Addition') THEN credit_amount ELSE 0 END), 0),
@@ -757,6 +763,11 @@ sp_perform_checkout: BEGIN
                 v_total_nights
             FROM Checkout_Detail
             WHERE checkout_id = v_keeper_checkout_id;
+
+            -- ✅ OVERRIDE: Use frontend value if provided
+            IF p_total_nights IS NOT NULL THEN
+                SET v_total_nights = p_total_nights;
+            END IF;
             
             SELECT
                 COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt','Advance Addition') THEN credit_amount ELSE 0 END), 0),
@@ -1069,6 +1080,11 @@ sp_perform_checkout: BEGIN
             v_total_nights
         FROM Checkout_Detail
         WHERE checkout_id = v_keeper_checkout_id;
+
+        -- ✅ OVERRIDE: Use frontend value if provided
+        IF p_total_nights IS NOT NULL THEN
+            SET v_total_nights = p_total_nights;
+        END IF;
         
         SELECT
             COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt','Advance Addition') THEN credit_amount ELSE 0 END), 0),
@@ -1303,6 +1319,11 @@ sp_perform_checkout: BEGIN
     FROM checkin_detail_master
     WHERE checkin_id = p_checkin_id
       AND FIND_IN_SET(room_id, v_active_room_ids) > 0;
+
+    -- ✅ OVERRIDE: Use frontend value if provided
+    IF p_total_nights IS NOT NULL THEN
+        SET v_total_nights = p_total_nights;
+    END IF;
 
     SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
     INTO v_processed_rooms_json
@@ -1791,6 +1812,11 @@ sp_perform_checkout: BEGIN
             v_total_nights
         FROM Checkout_Detail
         WHERE checkout_id = v_keeper_checkout_id;
+
+        -- ✅ OVERRIDE: Use frontend value if provided
+        IF p_total_nights IS NOT NULL THEN
+            SET v_total_nights = p_total_nights;
+        END IF;
 
         SELECT
             COALESCE(SUM(CASE WHEN transaction_type IN ('Booking Receipt','Advance Addition') THEN credit_amount ELSE 0 END), 0),

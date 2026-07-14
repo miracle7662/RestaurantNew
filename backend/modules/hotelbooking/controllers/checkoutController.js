@@ -370,7 +370,8 @@ exports.performCheckout = async (req, res) => {
       checkout_datetime,
       // ✅ NEW PARAMETERS FOR UNDO FUNCTIONALITY
       is_undo = 0,          // Default: 0 (normal checkout)
-      undo_room_ids = null  // Default: null (no undo)
+      undo_room_ids = null,  // Default: null (no undo)
+      total_nights = null,   // Default: null (no nights specified)
     } = req.body;
 
     const userId = getCurrentUserId(req);
@@ -449,7 +450,8 @@ exports.performCheckout = async (req, res) => {
       userId,
       checkout_datetime || null,
       is_undo,                    // ✅ 15th parameter
-      undo_room_ids ? JSON.stringify(undo_room_ids) : null  // ✅ 16th parameter
+      undo_room_ids ? JSON.stringify(undo_room_ids) : null,  // ✅ 16th parameter
+      total_nights
     ];
 
     console.log('🔵 ==========================================');
@@ -475,10 +477,10 @@ exports.performCheckout = async (req, res) => {
 
     // Execute stored procedure - NOW WITH 16 PARAMETERS
     console.log('🔵 Executing stored procedure...');
-    const [results] = await connection.execute(
-      `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, // ✅ 16 placeholders
-      params
-    );
+   const [results] = await connection.execute(
+  `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, // ✅ 17 placeholders
+  params
+);
     console.log('🔵 Stored procedure executed successfully');
 
     await connection.commit();
