@@ -122,6 +122,7 @@ export interface ReplaceSettlementPayload {
   updated_by_id?: number | null
   checkout_date?: string | null
   ldg_bill_no?: string | null
+  total_nights: number,   // ✅ use this
 }
 
 export interface SettlementSummary {

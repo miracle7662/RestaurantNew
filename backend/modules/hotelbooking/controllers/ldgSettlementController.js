@@ -633,7 +633,8 @@ exports.replaceSettlement = async (req, res) => {
       outletId,
       updated_by_id,
       checkout_date,
-      TipAmount: topTipAmount   // top-level tip (if sent)
+      TipAmount: topTipAmount,   // top-level tip (if sent)
+      total_nights: topTotalNights 
     } = req.body;
 
     // Validation
@@ -747,6 +748,11 @@ exports.replaceSettlement = async (req, res) => {
       // Determine tip: use top-level if provided, else per‑settlement
       const tipAmount = topTipAmount !== undefined ? Number(topTipAmount) : (sTipAmount || 0);
 
+            // Insert loop में:
+      const nights = (topTotalNights !== undefined && !isNaN(Number(topTotalNights)))
+        ? Number(topTotalNights)
+        : (s.total_nights || 1);
+
       // Credit payment handling (like settlementController)
       const isCredit = PaymentType && PaymentType.toLowerCase() === 'credit';
       const finalGuestId = isCredit ? (guest_id || customerid) : (guest_id || customerid);
@@ -786,7 +792,7 @@ exports.replaceSettlement = async (req, res) => {
         checkin_datetime: null,
         checkout_datetime: null,
         checkout_date: formatDate(checkout_date),
-        total_nights: 1,
+        total_nights: nights,   // ✅ use this
         userid: userid || updated_by_id,
         created_by_id: updated_by_id,
         updated_by_id: updated_by_id,

@@ -90,6 +90,7 @@ const SettlementPage = () => {
     orderNo?: string
     txnNo?: string
     mobileNo?: string
+    total_nights?: number  // ✅ add this
   } | null>(null)
 
   // ─── Fetch hotel info ────────────────────────────────────────────────────
@@ -259,6 +260,7 @@ const SettlementPage = () => {
       checkinId: co.checkin_id,
       billNo: co.ldg_bill_no,
       regNo: co.reg_no,
+      total_nights: co.total_nights || 1,
     })
     setShowSettlementPayModal(true)
   }
@@ -679,6 +681,7 @@ const SettlementPage = () => {
                   registration_no: settlementPayData.regNo,
                   OrderNo: settlementPayData.orderNo,
                   TxnNo: settlementPayData.txnNo,
+                  total_nights: settlementPayData.total_nights || 1,   // ✅ add this
                   Receive: split.Amount,
                   isSettled: 1,
                   created_by_id: user.id,

@@ -368,6 +368,7 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
       updated_by_id: Number(user?.id),
       checkout_date: editingSettlement.checkout_date,
       ldg_bill_no: editingSettlement.ldg_bill_no || editingSettlement.bill_no,
+       total_nights: editingSettlement.total_nights || 0
     });
 
     // 5️⃣ Success

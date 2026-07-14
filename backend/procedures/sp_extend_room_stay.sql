@@ -158,7 +158,7 @@ BEGIN
     SET v_now = NOW();
     SET p_success = FALSE;
     SET p_message = '';
-    SET v_current_checkout_date = NOW(); -- Initialize with current time
+    SET v_current_checkout_date = NOW();
 
     -- =====================================================================
     -- 4. VALIDATE INPUT PARAMETERS
@@ -314,7 +314,6 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Active detail record not found for this room';
     END IF;
 
-    -- Set checkout date
     SET v_current_checkout_date = COALESCE(v_detail_checkout_datetime, v_current_checkout_date);
 
     -- =====================================================================
@@ -342,7 +341,6 @@ BEGIN
     SET v_discount_amt = (v_room_tariff * v_discount_percent) / 100;
     SET v_room_price_after_discount = v_room_tariff - v_discount_amt;
 
-    -- Calculate taxes
     SET v_cgst_amt = 0;
     SET v_sgst_amt = 0;
     SET v_igst_amt = 0;
@@ -362,7 +360,7 @@ BEGIN
     SET v_tax_amount = v_gst_amount + v_cess_amt + v_service_charge_amt;
 
     -- =====================================================================
-    -- 9. CALCULATE EXTRA CHARGES WITH SAFETY CHECKS
+    -- 9. CALCULATE EXTRA CHARGES (EX PAX, CHILD PAID, DRIVER)
     -- =====================================================================
     SET v_base_ex_pax_per_day = 0;
     SET v_base_child_per_day = 0;
@@ -380,7 +378,7 @@ BEGIN
     SET v_driver_sgst_amt = 0;
     SET v_driver_igst_amt = 0;
 
-    -- EX PAX CALCULATION
+    -- EX PAX
     IF v_detail_ex_pax > 0 AND v_detail_ex_pax_charge > 0 THEN
         SET v_original_ex_pax_price_per_person = v_detail_ex_pax_charge;
         SET v_base_ex_pax_per_day = v_original_ex_pax_price_per_person * v_detail_ex_pax;
@@ -391,10 +389,10 @@ BEGIN
         SET v_ex_igst_amt = (v_base_ex_pax_total * v_ex_igst_percent) / 100;
     END IF;
     
-    -- CHILD PAID CALCULATION
-    IF v_detail_child_unpaid > 0 AND v_detail_child_paid_amount > 0 THEN
+    -- CHILD PAID (using child_paid, NOT child_unpaid)
+    IF v_detail_child_paid > 0 AND v_detail_child_paid_amount > 0 THEN
         SET v_original_child_price_per_child = v_detail_child_paid_amount;
-        SET v_base_child_per_day = v_original_child_price_per_child * v_detail_child_unpaid;
+        SET v_base_child_per_day = v_original_child_price_per_child * v_detail_child_paid;
         SET v_base_child_total = v_base_child_per_day * p_extension_days;
         
         SET v_child_cgst_amt = (v_base_child_total * v_child_cgst_percent) / 100;
@@ -402,7 +400,7 @@ BEGIN
         SET v_child_igst_amt = (v_base_child_total * v_child_igst_percent) / 100;
     END IF;
     
-    -- DRIVER CALCULATION
+    -- DRIVER
     IF v_detail_driver > 0 AND v_detail_driver_charge > 0 THEN
         SET v_original_driver_price_per_driver = v_detail_driver_charge;
         SET v_base_driver_per_day = v_original_driver_price_per_driver * v_detail_driver;
@@ -413,7 +411,7 @@ BEGIN
         SET v_driver_igst_amt = (v_base_driver_total * v_driver_igst_percent) / 100;
     END IF;
 
-    -- Calculate daily totals
+    -- Daily totals (including taxes)
     SET v_daily_room_total = v_room_price_after_discount + v_tax_amount;
     SET v_daily_ex_pax_total = v_base_ex_pax_per_day + 
         ((v_ex_cgst_amt + v_ex_sgst_amt + v_ex_igst_amt) / GREATEST(p_extension_days, 1));
@@ -424,7 +422,7 @@ BEGIN
     SET v_daily_rate = v_daily_room_total + v_daily_ex_pax_total + v_daily_child_total + v_daily_driver_total;
 
     -- =====================================================================
-    -- 10. CALCULATE EXTENSION AMOUNT AND NEW CHECKOUT DATE
+    -- 10. EXTENSION AMOUNT AND NEW CHECKOUT DATE
     -- =====================================================================
     SET v_extension_amount = v_daily_rate * p_extension_days;
     SET v_new_checkout_date = DATE_ADD(v_current_checkout_date, INTERVAL p_extension_days DAY);
@@ -482,7 +480,7 @@ BEGIN
         v_detail_driver,
         v_room_tariff, 
         CASE WHEN v_detail_ex_pax > 0 THEN v_detail_ex_pax_charge ELSE 0 END,
-        CASE WHEN v_detail_child_unpaid > 0 THEN v_detail_child_paid_amount ELSE 0 END,
+        CASE WHEN v_detail_child_paid > 0 THEN v_detail_child_paid_amount ELSE 0 END,
         CASE WHEN v_detail_driver > 0 THEN v_detail_driver_charge ELSE 0 END,
         v_discount_percent, v_discount_amt * p_extension_days,
         v_tax_percen_room,
@@ -517,7 +515,7 @@ BEGIN
     SET v_new_detail_id = LAST_INSERT_ID();
 
     -- =====================================================================
-    -- 13. INSERT GUEST ROOM CHARGES WITH SAFETY CHECKS
+    -- 13. INSERT GUEST ROOM CHARGES (per day)
     -- =====================================================================
     SET v_day_index = 0;
     
@@ -525,7 +523,7 @@ BEGIN
         SET v_charge_checkin_date = DATE_ADD(v_current_checkout_date, INTERVAL v_day_index DAY);
         SET v_charge_checkout_date = DATE_ADD(v_current_checkout_date, INTERVAL (v_day_index + 1) DAY);
         
-        -- Calculate per-day totals with safety checks
+        -- Per-day amounts
         SET v_day_ex_pax_total = v_base_ex_pax_per_day + 
             ((v_ex_cgst_amt + v_ex_sgst_amt + v_ex_igst_amt) / GREATEST(p_extension_days, 1));
         SET v_day_child_total = v_base_child_per_day + 
@@ -551,8 +549,8 @@ BEGIN
             CASE WHEN v_detail_ex_pax > 0 THEN v_base_ex_pax_per_day / v_detail_ex_pax ELSE 0 END,
             (v_ex_cgst_amt + v_ex_sgst_amt + v_ex_igst_amt) / GREATEST(p_extension_days, 1),
             v_total_tax_percent, v_day_ex_pax_total,
-            v_detail_child_unpaid, 
-            CASE WHEN v_detail_child_unpaid > 0 THEN v_base_child_per_day / v_detail_child_unpaid ELSE 0 END,
+            v_detail_child_paid,   -- now using child_paid
+            CASE WHEN v_detail_child_paid > 0 THEN v_base_child_per_day / v_detail_child_paid ELSE 0 END,
             (v_child_cgst_amt + v_child_sgst_amt + v_child_igst_amt) / GREATEST(p_extension_days, 1),
             v_total_tax_percent, v_day_child_total,
             v_detail_driver,
