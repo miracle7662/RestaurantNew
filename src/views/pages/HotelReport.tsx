@@ -4,7 +4,7 @@ import CheckInService from "@/common/hotel/checkIn";
 import { useAuthContext } from "@/common/context/useAuthContext";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import {
   DailySalesSummaryReportResponse,
   DailySalesReport,
@@ -200,6 +200,110 @@ const monthlySummaryFields: FieldDef[] = [
   { key: "Due Amount", label: "Due Amount" },
   { key: "Payment Modes", label: "Payment Modes" },
 ];
+
+// -------- NUMERIC FIELD SETS (used for footer totals + Excel/PDF export totals) --------
+// Amount-type keys on the flat detail rows (Daily Sales / Guest / Payment reports)
+const numericDetailKeys = new Set<string>([
+  "room_amount",
+  "extra_pax_amount",
+  "child_amount",
+  "driver_amount",
+  "food_amount",
+  "settlement_amount",
+  "gross_amount",
+  "discount",
+  "taxable_value",
+  "cgst",
+  "sgst",
+  "igst",
+  "cess",
+  "service_charge",
+  "debit_amount",
+  "credit_amount",
+  "advance",
+  "net_amount",
+  "due_amount",
+]);
+
+// Keys on the Daily/Monthly Summary report that should NOT be summed (labels/counts/text)
+const nonNumericSummaryKeys = new Set<string>([
+  "Date",
+  "Day",
+  "Year",
+  "Month",
+  "Month Name",
+  "Total Bills",
+  "Bill Range",
+  "Payment Modes",
+]);
+
+// Sums a field across a set of rows, handling both numeric and "₹1,234" style string values
+function sumField(rows: any[], key: string): number {
+  return rows.reduce((sum, row) => {
+    const val = row[key];
+    if (typeof val === "number") return sum + val;
+    if (typeof val === "string") {
+      const num = parseFloat(val.replace(/[₹,]/g, ""));
+      return sum + (isNaN(num) ? 0 : num);
+    }
+    return sum;
+  }, 0);
+}
+
+// Builds a "Total" row object (for Excel export) matching the shape of the summary rows
+function buildSummaryTotalsRow(data: any[], fields: FieldDef[]): Record<string, any> {
+  const row: Record<string, any> = {};
+  fields.forEach((f, idx) => {
+    if (idx === 0) {
+      row[f.key] = "Total";
+    } else if (!nonNumericSummaryKeys.has(f.key)) {
+      row[f.key] = sumField(data, f.key);
+    } else {
+      row[f.key] = "";
+    }
+  });
+  return row;
+}
+
+// Parses a "Cash: 1000 | Card: 500" style string into { Cash: 1000, Card: 500 }
+// (same format used by the Daily Sales "Payment Modes" field)
+function parsePaymentModesString(paymentModesStr: string): Record<string, number> {
+  const breakdown: Record<string, number> = {};
+  if (!paymentModesStr) return breakdown;
+  const entries = paymentModesStr
+    .split("|")
+    .map((s: string) => s.trim())
+    .filter((s: string) => s);
+  entries.forEach((entry: string) => {
+    const parts = entry.split(":");
+    if (parts.length === 2) {
+      const mode = parts[0].trim();
+      const amount = parseFloat(parts[1].trim());
+      if (!isNaN(amount) && amount > 0) {
+        breakdown[mode] = (breakdown[mode] || 0) + amount;
+      }
+    }
+  });
+  return breakdown;
+}
+
+// Computes per-row payment mode breakdowns plus grand totals for a list of summary rows
+// (Daily Summary / Monthly Summary rows), mirroring how the Daily Sales report does it.
+function computeSummaryPaymentModeTotals(rows: any[]): {
+  totals: Record<string, number>;
+  visibleModes: string[];
+  perRow: Record<string, number>[];
+} {
+  const perRow = rows.map((r) => parsePaymentModesString(r["Payment Modes"] || ""));
+  const totals: Record<string, number> = {};
+  perRow.forEach((bd) => {
+    Object.entries(bd).forEach(([mode, amt]) => {
+      totals[mode] = (totals[mode] || 0) + (Number(amt) || 0);
+    });
+  });
+  const visibleModes = Object.keys(totals).filter((mode) => totals[mode] > 0);
+  return { totals, visibleModes, perRow };
+}
 
 // -------- SIMPLE REPORTS (Pending, Agent) - unchanged --------
 const simpleReports: Record<SimpleReportKey, SimpleReport> = {
@@ -645,6 +749,26 @@ console.log("data:", response.data);
       });
       return obj;
     });
+
+    // ----- Totals row (so the total amount also shows up in the exported Excel) -----
+    const totalsRow: Record<string, any> = {};
+    columns.forEach((col, idx) => {
+      if (idx === 0) {
+        totalsRow[col.label] = "Total";
+      } else if (numericDetailKeys.has(col.key)) {
+        totalsRow[col.label] = data.reduce(
+          (sum, row) => sum + (Number(row[col.key as keyof DailyBookingRow]) || 0),
+          0
+        );
+      } else {
+        totalsRow[col.label] = "";
+      }
+    });
+    visiblePaymentModes.forEach((mode) => {
+      totalsRow[mode] = data.reduce((sum, row) => sum + getBreakdownAmount(row, mode), 0);
+    });
+    excelData.push(totalsRow);
+
     const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, activeLabel);
@@ -652,7 +776,9 @@ console.log("data:", response.data);
   };
 
   const exportToPDF = (data: DailyBookingRow[], columns: FieldDef[]) => {
-    const doc = new jsPDF();
+    // Landscape + a smaller font gives a lot more room than portrait for
+    // reports with many columns (guest/payment detail rows can have 20+).
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     doc.text(activeLabel, 14, 16);
 
     const tableHeaders = [...columns.map((c) => c.label), ...visiblePaymentModes];
@@ -668,12 +794,29 @@ console.log("data:", response.data);
       return [...base, ...modeVals];
     });
 
-    (doc as any).autoTable({
+    // ----- Totals row (so the total amount also shows up in the exported PDF) -----
+    const totalsBase = columns.map((c, idx) => {
+      if (idx === 0) return "Total";
+      if (numericDetailKeys.has(c.key)) {
+        return data.reduce((sum, row) => sum + (Number(row[c.key as keyof DailyBookingRow]) || 0), 0);
+      }
+      return "";
+    });
+    const totalsModeVals = visiblePaymentModes.map((mode) =>
+      data.reduce((sum, row) => sum + getBreakdownAmount(row, mode), 0)
+    );
+    tableRows.push([...totalsBase, ...totalsModeVals]);
+
+    autoTable(doc, {
       head: [tableHeaders],
       body: tableRows,
       startY: 22,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [31, 58, 95] },
+      styles: { fontSize: 7, cellPadding: 1.5, overflow: "linebreak" },
+      headStyles: { fillColor: [31, 58, 95], fontSize: 7 },
+      // If there are still more columns than fit on one page width, continue
+      // the extra columns on following pages instead of squeezing everything in.
+      horizontalPageBreak: true,
+      horizontalPageBreakRepeat: 0,
     });
 
     doc.save(`${activeLabel}.pdf`);
@@ -870,6 +1013,13 @@ console.log("data:", response.data);
       return formatCell(row[fieldKey as keyof DailyBookingRow] as string | number | null | undefined);
     };
 
+    // -------- FOOTER TOTALS (amount columns) --------
+    // Find where the numeric/amount columns start so the "Total Records" label
+    // spans only the non-amount columns, and each amount column gets its own total.
+    const firstNumericIdx = visibleColumns.findIndex((c) => numericDetailKeys.has(c.key));
+    const labelSpan = firstNumericIdx === -1 ? visibleColumns.length : firstNumericIdx;
+    const totalsCells = firstNumericIdx === -1 ? [] : visibleColumns.slice(firstNumericIdx);
+
     return (
       <table className="table table-hover align-middle mb-0">
         <thead className="rp-thead">
@@ -918,9 +1068,18 @@ console.log("data:", response.data);
         </tbody>
         <tfoot>
           <tr className="rp-tfoot fw-bold">
-            <td colSpan={Math.max(visibleColumns.length, 1)}>
+            <td colSpan={Math.max(labelSpan, 1)}>
               Total Records: {filteredDetailRows.length}
             </td>
+            {totalsCells.map((c) => (
+              <td key={c.key} className="text-nowrap">
+                {numericDetailKeys.has(c.key)
+                  ? `₹${filteredDetailRows
+                      .reduce((sum, row) => sum + (Number(row[c.key as keyof DailyBookingRow]) || 0), 0)
+                      .toLocaleString("en-IN")}`
+                  : ""}
+              </td>
+            ))}
             {visiblePaymentModes.map((mode) => (
               <td key={mode}>₹{(paymentModeTotals[mode] || 0).toLocaleString("en-IN")}</td>
             ))}
@@ -1011,6 +1170,12 @@ console.log("data:", response.data);
       );
     }
 
+    // -------- PAYMENT MODE BREAKDOWN (shown right after the "Payment Modes" column) --------
+    // Same idea as the Daily Sales report: split the raw "Payment Modes" string into
+    // one column per mode, per row, plus a totalled column in the footer.
+    const { totals: summaryPaymentTotals, visibleModes: visibleSummaryPaymentModes, perRow: summaryRowBreakdowns } =
+      computeSummaryPaymentModeTotals(data);
+
     return (
       <div>
         <div className="table-responsive">
@@ -1019,6 +1184,9 @@ console.log("data:", response.data);
               <tr>
                 {visibleFields.map((f) => (
                   <th key={f.key} className="text-nowrap">{f.label}</th>
+                ))}
+                {visibleSummaryPaymentModes.map((mode) => (
+                  <th key={mode} className="text-nowrap">{mode}</th>
                 ))}
               </tr>
             </thead>
@@ -1037,10 +1205,35 @@ console.log("data:", response.data);
                         {row[f.key as keyof (DailySalesReport | MonthlySalesReport)] ?? "-"}
                       </td>
                     ))}
+                    {visibleSummaryPaymentModes.map((mode) => (
+                      <td key={mode} className="text-nowrap">
+                        ₹{(summaryRowBreakdowns[i]?.[mode] || 0).toLocaleString("en-IN")}
+                      </td>
+                    ))}
                   </tr>
                 ))
               )}
             </tbody>
+            {data.length > 0 && (
+              <tfoot>
+                <tr className="rp-tfoot fw-bold">
+                  {visibleFields.map((f, idx) => (
+                    <td key={f.key} className="text-nowrap">
+                      {idx === 0
+                        ? `Total ${isDaily ? "Days" : "Months"}: ${data.length}`
+                        : nonNumericSummaryKeys.has(f.key)
+                        ? ""
+                        : `₹${sumField(data, f.key).toLocaleString("en-IN")}`}
+                    </td>
+                  ))}
+                  {visibleSummaryPaymentModes.map((mode) => (
+                    <td key={mode} className="text-nowrap">
+                      ₹{(summaryPaymentTotals[mode] || 0).toLocaleString("en-IN")}
+                    </td>
+                  ))}
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
@@ -1270,9 +1463,15 @@ console.log("data:", response.data);
                       if (activeReport === "dailysummary") {
                         if (summaryData) {
                           const wb = XLSX.utils.book_new();
-                          const dailySheet = XLSX.utils.json_to_sheet(summaryData.dailySummary);
+                          const dailySheet = XLSX.utils.json_to_sheet([
+                            ...summaryData.dailySummary,
+                            buildSummaryTotalsRow(summaryData.dailySummary, dailySummaryFields),
+                          ]);
                           XLSX.utils.book_append_sheet(wb, dailySheet, "Daily");
-                          const monthlySheet = XLSX.utils.json_to_sheet(summaryData.monthlySummary);
+                          const monthlySheet = XLSX.utils.json_to_sheet([
+                            ...summaryData.monthlySummary,
+                            buildSummaryTotalsRow(summaryData.monthlySummary, monthlySummaryFields),
+                          ]);
                           XLSX.utils.book_append_sheet(wb, monthlySheet, "Monthly");
                           XLSX.writeFile(wb, "Daily_Summary_Report.xlsx");
                         } else {
@@ -1298,40 +1497,93 @@ console.log("data:", response.data);
                       setExportDropdownOpen(false);
                       if (activeReport === "dailysummary") {
                         if (summaryData) {
-                          const doc = new jsPDF();
-                          doc.text("Daily Summary Report", 14, 16);
-                          // Daily table
-                          (doc as any).autoTable({
-                            head: [dailySummaryFields.map((f) => f.label)],
-                            body: summaryData.dailySummary.map((row) =>
-                              dailySummaryFields.map((f) => row[f.key as keyof DailySalesReport] ?? "-")
-                            ),
-                            startY: 22,
-                            styles: { fontSize: 8 },
-                            headStyles: { fillColor: [31, 58, 95] },
-                            tableWidth: 'auto',
-                          });
-                          // Monthly table
-                          const finalY = (doc as any).lastAutoTable.finalY + 10;
-                          (doc as any).autoTable({
-                            head: [monthlySummaryFields.map((f) => f.label)],
-                            body: summaryData.monthlySummary.map((row) =>
-                              monthlySummaryFields.map((f) => row[f.key as keyof MonthlySalesReport] ?? "-")
-                            ),
-                            startY: finalY,
-                            styles: { fontSize: 8 },
-                            headStyles: { fillColor: [31, 58, 95] },
-                            tableWidth: 'auto',
-                          });
-                          doc.save("Daily_Summary_Report.pdf");
+                          try {
+                            // Landscape gives much more room for a report with 20+ columns.
+                            const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+                            doc.text("Daily Summary Report", 14, 16);
+                            // Daily table (+ payment mode breakdown, same as Daily Sales)
+                            const dailyPM = computeSummaryPaymentModeTotals(summaryData.dailySummary);
+                            const dailyHeaders = [
+                              ...dailySummaryFields.map((f) => f.label),
+                              ...dailyPM.visibleModes,
+                            ];
+                            const dailyBody = summaryData.dailySummary.map((row, i) => [
+                              ...dailySummaryFields.map((f) => row[f.key as keyof DailySalesReport] ?? "-"),
+                              ...dailyPM.visibleModes.map((mode) => dailyPM.perRow[i]?.[mode] || 0),
+                            ]);
+                            dailyBody.push([
+                              ...dailySummaryFields.map((f, idx) =>
+                                idx === 0
+                                  ? "Total"
+                                  : nonNumericSummaryKeys.has(f.key)
+                                  ? ""
+                                  : sumField(summaryData.dailySummary, f.key)
+                              ),
+                              ...dailyPM.visibleModes.map((mode) => dailyPM.totals[mode] || 0),
+                            ]);
+                            autoTable(doc, {
+                              head: [dailyHeaders],
+                              body: dailyBody,
+                              startY: 22,
+                              styles: { fontSize: 7, cellPadding: 1.5, overflow: "linebreak" },
+                              headStyles: { fillColor: [31, 58, 95], fontSize: 7 },
+                              // Continue extra columns on following pages instead of
+                              // squeezing everything into one unreadable page width.
+                              horizontalPageBreak: true,
+                              horizontalPageBreakRepeat: 0,
+                            });
+
+                            // Monthly table (+ payment mode breakdown) on its own page,
+                            // so we don't depend on lastAutoTable.finalY being available.
+                            doc.addPage();
+                            doc.text("Monthly Summary", 14, 16);
+                            const monthlyPM = computeSummaryPaymentModeTotals(summaryData.monthlySummary);
+                            const monthlyHeaders = [
+                              ...monthlySummaryFields.map((f) => f.label),
+                              ...monthlyPM.visibleModes,
+                            ];
+                            const monthlyBody = summaryData.monthlySummary.map((row, i) => [
+                              ...monthlySummaryFields.map((f) => row[f.key as keyof MonthlySalesReport] ?? "-"),
+                              ...monthlyPM.visibleModes.map((mode) => monthlyPM.perRow[i]?.[mode] || 0),
+                            ]);
+                            monthlyBody.push([
+                              ...monthlySummaryFields.map((f, idx) =>
+                                idx === 0
+                                  ? "Total"
+                                  : nonNumericSummaryKeys.has(f.key)
+                                  ? ""
+                                  : sumField(summaryData.monthlySummary, f.key)
+                              ),
+                              ...monthlyPM.visibleModes.map((mode) => monthlyPM.totals[mode] || 0),
+                            ]);
+                            autoTable(doc, {
+                              head: [monthlyHeaders],
+                              body: monthlyBody,
+                              startY: 22,
+                              styles: { fontSize: 7, cellPadding: 1.5, overflow: "linebreak" },
+                              headStyles: { fillColor: [31, 58, 95], fontSize: 7 },
+                              horizontalPageBreak: true,
+                              horizontalPageBreakRepeat: 0,
+                            });
+
+                            doc.save("Daily_Summary_Report.pdf");
+                          } catch (err) {
+                            console.error("Daily Summary PDF export failed:", err);
+                            alert("Could not generate the PDF. Please check the console for details.");
+                          }
                         } else {
                           alert("No summary data to export.");
                         }
                       } else if (isDetailReport) {
-                        const cols = currentFieldList.filter((f) =>
-                          selectedFields.includes(f.key)
-                        );
-                        exportToPDF(filteredDetailRows, cols);
+                        try {
+                          const cols = currentFieldList.filter((f) =>
+                            selectedFields.includes(f.key)
+                          );
+                          exportToPDF(filteredDetailRows, cols);
+                        } catch (err) {
+                          console.error("PDF export failed:", err);
+                          alert("Could not generate the PDF. Please check the console for details.");
+                        }
                       } else {
                         alert("PDF export for this report not implemented yet.");
                       }

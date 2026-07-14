@@ -359,7 +359,7 @@ const CheckInForm = () => {
     new Map(),
   )
   const [selectedRoomCategoryPax, setSelectedRoomCategoryPax] = useState(0)
-  const [selectedCategoryName, setSelectedCategoryName] = useState('')
+  const [, setSelectedCategoryName] = useState('')
   const [selectedRoomTariff, setSelectedRoomTariff] = useState(0)
   const [documentTypes, setDocumentTypes] = useState<Array<{ id: string; name: string }>>([])
   const [loadingDocTypes, setLoadingDocTypes] = useState(false)

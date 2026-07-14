@@ -93,6 +93,9 @@ const flaticonSolidData = [
 
 
 
+{ iconClass: "fi fi-rr-concierge-bell", label: "Front Desk" },
+
+
 
 
 
