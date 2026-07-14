@@ -356,7 +356,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         key: 'HotelBookingPanel',
         label: 'Front Desk',
         url: '/hotel-master/HotelBookingPanel',
-         icon: 'fi fi-rr-book',
+         icon: 'fi fi-rr-concierge-bell',
         parentKey: 'hotel-master',
       },
 
@@ -364,7 +364,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         key: 'Guest-master',
         label: 'Guest',
         url: '/hotel-master/Guest-master',
-         icon: 'fi fi-rr-book',
+         icon: 'fi fi-rr-users',
         parentKey: 'hotel-master',
       },
 
@@ -372,7 +372,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         key: 'company-master',
         label: 'Company',
         url: '/hotel-master/Company-master',
-         icon: 'fi fi-rr-book',
+         icon: 'fi fi-rr-building',
         parentKey: 'hotel-master',
       },
 
@@ -380,7 +380,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         key: 'Settelement',
         label: 'Settelement',
         url: '/hotel-master/Editsettelment',
-         icon: 'fi fi-rr-book',
+         icon: 'fi fi-rr-credit-card',
         parentKey: 'hotel-master',
       },
       
@@ -388,7 +388,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         key: 'HotelReport',
         label: 'Hotel Report',
         url: '/pages/HotelReport',
-         icon: 'fi fi-rr-book',
+         icon: 'fi fi-rr-chart-histogram',
         parentKey: 'pages',
       },
      
@@ -405,7 +405,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         key: 'company-master',
         label: 'Setting',
         url: '/hotel-master/Company-master',
-         icon: 'fi fi-rr-book',
+         icon: 'fi fi-rr-settings',
         parentKey: 'hotel-master',
       },
 
@@ -605,7 +605,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'hotel-master',
     label: 'Hotel Master',
     isTitle: false,
-    icon: 'fi fi-rr-settings-sliders',
+    icon: 'fi fi-rr-hotel',
     children: [
       {
         key: 'hotel-master',
