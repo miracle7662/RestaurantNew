@@ -1033,13 +1033,23 @@ const tableRows = useMemo(() => {
     </td>
   </tr>
 )}
-              {printSettings?.show_guest_address === 1 && (
-                <tr>
-                  <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Address</td>
-                  <td className="bdt-colon" style={{ width: '6px', fontSize: '10pt' }}>:</td>
-                  <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '10pt' }}>{summary?.guest_address || '-'}</td>
-                </tr>
-              )}
+             {printSettings?.show_guest_address === 1 && (
+  <tr>
+    <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Address</td>
+    <td className="bdt-colon" style={{ width: '6px', fontSize: '10pt' }}>:</td>
+    <td
+      className="bdt-value"
+      style={{
+        fontWeight: 'bold',
+        fontSize: '10pt',
+        wordBreak: 'break-word',   // forces break on long words
+        whiteSpace: 'normal',      // allows normal wrapping
+      }}
+    >
+      {summary?.guest_address || '-'}
+    </td>
+  </tr>
+)}
               {printSettings?.show_guest_mobile === 1 && (
                 <tr>
                   <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Phone</td>
@@ -1281,11 +1291,7 @@ const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-
         <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
           <table className="bill-detail-table" style={{ width: '100%' }}>
             <tbody>
-              <tr>
-                <td className="bdt-label" style={{ width: '80px', fontSize: '9pt', fontWeight: 'bold' }}>Payment Date</td>
-                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
-                <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '9pt' }}>{paymentDateDisplay}</td>
-              </tr>
+             
               <tr>
                 <td className="bdt-label" style={{ width: '80px', fontSize: '9pt', fontWeight: 'bold' }}>Payment Mode</td>
                 <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
