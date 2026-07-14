@@ -660,114 +660,175 @@ const hideCheckinSection =
 
   // ==================== DATA FETCHING ====================
 
-  const fetchTodayCheckouts = async () => {
-    if (!hotelId) return
-    setLoadingCheckoutAlert(true)
-    try {
-      const checkinsRes = await CheckInService.list({ hotelid: hotelId })
-      const activeCheckins = (checkinsRes.data || []).filter((c: CheckIn) => c.status === 'active')
-      const todayStr = getLocalYMD(new Date())
-      const allItems: CheckoutAlertItem[] = []
+ const fetchTodayCheckouts = async () => {
+  if (!hotelId) {
+    console.warn('⚠️ fetchTodayCheckouts: hotelId missing');
+    return;
+  }
+  setLoadingCheckoutAlert(true);
+  console.log('🟢 fetchTodayCheckouts started for hotelId:', hotelId);
 
-      for (const checkin of activeCheckins) {
-        try {
-          const charges = (await GuestRoomChargesService.list({ checkin_id: checkin.checkin_id })).data || []
-          const advRoomMap = new Map<number, number>()
+  try {
+    // 1️⃣ Fetch all check-ins (active)
+    const checkinsRes = await CheckInService.list({ hotelid: hotelId });
+    const allCheckins = checkinsRes.data || [];
+    console.log(`📌 Total check-ins from API: ${allCheckins.length}`);
 
-          try {
-            const txns = (await AdvanceTransactionService.list({ checkin_id: checkin.checkin_id })).data || []
-            const roomCredits = new Map<number, number>()
-            const roomDebits = new Map<number, number>()
-            let globalCredits = 0, globalDebits = 0
+    const activeCheckins = allCheckins.filter((c: CheckIn) => c.status === 'active');
+    console.log(`📌 Active check-ins: ${activeCheckins.length}`);
+    if (activeCheckins.length === 0) {
+      console.warn('⚠️ No active check-ins found.');
+      setCheckoutAlertData([]);
+      setLoadingCheckoutAlert(false);
+      return;
+    }
 
-            txns.forEach((t: any) => {
-              if (t.status !== 'active') return
-              const rid = t.room_id
-              const isCredit = t.transaction_type === 'Booking Receipt' || t.transaction_type === 'Advance Addition'
-              const isDebit = t.transaction_type === 'Advance Posting' || t.transaction_type === 'Advance Refund'
-              if (!rid) {
-                if (isCredit) globalCredits += Number(t.credit_amount) || 0
-                if (isDebit) globalDebits += Number(t.debit_amount) || 0
-              } else {
-                if (isCredit) roomCredits.set(rid, (roomCredits.get(rid) || 0) + (Number(t.credit_amount) || 0))
-                if (isDebit) roomDebits.set(rid, (roomDebits.get(rid) || 0) + (Number(t.debit_amount) || 0))
-              }
-            })
+    const todayStr = getLocalYMD(new Date());
+    console.log(`📅 Today's date string: ${todayStr}`);
+    const allItems: CheckoutAlertItem[] = [];
 
-            for (const [rid, credit] of roomCredits) {
-              advRoomMap.set(rid, credit - (roomDebits.get(rid) || 0))
-            }
-            if (advRoomMap.size === 0 && (globalCredits > 0 || globalDebits > 0)) {
-              advRoomMap.set(0, globalCredits - globalDebits)
-            }
-          } catch { /* ignore */ }
+    // 2️⃣ Loop through each active check-in
+    for (const checkin of activeCheckins) {
+      console.log(`\n🔎 Processing checkin #${checkin.checkin_id} (Guest: ${checkin.guest_name})`);
 
-          const chargesByRoom = new Map<number, GuestRoomCharge[]>()
-          charges.forEach((c: GuestRoomCharge) => {
-            if (c.room_id) {
-              if (!chargesByRoom.has(c.room_id)) chargesByRoom.set(c.room_id, [])
-              chargesByRoom.get(c.room_id)!.push(c)
-            }
-          })
+      // Fetch room charges for this checkin
+      const chargesRes = await GuestRoomChargesService.list({ checkin_id: checkin.checkin_id });
+      const charges = chargesRes.data || [];
+      console.log(`   📦 Charges fetched: ${charges.length}`);
 
-          for (const [roomId, roomCharges] of chargesByRoom) {
-            const regular = roomCharges.filter((c) => c.category_id != null)
-            const latest = [...regular].sort(
-              (a, b) => new Date(b.detail_checkout_datetime || 0).getTime() - new Date(a.detail_checkout_datetime || 0).getTime(),
-            )[0]
+      // Build advance map (room-specific vs global)
+      const advRoomMap = new Map<number, number>();
+      try {
+        const txns = (await AdvanceTransactionService.list({ checkin_id: checkin.checkin_id })).data || [];
+        const roomCredits = new Map<number, number>();
+        const roomDebits = new Map<number, number>();
+        let globalCredits = 0, globalDebits = 0;
 
-            if (latest?.detail_checkout_datetime && getLocalYMD(new Date(latest.detail_checkout_datetime)) === todayStr) {
-              const room = rawRooms.find((r) => r.room_id === roomId)
-              const totalCharges = roomCharges.reduce((s, c) => s + (Number(c.total_amount) || 0), 0)
-              const hasRoomSpecific = [...advRoomMap.keys()].some((k) => k !== 0)
-              const advance = hasRoomSpecific ? advRoomMap.get(roomId) || 0 : advRoomMap.get(0) || 0
-
-              allItems.push({
-                srNo: 0,
-                roomNo: room?.room_no || `Room ${roomId}`,
-                guestName: checkin.guest_name,
-                category: checkin.converted_category || '',
-                pax: checkin.pax || 0,
-                adults: checkin.adults || 0,
-                exPax: checkin.ex_pax || 0,
-                child: (checkin.child_paid || 0) + (checkin.child_unpaid || 0),
-                driver: Number(checkin.driver) || 0,
-                checkinDatetime: checkin.detail_checkin_datetime ?? '',
-                checkoutDatetime: latest.detail_checkout_datetime,
-                totalPrice: latest.total_amount || 0,
-                minutesLeft: getMinutesLeft(latest.detail_checkout_datetime),
-                totalNights: checkin.total_nights,
-                totalAmount: totalCharges - advance,
-                regNo: checkin.reg_no,
-                booking: checkin.booking,
-                planName: checkin.plan_name,
-                status: checkin.status,
-              })
-            }
+        txns.forEach((t: any) => {
+          if (t.status !== 'active') return;
+          const rid = t.room_id;
+          const isCredit = t.transaction_type === 'Booking Receipt' || t.transaction_type === 'Advance Addition';
+          const isDebit = t.transaction_type === 'Advance Posting' || t.transaction_type === 'Advance Refund';
+          if (!rid) {
+            if (isCredit) globalCredits += Number(t.credit_amount) || 0;
+            if (isDebit) globalDebits += Number(t.debit_amount) || 0;
+          } else {
+            if (isCredit) roomCredits.set(rid, (roomCredits.get(rid) || 0) + (Number(t.credit_amount) || 0));
+            if (isDebit) roomDebits.set(rid, (roomDebits.get(rid) || 0) + (Number(t.debit_amount) || 0));
           }
-        } catch (err) {
-          console.warn(`Failed to fetch charges for checkin ${checkin.checkin_id}`, err)
+        });
+
+        for (const [rid, credit] of roomCredits) {
+          advRoomMap.set(rid, credit - (roomDebits.get(rid) || 0));
         }
+        if (advRoomMap.size === 0 && (globalCredits > 0 || globalDebits > 0)) {
+          advRoomMap.set(0, globalCredits - globalDebits);
+        }
+        console.log(`   💰 Advance map size: ${advRoomMap.size}`, advRoomMap);
+      } catch (err) {
+        console.warn(`   ⚠️ Advance transactions fetch failed:`, err);
       }
 
-      const now = Date.now()
-      allItems.sort((a, b) => {
-        const aTime = new Date(a.checkoutDatetime).getTime()
-        const bTime = new Date(b.checkoutDatetime).getTime()
-        const aExp = aTime < now, bExp = bTime < now
-        if (aExp && !bExp) return -1
-        if (!aExp && bExp) return 1
-        return aTime - bTime
-      })
-      allItems.forEach((item, i) => { item.srNo = i + 1 })
-      setCheckoutAlertData(allItems)
-    } catch (err) {
-      console.error("Failed to fetch today's checkouts:", err)
-      setErrorCheckoutAlert("Could not load today's checkouts")
-    } finally {
-      setLoadingCheckoutAlert(false)
+      // Group charges by room
+      const chargesByRoom = new Map<number, GuestRoomCharge[]>();
+      charges.forEach((c: GuestRoomCharge) => {
+        if (c.room_id) {
+          if (!chargesByRoom.has(c.room_id)) chargesByRoom.set(c.room_id, []);
+          chargesByRoom.get(c.room_id)!.push(c);
+        }
+      });
+      console.log(`   🏠 Rooms with charges: ${chargesByRoom.size}`, [...chargesByRoom.keys()]);
+
+      // 3️⃣ For each room, find the latest charge with a category_id
+      for (const [roomId, roomCharges] of chargesByRoom) {
+        console.log(`\n   🛏️ Processing room #${roomId} – charges: ${roomCharges.length}`);
+
+        const regular = roomCharges.filter((c) => c.category_id != null);
+        console.log(`      Regular charges (with category): ${regular.length}`);
+
+        if (regular.length === 0) {
+          console.log(`      ⚠️ No regular charges, skipping room`);
+          continue;
+        }
+
+        // Find the latest charge based on checkout_datetime
+        const latest = [...regular].sort(
+          (a, b) => new Date(b.checkout_datetime || 0).getTime() - new Date(a.checkout_datetime || 0).getTime()
+        )[0];
+
+        console.log(`      📌 Latest charge:`, {
+          room_id: latest.room_id,
+          checkout_datetime: latest.checkout_datetime,
+          total_amount: latest.total_amount,
+          category_id: latest.category_id,
+        });
+
+        // Check if this charge's checkout date is today
+        if (latest?.checkout_datetime) {
+          const chargeDateStr = getLocalYMD(new Date(latest.checkout_datetime));
+          console.log(`      📅 Charge checkout date: ${chargeDateStr} (today: ${todayStr}) – match? ${chargeDateStr === todayStr}`);
+
+          if (chargeDateStr === todayStr) {
+            const room = rawRooms.find((r) => r.room_id === roomId);
+            const totalCharges = roomCharges.reduce((s, c) => s + (Number(c.total_amount) || 0), 0);
+            const hasRoomSpecific = [...advRoomMap.keys()].some((k) => k !== 0);
+            const advance = hasRoomSpecific ? advRoomMap.get(roomId) || 0 : advRoomMap.get(0) || 0;
+
+            const item: CheckoutAlertItem = {
+              srNo: 0,
+              roomNo: room?.room_no || `Room ${roomId}`,
+              guestName: checkin.guest_name,
+              category: checkin.converted_category || '',
+              pax: checkin.pax || 0,
+              adults: checkin.adults || 0,
+              exPax: checkin.ex_pax || 0,
+              child: (checkin.child_paid || 0) + (checkin.child_unpaid || 0),
+              driver: Number(checkin.driver) || 0,
+              checkinDatetime: checkin.checkin_datetime ?? '',
+              checkoutDatetime: latest.checkout_datetime,
+              totalPrice: latest.total_amount || 0,
+              minutesLeft: getMinutesLeft(latest.checkout_datetime),
+              totalNights: checkin.total_nights,
+              totalAmount: totalCharges - advance,
+              regNo: checkin.reg_no,
+              booking: checkin.booking,
+              planName: checkin.plan_name,
+              status: checkin.status,
+            };
+
+            console.log(`      ✅ Item added for room ${room?.room_no}`, item);
+            allItems.push(item);
+          } else {
+            console.log(`      ⏭️ Skipping – checkout date is not today`);
+          }
+        } else {
+          console.warn(`      ⚠️ latest.checkout_datetime is missing`);
+        }
+      }
     }
+
+    // 4️⃣ Sort and set state
+    console.log(`\n📊 Total items collected: ${allItems.length}`);
+    const now = Date.now();
+    allItems.sort((a, b) => {
+      const aTime = new Date(a.checkoutDatetime).getTime();
+      const bTime = new Date(b.checkoutDatetime).getTime();
+      const aExp = aTime < now, bExp = bTime < now;
+      if (aExp && !bExp) return -1;
+      if (!aExp && bExp) return 1;
+      return aTime - bTime;
+    });
+    allItems.forEach((item, i) => { item.srNo = i + 1; });
+
+    console.log('✅ Final checkout alert data:', allItems);
+    setCheckoutAlertData(allItems);
+  } catch (err) {
+    console.error('❌ fetchTodayCheckouts error:', err);
+    setErrorCheckoutAlert('Could not load today\'s checkouts: ' + (err as Error).message);
+  } finally {
+    setLoadingCheckoutAlert(false);
   }
+};
 
   const fetchOccupiedRoomsData = useCallback(() => {
     if (hotelId) {

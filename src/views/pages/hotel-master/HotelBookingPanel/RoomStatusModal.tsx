@@ -1,4 +1,4 @@
-// RoomStatusModal.tsx - Updated with dynamic colors from hotel settings
+// RoomStatusModal.tsx - Updated to use room_status_id from the database
 import { useState, useEffect } from 'react'
 import { Modal, Form } from 'react-bootstrap'
 import { toast } from 'react-hot-toast'
@@ -9,6 +9,7 @@ import RoomStatusLogService from '@/common/hotel/roomStatusLog'
 import { useAuthContext } from '@/common/context/useAuthContext'
 import hotelSettingsApi, { HotelUiSettings } from '@/common/hotel/hotelSettings'
 
+// ---------- Interfaces (unchanged) ----------
 interface RoomStatusModalProps {
   show: boolean
   onHide: () => void
@@ -17,14 +18,14 @@ interface RoomStatusModalProps {
     number: string
     category: string
     floor: string
-    status: 'available' | 'occupied' | 'cleaning' |  'Bill' | 'reserved' | 'maintenance' | 'reservation'
+    status: 'available' | 'occupied' | 'cleaning' | 'Bill' | 'reserved' | 'maintenance' | 'reservation'
   } | null
   rooms?: {
     id: number
     number: string
     category: string
     floor: string
-    status: 'available' | 'occupied' | 'cleaning' |  'Bill' | 'reserved' | 'maintenance' | 'reservation'
+    status: 'available' | 'occupied' | 'cleaning' | 'Bill' | 'reserved' | 'maintenance' | 'reservation'
   }[]
   hotelId: number
   userId?: number
@@ -70,7 +71,6 @@ interface ReservationUpdatePayload {
   updated_by_id?: number
 }
 
-// Define the exact type expected by the API
 interface ApiRoomStatusLogPayload {
   room_id: number
   room_no: string
@@ -85,6 +85,13 @@ interface ApiRoomStatusLogPayload {
   reservation_datetime?: string
   hotelid: number
   created_by_id?: number
+}
+
+// ---------- New: interface for room status from DB ----------
+interface RoomStatusFromDB {
+  room_status_id: number
+  status_name: string
+  status_color?: string   // optional, can be used for dynamic colors
 }
 
 // Default colors (fallback if settings not loaded)
@@ -121,7 +128,9 @@ const RoomStatusModal = ({
   const { user } = useAuthContext()
   const isMultiRoom = !!(rooms && rooms.length > 0)
   const effectiveRooms = isMultiRoom ? rooms! : (room ? [room] : [])
-  
+
+  // ---------- State (new: roomStatuses) ----------
+  const [roomStatuses, setRoomStatuses] = useState<RoomStatusFromDB[]>([])
   const [statusType, setStatusType] = useState<'dirty' | 'block' | 'maint' | 'reservation'>('dirty')
   const [roomNo, setRoomNo] = useState('')
   const [dateTime, setDateTime] = useState('')
@@ -138,7 +147,23 @@ const RoomStatusModal = ({
   const [saving, setSaving] = useState(false)
   const [uiSettings, setUiSettings] = useState<HotelUiSettings | null>(null)
 
-  // Fetch UI settings for dynamic colors
+  // ---------- Fetch room statuses from DB ----------
+  const fetchRoomStatuses = async () => {
+    try {
+      // Adjust the endpoint to your actual API
+      const response = await fetch('/api/room-status')
+      const data = await response.json()
+      if (data.success) {
+        setRoomStatuses(data.data)
+      } else {
+        console.error('Failed to fetch room statuses:', data.message)
+      }
+    } catch (error) {
+      console.error('Error fetching room statuses:', error)
+    }
+  }
+
+  // ---------- Fetch UI settings (unchanged) ----------
   useEffect(() => {
     if (show && hotelId) {
       const fetchSettings = async () => {
@@ -152,9 +177,12 @@ const RoomStatusModal = ({
         }
       }
       fetchSettings()
+      // Also fetch room statuses
+      fetchRoomStatuses()
     }
   }, [show, hotelId])
 
+  // ---------- Helper: get current datetime (unchanged) ----------
   const getCurrentDateTime = () => {
     const now = new Date()
     const year = now.getFullYear()
@@ -165,6 +193,7 @@ const RoomStatusModal = ({
     return `${year}-${month}-${day}T${hours}:${minutes}`
   }
 
+  // ---------- Reset state on open (unchanged, but now also resets roomStatuses? we keep fetched) ----------
   useEffect(() => {
     if (show && effectiveRooms.length > 0) {
       setRoomNo(isMultiRoom ? effectiveRooms.map(r => r.number).join(', ') : effectiveRooms[0].number)
@@ -185,6 +214,7 @@ const RoomStatusModal = ({
     }
   }, [show, room, rooms, hotelId, user])
 
+  // ---------- fetchReservations & fetchGuests (unchanged) ----------
   const fetchReservations = async () => {
     setLoadingReservations(true)
     try {
@@ -234,6 +264,7 @@ const RoomStatusModal = ({
     }
   }
 
+  // ---------- handleSave (major change: use room_status_id) ----------
   const handleSave = async () => {
     if (effectiveRooms.length === 0) {
       toast.error('Room information missing')
@@ -245,57 +276,83 @@ const RoomStatusModal = ({
       return
     }
 
+    // ---------- Map status type to database status_name ----------
+    const statusNameMap: Record<string, string> = {
+      dirty: 'cleaning',
+      block: 'reserved',
+      maint: 'maintenance',
+      reservation: 'reservation',
+    }
+
+    const statusName = statusNameMap[statusType]
+    if (!statusName) {
+      toast.error(`Unknown status type: ${statusType}`)
+      return
+    }
+
+    // Find the matching status record from the fetched list
+    const statusRecord = roomStatuses.find(
+      (s) => s.status_name.toLowerCase() === statusName.toLowerCase()
+    )
+    if (!statusRecord) {
+      toast.error(`Status "${statusName}" not found in the system. Please add it.`)
+      return
+    }
+
+    const roomStatusId = statusRecord.room_status_id
+
+    // Determine the new status string (for display & logs) - unchanged
+    let newStatus: 'available' | 'occupied' | 'cleaning' | 'Bill' | 'reserved' | 'maintenance' | 'reservation' = 'available'
+    let successMessage = ''
+
+    switch (statusType) {
+      case 'dirty':
+        newStatus = 'cleaning'
+        successMessage = isMultiRoom
+          ? `${effectiveRooms.length} rooms marked as Dirty for cleaning`
+          : `Room ${effectiveRooms[0].number} marked as Dirty for cleaning`
+        break
+      case 'block':
+        newStatus = 'reserved'
+        successMessage = isMultiRoom
+          ? `${effectiveRooms.length} rooms have been Blocked`
+          : `Room ${effectiveRooms[0].number} has been Blocked`
+        break
+      case 'maint':
+        newStatus = 'maintenance'
+        successMessage = isMultiRoom
+          ? `${effectiveRooms.length} rooms marked for Maintenance`
+          : `Room ${effectiveRooms[0].number} marked for Maintenance`
+        break
+      case 'reservation':
+        newStatus = 'reservation'
+        successMessage = isMultiRoom
+          ? `Reservation assigned to ${effectiveRooms.length} rooms`
+          : `Reservation assigned to Room ${effectiveRooms[0].number}`
+        break
+    }
+
     setSaving(true)
     try {
-      let newStatus: 'available' | 'occupied' | 'cleaning' |   'Bill' |'reserved' | 'maintenance' | 'reservation' = 'available'
-      let successMessage = ''
-
-      switch (statusType) {
-        case 'dirty':
-          newStatus = 'cleaning'
-          successMessage = isMultiRoom
-            ? `${effectiveRooms.length} rooms marked as Dirty for cleaning`
-            : `Room ${effectiveRooms[0].number} marked as Dirty for cleaning`
-          break
-        case 'block':
-          newStatus = 'reserved'
-          successMessage = isMultiRoom
-            ? `${effectiveRooms.length} rooms have been Blocked`
-            : `Room ${effectiveRooms[0].number} has been Blocked`
-          break
-        case 'maint':
-          newStatus = 'maintenance'
-          successMessage = isMultiRoom
-            ? `${effectiveRooms.length} rooms marked for Maintenance`
-            : `Room ${effectiveRooms[0].number} marked for Maintenance`
-          break
-        case 'reservation':
-          newStatus = 'reservation'
-          successMessage = isMultiRoom
-            ? `Reservation assigned to ${effectiveRooms.length} rooms`
-            : `Reservation assigned to Room ${effectiveRooms[0].number}`
-          break
-      }
-
       for (const targetRoom of effectiveRooms) {
         const oldStatus = targetRoom.status
         const currentRoom = await RoomService.get(targetRoom.id)
         const roomData = currentRoom.data || currentRoom
 
-        // Update room status
+        // ---------- Update room with room_status_id ----------
         await RoomService.update(targetRoom.id, {
           ...roomData,
-          room_status: newStatus,
+          room_status_id: roomStatusId,          // <-- NEW: send the foreign key
+          room_status: newStatus,                // keep for backward compatibility / UI
           updated_by_id: userId,
         })
 
+        // ---------- Reservation logic (unchanged) ----------
         let reservationGuestId: number | undefined = undefined
         let reservationDateTime: string | undefined = undefined
 
-        // Handle reservation logic
         if (statusType === 'reservation') {
           if (reservationId) {
-            // Update existing reservation
             const updatePayload: ReservationUpdatePayload = {
               room_no: targetRoom.number,
               status: 'assigned',
@@ -308,7 +365,6 @@ const RoomStatusModal = ({
             reservationGuestId = selectedReservation?.guest_id || undefined
             reservationDateTime = resvDateTime || new Date().toISOString()
           } else if (selectedGuestId) {
-            // Create new reservation
             const selectedGuest = guests.find((g) => g.guest_id === Number(selectedGuestId))
             const today = new Date().toISOString().split('T')[0]
             const departureDate = new Date(Date.now() + 86400000).toISOString().split('T')[0]
@@ -335,13 +391,13 @@ const RoomStatusModal = ({
           }
         }
 
-        // Prepare status log payload with the correct literal type
+        // ---------- Status log (unchanged) ----------
         const statusLogPayload: ApiRoomStatusLogPayload = {
           room_id: targetRoom.id,
           room_no: targetRoom.number,
           previous_status: oldStatus,
           new_status: newStatus,
-          status_type: statusType, // This is now correctly typed as one of the literals
+          status_type: statusType,
           blocked_by: statusType === 'block' || statusType === 'maint' ? blockedBy : undefined,
           in_house_guest_name: statusType === 'block' ? inHouseGuestName : undefined,
           reason: reason || undefined,
@@ -351,14 +407,13 @@ const RoomStatusModal = ({
           hotelid: hotelId,
           created_by_id: userId,
         }
-        
-        // Use the correct API function - ensure the payload matches the expected type
+
         await RoomStatusLogService.create(statusLogPayload)
       }
 
       toast.success(successMessage)
       if (onSuccess) onSuccess()
-      
+
       setTimeout(() => {
         onHide()
         setStatusType('dirty')
@@ -378,6 +433,8 @@ const RoomStatusModal = ({
     }
   }
 
+  // ---------- All UI and helper functions remain exactly as before ----------
+  // (formatDateTimeDisplay, getStatusThemeColors, getTheme, statusButtons, reservationOptions, etc.)
   const formatDateTimeDisplay = (dateTimeStr: string) => {
     if (!dateTimeStr) return ''
     const date = new Date(dateTimeStr)
@@ -390,7 +447,6 @@ const RoomStatusModal = ({
     })
   }
 
-  // Get dynamic colors from settings or use defaults
   const getStatusThemeColors = (type: 'dirty' | 'block' | 'maint' | 'reservation') => {
     if (uiSettings) {
       switch (type) {
@@ -427,11 +483,9 @@ const RoomStatusModal = ({
     }
   }
 
-  // Theme configuration using dynamic colors
   const getTheme = () => {
     const colors = getStatusThemeColors(statusType)
     const darkerBg = (color: string) => {
-      // Simple darkening function
       if (color.startsWith('#')) {
         const r = parseInt(color.slice(1, 3), 16)
         const g = parseInt(color.slice(3, 5), 16)
@@ -440,7 +494,6 @@ const RoomStatusModal = ({
       }
       return color
     }
-    
     return {
       primary: colors.bg,
       primaryDark: darkerBg(colors.bg),
@@ -472,6 +525,7 @@ const RoomStatusModal = ({
     value: r.reservation_id.toString(),
   }))
 
+  // ---------- JSX (exactly as original) ----------
   return (
     <>
       <style>{`
