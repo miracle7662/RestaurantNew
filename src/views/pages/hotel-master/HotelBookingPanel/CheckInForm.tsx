@@ -405,6 +405,14 @@ const CheckInForm = () => {
 
   const [tempGuestPhoto, setTempGuestPhoto] = useState<string | null>(null)
 
+  const getTodayLocal = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
   // Fetch front desk settings
   useEffect(() => {
     if (hotelId) {
@@ -3257,20 +3265,7 @@ const CheckInForm = () => {
                           <Col md={1} style={{ minWidth: '140px' }}>
                             <label className="fs-small mb-1">
                               Type
-                              {values.roomNo && selectedCategoryName && (
-                                <span
-                                  className="ms-1 badge"
-                                  style={{
-                                    backgroundColor: '#009de0',
-                                    color: '#fff',
-                                    fontSize: '0.6rem',
-                                    padding: '1px 5px',
-                                    borderRadius: '8px',
-                                    verticalAlign: 'middle',
-                                  }}>
-                                  {selectedCategoryName}
-                                </span>
-                              )}
+                              
                             </label>
                             <Select
                               name="roomType"
@@ -3364,6 +3359,8 @@ const CheckInForm = () => {
                               type="date"
                               size="sm"
                               className="w-100 fs-small"
+                              readOnly   // ← user select/type nahi kar sakta
+                              value={getTodayLocal()} // value force karein (agar Formik value update ho toh bhi)
                             />
                           </Col>
 
