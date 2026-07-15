@@ -1,120 +1,299 @@
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_daily_sales_summary`(
-    IN p_hotelid INT,
-    IN p_start_date DATE,
-    IN p_end_date DATE,
-    IN p_limit INT
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_get_checkin_details_summary`(
+    IN p_hotel_id INT,
+    IN p_checkin_id INT
 )
 BEGIN
-    SELECT 
-        g.guest_id,
-        g.name AS guest_name,
-        g.mobile,
-        g.email,
-        g.organisation,
-        g.guest_type,
-        g.gender,
-        
-        -- Company Details
-        cd.company_id,
-        comp.company_name AS company_name,
-        comp.gst_no AS company_gst,
-        comp.mobile1 AS company_mobile,
-        comp.email AS company_email,
-        comp.credit_limit AS company_credit_limit,
-        comp.credit_allowed AS company_credit_allowed,
-        
-        -- Room Details
-        COUNT(DISTINCT cd.room_id) AS unique_rooms_used,
-        GROUP_CONCAT(DISTINCT cd.room_number SEPARATOR ', ') AS room_numbers_used,
-        GROUP_CONCAT(DISTINCT cd.room_category_name SEPARATOR ', ') AS room_categories_used,
-        GROUP_CONCAT(DISTINCT CONCAT(cd.room_number, ' (', cd.room_category_name, ')') SEPARATOR ', ') AS room_details,
-        
-        -- Most Used Room
-        (SELECT cd2.room_number 
-         FROM checkout_detail cd2 
-         WHERE cd2.guest_id = g.guest_id AND cd2.is_checkout = 1
-         AND DATE(cd2.checkout_datetime) BETWEEN p_start_date AND p_end_date
-         GROUP BY cd2.room_number 
-         ORDER BY COUNT(*) DESC 
-         LIMIT 1) AS most_used_room,
-        
-        -- Preferred Room Category
-        (SELECT cd2.room_category_name 
-         FROM checkout_detail cd2 
-         WHERE cd2.guest_id = g.guest_id AND cd2.is_checkout = 1
-         AND DATE(cd2.checkout_datetime) BETWEEN p_start_date AND p_end_date
-         GROUP BY cd2.room_category_name 
-         ORDER BY COUNT(*) DESC 
-         LIMIT 1) AS preferred_room_category,
-        
-        -- LDG Bill Details
-        COUNT(DISTINCT cm.ldg_bill_no) AS total_ldg_bills,
-        GROUP_CONCAT(DISTINCT cm.ldg_bill_no SEPARATOR ', ') AS ldg_bill_numbers,
-        GROUP_CONCAT(DISTINCT cm.reg_no SEPARATOR ', ') AS registration_numbers,
-        GROUP_CONCAT(DISTINCT cm.booking SEPARATOR ', ') AS booking_references,
-        
-        -- Check-in/Check-out Statistics
-        COUNT(DISTINCT cd.checkin_id) AS total_stays,
-        COUNT(DISTINCT cd.checkout_id) AS total_checkouts,
-        SUM(cd.no_of_days) AS total_room_nights,
-        AVG(cd.no_of_days) AS avg_stay_duration,
-        
-        -- Revenue
-        SUM(cd.room_tariff) AS total_room_revenue,
-        SUM(cd.ex_pax_charge) AS total_extra_charges,
-        SUM(cd.child_paid_amount) AS total_child_charges,
-        SUM(cd.driver_charge) AS total_driver_charges,
-        SUM(cd.service_charge_amount) AS total_service_charge,
-        SUM(cd.cess_amount) AS total_cess,
-        
-        -- Discounts & GST
-        SUM(cd.discount_amount) AS total_discounts_received,
-        SUM(cd.cgst_amount + cd.ex_cgst_amount + cd.child_cgst_amount + cd.driver_cgst_amount) AS total_cgst,
-        SUM(cd.sgst_amount + cd.ex_sgst_amount + cd.child_sgst_amount + cd.driver_sgst_amount) AS total_sgst,
-        SUM(cd.igst_amount + cd.ex_igst_amount + cd.child_igst_amount + cd.driver_igst_amount) AS total_igst,
-        
-        -- Net Amount
-        ROUND(SUM(cd.room_tariff + cd.ex_pax_charge + cd.child_paid_amount + cd.driver_charge + 
-              cd.service_charge_amount + cd.cess_amount + cd.cgst_amount + cd.sgst_amount + cd.igst_amount +
-              cd.ex_cgst_amount + cd.ex_sgst_amount + cd.ex_igst_amount +
-              cd.child_cgst_amount + cd.child_sgst_amount + cd.child_igst_amount +
-              cd.driver_cgst_amount + cd.driver_sgst_amount + cd.driver_igst_amount - cd.discount_amount), 2) AS total_spent,
-        
-        -- Advance
-        SUM(cm.tot_advance) AS total_advance_paid,
-        
-        -- First & Last Visit
-        MIN(cd.checkin_datetime) AS first_visit,
-        MAX(cd.checkout_datetime) AS last_visit,
-        DATEDIFF(MAX(cd.checkout_datetime), MIN(cd.checkin_datetime)) AS customer_lifecycle_days,
-        
-        -- Average per stay
-        ROUND(AVG(cd.room_tariff + cd.ex_pax_charge + cd.child_paid_amount + cd.driver_charge + 
-              cd.service_charge_amount + cd.cess_amount - cd.discount_amount), 2) AS avg_amount_per_stay,
-        
-        -- Loyalty Score
-        CASE 
-            WHEN COUNT(DISTINCT cd.checkin_id) >= 10 THEN 'Platinum'
-            WHEN COUNT(DISTINCT cd.checkin_id) >= 5 THEN 'Gold'
-            WHEN COUNT(DISTINCT cd.checkin_id) >= 3 THEN 'Silver'
-            WHEN COUNT(DISTINCT cd.checkin_id) >= 1 THEN 'Bronze'
-            ELSE 'New'
-        END AS loyalty_level,
-        
-        -- Payment Summary
-        SUM(s.Amount) AS total_payment_received,
-        SUM(s.TipAmount) AS total_tips_given,
-        SUM(s.Refund) AS total_refunds_received
-        
-    FROM guest_master g
-    LEFT JOIN checkout_detail cd ON g.guest_id = cd.guest_id AND cd.is_checkout = 1
-        AND DATE(cd.checkout_datetime) BETWEEN p_start_date AND p_end_date
-    LEFT JOIN checkout_master cm ON cd.checkout_id = cm.checkout_id AND cm.status = 'checked_out'
-    LEFT JOIN company_master comp ON cd.company_id = comp.company_id
-    LEFT JOIN ldgsettlement s ON cd.checkout_id = s.checkout_id
-    WHERE g.hotelid = p_hotelid
-    GROUP BY g.guest_id, cd.company_id, comp.company_id
-    HAVING total_spent > 0 OR total_checkouts > 0
-    ORDER BY total_spent DESC
-    LIMIT p_limit;
+
+/* ROOM CHARGES & EXTENSION - Fixed total_amount calculation */
+SELECT
+    cm.checkin_id,
+    cm.booking,
+    cm.plan_name,
+    cm.reg_no,
+    cm.checkin_datetime,
+    cm.hotelid,
+    
+    cdm.detail_id,
+    cdm.guest_id,
+    cdm.room_id,
+    cdm.room_number,
+    cdm.room_category_name,
+    cdm.converted_category_name,
+    cdm.room_tariff,
+    cdm.discount_percent,
+    cdm.discount_amount,
+    (COALESCE(cdm.cgst_percent, 0) + COALESCE(cdm.sgst_percent, 0)) AS tax_percent,
+    cdm.cgst_percent,
+    cdm.sgst_percent,
+    cdm.igst_percent,
+    cdm.is_settle,
+    cdm.checkin_datetime AS detail_checkin_datetime,
+    cdm.checkout_datetime AS detail_checkout_datetime,
+    cdm.adults,
+    cdm.pax,
+    cdm.ex_pax,
+    cdm.child_unpaid,
+    cdm.driver,
+    cdm.ex_pax_charge,
+    cdm.child_paid_amount,
+    cdm.driver_charge,
+    cdm.cess_percent,
+    cdm.service_charge,
+    cdm.parent_detail_id,
+
+    COALESCE(gm.name, 'Guest') AS guest_name,
+    COALESCE(gm.mobile, '-') AS mobile,
+    COALESCE(gm.address, '-') AS address,
+    COALESCE(gm.email, '-') AS email,
+
+    -- Get folio for this specific room detail
+    (SELECT folio_id
+     FROM checkin_guest_folio_master 
+     WHERE detail_id = cdm.detail_id
+       AND transaction_type IN ('Room Charges', 'Room Extension')
+       AND checkin_id = cm.checkin_id
+     LIMIT 1) AS folio_id,
+
+    CASE
+        WHEN cdm.parent_detail_id IS NULL THEN 'Room Charges'
+        ELSE 'Room Extension'
+    END AS transaction_type,
+
+    CASE
+        WHEN cdm.parent_detail_id IS NULL THEN 'Check-in Day'
+        ELSE 'Extended'
+    END AS description,
+
+    (SELECT payment_method
+     FROM checkin_guest_folio_master 
+     WHERE detail_id = cdm.detail_id
+       AND transaction_type IN ('Room Charges', 'Room Extension')
+       AND checkin_id = cm.checkin_id
+     LIMIT 1) AS payment_method,
+
+    (SELECT debit_amount
+     FROM checkin_guest_folio_master 
+     WHERE detail_id = cdm.detail_id
+       AND transaction_type IN ('Room Charges', 'Room Extension')
+       AND checkin_id = cm.checkin_id
+     LIMIT 1) AS debit_amount,
+
+    (SELECT credit_amount
+     FROM checkin_guest_folio_master 
+     WHERE detail_id = cdm.detail_id
+       AND transaction_type IN ('Room Charges', 'Room Extension')
+       AND checkin_id = cm.checkin_id
+     LIMIT 1) AS credit_amount,
+
+    (SELECT reference_number
+     FROM checkin_guest_folio_master 
+     WHERE detail_id = cdm.detail_id
+       AND transaction_type IN ('Room Charges', 'Room Extension')
+       AND checkin_id = cm.checkin_id
+     LIMIT 1) AS reference_number,
+
+    -- Breakdown fields
+    NULL AS guest_room_charges_id,
+    cdm.room_category_id AS category_id,
+    cdm.pax AS pax_count,
+    cdm.room_tariff AS pax_price,
+    (COALESCE(cdm.cgst_amount, 0) + COALESCE(cdm.sgst_amount, 0) + COALESCE(cdm.igst_amount, 0)) AS pax_tax,
+
+    cdm.ex_pax AS ex_pax_count,
+    cdm.ex_pax_charge AS ex_pax_price,
+    (COALESCE(cdm.ex_cgst_amount, 0) + COALESCE(cdm.ex_sgst_amount, 0) + COALESCE(cdm.ex_igst_amount, 0)) AS ex_pax_tax,
+    cdm.tax_percen_ex AS ex_pax_tax_percent,
+    (COALESCE(cdm.ex_pax, 0) * COALESCE(cdm.ex_pax_charge, 0))
+        + (COALESCE(cdm.ex_cgst_amount, 0) + COALESCE(cdm.ex_sgst_amount, 0) + COALESCE(cdm.ex_igst_amount, 0)) AS ex_pax_total,
+
+    cdm.child_paid AS child_count,
+    cdm.child_paid_amount AS child_price,
+    (COALESCE(cdm.child_cgst_amount, 0) + COALESCE(cdm.child_sgst_amount, 0) + COALESCE(cdm.child_igst_amount, 0)) AS child_tax,
+    cdm.tax_percen_child AS child_tax_percent,
+    (COALESCE(cdm.child_paid, 0) * COALESCE(cdm.child_paid_amount, 0))
+        + (COALESCE(cdm.child_cgst_amount, 0) + COALESCE(cdm.child_sgst_amount, 0) + COALESCE(cdm.child_igst_amount, 0)) AS child_total,
+
+    cdm.driver AS driver_count,
+    cdm.driver_charge AS driver_price,
+    (COALESCE(cdm.driver_cgst_amount, 0) + COALESCE(cdm.driver_sgst_amount, 0) + COALESCE(cdm.driver_igst_amount, 0)) AS driver_tax,
+    cdm.tax_percen_driver AS driver_tax_percent,
+    (COALESCE(cdm.driver, 0) * COALESCE(cdm.driver_charge, 0))
+        + (COALESCE(cdm.driver_cgst_amount, 0) + COALESCE(cdm.driver_sgst_amount, 0) + COALESCE(cdm.driver_igst_amount, 0)) AS driver_total,
+
+    -- FIXED: Total amount calculation
+    -- room_tariff is already the per room rate (not multiplied by pax)
+    CASE
+        WHEN (SELECT debit_amount
+              FROM checkin_guest_folio_master 
+              WHERE detail_id = cdm.detail_id
+                AND transaction_type IN ('Room Charges', 'Room Extension')
+                AND checkin_id = cm.checkin_id
+              LIMIT 1) IS NOT NULL
+        THEN (SELECT debit_amount
+              FROM checkin_guest_folio_master 
+              WHERE detail_id = cdm.detail_id
+                AND transaction_type IN ('Room Charges', 'Room Extension')
+                AND checkin_id = cm.checkin_id
+              LIMIT 1)
+        ELSE 
+            -- Calculate total from all components
+            COALESCE(cdm.room_tariff, 0)  -- Base room rate (already includes pax charges)
+            + COALESCE(cdm.cgst_amount, 0) + COALESCE(cdm.sgst_amount, 0) + COALESCE(cdm.igst_amount, 0)  -- Pax taxes
+            
+            + COALESCE((cdm.ex_pax * cdm.ex_pax_charge), 0)  -- Extra pax amount
+            + COALESCE(cdm.ex_cgst_amount, 0) + COALESCE(cdm.ex_sgst_amount, 0) + COALESCE(cdm.ex_igst_amount, 0)  -- Extra pax taxes
+            
+            + COALESCE((cdm.child_paid * cdm.child_paid_amount), 0)  -- Child amount
+            + COALESCE(cdm.child_cgst_amount, 0) + COALESCE(cdm.child_sgst_amount, 0) + COALESCE(cdm.child_igst_amount, 0)  -- Child taxes
+            
+            + COALESCE((cdm.driver * cdm.driver_charge), 0)  -- Driver amount
+            + COALESCE(cdm.driver_cgst_amount, 0) + COALESCE(cdm.driver_sgst_amount, 0) + COALESCE(cdm.driver_igst_amount, 0)  -- Driver taxes
+            
+            - COALESCE(cdm.discount_amount, 0)  -- Subtract discount
+            + COALESCE(cdm.cess_percent, 0)  -- Add cess if any
+            + COALESCE(cdm.service_charge, 0)  -- Add service charge if any
+    END AS total_amount,
+
+    cdm.checkin_datetime AS charge_checkin_datetime,
+    cdm.checkout_datetime AS charge_checkout_datetime,
+
+    'ROOM_CHARGE' AS source_type,
+    
+    -- Add room sequence for ordering
+    ROW_NUMBER() OVER (PARTITION BY cdm.room_id ORDER BY cdm.detail_id) AS room_sequence
+
+FROM checkin_master cm
+INNER JOIN checkin_detail_master cdm
+    ON cm.checkin_id = cdm.checkin_id
+LEFT JOIN guest_master gm
+    ON gm.guest_id = cdm.guest_id
+
+WHERE cm.hotelid = p_hotel_id
+  AND cm.checkin_id = p_checkin_id
+  AND cdm.is_settle = 0
+
+UNION ALL
+
+/* ADVANCE / FOOD / BAR / OTHER FOLIO ENTRIES */
+SELECT
+    cm.checkin_id,
+    cm.booking,
+    cm.plan_name,
+    cm.reg_no,
+    cm.checkin_datetime,
+    cm.hotelid,
+    
+    COALESCE(cdm.detail_id, 0) AS detail_id,
+    COALESCE(cdm.guest_id, 0) AS guest_id,
+    cgfm.room_id,
+    COALESCE(cdm.room_number, '-') AS room_number,
+    COALESCE(cdm.room_category_name, '-') AS room_category_name,
+    COALESCE(cdm.converted_category_name, '-') AS converted_category_name,
+
+    CASE
+        WHEN cgfm.transaction_type IN ('Advance Addition', 'Allowance')
+            THEN -COALESCE(cgfm.credit_amount, 0)
+        WHEN COALESCE(cgfm.debit_amount, 0) > 0
+            THEN cgfm.debit_amount
+        ELSE (COALESCE(cgfm.debit_amount, 0) - COALESCE(cgfm.credit_amount, 0))
+    END AS room_tariff,
+
+    0 AS discount_percent,
+    0 AS discount_amount,
+    0 AS tax_percent,
+    0 AS cgst_percent,
+    0 AS sgst_percent,
+    0 AS igst_percent,
+    0 AS is_settle,
+
+    cgfm.transaction_datetime AS detail_checkin_datetime,
+    cgfm.transaction_datetime AS detail_checkout_datetime,
+
+    0 AS adults,
+    0 AS pax,
+    0 AS ex_pax,
+    0 AS child_unpaid,
+    0 AS driver,
+    0 AS ex_pax_charge,
+    0 AS child_paid_amount,
+    0 AS driver_charge,
+    0 AS cess_percent,
+    0 AS service_charge,
+    NULL AS parent_detail_id,
+
+    COALESCE(gm.name, 'Guest') AS guest_name,
+    COALESCE(gm.mobile, '-') AS mobile,
+    COALESCE(gm.address, '-') AS address,
+    COALESCE(gm.email, '-') AS email,
+
+    cgfm.folio_id,
+    cgfm.transaction_type,
+    cgfm.description,
+    cgfm.payment_method,
+    cgfm.debit_amount,
+    cgfm.credit_amount,
+    cgfm.reference_number,
+
+    NULL AS guest_room_charges_id,
+    NULL AS category_id,
+    NULL AS pax_count,
+    NULL AS pax_price,
+    NULL AS pax_tax,
+    NULL AS ex_pax_count,
+    NULL AS ex_pax_price,
+    NULL AS ex_pax_tax,
+    NULL AS ex_pax_tax_percent,
+    NULL AS ex_pax_total,
+    NULL AS child_count,
+    NULL AS child_price,
+    NULL AS child_tax,
+    NULL AS child_tax_percent,
+    NULL AS child_total,
+    NULL AS driver_count,
+    NULL AS driver_price,
+    NULL AS driver_tax,
+    NULL AS driver_tax_percent,
+    NULL AS driver_total,
+
+    CASE
+        WHEN cgfm.transaction_type IN ('Advance Addition', 'Allowance')
+            THEN -COALESCE(cgfm.credit_amount, 0)
+        WHEN cgfm.transaction_type IN ('Post Charges', 'Food', 'Bar', 'Laundry', 'Other Charges')
+            THEN COALESCE(cgfm.debit_amount, 0)
+        ELSE (COALESCE(cgfm.debit_amount, 0) - COALESCE(cgfm.credit_amount, 0))
+    END AS total_amount,
+
+    cgfm.transaction_datetime AS charge_checkin_datetime,
+    cgfm.transaction_datetime AS charge_checkout_datetime,
+
+    'FOLIO_ENTRY' AS source_type,
+    
+    0 AS room_sequence
+
+FROM checkin_guest_folio_master cgfm
+
+INNER JOIN checkin_master cm
+    ON cm.checkin_id = cgfm.checkin_id
+
+INNER JOIN checkin_detail_master cdm
+    ON cdm.detail_id = cgfm.detail_id
+   AND cdm.checkin_id = cgfm.checkin_id
+   AND cdm.is_settle = 0
+
+LEFT JOIN guest_master gm
+    ON gm.guest_id = cdm.guest_id
+
+WHERE cm.hotelid = p_hotel_id
+  AND cgfm.checkin_id = p_checkin_id
+  AND cgfm.transaction_type NOT IN ('Room Charges','Room Extension')
+  AND (
+        cgfm.description IS NULL
+        OR cgfm.description NOT LIKE 'Discount%'
+      )
+ORDER BY 
+    source_type DESC,
+    room_id,
+    detail_checkin_datetime,
+    detail_id;
+
 END

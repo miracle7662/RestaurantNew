@@ -56,7 +56,7 @@ interface DailyBookingRow {
   payment_breakdown: Record<string, number>; // parsed from payment_modes
 }
 
-// -------- REPORT FIELD DEFINITIONS (now all 25 fields) --------
+// -------- REPORT FIELD DEFINITIONS (all 25 fields) --------
 const guestReport = {
   title: "Daily Sell Report (Guest Details)",
   fields: [
@@ -65,7 +65,8 @@ const guestReport = {
     { key: "company_name", label: "Company" },
     { key: "room_numbers_used", label: "Room" },
     { key: "stay", label: "Stay (Nights)" },
-    { key: "checkin_datetime", label: "Check‑in/Check-out" },
+    { key: "checkin_datetime", label: "Check‑in" },
+    { key: "checkout_datetime", label: "Check‑out" },
     { key: "room_amount", label: "Room Amount" },
     { key: "food_amount", label: "Food Amount" },
     { key: "settlement_amount", label: "Settlement Amount" },
@@ -85,7 +86,7 @@ const guestReport = {
     { key: "due_amount", label: "Due Amount" },
     { key: "payment_modes", label: "Payment Modes" },
   ],
-  // 🔥 NOW ALL 25 FIELDS ARE SELECTED BY DEFAULT
+  // All 25 fields are selected by default
   defaultFields: [
     "ldg_bill_no",
     "guest_name",
@@ -93,7 +94,7 @@ const guestReport = {
     "room_numbers_used",
     "stay",
     "checkin_datetime",
-    
+    "checkout_datetime",
     "room_amount",
     "food_amount",
     "settlement_amount",
@@ -378,7 +379,7 @@ export default function ReportsPage(): JSX.Element {
     if (activeReport === "payment") {
       setSelectedFields(paymentReport.defaultFields);
     } else if (["dailysell", "guest", "dailysellguest"].includes(activeReport)) {
-      setSelectedFields(guestReport.defaultFields); // Now includes all 25 fields
+      setSelectedFields(guestReport.defaultFields);
     }
   }, [activeReport]);
 
@@ -681,6 +682,31 @@ export default function ReportsPage(): JSX.Element {
       );
     }
 
+    // -------- CONDITIONAL COLUMN VISIBILITY --------
+    // These keys will be hidden if all rows have zero/empty values
+    const conditionalKeys = new Set(['food_amount', 'igst', 'cess', 'service_charge']);
+    const visibleColumns = columns.filter(col => {
+      if (!conditionalKeys.has(col.key)) return true;
+      // Check if any row has a non-zero value for this field
+      return filteredDetailRows.some(row => {
+        const val = row[col.key as keyof DailyBookingRow];
+        if (typeof val === 'number') {
+          return val !== 0;
+        }
+        // For string fields (though these are numeric) we keep if non-empty
+        return val !== '' && val !== null && val !== undefined;
+      });
+    });
+
+    if (visibleColumns.length === 0) {
+      return (
+        <div className="text-center py-5" style={{ color: "var(--rp-text-muted)" }}>
+          <i className="bi bi-columns-gap d-block mb-2" style={{ fontSize: 20 }} />
+          No columns to display after conditional filtering.
+        </div>
+      );
+    }
+
     const isPaymentReport = activeReport === "payment";
 
     const renderCell = (row: DailyBookingRow, fieldKey: string) => {
@@ -726,7 +752,7 @@ export default function ReportsPage(): JSX.Element {
       <table className="table table-hover align-middle mb-0">
         <thead className="rp-thead">
           <tr>
-            {columns.map((c) => {
+            {visibleColumns.map((c) => {
               const isRoom = isPaymentReport && c.key === "room_numbers_used";
               const thStyle = isRoom
                 ? ({ padding: "0.3rem 0.2rem", maxWidth: "150px", whiteSpace: "normal", wordBreak: "break-word" } as React.CSSProperties)
@@ -748,7 +774,7 @@ export default function ReportsPage(): JSX.Element {
         <tbody>
           {filteredDetailRows.map((row, i) => (
             <tr key={i}>
-              {columns.map((c) => {
+              {visibleColumns.map((c) => {
                 const isRoom = isPaymentReport && c.key === "room_numbers_used";
                 const tdStyle = isRoom
                   ? ({ padding: "0.3rem 0.2rem", maxWidth: "150px", whiteSpace: "normal", wordBreak: "break-word" } as React.CSSProperties)
@@ -770,7 +796,7 @@ export default function ReportsPage(): JSX.Element {
         </tbody>
         <tfoot>
           <tr className="rp-tfoot fw-bold">
-            <td colSpan={Math.max(columns.length, 1)}>
+            <td colSpan={Math.max(visibleColumns.length, 1)}>
               Total Records: {filteredDetailRows.length}
             </td>
             {visiblePaymentModes.map((mode) => (
