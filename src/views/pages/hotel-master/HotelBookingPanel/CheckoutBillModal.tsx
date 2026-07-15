@@ -1027,7 +1027,7 @@ const tableRows = useMemo(() => {
         )}
         {printSettings?.show_hotel_contact === 1 && (
           <div className={`text-${contactAlign} mt-1`} style={{ fontSize: '10pt',  fontWeight: 'bold', color: '#060000' }}>
-            📞 {firstRow?.phone || '+91 11 4567 8900'} &nbsp;|&nbsp; ✉ {firstRow?.email || 'info@grandviewhotel.com'} &nbsp;|&nbsp; 🌐 {firstRow?.website || 'www.grandviewhotel.com'}
+            📞 {firstRow?.phone ||''} &nbsp;|&nbsp; ✉ {firstRow?.email || ''} &nbsp;|&nbsp; 🌐 {firstRow?.website || ''}
           </div>
         )}
         {printSettings?.show_hotel_contact === 1 && (
