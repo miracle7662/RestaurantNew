@@ -3,6 +3,8 @@ import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { Modal, Button, Spinner } from 'react-bootstrap'
 import BillPrintSettingService, { BillPrintSetting } from '@/common/hotel/billPrintSettingService'
 import CheckoutService from '@/common/hotel/checkout'
+import BrandService from '@/common/api/brand';
+
 
 // ==================== INTERFACES ====================
 
@@ -225,6 +227,30 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const [billError, setBillError] = useState<string | null>(null)
     const [footerSummary, setFooterSummary] = useState<any>(null)
 
+    const [hotelData, setHotelData] = useState<any>(null);
+const [, setHotelDataLoading] = useState(false);
+
+
+useEffect(() => {
+  const fetchHotelData = async () => {
+    if (!hotelId || !show) {
+      setHotelData(null);
+      return;
+    }
+    setHotelDataLoading(true);
+    try {
+      const response = await BrandService.getBrandById(String(hotelId));
+      // 🔥 Extract the actual hotel data
+      const hotel = response?.data || response;
+      setHotelData(hotel);
+    } catch (error) {
+      console.error('Failed to fetch hotel data:', error);
+    } finally {
+      setHotelDataLoading(false);
+    }
+  };
+  fetchHotelData();
+}, [hotelId, show]);
 
   // ========== FETCH PRINT SETTINGS ==========
   useEffect(() => {
@@ -754,7 +780,7 @@ const tableRows = useMemo(() => {
       line-height: 1.2;
     }
     .bill-wrap .bill-hotel-logo {
-      max-height: 55px;
+      max-height: 100px;
       max-width: 140px;
       object-fit: contain;
     }
@@ -892,6 +918,42 @@ const tableRows = useMemo(() => {
     }, 300)
   }, [summary, printSettings, showTopHeaderSection, getBillStyles])
 
+  // Inside the component (before the useEffect)
+const getServerBaseUrl = () => {
+  try {
+    const saved = localStorage.getItem('posServerConfig');
+    if (saved) {
+      const cfg = JSON.parse(saved);
+      return `http://${cfg.serverIP || 'localhost'}:${cfg.port || 3001}`;
+    }
+  } catch {}
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '');
+  }
+  if (window.location.protocol === 'file:') return 'http://localhost:3001';
+  return `${window.location.protocol}//${window.location.hostname}:3001`;
+};
+
+const normalizeLogoUrl = (logo: any): string | null => {
+  if (!logo) return null;
+  if (typeof logo === 'string') {
+    if (logo.startsWith('http://') || logo.startsWith('https://') || logo.startsWith('data:')) {
+      return logo;
+    }
+    const base = getServerBaseUrl();
+    const clean = logo.startsWith('/') ? logo.slice(1) : logo;
+    return `${base}/${clean}`;
+  }
+  // handle Uint8Array (rare)
+  if (logo instanceof Uint8Array) {
+    try {
+      const base64 = btoa(String.fromCharCode(...logo));
+      return `data:image/png;base64,${base64}`;
+    } catch { return null; }
+  }
+  return null;
+};
+
   // ========== HANDLE DOWNLOAD PDF ==========
   const handleDownloadPDF = useCallback(async () => {
     const billEl = printRef.current
@@ -986,59 +1048,89 @@ const tableRows = useMemo(() => {
 
   // ========== RENDER FUNCTIONS ==========
 
-  const renderHotelHeader = useCallback(() => {
-    if (!showTopHeaderSection) {
-      const spacerPx = Math.round((topMarginWhenHeaderHidden || 20) * 3.7795)
-      return (
-        <div
-          style={{ height: `${spacerPx}px`, width: '100%' }}
-          aria-hidden="true"
-          data-role="header-spacer"
-        />
-      )
-    }
-
-    const firstRow = billData[0]
-    const nameAlign = printSettings?.hotel_name_position || 'center'
-    const addressAlign = printSettings?.hotel_address_position || 'left'
-    const contactAlign = printSettings?.hotel_contact_position || 'left'
-    const logoPosition = printSettings?.hotel_logo_position || 'left'
-
-    const logoEl =
-      printSettings?.show_hotel_logo === 1 && firstRow?.Logo ? (
-        <img src={firstRow.Logo} alt="Hotel Logo" className="bill-hotel-logo" />
-      ) : null
-
+ const renderHotelHeader = useCallback(() => {
+  if (!showTopHeaderSection) {
+    const spacerPx = Math.round((topMarginWhenHeaderHidden || 20) * 3.7795);
     return (
-      <div className="mb-2">
-        {logoEl && <div className={`text-${logoPosition} mb-1`}>{logoEl}</div>}
-        {printSettings?.show_hotel_name === 1 && (
-          <div
-            className={`text-${nameAlign}`}
-            style={{ fontSize: '19pt', fontWeight: 'bold', }}
-          >
-            {firstRow?.hotel_name || 'GRAND VIEW HOTEL'}
-          </div>
-        )}
-        {printSettings?.show_hotel_address === 1 && (
-          <div className={`text-${addressAlign} mt-1`} style={{ fontSize: '10pt',  fontWeight: 'bold' }}>
-            📍 {firstRow?.hotel_address || '123, Park Avenue, City Center, New Delhi - 110001'}
-          </div>
-        )}
-        {printSettings?.show_hotel_contact === 1 && (
-          <div className={`text-${contactAlign} mt-1`} style={{ fontSize: '10pt',  fontWeight: 'bold', color: '#060000' }}>
-            📞 {firstRow?.phone ||''} &nbsp;|&nbsp; ✉ {firstRow?.email || ''} &nbsp;|&nbsp; 🌐 {firstRow?.website || ''}
-          </div>
-        )}
-        {printSettings?.show_hotel_contact === 1 && (
-          <div className={`text-${contactAlign} mt-1`} style={{ fontSize: '10pt',  fontWeight: 'bold', color: '#060000' }}>
-             📍 {firstRow?.trn_gstno || 'GST'} 
-          </div>
-        )}
-        <hr className="bill-divider" />
+      <div
+        style={{ height: `${spacerPx}px`, width: '100%' }}
+        aria-hidden="true"
+        data-role="header-spacer"
+      />
+    );
+  }
+
+  const firstRow = billData[0];
+
+  // Text alignments (still configurable)
+  const nameAlign = printSettings?.hotel_name_position || 'center';
+  const addressAlign = printSettings?.hotel_address_position || 'left';
+  const contactAlign = printSettings?.hotel_contact_position || 'left';
+
+  // Logo: forced to the right (as you requested)
+
+  const rawLogo = hotelData?.Logo || hotelData?.logo || firstRow?.Logo;
+  const logoUrl = normalizeLogoUrl(rawLogo);
+
+  const logoEl =
+    printSettings?.show_hotel_logo === 1 && logoUrl ? (
+      <img src={logoUrl} alt="Hotel Logo" className="bill-hotel-logo" />
+    ) : null;
+
+ return (
+  <div className="mb-2" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    {/* Left side: all text content */}
+    <div style={{ flex: 1 }}>
+      {/* Hotel Name */}
+      {printSettings?.show_hotel_name === 1 && (
+        <div
+          className={`text-${nameAlign}`}
+          style={{ fontSize: '21pt', fontWeight: 'bold' }}
+        >
+          {firstRow?.hotel_name || 'Nilay Inn'}
+        </div>
+      )}
+
+      {/* Hotel Address */}
+      {printSettings?.show_hotel_address === 1 && (
+        <div
+          className={`text-${addressAlign} mt-1`}
+          style={{ fontSize: '10pt', fontWeight: 'bold' }}
+        >
+          📍 {firstRow?.hotel_address || 'Nilay Inn, Near kannya prashala, Station Road.'}
+        </div>
+      )}
+
+      {/* Contact (Phone, Email, Website) */}
+      {printSettings?.show_hotel_contact === 1 && (
+        <div
+          className={`text-${contactAlign} mt-1`}
+          style={{ fontSize: '10pt', fontWeight: 'bold', color: '#060000' }}
+        >
+          📞 {firstRow?.phone || '9270271704'} &nbsp;|&nbsp; ✉ {firstRow?.email || 'Nilayinn17@gmail.com'} &nbsp;|&nbsp; 🌐 {firstRow?.website || 'www.grandviewhotel.com'}
+        </div>
+      )}
+
+      {/* GST / TRN */}
+      {printSettings?.show_hotel_contact === 1 && (
+        <div
+          className={`text-${contactAlign} mt-1`}
+          style={{ fontSize: '10pt', fontWeight: 'bold', color: '#060000' }}
+        >
+          📍 {firstRow?.trn_gstno || 'ljkhjghfgdsa76543'}
+        </div>
+      )}
+    </div>
+
+    {/* Right side: Logo (separate div) */}
+    {logoEl && (
+      <div style={{ marginLeft: '20px', flexShrink: 0 }}>
+        {logoEl}
       </div>
-    )
-  }, [billData, printSettings, showTopHeaderSection, topMarginWhenHeaderHidden, headerBg])
+    )}
+  </div>
+);
+}, [billData, printSettings, showTopHeaderSection, topMarginWhenHeaderHidden, hotelData]);
 
   const renderBillTitle = useCallback(() => {
     if (printSettings?.show_bill_title !== 1) return null
@@ -1427,49 +1519,90 @@ const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-
     )
   }, [totals, headerBg])
 
-  // ========== RENDER LAYOUT ==========
-  const renderLayout = useCallback(() => {
-    return (
-      <div className="bill-layout-container">
-        <div className="bill-layout-top">
-          {renderHotelHeader()}
-          {renderBillTitle()}
-          
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'stretch' }}>
-            <div style={{ flex: '0 0 auto', width: '250px' }}>
-              {printSettings?.show_guest_details === 1 && renderGuestDetails()}
-            </div>
-            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-              {printSettings?.show_booking_details === 1 && renderBookingDetails()}
-            </div>
-          </div>
-          
-          {renderChargesTable()}
-          <div className="bill-spacer" />
-        </div>
+
+const renderSignatureSection = useCallback(() => {
+  const hotelName = billData[0]?.hotel_name || 'Hotel Ashwarya';
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginTop: '15px',
+      paddingTop: '10px',
+      borderTop: '1px solid #ccc'
+    }}>
+      {/* Left: Guest Signature */}
+      <div style={{ flex: 1 }}>
         
-        <div className="bill-layout-bottom" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', paddingTop: '4px', marginTop: 'auto' }}>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: 0 }}>
-            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-              {renderPaymentDetails()}
-            </div>
-            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-              {renderSummaryBox()}
-            </div>
-          </div>
+        <div style={{
+          borderBottom: '1px solid #000',
+          width: '80%',
+          marginTop: '19px',
+          height: '20px'
+        }} />
+        {/* 👇 New: Authentication & Reception under the line */}
+        <div style={{ fontWeight: 'bold', fontSize: '10pt' }}>
+          Signature of Guest
         </div>
       </div>
-    )
-  }, [
-    renderHotelHeader,
-    renderBillTitle,
-    renderGuestDetails,
-    renderBookingDetails,
-    renderChargesTable,
-    renderPaymentDetails,
-    renderSummaryBox,
-    printSettings,
-  ])
+
+      {/* Right: Hotel Signature */}
+      <div style={{ flex: 1, textAlign: 'right' }}>
+        <div style={{ fontWeight: 'bold', fontSize: '10pt' }}>
+          For {hotelName}
+        </div>
+        <div style={{
+          borderBottom: '1px solid #000',
+          width: '80%',
+          marginTop: '5px',
+          height: '20px',
+          marginLeft: 'auto'
+        }} />
+        {/* Keep existing text under right line */}
+        <div style={{ fontSize: '9pt', marginTop: '2px' }}>
+          Authentication & Reception
+        </div>
+      </div>
+    </div>
+  );
+}, [billData]);
+
+  // ========== RENDER LAYOUT ==========
+  const renderLayout = useCallback(() => {
+  return (
+    <div className="bill-layout-container">
+      <div className="bill-layout-top">
+        {renderHotelHeader()}
+        {renderBillTitle()}
+        {/* ... (guest & booking details) ... */}
+        {renderChargesTable()}
+        <div className="bill-spacer" />
+      </div>
+
+      <div className="bill-layout-bottom" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', paddingTop: '4px', marginTop: 'auto' }}>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: 0 }}>
+          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+            {renderPaymentDetails()}
+          </div>
+          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+            {renderSummaryBox()}
+          </div>
+        </div>
+        {/* 🔽 NEW: Signature section added here */}
+        {renderSignatureSection()}
+      </div>
+    </div>
+  );
+}, [
+  renderHotelHeader,
+  renderBillTitle,
+  renderGuestDetails,
+  renderBookingDetails,
+  renderChargesTable,
+  renderPaymentDetails,
+  renderSummaryBox,
+ 
+  printSettings,
+]);
 
   // ========== LOADING/ERROR STATES ==========
   if (settingsLoading || billLoading) {
