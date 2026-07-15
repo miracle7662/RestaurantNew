@@ -1575,6 +1575,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       </div>
     );
   }, [billData]);
+  
 
   const renderLayout = useCallback(() => {
     return (
