@@ -1167,13 +1167,22 @@ const normalizeLogoUrl = (logo: any): string | null => {
   <tr>
     <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Name</td>
     <td className="bdt-colon" style={{ width: '6px', fontSize: '10pt' }}>:</td>
-    <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '10pt', color: headerBg }}>
-      {summary?.guest_name ? (
-        summary.guest_name.split(', ').map((name, idx) => (
-          <div key={idx}>{name}</div>
-        ))
-      ) : '-'}
-    </td>
+    <td
+  className="bdt-value"
+  style={{
+    fontWeight: 'bold',
+    fontSize: '10pt',
+    color: headerBg,
+    wordBreak: 'break-word',   // ✅ breaks long words
+    whiteSpace: 'normal',      // ✅ allows wrapping
+  }}
+>
+  {summary?.guest_name ? (
+    summary.guest_name.split(', ').map((name, idx) => (
+      <div key={idx}>{name}</div>
+    ))
+  ) : '-'}
+</td>
   </tr>
 )}
              {printSettings?.show_guest_address === 1 && (
@@ -1520,49 +1529,99 @@ const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-
     )
   }, [totals, headerBg])
 
-  // ========== RENDER LAYOUT ==========
-  const renderLayout = useCallback(() => {
-    return (
-      <div className="bill-layout-container">
-        <div className="bill-layout-top">
-          {renderHotelHeader()}
-          {renderBillTitle()}
-          
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'stretch' }}>
-            <div style={{ flex: '0 0 auto', width: '250px' }}>
-              {printSettings?.show_guest_details === 1 && renderGuestDetails()}
-            </div>
-            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-              {printSettings?.show_booking_details === 1 && renderBookingDetails()}
-            </div>
-          </div>
-          
-          {renderChargesTable()}
-          <div className="bill-spacer" />
-        </div>
+
+const renderSignatureSection = useCallback(() => {
+  const hotelName = billData[0]?.hotel_name || 'Hotel Ashwarya';
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginTop: '15px',
+      paddingTop: '10px',
+      borderTop: '1px solid #ccc'
+    }}>
+      {/* Left: Guest Signature */}
+      <div style={{ flex: 1 }}>
         
-        <div className="bill-layout-bottom" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', paddingTop: '4px', marginTop: 'auto' }}>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: 0 }}>
-            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-              {renderPaymentDetails()}
-            </div>
-            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-              {renderSummaryBox()}
-            </div>
-          </div>
+        <div style={{
+          borderBottom: '1px solid #000',
+          width: '80%',
+          marginTop: '19px',
+          height: '20px'
+        }} />
+        {/* 👇 New: Authentication & Reception under the line */}
+        <div style={{ fontWeight: 'bold', fontSize: '10pt' }}>
+          Signature of Guest
         </div>
       </div>
-    )
-  }, [
-    renderHotelHeader,
-    renderBillTitle,
-    renderGuestDetails,
-    renderBookingDetails,
-    renderChargesTable,
-    renderPaymentDetails,
-    renderSummaryBox,
-    printSettings,
-  ])
+
+      {/* Right: Hotel Signature */}
+      <div style={{ flex: 1, textAlign: 'right' }}>
+        <div style={{ fontWeight: 'bold', fontSize: '10pt' }}>
+          For {hotelName}
+        </div>
+        <div style={{
+          borderBottom: '1px solid #000',
+          width: '80%',
+          marginTop: '5px',
+          height: '20px',
+          marginLeft: 'auto'
+        }} />
+        {/* Keep existing text under right line */}
+        <div style={{ fontSize: '9pt', marginTop: '2px' }}>
+          Authentication & Reception
+        </div>
+      </div>
+    </div>
+  );
+}, [billData]);
+
+const renderLayout = useCallback(() => {
+  return (
+    <div className="bill-layout-container">
+      <div className="bill-layout-top">
+        {renderHotelHeader()}
+        {renderBillTitle()}
+
+        {/* 🔽 Guest & Booking details side by side */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'stretch' }}>
+          <div style={{ flex: '0 0 auto', width: '250px' }}>
+            {renderGuestDetails()}
+          </div>
+          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+            {renderBookingDetails()}
+          </div>
+        </div>
+
+        {renderChargesTable()}
+        <div className="bill-spacer" />
+      </div>
+
+      <div className="bill-layout-bottom" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', paddingTop: '4px', marginTop: 'auto' }}>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: 0 }}>
+          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+            {renderPaymentDetails()}
+          </div>
+          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+            {renderSummaryBox()}
+          </div>
+        </div>
+        {/* 🔽 Signature section */}
+        {renderSignatureSection()}
+      </div>
+    </div>
+  );
+}, [
+  renderHotelHeader,
+  renderBillTitle,
+  renderGuestDetails,    // ✅ now actually used
+  renderBookingDetails,  // ✅ now actually used
+  renderChargesTable,
+  renderPaymentDetails,
+  renderSummaryBox,
+  renderSignatureSection, // add this to deps
+  printSettings,
+]);
 
   // ========== LOADING/ERROR STATES ==========
   if (settingsLoading || billLoading) {
