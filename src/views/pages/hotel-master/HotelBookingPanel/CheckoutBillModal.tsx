@@ -228,7 +228,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const [footerSummary, setFooterSummary] = useState<any>(null)
 
   const [hotelData, setHotelData] = useState<any>(null);
-  const [hotelDataLoading, setHotelDataLoading] = useState(false);
+  const [, setHotelDataLoading] = useState(false);
 
 
   useEffect(() => {
@@ -1068,7 +1068,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const contactAlign = printSettings?.hotel_contact_position || 'left';
 
     // Logo: forced to the right (as you requested)
-    const logoPosition = 'right';
+    
 
     const rawLogo = hotelData?.Logo || hotelData?.logo || firstRow?.Logo;
     const logoUrl = normalizeLogoUrl(rawLogo);
