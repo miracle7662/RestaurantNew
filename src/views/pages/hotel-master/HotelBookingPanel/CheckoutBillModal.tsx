@@ -25,7 +25,7 @@ interface DisplayDetailRow {
   allowance: number
   discount_amount: number
   total_amount: number  // dtotal_amount from SP
-  
+
   room_id: number
   room_category_name: string
   converted_category_name: string
@@ -218,39 +218,39 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 }) => {
   const printRef = useRef<HTMLDivElement>(null)
   const fetchCalledRef = useRef(false)
-  
+
   const [printSettings, setPrintSettings] = useState<BillPrintSetting | null>(null)
   const [settingsLoading, setSettingsLoading] = useState(true)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [billData, setBillData] = useState<any[]>([])
   const [billLoading, setBillLoading] = useState(false)
   const [billError, setBillError] = useState<string | null>(null)
-    const [footerSummary, setFooterSummary] = useState<any>(null)
+  const [footerSummary, setFooterSummary] = useState<any>(null)
 
-    const [hotelData, setHotelData] = useState<any>(null);
-const [hotelDataLoading, setHotelDataLoading] = useState(false);
+  const [hotelData, setHotelData] = useState<any>(null);
+  const [hotelDataLoading, setHotelDataLoading] = useState(false);
 
 
-useEffect(() => {
-  const fetchHotelData = async () => {
-    if (!hotelId || !show) {
-      setHotelData(null);
-      return;
-    }
-    setHotelDataLoading(true);
-    try {
-      const response = await BrandService.getBrandById(String(hotelId));
-      // 🔥 Extract the actual hotel data
-      const hotel = response?.data || response;
-      setHotelData(hotel);
-    } catch (error) {
-      console.error('Failed to fetch hotel data:', error);
-    } finally {
-      setHotelDataLoading(false);
-    }
-  };
-  fetchHotelData();
-}, [hotelId, show]);
+  useEffect(() => {
+    const fetchHotelData = async () => {
+      if (!hotelId || !show) {
+        setHotelData(null);
+        return;
+      }
+      setHotelDataLoading(true);
+      try {
+        const response = await BrandService.getBrandById(String(hotelId));
+        // 🔥 Extract the actual hotel data
+        const hotel = response?.data || response;
+        setHotelData(hotel);
+      } catch (error) {
+        console.error('Failed to fetch hotel data:', error);
+      } finally {
+        setHotelDataLoading(false);
+      }
+    };
+    fetchHotelData();
+  }, [hotelId, show]);
 
   // ========== FETCH PRINT SETTINGS ==========
   useEffect(() => {
@@ -274,11 +274,11 @@ useEffect(() => {
     if (show) fetchSettings()
   }, [hotelId, show])
 
-   // ========== FETCH BILL PREVIEW DATA ==========
+  // ========== FETCH BILL PREVIEW DATA ==========
   useEffect(() => {
     const fetchBillPreview = async () => {
       if (!show) return
-      
+
       if (!checkoutId && !ldgBillNo) {
         setBillError('No checkout ID or bill number provided')
         return
@@ -291,13 +291,13 @@ useEffect(() => {
       fetchCalledRef.current = true
       setBillLoading(true)
       setBillError(null)
-      
+
       try {
         const response = await CheckoutService.getBillPreview(
           checkoutId || undefined,
           ldgBillNo || undefined
         )
-        
+
         if (response.success && response.data) {
           let filteredData = response.data
           if (selectedRooms && selectedRooms.length > 0) {
@@ -307,7 +307,7 @@ useEffect(() => {
             })
           }
           setBillData(filteredData)
-          
+
           // 🔥 Store the footer summary (Result Set 3)
           if (response.summary) {
             setFooterSummary(response.summary)
@@ -328,7 +328,7 @@ useEffect(() => {
     if (show) {
       fetchBillPreview()
     }
-    
+
     return () => {
       if (!show) {
         fetchCalledRef.current = false
@@ -343,12 +343,12 @@ useEffect(() => {
     return billData.map((row, index) => {
       const roomNumber = row.room_number || `Room-${row.room_id}`
       const transactionType = (row.transaction_type || '').toUpperCase().trim()
-      
+
       const isPostCharge = ['CHARGE', 'POST CHARGE', 'POST_CHARGE', 'ALLOWANCE', 'ADVANCE ADDITION', 'FOOD']
         .includes(transactionType)
 
-      const billDateFormatted = row.bill_date 
-        ? formatBillDate(row.bill_date) 
+      const billDateFormatted = row.bill_date
+        ? formatBillDate(row.bill_date)
         : formatBillDate(row.checkin_datetime)
 
       return {
@@ -399,193 +399,193 @@ useEffect(() => {
   }, [billData])
 
   // ========== BUILD SUMMARY - DIRECT FROM HEADER ROW ==========
-const summary = useMemo(() => {
-  if (!billData.length || !displayRows.length) return null
+  const summary = useMemo(() => {
+    if (!billData.length || !displayRows.length) return null
 
-  const firstRow = billData[0]
+    const firstRow = billData[0]
 
-  // ---- NEW: collect unique guest names from all rows ----
-  const guestNames = [
-    ...new Set(
-      displayRows
-        .map((row) => row.guest_name)
-        .filter((name) => name && name.trim() !== '')
-    ),
-  ]
-  const guestNameDisplay = guestNames.length ? guestNames.join(', ') : 'Guest'
-  // -------------------------------------------------------
+    // ---- NEW: collect unique guest names from all rows ----
+    const guestNames = [
+      ...new Set(
+        displayRows
+          .map((row) => row.guest_name)
+          .filter((name) => name && name.trim() !== '')
+      ),
+    ]
+    const guestNameDisplay = guestNames.length ? guestNames.join(', ') : 'Guest'
+    // -------------------------------------------------------
 
-  // Aggregate room-level data (same as before)
-  const roomMap = new Map<
-    string,
-    { adults: number; child_paid: number; driver: number; category: string }
-  >()
-  displayRows.forEach((row) => {
-    const roomNum = row.room_number
-    if (!roomMap.has(roomNum)) {
-      roomMap.set(roomNum, {
-        adults: toNumber(row.adults || 0),
-        child_paid: toNumber(row.child_paid || 0),
-        driver: toNumber(row.driver || 0),
-        category: row.converted_category_name || row.room_category_name || '-',
-      })
-    }
-  })
-
-  let totalAdults = 0,
-    totalChildPaid = 0,
-    totalDriver = 0
-  const categoriesSet = new Set<string>()
-  roomMap.forEach((value) => {
-    totalAdults += value.adults
-    totalChildPaid += value.child_paid
-    totalDriver += value.driver
-    if (value.category) categoriesSet.add(value.category)
-  })
-
-  const roomCategoriesStr = Array.from(categoriesSet).join(', ') || '-'
-
-  const guestsDisplayParts = []
-  if (totalAdults > 0) guestsDisplayParts.push(`${totalAdults} Adults`)
-  if (totalChildPaid > 0) guestsDisplayParts.push(`${totalChildPaid} Child`)
-  if (totalDriver > 0) guestsDisplayParts.push(`${totalDriver} Driver`)
-  const guestsDisplay = guestsDisplayParts.join(', ') || '-'
-
-  const roomNumbers = Array.from(roomMap.keys()).filter(Boolean)
-  const roomNumbersStr = roomNumbers.join(', ') || '-'
-
-  return {
-    checkin_id: firstRow.checkin_id,
-    guest_id: firstRow.guest_id,
-    // ---- Use the combined name here ----
-    guest_name: guestNameDisplay,
-    // ------------------------------------
-    guest_mobile: firstRow.guest_mobile || firstRow.mobile || '-',
-    guest_email: firstRow.guest_email || firstRow.emailed || '-',
-    guest_address: firstRow.guest_address || firstRow.address || '-',
-    room_numbers_str: roomNumbersStr,
-    room_categories_str: roomCategoriesStr,
-    total_days: firstRow.total_nights || 0,
-    total_adults: totalAdults,
-    total_child_paid: totalChildPaid,
-    total_driver: totalDriver,
-    reg_no: firstRow.reg_no,
-    plan_name: firstRow.plan_name,
-    company_name: firstRow.company_name || '-',
-    gst_no: firstRow.gst_no || '-',
-    guests_display: guestsDisplay,
-    total_amount: toNumber(firstRow.total_amount || 0),
-    discount_amount: toNumber(firstRow.discount_amount || 0),
-    advance_amt: toNumber(firstRow.advance_amt || 0),
-    net_payable: toNumber(firstRow.net_payable || 0),
-    cgst_amt: toNumber(firstRow.cgst_amt || 0),
-    sgst_amt: toNumber(firstRow.sgst_amt || 0),
-    igst_amt: toNumber(firstRow.igst_amt || 0),
-    payment_mode: firstRow.payment_mode || 'Cash',
-    original_checkin_datetime: firstRow.checkin_datetimecm,
-    final_checkout_datetime: firstRow.checkout_datetimecm,
-    checked_out_rooms: firstRow.checked_out_rooms
-      ? firstRow.checked_out_rooms.split(',')
-      : [],
-  }
-}, [displayRows, billData])
-  // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
- // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
-const tableRows = useMemo(() => {
-  if (!displayRows.length) return []
-
-  // Group by room and date
-  const grouped = new Map<string, Map<string, DisplayDetailRow[]>>()
-  
-  displayRows.forEach((charge) => {
-    const room = charge.room_number || 'COMMON'
-    const date = charge.bill_date_formatted || formatDate(charge.bill_date)
-    
-    if (!grouped.has(room)) {
-      grouped.set(room, new Map())
-    }
-    const roomMap = grouped.get(room)!
-    if (!roomMap.has(date)) {
-      roomMap.set(date, [])
-    }
-    roomMap.get(date)!.push(charge)
-  })
-
-  const rows: TableRowWithIndex[] = []
-  let index = 1
-  
-  const sortedRooms = Array.from(grouped.keys()).sort((a, b) => {
-    if (a === 'COMMON') return 1
-    if (b === 'COMMON') return -1
-    const numA = parseInt(a)
-    const numB = parseInt(b)
-    if (!isNaN(numA) && !isNaN(numB)) return numA - numB
-    return a.localeCompare(b)
-  })
-  
-  for (const room of sortedRooms) {
-    const dateMap = grouped.get(room)!
-    const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
-      const dateA = a.split('/').reverse().join('-')
-      const dateB = b.split('/').reverse().join('-')
-      return new Date(dateA).getTime() - new Date(dateB).getTime()
+    // Aggregate room-level data (same as before)
+    const roomMap = new Map<
+      string,
+      { adults: number; child_paid: number; driver: number; category: string }
+    >()
+    displayRows.forEach((row) => {
+      const roomNum = row.room_number
+      if (!roomMap.has(roomNum)) {
+        roomMap.set(roomNum, {
+          adults: toNumber(row.adults || 0),
+          child_paid: toNumber(row.child_paid || 0),
+          driver: toNumber(row.driver || 0),
+          category: row.converted_category_name || row.room_category_name || '-',
+        })
+      }
     })
-    
-    let isFirstRow = true
-    for (const date of sortedDates) {
-      const charges = dateMap.get(date) || []
-      
-      // SUM values from SP - NO MANUAL CALCULATION
-      const tariff = charges.reduce((sum, c) => sum + c.tariff, 0)
-      const ex_pax = charges.reduce((sum, c) => sum + c.ex_pax, 0)
-      const child_paid_amount = charges.reduce((sum, c) => sum + c.child_paid_amount, 0)
-      const driver_charge = charges.reduce((sum, c) => sum + c.driver_charge, 0)
-      const discount_amount = charges.reduce((sum, c) => sum + c.discount_amount, 0)
-      const cgst = charges.reduce((sum, c) => sum + c.cgst, 0)
-      const sgst = charges.reduce((sum, c) => sum + c.sgst, 0)
-      const food = charges.reduce((sum, c) => sum + c.food, 0)
-      
-      // 🔥 ONLY sum allowance where transaction_type is 'ALLOWANCE'
-      const allowance = charges
-        .filter(c => c.transaction_type === 'ALLOWANCE')
-        .reduce((sum, c) => sum + c.allowance, 0)
-      
-      // 🔥 ONLY sum post_charges where transaction_type is 'CHARGE' or 'POST CHARGE'
-      const post_charges = charges
-        .filter(c => c.transaction_type === 'CHARGE' || c.transaction_type === 'POST CHARGE')
-        .reduce((sum, c) => sum + c.post_charges, 0)
-      
-      // TOTAL DIRECT FROM SP - dtotal_amount is already calculated by SP
-      const total = charges.reduce((sum, c) => sum + c.total_amount, 0)
-      
-      rows.push({
-        id: `row-${room}-${date}`,
-        displayIndex: index++,
-        roomNumber: room,
-        date: date,
-        tariff,
-        ex_pax,
-        child_paid_amount,
-        driver_charge,
-        discount_amount,
-        cgst,
-        sgst,
-        food,
-        post_charges,
-        allowance,  // 🔥 Now only ₹200.00
-        total,
-        isFirstRow,
-      })
-      isFirstRow = false
-    }
-  }
 
-  return rows
-}, [displayRows])
+    let totalAdults = 0,
+      totalChildPaid = 0,
+      totalDriver = 0
+    const categoriesSet = new Set<string>()
+    roomMap.forEach((value) => {
+      totalAdults += value.adults
+      totalChildPaid += value.child_paid
+      totalDriver += value.driver
+      if (value.category) categoriesSet.add(value.category)
+    })
+
+    const roomCategoriesStr = Array.from(categoriesSet).join(', ') || '-'
+
+    const guestsDisplayParts = []
+    if (totalAdults > 0) guestsDisplayParts.push(`${totalAdults} Adults`)
+    if (totalChildPaid > 0) guestsDisplayParts.push(`${totalChildPaid} Child`)
+    if (totalDriver > 0) guestsDisplayParts.push(`${totalDriver} Driver`)
+    const guestsDisplay = guestsDisplayParts.join(', ') || '-'
+
+    const roomNumbers = Array.from(roomMap.keys()).filter(Boolean)
+    const roomNumbersStr = roomNumbers.join(', ') || '-'
+
+    return {
+      checkin_id: firstRow.checkin_id,
+      guest_id: firstRow.guest_id,
+      // ---- Use the combined name here ----
+      guest_name: guestNameDisplay,
+      // ------------------------------------
+      guest_mobile: firstRow.guest_mobile || firstRow.mobile || '-',
+      guest_email: firstRow.guest_email || firstRow.emailed || '-',
+      guest_address: firstRow.guest_address || firstRow.address || '-',
+      room_numbers_str: roomNumbersStr,
+      room_categories_str: roomCategoriesStr,
+      total_days: firstRow.total_nights || 0,
+      total_adults: totalAdults,
+      total_child_paid: totalChildPaid,
+      total_driver: totalDriver,
+      reg_no: firstRow.reg_no,
+      plan_name: firstRow.plan_name,
+      company_name: firstRow.company_name || '-',
+      gst_no: firstRow.gst_no || '-',
+      guests_display: guestsDisplay,
+      total_amount: toNumber(firstRow.total_amount || 0),
+      discount_amount: toNumber(firstRow.discount_amount || 0),
+      advance_amt: toNumber(firstRow.advance_amt || 0),
+      net_payable: toNumber(firstRow.net_payable || 0),
+      cgst_amt: toNumber(firstRow.cgst_amt || 0),
+      sgst_amt: toNumber(firstRow.sgst_amt || 0),
+      igst_amt: toNumber(firstRow.igst_amt || 0),
+      payment_mode: firstRow.payment_mode || 'Cash',
+      original_checkin_datetime: firstRow.checkin_datetimecm,
+      final_checkout_datetime: firstRow.checkout_datetimecm,
+      checked_out_rooms: firstRow.checked_out_rooms
+        ? firstRow.checked_out_rooms.split(',')
+        : [],
+    }
+  }, [displayRows, billData])
+  // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
+  // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
+  const tableRows = useMemo(() => {
+    if (!displayRows.length) return []
+
+    // Group by room and date
+    const grouped = new Map<string, Map<string, DisplayDetailRow[]>>()
+
+    displayRows.forEach((charge) => {
+      const room = charge.room_number || 'COMMON'
+      const date = charge.bill_date_formatted || formatDate(charge.bill_date)
+
+      if (!grouped.has(room)) {
+        grouped.set(room, new Map())
+      }
+      const roomMap = grouped.get(room)!
+      if (!roomMap.has(date)) {
+        roomMap.set(date, [])
+      }
+      roomMap.get(date)!.push(charge)
+    })
+
+    const rows: TableRowWithIndex[] = []
+    let index = 1
+
+    const sortedRooms = Array.from(grouped.keys()).sort((a, b) => {
+      if (a === 'COMMON') return 1
+      if (b === 'COMMON') return -1
+      const numA = parseInt(a)
+      const numB = parseInt(b)
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB
+      return a.localeCompare(b)
+    })
+
+    for (const room of sortedRooms) {
+      const dateMap = grouped.get(room)!
+      const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
+        const dateA = a.split('/').reverse().join('-')
+        const dateB = b.split('/').reverse().join('-')
+        return new Date(dateA).getTime() - new Date(dateB).getTime()
+      })
+
+      let isFirstRow = true
+      for (const date of sortedDates) {
+        const charges = dateMap.get(date) || []
+
+        // SUM values from SP - NO MANUAL CALCULATION
+        const tariff = charges.reduce((sum, c) => sum + c.tariff, 0)
+        const ex_pax = charges.reduce((sum, c) => sum + c.ex_pax, 0)
+        const child_paid_amount = charges.reduce((sum, c) => sum + c.child_paid_amount, 0)
+        const driver_charge = charges.reduce((sum, c) => sum + c.driver_charge, 0)
+        const discount_amount = charges.reduce((sum, c) => sum + c.discount_amount, 0)
+        const cgst = charges.reduce((sum, c) => sum + c.cgst, 0)
+        const sgst = charges.reduce((sum, c) => sum + c.sgst, 0)
+        const food = charges.reduce((sum, c) => sum + c.food, 0)
+
+        // 🔥 ONLY sum allowance where transaction_type is 'ALLOWANCE'
+        const allowance = charges
+          .filter(c => c.transaction_type === 'ALLOWANCE')
+          .reduce((sum, c) => sum + c.allowance, 0)
+
+        // 🔥 ONLY sum post_charges where transaction_type is 'CHARGE' or 'POST CHARGE'
+        const post_charges = charges
+          .filter(c => c.transaction_type === 'CHARGE' || c.transaction_type === 'POST CHARGE')
+          .reduce((sum, c) => sum + c.post_charges, 0)
+
+        // TOTAL DIRECT FROM SP - dtotal_amount is already calculated by SP
+        const total = charges.reduce((sum, c) => sum + c.total_amount, 0)
+
+        rows.push({
+          id: `row-${room}-${date}`,
+          displayIndex: index++,
+          roomNumber: room,
+          date: date,
+          tariff,
+          ex_pax,
+          child_paid_amount,
+          driver_charge,
+          discount_amount,
+          cgst,
+          sgst,
+          food,
+          post_charges,
+          allowance,  // 🔥 Now only ₹200.00
+          total,
+          isFirstRow,
+        })
+        isFirstRow = false
+      }
+    }
+
+    return rows
+  }, [displayRows])
 
   const totals = useMemo(() => {
     const firstRow = billData[0] || {}
-    
+
     // 🔥 Use footerSummary for balance_amount and other footer values
     return {
       totalAmount: toNumber(footerSummary?.bill_amount || firstRow.bill_amount || firstRow.total_amount || 0),
@@ -611,8 +611,8 @@ const tableRows = useMemo(() => {
   const checkoutDateDisplay = summary?.final_checkout_datetime
     ? formatDateLong(summary.final_checkout_datetime)
     : '-'
- 
-   const invoiceDate = formatDateTime(new Date().toISOString())
+
+  const invoiceDate = formatDateTime(new Date().toISOString())
   const generatedBillNo = propBillNumber ||
     billData[0]?.ldg_bill_no ||
     `INV/${new Date().getFullYear()}/${String(summary?.checkin_id || '0').padStart(4, '0')}`
@@ -858,7 +858,7 @@ const tableRows = useMemo(() => {
     const pageContentHeightCss = pageHeightMm
       ? `${pageHeightMm - effectiveTopMargin - pageBottomMargin}mm`
       : '100vh'
-      
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -919,40 +919,40 @@ const tableRows = useMemo(() => {
   }, [summary, printSettings, showTopHeaderSection, getBillStyles])
 
   // Inside the component (before the useEffect)
-const getServerBaseUrl = () => {
-  try {
-    const saved = localStorage.getItem('posServerConfig');
-    if (saved) {
-      const cfg = JSON.parse(saved);
-      return `http://${cfg.serverIP || 'localhost'}:${cfg.port || 3001}`;
-    }
-  } catch {}
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '');
-  }
-  if (window.location.protocol === 'file:') return 'http://localhost:3001';
-  return `${window.location.protocol}//${window.location.hostname}:3001`;
-};
-
-const normalizeLogoUrl = (logo: any): string | null => {
-  if (!logo) return null;
-  if (typeof logo === 'string') {
-    if (logo.startsWith('http://') || logo.startsWith('https://') || logo.startsWith('data:')) {
-      return logo;
-    }
-    const base = getServerBaseUrl();
-    const clean = logo.startsWith('/') ? logo.slice(1) : logo;
-    return `${base}/${clean}`;
-  }
-  // handle Uint8Array (rare)
-  if (logo instanceof Uint8Array) {
+  const getServerBaseUrl = () => {
     try {
-      const base64 = btoa(String.fromCharCode(...logo));
-      return `data:image/png;base64,${base64}`;
-    } catch { return null; }
-  }
-  return null;
-};
+      const saved = localStorage.getItem('posServerConfig');
+      if (saved) {
+        const cfg = JSON.parse(saved);
+        return `http://${cfg.serverIP || 'localhost'}:${cfg.port || 3001}`;
+      }
+    } catch { }
+    if (import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '');
+    }
+    if (window.location.protocol === 'file:') return 'http://localhost:3001';
+    return `${window.location.protocol}//${window.location.hostname}:3001`;
+  };
+
+  const normalizeLogoUrl = (logo: any): string | null => {
+    if (!logo) return null;
+    if (typeof logo === 'string') {
+      if (logo.startsWith('http://') || logo.startsWith('https://') || logo.startsWith('data:')) {
+        return logo;
+      }
+      const base = getServerBaseUrl();
+      const clean = logo.startsWith('/') ? logo.slice(1) : logo;
+      return `${base}/${clean}`;
+    }
+    // handle Uint8Array (rare)
+    if (logo instanceof Uint8Array) {
+      try {
+        const base64 = btoa(String.fromCharCode(...logo));
+        return `data:image/png;base64,${base64}`;
+      } catch { return null; }
+    }
+    return null;
+  };
 
   // ========== HANDLE DOWNLOAD PDF ==========
   const handleDownloadPDF = useCallback(async () => {
@@ -1048,90 +1048,90 @@ const normalizeLogoUrl = (logo: any): string | null => {
 
   // ========== RENDER FUNCTIONS ==========
 
- const renderHotelHeader = useCallback(() => {
-  if (!showTopHeaderSection) {
-    const spacerPx = Math.round((topMarginWhenHeaderHidden || 20) * 3.7795);
+  const renderHotelHeader = useCallback(() => {
+    if (!showTopHeaderSection) {
+      const spacerPx = Math.round((topMarginWhenHeaderHidden || 20) * 3.7795);
+      return (
+        <div
+          style={{ height: `${spacerPx}px`, width: '100%' }}
+          aria-hidden="true"
+          data-role="header-spacer"
+        />
+      );
+    }
+
+    const firstRow = billData[0];
+
+    // Text alignments (still configurable)
+    const nameAlign = printSettings?.hotel_name_position || 'center';
+    const addressAlign = printSettings?.hotel_address_position || 'left';
+    const contactAlign = printSettings?.hotel_contact_position || 'left';
+
+    // Logo: forced to the right (as you requested)
+    const logoPosition = 'right';
+
+    const rawLogo = hotelData?.Logo || hotelData?.logo || firstRow?.Logo;
+    const logoUrl = normalizeLogoUrl(rawLogo);
+
+    const logoEl =
+      printSettings?.show_hotel_logo === 1 && logoUrl ? (
+        <img src={logoUrl} alt="Hotel Logo" className="bill-hotel-logo" />
+      ) : null;
+
     return (
-      <div
-        style={{ height: `${spacerPx}px`, width: '100%' }}
-        aria-hidden="true"
-        data-role="header-spacer"
-      />
-    );
-  }
+      <div className="mb-2" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        {/* Left side: all text content */}
+        <div style={{ flex: 1 }}>
+          {/* Hotel Name */}
+          {printSettings?.show_hotel_name === 1 && (
+            <div
+              className={`text-${nameAlign}`}
+              style={{ fontSize: '21pt', fontWeight: 'bold' }}
+            >
+              {firstRow?.hotel_name || 'Nilay Inn'}
+            </div>
+          )}
 
-  const firstRow = billData[0];
+          {/* Hotel Address */}
+          {printSettings?.show_hotel_address === 1 && (
+            <div
+              className={`text-${addressAlign} mt-1`}
+              style={{ fontSize: '10pt', fontWeight: 'bold' }}
+            >
+              📍 {firstRow?.hotel_address || 'Nilay Inn, Near kannya prashala, Station Road.'}
+            </div>
+          )}
 
-  // Text alignments (still configurable)
-  const nameAlign = printSettings?.hotel_name_position || 'center';
-  const addressAlign = printSettings?.hotel_address_position || 'left';
-  const contactAlign = printSettings?.hotel_contact_position || 'left';
+          {/* Contact (Phone, Email, Website) */}
+          {printSettings?.show_hotel_contact === 1 && (
+            <div
+              className={`text-${contactAlign} mt-1`}
+              style={{ fontSize: '10pt', fontWeight: 'bold', color: '#060000' }}
+            >
+              📞 {firstRow?.phone || '9270271704'} &nbsp;|&nbsp; ✉ {firstRow?.email || 'Nilayinn17@gmail.com'} &nbsp;|&nbsp; 🌐 {firstRow?.website || 'www.grandviewhotel.com'}
+            </div>
+          )}
 
-  // Logo: forced to the right (as you requested)
-  const logoPosition = 'right';
-
-  const rawLogo = hotelData?.Logo || hotelData?.logo || firstRow?.Logo;
-  const logoUrl = normalizeLogoUrl(rawLogo);
-
-  const logoEl =
-    printSettings?.show_hotel_logo === 1 && logoUrl ? (
-      <img src={logoUrl} alt="Hotel Logo" className="bill-hotel-logo" />
-    ) : null;
-
- return (
-  <div className="mb-2" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-    {/* Left side: all text content */}
-    <div style={{ flex: 1 }}>
-      {/* Hotel Name */}
-      {printSettings?.show_hotel_name === 1 && (
-        <div
-          className={`text-${nameAlign}`}
-          style={{ fontSize: '21pt', fontWeight: 'bold' }}
-        >
-          {firstRow?.hotel_name || 'Nilay Inn'}
+          {/* GST / TRN */}
+          {printSettings?.show_hotel_contact === 1 && (
+            <div
+              className={`text-${contactAlign} mt-1`}
+              style={{ fontSize: '10pt', fontWeight: 'bold', color: '#060000' }}
+            >
+              📍 {firstRow?.trn_gstno || 'ljkhjghfgdsa76543'}
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Hotel Address */}
-      {printSettings?.show_hotel_address === 1 && (
-        <div
-          className={`text-${addressAlign} mt-1`}
-          style={{ fontSize: '10pt', fontWeight: 'bold' }}
-        >
-          📍 {firstRow?.hotel_address || 'Nilay Inn, Near kannya prashala, Station Road.'}
-        </div>
-      )}
-
-      {/* Contact (Phone, Email, Website) */}
-      {printSettings?.show_hotel_contact === 1 && (
-        <div
-          className={`text-${contactAlign} mt-1`}
-          style={{ fontSize: '10pt', fontWeight: 'bold', color: '#060000' }}
-        >
-          📞 {firstRow?.phone || '9270271704'} &nbsp;|&nbsp; ✉ {firstRow?.email || 'Nilayinn17@gmail.com'} &nbsp;|&nbsp; 🌐 {firstRow?.website || 'www.grandviewhotel.com'}
-        </div>
-      )}
-
-      {/* GST / TRN */}
-      {printSettings?.show_hotel_contact === 1 && (
-        <div
-          className={`text-${contactAlign} mt-1`}
-          style={{ fontSize: '10pt', fontWeight: 'bold', color: '#060000' }}
-        >
-          📍 {firstRow?.trn_gstno || 'ljkhjghfgdsa76543'}
-        </div>
-      )}
-    </div>
-
-    {/* Right side: Logo (separate div) */}
-    {logoEl && (
-      <div style={{ marginLeft: '20px', flexShrink: 0 }}>
-        {logoEl}
+        {/* Right side: Logo (separate div) */}
+        {logoEl && (
+          <div style={{ marginLeft: '20px', flexShrink: 0 }}>
+            {logoEl}
+          </div>
+        )}
       </div>
-    )}
-  </div>
-);
-}, [billData, printSettings, showTopHeaderSection, topMarginWhenHeaderHidden, hotelData]);
+    );
+  }, [billData, printSettings, showTopHeaderSection, topMarginWhenHeaderHidden, hotelData]);
 
   const renderBillTitle = useCallback(() => {
     if (printSettings?.show_bill_title !== 1) return null
@@ -1147,7 +1147,7 @@ const normalizeLogoUrl = (logo: any): string | null => {
             fontSize: '12pt',
           }}
         >
-          INVOICE 
+          INVOICE
         </h3>
       </div>
     )
@@ -1156,52 +1156,52 @@ const normalizeLogoUrl = (logo: any): string | null => {
   // ========== RENDER GUEST DETAILS ==========
   const renderGuestDetails = useCallback(() => {
     if (printSettings?.show_guest_details !== 1) return null
-    
+
     return (
       <div className="bill-info-box" style={{ height: '100%' }}>
         <div className="bill-info-box-header">GUEST DETAILS</div>
         <div className="bill-info-box-body" style={{ padding: '6px 10px' }}>
           <table className="bill-detail-table" style={{ width: '100%' }}>
             <tbody>
-            {printSettings?.show_guest_name === 1 && (
-  <tr>
-    <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Name</td>
-    <td className="bdt-colon" style={{ width: '6px', fontSize: '10pt' }}>:</td>
-    <td
-  className="bdt-value"
-  style={{
-    fontWeight: 'bold',
-    fontSize: '10pt',
-    color: headerBg,
-    wordBreak: 'break-word',   // ✅ breaks long words
-    whiteSpace: 'normal',      // ✅ allows wrapping
-  }}
->
-  {summary?.guest_name ? (
-    summary.guest_name.split(', ').map((name, idx) => (
-      <div key={idx}>{name}</div>
-    ))
-  ) : '-'}
-</td>
-  </tr>
-)}
-             {printSettings?.show_guest_address === 1 && (
-  <tr>
-    <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Address</td>
-    <td className="bdt-colon" style={{ width: '6px', fontSize: '10pt' }}>:</td>
-    <td
-      className="bdt-value"
-      style={{
-        fontWeight: 'bold',
-        fontSize: '10pt',
-        wordBreak: 'break-word',   // forces break on long words
-        whiteSpace: 'normal',      // allows normal wrapping
-      }}
-    >
-      {summary?.guest_address || '-'}
-    </td>
-  </tr>
-)}
+              {printSettings?.show_guest_name === 1 && (
+                <tr>
+                  <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Name</td>
+                  <td className="bdt-colon" style={{ width: '6px', fontSize: '10pt' }}>:</td>
+                  <td
+                    className="bdt-value"
+                    style={{
+                      fontWeight: 'bold',
+                      fontSize: '10pt',
+                      color: headerBg,
+                      wordBreak: 'break-word',   // ✅ breaks long words
+                      whiteSpace: 'normal',      // ✅ allows wrapping
+                    }}
+                  >
+                    {summary?.guest_name ? (
+                      summary.guest_name.split(', ').map((name, idx) => (
+                        <div key={idx}>{name}</div>
+                      ))
+                    ) : '-'}
+                  </td>
+                </tr>
+              )}
+              {printSettings?.show_guest_address === 1 && (
+                <tr>
+                  <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Address</td>
+                  <td className="bdt-colon" style={{ width: '6px', fontSize: '10pt' }}>:</td>
+                  <td
+                    className="bdt-value"
+                    style={{
+                      fontWeight: 'bold',
+                      fontSize: '10pt',
+                      wordBreak: 'break-word',   // forces break on long words
+                      whiteSpace: 'normal',      // allows normal wrapping
+                    }}
+                  >
+                    {summary?.guest_address || '-'}
+                  </td>
+                </tr>
+              )}
               {printSettings?.show_guest_mobile === 1 && (
                 <tr>
                   <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Phone</td>
@@ -1233,7 +1233,7 @@ const normalizeLogoUrl = (logo: any): string | null => {
   // ========== RENDER BOOKING & INVOICE DETAILS ==========
   const renderBookingDetails = useCallback(() => {
     if (printSettings?.show_booking_details !== 1) return null
-    
+
     const invoiceNo = propBillNumber || billData[0]?.ldg_bill_no || generatedBillNo
     const invoiceDateDisplay = propPaymentDate || invoiceDate
     const bookingIdDisplay = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
@@ -1244,7 +1244,7 @@ const normalizeLogoUrl = (logo: any): string | null => {
     const guestsDisplay = summary?.guests_display || `${summary?.total_adults || 0} Adults`
 
     const firstRow = billData[0] || {}
-    
+
     // const formatDateTimeFull = (datetime: string) => {
     //   if (!datetime) return '-'
     //   const d = new Date(datetime)
@@ -1257,10 +1257,10 @@ const normalizeLogoUrl = (logo: any): string | null => {
     // }
 
     const checkinDateTime = firstRow?.checkin_datetimecm || null
-const checkoutDateTime = firstRow?.checkout_datetimecm || null
+    const checkoutDateTime = firstRow?.checkout_datetimecm || null
 
-const checkinDisplay = checkinDateTime ? formatDateTime(checkinDateTime) : '-'
-const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-'
+    const checkinDisplay = checkinDateTime ? formatDateTime(checkinDateTime) : '-'
+    const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-'
 
     return (
       <div className="bill-info-box" style={{ height: '100%' }}>
@@ -1433,40 +1433,40 @@ const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-
   }, [tableRows, printSettings])
 
   // ========== RENDER PAYMENT DETAILS ==========
- const renderPaymentDetails = useCallback(() => {
-  const paymentBankDisplay = propPaymentBank || paymentMode
-  const totalForWords = totals.netPayable
+  const renderPaymentDetails = useCallback(() => {
+    const paymentBankDisplay = propPaymentBank || paymentMode
+    const totalForWords = totals.netPayable
 
-  return (
-    <div className="bill-info-box" style={{ height: '100%' }}>
-      <div className="bill-info-box-header">PAYMENT DETAILS</div>
-      <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
-        <table className="bill-detail-table" style={{ width: '100%' }}>
-          <tbody>
-            <tr>
-              <td className="bdt-label" style={{ width: '80px', fontSize: '9pt', fontWeight: 'bold' }}>
-                Total (in words)
-              </td>
-              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
-              <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'capitalize' }}>
-                {amountInWords(totalForWords)}
-              </td>
-            </tr>
-            <tr>
-              <td className="bdt-label" style={{ width: '80px', fontSize: '9pt', fontWeight: 'bold' }}>
-                Payment Mode
-              </td>
-              <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
-              <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 'bold' }}>
-                {paymentBankDisplay}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    return (
+      <div className="bill-info-box" style={{ height: '100%' }}>
+        <div className="bill-info-box-header">PAYMENT DETAILS</div>
+        <div className="bill-info-box-body" style={{ padding: '8px 10px' }}>
+          <table className="bill-detail-table" style={{ width: '100%' }}>
+            <tbody>
+              <tr>
+                <td className="bdt-label" style={{ width: '80px', fontSize: '9pt', fontWeight: 'bold' }}>
+                  Total (in words)
+                </td>
+                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
+                <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'capitalize' }}>
+                  {amountInWords(totalForWords)}
+                </td>
+              </tr>
+              <tr>
+                <td className="bdt-label" style={{ width: '80px', fontSize: '9pt', fontWeight: 'bold' }}>
+                  Payment Mode
+                </td>
+                <td className="bdt-colon" style={{ width: '8px', fontSize: '9pt' }}>:</td>
+                <td className="bdt-value" style={{ fontSize: '9pt', fontWeight: 'bold' }}>
+                  {paymentBankDisplay}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  )
-}, [propPaymentDate, invoiceDate, propPaymentBank, paymentMode, totals.netPayable])
+    )
+  }, [propPaymentDate, invoiceDate, propPaymentBank, paymentMode, totals.netPayable])
   // ========== RENDER BILL SUMMARY ==========
   const renderSummaryBox = useCallback(() => {
     const grossTotal = totals.totalAmount
@@ -1530,98 +1530,98 @@ const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-
   }, [totals, headerBg])
 
 
-const renderSignatureSection = useCallback(() => {
-  const hotelName = billData[0]?.hotel_name || 'Hotel Ashwarya';
-  return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginTop: '15px',
-      paddingTop: '10px',
-      borderTop: '1px solid #ccc'
-    }}>
-      {/* Left: Guest Signature */}
-      <div style={{ flex: 1 }}>
-        
-        <div style={{
-          borderBottom: '1px solid #000',
-          width: '80%',
-          marginTop: '19px',
-          height: '20px'
-        }} />
-        {/* 👇 New: Authentication & Reception under the line */}
-        <div style={{ fontWeight: 'bold', fontSize: '10pt' }}>
-          Signature of Guest
-        </div>
-      </div>
+  const renderSignatureSection = useCallback(() => {
+    const hotelName = billData[0]?.hotel_name || 'Hotel Ashwarya';
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginTop: '15px',
+        paddingTop: '10px',
+        borderTop: '1px solid #ccc'
+      }}>
+        {/* Left: Guest Signature */}
+        <div style={{ flex: 1 }}>
 
-      {/* Right: Hotel Signature */}
-      <div style={{ flex: 1, textAlign: 'right' }}>
-        <div style={{ fontWeight: 'bold', fontSize: '10pt' }}>
-          For {hotelName}
-        </div>
-        <div style={{
-          borderBottom: '1px solid #000',
-          width: '80%',
-          marginTop: '5px',
-          height: '20px',
-          marginLeft: 'auto'
-        }} />
-        {/* Keep existing text under right line */}
-        <div style={{ fontSize: '9pt', marginTop: '2px' }}>
-          Authentication & Reception
-        </div>
-      </div>
-    </div>
-  );
-}, [billData]);
-
-const renderLayout = useCallback(() => {
-  return (
-    <div className="bill-layout-container">
-      <div className="bill-layout-top">
-        {renderHotelHeader()}
-        {renderBillTitle()}
-
-        {/* 🔽 Guest & Booking details side by side */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'stretch' }}>
-          <div style={{ flex: '0 0 auto', width: '250px' }}>
-            {renderGuestDetails()}
-          </div>
-          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-            {renderBookingDetails()}
+          <div style={{
+            borderBottom: '1px solid #000',
+            width: '80%',
+            marginTop: '19px',
+            height: '20px'
+          }} />
+          {/* 👇 New: Authentication & Reception under the line */}
+          <div style={{ fontWeight: 'bold', fontSize: '10pt' }}>
+            Signature of Guest
           </div>
         </div>
 
-        {renderChargesTable()}
-        <div className="bill-spacer" />
-      </div>
-
-      <div className="bill-layout-bottom" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', paddingTop: '4px', marginTop: 'auto' }}>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: 0 }}>
-          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-            {renderPaymentDetails()}
+        {/* Right: Hotel Signature */}
+        <div style={{ flex: 1, textAlign: 'right' }}>
+          <div style={{ fontWeight: 'bold', fontSize: '10pt' }}>
+            For {hotelName}
           </div>
-          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
-            {renderSummaryBox()}
+          <div style={{
+            borderBottom: '1px solid #000',
+            width: '80%',
+            marginTop: '5px',
+            height: '20px',
+            marginLeft: 'auto'
+          }} />
+          {/* Keep existing text under right line */}
+          <div style={{ fontSize: '9pt', marginTop: '2px' }}>
+            Authentication & Reception
           </div>
         </div>
-        {/* 🔽 Signature section */}
-        {renderSignatureSection()}
       </div>
-    </div>
-  );
-}, [
-  renderHotelHeader,
-  renderBillTitle,
-  renderGuestDetails,    // ✅ now actually used
-  renderBookingDetails,  // ✅ now actually used
-  renderChargesTable,
-  renderPaymentDetails,
-  renderSummaryBox,
-  renderSignatureSection, // add this to deps
-  printSettings,
-]);
+    );
+  }, [billData]);
+
+  const renderLayout = useCallback(() => {
+    return (
+      <div className="bill-layout-container">
+        <div className="bill-layout-top">
+          {renderHotelHeader()}
+          {renderBillTitle()}
+
+          {/* 🔽 Guest & Booking details side by side */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'stretch' }}>
+            <div style={{ flex: '0 0 auto', width: '250px' }}>
+              {renderGuestDetails()}
+            </div>
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+              {renderBookingDetails()}
+            </div>
+          </div>
+
+          {renderChargesTable()}
+          <div className="bill-spacer" />
+        </div>
+
+        <div className="bill-layout-bottom" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', paddingTop: '4px', marginTop: 'auto' }}>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: 0 }}>
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+              {renderPaymentDetails()}
+            </div>
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+              {renderSummaryBox()}
+            </div>
+          </div>
+          {/* 🔽 Signature section */}
+          {renderSignatureSection()}
+        </div>
+      </div>
+    );
+  }, [
+    renderHotelHeader,
+    renderBillTitle,
+    renderGuestDetails,    // ✅ now actually used
+    renderBookingDetails,  // ✅ now actually used
+    renderChargesTable,
+    renderPaymentDetails,
+    renderSummaryBox,
+    renderSignatureSection, // add this to deps
+    printSettings,
+  ]);
 
   // ========== LOADING/ERROR STATES ==========
   if (settingsLoading || billLoading) {
