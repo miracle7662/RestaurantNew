@@ -1166,7 +1166,16 @@ const normalizeLogoUrl = (logo: any): string | null => {
   <tr>
     <td className="bdt-label" style={{ fontWeight: 'bold', width: '60px', fontSize: '10pt' }}>Name</td>
     <td className="bdt-colon" style={{ width: '6px', fontSize: '10pt' }}>:</td>
-    <td className="bdt-value" style={{ fontWeight: 'bold', fontSize: '10pt', color: headerBg }}>
+    <td
+      className="bdt-value"
+      style={{
+        fontWeight: 'bold',
+        fontSize: '10pt',
+        color: headerBg,
+        wordBreak: 'break-word',   // ✅ forces long words to break
+        whiteSpace: 'normal',      // ✅ allows wrapping
+      }}
+    >
       {summary?.guest_name ? (
         summary.guest_name.split(', ').map((name, idx) => (
           <div key={idx}>{name}</div>
@@ -1559,7 +1568,7 @@ const renderSignatureSection = useCallback(() => {
         }} />
         {/* Keep existing text under right line */}
         <div style={{ fontSize: '9pt', marginTop: '2px' }}>
-          Authentication & Reception
+          Authorised Signatory
         </div>
       </div>
     </div>
@@ -1567,13 +1576,23 @@ const renderSignatureSection = useCallback(() => {
 }, [billData]);
 
   // ========== RENDER LAYOUT ==========
-  const renderLayout = useCallback(() => {
+const renderLayout = useCallback(() => {
   return (
     <div className="bill-layout-container">
       <div className="bill-layout-top">
         {renderHotelHeader()}
         {renderBillTitle()}
-        {/* ... (guest & booking details) ... */}
+
+        {/* 🔽 Guest & Booking details side by side */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'stretch' }}>
+          <div style={{ flex: '0 0 auto', width: '280px' }}>
+            {renderGuestDetails()}
+          </div>
+          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+            {renderBookingDetails()}
+          </div>
+        </div>
+
         {renderChargesTable()}
         <div className="bill-spacer" />
       </div>
@@ -1587,7 +1606,7 @@ const renderSignatureSection = useCallback(() => {
             {renderSummaryBox()}
           </div>
         </div>
-        {/* 🔽 NEW: Signature section added here */}
+        {/* 🔽 Signature section */}
         {renderSignatureSection()}
       </div>
     </div>
@@ -1595,12 +1614,12 @@ const renderSignatureSection = useCallback(() => {
 }, [
   renderHotelHeader,
   renderBillTitle,
-  renderGuestDetails,
-  renderBookingDetails,
+  renderGuestDetails,    // ✅ now actually used
+  renderBookingDetails,  // ✅ now actually used
   renderChargesTable,
   renderPaymentDetails,
   renderSummaryBox,
- 
+  renderSignatureSection, // add this to deps
   printSettings,
 ]);
 

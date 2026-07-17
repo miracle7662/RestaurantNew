@@ -103,6 +103,13 @@ const CustomerService = {
     HttpClient.get<ApiResponse<Customer>>('/customer/by-mobile', { params: { mobile } }),
 
   /**
+   * ✅ NEW: Search customers by name (partial match)
+   * Returns customers whose name contains the search string
+   */
+  searchByName: (name: string): Promise<ApiResponse<Customer[]>> =>
+    HttpClient.get<ApiResponse<Customer[]>>('/customer/search', { params: { name } }),
+
+  /**
    * Create a new customer
    */
   create: (payload: CustomerPayload): Promise<ApiResponse<Customer>> =>

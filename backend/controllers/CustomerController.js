@@ -51,6 +51,79 @@ exports.getCustomer = async (req, res) => {
   }
 };
 
+exports.searchCustomerByName = async (req, res) => {
+  try {
+    const { name } = req.query;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: "Name parameter is required"
+      });
+    }
+
+    // Search for customers with name containing the search string (case-insensitive)
+    const [customers] = await db.query(`
+      SELECT
+        C.customerid,
+        C.name,
+        C.countryCode,
+        C.mobile,
+        C.mail,
+        C.cityid,
+        M.city_name,
+        C.address1,
+        C.address2,
+        C.stateid,
+        S.state_name,
+        C.pincode,
+        C.gstNo,
+        C.fssai,
+        C.panNo,
+        C.aadharNo,
+        C.birthday,
+        C.anniversary,
+        C.customerType,
+        C.status,
+        C.createWallet,
+        C.created_by_id,
+        C.created_date,
+        C.updated_by_id,
+        C.updated_date
+      FROM mstcustomer C
+      LEFT JOIN mstcitymaster M ON C.cityid = M.cityid
+      LEFT JOIN mststatemaster S ON C.stateid = S.stateid
+      WHERE LOWER(C.name) LIKE LOWER(?)
+       
+      ORDER BY C.name ASC
+      LIMIT 20
+    `, [`%${name.trim()}%`]);
+
+    if (customers && customers.length > 0) {
+      res.json({
+        success: true,
+        data: customers,
+        message: `Found ${customers.length} customer(s)`
+      });
+    } else {
+      res.json({
+        success: true,
+        data: [],
+        message: "No customers found"
+      });
+    }
+
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: "Failed to search customers",
+      error: err.message
+    });
+  }
+};
+
 exports.addCustomer = async (req, res) => {
   try {
     const { ...body } = req.body;

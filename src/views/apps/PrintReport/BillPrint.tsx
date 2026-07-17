@@ -15,7 +15,7 @@ interface MenuItem {
   name: string
   price: number
   qty: number
-  isBilled: number
+  isSetteled?: number
   isNCKOT: number
   NCName: string
   NCPurpose: string
@@ -33,6 +33,8 @@ interface MenuItem {
   note?: string
   variantId?: number
   variantName?: string
+  specialInst?: string      // ✅ NEW — needed to replace name
+  isRuntimeRate?: boolean   // ✅ NEW
 }
 
 interface TaxCalc {
@@ -80,10 +82,14 @@ interface BillPreviewPrintProps {
   outletName?: string
   dialogClassName?: string
   billDate?: string
+  billTime?: string        // ✅ BilledDate - for TIME
+  billDateTime?: string
   autoPrint?: boolean
   billData?: any
   departmentName?: string
-  isBilled?: boolean   // ✅ NEW: shows DUPLICATE BILL banner when true
+  isSettled?: boolean    // ✅ NEW: shows DUPLICATE BILL banner when true
+  
+  
 }
 
 
@@ -120,10 +126,12 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   outletName,
   dialogClassName,
   billDate,
+  billTime,          // ✅ BilledDate
+  billDateTime,
   autoPrint,
   billData,
   departmentName,
-  isBilled = false,   // ✅ NEW
+  isSettled = false, // ✅ NEW
 }) => {
   // ─── Auth context ──────────────────────────────────────────────────────────
   const {
@@ -369,6 +377,10 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   const generateBillContent = (isPreview = false) => {
     const safePrice = (p: any): number => Number(p) || 0
 
+  
+
+  
+
     // IMPORTANT:
     // When rendering PREVIEW, we should respect only preview-enabled sections,
     // not force-show everything using `showAll`.
@@ -378,6 +390,14 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     const formatAmount = (val: number) => {
       return Number.isInteger(val) ? val.toString() : val.toFixed(2).replace(/\.00$/, '')
     }
+
+    // 🔍 TEMP DEBUG — remove after confirming
+console.log('🧾 BILL PRINT ITEMS:', items.map(i => ({
+  name: i.name,
+  isRuntimeRate: i.isRuntimeRate,
+  specialInst: i.specialInst,
+  price: i.price
+})))
 
     return `
 <div id="bill-preview-section">
@@ -421,10 +441,10 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       FSSAI: ${billData?.fssaiNo || 'N/A'}
     </div>
 
-    ${isBilled ? `
-    <div style="text-align:center;font-weight:bold;font-size:12pt;letter-spacing:2px;border-top:1px dashed #000;border-bottom:1px dashed #000;padding:4px 0;margin:6px 0;">
-      *** DUPLICATE BILL ***
-    </div>` : ''}
+   ${isSettled ? `
+<div style="text-align:center;font-weight:bold;font-size:12pt;letter-spacing:2px;border-top:1px dashed #000;border-bottom:1px dashed #000;padding:4px 0;margin:6px 0;">
+  *** DUPLICATE BILL ***
+</div>` : ''}
 
     ${(showAll || localFormData.email) ? `<div style="font-size:8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
     ${(showAll || localFormData.website) ? `<div style="font-size:8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
@@ -441,9 +461,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <br />
   ${(txnNo || billData?.TxnNo || '').toString().replace(/^DIN-/, '')}
 </div>
-    <div style="flex:1;"><strong>Date</strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : (businessCurrDate ? new Date(businessCurrDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'))}</div>
-    <div style="flex:1;white-space:nowrap;"><strong>Time</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
-  </div>
+<div style="flex:1;"><strong>Date</strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : (businessCurrDate ? new Date(businessCurrDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'))}</div>
+<div style="flex:1;white-space:nowrap;"><strong>Time</strong><br />${billDateTime ? new Date(billDateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : (billDate ? new Date(billDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }))}</div>  </div>
   <div style="display:flex;gap:8px;margin-bottom:10px;font-size:9pt;">
    <div style="flex:1;">
  
@@ -500,50 +519,59 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
 
   <!-- ITEMS TABLE -->
-  <div style="margin-bottom:10px;">
-    <div style="display:grid;
-      grid-template-columns:
-        ${(showAll || localFormData.print_bill_both_languages) ? '3fr' : '2fr'}
-        ${(showAll || !localFormData.hide_item_quantity_column) ? '30px' : ''}
-        ${(showAll || !localFormData.hide_item_rate_column) ? '40px' : ''}
-        ${(showAll || !localFormData.hide_item_total_column) ? '50px' : ''};
-      gap:5px;font-weight:bold;border-bottom:1px solid #000;
-      padding-bottom:2px;margin-bottom:5px;font-size:9pt;">
-      <div>${(showAll || (localFormData.show_alt_item_title_bill && localFormData.print_bill_both_languages)) ? 'Item' : 'Description'}</div>
-      ${(showAll || !localFormData.hide_item_quantity_column) ? '<div style="text-align:right;">Qty</div>' : ''}
-      ${(showAll || !localFormData.hide_item_rate_column) ? '<div style="text-align:right;">Rate</div>' : ''}
-      ${(showAll || !localFormData.hide_item_total_column) ? '<div style="text-align:right;">Amount</div>' : ''}
-    </div>
 
-    ${(Object.values(
-          items.filter((i) => i.qty > 0).reduce((acc: any, item: any) => {
-            const key = (showAll || localFormData.show_items_sequence_bill)
-              ? `${item.id}-${item.variantId || 0}-${item.price}`
-              : `${item.id}-${item.variantId || 0}`
-            if (!acc[key]) acc[key] = { ...item, qty: 0 }
-            acc[key].qty += item.qty
-            return acc
-          }, {}),
-        ) as any[]).map((item) => `
-      <div style="display:grid;
-        grid-template-columns:
-          ${(showAll || localFormData.print_bill_both_languages) ? '3fr' : '2fr'}
-          ${(showAll || !localFormData.hide_item_quantity_column) ? '30px' : ''}
-          ${(showAll || !localFormData.hide_item_rate_column) ? '40px' : ''}
-          ${(showAll || !localFormData.hide_item_total_column) ? '50px' : ''};
-        gap:5px;padding:2px 0;font-size:9pt;">
-        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-          ${item.name}
-          ${item.variantName ? `<span style="font-size:8pt;color:#0066cc;font-weight:bold;">(${item.variantName})</span>` : ''}
-          ${(showAll || (localFormData.print_bill_both_languages && localFormData.show_alt_name_bill && item.alternativeItem)) ? ` / ${item.alternativeItem || 'N/A'}` : ''}
-          ${(showAll || (localFormData.show_item_note_bill && item.note)) ? `<div style="font-size:8pt;color:#6c757d;">${item.note || 'N/A'}</div>` : ''}
-          ${(showAll || (localFormData.modifier_default_option_bill && item.modifier)) ? `<div style="font-size:8pt;color:#6c757d;">${item.modifier ? item.modifier.join(', ') : 'N/A'}</div>` : ''}
-        </div>
-        ${(showAll || !localFormData.hide_item_quantity_column) ? `<div style="text-align:right;">${item.qty}</div>` : ''}
-        ${(showAll || !localFormData.hide_item_rate_column) ? `<div style="text-align:right;">${formatAmount(safePrice(item.price))}</div>` : ''}
-        ${(showAll || !localFormData.hide_item_total_column) ? `<div style="text-align:right;">${formatAmount(item.qty * safePrice(item.price))}</div>` : ''}
-      </div>`).join('')}
+<div style="margin-bottom:10px;">
+  <div style="display:grid;
+    grid-template-columns:
+      ${(showAll || localFormData.print_bill_both_languages) ? '6fr' : '5fr'}
+      ${(showAll || !localFormData.hide_item_quantity_column) ? '20px' : ''}
+      ${(showAll || !localFormData.hide_item_rate_column) ? '30px' : ''}
+      ${(showAll || !localFormData.hide_item_total_column) ? '40px' : ''};
+    gap:3px;font-weight:bold;border-bottom:1px solid #000;
+    padding-bottom:2px;margin-bottom:5px;font-size:9pt;">
+    <div>${(showAll || (localFormData.show_alt_item_title_bill && localFormData.print_bill_both_languages)) ? 'Item' : 'Description'}</div>
+    ${(showAll || !localFormData.hide_item_quantity_column) ? '<div style="text-align:right;">Qty</div>' : ''}
+    ${(showAll || !localFormData.hide_item_rate_column) ? '<div style="text-align:right;">Rate</div>' : ''}
+    ${(showAll || !localFormData.hide_item_total_column) ? '<div style="text-align:right;">Amount</div>' : ''}
   </div>
+
+ ${(Object.values(
+  items.filter((i) => i.qty > 0).reduce((acc: any, item: any) => {
+    const key = (showAll || localFormData.show_items_sequence_bill)
+      ? `${item.id}-${item.variantId || 0}-${item.price}`
+      : `${item.id}-${item.variantId || 0}`
+    if (!acc[key]) acc[key] = { ...item, qty: 0 }
+    acc[key].qty += item.qty
+    return acc
+  }, {}),
+) as any[]).map((item) => {
+  // ✅ Runtime rate item: SpecialInst replaces item name on bill print too
+  // ✅ Priority: specialInst > name (regardless of isRuntimeRate)
+const displayName = item.specialInst && item.specialInst.trim()
+  ? item.specialInst
+  : item.name;
+
+  return `
+<div style="display:grid;
+  grid-template-columns:
+    ${(showAll || localFormData.print_bill_both_languages) ? '6fr' : '5fr'}
+    ${(showAll || !localFormData.hide_item_quantity_column) ? '20px' : ''}
+    ${(showAll || !localFormData.hide_item_rate_column) ? '30px' : ''}
+    ${(showAll || !localFormData.hide_item_total_column) ? '40px' : ''};
+  gap:3px;padding:2px 0;font-size:9pt;">
+  <div style="word-wrap: break-word; white-space: normal; max-width: 100%;">
+    ${displayName}
+    ${item.variantName ? `<span style="font-size:8pt;color:#0066cc;font-weight:bold;">(${item.variantName})</span>` : ''}
+    ${(showAll || (localFormData.print_bill_both_languages && localFormData.show_alt_name_bill && item.alternativeItem)) ? ` / ${item.alternativeItem || 'N/A'}` : ''}
+    ${(showAll || (localFormData.show_item_note_bill && item.note)) ? `<div style="font-size:8pt;color:#6c757d;">${item.note || 'N/A'}</div>` : ''}
+    ${(showAll || (localFormData.modifier_default_option_bill && item.modifier)) ? `<div style="font-size:8pt;color:#6c757d;">${item.modifier ? item.modifier.join(', ') : 'N/A'}</div>` : ''}
+  </div>
+  ${(showAll || !localFormData.hide_item_quantity_column) ? `<div style="text-align:right;">${item.qty}</div>` : ''}
+  ${(showAll || !localFormData.hide_item_rate_column) ? `<div style="text-align:right;">${formatAmount(safePrice(item.price))}</div>` : ''}
+  ${(showAll || !localFormData.hide_item_total_column) ? `<div style="text-align:right;">${formatAmount(item.qty * safePrice(item.price))}</div>` : ''}
+</div>`;
+}).join('')}
+</div>
 
   <hr style="border:none;border-top:1px dashed #000;margin:5px 0;" />
 
@@ -716,7 +744,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       // 3. Send to Electron
       if ((window as any).electronAPI?.directPrint) {
         await (window as any).electronAPI.directPrint(kotHTML, finalPrinterName)
-        toast.success('Bill Printed Successfully!')
+        // toast.success('Bill Printed Successfully!')
         if (onPrint) onPrint()
         if (onClose) onClose()
         setTimeout(onHide, 300)

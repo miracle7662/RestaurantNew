@@ -62,9 +62,13 @@ interface BillItem {
   RevKOT?: number;
   revKotNo?: number;
   isValidCode?: boolean;
+  isRuntimeRate?: boolean;
   // Variant fields
   variantId?: number | null;
   variantName?: string | null;
+
+  kotTime?: string | null;  // Time from KOTUsedDate
+  isTrnsfered?: number;
 
 }
 interface MenuItem {
@@ -74,6 +78,7 @@ interface MenuItem {
   short_name: string;
   price: number;
   itemgroupid?: number;
+  is_runtime_rates?: number;
   department_details?: DepartmentDetail[];
 }
 
@@ -111,6 +116,10 @@ interface FetchedItem {
   isNew: boolean;
   originalQty: number;
   kotNo: number;
+  specialInst?: string;       // ✅ ADD
+  isRuntimeRate?: boolean;    // ✅ ADD
+  kotTime?: string | null;  // Time from KOTUsedDate
+  isTrnsfered?: number;
 }
 
 interface ReverseModalItem {
@@ -329,17 +338,34 @@ const ModernBill = () => {
             SpecialInst: '',
             isEditable: false,
             originalIndex: item.originalIndex,
-            isFetched: true
+            isFetched: true,
+            kotTime: item.kotTime || null,
+            isTrnsfered: item.isTrnsfered || 0  // ✅ ADD
           };
+          
         }
+        
         acc[key].qty += item.qty;
         acc[key].total = acc[key].qty * acc[key].rate;
+
+        if (item.kotTime) {
+          const currentKotNo = parseInt(item.mkotNo || '0');
+          const existingKotNo = parseInt(acc[key].mkotNo?.split('|').pop() || '0');
+
+          // If this item has a higher KOT number OR we don't have a time yet
+          if (currentKotNo >= existingKotNo || !acc[key].kotTime) {
+            acc[key].kotTime = item.kotTime;
+          }
+        }
+
         if (!includeTaxInInvoice) {
           acc[key].cgst = acc[key].total * (cgstRate / 100);
           acc[key].sgst = acc[key].total * (sgstRate / 100);
           acc[key].igst = acc[key].total * (igstRate / 100);
           acc[key].cess = acc[key].total * (cessRate / 100);
         }
+
+
 
         // Collect and sort MKotNo
         if (item.mkotNo) {
@@ -354,6 +380,15 @@ const ModernBill = () => {
         if (!acc[key].SpecialInst && item.SpecialInst) {
           acc[key].SpecialInst = item.SpecialInst;
         }
+
+         // ✅ Merge isTrnsfered: if any item in the group is transferred, mark group as transferred
+  if (item.isTrnsfered === 1) {
+    acc[key].isTrnsfered = 1;
+     console.log('🔄 Group updated to transferred:', key);
+  }
+
+  // Before return result
+;
         return acc;
       }, {} as Record<string, DisplayedItem>);
 
@@ -514,6 +549,23 @@ const ModernBill = () => {
   const [givenBy, setGivenBy] = useState<string>(user?.name || '');
   const [reason, setReason] = useState('');
   const [DiscPer, setDiscPer] = useState(0);
+
+  // Add this helper function at the top of your component or in a utils file
+  const formatTimeFromDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+
+      // Format as 12-hour with AM/PM
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (e) {
+      return '';
+    }
+  };
   const handleDiscountModalKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       setShowDiscountModal(false);
@@ -756,6 +808,11 @@ const ModernBill = () => {
               RevKOT: item.RevKOT,
               variantId: item.VariantID || null,
               variantName: item.VariantName || null,
+              isBilled: item.isBilled,
+              specialInst: item.SpecialInst || '',              // ✅ ADD
+              isRuntimeRate: item.isRuntimeRate === 1 || item.isRuntimeRate === true,  // ✅ ADD
+              kotTime: item.KOTUsedDate ? formatTimeFromDate(item.KOTUsedDate) : null,
+              isTrnsfered: item.isTrnsfered || 0,   // ✅ ADD
             }))
             .filter((item: FetchedItem) => (item.qty - item.revQty) > 0);
 
@@ -779,15 +836,17 @@ const ModernBill = () => {
               igst: 0,
               cess: 0,
               mkotNo: item.kotNo ? item.kotNo.toString() : '',
-              SpecialInst: '',
-              isBilled: 1,
+              SpecialInst: item.specialInst || '',          // ✅ FIXED — was hardcoded ''
+              isBilled: item.isBilled,
               txnDetailId: item.txnDetailId,
               isFetched: true,
               revQty: item.revQty,
               revKotNo: item.RevKOTNo || 0,
               RevKOT: item.RevKOT,
               variantId: item.variantId || null,
-              variantName: item.variantName || null
+              variantName: item.variantName || null,
+              isRuntimeRate: Number(item.RuntimeRate) === 1,   // ✅ ADD
+              kotTime: item.kotTime || null,
             };
           });
 
@@ -807,7 +866,8 @@ const ModernBill = () => {
             cess: 0,
             mkotNo: '',
             SpecialInst: '',
-            isFetched: false
+            isFetched: false,
+            isBilled: 0
           });
 
           setBillItems(mappedItems);
@@ -892,7 +952,7 @@ const ModernBill = () => {
           calculateTotals(mappedItems);
           setOriginalTableStatus(2); // Set to billed status for order_tag logic
           setIsTransactionBilled(true);
-          setWasAlreadyBilled(true);
+          setWasAlreadyBilled(Number(header.isSetteled) === 1);
           setLoading(false);
           return;
 
@@ -1072,7 +1132,7 @@ const ModernBill = () => {
         setCess?.(data.header.CESS || data.header.CESS || 0);
         setRoundOff?.(data.header.RoundOFF || data.header.RoundOFF || 0);
         setIsTransactionBilled(data.header.isBilled === 1 || data.header.isBilled === 1);
-        setWasAlreadyBilled(data.header.isBilled === 1);
+        setWasAlreadyBilled(Number(data.header.isSetteled) === 1);
       }
 
       // Compute max RevKOTNo from details for unbilled orders
@@ -1137,14 +1197,18 @@ const ModernBill = () => {
           cess: item.cess ?? 0,
 
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-          SpecialInst: item.SpecialInst || item.SpecialInst || '',
-          isBilled: 0,
+          SpecialInst: item.SpecialInst || '',
+          isRuntimeRate: item.isRuntimeRate === 1 || item.isRuntimeRate === true,  // ✅ ADD
+          isBilled: item.isBilled ?? 0,
           txnDetailId: item.txnDetailId,
           isFetched: true,
           revQty: item.revQty || item.RevQty || 0,
           // Variant fields - use exact case from backend API
           variantId: item.VariantID || item.variantId || null,
-          variantName: item.VariantName || item.variantName || null
+          variantName: item.VariantName || item.variantName || null,
+          kotTime: item.KOTUsedDate ? formatTimeFromDate(item.KOTUsedDate) : null,
+          isTrnsfered: item.isTrnsfered || 0
+
         };
       });
 
@@ -1164,7 +1228,9 @@ const ModernBill = () => {
         cess: 0,
         mkotNo: '',
         SpecialInst: '',
-        isFetched: false
+        isFetched: false,
+        isBilled: 0,
+        isRuntimeRate: false
       });
 
       setBillItems(mappedItems);
@@ -1790,6 +1856,8 @@ const ModernBill = () => {
         found = menuItems.find(i => i.item_no.toString() === itemCodeValue);
       }
       if (found) {
+
+        console.log('🔍 SELECTED ITEM:', found.item_name, '| is_runtime_rates:', found.is_runtime_rates, '| type:', typeof found.is_runtime_rates);
         // ✅ Pehle rate resolve karo
         let resolvedRate = 0;
         let resolvedVariantId: number | null = null;
@@ -1826,6 +1894,7 @@ const ModernBill = () => {
           currentItem.variantId = null;
           currentItem.variantName = null;
           currentItem.isValidCode = false;
+          currentItem.isRuntimeRate = false;   // ⬅️ NEW
           toast.error(
             `"${found.item_name}" rate is not available.`,
             { duration: 3000 }
@@ -1840,6 +1909,7 @@ const ModernBill = () => {
           currentItem.variantId = resolvedVariantId;
           currentItem.variantName = resolvedVariantName;
           currentItem.itemCode = itemCodeValue;
+          currentItem.isRuntimeRate = found.is_runtime_rates === 1;   // ⬅️ NEW
         }
       } else {
         currentItem.itemName = "";
@@ -1848,6 +1918,7 @@ const ModernBill = () => {
         currentItem.variantId = null;
         currentItem.variantName = null;
         currentItem.isValidCode = false;
+        currentItem.isRuntimeRate = false;   // ⬅️ NEW
       }
     } else if (field === "itemName") {
 
@@ -1889,6 +1960,7 @@ const ModernBill = () => {
           currentItem.item_no = Number(found.item_no);
           currentItem.itemName = found.item_name;
           currentItem.rate = found.price;
+          currentItem.isRuntimeRate = found.is_runtime_rates === 1;   // ⬅️ NEW
 
           if (variantMatch && found.department_details?.length) {
 
@@ -1921,6 +1993,7 @@ const ModernBill = () => {
           currentItem.variantId = null;
           currentItem.variantName = null;
           currentItem.isValidCode = false;
+          currentItem.isRuntimeRate = false;   // ⬅️ NEW
 
         }
       }
@@ -1932,13 +2005,49 @@ const ModernBill = () => {
     calculateTotals(updated);
   };
 
+  // Reusable: move to next row (existing blank row ya new row add karke)
+  const moveFocusToNextRow = (dataIndex: number) => {
+    const lastIndexInBill = billItems.length - 1;
+    const lastRow = billItems[lastIndexInBill];
+
+    const isExistingBlankRow = !!lastRow &&
+      (lastRow.itemId === 0) &&
+      (lastRow.isFetched === false) &&
+      (lastRow.itemName?.trim?.() === '') &&
+      (lastRow.itemCode?.trim?.() === '');
+
+    if (isExistingBlankRow) {
+      const focusIndex = isGrouped ? displayedItems.length - 1 : lastIndexInBill;
+      const blankItemCodeRef = inputRefs.current[focusIndex]?.[0];
+      if (blankItemCodeRef) {
+        blankItemCodeRef.focus();
+        blankItemCodeRef.select();
+      }
+      return;
+    }
+
+    if (billItems[dataIndex].itemId > 0 || billItems[dataIndex].itemName.trim() !== '') {
+      const newBillItems = [...billItems, { itemCode: "", itemgroupid: 0, itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '', isFetched: false }];
+      setBillItems(newBillItems);
+      setTimeout(() => {
+        const focusIndex = isGrouped ? displayedItems.length : newBillItems.length - 1;
+        const newItemCodeRef = inputRefs.current[focusIndex]?.[0];
+        if (newItemCodeRef) {
+          newItemCodeRef.focus();
+          newItemCodeRef.select();
+        }
+      }, 0);
+    }
+  };
+
   const handleKeyPress = (index: number, field: keyof BillItem) => (e: React.KeyboardEvent<any>) => {
     const item = displayedItems[index];
     const dataIndex = item.originalIndex ?? billItems.length;
 
     if (e.key === "Enter") {
+      const isRuntime = billItems[dataIndex]?.isRuntimeRate === true;
+
       if (field === 'itemCode') {
-        // Only move focus to qty if itemCode has been typed and is valid
         if (billItems[dataIndex].itemCode.trim() !== '' && billItems[dataIndex].isValidCode) {
           const qtyRef = inputRefs.current[index]?.[1];
           if (qtyRef) {
@@ -1946,54 +2055,42 @@ const ModernBill = () => {
             qtyRef.select();
           }
         }
-        // If itemCode is empty or invalid, do nothing - stay in the field
       } else if (field === 'itemName') {
-        // Focus and select qty field of the same row
         const qtyRef = inputRefs.current[index]?.[1];
         if (qtyRef) {
           qtyRef.focus();
           qtyRef.select();
         }
       } else if (field === 'qty') {
-        // Enter on Qty: if last row is already the existing blank row, DO NOT add another.
-        const lastIndexInBill = billItems.length - 1;
-        const lastRow = billItems[lastIndexInBill];
-
-        const isExistingBlankRow = !!lastRow &&
-          (lastRow.itemId === 0) &&
-          (lastRow.isFetched === false) &&
-          (lastRow.itemName?.trim?.() === '') &&
-          (lastRow.itemCode?.trim?.() === '');
-
-        // Move focus to the last row's itemCode when it's already blank.
-        if (isExistingBlankRow) {
-          const focusIndex = isGrouped ? displayedItems.length - 1 : lastIndexInBill;
-          const blankItemCodeRef = inputRefs.current[focusIndex]?.[0];
-          if (blankItemCodeRef) {
-            blankItemCodeRef.focus();
-            blankItemCodeRef.select();
+        if (isRuntime) {
+          // 🔥 Runtime rate item: Qty → Rate
+          const rateRef = inputRefs.current[index]?.[3];
+          if (rateRef) {
+            rateRef.focus();
+            rateRef.select();
           }
-          return;
+        } else {
+          // Normal item: Qty → next row (old behavior, unchanged)
+          moveFocusToNextRow(dataIndex);
         }
-
-        // Otherwise, only add a new row if current row has data.
-        if (billItems[dataIndex].itemId > 0 || billItems[dataIndex].itemName.trim() !== '') {
-          const newBillItems = [...billItems, { itemCode: "", itemgroupid: 0, itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '', isFetched: false }];
-          setBillItems(newBillItems);
-          // Focus the new blank row itemCode after state update
-          setTimeout(() => {
-            const focusIndex = isGrouped ? displayedItems.length : newBillItems.length - 1;
-            const newItemCodeRef = inputRefs.current[focusIndex]?.[0];
-            if (newItemCodeRef) {
-              newItemCodeRef.focus();
-              newItemCodeRef.select();
-            }
-          }, 0);
+      } else if (field === 'rate') {
+        if (isRuntime) {
+          // 🔥 Runtime rate item: Rate → Special Instructions
+          const specialInstRef = inputRefs.current[index]?.[4];
+          if (specialInstRef) {
+            specialInstRef.focus();
+            specialInstRef.select();
+          }
         }
+        // Normal item: no action (unchanged)
+      } else if (field === 'SpecialInst') {
+        if (isRuntime) {
+          // 🔥 Runtime rate item: Special Instructions → next row item code
+          moveFocusToNextRow(dataIndex);
+        }
+        // Normal item: no action (unchanged)
       }
-      // No action for rate and SpecialInst
     } else if (e.key === 'Backspace' && field === 'itemName' && (e.target as HTMLInputElement).value.trim() === '' && index < (isGrouped ? displayedItems.length : billItems.length) - 1) {
-      // Remove the row if backspace is pressed on empty itemName field and it's not the last row
       if (isGrouped) return;
       const updated = billItems.filter((_, i) => i !== index);
       setBillItems(updated);
@@ -2194,7 +2291,7 @@ const ModernBill = () => {
         setCustomerId(res.data.customerid);
       }
 
-      toast.success('KOT saved successfully');
+      // toast.success('KOT saved successfully');
 
       // Set table status to occupied (green)
       if (targetTableId) {
@@ -2855,23 +2952,47 @@ const ModernBill = () => {
   };
 
   // 🧠 DERIVED STATES (IMPORTANT)
+
+  console.log('🔍 billItems isBilled values:', billItems.map(i => ({
+    name: i.itemName,
+    itemId: i.itemId,
+    isBilled: i.isBilled,
+    mkotNo: i.mkotNo,
+    isFetched: i.isFetched
+  })));
   const hasItems = billItems.some(i => i.itemId > 0);
 
   const hasNewItems = billItems.some(
     i => i.itemId > 0 && !i.mkotNo && !i.isBilled
   );
 
+  // ✅ ADD THESE TWO NEW DERIVED STATES
+  const hasBilledItems = billItems.some(i => i.isBilled === 1 && i.itemId > 0);
+  const hasUnbilledItems = billItems.some(i => i.isBilled === 0 && i.itemId > 0);
+
+  // ✅ Mixed bill detection
+  const isMixedBill = hasBilledItems && hasUnbilledItems;
+
+  // console.log('📊 Derived States:', {
+  //   hasItems,
+  //   hasNewItems,
+  //   hasBilledItems,
+  //   hasUnbilledItems,
+  //   isMixedBill,
+  //   billItemsLength: billItems.length
+  // });
+
   const hasOnlyExistingItems = hasItems && !hasNewItems;
   const isBillPrintedState = billItems.some(i => i.isBilled === 1);
-  // console.log('📊 Bill state - isBillPrintedState:', isBillPrintedState, 'items with isBilled=1:', billItems.filter(i => i.isBilled === 1).length);
 
-  // Determine table status as number: 0 = Vacant, 1 = Occupied, 2 = Billed
-  // Use reliable conditions: item count, kot count, bill printed flag
+  // Determine table status
   const hasKOT = billItems.some(i => i.mkotNo);
   const tableStatusNum = isBillPrintedState ? 2 : ((hasItems || hasKOT) ? 1 : 0);
 
   // Function to get button states based on table status
-  const getButtonStates = (status: number, hasNewItems: boolean) => {
+  // Function to get button states based on table status
+  // ✅ FIX: Add hasBilledItems and isMixedBill parameters
+  const getButtonStates = (status: number, hasNewItems: boolean, hasBilledItems: boolean, isMixedBill: boolean) => {
     const states = {
       kotTransfer: false,
       ncKot: false,
@@ -2894,11 +3015,13 @@ const ModernBill = () => {
 
     if (status === 0) { // Vacant
       states.exit = true;
-    } else if (status === 1) { // Occupied - only KOT enabled when items are input
-
-      states.kotTransfer = true;
+    } else if (status === 1) { // Occupied
+      // ✅ CRITICAL: KOT Transfer & Table Transfer DISABLE if mixed OR only billed
+      if (!hasBilledItems && !isMixedBill) {
+        states.kotTransfer = true;
+        states.tableTransfer = true;
+      }
       states.ncKot = true;
-      states.tableTransfer = true;
       states.reverseKot = true;
       states.print = true;
       states.newBill = true;
@@ -2922,13 +3045,14 @@ const ModernBill = () => {
     return states;
   };
 
-  const buttonStates = getButtonStates(tableStatusNum, hasNewItems);
+  // ✅ Call function with updated params
+  const buttonStates = getButtonStates(tableStatusNum, hasNewItems, hasBilledItems, isMixedBill);
 
-  // Disable flags (true means disabled)
-  const disableKOTTransfer = !buttonStates.kotTransfer;
+  // ✅ FIX: Disable flags with isMixedBill and hasBilledItems checks
+  const disableKOTTransfer = !buttonStates.kotTransfer || isMixedBill || hasBilledItems;
   const disableNCKOT = !buttonStates.ncKot;
   const disableReverseBill = !buttonStates.reverseBill;
-  const disableTableTransfer = !buttonStates.tableTransfer;
+  const disableTableTransfer = !buttonStates.tableTransfer || isMixedBill || hasBilledItems;
   const disableNewBill = !buttonStates.newBill;
   const disableRevKOT = !buttonStates.reverseKot;
   const disableKOT = !(buttonStates.kot || hasNewItems);
@@ -3804,9 +3928,9 @@ const ModernBill = () => {
                   {/* Total */}
                   <Col md={2} className="ms-auto">
                     <div className="bg-success text-white rounded shadow-sm py-1 px-2 text-center h-100 d-flex flex-column justify-content-center">
-                      <div className="small text-uppercase">Total</div>
-                      <div className="fw-bold fs-5">
-                        ₹{finalAmount.toFixed(2)}
+                      
+                      <div className="fw-bold fs-1">
+                        ₹{parseFloat(finalAmount.toFixed(2))}
                       </div>
                     </div>
                   </Col>
@@ -3852,9 +3976,7 @@ const ModernBill = () => {
                   return [];
                 });
 
-                const limited = results.slice(0, 50);
-
-                return limited.map(opt => (
+                return results.map(opt => (
                   <option
                     key={opt.key}
                     value={opt.value}
@@ -3887,11 +4009,12 @@ const ModernBill = () => {
                   });
 
                 // Filter by itemCodeFilter if typing
+                // Filter by itemCodeFilter if typing
                 const filtered = itemCodeFilter
                   ? deptVariants.filter(v =>
                     v.item_no.toString() === itemCodeFilter
                   )
-                  : deptVariants.slice(0, 50);
+                  : deptVariants; // ✅ REMOVE LIMIT
 
                 return filtered.map(variant => (
                   <option
@@ -4016,6 +4139,10 @@ const ModernBill = () => {
                             </td>
                             <td className="text-end" style={{ width: '100px' }}>
                               <Form.Control
+                                ref={(el) => {
+                                  if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                                  inputRefs.current[index][3] = el;   // ⬅️ NEW — yahi missing tha
+                                }}
                                 type="number"
                                 value={item.rate}
                                 disabled={!item.isEditable}
@@ -4032,17 +4159,30 @@ const ModernBill = () => {
                               />
                             </td>
                             <td className="text-end" style={{ width: '100px' }}>{item.total.toFixed(2)}</td>
-                            <td className="text-center">
-                              {item.mkotNo && (
-                                <div className="d-flex justify-content-center gap-1 flex-wrap">
-                                  {item.mkotNo.split('|').map((kot: string, index: number) => (
-                                    <Badge bg="secondary" key={index}>
-                                      {kot}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </td>
+                           <td className="text-center">
+  {item.mkotNo && (
+    <div className="d-flex justify-content-center gap-1 flex-wrap">
+      {/* Render each KOT number as a badge */}
+      {item.mkotNo.split('|').map((kot: string, index: number) => (
+        <Badge key={index} bg="secondary" className="p-1" style={{ minWidth: '35px' }}>
+          <span className="fw-bold" style={{ fontSize: '0.7rem' }}>{kot}</span>
+        </Badge>
+      ))}
+      {/* Show "Trf" badge if item was transferred */}
+      {item.isTrnsfered === 1 && (
+        <Badge bg="warning" className="p-1" style={{ fontSize: '0.7rem' }}>
+          Trf
+        </Badge>
+      )}
+      {/* Show time only once (from the item) */}
+      {item.kotTime && (
+        <span className="fw-bold" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', color: '#000000' }}>
+          {item.kotTime}
+        </span>
+      )}
+    </div>
+  )}
+</td>
 
                             <td>
                               <Form.Control
@@ -4407,7 +4547,8 @@ const ModernBill = () => {
             kotNo: currentKotNoForPrint || undefined,
             txnDetailId: item.txnDetailId,
             isNew: true,
-            specialInst: item.SpecialInst   // ✅ Add this
+            specialInst: item.SpecialInst,
+            isRuntimeRate: item.isRuntimeRate || false
           }))
         }
 
@@ -4425,7 +4566,8 @@ const ModernBill = () => {
           revQty: item.reversedQty || 0,
           kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined,
           isNew: !item.mkotNo,
-          specialInst: item.SpecialInst   // ✅ Add this
+          specialInst: item.SpecialInst,   // ✅ Add this
+          isRuntimeRate: item.isRuntimeRate || false   // ✅ NEW
         } as any))}
 
         currentKOTNo={currentKotNoForPrint}
@@ -4466,7 +4608,7 @@ const ModernBill = () => {
         billData={billData}  // ✅ ADD THIS LINE - Pass bill data to component
         formData={formData}
         user={user}
-        isBilled={wasAlreadyBilled}
+        isSettled={wasAlreadyBilled}
         items={billItems.filter(i => i.itemId > 0).map((item) => ({
           id: item.itemId,
           name: item.itemName,
@@ -4481,7 +4623,9 @@ const ModernBill = () => {
           item_no: item.item_no.toString(),
           txnDetailId: item.txnDetailId,
           revQty: item.reversedQty || 0,
-          kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
+          kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined,
+          specialInst: item.SpecialInst,               // ✅ NEW
+          isRuntimeRate: item.isRuntimeRate || false    // ✅ NEW
         } as any))}
         currentKOTNos={currentKOTNos}
         selectedWaiter={waiter}
@@ -4521,7 +4665,7 @@ const ModernBill = () => {
 
         // ✅ AFTER SUCCESS PRINT
         onPrint={async () => {
-          toast.success("Bill printed successfully");
+          // toast.success("Bill printed successfully");
 
           // Table status update AFTER print
           if (tableId) {

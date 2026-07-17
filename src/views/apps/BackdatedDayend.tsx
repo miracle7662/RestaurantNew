@@ -52,6 +52,7 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 interface Order {
   orderNo: string;
   table: number;
+  tableName  : string;
   waiter: string;
   amount: number;
   type: string;
@@ -60,6 +61,7 @@ interface Order {
   items: number;
   kotNo: string;
   revKotNo: string;
+  creditName?: string;  
   discount: number;
   ncKot: string;
   ncName?: string;
@@ -143,20 +145,22 @@ const DayEnd = () => {
   const [paymentModes, setPaymentModes] = useState<PaymentModeData[]>([]);
   const [reason, setReason] = useState('');
 
-  useEffect(() => {
-    const fetchPaymentModes = async () => {
-      if (!user?.outletid) return;
-      try {
-        const response = await OutletPaymentModeService.list({ outletid: user.outletid });
-        if (response.success && response.data) {
-          setPaymentModes(response.data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch payment modes:', error);
+ useEffect(() => {
+  const fetchPaymentModes = async () => {
+    if (!user?.outletid) return;
+    try {
+      const response = await OutletPaymentModeService.list({ outletid: user.outletid });
+      if (response.success && response.data) {
+        // Sort by id ascending to preserve insertion order
+        const sortedModes = response.data.sort((a, b) => a.id - b.id);
+        setPaymentModes(sortedModes);
       }
-    };
-    fetchPaymentModes();
-  }, [user?.outletid]);
+    } catch (error) {
+      console.error('Failed to fetch payment modes:', error);
+    }
+  };
+  fetchPaymentModes();
+}, [user?.outletid]);
 
   useEffect(() => {
     const fetchdayendData = async () => {
@@ -322,16 +326,18 @@ const exportOrdersToExcel = () => {
     const exportRows = filteredOrders.map((order) => {
       // Fixed columns in the exact order of your sample file (up to Payment Type)
       const row: Record<string, any> = {
+        "Date": order.date,
         "Bill No": order.orderNo,
         "Total Amt (₹)": order.amount || 0,
         "Tip Amount (₹)": order.tip || 0,
         "Discount (₹)": order.discount || 0,
-        "Taxable Value (₹)": order.taxableValue || 0,
+        "Net Value (₹)": order.taxableValue || 0,
         "CGST (₹)": order.cgst || 0,
         "SGST (₹)": order.sgst || 0,
         "Round off (₹)": order.roundOff || 0,
-        "Gross Amount (₹)": order.grossAmount || 0,
+        "Gross Amount (₹)": order.amount || 0,
         "Settlement Amt (₹)": order.settlementAmount || 0,
+       
         //"Table": order.table,
         
         // "Rev Amt (₹)": order.revAmt || 0,
@@ -347,13 +353,24 @@ const exportOrdersToExcel = () => {
         // "Total Items": order.items || 0,
         // "Time": getFormattedTimeFromDateTime(order.billedDate || order.time),
         // "Status": order.status,
-        "Payment Type": order.paymentType || "",
+        // "Payment Type": order.paymentType || "",
       };
 
       // YOUR ORIGINAL DYNAMIC PAYMENT MODES LOOP (unchanged)
-      visiblePaymentModes.forEach((mode) => {
-        row[`${mode.mode_name}`] = getPaymentAmount(order, mode.mode_name) || 0;
+      // visiblePaymentModes.forEach((mode) => {
+      //   row[`${mode.mode_name}`] = getPaymentAmount(order, mode.mode_name) || 0;
+      // });
+
+      // Add a column for EVERY payment mode (not just visible ones)
+      paymentModes.forEach((mode) => {
+        row[mode.mode_name] = getPaymentAmount(order, mode.mode_name) || 0;
       });
+
+      // Add Credit Name column AFTER all payment modes
+row["Credit Name"] = order.creditName || ""; 
+      
+
+      
 
       return row;
     });
@@ -1046,6 +1063,7 @@ const exportOrdersToExcel = () => {
                               <th>Rev Amt</th>
                               <th>KOT No</th>
                               <th>Rev KOT No</th>
+                              <th>Credit Name</th>
                               <th>NC Name</th>
                               <th>NC Purpose</th>
                               <th>isNCKOT</th>
@@ -1080,7 +1098,7 @@ const exportOrdersToExcel = () => {
                                   <td className="fw-semibold">{order.orderNo}</td>
                                   <td>
                                     <Badge bg="light" text="dark" className="fs-6">
-                                      {order.table}
+                                      {order.tableName }
                                     </Badge>
                                   </td>
                                   <td style={{ textAlign: 'right' }}>₹{(order.settlementAmount || 0).toLocaleString()}</td>
@@ -1101,6 +1119,7 @@ const exportOrdersToExcel = () => {
                                   <td style={{ textAlign: 'right' }}>₹{(order.revAmt || 0).toLocaleString()}</td>
                                   <td><small className="text-muted">{order.kotNo}</small></td>
                                   <td><small className="text-muted">{order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}</small></td>
+                                  <td>{order.creditName || <span className="text-muted">-</span>}</td>   {/* 👈 NEW */}
                                   <td>{order.ncName || ''}</td>
                                   <td title={order.ncPurpose || ''} style={{ whiteSpace: 'normal' }}>{order.ncPurpose || ''}</td>
                                   <td style={{ textAlign: 'center' }}><Badge bg={order.ncKot ? "primary" : "secondary"} className="fs-6">{order.ncKot ? 'Yes' : 'No'}</Badge></td>
@@ -1142,6 +1161,7 @@ const exportOrdersToExcel = () => {
                                 </td>
                               ))}
                               <td style={{ textAlign: 'right' }}>₹{totalRevAmt.toLocaleString()}</td>
+                              <td></td>
                               <td></td>
                               <td></td>
                               <td></td>
@@ -1243,7 +1263,7 @@ const exportOrdersToExcel = () => {
                     <Col md={6}><strong>Captain:</strong> {selectedOrder.captain || selectedOrder.waiter || ''}</Col>
                     <Col md={6}><strong>User:</strong> {selectedOrder.user || ''}</Col>
                     <Col md={6}><strong>Total Items:</strong> {selectedOrder.items}</Col>
-                  <Col md={6}><strong>Time:</strong> {getFormattedTimeFromDateTime(selectedOrder.billedDate)}</Col>
+                    <Col md={6}><strong>Time:</strong> {getFormattedTimeFromDateTime(selectedOrder.billedDate)}</Col>
                     <Col md={6}><strong>Date:</strong> {getFormattedDate(selectedOrder.time)}</Col>
                     <Col md={6}><strong>Payment:</strong> {selectedOrder.type}</Col>
                     <Col md={6}><strong>Status:</strong> <StatusBadge status={selectedOrder.status} /></Col>
@@ -1354,7 +1374,8 @@ const exportOrdersToExcel = () => {
           show={showPasswordModal}
           onVerify={handlePasswordVerify}
           onSuccess={() => setShowPasswordModal(false)}
-          onCancel={() => navigate('/apps/Orders')}
+          // onCancel={() => navigate('/apps/Orders')}
+          onCancel={() => navigate('/')}
         />
       )}
     </>

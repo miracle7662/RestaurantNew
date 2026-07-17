@@ -1,270 +1,490 @@
 const db = require('../config/db');
 const { formatMySQLDate } = require('../utils/dateUtils');
 
-const getReportData = async (req, res) => {
-  try {
-    console.log('========================================');
-    console.log('REPORT API START');
-    console.log('========================================');
+// const getReportData = async (req, res) => {
+//   try {
+//     console.log('========================================');
+//     console.log('🚀 REPORT API START');
+//     console.log('========================================');
 
-    const todayStr = formatMySQLDate(new Date()).split(' ')[0];
-    const startDate = req.query.start || todayStr;
-    const endDate = req.query.end || todayStr;
-    const caseType = req.query.caseType || 'billSummary';
+//     // 1️⃣ Log incoming query
+//     console.log('📥 Incoming query params:', req.query);
 
-    // ======================================================
-    // GET DISTINCT PAYMENT TYPES (for dynamic columns)
-    // ======================================================
-    const [paymentTypes] = await db.query(`
-      SELECT DISTINCT PaymentType
-      FROM TrnSettlement
-      WHERE isSettled = 1
-        AND PaymentType IS NOT NULL
-        AND PaymentType != ''
-    `);
+//     const todayStr = formatMySQLDate(new Date()).split(' ')[0];
+//     const startDate = req.query.start || todayStr;
+//     const endDate = req.query.end || todayStr;
+//     const caseType = req.query.caseType || 'billSummary';
 
-    // Build dynamic payment columns SQL (same as before)
-    const paymentColumns = paymentTypes
-      .map(p => `
-        COALESCE(
-          MAX(CASE WHEN s.PaymentType = '${p.PaymentType}' THEN s.Amount ELSE 0 END),
-          0
-        ) AS \`${p.PaymentType}\`
-      `)
-      .join(',');
+//     console.log(`📅 startDate: ${startDate}, endDate: ${endDate}, caseType: ${caseType}`);
 
-    // ======================================================
-    // BASE QUERY (unchanged structure, but keep it readable)
-    // ======================================================
-    let baseQuery = `
-      SELECT
-        t.TxnID,
-        t.TxnNo,
-        mt.tableid AS TableID,
-        mt.table_name,
-        mo.outletid,
-        mo.outlet_name,
-        d.department_name,
-        t.CustomerName,
-        t.isHomeDelivery,
-        t.isPickup,
-        (t.GrossAmt + COALESCE((SELECT SUM(ts.tipAmount) FROM TrnSettlement ts WHERE ts.OrderNo = t.TxnNo AND ts.isSettled = 1), 0)) AS SettleAmt,
-        COALESCE((SELECT SUM(ts.tipAmount) FROM TrnSettlement ts WHERE ts.OrderNo = t.TxnNo AND ts.isSettled = 1), 0) AS tipAmount,
-        t.GrossAmt AS billAmount,
-        t.Amount AS TotalAmount,
-        t.Discount,
-        t.GrossAmt AS GrossAmount,
-        t.CGST,
-        t.SGST,
-        t.RoundOFF,
-        t.RevKOT AS RevAmt,
-        t.PAX,
-        t.IGST,
-        t.ServiceCharge_Amount,
-        t.DiscountType,
-        t.DiscPer,
-        t.TxnDatetime,
-        t.BilledDate,
-        t.HandOverEmpID,
-        t.DayEndEmpID,
-        t.MobileNo,
-        t.Address,
-        t.Landmark,
-        t.Steward AS Captain,
-        t.UserId,
-        u.username AS UserName,
-        COALESCE(w.Water, 0) AS Water,
-        ${paymentColumns},
-        GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) AS KOTNo,
-        COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') AS RevKOTNo,
-        GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) AS NCKOT,
-        t.NCPurpose,
-        t.NCName,
-        (SELECT GROUP_CONCAT(CONCAT(ts.PaymentType, ':', ts.Amount)) FROM TrnSettlement ts WHERE ts.OrderNo = t.TxnNo AND ts.isSettled = 1) AS Settlements,
-        GROUP_CONCAT(DISTINCT s.PaymentType) AS PaymentType,
-        t.isSetteled,
-        t.isBilled,
-        t.isreversebill,
-        t.isCancelled,
-        COALESCE(SUM(td.Qty), 0) AS TotalItems
-      FROM TAxnTrnbill t
-      LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
-      LEFT JOIN mst_users u ON t.UserId = u.userid
-      LEFT JOIN msttablemanagement mt ON t.TableID = mt.tableid
-      LEFT JOIN mst_outlets mo ON mt.outletid = mo.outletid
-      LEFT JOIN msttable_department d ON mt.departmentid = d.departmentid
-      LEFT JOIN (
-        SELECT OrderNo, PaymentType, SUM(Amount) AS Amount, SUM(COALESCE(TipAmount,0)) AS TipAmount
-        FROM TrnSettlement
-        WHERE isSettled = 1
-        GROUP BY OrderNo, PaymentType
-      ) s ON CAST(s.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR) OR CAST(s.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
-      LEFT JOIN (
-        SELECT d.TxnID,
-          SUM(CASE WHEN LOWER(i.item_name) LIKE '%water%' THEN d.RuntimeRate * d.Qty ELSE 0 END) AS Water
-        FROM TAxnTrnbilldetails d
-        JOIN mstrestmenu i ON d.ItemID = i.restitemid
-        GROUP BY d.TxnID
-      ) w ON w.TxnID = t.TxnID
-      WHERE t.isCancelled = 0 AND t.isBilled = 1
-    `;
+//     // ============================================================
+//     // NEW: DAILY SUMMARY (aggregated by date)
+//     // ============================================================
+//     if (caseType === 'dailySummary') {
+//   console.log('📊 Generating daily summary (grouped by date) with tip logic...');
 
-    // ======================================================
-    // CASE‑WISE FILTERING (unchanged)
-    // ======================================================
-    let whereConditions = [];
-    let havingConditions = [];
+//   // 1. Get distinct payment types (like in getBackDayendData)
+//   const [paymentTypes] = await db.query(`
+//     SELECT DISTINCT PaymentType
+//     FROM TrnSettlement
+//     WHERE isSettled = 1
+//       AND PaymentType IS NOT NULL
+//       AND PaymentType != ''
+//   `);
 
-    switch (caseType) {
-      case 'reverseKOTs':
-        whereConditions.push('t.isreversebill = 1');
-        break;
-      case 'ncKOT':
-        havingConditions.push(`NCKOT IS NOT NULL AND NCKOT != ""`);
-        break;
-      case 'creditSummary':
-        whereConditions.push(`EXISTS (SELECT 1 FROM TrnSettlement s WHERE s.OrderNo = t.TxnNo AND s.PaymentType LIKE '%credit%' AND s.isSettled = 1)`);
-        break;
-      case 'discountSummary':
-        whereConditions.push('t.Discount > 0');
-        break;
-      case 'billSummary':
-      default:
-        whereConditions.push('t.isBilled = 1');
-        break;
-    }
+//   // 2. Build dynamic payment columns (safe escaping for column names)
+//   const paymentColumns = paymentTypes
+//     .map((p) => `
+//       COALESCE(
+//         SUM(
+//           CASE
+//             WHEN s.PaymentType = '${p.PaymentType.replace(/'/g, "\\'")}'
+//             THEN s.Amount
+//             ELSE 0
+//           END
+//         ),
+//         0
+//       ) AS \`${p.PaymentType.replace(/`/g, '')}\`
+//     `)
+//     .join(',');
 
-    if (whereConditions.length) baseQuery += ` AND ${whereConditions.join(' AND ')}`;
-    baseQuery += ` AND DATE(t.TxnDatetime) BETWEEN ? AND ?`;
-    baseQuery += ` GROUP BY t.TxnID`;
-    if (havingConditions.length) baseQuery += ` HAVING ${havingConditions.join(' AND ')}`;
-    baseQuery += ` ORDER BY t.TxnDatetime DESC`;
+//   // 3. Main summary query with payment type sums + tip logic
+//  const summaryQuery = `
+//     WITH order_tips AS (
+//       SELECT
+//         OrderNo,
+//         SUM(COALESCE(TipAmount, 0)) AS TipAmount
+//       FROM TrnSettlement
+//       WHERE isSettled = 1
+//       GROUP BY OrderNo
+//     ),
+//     sett_ranked AS (
+//       SELECT
+//         OrderNo,
+//         PaymentType,
+//         SUM(Amount) AS Amount,
+//         ROW_NUMBER() OVER (
+//           PARTITION BY OrderNo
+//           ORDER BY MIN(SettlementID) ASC
+//         ) AS rn
+//       FROM TrnSettlement
+//       WHERE isSettled = 1
+//       GROUP BY OrderNo, PaymentType
+//     ),
+//     sett_adjusted AS (
+//       SELECT
+//         sr.OrderNo,
+//         sr.PaymentType,
+//         sr.Amount +
+//           CASE
+//             WHEN sr.rn = 1
+//               AND LOWER(sr.PaymentType) != 'cash'
+//             THEN COALESCE(ot.TipAmount, 0)
+//             ELSE 0
+//           END AS Amount
+//       FROM sett_ranked sr
+//       LEFT JOIN order_tips ot ON ot.OrderNo = sr.OrderNo
+//     ),
+   
+//     order_payments AS (
+//       SELECT
+//         OrderNo,
+//         ${paymentTypes
+//           .map(
+//             (p) => `
+//           COALESCE(
+//             MAX(
+//               CASE
+//                 WHEN PaymentType = '${p.PaymentType.replace(/'/g, "\\'")}'
+//                 THEN Amount
+//                 ELSE 0
+//               END
+//             ),
+//             0
+//           ) AS \`${p.PaymentType.replace(/`/g, '')}\`
+//         `
+//           )
+//           .join(',')}
+//       FROM sett_adjusted
+//       GROUP BY OrderNo
+//     )
+//     SELECT
+//       DATE(t.TxnDatetime) AS BillDate,
+//       CONCAT(MIN(t.TxnNo), ' - ', MAX(t.TxnNo)) AS BillNoRange,
+//       COUNT(DISTINCT t.TxnID) AS TotalBills,
+//       SUM(t.Amount) AS TotalAmount,
+//       SUM(t.GrossAmt) AS GrossAmount,
+//       SUM(t.Discount) AS Discount,
+//       SUM(t.TaxableValue) AS TaxableValue,
+//       SUM(t.CGST) AS CGST,
+//       SUM(t.SGST) AS SGST,
+//       SUM(t.RoundOFF) AS RoundOFF,
+//       SUM(t.RevKOT) AS RevAmt,
+//       SUM(
+//         (
+//           SELECT COALESCE(
+//             SUM(
+//               CASE
+//                 WHEN LOWER(i.item_name) LIKE '%water%'
+//                 THEN d.RuntimeRate * d.Qty
+//                 ELSE 0
+//               END
+//             ), 0
+//           )
+//           FROM TAxnTrnbilldetails d
+//           INNER JOIN mstrestmenu i ON d.ItemID = i.restitemid
+//           WHERE d.TxnID = t.TxnID
+//         )
+//       ) AS Water,
+//       SUM(
+//         (
+//           SELECT COALESCE(SUM(td.Qty), 0)
+//           FROM TAxnTrnbilldetails td
+//           WHERE td.TxnID = t.TxnID
+//         )
+//       ) AS TotalItems,
+//       SUM(
+//         (
+//           SELECT COALESCE(SUM(ts.TipAmount), 0)
+//           FROM TrnSettlement ts
+//           WHERE ts.OrderNo = t.TxnNo
+//             AND ts.isSettled = 1
+//         )
+//       ) AS TipAmount,
+//       SUM(
+//         t.Amount +
+//         (
+//           SELECT COALESCE(SUM(ts.TipAmount), 0)
+//           FROM TrnSettlement ts
+//           WHERE ts.OrderNo = t.TxnNo
+//             AND ts.isSettled = 1
+//         )
+//       ) AS SettlementAmount,
+//       -- 👇 now safe: op is one row per order, no fan-out, so SUM here is correct
+//       ${paymentTypes
+//         .map(
+//           (p) => `
+//         COALESCE(SUM(op.\`${p.PaymentType.replace(/`/g, '')}\`), 0) AS \`${p.PaymentType.replace(/`/g, '')}\`
+//       `
+//         )
+//         .join(',')}
+//     FROM TAxnTrnbill t
+//     LEFT JOIN order_payments op
+//       ON CAST(op.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
+//     WHERE t.isCancelled = 0
+//       AND t.isBilled = 1
+//       AND DATE(t.TxnDatetime) BETWEEN ? AND ?
+//     GROUP BY DATE(t.TxnDatetime)
+//     ORDER BY BillDate ASC
+//   `;
 
-    const params = [startDate, endDate];
-    const [rows] = await db.execute(baseQuery, params);
-    console.log('TOTAL ROWS =>', rows.length);
+//   const [summaryRows] = await db.execute(summaryQuery, [startDate, endDate]);
 
-    // ======================================================
-    // FORMAT RESPONSE – ATTACH DYNAMIC PAYMENTS AS TOP‑LEVEL KEYS
-    // ======================================================
-    const orders = rows.map(row => {
-      // Base order object (matching frontend expectations)
-      const order = {
-        // Identifiers
-        orderNo: row.TxnNo,
-        billNo: row.TxnNo,               // frontend expects billNo
-        kotNo: row.KOTNo || '',
-        revKotNo: row.RevKOTNo || '',
-        revKot: row.isreversebill == 1,  // boolean for frontend
+//   console.log(`📊 Daily summary returned ${summaryRows.length} rows`);
 
-        // Dates
-        billDate: row.TxnDatetime ? new Date(row.TxnDatetime).toISOString().split('T')[0] : '',
-        date: row.TxnDatetime,
+//   // 4. Compute grand totals including payment types
+//   const grandTotals = summaryRows.reduce(
+//     (acc, row) => {
+//       acc.TotalBills += row.TotalBills;
+//       acc.TotalAmount += row.TotalAmount;
+//       acc.GrossAmount += row.GrossAmount;
+//       acc.Discount += row.Discount;
+//       acc.TaxableValue += row.TaxableValue;
+//       acc.CGST += row.CGST;
+//       acc.SGST += row.SGST;
+//       acc.RoundOFF += row.RoundOFF;
+//       acc.RevAmt += row.RevAmt;
+//       acc.Water += row.Water;
+//       acc.TotalItems += row.TotalItems;
+//       acc.TipAmount += row.TipAmount;
+//       acc.SettlementAmount += row.SettlementAmount;
 
-        // Customer & table info
-        customerName: row.CustomerName || 'N/A',
-        tableName: row.table_name || '',
-        outletName: row.outlet_name || '',
-        departmentName: row.department_name || '',
-        captain: row.Captain || 'N/A',
-        waiter: row.Captain || 'Unknown',
-        user: row.UserName || 'N/A',
-        pax: Number(row.PAX || 0),
-        mobile: row.MobileNo || 'N/A',
-        address: row.Address || 'N/A',
-        landmark: row.Landmark || '',
+//       paymentTypes.forEach((p) => {
+//         const key = p.PaymentType;
+//         if (row[key] !== undefined) {
+//           acc[key] = (acc[key] || 0) + row[key];
+//         }
+//       });
 
-        // Order type derivation
-        orderType: row.isHomeDelivery ? 'Home Delivery' : (row.isPickup ? 'Pickup' : 'Dine-in'),
+//       return acc;
+//     },
+//     {
+//       TotalBills: 0,
+//       TotalAmount: 0,
+//       GrossAmount: 0,
+//       Discount: 0,
+//       TaxableValue: 0,
+//       CGST: 0,
+//       SGST: 0,
+//       RoundOFF: 0,
+//       RevAmt: 0,
+//       Water: 0,
+//       TotalItems: 0,
+//       TipAmount: 0,
+//       SettlementAmount: 0,
+//     }
+//   );
 
-        // Amounts (all as numbers)
-        settleAmount: Number(row.SettleAmt || 0),
-        tipAmount: Number(row.tipAmount || 0),
-        billAmount: Number(row.billAmount || 0),
-        netAmount: Number(row.TotalAmount || 0),       // net = total after discount
-        taxbleAmount: Number(row.CGST || 0) + Number(row.SGST || 0) + Number(row.IGST || 0),
-        discount: Number(row.Discount || 0),
-        cgst: Number(row.CGST || 0),
-        sgst: Number(row.SGST || 0),
-        igst: Number(row.IGST || 0),
-        roundOff: Number(row.RoundOFF || 0),
-        grossAmount: Number(row.GrossAmount || 0),
-        revAmt: Number(row.RevAmt || 0),
-        serviceCharge: Number(row.ServiceCharge_Amount || 0),
-        serviceCharge_Amount: Number(row.ServiceCharge_Amount || 0),
-        water: Number(row.Water || 0),
+//   console.log('📦 Grand totals:', grandTotals);
 
-        // Discount metadata
-        discountType: row.DiscountType,
-        discPer: row.DiscPer,
+//   return res.json({
+//     success: true,
+//     data: {
+//       summaryType: 'dailySummary',
+//       rows: summaryRows,
+//       grandTotals,
+//       paymentTypes: paymentTypes.map((p) => p.PaymentType),
+//     },
+//   });
+// }
 
-        // Items
-        itemsCount: Number(row.TotalItems || 0),
+//     // ============================================================
+//     // ORIGINAL LOGIC FOR DETAILED ORDERS (all other caseTypes)
+//     // ============================================================
 
-        // Payment
-        paymentMode: row.PaymentType || 'Cash',
+//     // GET DISTINCT PAYMENT TYPES (for dynamic columns)
+//     console.log('🔍 Fetching distinct payment types from TrnSettlement...');
+//     const [paymentTypes] = await db.query(`
+//       SELECT DISTINCT PaymentType
+//       FROM TrnSettlement
+//       WHERE isSettled = 1
+//         AND PaymentType IS NOT NULL
+//         AND PaymentType != ''
+//     `);
+//     console.log('💳 Payment types fetched:', paymentTypes.map(p => p.PaymentType).join(', ') || '(none)');
 
-        // Flags
-        isHomeDelivery: row.isHomeDelivery,
-        isPickup: row.isPickup,
-        isCancelled: row.isCancelled,
-        reverseBill: row.isreversebill,
-        isBilled: row.isBilled,
-        isSettled: row.isSetteled,
+//     // Build dynamic payment columns SQL
+//     const paymentColumns = paymentTypes
+//       .map(p => `
+//         COALESCE(
+//           MAX(CASE WHEN s.PaymentType = '${p.PaymentType}' THEN s.Amount ELSE 0 END),
+//           0
+//         ) AS \`${p.PaymentType}\`
+//       `)
+//       .join(',');
 
-        // KOT extra
-        ncKot: row.NCKOT || '',
-        ncPurpose: row.NCPurpose || '',
-        ncName: row.NCName || '',
+//     // BASE QUERY (unchanged)
+//     let baseQuery = `
+//       SELECT
+//         t.TxnID,
+//         t.TxnNo,
+//         mt.tableid AS TableID,
+//         mt.table_name,
+//         mo.outletid,
+//         mo.outlet_name,
+//         d.department_name,
+//         t.CustomerName,
+//         t.isHomeDelivery,
+//         t.isPickup,
+//         (t.GrossAmt + COALESCE((SELECT SUM(ts.tipAmount) FROM TrnSettlement ts WHERE ts.OrderNo = t.TxnNo AND ts.isSettled = 1), 0)) AS SettleAmt,
+//         COALESCE((SELECT SUM(ts.tipAmount) FROM TrnSettlement ts WHERE ts.OrderNo = t.TxnNo AND ts.isSettled = 1), 0) AS tipAmount,
+//         t.GrossAmt AS billAmount,
+//         t.Amount AS TotalAmount,
+//         t.Discount,
+//         t.GrossAmt AS GrossAmount,
+//         t.CGST,
+//         t.SGST,
+//         t.RoundOFF,
+//         t.RevKOT AS RevAmt,
+//         t.PAX,
+//         t.IGST,
+//         t.ServiceCharge_Amount,
+//         t.DiscountType,
+//         t.DiscPer,
+//         t.TxnDatetime,
+//         t.BilledDate,
+//         t.HandOverEmpID,
+//         t.DayEndEmpID,
+//         t.MobileNo,
+//         t.Address,
+//         t.Landmark,
+//         t.Steward AS Captain,
+//         t.UserId,
+//         u.username AS UserName,
+//         COALESCE(w.Water, 0) AS Water,
+//         ${paymentColumns},
+//         GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) AS KOTNo,
+//         COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') AS RevKOTNo,
+//         GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) AS NCKOT,
+//         t.NCPurpose,
+//         t.NCName,
+//         (SELECT GROUP_CONCAT(CONCAT(ts.PaymentType, ':', ts.Amount)) FROM TrnSettlement ts WHERE ts.OrderNo = t.TxnNo AND ts.isSettled = 1) AS Settlements,
+//         GROUP_CONCAT(DISTINCT s.PaymentType) AS PaymentType,
+//         t.isSetteled,
+//         t.isBilled,
+//         t.isreversebill,
+//         t.isCancelled,
+//         COALESCE(SUM(td.Qty), 0) AS TotalItems
+//       FROM TAxnTrnbill t
+//       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
+//       LEFT JOIN mst_users u ON t.UserId = u.userid
+//       LEFT JOIN msttablemanagement mt ON t.TableID = mt.tableid
+//       LEFT JOIN mst_outlets mo ON mt.outletid = mo.outletid
+//       LEFT JOIN msttable_department d ON mt.departmentid = d.departmentid
+//       LEFT JOIN (
+//         SELECT OrderNo, PaymentType, SUM(Amount) AS Amount, SUM(COALESCE(TipAmount,0)) AS TipAmount
+//         FROM TrnSettlement
+//         WHERE isSettled = 1
+//         GROUP BY OrderNo, PaymentType
+//       ) s ON CAST(s.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR) OR CAST(s.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
+//       LEFT JOIN (
+//         SELECT d.TxnID,
+//           SUM(CASE WHEN LOWER(i.item_name) LIKE '%water%' THEN d.RuntimeRate * d.Qty ELSE 0 END) AS Water
+//         FROM TAxnTrnbilldetails d
+//         JOIN mstrestmenu i ON d.ItemID = i.restitemid
+//         GROUP BY d.TxnID
+//       ) w ON w.TxnID = t.TxnID
+//       WHERE t.isCancelled = 0 AND t.isBilled = 1
+//     `;
 
-        // Employee IDs
-        handOverEmpID: row.HandOverEmpID,
-        dayEndEmpID: row.DayEndEmpID,
-      };
+//     // CASE‑WISE FILTERING
+//     let whereConditions = [];
+//     let havingConditions = [];
 
-      // === ATTACH DYNAMIC PAYMENT COLUMNS AS TOP‑LEVEL PROPERTIES ===
-      // This is the key fix: frontend `renderBillSummarySection` will see keys like `Cash`, `Card`, `GPay`
-      paymentTypes.forEach(pt => {
-        const colName = pt.PaymentType;
-        order[colName] = Number(row[colName] || 0);
-      });
+//     switch (caseType) {
+//       case 'reverseKOTs':
+//         whereConditions.push('t.isreversebill = 1');
+//         break;
+//       case 'ncKOT':
+//         havingConditions.push(`NCKOT IS NOT NULL AND NCKOT != ""`);
+//         break;
+//       case 'creditSummary':
+//         whereConditions.push(`EXISTS (SELECT 1 FROM TrnSettlement s WHERE s.OrderNo = t.TxnNo AND s.PaymentType LIKE '%credit%' AND s.isSettled = 1)`);
+//         break;
+//       case 'discountSummary':
+//         whereConditions.push('t.Discount > 0');
+//         break;
+//       case 'billSummary':
+//       default:
+//         whereConditions.push('t.isBilled = 1');
+//         break;
+//     }
 
-      // Also keep a `payments` object for any other part of the app that expects it
-      order.payments = {};
-      paymentTypes.forEach(pt => {
-        order.payments[pt.PaymentType] = order[pt.PaymentType];
-      });
+//     if (whereConditions.length) baseQuery += ` AND ${whereConditions.join(' AND ')}`;
+//     baseQuery += ` AND DATE(t.TxnDatetime) BETWEEN ? AND ?`;
+//     baseQuery += ` GROUP BY t.TxnID`;
+//     if (havingConditions.length) baseQuery += ` HAVING ${havingConditions.join(' AND ')}`;
+//     baseQuery += ` ORDER BY t.TxnDatetime DESC`;
 
-      return order;
-    });
+//     const params = [startDate, endDate];
 
-    // Summary (unchanged)
-    const summary = {
-      totalOrders: orders.length,
-      totalSales: orders.reduce((sum, o) => sum + (o.amount || 0), 0),
-      totalSettlement: orders.reduce((sum, o) => sum + (o.settleAmount || 0), 0),
-      totalDiscount: orders.reduce((sum, o) => sum + (o.discount || 0), 0),
-      totalTip: orders.reduce((sum, o) => sum + (o.tipAmount || 0), 0),
-    };
+//     console.log('📄 Final SQL Query:\n', baseQuery);
+//     console.log('📥 Query parameters:', params);
 
-    return res.json({
-      success: true,
-      data: {
-        orders,
-        summary,
-        caseType,
-      },
-    });
-  } catch (error) {
-    console.error('REPORT API ERROR =>', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to fetch report data',
-      error: error.message,
-    });
-  }
-};
+//     console.log('⏳ Executing main query...');
+//     const [rows] = await db.execute(baseQuery, params);
+//     console.log('📊 Main query returned', rows.length, 'rows');
 
+//     if (rows.length > 0) {
+//       console.log('🔎 Sample row (first):', JSON.stringify(rows[0], null, 2));
+//     } else {
+//       console.log('⚠️ No rows found – check date range and caseType conditions.');
+//     }
+
+//     // FORMAT RESPONSE – attach dynamic payment columns
+//     console.log('🗺️ Mapping rows to orders...');
+//     const orders = rows.map(row => {
+//       const order = {
+//         orderNo: row.TxnNo,
+//         billNo: row.TxnNo,
+//         kotNo: row.KOTNo || '',
+//         revKotNo: row.RevKOTNo || '',
+//         revKot: row.isreversebill == 1,
+//         billDate: row.TxnDatetime ? new Date(row.TxnDatetime).toISOString().split('T')[0] : '',
+//         date: row.TxnDatetime,
+//         customerName: row.CustomerName || 'N/A',
+//         tableName: row.table_name || '',
+//         outletName: row.outlet_name || '',
+//         departmentName: row.department_name || '',
+//         captain: row.Captain || 'N/A',
+//         waiter: row.Captain || 'Unknown',
+//         user: row.UserName || 'N/A',
+//         pax: Number(row.PAX || 0),
+//         mobile: row.MobileNo || 'N/A',
+//         address: row.Address || 'N/A',
+//         landmark: row.Landmark || '',
+//         orderType: row.isHomeDelivery ? 'Home Delivery' : (row.isPickup ? 'Pickup' : 'Dine-in'),
+//         settleAmount: Number(row.SettleAmt || 0),
+//         tipAmount: Number(row.tipAmount || 0),
+//         billAmount: Number(row.billAmount || 0),
+//         netAmount: Number(row.TotalAmount || 0),
+//         taxbleAmount: Number(row.CGST || 0) + Number(row.SGST || 0) + Number(row.IGST || 0),
+//         discount: Number(row.Discount || 0),
+//         cgst: Number(row.CGST || 0),
+//         sgst: Number(row.SGST || 0),
+//         igst: Number(row.IGST || 0),
+//         roundOff: Number(row.RoundOFF || 0),
+//         grossAmount: Number(row.GrossAmount || 0),
+//         revAmt: Number(row.RevAmt || 0),
+//         serviceCharge: Number(row.ServiceCharge_Amount || 0),
+//         serviceCharge_Amount: Number(row.ServiceCharge_Amount || 0),
+//         water: Number(row.Water || 0),
+//         discountType: row.DiscountType,
+//         discPer: row.DiscPer,
+//         itemsCount: Number(row.TotalItems || 0),
+//         paymentMode: row.PaymentType || 'Cash',
+//         isHomeDelivery: row.isHomeDelivery,
+//         isPickup: row.isPickup,
+//         isCancelled: row.isCancelled,
+//         reverseBill: row.isreversebill,
+//         isBilled: row.isBilled,
+//         isSettled: row.isSetteled,
+//         ncKot: row.NCKOT || '',
+//         ncPurpose: row.NCPurpose || '',
+//         ncName: row.NCName || '',
+//         handOverEmpID: row.HandOverEmpID,
+//         dayEndEmpID: row.DayEndEmpID,
+//       };
+
+//       // Attach dynamic payment columns
+//       paymentTypes.forEach(pt => {
+//         const colName = pt.PaymentType;
+//         order[colName] = Number(row[colName] || 0);
+//       });
+
+//       // payments object (compatibility)
+//       order.payments = {};
+//       paymentTypes.forEach(pt => {
+//         order.payments[pt.PaymentType] = order[pt.PaymentType];
+//       });
+
+//       return order;
+//     });
+
+//     console.log('✅ Mapped orders count:', orders.length);
+//     if (orders.length > 0) {
+//       console.log('🧾 Sample mapped order:', JSON.stringify(orders[0], null, 2));
+//     }
+
+//     // Summary (using netAmount)
+//     const summary = {
+//       totalOrders: orders.length,
+//       totalSales: orders.reduce((sum, o) => sum + (o.netAmount || 0), 0),
+//       totalSettlement: orders.reduce((sum, o) => sum + (o.settleAmount || 0), 0),
+//       totalDiscount: orders.reduce((sum, o) => sum + (o.discount || 0), 0),
+//       totalTip: orders.reduce((sum, o) => sum + (o.tipAmount || 0), 0),
+//     };
+//     console.log('📦 Summary:', summary);
+
+//     console.log('✅ Sending success response');
+//     return res.json({
+//       success: true,
+//       data: {
+//         orders,
+//         summary,
+//         caseType,
+//       },
+//     });
+//   } catch (error) {
+//     console.error('❌ REPORT API ERROR:', error);
+//     console.error('Stack trace:', error.stack);
+//     return res.status(500).json({
+//       success: false,
+//       message: 'Failed to fetch report data',
+//       error: error.message,
+//     });
+//   }
+// };
 const getDuplicateBill = async (req, res) => {
   try {
     const { billNo, outletId } = req.query;
@@ -476,7 +696,8 @@ const getDuplicateBill = async (req, res) => {
     gstNo: bill.trn_gstno || '',
     fssaiNo: bill.fssai_no || '',
     phone: bill.phone || '',
-    billDate: bill.TxnDatetime
+    billDate: bill.TxnDatetime,
+    BilledDate: bill.BilledDate,
   }
 };
 
@@ -505,4 +726,123 @@ const getDuplicateBill = async (req, res) => {
     });
   }
 };
-module.exports = { getReportData, getDuplicateBill };
+
+const getDailySummary = async (req, res) => {
+  try {
+    console.log('📊 DAILY SUMMARY ENDPOINT');
+    const todayStr = formatMySQLDate(new Date()).split(' ')[0];
+    const startDate = req.query.start || todayStr;
+    const endDate = req.query.end || todayStr;
+    
+    // 🔹 Get outletid from query or user context
+    const outletid = req.query.outletid || req.user?.outletid;
+
+    console.log(`📅 startDate: ${startDate}, endDate: ${endDate}, outletid: ${outletid}`);
+
+    // 1️⃣ Call stored procedure (unchanged)
+    const [results] = await db.execute(
+      'CALL sp_get_daily_summary(?, ?)',
+      [startDate, endDate]
+    );
+
+    const summaryRows = results[0] || [];
+    const paymentTypesResult = results[1] || [];
+    let paymentTypes = paymentTypesResult.map(p => p.PaymentType);
+
+    // 2️⃣ ✅ Sort paymentTypes by sequence (if outletid available)
+    if (outletid) {
+      try {
+        // Fetch ordered mode names from payment_modes
+        const [modes] = await db.query(
+          `SELECT pt.mode_name
+           FROM payment_modes pm
+           JOIN payment_types pt ON pm.paymenttypeid = pt.paymenttypeid
+           WHERE pm.outletid = ? AND pm.is_active = 1
+           ORDER BY pm.sequence ASC`,
+          [outletid]
+        );
+        const orderedNames = modes.map(m => m.mode_name);
+
+        // Sort paymentTypes according to orderedNames
+        paymentTypes.sort((a, b) => {
+          const idxA = orderedNames.indexOf(a);
+          const idxB = orderedNames.indexOf(b);
+          if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+          if (idxA === -1) return 1;
+          if (idxB === -1) return -1;
+          return idxA - idxB;
+        });
+
+        console.log('🔹 Sorted payment types by sequence:', paymentTypes);
+      } catch (err) {
+        console.warn('⚠️ Failed to fetch ordered payment modes, using default order:', err.message);
+      }
+    } else {
+      console.warn('⚠️ outletid not provided – payment types will not be sorted by sequence');
+    }
+
+    // 3️⃣ Compute grand totals (same as before – uses sorted paymentTypes)
+    const grandTotals = summaryRows.reduce(
+      (acc, row) => {
+        acc.TotalBills += row.TotalBills || 0;
+        acc.TotalAmount += row.TotalAmount || 0;
+        acc.GrossAmount += row.GrossAmount || 0;
+        acc.Discount += row.Discount || 0;
+        acc.TaxableValue += row.TaxableValue || 0;
+        acc.CGST += row.CGST || 0;
+        acc.SGST += row.SGST || 0;
+        acc.RoundOFF += row.RoundOFF || 0;
+        acc.RevAmt += row.RevAmt || 0;
+        acc.Water += row.Water || 0;
+        acc.TotalItems += row.TotalItems || 0;
+        acc.TipAmount += row.TipAmount || 0;
+        acc.SettlementAmount += row.SettlementAmount || 0;
+
+        paymentTypes.forEach((type) => {
+          if (row[type] !== undefined) {
+            acc[type] = (acc[type] || 0) + row[type];
+          }
+        });
+
+        return acc;
+      },
+      {
+        TotalBills: 0,
+        TotalAmount: 0,
+        GrossAmount: 0,
+        Discount: 0,
+        TaxableValue: 0,
+        CGST: 0,
+        SGST: 0,
+        RoundOFF: 0,
+        RevAmt: 0,
+        Water: 0,
+        TotalItems: 0,
+        TipAmount: 0,
+        SettlementAmount: 0,
+      }
+    );
+
+    console.log('📦 Grand totals:', grandTotals);
+
+    return res.json({
+      success: true,
+      data: {
+        summaryType: 'dailySummary',
+        rows: summaryRows,
+        grandTotals,
+        paymentTypes,   // ✅ sorted by sequence
+      },
+    });
+  } catch (error) {
+    console.error('❌ DAILY SUMMARY ERROR:', error);
+    console.error('Stack trace:', error.stack);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch daily summary',
+      error: error.message,
+    });
+  }
+};
+
+module.exports = {  getDuplicateBill, getDailySummary };

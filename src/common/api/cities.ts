@@ -54,7 +54,7 @@ const CityService = {
   /**
    * Get all cities with optional search
    */
-list: (params?: { q?: string; stateId?: number }): Promise<ApiResponse<City[]>> =>
+  list: (params?: { q?: string; stateId?: number }): Promise<ApiResponse<City[]>> =>
   HttpClient.get<ApiResponse<City[]>>('/cities', { params }),
 
   /**

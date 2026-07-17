@@ -145,4 +145,53 @@ exports.getShiftTypes = async (req, res) => {
   }
 };
 
+exports.getDepartmentSales = async (req, res) => {
+  try {
+    const { curr_Date, hotelId, outletId } = req.query;
+
+    if (!curr_Date || !hotelId || !outletId) {
+      return res.status(400).json({
+        success: false,
+        message: "curr_Date, hotelId and outletId are required."
+      });
+    }
+
+    const [result] = await db.query(
+      "CALL sp_DepartmentSalesDashboard(?, ?, ?)",
+      [curr_Date, hotelId, outletId]
+    );
+
+    const rows = result[0];
+
+    const totals = rows.reduce(
+      (acc, item) => {
+        acc.kot_sale += Number(item.kot_sale);
+        acc.billed_sale += Number(item.billed_sale);
+        acc.total_sale += Number(item.total_sale);
+        return acc;
+      },
+      {
+        kot_sale: 0,
+        billed_sale: 0,
+        total_sale: 0
+      }
+    );
+
+    return res.json({
+      success: true,
+      totals,
+      data: rows
+    });
+
+  } catch (error) {
+    console.error("Department Sales Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message
+    });
+  }
+};
+
 module.exports = exports;

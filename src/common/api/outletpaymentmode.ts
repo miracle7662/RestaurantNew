@@ -33,7 +33,7 @@ export interface PaymentTypeInfo {
 /** List params for payment modes */
 export interface PaymentModeListParams {
   q?: string
- outletid?: string | number   // ✅ allow both
+  outletid?: string
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -52,7 +52,6 @@ const OutletPaymentModeService = {
   list: (params?: PaymentModeListParams): Promise<ApiResponse<PaymentModeData[]>> =>
     HttpClient.get<ApiResponse<PaymentModeData[]>>('/payment-modes', { params }),
 
- 
   /**
    * Create a new outlet payment mode
    */

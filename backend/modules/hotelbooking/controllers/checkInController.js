@@ -112,7 +112,7 @@ exports.getCheckins = async (req, res) => {
 
         const checkins = result[0] || [];
 
-        // ✅ सही मैपिंग - सिर्फ वही फील्ड्स जो SP में मौजूद हैं
+        
        const formattedCheckins = checkins.map(checkin => ({
     ...checkin,
     detail_checkin_datetime: formatDateTime(checkin.detail_checkin_datetime),   // ✅ formatDate → formatDateTime

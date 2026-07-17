@@ -76,14 +76,14 @@ const getDayendData = async (req, res) => {
         u.username AS UserName,
 
         -- ==================================================
-        -- WATER AMOUNT
+        -- WAITER AMOUNT
         -- ==================================================
 
         (
           SELECT COALESCE(
             SUM(
               CASE
-                WHEN LOWER(i.item_name) LIKE '%water%'
+                WHEN LOWER(i.item_name) LIKE '%waiter%'
                 THEN d.RuntimeRate * d.Qty
                 ELSE 0
               END
@@ -94,7 +94,24 @@ const getDayendData = async (req, res) => {
           JOIN mstrestmenu i
             ON d.ItemID = i.restitemid
           WHERE d.TxnID = t.TxnID
-        ) AS Water,
+        ) AS Waiter,
+
+        -- ==================================================
+        -- CREDIT CUSTOMER NAME
+        -- ==================================================
+
+        (
+          SELECT GROUP_CONCAT(DISTINCT cs.customerName SEPARATOR ', ')
+          FROM TrnSettlement cs
+          WHERE (
+                  CAST(cs.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
+                  OR CAST(cs.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
+                )
+            AND cs.isSettled = 1
+            AND LOWER(cs.PaymentType) = 'credit'
+            AND cs.customerName IS NOT NULL
+            AND cs.customerName != ''
+        ) AS CreditName,
 
         -- ==================================================
         -- KOT DETAILS
@@ -314,47 +331,32 @@ const getDayendData = async (req, res) => {
       // PAYMENT BREAKDOWN
       // ====================================================
 
-  const payments = {};
-
-// Settlement format example:
-// Cash:500,Card:200,UPI:300
+const payments = {};
+let tipAdded = false;
 
 if (row.Settlements) {
+  const settlements = row.Settlements.split(',');
 
-  const settlements = row.Settlements
-    .split(',');
-
-  settlements.forEach((settlement, index) => {
-
-    const [paymentType, amount] =
-      settlement.split(':');
+  settlements.forEach((settlement) => {
+    const [paymentType, amount] = settlement.split(':');
 
     if (paymentType) {
+      let finalAmount = Number(amount || 0);
 
-      let finalAmount = Number(
-        amount || 0
-      );
-
-      // Add tip amount only once
-      // and only in non-cash payment mode
+      // Add tip only once to the first non-cash payment mode
       if (
-        index === 0 &&
-        paymentType.trim().toLowerCase() !== 'cash'
+        !tipAdded &&
+        paymentType.trim().toLowerCase() !== "cash"
       ) {
-
-        finalAmount += Number(
-          row.TipAmountTotal || 0
-        );
-
+        finalAmount += Number(row.TipAmountTotal || 0);
+        tipAdded = true;
       }
 
-      payments[paymentType.trim()] =
-        finalAmount;
-
+      payments[paymentType.trim()] = finalAmount;
     }
-
   });
 
+  // If all payments are Cash, don't add tip to Cash
 }
       return {
 
@@ -420,9 +422,11 @@ if (row.Settlements) {
           row.RevAmt || 0
         ),
 
-        water: Number(
-          row.Water || 0
+        waiters: Number(
+          row.Waiter || 0
         ),
+
+        creditName: row.CreditName || '', 
 
         taxableValue: Number(row.TaxableValue || 0),
 
@@ -1104,23 +1108,31 @@ const getPaymentSummaryData = async (businessDate, dayEndEmpID) => {
   return rows;
 };
 
+// Backend change (already implemented)
 const getCreditSummaryData = async (businessDate, dayEndEmpID) => {
   const query = `
     SELECT 
-      COALESCE(t.NCName, 'Walk-in Credit') as customerName,
+      t.TxnNo,
+      t.table_name,
+      COALESCE(cs.customerName, 'Walk-in Credit') as customerName,
       SUM(s.Amount) as creditAmount,
       COUNT(DISTINCT t.TxnNo) as billCount
     FROM TAxnTrnbill t
-    LEFT JOIN TrnSettlement s ON s.OrderNo = t.TxnNo 
+    LEFT JOIN TrnSettlement s 
+      ON (s.OrderNo = t.TxnNo OR s.OrderNo = t.orderNo)
       AND LOWER(s.PaymentType) LIKE '%credit%' 
       AND s.isSettled = 1
+    LEFT JOIN TrnSettlement cs 
+      ON (cs.OrderNo = t.TxnNo OR cs.OrderNo = t.orderNo)
+      AND LOWER(cs.PaymentType) = 'credit' 
+      AND cs.isSettled = 1
     WHERE t.isDayEnd = 1 
       AND t.DayEndEmpID = ?
-      AND t.TxnDatetime= ?
+      AND DATE(t.TxnDatetime) = ?
       AND t.isCancelled = 0
-    GROUP BY t.NCName
+    GROUP BY t.TxnNo, t.table_name, cs.customerName
     HAVING creditAmount > 0
-    ORDER BY creditAmount DESC
+    ORDER BY t.TxnNo ASC
   `;
   const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
   return rows;
@@ -1756,7 +1768,8 @@ const getBackDayendData = async (req, res) => {
     // Main query - payment type values are directly embedded (safe because they come from DB)
     // Date parameters use placeholders
     const query = `
-     SELECT
+      SELECT
+
         t.TxnID,
         t.TxnNo,
         t.TableID,
@@ -1771,13 +1784,17 @@ const getBackDayendData = async (req, res) => {
         t.RoundOFF,
         t.RevKOT AS RevAmt,
         t.TxnDatetime,
+        t.TaxableValue,
+        t.BilledDate,
         t.Steward AS Captain,
         t.UserId,
-        t.BilledDate,
-        t.TaxableValue,
+
         u.username AS UserName,
-        
+
+        -- ==================================================
         -- WATER AMOUNT
+        -- ==================================================
+
         (
           SELECT COALESCE(
             SUM(
@@ -1794,34 +1811,60 @@ const getBackDayendData = async (req, res) => {
             ON d.ItemID = i.restitemid
           WHERE d.TxnID = t.TxnID
         ) AS Water,
-        
+
+         -- ==================================================
+        -- CREDIT CUSTOMER NAME
+        -- ==================================================
+
+        (
+          SELECT GROUP_CONCAT(DISTINCT cs.customerName SEPARATOR ', ')
+          FROM TrnSettlement cs
+          WHERE (
+                  CAST(cs.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
+                  OR CAST(cs.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
+                )
+            AND cs.isSettled = 1
+            AND LOWER(cs.PaymentType) = 'credit'
+            AND cs.customerName IS NOT NULL
+            AND cs.customerName != ''
+        ) AS CreditName,
+
+        -- ==================================================
         -- KOT DETAILS
+        -- ==================================================
+
         GROUP_CONCAT(
           DISTINCT CASE
             WHEN td.Qty > 0
             THEN td.KOTNo
           END
         ) AS KOTNo,
-        
+
         COALESCE(
           GROUP_CONCAT(DISTINCT td.RevKOTNo),
           ''
         ) AS RevKOTNo,
-        
+
         GROUP_CONCAT(
           DISTINCT CASE
             WHEN td.isNCKOT = 1
             THEN td.KOTNo
           END
         ) AS NCKOT,
-        
+
         t.NCPurpose,
         t.NCName,
-        
+
+        -- ==================================================
         -- PAYMENT MODE COLUMNS
+        -- ==================================================
+
         ${paymentColumns},
-        
+
+        -- ==================================================
         -- PAYMENT DETAILS
+        -- ==================================================
+
         GROUP_CONCAT(
           DISTINCT CONCAT(
             s.PaymentType,
@@ -1829,20 +1872,27 @@ const getBackDayendData = async (req, res) => {
             s.Amount
           )
         ) AS Settlements,
-        
+
         GROUP_CONCAT(
           DISTINCT s.PaymentType
         ) AS PaymentType,
-        
+
+        -- ==================================================
         -- TIP AMOUNT
+        -- ==================================================
+
         COALESCE(
           SUM(
             DISTINCT COALESCE(s.TipAmount, 0)
           ),
           0
         ) AS TipAmountTotal,
-        
+
+        -- ==================================================
         -- SETTLEMENT AMOUNT
+        -- BILL TOTAL + TIP
+        -- ==================================================
+
         (
           COALESCE(t.Amount, 0)
           +
@@ -1853,56 +1903,105 @@ const getBackDayendData = async (req, res) => {
             0
           )
         ) AS SettlementAmountTotal,
-        
+
+        -- ==================================================
         -- STATUS
+        -- ==================================================
+
         t.isSetteled,
         t.isBilled,
         t.isreversebill,
         t.isCancelled,
         t.isDayEnd,
         t.DayEndEmpID,
-        
+
+        -- ==================================================
         -- TOTAL ITEMS
+        -- ==================================================
+
         COALESCE(
           SUM(td.Qty),
           0
         ) AS TotalItems
-        
+
       FROM TAxnTrnbill t
-      
+
+      -- ==================================================
+      -- BILL DETAILS
+      -- ==================================================
+
       LEFT JOIN TAxnTrnbilldetails td
         ON t.TxnID = td.TxnID
-      
+
+      -- ==================================================
+      -- USER DETAILS
+      -- ==================================================
+
       LEFT JOIN mst_users u
         ON t.UserId = u.userid
-      
+
+      -- ==================================================
+      -- AGGREGATED SETTLEMENTS
+      -- ==================================================
+
       LEFT JOIN (
+
         SELECT
+
           OrderNo,
           PaymentType,
+
           SUM(Amount) AS Amount,
-          SUM(COALESCE(TipAmount, 0)) AS TipAmount
+
+          SUM(
+            COALESCE(TipAmount, 0)
+          ) AS TipAmount
+
         FROM TrnSettlement
+
         WHERE isSettled = 1
-        GROUP BY OrderNo, PaymentType
+
+        GROUP BY
+          OrderNo,
+          PaymentType
+
       ) s
+
       ON (
         CAST(s.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
         OR CAST(s.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
       )
-      
-      WHERE (
+
+      -- ==================================================
+        -- FILTERS
+        -- ==================================================
+
+      WHERE t.isDayEnd = 1
+
+
+    AND (
     t.isSetteled = 1
     OR t.isreversebill = 1
 )
-      
-      -- SIMPLE DATE FILTER - Just use DATE() function
-      AND DATE(t.TxnDatetime) = ? 
-      
-      GROUP BY t.TxnID, t.TxnNo
-    ORDER BY
+
+      -- ==================================================
+      -- BUSINESS DATE FILTER (curr_date)
+      -- ==================================================
+
+      AND DATE(t.TxnDatetime) = ?
+
+      -- ==================================================
+      -- GROUP BY
+      -- ==================================================
+
+      GROUP BY
+        t.TxnID,
+        t.TxnNo
+
+      ORDER BY
         t.TxnNo asc
-  `;
+    `;
+ 
     
     console.log("Executing query with date:", targetDate);
     
@@ -1948,6 +2047,21 @@ LIMIT 10;
         });
       }
       
+      // ============================================================
+      // ADD TIP TO FIRST NON‑CASH PAYMENT (inserted without removing anything)
+      // ============================================================
+      const tipAmount = Number(row.TipAmountTotal || 0);
+      if (tipAmount > 0 && Object.keys(payments).length > 0) {
+        // Find the first payment key that is not 'cash' (case‑insensitive)
+        const nonCashKey = Object.keys(payments).find(
+          key => key.toLowerCase() !== 'cash'
+        );
+        if (nonCashKey) {
+          payments[nonCashKey] = (payments[nonCashKey] || 0) + tipAmount;
+        }
+      }
+      // ============================================================
+      
       return {
         txnId: row.TxnID,
         orderNo: row.TxnNo,
@@ -1968,6 +2082,7 @@ LIMIT 10;
         roundOff: Number(row.RoundOFF || 0),
         revAmt: Number(row.RevAmt || 0),
         water: Number(row.Water || 0),
+        creditName: row.CreditName || '', 
         tip: Number(row.TipAmountTotal || 0),
         settlementAmount: Number(row.SettlementAmountTotal || 0),
         paymentType: row.PaymentType || '',

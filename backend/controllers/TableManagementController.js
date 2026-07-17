@@ -41,6 +41,7 @@ exports.getAllTables = async (req, res) => {
       LEFT JOIN msttable_department d ON t.departmentid = d.departmentid
       LEFT JOIN mst_outlets o ON t.outletid = o.outletid
       LEFT JOIN msthotelmasters h ON t.hotelid = h.hotelid
+      WHERE t.status IN (0, 1)
     `;
     let params = [];
     let conditions = [];

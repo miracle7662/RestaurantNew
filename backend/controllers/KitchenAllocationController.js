@@ -5,8 +5,26 @@ const db = require('../config/db');
  */
 const getKitchenAllocation = async (req, res) => {
   try {
-    const { fromDate, toDate, hotelId, outletId, userId, departmentId, itemGroupId, kitchenMainGroupId } = req.query;
-    console.log('🧑‍🍳 KitchenAllocation params:', { fromDate, toDate, hotelId, outletId });
+    const {
+      fromDate,
+      toDate,
+      hotelId,
+      outletId,
+      userId,
+      departmentId,
+      itemGroupId,
+      kitchenMainGroupId,
+      orderTypeGroup,
+    } = req.query;
+
+    console.log('🧑‍🍳 KitchenAllocation params:', {
+      fromDate,
+      toDate,
+      hotelId,
+      outletId,
+      departmentId,
+      orderTypeGroup,
+    });
 
     if (!hotelId) {
       return res.status(400).json({ success: false, message: 'hotelId is required' });
@@ -64,10 +82,16 @@ const getKitchenAllocation = async (req, res) => {
       whereConditions += ' AND t.UserID = ?';
       params.push(userId);
     }
+
     if (departmentId) {
       whereConditions += ' AND t.DeptID = ?';
       params.push(departmentId);
     }
+
+    if (orderTypeGroup === 'takeaway') {
+      whereConditions += " AND t.Order_Type IN ('Pickup', 'Delivery')";
+    }
+
     if (itemGroupId) {
       whereConditions += ' AND m.item_group_id = ?';
       params.push(itemGroupId);
@@ -77,7 +101,7 @@ const getKitchenAllocation = async (req, res) => {
       params.push(kitchenMainGroupId);
     }
 
-    // Your original query with CTE (adapted to use dynamic WHERE)
+    // ✅ UPDATED QUERY: Added is_runtime_rate and SpecialInst
     const query = `
       WITH BillData AS (
         SELECT
@@ -102,7 +126,12 @@ const getKitchenAllocation = async (req, res) => {
             WHEN b.rn = 1 THEN IFNULL(b.Discount, 0)
             ELSE 0
           END
-        ) AS TotalDiscount
+        ) AS TotalDiscount,
+        -- ✅ NEW: Flag to indicate if this is a runtime rate item
+        -- This comes from mstrestmenu.is_runtime_rates (1 = dynamic/special instruction item)
+        MAX(is_runtime_rates) AS is_runtime_rates,
+        -- ✅ NEW: Special instructions from the transaction detail
+        MAX(b.SpecialInst) AS SpecialInst
       FROM BillData b
       LEFT JOIN mstrestmenu m ON m.restitemid = b.ItemID
       LEFT JOIN mst_Item_Group i ON i.item_groupid = m.item_group_id
@@ -121,7 +150,6 @@ const getKitchenAllocation = async (req, res) => {
     const [results] = await db.query(query, params);
 
     // Calculate overall total discount by summing the TotalDiscount column from the results
-    // (each transaction's discount is counted only once because of rn=1 condition)
     const overallTotalDiscount = results.reduce((sum, row) => sum + (row.TotalDiscount || 0), 0);
 
     res.status(200).json({
@@ -140,16 +168,26 @@ const getKitchenAllocation = async (req, res) => {
   }
 };
 
-
 /**
  * ✅ GET ITEM DETAILS (Filtered by KOTUsedDate with time)
+ * Shows the underlying bills/orders for a single item_no within the date range.
+ * Also supports orderTypeGroup='takeaway' so the eye-icon drilldown stays
+ * consistent with the Takeaway department filter above.
  */
 const getItemDetails = async (req, res) => {
   try {
     const { item_no } = req.params;
-    const { fromDate, toDate, hotelId, outletId } = req.query;
+    const { fromDate, toDate, hotelId, outletId, departmentId, orderTypeGroup } = req.query;
 
-    console.log('🔍 getItemDetails:', { item_no, fromDate, toDate, hotelId, outletId });
+    console.log('🔍 getItemDetails:', {
+      item_no,
+      fromDate,
+      toDate,
+      hotelId,
+      outletId,
+      departmentId,
+      orderTypeGroup,
+    });
 
     if (!item_no || !hotelId) {
       return res.status(400).json({
@@ -165,7 +203,7 @@ const getItemDetails = async (req, res) => {
         now.setHours(0, 0, 0, 0);
         return now.toISOString().slice(0, 19).replace('T', ' ');
       }
-      
+
       if (dateTime.includes(' ') || (dateTime.includes('T') && dateTime.split('T')[1].length > 0)) {
         let formatted = dateTime.replace('T', ' ');
         if (formatted.split(' ').length === 1) {
@@ -175,7 +213,7 @@ const getItemDetails = async (req, res) => {
         }
         return formatted;
       }
-      
+
       return `${dateTime} 00:00:00`;
     };
 
@@ -185,7 +223,7 @@ const getItemDetails = async (req, res) => {
         now.setHours(23, 59, 59, 999);
         return now.toISOString().slice(0, 19).replace('T', ' ');
       }
-      
+
       if (dateTime.includes(' ') || (dateTime.includes('T') && dateTime.split('T')[1].length > 0)) {
         let formatted = dateTime.replace('T', ' ');
         if (formatted.split(' ').length === 1) {
@@ -195,7 +233,7 @@ const getItemDetails = async (req, res) => {
         }
         return formatted;
       }
-      
+
       return `${dateTime} 23:59:59`;
     };
 
@@ -205,6 +243,7 @@ const getItemDetails = async (req, res) => {
     // ✅ Params with datetime
     const params = [item_no, item_no, startDateTime, endDateTime, hotelId];
 
+    // ✅ UPDATED QUERY: Added SpecialInst
     let query = `
       SELECT
         COALESCE(m.item_no, d.item_no) AS item_no,
@@ -214,7 +253,8 @@ const getItemDetails = async (req, res) => {
         d.KOTNo,
         d.KOTUsedDate AS TxnDatetime,
         t.table_name,
-        t.TableID
+        t.TableID,
+        d.SpecialInst  -- ✅ NEW: Special instructions from transaction detail
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
@@ -227,6 +267,15 @@ const getItemDetails = async (req, res) => {
     if (outletId) {
       query += ' AND t.outletid = ?';
       params.push(outletId);
+    }
+
+    if (departmentId) {
+      query += ' AND t.DeptID = ?';
+      params.push(departmentId);
+    }
+
+    if (orderTypeGroup === 'takeaway') {
+      query += " AND t.Order_Type IN ('Pickup', 'Delivery')";
     }
 
     query += ' ORDER BY d.KOTUsedDate DESC';
@@ -250,7 +299,6 @@ const getItemDetails = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   getKitchenAllocation,

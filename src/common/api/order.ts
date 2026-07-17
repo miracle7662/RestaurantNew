@@ -113,6 +113,7 @@ export interface BillHeader {
   outlet_name?: string
   orderNo?: string
   isBilled?: number
+  isSetteled?: number
 }
 
 /** Create bill payload */
