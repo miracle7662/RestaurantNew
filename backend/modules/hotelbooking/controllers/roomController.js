@@ -248,6 +248,7 @@ exports.addRoom = async (req, res) => {
             block_id,
             floor_id,
             hotelid,
+            outletid, 
             created_by_id,
         } = req.body;
 
@@ -312,50 +313,73 @@ exports.addRoom = async (req, res) => {
         const newRoomId = result.insertId;
         console.log(`✅ [addRoom] Room inserted successfully with room_id: ${newRoomId}`);
 
-        // ── Auto-create matching row in msttablemanagement ──
-        try {
-            console.log('🔗 [addRoom] Attempting to auto-create msttablemanagement entry for room_id:', newRoomId);
-            const [deptRows] = await db.execute(`
-                SELECT d.departmentid, d.department_name, d.outletid, o.hotelid
-                FROM msttable_department d
-                LEFT JOIN mst_outlets o ON d.outletid = o.outletid
-                WHERE d.department_name = 'Room Service'
-                LIMIT 1
-            `);
+      // ── Auto-create matching row in msttablemanagement ──
+try {
+    console.log('🔗 [addRoom] Attempting to auto-create msttablemanagement entry for room_id:', newRoomId);
 
-            if (deptRows.length === 0) {
-                console.warn(`⚠️ [addRoom] "Room Service" department not found; skipped msttablemanagement entry for room ${room_no}`);
-            } else {
-                const departmentId = deptRows[0].departmentid;
-                const departmentName = deptRows[0].department_name;
-                const outletId = deptRows[0].outletid;
-                const outletHotelId = deptRows[0].hotelid;
+    // Room creation outlet
+const outletId = outletid;
+console.log("Outlet ID:", outletId);
 
-                console.log(`📋 [addRoom] Found Room Service department: departmentId=${departmentId}, outletId=${outletId}, hotelId=${outletHotelId}`);
+    console.log('Outlet ID:', outletId);
+    console.log('=== Auto Create msttablemanagement Started ===');
+    console.log('Room ID:', newRoomId);
+    console.log('Room No:', room_no);
+    console.log('Hotel ID:', hotelId);
 
-                await db.execute(`
-                    INSERT INTO msttablemanagement (
-                        table_name, hotelid, outletid, marketid,
-                        departmentid, department_name, status, created_by_id, created_date
-                    ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `, [
-                    room_no,
-                    outletHotelId,
-                    outletId,
-                    1,                // marketid default
-                    departmentId,
-                    departmentName,
-                    0,                // 0 = Active
-                    created_by_id || userId,
-                    created_date
-                ]);
+  const [deptRows] = await db.execute(`
+    SELECT
+        d.departmentid,
+        d.department_name,
+        d.outletid AS restaurantOutletId
+    FROM msttable_department d
+    WHERE d.department_name = 'Room Service'
+    LIMIT 1
+`);
 
-                console.log(`✅ [addRoom] msttablemanagement entry created successfully for room_no: ${room_no}`);
-            }
-        } catch (linkErr) {
-            console.error('❌ [addRoom] Failed to auto-create linked msttablemanagement entry:', linkErr);
-            // Don't fail room creation
-        }
+    if (deptRows.length === 0) {
+        console.warn(`⚠️ [addRoom] "Room Service" department not found for outlet ${outletId}; skipped msttablemanagement entry for room ${room_no}`);
+    } else {
+       const departmentId = deptRows[0].departmentid;
+const departmentName = deptRows[0].department_name;
+
+console.log("Restaurant Outlet:", deptRows[0].restaurantOutletId);
+console.log("Lodging Outlet:", outletId);
+
+        console.log(
+            `📋 [addRoom] Found Room Service department: departmentId=${departmentId}, outletId=${outletId}, hotelId=${hotelId}`
+        );
+
+     await db.execute(`
+    INSERT INTO msttablemanagement (
+        table_name,
+        hotelid,
+        outletid,
+        marketid,
+        departmentid,
+        department_name,
+        status,
+        created_by_id,
+        created_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`, [
+    room_no,
+    hotelId,
+    outletId,      // Lodging outlet
+    1,
+    departmentId,  // Restaurant Room Service department
+    departmentName,
+    11,
+    created_by_id || userId,
+    created_date
+]);
+
+        console.log(`✅ [addRoom] msttablemanagement entry created successfully for room_no: ${room_no}`);
+    }
+} catch (linkErr) {
+    console.error('❌ [addRoom] Failed to auto-create linked msttablemanagement entry:', linkErr);
+    // Don't fail room creation
+}
 
         // Fetch the newly created room with joined names
         console.log(`📄 [addRoom] Fetching newly created room with id: ${newRoomId}`);

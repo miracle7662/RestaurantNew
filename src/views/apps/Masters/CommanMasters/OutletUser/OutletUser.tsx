@@ -220,47 +220,59 @@ const OutletUserList: React.FC = () => {
   };
 
   // ── Permission modal handlers ────────────────────────────────────────────
-  const handleOpenPermModal = async (outletUser: OutletUser) => {
-    setPermUserId(outletUser.userid!);
-    setPermUserName(outletUser.full_name || outletUser.username || '');
-    const hotelType = (outletUser as any).hotel_type || user?.hotel_type || 'restaurant';
-    setPermUserHotelType(hotelType);
-    setShowPermModal(true);
-    setPermLoading(true);
+const handleOpenPermModal = async (outletUser: OutletUser) => {
+  setPermUserId(outletUser.userid!);
+  setPermUserName(outletUser.full_name || outletUser.username || '');
+  const hotelType = (outletUser as any).hotel_type || user?.hotel_type || 'restaurant';
+  setPermUserHotelType(hotelType);
+  setShowPermModal(true);
+  setPermLoading(true);
 
-    try {
-      // 1. Fetch modules from backend based on hotel type
-      console.log('Sending hotelType:', hotelType);
-      const modules = await permissionService.getModulesByHotelType(hotelType);
-      console.log('Received modules:', modules);
-      setPermModules(modules);
+  try {
+    let modules: ModuleItem[] = [];
 
-      // 2. Initialize permission map with all modules set to false
-      const initialMap: PermMap = {};
-      modules.forEach(m => {
-        initialMap[m.module_name] = { can_view: false, can_create: false, can_edit: false, can_delete: false };
-      });
-
-      // 3. Fetch existing permissions and merge
-      const existing: UserPermission[] = await permissionService.getUserPermissions(outletUser.userid!);
-      const map = { ...initialMap };
-      existing.forEach(p => {
-        if (map[p.module_name]) {
-          map[p.module_name] = {
-            can_view: p.can_view === 1,
-            can_create: p.can_create === 1,
-            can_edit: p.can_edit === 1,
-            can_delete: p.can_delete === 1,
-          };
-        }
-      });
-      setModulePerms(map);
-    } catch (error) {
-      toast.error('Failed to load permissions');
-    } finally {
-      setPermLoading(false);
+    // Check if it's a combined type (e.g., "Lodging+Restaurant" or "Lodging + Restaurant")
+    if (hotelType.includes('+')) {
+      const types: string[] = hotelType.split('+').map((t: string) => t.trim().toLowerCase());
+      // Fetch modules for each type in parallel
+      const promises = types.map((t: string) => permissionService.getModulesByHotelType(t));
+      const results = await Promise.all(promises);
+      // Merge and deduplicate by moduleid (in case a module appears in both)
+      const moduleMap = new Map<number, ModuleItem>();
+      results.forEach((arr: ModuleItem[]) => arr.forEach((m: ModuleItem) => moduleMap.set(m.moduleid, m)));
+      modules = Array.from(moduleMap.values());
+    } else {
+      modules = await permissionService.getModulesByHotelType(hotelType);
     }
-  };
+
+    setPermModules(modules);
+
+    // Initialise permission map with all fetched modules set to false
+    const initialMap: PermMap = {};
+    modules.forEach((m: ModuleItem) => {
+      initialMap[m.module_name] = { can_view: false, can_create: false, can_edit: false, can_delete: false };
+    });
+
+    // Fetch existing permissions and merge
+    const existing: UserPermission[] = await permissionService.getUserPermissions(outletUser.userid!);
+    const map = { ...initialMap };
+    existing.forEach((p: UserPermission) => {
+      if (map[p.module_name]) {
+        map[p.module_name] = {
+          can_view: p.can_view === 1,
+          can_create: p.can_create === 1,
+          can_edit: p.can_edit === 1,
+          can_delete: p.can_delete === 1,
+        };
+      }
+    });
+    setModulePerms(map);
+  } catch (error) {
+    toast.error('Failed to load permissions');
+  } finally {
+    setPermLoading(false);
+  }
+};
 
   const handlePermChange = (
     moduleName: string,

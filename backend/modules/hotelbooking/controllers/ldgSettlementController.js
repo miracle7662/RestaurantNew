@@ -137,10 +137,10 @@ exports.createSettlement = async (req, res) => {
       !userid ||
       !PaymentTypeID ||
       !PaymentType ||
-      !Amount ||
+       Amount === undefined || Amount === null || 
       !HotelID ||
       !outletid ||
-      !total_amount ||
+      total_amount === undefined || total_amount === null || 
       !checkinid ||
       !checkout_id
     ) {
