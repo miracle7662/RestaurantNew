@@ -1,4 +1,4 @@
-// SettlementModal.tsx (FIXED VERSION)
+// SettlementModal.tsx (FIXED VERSION + auto-cash on ₹0 bill + excess/balance validation)
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Modal, Row, Col, Form, Button, Card } from 'react-bootstrap';
@@ -86,9 +86,18 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     }
   }, [isMixedPayment, grandTotal, selectedPaymentModes]);
 
-  const totalReceived = Object.values(paymentAmounts).reduce((sum, v) => sum + (Number(v) || 0), 0) + (tip || 0);
+  // ✅ ADDED: paymentModesTotal separated from tip, used for excess-amount validation
+  const paymentModesTotal = Object.values(paymentAmounts).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const totalReceived = paymentModesTotal + (tip || 0);
   const balance = grandTotal - totalReceived;
   const balanceDue = balance > 0 ? balance : 0;
+
+  // ✅ ADDED: Excess-amount check — only applies when bill (grandTotal) > 0.
+  // Table rule: ₹0 bill → any payment amount allowed (no "exceeds bill" block).
+  // ₹500 bill, ₹600 paid → blocked as "exceeds bill".
+ const excessAmount =
+  paymentModesTotal > grandTotal ? paymentModesTotal - grandTotal : 0;
+
   const [cashReceived, setCashReceived] = useState<number>(0);
 
   // NOTE: cashReceived initialization guarded via didInitForShowRef below.
@@ -174,74 +183,77 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
 
   // ✅ FIXED: handleSettle reads from refs so it always has fresh values
 const handleSettle = useCallback(async () => {
-    // Ensure cashReceived is initialized for this open cycle before settling
-    // (guards against any parent prop oscillation during the first render).
-    if (show && initialCashReceived !== undefined) {
-      setCashReceived((prev) => (prev === initialCashReceived ? prev : initialCashReceived));
+  if (show && initialCashReceived !== undefined) {
+    setCashReceived((prev) => (prev === initialCashReceived ? prev : initialCashReceived));
+  }
+
+  if (loading) return
+
+  const currentModes = selectedPaymentModesRef.current
+  const currentAmounts = paymentAmountsRef.current
+
+  // ✅ Balance due check (Bill=500, Payment=400 → blocked)
+  if (balanceDue > 0) {
+    toast.error(`Balance due: ₹${balanceDue.toFixed(2)}`)
+    return
+  }
+
+  // ✅ Excess amount check (Bill=500, Payment=600 → blocked). Skipped when bill is ₹0.
+  if (excessAmount > 0) {
+    toast.error(`Entered amount exceeds bill by ₹${excessAmount.toFixed(2)}`)
+    return
+  }
+
+  // Agar total 0 hai aur koi mode select nahi hua, to ek dummy/zero settlement bhej do
+  const modesToSettle = currentModes.length > 0
+    ? currentModes
+    : (grandTotal === 0 ? ['Cash'] : []); // fallback mode name — apni default mode ke naam se replace karo
+
+  if (modesToSettle.length === 0) {
+    toast.error('Please select a payment method');
+    return;
+  }
+
+  const settlements = modesToSettle.map((name) => {
+    const mode = outletPaymentModes.find((m) => m.mode_name === name)
+
+    return {
+      table_name: table_name || 'room',
+      PaymentTypeID: mode?.id,
+      PaymentType: name,
+      Amount: Number(currentAmounts[name] || 0), // 0 hi rahega jab total 0 ho
+      userid: (window as any)?.__hotel_userid,
+      HotelID: (window as any)?.__hotel_hotelid,
+      outletid: mode?.outletid,
+      checkinid: (window as any)?.__hotel_checkinid,
+      room_id: room_id ?? (window as any)?.__hotel_roomid,
+      room_name: checked_out_rooms ?? '',
+      received_amount: cashReceived || 0,
+      refund_amount: refundAmount,
+      TipAmount: tip || 0,
+      total_amount: grandTotal,
     }
+  })
 
-    if (loading) return
-
-    const currentModes = selectedPaymentModesRef.current
-    const currentAmounts = paymentAmountsRef.current
-
-    if (balanceDue > 0) {
-      toast.error(`Balance due: ₹${balanceDue.toFixed(2)}`)
-      return
-    }
-
-// Backend (ldgSettlementController) requires additional fields.
-    // We map what we can and rely on the parent to provide the rest.
-    // NOTE: window.__hotel_* globals are NOT a reliable contract; this is
-    // a temporary compile-time placeholder. Replace with proper props wiring
-    // in HotelBookingPanel when available.
-    const settlements = currentModes.map((name) => {
-      const mode = outletPaymentModes.find((m) => m.mode_name === name)
-
-      return {
-        table_name: table_name || 'room',
-
-        // Required by backend
-        PaymentTypeID: mode?.id,
-        PaymentType: name,
-        Amount: Number(currentAmounts[name] || 0),
-
-        userid: (window as any)?.__hotel_userid,
-        HotelID: (window as any)?.__hotel_hotelid,
-        outletid: mode?.outletid,
-
-        checkinid: (window as any)?.__hotel_checkinid,
-        
-        // FIX: use modal prop first; fallback to window global for backward compatibility.
-        room_id: room_id ?? (window as any)?.__hotel_roomid,
-
-        // Ensure backend gets room reference (ldgsettlement.room_name)
-        room_name: checked_out_rooms ?? '',
-
-        // Existing fields already used by backend insertData
-        received_amount: cashReceived || 0,
-        refund_amount: refundAmount,
-        TipAmount: tip || 0,
-        total_amount: grandTotal,
-      }
-    })
-
-    try {
-      await onSettle(settlements as any, tip)
-    } catch (err) {
-      toast.error('Settlement failed')
-    }
-  }, [
-    loading,
-    cashReceived,
-    grandTotal,
-    balanceDue,
-    tip,
-    table_name,
-    refundAmount,
-    onSettle,
-    outletPaymentModes
-  ]);
+  try {
+    await onSettle(settlements as any, tip)
+  } catch (err) {
+    toast.error('Settlement failed')
+  }
+}, [
+  loading,
+  cashReceived,
+  grandTotal,
+  balanceDue,
+  excessAmount,
+  tip,
+  table_name,
+  refundAmount,
+  onSettle,
+  outletPaymentModes,
+  room_id,
+  checked_out_rooms,
+]);
 
   // ✅ FIXED: Arrow keys update refs immediately (sync) + state (async)
   // This ensures Enter press right after arrow always settles the correct mode
@@ -375,10 +387,12 @@ const handleSettle = useCallback(async () => {
         setPaymentAmounts(newAmounts);
       }
     } else if (!initialIsMixed && initialSelectedModes.length === 0) {
+      // ✅ CHANGED: removed `grandTotal > 0` restriction so Cash auto-selects
+      // even when bill is ₹0.00 (previously only auto-selected for grandTotal > 0).
       const cashMode = Array.isArray(outletPaymentModes)
         ? outletPaymentModes.find(m => m.mode_name?.toLowerCase() === 'cash')
         : null;
-      if (cashMode && grandTotal > 0) {
+      if (cashMode) {
         setSelectedPaymentModes([cashMode.mode_name]);
         setPaymentAmounts({ [cashMode.mode_name]: grandTotal.toFixed(2) });
       }
@@ -542,6 +556,13 @@ const handleSettle = useCallback(async () => {
               </div>
             )}
 
+            {/* ✅ ADDED: Excess amount warning (Bill=500, Payment=600 case) */}
+            {excessAmount > 0 && (
+              <div className="alert alert-danger small py-2 mb-3">
+                Entered amount exceeds bill by ₹{excessAmount.toFixed(2)}
+              </div>
+            )}
+
             {/* Footer Summary Card */}
             <div className="mt-auto">
               <Card
@@ -629,7 +650,12 @@ const handleSettle = useCallback(async () => {
           variant="success"
           size="lg"
           onClick={handleSettle}
-          disabled={loading || balanceDue > 0 || selectedPaymentModes.length === 0}
+          disabled={
+            loading ||
+            balanceDue > 0 ||
+            excessAmount > 0 ||           // ✅ ADDED: block settle when payment exceeds bill
+            selectedPaymentModes.length === 0
+          }
           style={{ minWidth: '180px' }}
         >
           {loading ? (

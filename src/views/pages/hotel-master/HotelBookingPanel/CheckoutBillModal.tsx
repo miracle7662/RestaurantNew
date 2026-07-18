@@ -1097,7 +1097,7 @@ const normalizeLogoUrl = (logo: any): string | null => {
           className={`text-${addressAlign} mt-1`}
           style={{ fontSize: '10pt', fontWeight: 'bold' }}
         >
-          📍 {firstRow?.hotel_address || 'Nilay Inn, Near kannya prashala, Station Road.'}
+          📍 {firstRow?.hotel_address || ''}
         </div>
       )}
 
@@ -1107,7 +1107,7 @@ const normalizeLogoUrl = (logo: any): string | null => {
           className={`text-${contactAlign} mt-1`}
           style={{ fontSize: '10pt', fontWeight: 'bold', color: '#060000' }}
         >
-          📞 {firstRow?.phone || '9270271704'} &nbsp;|&nbsp; ✉ {firstRow?.email || 'Nilayinn17@gmail.com'} &nbsp;|&nbsp; 🌐 {firstRow?.website || 'www.grandviewhotel.com'}
+          📞 {firstRow?.phone || ''} &nbsp;|&nbsp; ✉ {firstRow?.email || ''} &nbsp;|&nbsp; 🌐 {firstRow?.website || ''}
         </div>
       )}
 
@@ -1117,7 +1117,7 @@ const normalizeLogoUrl = (logo: any): string | null => {
           className={`text-${contactAlign} mt-1`}
           style={{ fontSize: '10pt', fontWeight: 'bold', color: '#060000' }}
         >
-          📍 {firstRow?.trn_gstno || 'ljkhjghfgdsa76543'}
+          📍 {firstRow?.trn_gstno || ''}
         </div>
       )}
     </div>
@@ -1530,7 +1530,7 @@ const checkoutDisplay = checkoutDateTime ? formatDateTime(checkoutDateTime) : '-
 
 
 const renderSignatureSection = useCallback(() => {
-  const hotelName = billData[0]?.hotel_name || 'Hotel Ashwarya';
+  const hotelName = billData[0]?.hotel_name || '';
   return (
     <div style={{
       display: 'flex',
