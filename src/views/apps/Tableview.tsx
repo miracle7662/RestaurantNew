@@ -288,17 +288,29 @@ export default function App() {
     };
 
     const fetchDepartments = async () => {
-      try {
-        if (!user) {
-          throw new Error('User not authenticated');
-        }
-        const params = { hotelid: user?.hotelid };
-        const data = await TableDepartmentService.list(params);
-        setDepartments(data.data || data);
-      } catch (err: any) {
-        setError(err.message);
-      }
-    };
+  try {
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // 🚨 fail fast, same as Order.tsx
+    if (user.role_level === 'outlet_user' && !user.outletid) {
+      setError('No outlet assigned to this user.');
+      setDepartments([]);
+      return;
+    }
+
+    const params: { hotelid: number; outletid?: number } = { hotelid: user.hotelid };
+    if (user.role_level === 'outlet_user' && user.outletid) {
+      params.outletid = Number(user.outletid);
+    }
+
+    const data = await TableDepartmentService.list(params);
+    setDepartments(data.data || data);
+  } catch (err: any) {
+    setError(err.message);
+  }
+};
 
     const fetchData = async () => {
       setLoading(true);
