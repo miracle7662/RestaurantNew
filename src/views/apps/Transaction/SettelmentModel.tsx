@@ -6,6 +6,9 @@ import Customers from './Customers';
 import { Modal, Row, Col, Form, Button, Card } from 'react-bootstrap';
 import toast from 'react-hot-toast';
 import CustomerService from '@/common/api/customers';
+import CheckInService, { ActiveRoomCreditCheckin }  from '@/common/hotel/checkIn';
+import { useAuthContext } from "@/common";
+
 
 interface PaymentMode {
   id: number;
@@ -70,7 +73,8 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   const handleCustomerModalToggle = () => {
     setShowCustomerModal(prev => !prev); // ✅ FIXED: was setShowCustomerModalModal
   };
-
+  const { user } = useAuthContext();
+  const hotelId = user?.hotelid;
   const [isMixedPayment, setIsMixedPayment] = useState(initialIsMixed);
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>(initialSelectedModes);
   const [paymentAmounts, setPaymentAmounts] = useState<{ [key: string]: string }>(initialPaymentAmounts);
@@ -99,6 +103,62 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const customerInputRef = useRef<HTMLInputElement>(null);
+
+
+  const [roomCreditCheckins, setRoomCreditCheckins] = useState<ActiveRoomCreditCheckin[]>([]);
+const [selectedCheckinId, setSelectedCheckinId] = useState<number | null>(null);
+const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);   // ✅ NEW
+const [loadingCheckins, setLoadingCheckins] = useState(false);
+const selectedRoomDetail = roomCreditCheckins.find(r => r.room_id === selectedRoomId) || null;
+
+useEffect(() => {
+  const isRoomCreditSelected = selectedPaymentModes.some(
+    m => m.toLowerCase() === 'room credit'
+  );
+  if (!isRoomCreditSelected) {
+    setSelectedCheckinId(null);
+    setSelectedRoomId(null);          // ✅ reset bhi karo
+    return;
+  }
+
+  if (!hotelId) {
+    console.warn('⚠️ [RoomCredit] hotelId missing, skipping fetch');
+    return;
+  }
+
+  setLoadingCheckins(true);
+  CheckInService.getActiveRoomCreditCheckins({ 
+    hotelid: hotelId, 
+    room_no: table_name || undefined
+  })
+    .then((res) => {
+      console.log('✅ [RoomCredit] API response:', res);
+      if (res.success) {
+        setRoomCreditCheckins(res.data);
+
+        // ✅ NEW: auto-select first room + its checkin
+        if (res.data.length > 0) {
+          const first = res.data[0];
+          setSelectedRoomId(first.room_id);
+          setSelectedCheckinId(first.checkin_id);
+        } else {
+          setSelectedRoomId(null);
+          setSelectedCheckinId(null);
+        }
+      }
+    })
+    .catch((err) => {
+      console.error('❌ [RoomCredit] API error:', err);
+      toast.error('Failed to load active check-ins');
+    })
+    .finally(() => setLoadingCheckins(false));
+}, [selectedPaymentModes, table_name, hotelId]);
+
+
+const handleRoomSelect = (room: ActiveRoomCreditCheckin) => {
+  setSelectedRoomId(room.room_id);
+  setSelectedCheckinId(room.checkin_id);
+};
 
   // Reset customer data when Credit deselected or modal closed
   useEffect(() => {
@@ -488,7 +548,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   }, [customerId, customerMobile, customerName, isCreatingCustomer]);
 
   // handleSettle with customer creation
-  const handleSettle = useCallback(async () => {
+ const handleSettle = useCallback(async () => {
     if (loading || isCreatingCustomer) return;
 
     const currentModes = selectedPaymentModesRef.current;
@@ -497,13 +557,17 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     // Validate Credit requires customer
     const hasCredit = currentModes.some(mode => mode.toLowerCase() === 'credit');
     
+ const hasRoomCredit = currentModes.some(mode => mode.toLowerCase() === 'room credit');
+if (hasRoomCredit && (!selectedCheckinId || !selectedRoomId)) {
+  toast.error('Please select a room for Room Credit payment');
+  return;
+}
+
     // If credit mode, ensure customer exists
     let finalCustomerId = customerId;
     
     if (hasCredit) {
-      // If no customerId, try to create customer first
       if (!finalCustomerId) {
-        // Name is required, mobile is optional
         if (!customerName || customerName.trim() === '') {
           toast.error('Please enter customer name for Credit payment');
           return;
@@ -511,14 +575,12 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
         
         const newCustomerId = await createCustomerIfNotExists();
         if (!newCustomerId) {
-          // Error already shown in createCustomerIfNotExists
           return;
         }
         finalCustomerId = newCustomerId;
       }
     }
 
-    // Validate: Received amount must be >= Bill amount (including tip)
     if (cashReceived > 0 && cashReceived < grandTotal) {
       toast.error(`Received amount ₹${cashReceived} is less than bill ₹${grandTotal}`);
       return;
@@ -529,8 +591,6 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       return;
     }
 
-    // ✅ FIXED: Block settle when payment-mode amounts add up to MORE than the bill
-    // (e.g. bill ₹1500 but ₹2000 typed into payment mode amount fields)
     if (excessAmount > 0) {
       toast.error(`Entered amount exceeds bill by ₹${excessAmount.toFixed(2)}`);
       return;
@@ -556,14 +616,21 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
         };
       }
 
+      // ✅ NEW: Add checkinid to Room Credit payments only
+      if (name.toLowerCase() === 'room credit' && selectedCheckinId) {
+        return {
+          ...baseSettlement,
+          checkinid: selectedCheckinId,
+        };
+      }
+
       return baseSettlement;
     });
 
     try {
-
       console.log("=== Frontend Settlements ===");
-console.table(settlements);
-console.log("Tip:", tip);
+      console.table(settlements);
+      console.log("Tip:", tip);
       await onSettle(settlements, tip);
     } catch (err) {
       toast.error('Settlement failed');
@@ -571,7 +638,8 @@ console.log("Tip:", tip);
   }, [
     loading, isCreatingCustomer, customerId, customerMobile, customerName, 
     cashReceived, grandTotal, balanceDue, excessAmount, tip, table_name, receivedAmount, 
-    refundAmount, onSettle, createCustomerIfNotExists
+    refundAmount, onSettle, createCustomerIfNotExists,
+    selectedCheckinId  // ✅ NEW dependency
   ]);
 
   // ✅ FIXED: Arrow keys - check if customer dropdown is open
@@ -846,6 +914,51 @@ console.log("Tip:", tip);
                 ))}
               </div>
             )}
+
+        {selectedPaymentModes.includes('Room Credit') && (
+  <div className="mb-3 p-2 border rounded">
+    <div className="fw-bold small mb-2">Select Check-in for Room Credit</div>
+
+    {loadingCheckins ? (
+      <div className="text-muted small">Loading check-ins...</div>
+    ) : roomCreditCheckins.length === 0 ? (
+      <div className="text-muted small">No active check-ins found</div>
+    ) : (
+      <Row className="g-2">
+        {/* LEFT — Room dropdown */}
+        <Col xs={6}>
+          <Form.Select
+            size="sm"
+            value={selectedRoomId ?? ''}
+            onChange={(e) => {
+              const roomId = Number(e.target.value);
+              const room = roomCreditCheckins.find(r => r.room_id === roomId);
+              if (room) handleRoomSelect(room);
+            }}
+          >
+            <option value="" disabled>Select Room</option>
+            {roomCreditCheckins.map((r) => (
+              <option key={r.room_id} value={r.room_id}>
+                Room {r.room_no} ({r.reg_no})
+              </option>
+            ))}
+          </Form.Select>
+        </Col>
+
+        {/* RIGHT — Guest name of selected room */}
+        <Col xs={6}>
+          <div
+            className={`form-control form-control-sm text-center fw-bold ${
+              selectedRoomDetail ? 'bg-success-subtle border-success text-success' : 'text-muted'
+            }`}
+          >
+            {selectedRoomDetail ? selectedRoomDetail.guest_name : 'No room selected'}
+          </div>
+        </Col>
+      </Row>
+    )}
+  </div>
+)}
 
             {balanceDue > 0 && (
               <div className="alert alert-warning small py-2 mb-3">

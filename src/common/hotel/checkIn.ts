@@ -431,6 +431,14 @@ export interface DailySalesSummaryReportResponse {
   monthlySummary: MonthlySalesReport[];
 }
 
+export interface ActiveRoomCreditCheckin {
+  checkin_id: number;
+  reg_no: string;
+  room_id: number;
+  room_no: string;
+  guest_name: string;
+}
+
 // ============================================================================
 // SERVICE
 // ============================================================================
@@ -525,6 +533,13 @@ getDailySalesSummaryReport: (params: {
     "/checkins/daily-sales-summary-report",
     { params }
   ),
+
+  /**
+   * Get active check-ins available for Room Credit settlement (restaurant billing).
+   * Returns room count and guest names per checkin.
+   */
+  getActiveRoomCreditCheckins: (params: { hotelid: number; room_no?: string }): Promise<ApiResponse<ActiveRoomCreditCheckin[]>> =>
+  HttpClient.get<ApiResponse<ActiveRoomCreditCheckin[]>>('/checkins/active-room-credit', { params }),
   /**
    * Create a new checkin.
    */
@@ -561,6 +576,8 @@ getDailySalesSummaryReport: (params: {
   remove: (id: number): Promise<ApiResponse<null>> =>
     HttpClient.delete<ApiResponse<null>>(`/checkins/${id}`),
 };
+
+
 
 export default CheckInService;
 
