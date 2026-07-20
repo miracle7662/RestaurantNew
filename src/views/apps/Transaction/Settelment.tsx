@@ -1,4 +1,4 @@
-// EditSettlementPage.tsx
+ // EditSettlementPage.tsx
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   Button,
@@ -55,6 +55,8 @@ interface DuplicateBillData {
   restaurantName: string;
   outletName: string;
   billDate: string;
+  billTime: string;
+  billDateTime: string;
   
   // Hotel details
   address?: string;
@@ -74,7 +76,7 @@ interface BillItem {
   kotNo?: number;
   note?: string;
   modifier?: string;
-  isBilled?: number;
+  isSetteled?: number;
   alternativeItem?: string;
   variantId?: number;
   variantName?: string;
@@ -215,12 +217,19 @@ const EditSettlementPage: React.FC = () => {
         return;
       }
 
-      try {
-        const response = await OutletPaymentModeService.list({ outletid: selectedOutletId.toString() });
-        const data = response.data;
-        if (!Array.isArray(data)) {
-          throw new Error('Expected an array of payment modes');
+     try {
+      const response = await OutletPaymentModeService.list({ outletid: selectedOutletId.toString() });
+      let data = response.data || [];
+      
+      // ✅ Sort by sequence if available, otherwise by id (insertion order)
+      data = data.sort((a, b) => {
+        // If both have sequence and it's non-zero, use it
+        if (a.sequence && b.sequence) {
+          return a.sequence - b.sequence;
         }
+        // Fallback to id (ascending)
+        return (a.id || 0) - (b.id || 0);
+      });
         setOutletPaymentModes(data);
       } catch (err) {
         setOutletPaymentModes([]);
@@ -472,6 +481,15 @@ const billDataForPrintObj = {
         ...billData,
         taxCalc: numericTaxCalc,
         taxRates: computedTaxRates,
+
+         // ✅ Preserve both fields
+        TxnDatetime: billData.TxnDatetime || billData.billDate,
+        BilledDate: billData.BilledDate || billData.billTime,
+        
+        // ✅ For compatibility
+        billDate: billData.TxnDatetime || billData.billDate,
+        billTime: billData.BilledDate || billData.billTime,
+        billDateTime: billData.BilledDate || billData.billTime,
       };
 
       setDuplicateBillData(completeBillData);
@@ -495,7 +513,7 @@ const billDataForPrintObj = {
   const formatItemsForPrint = (items: BillItem[]) => {
     return items.map(item => ({
       ...item,
-      isBilled: 1,
+      isSetteled: 1,
       alternativeItem: item.NCName || '',
       modifier: item.modifier ? [item.modifier] : [],
       variantName: item.variantName,
@@ -751,8 +769,12 @@ const billDataForPrintObj = {
     restaurantName={duplicateBillData.restaurantName || user?.hotel_name}
     outletName={duplicateBillData.outletName || user?.outlet_name}
     billDate={duplicateBillData.billDate || selectedBillData.InsertDate}
+     // ✅ TIME from BilledDate
+    billTime={duplicateBillData.billDate || duplicateBillData.billTime || duplicateBillData.billDateTime || selectedBillData.InsertDate}
+    billDateTime={duplicateBillData.billDateTime || duplicateBillData.billDate || selectedBillData.InsertDate}
+
     billData={billDataForPrint}
-    isBilled={true}
+    isSettled={true}
     departmentName={duplicateBillData.departmentName}  // ✅ ADD THIS - pass department name
   />
 )}

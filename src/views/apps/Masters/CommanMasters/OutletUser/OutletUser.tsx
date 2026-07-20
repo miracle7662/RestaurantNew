@@ -5,7 +5,14 @@ import { useAuthContext } from '@/common';
 import outletUserService, { OutletUser, HotelAdmin } from '@/common/api/outletUser';
 import { fetchDesignation, fetchUserType, fetchOutlets, fetchShiftTypes, ShiftTypeItem, fetchWarehouses, WarehouseItem } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
+import permissionService, { UserPermission, SavePermissionItem, ModuleItem } from '@/common/api/permissions';
 
+type PermMap = Record<string, {
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+}>;
 
 const OutletUserList: React.FC = () => {
   const { user } = useAuthContext();
@@ -47,8 +54,17 @@ const OutletUserList: React.FC = () => {
   const [verifyMacIp, setVerifyMacIp] = useState<boolean>(false);
   const [status, setStatus] = useState<boolean>(true);
 
+  // ── Permission modal state ───────────────────────────────────────────────
+  const [showPermModal, setShowPermModal] = useState(false);
+  const [permUserId, setPermUserId] = useState<number | null>(null);
+  const [permUserName, setPermUserName] = useState<string>('');
+  const [, setPermUserHotelType] = useState<string | undefined>(undefined);
+  const [permLoading, setPermLoading] = useState(false);
+  const [permSaving, setPermSaving] = useState(false);
+  const [modulePerms, setModulePerms] = useState<PermMap>({});
+  const [permModules, setPermModules] = useState<ModuleItem[]>([]); // fetched from backend
+
   useEffect(() => {
-    // console.log('Current user in OutletUserList:', user);
     fetchOutletUsers();
     if (user?.role_level === 'superadmin' || user?.role_level === 'brand_admin') {
       fetchHotelAdmins();
@@ -58,15 +74,12 @@ const OutletUserList: React.FC = () => {
 
   const fetchMasterData = async () => {
     try {
-      // console.log('Fetching master data...');
       await fetchOutlets(user, setOutlets, setLoading);
-      // console.log('Fetched outlets:', outlets);
       fetchDesignation(setDesignations, setDesignationId);
       fetchUserType(setUserTypes, setUserTypeId);
       fetchShiftTypes(setShiftTypes, setShiftTime);
       fetchWarehouses(setWarehouses, setLoading);
     } catch (error) {
-      // console.error('Error fetching master data:', error);
       toast.error('Failed to fetch master data. Please check if the backend server is running.');
     }
   };
@@ -74,26 +87,22 @@ const OutletUserList: React.FC = () => {
   const fetchOutletUsers = async () => {
     try {
       setLoading(true);
-      // console.log('Fetching outlet users...');
       const params: any = {
         currentUserId: user?.userid,
         roleLevel: user?.role_level,
-        hotelid: user?.hotelid
+        hotelid: user?.hotelid,
       };
       if (user?.role_level === 'hotel_admin' && typeof user?.userid === 'number') {
         params.created_by_id = user.userid;
       }
       const response = await outletUserService.getOutletUsers(params);
-      // console.log('Outlet users response:', response);
       if (response && response.data) {
         const outletUsersOnly = response.data.filter((user: any) => user.role_level === 'outlet_user');
         setOutletUsers(outletUsersOnly);
       } else {
-        // console.error('Invalid response format:', response);
         toast.error('Invalid response from server');
       }
     } catch (error) {
-      // console.error('Error fetching outlet users:', error);
       toast.error('Failed to fetch outlet users. Please check if the backend server is running.');
     } finally {
       setLoading(false);
@@ -102,20 +111,15 @@ const OutletUserList: React.FC = () => {
 
   const fetchHotelAdmins = async () => {
     try {
-      // console.log('Fetching hotel admins...');
       const response = await outletUserService.getHotelAdmins({
         currentUserId: user?.userid,
         roleLevel: user?.role_level,
-        hotelid: user?.hotelid
+        hotelid: user?.hotelid,
       });
-      // console.log('Hotel admins response:', response);
       if (response && response.data) {
         setHotelAdmins(response.data);
-      } else {
-        // console.error('Invalid hotel admins response format:', response);
       }
     } catch (error) {
-      // console.error('Error fetching hotel admins:', error);
       toast.error('Failed to fetch hotel admins. Please check if the backend server is running.');
     }
   };
@@ -149,7 +153,6 @@ const OutletUserList: React.FC = () => {
     setModalType(type);
     setSelectedUser(user as OutletUser || null);
     setSelectedHotelAdmin(user as HotelAdmin || null);
-
     if (user && type === 'Edit Outlet User') {
       loadUserDataIntoForm(user as OutletUser);
     } else if (user && type === 'Edit Hotel Admin') {
@@ -157,7 +160,6 @@ const OutletUserList: React.FC = () => {
     } else {
       resetFormFields();
     }
-
     setShowModal(true);
   };
 
@@ -167,8 +169,8 @@ const OutletUserList: React.FC = () => {
     setFullName(user.full_name || '');
     setPhone(user.phone || '');
     setSelectedOutlet(user.outletid ? Number(user.outletid) : null);
-    setSelectedDesignation(user.designationid ? Number(user.designationid) : null);  // Convert to number if string
-    setSelectedUserType(user.usertypeid ? Number(user.usertypeid) : null);        // Convert to number if string
+    setSelectedDesignation(user.designationid ? Number(user.designationid) : null);
+    setSelectedUserType(user.usertypeid ? Number(user.usertypeid) : null);
     setShiftTime(user.shift_time || '');
     setMacAddress(user.mac_address || '');
     setAssignWarehouse(user.assign_warehouse || '');
@@ -208,88 +210,166 @@ const OutletUserList: React.FC = () => {
         toast.success('Outlet user deleted successfully!');
         fetchOutletUsers();
       } catch (error) {
-        // console.error('Error deleting outlet user:', error);
         toast.error('Failed to delete outlet user');
       }
     }
   };
 
-
   const handleOutletChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedOutlet(e.target.value ? Number(e.target.value) : null);
   };
 
-  const handleModalSubmit = async () => {
-    // console.log('Starting handleModalSubmit...', { modalType, user });
-    // console.log('Form data:', { username, email, password, fullName, selectedOutlet });
+  // ── Permission modal handlers ────────────────────────────────────────────
+const handleOpenPermModal = async (outletUser: OutletUser) => {
+  setPermUserId(outletUser.userid!);
+  setPermUserName(outletUser.full_name || outletUser.username || '');
+  const hotelType = (outletUser as any).hotel_type || user?.hotel_type || 'restaurant';
+  setPermUserHotelType(hotelType);
+  setShowPermModal(true);
+  setPermLoading(true);
 
+  try {
+    let modules: ModuleItem[] = [];
+
+    // Check if it's a combined type (e.g., "Lodging+Restaurant" or "Lodging + Restaurant")
+    if (hotelType.includes('+')) {
+      const types: string[] = hotelType.split('+').map((t: string) => t.trim().toLowerCase());
+      // Fetch modules for each type in parallel
+      const promises = types.map((t: string) => permissionService.getModulesByHotelType(t));
+      const results = await Promise.all(promises);
+      // Merge and deduplicate by moduleid (in case a module appears in both)
+      const moduleMap = new Map<number, ModuleItem>();
+      results.forEach((arr: ModuleItem[]) => arr.forEach((m: ModuleItem) => moduleMap.set(m.moduleid, m)));
+      modules = Array.from(moduleMap.values());
+    } else {
+      modules = await permissionService.getModulesByHotelType(hotelType);
+    }
+
+    setPermModules(modules);
+
+    // Initialise permission map with all fetched modules set to false
+    const initialMap: PermMap = {};
+    modules.forEach((m: ModuleItem) => {
+      initialMap[m.module_name] = { can_view: false, can_create: false, can_edit: false, can_delete: false };
+    });
+
+    // Fetch existing permissions and merge
+    const existing: UserPermission[] = await permissionService.getUserPermissions(outletUser.userid!);
+    const map = { ...initialMap };
+    existing.forEach((p: UserPermission) => {
+      if (map[p.module_name]) {
+        map[p.module_name] = {
+          can_view: p.can_view === 1,
+          can_create: p.can_create === 1,
+          can_edit: p.can_edit === 1,
+          can_delete: p.can_delete === 1,
+        };
+      }
+    });
+    setModulePerms(map);
+  } catch (error) {
+    toast.error('Failed to load permissions');
+  } finally {
+    setPermLoading(false);
+  }
+};
+
+  const handlePermChange = (
+    moduleName: string,
+    field: 'can_view' | 'can_create' | 'can_edit' | 'can_delete',
+    value: boolean
+  ) => {
+    setModulePerms(prev => ({
+      ...prev,
+      [moduleName]: {
+        ...prev[moduleName],
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleSavePermissions = async () => {
+    if (!permUserId) return;
+    setPermSaving(true);
+
+    const permissions: SavePermissionItem[] = permModules.map(m => ({
+      moduleid: m.moduleid,
+      can_view: modulePerms[m.module_name]?.can_view ? 1 : 0,
+      can_create: modulePerms[m.module_name]?.can_create ? 1 : 0,
+      can_edit: modulePerms[m.module_name]?.can_edit ? 1 : 0,
+      can_delete: modulePerms[m.module_name]?.can_delete ? 1 : 0,
+    }));
+
+    const success = await permissionService.saveUserPermissions(
+      permUserId,
+      permissions,
+      user?.id || 1
+    );
+
+    if (success) {
+      toast.success('Permissions saved successfully!');
+      setShowPermModal(false);
+    } else {
+      toast.error('Failed to save permissions');
+    }
+    setPermSaving(false);
+  };
+
+  // ── Form submit (unchanged) ──────────────────────────────────────────────
+  const handleModalSubmit = async () => {
     if (modalType === 'Edit Hotel Admin') {
       if (!fullName) {
         toast.error('Please enter full name');
-        // console.warn('Validation failed: Full name is missing');
         return;
       }
-
       const hotelAdminData: HotelAdmin = {
         full_name: fullName,
         phone,
         status: status ? 0 : 1,
       };
-
       try {
-        // console.log('Updating hotel admin:', { userid: selectedHotelAdmin?.userid, data: hotelAdminData });
         if (selectedHotelAdmin) {
-          const response = await outletUserService.updateHotelAdmin(selectedHotelAdmin.userid!, hotelAdminData);
-          console.log('Update hotel admin response:', response.data);
+          await outletUserService.updateHotelAdmin(selectedHotelAdmin.userid!, hotelAdminData);
           toast.success('Hotel admin updated successfully!');
         }
         fetchHotelAdmins();
         handleCloseModal();
       } catch (error: any) {
-        // console.error('Error updating hotel admin:', error, error.response?.data);
         toast.error(error.response?.data?.message || 'Failed to update hotel admin');
       }
     } else {
-      // Validate required fields
       if (!username || username.length < 3) {
         toast.error('Please enter a valid username (minimum 3 characters)');
-        // console.warn('Validation failed: Invalid username', { username });
         return;
       }
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         toast.error('Please enter a valid email address');
-        // console.warn('Validation failed: Invalid email', { email });
         return;
       }
       if (!password && modalType === 'Add Outlet User') {
         toast.error('Please enter a password');
-        // console.warn('Validation failed: Password is missing');
         return;
       }
       if (!fullName || fullName.length < 2) {
         toast.error('Please enter a valid full name (minimum 2 characters)');
-        // console.warn('Validation failed: Invalid full name', { fullName });
         return;
       }
       if (!selectedOutlet) {
         toast.error('Please select an outlet');
-        // console.warn('Validation failed: Outlet is not selected', { selectedOutlet });
         return;
       }
 
       const parentUserId = user?.id || 1;
       const createdById = user?.id || 1;
-      // console.log('Using parent_user_id:', parentUserId, 'created_by_id:', createdById);
       if (!parentUserId || !createdById) {
         toast.error('Unable to determine user identity. Please ensure you are logged in.');
-        // console.error('Validation failed: Invalid user identity', { user, parentUserId, createdById });
         return;
       }
 
       const userData: OutletUser = {
         username,
         email,
-        password: modalType === 'Add Outlet User' ? password : undefined,
+        password: modalType === 'Add Outlet User' ? password : (password && password.trim() !== '' ? password : undefined),
         full_name: fullName,
         phone,
         role_level: 'outlet_user',
@@ -317,27 +397,20 @@ const OutletUserList: React.FC = () => {
         created_by_id: createdById,
       };
 
-      // console.log('Submitting userData to backend:', JSON.stringify(userData, null, 2));
-
       try {
         if (modalType === 'Edit Outlet User' && selectedUser) {
-          const response = await outletUserService.updateOutletUser(selectedUser.userid!, userData);
-          console.log('Update response:', response.data);
+          await outletUserService.updateOutletUser(selectedUser.userid!, userData);
           toast.success('Outlet user updated successfully!');
         } else {
-          const response = await outletUserService.createOutletUser(userData);
-          console.log('Create response:', response.data);
+          await outletUserService.createOutletUser(userData);
           toast.success('Outlet user added successfully!');
         }
         fetchOutletUsers();
         handleCloseModal();
       } catch (error: any) {
-        // console.error('Full error object:', error);
-        // const status = error.response?.status;
         const errorData = error.response?.data || error.message;
         const errorMessage = errorData?.message || (modalType === 'Edit Outlet User' ? 'Failed to update outlet user' : 'Failed to add outlet user');
         const invalidOutletId = errorData?.invalidOutletId || [];
-        // console.log('Error details:', { status, message: errorMessage, invalidOutletId, sentOutletId: selectedOutlet, response: errorData });
         toast.error(`${errorMessage}${invalidOutletId.length > 0 ? ` (Invalid Outlet IDs: ${invalidOutletId.join(', ')})` : ''}`);
       }
     }
@@ -349,37 +422,30 @@ const OutletUserList: React.FC = () => {
 
   const combinedUserList = user?.role_level === 'hotel_admin'
     ? [
-      {
-        ...user,
-        full_name: user.full_name || user.username,
-        role_level: 'hotel_admin',
-        outlet_name: '-',
-        designation: '-',
-        user_type: '-',
-        status: user.status !== undefined ? user.status : 0,
-        is_admin_row: true,
-      },
-      ...outletUsers
-    ]
+        {
+          ...user,
+          full_name: user.full_name || user.username,
+          role_level: 'hotel_admin',
+          outlet_name: '-',
+          designation: '-',
+          user_type: '-',
+          status: user.status !== undefined ? user.status : 0,
+          is_admin_row: true,
+        },
+        ...outletUsers,
+      ]
     : outletUsers;
 
   return (
     <div className="m-1">
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h4>
-          {user?.role_level === 'hotel_admin' ? 'Outlet Users' : 'Outlet Users & Hotel Admins'}
-        </h4>
+        <h4>{user?.role_level === 'hotel_admin' ? 'Outlet Users' : 'Outlet Users & Hotel Admins'}</h4>
         <div>
           <div className="form-check form-check-inline">
             <input className="form-check-input" type="checkbox" id="showDeactivated" style={{ borderColor: '#333' }} />
-            <label className="form-check-label" htmlFor="showDeactivated">
-              Show Deactivated
-            </label>
+            <label className="form-check-label" htmlFor="showDeactivated">Show Deactivated</label>
           </div>
-          <button
-            className="btn btn-success"
-            onClick={() => handleShowModal('Add Outlet User')}
-          >
+          <button className="btn btn-success" onClick={() => handleShowModal('Add Outlet User')}>
             + Add Outlet User
           </button>
         </div>
@@ -394,22 +460,13 @@ const OutletUserList: React.FC = () => {
                 Hotel Admins manage the overall hotel operations and have access to all outlets under their hotel.
               </small>
             </div>
-
             <div className="table-responsive">
               <Table className="table table-bordered table-hover">
                 <thead className="thead-light">
                   <tr>
-                    <th>Sr No</th>
-                    <th>Name</th>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Hotel Name</th>
-                    <th>Brand Name</th>
-                    <th>Status</th>
-                    <th>Last Login</th>
-                    <th>Created Date</th>
-                    <th>Action</th>
+                    <th>Sr No</th><th>Name</th><th>Username</th><th>Email</th>
+                    <th>Phone</th><th>Hotel Name</th><th>Brand Name</th>
+                    <th>Status</th><th>Last Login</th><th>Created Date</th><th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -457,37 +514,22 @@ const OutletUserList: React.FC = () => {
                 Outlet Users are staff members who work at specific outlets and have limited access based on their role.
               </small>
             </div>
-
             <div className="table-responsive">
               <Table className="table table-bordered table-hover">
                 <thead className="thead-light">
                   <tr>
-                    <th>Sr No</th>
-                    <th>Name</th>
-                    <th>Role</th>
-                    <th>Outlet Name</th>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Designation</th>
-                    <th>User Type</th>
-                    <th>Status</th>
-                    <th>Created Date</th>
-                    <th>Action</th>
+                    <th>Sr No</th><th>Name</th><th>Role</th><th>Outlet Name</th>
+                    <th>Username</th><th>Email</th><th>Phone</th>
+                    <th>Designation</th><th>User Type</th><th>Status</th>
+                    <th>Created Date</th><th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {outletUsers.map((outletUser, index) => (
                     <tr key={outletUser.userid}>
                       <td>{index + 1}</td>
-                      <td>
-                        <strong>{outletUser.full_name}</strong>
-                      </td>
-                      <td>
-                        <span className="badge bg-info">
-                          Outlet User
-                        </span>
-                      </td>
+                      <td><strong>{outletUser.full_name}</strong></td>
+                      <td><span className="badge bg-info">Outlet User</span></td>
                       <td>{outletUser.outlet_name || 'N/A'}</td>
                       <td>{outletUser.username}</td>
                       <td>{outletUser.email}</td>
@@ -508,6 +550,13 @@ const OutletUserList: React.FC = () => {
                             onClick={() => handleShowModal('Edit Outlet User', outletUser)}
                           >
                             <i className="fi fi-rr-edit"></i>
+                          </button>
+                          <button
+                            className="btn btn-sm btn-warning"
+                            title="Set Permissions"
+                            onClick={() => handleOpenPermModal(outletUser)}
+                          >
+                            <i className="fi fi-rr-shield-check"></i>
                           </button>
                           <button
                             className="btn btn-sm btn-danger"
@@ -533,23 +582,14 @@ const OutletUserList: React.FC = () => {
               Outlet Users are staff members who work at specific outlets under your hotel. Your admin account is shown at the top.
             </small>
           </div>
-
           <div className="table-responsive">
             <Table className="table table-bordered table-hover">
               <thead className="thead-light">
                 <tr>
-                  <th>Sr No</th>
-                  <th>Name</th>
-                  <th>Role</th>
-                  <th>Outlet Name</th>
-                  <th>Username</th>
-                  <th>Email</th>
-                  <th>Phone</th>
-                  <th>Designation</th>
-                  <th>User Type</th>
-                  <th>Status</th>
-                  <th>Created Date</th>
-                  <th>Action</th>
+                  <th>Sr No</th><th>Name</th><th>Role</th><th>Outlet Name</th>
+                  <th>Username</th><th>Email</th><th>Phone</th>
+                  <th>Designation</th><th>User Type</th><th>Status</th>
+                  <th>Created Date</th><th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -592,6 +632,13 @@ const OutletUserList: React.FC = () => {
                             <i className="fi fi-rr-edit"></i>
                           </button>
                           <button
+                            className="btn btn-sm btn-warning"
+                            title="Set Permissions"
+                            onClick={() => handleOpenPermModal(row as OutletUser)}
+                          >
+                            <i className="fi fi-rr-shield-check"></i>
+                          </button>
+                          <button
                             className="btn btn-sm btn-danger"
                             title="Delete User"
                             onClick={() => handleDeleteUser(row.userid!)}
@@ -609,6 +656,7 @@ const OutletUserList: React.FC = () => {
         </div>
       )}
 
+      {/* ── Add/Edit Modal (unchanged) ───────────────────────────────────── */}
       <Modal show={showModal} onHide={handleCloseModal} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>{modalType}</Modal.Title>
@@ -619,26 +667,14 @@ const OutletUserList: React.FC = () => {
               <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="fullName">
-                    <Form.Label>
-                      Full Name <span className="text-danger">*</span>
-                    </Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter Full Name"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                    />
+                    <Form.Label>Full Name <span className="text-danger">*</span></Form.Label>
+                    <Form.Control type="text" placeholder="Enter Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
                   </Form.Group>
                 </Col>
                 <Col md={6}>
                   <Form.Group controlId="phone">
                     <Form.Label>Phone</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter Phone"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
+                    <Form.Control type="text" placeholder="Enter Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
                   </Form.Group>
                 </Col>
               </Row>
@@ -647,56 +683,28 @@ const OutletUserList: React.FC = () => {
                 <Row className="mb-3">
                   <Col md={6}>
                     <Form.Group controlId="username">
-                      <Form.Label>
-                        Username <span className="text-danger">*</span>
-                      </Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                      />
+                      <Form.Label>Username <span className="text-danger">*</span></Form.Label>
+                      <Form.Control type="text" placeholder="Enter Username" value={username} onChange={(e) => setUsername(e.target.value)} />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group controlId="email">
-                      <Form.Label>
-                        Email <span className="text-danger">*</span>
-                      </Form.Label>
-                      <Form.Control
-                        type="email"
-                        placeholder="Enter Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                      />
+                      <Form.Label>Email <span className="text-danger">*</span></Form.Label>
+                      <Form.Control type="email" placeholder="Enter Email" value={email} onChange={(e) => setEmail(e.target.value)} />
                     </Form.Group>
                   </Col>
                 </Row>
                 <Row className="mb-3">
                   <Col md={6}>
                     <Form.Group controlId="password">
-                      <Form.Label>
-                        Password {modalType === 'Add Outlet User' && <span className="text-danger">*</span>}
-                      </Form.Label>
-                      <Form.Control
-                        type="password"
-                        placeholder={modalType === 'Add Outlet User' ? "Enter Password" : "Leave blank to keep current"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                      />
+                      <Form.Label>Password {modalType === 'Add Outlet User' && <span className="text-danger">*</span>}</Form.Label>
+                      <Form.Control type="password" placeholder={modalType === 'Add Outlet User' ? "Enter Password" : "Leave blank to keep current"} value={password} onChange={(e) => setPassword(e.target.value)} />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group controlId="fullName">
-                      <Form.Label>
-                        Full Name <span className="text-danger">*</span>
-                      </Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Full Name"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                      />
+                      <Form.Label>Full Name <span className="text-danger">*</span></Form.Label>
+                      <Form.Control type="text" placeholder="Enter Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
                     </Form.Group>
                   </Col>
                 </Row>
@@ -704,32 +712,20 @@ const OutletUserList: React.FC = () => {
                   <Col md={6}>
                     <Form.Group controlId="phone">
                       <Form.Label>Phone</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Phone"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                      />
+                      <Form.Control type="text" placeholder="Enter Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group controlId="outlet">
-                      <Form.Label>
-                        Select Outlet <span className="text-danger">*</span>
-                      </Form.Label>
-                       <Form.Select
-                         className="form-control"
-                         value={selectedOutlet || ''}
-                         onChange={handleOutletChange}
-                         disabled={loading}
-                       >
-                         <option value="">Select Outlet</option>
-                         {outlets.map((outlet) => (
-                           <option key={outlet.outletid} value={outlet.outletid}>
-                             {outlet.outlet_name} ({outlet.outlet_code})
-                           </option>
-                         ))}
-                       </Form.Select>
+                      <Form.Label>Select Outlet <span className="text-danger">*</span></Form.Label>
+                      <Form.Select className="form-control" value={selectedOutlet || ''} onChange={handleOutletChange} disabled={loading}>
+                        <option value="">Select Outlet</option>
+                        {outlets.map((outlet) => (
+                          <option key={outlet.outletid} value={outlet.outletid}>
+                            {outlet.outlet_name} ({outlet.outlet_code})
+                          </option>
+                        ))}
+                      </Form.Select>
                     </Form.Group>
                   </Col>
                 </Row>
@@ -737,15 +733,10 @@ const OutletUserList: React.FC = () => {
                   <Col md={6}>
                     <Form.Group controlId="designation">
                       <Form.Label>Designation</Form.Label>
-                      <Form.Select
-                        value={selectedDesignation || ''}
-                        onChange={(e) => setSelectedDesignation(e.target.value ? Number(e.target.value) : null)}
-                      >
+                      <Form.Select value={selectedDesignation || ''} onChange={(e) => setSelectedDesignation(e.target.value ? Number(e.target.value) : null)}>
                         <option value="">Select Designation</option>
-                        {designations.map((designation) => (
-                          <option key={designation.designationid} value={designation.designationid}>
-                            {designation.Designation}
-                          </option>
+                        {designations.map((d) => (
+                          <option key={d.designationid} value={d.designationid}>{d.Designation}</option>
                         ))}
                       </Form.Select>
                     </Form.Group>
@@ -753,15 +744,10 @@ const OutletUserList: React.FC = () => {
                   <Col md={6}>
                     <Form.Group controlId="userType">
                       <Form.Label>User Type</Form.Label>
-                      <Form.Select
-                        value={selectedUserType || ''}
-                        onChange={(e) => setSelectedUserType(e.target.value ? Number(e.target.value) : null)}
-                      >
+                      <Form.Select value={selectedUserType || ''} onChange={(e) => setSelectedUserType(e.target.value ? Number(e.target.value) : null)}>
                         <option value="">Select User Type</option>
-                        {userTypes.map((userType) => (
-                          <option key={userType.usertypeid} value={userType.usertypeid}>
-                            {userType.User_type}
-                          </option>
+                        {userTypes.map((ut) => (
+                          <option key={ut.usertypeid} value={ut.usertypeid}>{ut.User_type}</option>
                         ))}
                       </Form.Select>
                     </Form.Group>
@@ -770,34 +756,19 @@ const OutletUserList: React.FC = () => {
                 <Row className="mb-3">
                   <Col md={6}>
                     <Form.Group controlId="shiftTime">
-                      <Form.Label>Shift Time</Form.Label>                      
-                      <Form.Select
-                        value={shiftTime}
-                        onChange={(e) => setShiftTime(e.target.value)}
-                      >
+                      <Form.Label>Shift Time</Form.Label>
+                      <Form.Select value={shiftTime} onChange={(e) => setShiftTime(e.target.value)}>
                         <option value="">Select Shift</option>
-{(shiftTypes || []).map((shift) => (
-                          <option
-
-                            key={shift.id}
-                            value={shift.shift_type}
-                          >
-                            {shift.shift_type}
-                          </option>
+                        {(shiftTypes || []).map((shift) => (
+                          <option key={shift.id} value={shift.shift_type}>{shift.shift_type}</option>
                         ))}
                       </Form.Select>
-
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group controlId="macAddress">
                       <Form.Label>MAC Address</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter MAC Address"
-                        value={macAddress}
-                        onChange={(e) => setMacAddress(e.target.value)}
-                      />
+                      <Form.Control type="text" placeholder="Enter MAC Address" value={macAddress} onChange={(e) => setMacAddress(e.target.value)} />
                     </Form.Group>
                   </Col>
                 </Row>
@@ -805,18 +776,10 @@ const OutletUserList: React.FC = () => {
                   <Col md={6}>
                     <Form.Group controlId="assignWarehouse">
                       <Form.Label>Assign Warehouse</Form.Label>
-                      <Form.Select
-                        value={assignWarehouse}
-                        onChange={(e) => setAssignWarehouse(e.target.value)}
-                        disabled={loading}
-                      >
+                      <Form.Select value={assignWarehouse} onChange={(e) => setAssignWarehouse(e.target.value)} disabled={loading}>
                         <option value="">Select Warehouse</option>
-                        {warehouses.map((warehouse) => (
-                          <option
-                            key={warehouse.warehouseid}
-                            value={warehouse.warehouseid}>
-                            {warehouse.warehouse_name}
-                          </option>
+                        {warehouses.map((w) => (
+                          <option key={w.warehouseid} value={w.warehouseid}>{w.warehouse_name}</option>
                         ))}
                       </Form.Select>
                     </Form.Group>
@@ -824,10 +787,7 @@ const OutletUserList: React.FC = () => {
                   <Col md={6}>
                     <Form.Group controlId="languagePreference">
                       <Form.Label>Language Preference</Form.Label>
-                      <Form.Select
-                        value={languagePreference}
-                        onChange={(e) => setLanguagePreference(e.target.value)}
-                      >
+                      <Form.Select value={languagePreference} onChange={(e) => setLanguagePreference(e.target.value)}>
                         <option value="English">English</option>
                         <option value="Hindi">Hindi</option>
                         <option value="Arabic">Arabic</option>
@@ -841,12 +801,7 @@ const OutletUserList: React.FC = () => {
                   <Col md={12}>
                     <Form.Group controlId="address">
                       <Form.Label>Address</Form.Label>
-                      <Form.Control
-                        as="textarea"
-                        placeholder="Enter Address"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                      />
+                      <Form.Control as="textarea" placeholder="Enter Address" value={address} onChange={(e) => setAddress(e.target.value)} />
                     </Form.Group>
                   </Col>
                 </Row>
@@ -854,91 +809,52 @@ const OutletUserList: React.FC = () => {
                   <Col md={6}>
                     <Form.Group controlId="city">
                       <Form.Label>City</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter City"
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                      />
+                      <Form.Control type="text" placeholder="Enter City" value={city} onChange={(e) => setCity(e.target.value)} />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group controlId="subLocality">
                       <Form.Label>Sub Locality</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Sub Locality"
-                        value={subLocality}
-                        onChange={(e) => setSubLocality(e.target.value)}
-                      />
+                      <Form.Control type="text" placeholder="Enter Sub Locality" value={subLocality} onChange={(e) => setSubLocality(e.target.value)} />
                     </Form.Group>
                   </Col>
                 </Row>
                 <Row className="mb-3">
                   <Col md={6}>
-                    <Form.Group controlId="webAccess">
-                      <Form.Label>Web Access</Form.Label>
-                      <Form.Check
-                        type="switch"
-                        checked={webAccess}
-                        onChange={(e) => setWebAccess(e.target.checked)}
-                      />
+                    <Form.Group controlId="webAccess"><Form.Label>Web Access</Form.Label>
+                      <Form.Check type="switch" checked={webAccess} onChange={(e) => setWebAccess(e.target.checked)} />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
-                    <Form.Group controlId="selfOrder">
-                      <Form.Label>Self Order</Form.Label>
-                      <Form.Check
-                        type="switch"
-                        checked={selfOrder}
-                        onChange={(e) => setSelfOrder(e.target.checked)}
-                      />
+                    <Form.Group controlId="selfOrder"><Form.Label>Self Order</Form.Label>
+                      <Form.Check type="switch" checked={selfOrder} onChange={(e) => setSelfOrder(e.target.checked)} />
                     </Form.Group>
                   </Col>
                 </Row>
                 <Row className="mb-3">
                   <Col md={6}>
-                    <Form.Group controlId="captainApp">
-                      <Form.Label>Captain App</Form.Label>
-                      <Form.Check
-                        type="switch"
-                        checked={captainApp}
-                        onChange={(e) => setCaptainApp(e.target.checked)}
-                      />
+                    <Form.Group controlId="captainApp"><Form.Label>Captain App</Form.Label>
+                      <Form.Check type="switch" checked={captainApp} onChange={(e) => setCaptainApp(e.target.checked)} />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
-                    <Form.Group controlId="kdsApp">
-                      <Form.Label>KDS App</Form.Label>
-                      <Form.Check
-                        type="switch"
-                        checked={kdsApp}
-                        onChange={(e) => setKdsApp(e.target.checked)}
-                      />
+                    <Form.Group controlId="kdsApp"><Form.Label>KDS App</Form.Label>
+                      <Form.Check type="switch" checked={kdsApp} onChange={(e) => setKdsApp(e.target.checked)} />
                     </Form.Group>
                   </Col>
                 </Row>
                 <Row className="mb-3">
                   <Col md={6}>
-                    <Form.Group controlId="captainOldKotAccess">
-                      <Form.Label>Captain Old KOT Access</Form.Label>
-                      <Form.Select
-                        value={captainOldKotAccess}
-                        onChange={(e) => setCaptainOldKotAccess(e.target.value)}
-                      >
+                    <Form.Group controlId="captainOldKotAccess"><Form.Label>Captain Old KOT Access</Form.Label>
+                      <Form.Select value={captainOldKotAccess} onChange={(e) => setCaptainOldKotAccess(e.target.value)}>
                         <option value="Enabled">Enabled</option>
                         <option value="Disabled">Disabled</option>
                       </Form.Select>
                     </Form.Group>
                   </Col>
                   <Col md={6}>
-                    <Form.Group controlId="verifyMacIp">
-                      <Form.Label>Verify MAC/IP</Form.Label>
-                      <Form.Check
-                        type="switch"
-                        checked={verifyMacIp}
-                        onChange={(e) => setVerifyMacIp(e.target.checked)}
-                      />
+                    <Form.Group controlId="verifyMacIp"><Form.Label>Verify MAC/IP</Form.Label>
+                      <Form.Check type="switch" checked={verifyMacIp} onChange={(e) => setVerifyMacIp(e.target.checked)} />
                     </Form.Group>
                   </Col>
                 </Row>
@@ -948,10 +864,7 @@ const OutletUserList: React.FC = () => {
               <Col md={6}>
                 <Form.Group controlId="status">
                   <Form.Label>Status</Form.Label>
-                  <Form.Select
-                    value={status ? 0 : 1} // 0 for Active, 1 for Inactive
-                    onChange={(e) => setStatus(e.target.value === '0')} // Sets status to true (Active) or false (Inactive)
-                  >
+                  <Form.Select value={status ? 0 : 1} onChange={(e) => setStatus(e.target.value === '0')}>
                     <option value="0">Active</option>
                     <option value="1">Inactive</option>
                   </Form.Select>
@@ -964,9 +877,57 @@ const OutletUserList: React.FC = () => {
           <Button variant="success" onClick={handleModalSubmit}>
             {modalType === 'Edit Outlet User' || modalType === 'Edit Hotel Admin' ? 'Update' : 'Create'}
           </Button>
-           <Button variant="danger" onClick={handleCloseModal}>
-            Close
+          <Button variant="danger" onClick={handleCloseModal}>Close</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* ── ✅ Permission Modal (fetches modules from DB) ───────────────── */}
+      <Modal show={showPermModal} onHide={() => setShowPermModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            Set Permissions — <span className="text-primary">{permUserName}</span>
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {permLoading ? (
+            <div className="text-center p-4">Loading permissions...</div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-bordered table-sm">
+                <thead className="table-light">
+                  <tr>
+                    <th style={{ width: '40%' }}>Module</th>
+                    <th className="text-center">View</th>
+                    <th className="text-center">Create</th>
+                    <th className="text-center">Edit</th>
+                    <th className="text-center">Delete</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {permModules.map(m => (
+                    <tr key={m.moduleid}>
+                      <td>{m.module_name}</td>
+                      {(['can_view', 'can_create', 'can_edit', 'can_delete'] as const).map(field => (
+                        <td key={field} className="text-center">
+                          <input
+                            type="checkbox"
+                            checked={modulePerms[m.module_name]?.[field] || false}
+                            onChange={e => handlePermChange(m.module_name, field, e.target.checked)}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="success" onClick={handleSavePermissions} disabled={permSaving || permLoading}>
+            {permSaving ? 'Saving...' : 'Save Permissions'}
           </Button>
+          <Button variant="danger" onClick={() => setShowPermModal(false)}>Close</Button>
         </Modal.Footer>
       </Modal>
     </div>

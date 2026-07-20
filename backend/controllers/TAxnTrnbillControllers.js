@@ -801,7 +801,8 @@ exports.settleBill = async (req, res) => {
         const insertDate = s.InsertDate ? s.InsertDate : new Date().toISOString().replace('T', ' ').substring(0, 19);
 
         // Get TipAmount - default to 0 if not provided
-        const tipAmount = TipAmount != null ? Number(TipAmount) : 0;
+        // Use tip from the individual settlement
+        const tipAmount = Number(s.TipAmount) || 0;
 
         // 🔥 FIX: For Credit payments, use customer data from settlement object
         // For non-credit payments, fallback to bill's customer data
@@ -841,7 +842,7 @@ exports.settleBill = async (req, res) => {
           mobileNo,             // 🔥 Use mobile from settlement for credit
           Number(s.received_amount) || 0,
           Number(s.refund_amount) || 0,
-          tipAmount,
+          Number(s.TipAmount) || 0,
           bill.table_name || null,
           insertDate
         ])
@@ -1091,7 +1092,7 @@ exports.createKOT = async (req, res) => {
         const last = new Date(dupe.lastKotUsedDate)
         const now = new Date()
         const diff = now.getTime() - last.getTime()
-        if (diff>=0 && diff <= duplicateWindowMs) {
+        if (diff >= 0 && diff <= duplicateWindowMs) {
           console.log('KOT DUPLICATE REJECTED (within 2s)', {
             diffMs: diff,
             TxnID: dupe.TxnID,
@@ -1636,12 +1637,21 @@ exports.createReverseKOT = async (req, res) => {
       }
 
       let finalAmount = round2(totalBeforeRoundOff);
-      let finalRoundOff = 0
-      if (outletSettings && outletSettings.bill_round_off && outletSettings.bill_round_off_to > 0) {
-        finalAmount =
-          Math.round(totalBeforeRoundOff / outletSettings.bill_round_off_to) *
-          outletSettings.bill_round_off_to
-        finalRoundOff = finalAmount - totalBeforeRoundOff
+      let finalRoundOff = 0;
+
+      if (
+        Number(outletSettings?.bill_round_off) === 1 &&
+        Number(outletSettings?.bill_round_off_to) > 0
+      ) {
+        const roundTo = Number(outletSettings.bill_round_off_to);
+
+        const roundedAmount =
+          Math.round(totalBeforeRoundOff / roundTo) * roundTo;
+
+        finalRoundOff = Number((roundedAmount - totalBeforeRoundOff).toFixed(2));
+        finalAmount = Number(roundedAmount.toFixed(2));
+      } else {
+        finalAmount = Number(totalBeforeRoundOff.toFixed(2));
       }
 
       // After a reversal, the bill is no longer considered fully billed or settled.
@@ -2110,7 +2120,10 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         d.order_tag,
         d.VariantID,
         d.VariantName,
-        d.SpecialInst   
+        d.SpecialInst,
+        d.isBilled,
+        d.KOTUsedDate,
+        d.isTrnsfered       
       FROM TAxnTrnbilldetails d
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
@@ -2193,7 +2206,11 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       order_tag: r.order_tag || '',
       VariantID: r.VariantID || null,
       VariantName: r.VariantName || null,
-      SpecialInst: r.SpecialInst || ''
+      SpecialInst: r.SpecialInst || '',
+      isBilled: r.isBilled || 0,
+      KOTUsedDate: r.KOTUsedDate || null, // ✅ ADD THIS LINE
+      isTrnsfered: r.isTrnsfered || 0,   // ✅ ADD THIS
+
     }))
 
     // console.log('Unbilled items for tableId', tableId, ':', items)
@@ -4039,6 +4056,7 @@ exports.transferKOT = async (req, res) => {
 
       // No Items
       if (!details || details.length === 0) {
+        console.log("No bill details found", txnId);
 
         await db.query(`
           UPDATE TAxnTrnbill
@@ -4086,7 +4104,7 @@ exports.transferKOT = async (req, res) => {
         const revQty = Number(d.RevQty) || 0
         const runtimeRate = Number(d.RuntimeRate) || 0
 
-        const netQty = qty - revQty
+        const netQty = Math.max(0, qty - revQty);
 
         const lineGross = netQty * runtimeRate
 
@@ -4140,55 +4158,70 @@ exports.transferKOT = async (req, res) => {
       igst *= taxableRatio
       cess *= taxableRatio
 
-      let amount =
-        discountedTaxable +
+      // Round values first
+      const taxableValue = Number(discountedTaxable.toFixed(2));
+      cgst = Number(cgst.toFixed(2));
+      sgst = Number(sgst.toFixed(2));
+      igst = Number(igst.toFixed(2));
+      cess = Number(cess.toFixed(2));
+
+      // Total before round off
+      let totalBeforeRoundOff =
+        taxableValue +
         cgst +
         sgst +
         igst +
-        cess
+        cess;
 
-      let roundOff = 0
+      let amount = totalBeforeRoundOff;
+      let roundOff = 0;
 
       // Round Off
       if (
-        outletSettings.bill_round_off &&
-        outletSettings.bill_round_off_to > 0
+        Number(outletSettings.bill_round_off) === 1 &&
+        Number(outletSettings.bill_round_off_to) > 0
       ) {
+        const roundTo = Number(outletSettings.bill_round_off_to);
 
         const roundedAmount =
-          Math.round(
-            amount / outletSettings.bill_round_off_to
-          ) * outletSettings.bill_round_off_to
+          Math.round(totalBeforeRoundOff / roundTo) * roundTo;
 
-        roundOff = roundedAmount - amount
-
-        amount = roundedAmount
+        roundOff = Number((roundedAmount - totalBeforeRoundOff).toFixed(2));
+        amount = roundedAmount;
       }
 
       // Update Header
-      await db.query(`
-        UPDATE TAxnTrnbill
-        SET
-          GrossAmt = COALESCE(?, 0),
-          TaxableValue = COALESCE(?, 0),
-          CGST = COALESCE(?, 0),
-          SGST = COALESCE(?, 0),
-          IGST = COALESCE(?, 0),
-          CESS = COALESCE(?, 0),
-          Amount = COALESCE(?, 0),
-          RoundOFF = COALESCE(?, 0)
-        WHERE TxnID = ?
-      `, [
-        gross,
-        discountedTaxable,
-        cgst,
-        sgst,
-        igst,
-        cess,
-        amount,
-        roundOff,
-        txnId,
-      ])
+      // Round Values
+      gross = Number(gross.toFixed(2));
+      amount = Number(amount.toFixed(2));
+
+      // Update Bill Header
+      await db.query(
+        `
+      UPDATE TAxnTrnbill
+      SET
+          GrossAmt = ?,
+          TaxableValue = ?,
+          CGST = ?,
+          SGST = ?,
+          IGST = ?,
+          CESS = ?,
+          Amount = ?,
+          RoundOFF = ?
+      WHERE TxnID = ?
+      `,
+        [
+          gross,
+          taxableValue,
+          cgst,
+          sgst,
+          igst,
+          cess,
+          amount,
+          roundOff,
+          txnId,
+        ]
+      );
     }
 
     // Start Transaction
@@ -4274,7 +4307,8 @@ exports.transferKOT = async (req, res) => {
           SET
             TxnID = ?,
             TableID = ?,
-            table_name = ?
+            table_name = ?,
+            isTrnsfered = 1           // ✅ ADD THIS LINE
           WHERE TXnDetailID IN (${placeholders})
         `, [
           targetBill.TxnID,
@@ -4366,7 +4400,8 @@ exports.transferKOT = async (req, res) => {
           SET
             TxnID = ?,
             TableID = ?,
-            table_name = ?
+            table_name = ?,
+            isTrnsfered = 1
           WHERE TXnDetailID IN (${placeholders})
         `, [
           newTxnId,
@@ -4548,88 +4583,130 @@ exports.transferTable = async (req, res) => {
     const recalculateBillTotals = async (txnId) => {
       const [billHeaderRows] = await db.query(
         `
-        SELECT Discount, outletid
-        FROM TAxnTrnbill
-        WHERE TxnID = ?
-      `,
+    SELECT Discount, outletid
+    FROM TAxnTrnbill
+    WHERE TxnID = ?
+  `,
         [txnId]
-      )
-      const billHeader = billHeaderRows[0]
-      if (!billHeader) return
+      );
+      const billHeader = billHeaderRows[0];
+      if (!billHeader) return;
 
       const [details] = await db.query(
         `
-        SELECT * FROM TAxnTrnbilldetails
-        WHERE TxnID = ? AND isCancelled = 0
-      `,
+    SELECT * FROM TAxnTrnbilldetails
+    WHERE TxnID = ? AND isCancelled = 0
+  `,
         [txnId]
-      )
-      if (details.length === 0) return
+      );
+      if (details.length === 0) return;
 
       const [outletRows] = await db.query(
         `
-        SELECT include_tax_in_invoice, bill_round_off, bill_round_off_to
-        FROM mstoutlet_settings WHERE outletid = ?
-      `,
+    SELECT include_tax_in_invoice, bill_round_off, bill_round_off_to
+    FROM mstoutlet_settings
+    WHERE outletid = ?
+    `,
         [billHeader.outletid]
-      )
-      const outlet = outletRows[0] || {}
+      );
 
-      let gross = 0,
-        taxable = 0,
-        cgst = 0,
-        sgst = 0,
-        igst = 0,
-        cess = 0
-      const includeTax = outlet.include_tax_in_invoice || 0
+      const outlet = outletRows[0] || {};
 
+      const includeTax = Number(outlet.include_tax_in_invoice) || 0;
+      const discount = Number(billHeader.Discount) || 0;
+
+      let gross = 0;
+      let taxable = 0;
+      let cgst = 0;
+      let sgst = 0;
+      let igst = 0;
+      let cess = 0;
+
+      // Total Gross
       for (const d of details) {
-        const lineGross = (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0)
-        gross += lineGross
-
-        const cg = Number(d.CGST) || 0
-        const sg = Number(d.SGST) || 0
-        const ig = Number(d.IGST) || 0
-        const ce = Number(d.CESS) || 0
-
-        if (includeTax === 1) {
-          const per = cg + sg + ig + ce
-          const base = per > 0 ? lineGross / (1 + per / 100) : lineGross
-          taxable += base
-          cgst += (base * cg) / 100
-          sgst += (base * sg) / 100
-          igst += (base * ig) / 100
-          cess += (base * ce) / 100
-        } else {
-          taxable += lineGross
-          cgst += (lineGross * cg) / 100
-          sgst += (lineGross * sg) / 100
-          igst += (lineGross * ig) / 100
-          cess += (lineGross * ce) / 100
-        }
+        gross += (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0);
       }
 
-      const discount = Number(billHeader.Discount) || 0
-      const discountedTaxable = Math.max(0, taxable - discount)
+      for (const d of details) {
+        const lineGross = (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0);
 
-      let amount = discountedTaxable + cgst + sgst + igst + cess
-      let roundOff = 0
+        const cg = Number(d.CGST) || 0;
+        const sg = Number(d.SGST) || 0;
+        const ig = Number(d.IGST) || 0;
+        const ce = Number(d.CESS) || 0;
 
-      if (outlet.bill_round_off && outlet.bill_round_off_to > 0) {
-        const rounded = Math.round(amount / outlet.bill_round_off_to) * outlet.bill_round_off_to
-        roundOff = rounded - amount
-        amount = rounded
+        const taxPercent = cg + sg + ig + ce;
+
+        // FIX: Discount pehle gross (inclusive) scale par apply karo,
+        // phir tax extract karo. Yeh scale-mismatch bug fix karta hai
+        // jo includeTax=1 ke case mein taxable value ko galat kar deta tha.
+        const lineDiscount = gross > 0 ? (discount * lineGross) / gross : 0;
+        const discountedLineGross = Math.max(0, lineGross - lineDiscount);
+
+        let base;
+        if (includeTax && taxPercent > 0) {
+          base = discountedLineGross / (1 + taxPercent / 100);
+        } else {
+          base = discountedLineGross;
+        }
+
+        taxable += base;
+        cgst += (base * cg) / 100;
+        sgst += (base * sg) / 100;
+        igst += (base * ig) / 100;
+        cess += (base * ce) / 100;
+      }
+
+      // Round values first
+      taxable = Number(taxable.toFixed(2));
+      cgst = Number(cgst.toFixed(2));
+      sgst = Number(sgst.toFixed(2));
+      igst = Number(igst.toFixed(2));
+      cess = Number(cess.toFixed(2));
+
+      // Total before round off
+      let totalBeforeRoundOff = taxable + cgst + sgst + igst + cess;
+
+      let amount = totalBeforeRoundOff;
+      let roundOff = 0;
+
+      if (Number(outlet.bill_round_off) === 1) {
+        const roundTo = Number(outlet.bill_round_off_to) || 1;
+
+        const roundedFinalAmount =
+          Math.round(totalBeforeRoundOff / roundTo) * roundTo;
+
+        roundOff = roundedFinalAmount - totalBeforeRoundOff;
+        amount = roundedFinalAmount;
       }
 
       await db.query(
         `
-        UPDATE TAxnTrnbill
-        SET GrossAmt=?, CGST=?, SGST=?, IGST=?, CESS=?, Amount=?, RoundOFF=?
-        WHERE TxnID=?
-      `,
-        [gross, cgst, sgst, igst, cess, amount, roundOff, txnId]
-      )
-    }
+    UPDATE TAxnTrnbill
+    SET
+        GrossAmt=?,
+        TaxableValue=?,
+        CGST=?,
+        SGST=?,
+        IGST=?,
+        CESS=?,
+        Amount=?,
+        RoundOFF=?
+    WHERE TxnID=?
+    `,
+        [
+          Number(gross.toFixed(2)),
+          Number(taxable.toFixed(2)),
+          Number(cgst.toFixed(2)),
+          Number(sgst.toFixed(2)),
+          Number(igst.toFixed(2)),
+          Number(cess.toFixed(2)),
+          Number(amount.toFixed(2)),
+          Number(roundOff.toFixed(2)),
+          txnId,
+        ]
+      );
+    };
 
     /* ================= TRANSACTION ================= */
     // Start transaction
@@ -4700,7 +4777,7 @@ exports.transferTable = async (req, res) => {
         await db.query(
           `
           UPDATE TAxnTrnbilldetails
-          SET TxnID=?, TableID=?
+          SET TxnID=?, TableID=?,  isTrnsfered = 1  
           WHERE TXnDetailID IN (${placeholders})
         `,
           [targetBill.TxnID, targetTableId, ...ids]
@@ -4758,7 +4835,7 @@ exports.transferTable = async (req, res) => {
         await db.query(
           `
           UPDATE TAxnTrnbilldetails
-          SET TableID=?, table_name=?
+          SET TableID=?, table_name=?, isTrnsfered = 1 
           WHERE TxnID=?
         `,
           [targetTableId, targetTableInfo.table_name, sourceTxnId]

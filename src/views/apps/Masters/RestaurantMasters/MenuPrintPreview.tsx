@@ -228,7 +228,7 @@ const STYLES = `
   }
   
   .thermal-table td {
-    font-size: 7.5px;
+    font-size: 9px;
   }
   
   .rate-cell {
@@ -245,6 +245,7 @@ const STYLES = `
   .item-name-cell {
     word-break: break-word;
     max-width: 120px;
+    font-weight: 700;
   }
   
   .short-name-text {
@@ -294,10 +295,6 @@ const sortByItemCode = (a: MenuPrintItem, b: MenuPrintItem) => {
     return numA - numB;
   }
 
-  // return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
-  
-  // Some backends may send non-string codes (e.g., number) or nullish values.
-  // Ensure we always call localeCompare on a real string.
   return String(codeA).localeCompare(String(codeB), undefined, {
     numeric: true,
     sensitivity: 'base',
@@ -361,24 +358,26 @@ const MenuPrintPreview: React.FC = () => {
   const hasData = menuItems.length > 0;
 
   // Get all unique departments from all items
-  const getAllDepartments = () => {
-    const departmentsMap = new Map<number, string>();
-    
-    menuItems.forEach(item => {
-      if (item.department_details && item.department_details.length > 0) {
-        item.department_details.forEach(dept => {
-          if (!departmentsMap.has(dept.departmentid)) {
-            departmentsMap.set(dept.departmentid, truncate(dept.department_name || `Dept ${dept.departmentid}`, 12));
-          }
-        });
-      }
-    });
-    
-    // Return sorted departments
-    return Array.from(departmentsMap.entries())
-      .sort((a, b) => a[1].localeCompare(b[1]))
-      .map(([id, name]) => ({ id, name }));
-  };
+// Get all unique departments from all items
+const getAllDepartments = () => {
+  const departmentsMap = new Map<number, string>();
+  
+  menuItems.forEach(item => {
+    if (item.department_details && item.department_details.length > 0) {
+      item.department_details.forEach(dept => {
+        if (!departmentsMap.has(dept.departmentid)) {
+          // Truncate to 6 characters for department names
+          departmentsMap.set(dept.departmentid, truncate(dept.department_name || `Dept ${dept.departmentid}`, 6));
+        }
+      });
+    }
+  });
+  
+  // Return sorted departments
+  return Array.from(departmentsMap.entries())
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .map(([id, name]) => ({ id, name }));
+};
 
   // Get rate for a specific item and department
   const getRateForDepartment = (item: MenuPrintItem, departmentId: number): number => {
@@ -398,9 +397,10 @@ const MenuPrintPreview: React.FC = () => {
   // Build print HTML for 80mm thermal printer - SHOWS ALL ITEMS
   const buildPrintHTML = () => {
     const deptCount = departments.length;
-    const codeWidth = deptCount > 2 ? '12%' : '10%';
-    const nameWidth = deptCount > 2 ? '38%' : '40%';
-    const deptWidth = `${Math.floor(50 / deptCount)}%`;
+    // NARROWER DEPARTMENT COLUMNS
+    const codeWidth = deptCount > 2 ? '15%' : '12%';
+    const nameWidth = deptCount > 2 ? '55%' : '58%';
+    const deptWidth = `${Math.floor(30 / deptCount)}%`;  // Reduced from 50 to 30
     
     let html = `
       <!DOCTYPE html>
@@ -443,15 +443,16 @@ const MenuPrintPreview: React.FC = () => {
             margin-top: 4px;
           }
           .report-date {
-            font-size: 7px;
+            font-size: 9px;
             margin-top: 2px;
-            color: #333;
+            color: #060505;
+            font-weight: bold; 
           }
           table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 5px;
-            font-size: 7.5px;
+            font-size: 9px;
           }
           th, td {
             border: 0.5px solid #000;
@@ -462,11 +463,11 @@ const MenuPrintPreview: React.FC = () => {
             background-color: #e8e0d0;
             font-weight: bold;
             text-align: center;
-            font-size: 7px;
+            font-size: 9px;
             padding: 2px 2px;
           }
           td {
-            font-size: 7.5px;
+            font-size: 9px;
           }
           .rate-cell {
             text-align: right;
@@ -479,13 +480,14 @@ const MenuPrintPreview: React.FC = () => {
           }
           .item-name-cell {
             word-break: break-word;
+            font-weight: bold;
           }
           .footer {
             text-align: center;
             margin-top: 8px;
             padding-top: 4px;
             border-top: 1px dashed #888;
-            font-size: 6px;
+            font-size: 8px;
           }
           @media print {
             body {
@@ -526,7 +528,7 @@ const MenuPrintPreview: React.FC = () => {
 
       // SHOW ALL ITEMS - NO LIMIT
       sortedItems.forEach(item => {
-        const itemName = truncate(item.item_name, deptCount > 2 ? 22 : 30);
+        const itemName = truncate(item.item_name, deptCount > 2 ? 28 : 35); // Increased for more space
         html += `
           <tr>
             <td class="item-code">${item.item_no || '-'}</td>
@@ -655,10 +657,11 @@ const MenuPrintPreview: React.FC = () => {
                     <table className="thermal-table">
                       <thead>
                         <tr>
-                          <th style={{ width: departments.length > 2 ? '12%' : '10%' }}>Code</th>
-                          <th style={{ width: departments.length > 2 ? '38%' : '40%' }}>Item</th>
+                          {/* NARROWER DEPARTMENT COLUMNS IN PREVIEW */}
+                          <th style={{ width: departments.length > 2 ? '15%' : '12%' }}>Code</th>
+                          <th style={{ width: departments.length > 2 ? '55%' : '58%' }}>Item</th>
                           {departments.map(dept => (
-                            <th key={dept.id} style={{ width: `${Math.floor(50 / departments.length)}%` }}>
+                            <th key={dept.id} style={{ width: `${Math.floor(30 / departments.length)}%` }}>
                               {dept.name}
                             </th>
                           ))}
@@ -670,7 +673,7 @@ const MenuPrintPreview: React.FC = () => {
                           <tr key={item.restitemid}>
                             <td className="item-code">{item.item_no || '-'}</td>
                             <td className="item-name-cell">
-                              {truncate(item.item_name, departments.length > 2 ? 22 : 30)}
+                              {truncate(item.item_name, departments.length > 2 ? 28 : 35)}
                               {item.short_name && (
                                 <div className="short-name-text">({truncate(item.short_name, 12)})</div>
                               )}

@@ -470,19 +470,16 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       // Prevent event bubbling
       event.stopPropagation();
       
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-        event.preventDefault();
-        setSelectedOption('no');
-        if (modalNoButtonRef.current) {
-          modalNoButtonRef.current.focus();
-        }
-      } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-        event.preventDefault();
-        setSelectedOption('yes');
-        if (modalYesButtonRef.current) {
-          modalYesButtonRef.current.focus();
-        }
-      } else if (event.key === 'Enter') {
+     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+  event.preventDefault();
+  const nextOption = selectedOption === 'no' ? 'yes' : 'no';
+  setSelectedOption(nextOption);
+  if (nextOption === 'yes' && modalYesButtonRef.current) {
+    modalYesButtonRef.current.focus();
+  } else if (nextOption === 'no' && modalNoButtonRef.current) {
+    modalNoButtonRef.current.focus();
+  }
+} else if (event.key === 'Enter') {
         event.preventDefault();
         
         if (isProcessingEnter) return;

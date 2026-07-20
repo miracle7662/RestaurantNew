@@ -30,6 +30,8 @@ interface KitchenAllocationDataWithRev {
   TotalQty: number;
   RevQty: number;
   Amount: number;
+  is_runtime_rates?: number;
+  SpecialInst?: string;
 }
 
 // Get current datetime in local format for datetime-local input
@@ -89,8 +91,15 @@ const KitchenAllocation: React.FC = () => {
   const [modalData, setModalData] = useState<ItemDetailData[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
 
-const [totalDiscount, setTotalDiscount] = useState<number>(0);
+  const [totalDiscount, setTotalDiscount] = useState<number>(0);
 
+  // Helper function to get display name based on is_runtime_rate
+  const getDisplayName = (item: KitchenAllocationDataWithRev): string => {
+    if (item.is_runtime_rates === 1 && item.SpecialInst) {
+      return item.SpecialInst;
+    }
+    return item.item_name;
+  };
 
   // Fetch filter options
   useEffect(() => {
@@ -151,55 +160,62 @@ const [totalDiscount, setTotalDiscount] = useState<number>(0);
   }, [user]);
 
   // Fetch data using KitchenAllocationService
-const fetchData = async () => {
-  if (!fromDateTime || !toDateTime) {
-    setError('Please select both From Date/Time and To Date/Time.');
-    return;
-  }
-  if (!user?.hotelid) {
-    setError('Hotel information is not available. Please log in again.');
-    return;
-  }
-
-  setLoading(true);
-  setError(null);
-
-  try {
-    const startDateTime = fromDateTime < toDateTime ? fromDateTime : toDateTime;
-    const endDateTime = fromDateTime < toDateTime ? toDateTime : fromDateTime;
-
-    const params: any = {
-      fromDate: startDateTime,
-      toDate: endDateTime,
-      hotelId: user.hotelid.toString(),
-      outletId: user.outletid?.toString(),
-    };
-
-    if (selectedUser) params.userId = selectedUser;
-    if (selectedDepartment) params.departmentId = selectedDepartment;
-    if (selectedItemGroup) params.itemGroupId = selectedItemGroup;
-    if (selectedKitchenMainGroup) params.kitchenMainGroupId = selectedKitchenMainGroup;
-
-    const result = await KitchenAllocationService.getAllocationData(params);
-
-    if (result.success) {
-      const processedData = result.data.map((item: any) => ({
-        ...item,
-        TotalQty: (item.TotalQty || 0) - (item.RevQty || 0),
-        Amount: item.Amount || 0,
-      }));
-      setData(processedData);
-      // In fetchData, after getting result:
-setTotalDiscount((result as any).totalDiscount || 0); // <-- Add this line
-    } else {
-      setError(result.message || 'Failed to fetch data');
+  const fetchData = async () => {
+    if (!fromDateTime || !toDateTime) {
+      setError('Please select both From Date/Time and To Date/Time.');
+      return;
     }
-  } catch (err: any) {
-    setError(err.message || 'Error fetching data');
-  } finally {
-    setLoading(false);
-  }
-};
+    if (!user?.hotelid) {
+      setError('Hotel information is not available. Please log in again.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const startDateTime = fromDateTime < toDateTime ? fromDateTime : toDateTime;
+      const endDateTime = fromDateTime < toDateTime ? toDateTime : fromDateTime;
+
+      const params: any = {
+        fromDate: startDateTime,
+        toDate: endDateTime,
+        hotelId: user.hotelid.toString(),
+        outletId: user.outletid?.toString(),
+      };
+
+      if (selectedUser) params.userId = selectedUser;
+
+      if (selectedDepartment === 'TAKEAWAY') {
+        params.orderTypeGroup = 'takeaway';
+      } else if (selectedDepartment) {
+        params.departmentId = selectedDepartment;
+      }
+
+      if (selectedItemGroup) params.itemGroupId = selectedItemGroup;
+      if (selectedKitchenMainGroup) params.kitchenMainGroupId = selectedKitchenMainGroup;
+
+      const result = await KitchenAllocationService.getAllocationData(params);
+
+      if (result.success) {
+        const processedData = result.data.map((item: any) => ({
+          ...item,
+          TotalQty: item.TotalQty || 0,
+          Amount: item.Amount || 0,
+          is_runtime_rates: item.is_runtime_rates || 0,
+          SpecialInst: item.SpecialInst || '',
+        }));
+        setData(processedData);
+        setTotalDiscount((result as any).totalDiscount || 0);
+      } else {
+        setError(result.message || 'Failed to fetch data');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error fetching data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePDF = () => {
     const doc = new jsPDF();
@@ -212,11 +228,11 @@ setTotalDiscount((result as any).totalDiscount || 0); // <-- Add this line
     y += 6;
     doc.text(`From: ${fromDateTime} To: ${toDateTime}`, 20, y);
     y += 6;
-    
+
     const tableColumn = ['Item No', 'Item Name', 'Rev Qty', 'Total Qty', 'Amount'];
     const tableRows = filteredData.map((item) => [
       item.item_no,
-      item.item_name,
+      getDisplayName(item),
       item.RevQty?.toString?.() ?? String(item.RevQty ?? '-'),
       item.TotalQty?.toString?.() ?? String(item.TotalQty ?? '-'),
       formatAmount(item.Amount)
@@ -233,7 +249,7 @@ setTotalDiscount((result as any).totalDiscount || 0); // <-- Add this line
       totalQty.toString(),
       formatAmount(totalAmount)
     ]);
-    
+
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
@@ -248,7 +264,13 @@ setTotalDiscount((result as any).totalDiscount || 0); // <-- Add this line
     const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount ?? 0), 0);
 
     const rowsWithTotal = [
-      ...filteredData,
+      ...filteredData.map(item => ({
+        item_no: item.item_no,
+        item_name: getDisplayName(item),
+        RevQty: item.RevQty,
+        TotalQty: item.TotalQty,
+        Amount: item.Amount,
+      })),
       {
         item_no: '',
         item_name: 'Total',
@@ -264,205 +286,209 @@ setTotalDiscount((result as any).totalDiscount || 0); // <-- Add this line
     XLSX.writeFile(workbook, 'kitchen_allocation_report.xlsx');
   };
 
-const handlePrint = async () => {
-  try {
-    setLoading(true);
-    const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
-    const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
+  const handlePrint = async () => {
+    try {
+      setLoading(true);
+      const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
+      const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
 
-    if (systemPrinters.length === 0) {
-      toast.error("No printers detected on this system.");
-      return;
-    }
-
-    const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, "").trim();
-    
-
-    let finalPrinterName: string | null = null;
-    let usedFallback = false;
-    console.log("System Printers:", usedFallback);
-
-    if (printerName) {
-      const matchedPrinter = systemPrinters.find((p: any) =>
-        normalize(p.name).includes(normalize(printerName)) ||
-        normalize(p.displayName || "").includes(normalize(printerName))
-      );
-      if (matchedPrinter) {
-        finalPrinterName = matchedPrinter.name;
-      }
-    }
-
-    if (!finalPrinterName) {
-      const defaultPrinter = systemPrinters.find((p: any) => p.isDefault);
-      const fallbackPrinter = defaultPrinter || systemPrinters[0];
-      if (fallbackPrinter) {
-        finalPrinterName = fallbackPrinter.name;
-        usedFallback = true;
-        if (printerName) {
-          toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
-        }
-      } else {
-        toast.error("No suitable printer found.");
+      if (systemPrinters.length === 0) {
+        toast.error("No printers detected on this system.");
         return;
       }
-    }
 
-    const totalRevQty = filteredData.reduce((sum, item) => sum + Number(item.RevQty ?? 0), 0);
-    const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty ?? 0), 0);
-    const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount ?? 0), 0);
-    const discountTotal = totalDiscount; // from state
+      const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, "").trim();
 
-    const formatDisplayDateTime = (dateTimeStr: string) => dateTimeStr.replace('T', ' ');
+      let finalPrinterName: string | null = null;
+      let usedFallback = false;
+      console.log("System Printers:", usedFallback);
 
-    const reportHTML = `
-      <html>
-      <head>
-        <style>
-          @page { size: 70mm auto; margin: 0; }
-          @media print {
-            html, body { overflow: visible !important; }
-            thead { display: table-header-group !important; }
-            tr { page-break-inside: avoid; }
-            table { page-break-inside: avoid; }
+      if (printerName) {
+        const matchedPrinter = systemPrinters.find((p: any) =>
+          normalize(p.name).includes(normalize(printerName)) ||
+          normalize(p.displayName || "").includes(normalize(printerName))
+        );
+        if (matchedPrinter) {
+          finalPrinterName = matchedPrinter.name;
+        }
+      }
+
+      if (!finalPrinterName) {
+        const defaultPrinter = systemPrinters.find((p: any) => p.isDefault);
+        const fallbackPrinter = defaultPrinter || systemPrinters[0];
+        if (fallbackPrinter) {
+          finalPrinterName = fallbackPrinter.name;
+          usedFallback = true;
+          if (printerName) {
+            toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
           }
-          body {
-            font-family: monospace;
-            font-size: 14px;
-            line-height: 1.3;
-            width: 70mm;
-            margin-left: 1mm;
-            margin-right: 1mm;
-            padding: 0;
-          }
-          .sub-header { text-align: center; font-size: 13px; margin-bottom: 5px; font-weight: bold; }
-          table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-          th, td { border-bottom: 1px dashed #000; padding: 2px; font-size: 13px; }
-          th { text-align: left; }
-          .col-no   { width: 12%; }
-          .col-name { width: 38%; }
-          .col-revqty { width: 15%; text-align: right; }
-          .col-qty  { width: 15%; text-align: right; }
-          .col-amt  { width: 20%; text-align: right; }
-          td { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-          .totals-block {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            padding-top: 6px;
-            font-weight: bold;
-            border-top: 1px solid #000;
-          }
-          .totals-left { width: 30%; text-align: left; }
-          .totals-right { width: 70%; display: flex; justify-content: flex-end; gap: 10px; }
-          .totals-revqty, .totals-qty, .totals-amt { text-align: right; }
-          .totals-revqty { width: 20%; }
-          .totals-qty { width: 20%; }
-          .totals-amt { width: 25%; }
-          .discount-line {
-            display: flex;
-            justify-content: flex-end;
-            padding-top: 4px;
-            font-size: 13px;
-            border-top: 1px dashed #000;
-            margin-top: 2px;
-          }
-          .discount-label {
-            width: 75%;
-            text-align: right;
-            font-weight: bold;
-          }
-          .discount-amount {
-            width: 25%;
-            text-align: right;
-            font-weight: bold;
-          }
+        } else {
+          toast.error("No suitable printer found.");
+          return;
+        }
+      }
+
+      const totalRevQty = filteredData.reduce((sum, item) => sum + Number(item.RevQty ?? 0), 0);
+      const totalQty = filteredData.reduce((sum, item) => sum + Number(item.TotalQty ?? 0), 0);
+      const totalAmount = filteredData.reduce((sum, item) => sum + Number(item.Amount ?? 0), 0);
+      const discountTotal = totalDiscount;
+
+      const formatDisplayDateTime = (dateTimeStr: string) => dateTimeStr.replace('T', ' ');
+
+      const reportHTML = `
+        <html>
+        <head>
+          <style>
+            @page { size: 70mm auto; margin: 0; }
+            @media print {
+              html, body { overflow: visible !important; }
+              thead { display: table-header-group !important; }
+              tr { page-break-inside: avoid; }
+              table { page-break-inside: avoid; }
+            }
+            body {
+              font-family: monospace;
+              font-size: 12px;
+              line-height: 1.3;
+              width: 70mm;
+              margin-left: 1mm;
+              margin-right: 1mm;
+              padding: 0;
+            }
+            .sub-header { text-align: center; font-size: 13px; margin-bottom: 5px; font-weight: bold; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+            th, td { border-bottom: padding: 2px; font-size: 12px; font-weight: bold; }
+            th { text-align: left; }
+            .col-no   { width: 10%; text-align: right; }
+            .col-name { width: 55%; }
+            .col-revqty { width: 8%; text-align: right; }
+            .col-qty  { width: 10%; text-align: right; }
+            .col-amt  { width: 15%; text-align: right; }
+            td { 
+              overflow: hidden; 
+              white-space: normal !important;
+              text-overflow: clip;
+              vertical-align: top;
+              word-wrap: break-word;
+              word-break: break-word;
+            }
+            .totals-block {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              padding-top: 6px;
+              font-weight: bold;
+              border-top: 1px solid #000;
+            }
+            .totals-left { width: 30%; text-align: left; }
+            .totals-right { width: 70%; display: flex; justify-content: flex-end; gap: 10px; }
+            .totals-revqty, .totals-qty, .totals-amt { text-align: right; }
+            .totals-revqty { width: 20%; }
+            .totals-qty { width: 20%; }
+            .totals-amt { width: 25%; }
+            .discount-line {
+              display: flex;
+              justify-content: flex-end;
+              padding-top: 4px;
+              font-size: 13px;
+              border-top: 1px dashed #000;
+              margin-top: 2px;
+            }
+            .discount-label {
+              width: 75%;
+              text-align: right;
+              font-weight: bold;
+            }
+            .discount-amount {
+              width: 25%;
+              text-align: right;
+              font-weight: bold;
+            }
             .final-total-label {
-  width: 75%;
-  text-align: right;
-  font-weight: 700;
-}
-
-.final-total-amount {
-  width: 25%;
-  text-align: right;
-  font-weight: 700;
-}
-        </style>
-      </head>
-      <body>
-        <div class="sub-header">
-          <p>${hotelName || ''}</p>
-          <p>Kitchen Allocation Report</p>
-          <p>From: ${formatDisplayDateTime(fromDateTime)} To: ${formatDisplayDateTime(toDateTime)}</p>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th class="col-no">No</th>
-              <th class="col-name">Item</th>
-              <th class="col-revqty">Rev Qty</th>
-              <th class="col-qty">Qty</th>
-              <th class="col-amt">Amt</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${filteredData.map(item => `
-              <tr>
-                <td class="col-no">${item.item_no ?? '-'}</td>
-                <td class="col-name">${item.item_name}</td>
-                <td class="col-revqty">${item.RevQty ?? 0}</td>
-                <td class="col-qty">${item.TotalQty}</td>
-                <td class="col-amt">${formatAmount(item.Amount)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <div class="totals-block">
-          <div class="totals-left">Total</div>
-          <div class="totals-right">
-            <div class="totals-revqty">${formatAmount(totalRevQty)}</div>
-            <div class="totals-qty">${formatAmount(totalQty)}</div>
-            <div class="totals-amt">${formatAmount(totalAmount)}</div>
+              width: 75%;
+              text-align: right;
+              font-weight: 700;
+            }
+            .final-total-amount {
+              width: 25%;
+              text-align: right;
+              font-weight: 700;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="sub-header">
+            <p>${hotelName || ''}</p>
+            <p>Kitchen Allocation Report</p>
+            <p>From: ${formatDisplayDateTime(fromDateTime)} To: ${formatDisplayDateTime(toDateTime)}</p>
           </div>
-        </div>
-        <div class="discount-line">
-          <div class="discount-label">Discount Total:</div>
-          <div class="discount-amount">${formatAmount(discountTotal)}</div>
-        </div>
-        <div class="discount-line">
-   <div class="final-total-label">Final Total:</div>
-  <div class="final-total-amount">
-    ${formatAmount(totalAmount - discountTotal)}
-  </div>
-</div>
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th class="col-name">Item</th>
+                <th class="col-revqty">Rev Qty</th>
+                <th class="col-qty">Qty</th>
+                <th class="col-amt">Amt</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredData.map(item => `
+                <tr>
+                  <td class="col-no">${item.item_no ?? '-'}</td>
+                  <td class="col-name">${getDisplayName(item)}</td>
+                  <td class="col-revqty">${item.RevQty ?? 0}</td>
+                  <td class="col-qty">${item.TotalQty}</td>
+                  <td class="col-amt">${formatAmount(item.Amount)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="totals-block">
+            <div class="totals-left">Total</div>
+            <div class="totals-right">
+              <div class="totals-revqty">${formatAmount(totalRevQty)}</div>
+              <div class="totals-qty">${formatAmount(totalQty)}</div>
+              <div class="totals-amt">${formatAmount(totalAmount)}</div>
+            </div>
+          </div>
+          <div class="discount-line">
+            <div class="discount-label">Discount Total:</div>
+            <div class="discount-amount">${formatAmount(discountTotal)}</div>
+          </div>
+          <div class="discount-line">
+            <div class="final-total-label">Final Total:</div>
+            <div class="final-total-amount">
+              ${formatAmount(totalAmount - discountTotal)}
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
 
-
-      </body>
-      </html>
-    `;
-
-    if ((window as any).electronAPI?.directPrint) {
-      await (window as any).electronAPI.directPrint(reportHTML, finalPrinterName);
-      toast.success("Kitchen Allocation Report Printed Successfully!");
-    } else {
-      toast.error("Electron print API not available.");
+      if ((window as any).electronAPI?.directPrint) {
+        await (window as any).electronAPI.directPrint(reportHTML, finalPrinterName);
+        toast.success("Kitchen Allocation Report Printed Successfully!");
+      } else {
+        toast.error("Electron print API not available.");
+      }
+    } catch (err) {
+      toast.error("Failed to print Kitchen Allocation Report.");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    toast.error("Failed to print Kitchen Allocation Report.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const filteredData = useMemo(() => {
     if (!searchTerm) return data;
-    return data.filter(item =>
-      item.item_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return data.filter(item => {
+      const displayName = getDisplayName(item);
+      return displayName.toLowerCase().includes(searchTerm.toLowerCase());
+    });
   }, [data, searchTerm]);
 
   const handleEyeClick = async (item: KitchenAllocationDataWithRev) => {
-    setSelectedItem(item.item_name);
+    setSelectedItem(getDisplayName(item));
     setShowModal(true);
     setModalLoading(true);
 
@@ -470,12 +496,20 @@ const handlePrint = async () => {
       const startDateTime = fromDateTime <= toDateTime ? fromDateTime : toDateTime;
       const endDateTime = fromDateTime <= toDateTime ? toDateTime : fromDateTime;
 
-      const result = await KitchenAllocationService.getItemDetails(item.item_no, {
+      const detailParams: any = {
         fromDate: startDateTime,
         toDate: endDateTime,
         hotelId: String(user?.hotelid),
         outletId: user?.outletid?.toString()
-      });
+      };
+
+      if (selectedDepartment === 'TAKEAWAY') {
+        detailParams.orderTypeGroup = 'takeaway';
+      } else if (selectedDepartment) {
+        detailParams.departmentId = selectedDepartment;
+      }
+
+      const result = await KitchenAllocationService.getItemDetails(item.item_no, detailParams);
 
       if (result?.success) {
         setModalData(result.data);
@@ -577,6 +611,7 @@ const handlePrint = async () => {
                   <Form.Label>Department</Form.Label>
                   <Form.Select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)}>
                     <option value="">All Departments</option>
+                    <option value="TAKEAWAY">Takeaway</option>
                     {departments.map((dept) => (
                       <option key={dept.departmentid} value={dept.departmentid}>{dept.department_name}</option>
                     ))}
@@ -596,10 +631,10 @@ const handlePrint = async () => {
               </Col>
               <Col md={3}>
                 <Form.Group>
-                  <Form.Label>Search Item Name</Form.Label>
+                  <Form.Label>Search</Form.Label>
                   <Form.Control
                     type="text"
-                    placeholder="Enter item name to search..."
+                    placeholder="Search item name or special instruction..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -619,7 +654,7 @@ const handlePrint = async () => {
             <thead>
               <tr>
                 <th>Item No</th>
-                <th>Item Name</th>
+                <th>Item Name / Special Inst</th>
                 <th>Rev Qty</th>
                 <th>Total Qty</th>
                 <th>Amount</th>
@@ -630,7 +665,7 @@ const handlePrint = async () => {
               {filteredData.map((item, index) => (
                 <tr key={index}>
                   <td>{item.item_no}</td>
-                  <td>{item.item_name}</td>
+                  <td>{getDisplayName(item)}</td>
                   <td>{item.RevQty ?? 0}</td>
                   <td>{item.TotalQty}</td>
                   <td>{formatAmount(item.Amount)}</td>
@@ -671,6 +706,7 @@ const handlePrint = async () => {
                       <th>KOT No</th>
                       <th>KOT Used Date & Time</th>
                       <th>Table Name / Table ID</th>
+                      <th>Special Inst</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -682,6 +718,7 @@ const handlePrint = async () => {
                         <td>{detail.KOTNo || 'N/A'}</td>
                         <td>{formatDateTimeDisplay(detail.TxnDatetime)}</td>
                         <td>{detail.table_name || `Table ${detail.TableID}`}</td>
+                        <td>{detail.SpecialInst || '-'}</td>
                       </tr>
                     ))}
                   </tbody>

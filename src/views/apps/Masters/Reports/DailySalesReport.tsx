@@ -135,12 +135,13 @@ const ReportPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
-  const [dynamicPaymentModes, setDynamicPaymentModes] = useState<PaymentMode[]>([]);
+  const [, setDynamicPaymentModes] = useState<PaymentMode[]>([]);
   const [hotelDetails, setHotelDetails] = useState<BrandData | null>(null);
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const [backdatedDate, setBackdatedDate] = useState("");
   const [showDayEndModal, setShowDayEndModal] = useState(false);
+  const [dailySummaryPaymentTypes, setDailySummaryPaymentTypes] = useState<string[]>([]);
   const [selectedReports, setSelectedReports] = useState({
     billDetails: true,
     creditSummary: true,
@@ -151,6 +152,8 @@ const ReportPage = () => {
     ncKOTSummary: true,
   });
   const [generateLoading, setGenerateLoading] = useState(false);
+  const [dailySummaryRows, setDailySummaryRows] = useState<any[]>([]);
+const [dailySummaryGrandTotals, setDailySummaryGrandTotals] = useState<any>(null);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -185,20 +188,26 @@ const ReportPage = () => {
     }
   }, [reportType, reportCategory, filters, customRange.start, customRange.end, bills]);
 
-  useEffect(() => {
-    const fetchPaymentModes = async () => {
-      try {
-        // Use ReportService for common API call
-        const data = await ReportService.getPaymentModesByOutlet(filters.outlet || '');
-        setDynamicPaymentModes(data);
-      } catch (error) {
-        // console.error("Error fetching payment modes:", error);
-        setDynamicPaymentModes([]);
-      }
-    };
-    fetchPaymentModes();
-  }, [filters.outlet]);
-
+ useEffect(() => {
+  const fetchPaymentModes = async () => {
+    // Only fetch if an outlet is selected
+    if (!filters.outlet) {
+      console.log('⏭️ No outlet selected, skipping payment modes fetch');
+      setDynamicPaymentModes([]);
+      return;
+    }
+    try {
+      console.log('🔍 Fetching payment modes for outlet:', filters.outlet);
+      const data = await ReportService.getPaymentModesByOutlet(filters.outlet);
+      console.log('✅ Payment modes received:', data);
+      setDynamicPaymentModes(data);
+    } catch (error) {
+      console.error('❌ Error fetching payment modes:', error);
+      setDynamicPaymentModes([]);
+    }
+  };
+  fetchPaymentModes();
+}, [filters.outlet]);
   // ⬅ NEW: Set default backdated date from custom range
   useEffect(() => {
     if (customRange.start && !backdatedDate) {
@@ -206,120 +215,162 @@ const ReportPage = () => {
     }
   }, [customRange.start, backdatedDate]);
 
-  const loadBills = async (startDate?: string, endDate?: string) => {
-    try {
-      setLoading(true);
-      
-      // Determine date range based on reportType if not explicitly provided
-      let start = startDate;
-      let end = endDate;
-      
-      if (!start || !end) {
-        const today = new Date();
-        if (reportType === "daily") {
-          start = today.toISOString().split('T')[0];
-          end = start;
-        } else if (reportType === "monthly") {
-          const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-          const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-          start = firstDay.toISOString().split('T')[0];
-          end = lastDay.toISOString().split('T')[0];
-        } else if (reportType === "custom" && customRange.start && customRange.end) {
-          start = customRange.start;
-          end = customRange.end;
-        } else {
-          start = today.toISOString().split('T')[0];
-          end = start;
-        }
-      }
-      
-      // Use ReportService for common API call
-     // Use ReportService for common API call with caseType
-      const caseType = reportCategory === 'reverseKOTs' ? 'reverseKOTs' :
-                      reportCategory === 'ncKOT' ? 'ncKOT' :
-                      reportCategory === 'creditSummary' ? 'creditSummary' :
-                      reportCategory === 'discountSummary' ? 'discountSummary' :
-                      reportCategory === 'kitchenWise' ? 'kitchenWise' :
-                      'billSummary'; // default
-      const response = await ReportService.getDailySalesReport({ start, end, caseType });
-      
-      if (response.success && response.data) {
-        // console.log("Fetched bills data:", response.data.orders);
-        const orders: any[] = response.data.orders || [];
-        const allBills: Bill[] = orders.map((order: any) => ({
-          orderNo: order.orderNo,
-          billNo: order.orderNo,
-          billDate: order.date ? new Date(order.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            settleAmount: order.settleAmount || 0,  
-            tipAmount: order.tipAmount || 0,
-            billAmount: order.billAmount || 0,
-            netAmount: order.netAmount || 0,
-            taxbleAmount: order.taxbleAmount || 0,
-            
-          kotNo: order.kotNo || "N/A",
-          revKotNo: order.revKotNo,
-          revKot: order.reverseBill == 1,
-          grossAmount: order.grossAmount || order.amount || 0,
-          discount: order.discount || 0,
-          amount: order.amount || 0,
-          cgst: order.cgst || 0,
-          sgst: order.sgst || 0,
-          igst: order.igst || 0,
-          roundOff: order.roundOff || 0,
-          revAmt: order.revAmt || 0,
-          cess: 0,
-          serviceCharge: order.serviceCharge || 0,
-          serviceCharge_Amount: order.serviceCharge_Amount || 0,
-          discountType: order.discountType,
-          discPer: order.discPer,
-          ncPurpose: order.ncPurpose,
-          totalAmount: order.amount || 0,
-          paymentMode: order.paymentMode || "Cash",
-          customerName: order.customerName || "N/A", // Assuming customerName might exist
-          waiter: order.waiter,
-          captain: order.captain,
-          user: order.user,
-          address: "N/A",
-          pax: order.pax,
-          mobile: "N/A",
-          orderType: order.type || "Dine-in",
-          itemsCount: order.items,
-          tax: (order.cgst || 0) + (order.sgst || 0),
-          reverseBill: order.reverseBill,
-          date: order.date,
-          ncKot: order.ncKot,
-          ncName: order.ncName,
-          isHomeDelivery: order.isHomeDelivery,
-          isPickup: order.isPickup,
-          isCancelled: order.isCancelled,
-          billedDate: order.billedDate,
-          handOverEmpID: order.handOverEmpID,
-          dayEndEmpID: order.dayEndEmpID,
-          landmark: order.landmark,
-          cash: order.cash,
-          credit: order.credit,
-          card: order.card,
-          gpay: order.gpay,
-          phonepe: order.phonepe,
-          qrcode: order.qrcode,
-          outlet_name: order.outlet_name,
-          outletid: order.outletid,
-          table_name: order.table_name,
-          department_name: order.department_name,
-        }));
-        setBills(allBills);
-        filterBills(allBills);
-      } else {
-        throw new Error(response.message || 'Failed to fetch data');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      // console.error('Error fetching report data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+const loadBills = async (startDate?: string, endDate?: string) => {
+  try {
+    setLoading(true);
 
+    // 1️⃣ Determine date range
+    let start = startDate;
+    let end = endDate;
+
+    if (!start || !end) {
+      const today = new Date();
+if (reportType === "daily") {
+  start = today.toLocaleDateString('en-CA');
+  end = start;
+} else if (reportType === "monthly") {
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  start = firstDay.toLocaleDateString('en-CA');
+  end = lastDay.toLocaleDateString('en-CA');
+      } else if (reportType === "custom" && customRange.start && customRange.end) {
+        start = customRange.start;
+        end = customRange.end;
+      } else {
+  start = today.toLocaleDateString('en-CA');
+  end = start;
+}
+    }
+
+    // 2️⃣ Map reportCategory to caseType
+    const caseType =
+      reportCategory === 'reverseKOTs' ? 'reverseKOTs' :
+      reportCategory === 'ncKOT' ? 'ncKOT' :
+      reportCategory === 'creditSummary' ? 'creditSummary' :
+      reportCategory === 'discountSummary' ? 'discountSummary' :
+      reportCategory === 'kitchenWise' ? 'kitchenWise' :
+      'dailySummary';
+
+    // 3️⃣ Get outlet ID from logged-in user
+    const outletid = user?.outletid;
+    console.log('🔍 LoadBills - outletid:', outletid, 'start:', start, 'end:', end, 'caseType:', caseType);
+
+   let response: any;
+
+if (caseType === 'dailySummary') {
+  // Use the dedicated daily summary endpoint
+  response = await ReportService.getDailySummary({ 
+    start, 
+    end, 
+    outletid: user.outletid 
+  });
+  
+} else {
+  // Use the detailed orders endpoint
+  response = await ReportService.getDailySalesReport({
+    start,
+    end,
+    caseType,
+    outletid: user?.outletid,
+  });
+}
+
+    if (response.success && response.data) {
+      const data = response.data as any;
+
+      if (data.summaryType === 'dailySummary') {
+  // 🔁 Convert UTC BillDate to local date string
+  const rows = (data.rows || []).map((row: any) => ({
+    ...row,
+    BillDate: row.BillDate ? new Date(row.BillDate).toLocaleDateString('en-CA') : row.BillDate,
+  }));
+  console.log('📊 Daily summary received:', {
+    rows: rows.length,
+    paymentTypes: data.paymentTypes,
+  });
+  setDailySummaryRows(rows);
+  setDailySummaryGrandTotals(data.grandTotals || null);
+  setDailySummaryPaymentTypes(data.paymentTypes || []);
+  setBills([]);
+  setFilteredBills([]);
+  return;
+}
+
+      // 5️⃣ Process detailed orders (existing logic)
+      const orders: any[] = response.data.orders || [];
+      const allBills: Bill[] = orders.map((order: any) => ({
+        orderNo: order.orderNo,
+        billNo: order.orderNo,
+        billDate: order.date ? new Date(order.date).toLocaleDateString('en-CA') : '',
+        settleAmount: order.settleAmount || 0,
+        tipAmount: order.tipAmount || 0,
+        billAmount: order.billAmount || 0,
+        netAmount: order.netAmount || 0,
+        taxbleAmount: order.taxbleAmount || 0,
+        kotNo: order.kotNo || "N/A",
+        revKotNo: order.revKotNo,
+        revKot: order.reverseBill == 1,
+        grossAmount: order.grossAmount || order.amount || 0,
+        discount: order.discount || 0,
+        amount: order.amount || 0,
+        cgst: order.cgst || 0,
+        sgst: order.sgst || 0,
+        igst: order.igst || 0,
+        roundOff: order.roundOff || 0,
+        revAmt: order.revAmt || 0,
+        cess: 0,
+        serviceCharge: order.serviceCharge || 0,
+        serviceCharge_Amount: order.serviceCharge_Amount || 0,
+        discountType: order.discountType,
+        discPer: order.discPer,
+        ncPurpose: order.ncPurpose,
+        totalAmount: order.amount || 0,
+        paymentMode: order.paymentMode || "Cash",
+        customerName: order.customerName || "N/A",
+        waiter: order.waiter,
+        captain: order.captain,
+        user: order.user,
+        address: "N/A",
+        pax: order.pax,
+        mobile: "N/A",
+        orderType: order.type || "Dine-in",
+        itemsCount: order.items,
+        tax: (order.cgst || 0) + (order.sgst || 0),
+        reverseBill: order.reverseBill,
+        date: order.date,
+        ncKot: order.ncKot,
+        ncName: order.ncName,
+        isHomeDelivery: order.isHomeDelivery,
+        isPickup: order.isPickup,
+        isCancelled: order.isCancelled,
+        billedDate: order.billedDate,
+        handOverEmpID: order.handOverEmpID,
+        dayEndEmpID: order.dayEndEmpID,
+        landmark: order.landmark,
+        cash: order.cash,
+        credit: order.credit,
+        card: order.card,
+        gpay: order.gpay,
+        phonepe: order.phonepe,
+        qrcode: order.qrcode,
+        outlet_name: order.outlet_name,
+        outletid: order.outletid,
+        table_name: order.table_name,
+        department_name: order.department_name,
+      }));
+
+      setBills(allBills);
+      filterBills(allBills);
+    } else {
+      throw new Error(response.message || 'Failed to fetch data');
+    }
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'An error occurred');
+    console.error('❌ Error fetching report data:', err);
+  } finally {
+    setLoading(false);
+  }
+};
   const handleDateChange = (field: 'start' | 'end', value: string) => {
     const updatedRange = { ...customRange, [field]: value };
     setCustomRange(updatedRange);
@@ -621,8 +672,8 @@ const ReportPage = () => {
     // const paymentModes = Array.isArray(dynamicPaymentModes) ? dynamicPaymentModes : [];
 
     const hotel_name = hotelDetails?.hotel_name || user?.hotel_name || 'Hotel Name Not Found';
-    const hotelAddress = hotelDetails?.address || 'Address not available';
-    const hotelPhone = hotelDetails?.phone || 'Phone not available';
+    // const hotelAddress = hotelDetails?.address || 'Address not available';
+    // const hotelPhone = hotelDetails?.phone || 'Phone not available';
 
 
     // 2. Determine date range for the report title
@@ -633,153 +684,81 @@ const ReportPage = () => {
     // 3. Create the dynamic header rows
     const header = [
       [hotel_name],
-      [hotelAddress],
-      [`Phone : ${hotelPhone}`],
+      // [hotelAddress],
+      // [`Phone : ${hotelPhone}`],
       [], // Empty row for spacing
-      [`Daily Summary Report - ${fromDate} To ${toDate}`],
+      [` Summary Report - ${fromDate} To ${toDate}`],
       []  // Empty row for spacing
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(header);
 
-    let data: any[] = [];
-    if (reportCategory === "billSummary") {
-      data = billSummaryData.map(b => {
-        const row: { [key: string]: any } = {
-          "Bill No": b.billNo,
-          "Sale Amt (₹)": b.totalAmount?.toFixed(2) || '0.00',
-          "Discount (₹)": b.discount?.toFixed(2) || '0.00',
-          "Net Amt (₹)": b.amount?.toFixed(2) || '0.00',
-          "CGST (₹)": b.cgst?.toFixed(2) || '0.00',
-          "SGST (₹)": b.sgst?.toFixed(2) || '0.00',
-          "Round Off": b.roundOff?.toFixed(2) || '0.00',
-          "Gross Total (₹)": b.grossAmount?.toFixed(2) || '0.00',
-        };
+    // Helper: agar backend ka total corrupt/NaN ho to rows se sum nikal lo
+const safeTotal = (backendVal: any, rows: any[], key: string) => {
+  const num = Number(backendVal);
+  if (!isNaN(num)) return num;
+  return rows.reduce((sum, r) => sum + (Number(r[key]) || 0), 0);
+};
+   
+let data: any[] = [];
+if (reportCategory === "billSummary") {   // ✅ "dailySummary" ki jagah "billSummary"
+  const rows = dailySummaryRows;
+  const totals = dailySummaryGrandTotals;
+  const paymentTypes = dailySummaryPaymentTypes;
 
-        dynamicPaymentModes.forEach(pm => {
-          const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
-          let amount = 0;
-          if (modeKey.includes('cash')) amount = b.cash ?? 0;
-          else if (modeKey.includes('card')) amount = b.card ?? 0;
-          else if (modeKey.includes('credit')) amount = b.credit ?? 0;
-          else if (modeKey.includes('gpay')) amount = b.gpay ?? 0;
-          else if (modeKey.includes('phonepe')) amount = b.phonepe ?? 0;
-          else if (modeKey.includes('qr')) amount = b.qrcode ?? 0;
-          else amount = (b as any)[modeKey] ?? 0;
-          row[`${pm.mode_name} (₹)`] = amount.toFixed(2);
-        });
+  data = rows.map((r) => {
+    const row: { [key: string]: any } = {
+      "Bill Date": r.BillDate,
+      "Bill No Range": r.BillNoRange,
+      "Total Bills": r.TotalBills,
+      "Settlement Amt (₹)": Number(r.SettlementAmount || 0).toFixed(2),
+      "Gross Amount (₹)": Number(r.GrossAmount || 0).toFixed(2),
+      "Discount (₹)": Number(r.Discount || 0).toFixed(2),
+      "Total Amt (₹)": Number(r.TotalAmount || 0).toFixed(2),
+      "Tip Amount (₹)": Number(r.TipAmount || 0).toFixed(2),
+      "Taxable Value (₹)": Number(r.TaxableValue || 0).toFixed(2),
+      "CGST (₹)": Number(r.CGST || 0).toFixed(2),
+      "SGST (₹)": Number(r.SGST || 0).toFixed(2),
+      "Round Off (₹)": Number(r.RoundOFF || 0).toFixed(2),
+      "Rev Amt (₹)": Number(r.RevAmt || 0).toFixed(2),
+      "Water (₹)": Number(r.Water || 0).toFixed(2),
+      "Total Items": r.TotalItems,
+    };
 
-        Object.assign(row, {
-          "Customer Name": b.customerName,
-          "Bill Date": b.billDate,
-          "KOT No": b.kotNo,
-          "Rev KOT No": b.revKotNo,
-          "Rev Amt": b.revAmt?.toFixed(2) || '0.00',
-          "Payment Mode": b.paymentMode,
-          "Waiter": b.waiter,
-          "Captain": b.captain,
-          "User": b.user,
-          "Order Type": b.orderType,
-          "Card Number": b.creditDetails?.cardNumber,
-          "Bank": b.creditDetails?.bank,
-          "Card Amount (₹)": b.creditDetails?.amount.toFixed(2),
-          "Outlet Name": b.outlet_name,
-          "Table Name": b.table_name,
-          "Department Name": b.department_name,
-          "Discount %": b.discPer?.toFixed(2) || '0.00',
-          "Discount Type": b.discountType === 1 ? 'Percentage' : 'Amount',
-          "IGST (₹)": b.igst?.toFixed(2) || '0.00',
-          "Service Charge (₹)": b.serviceCharge_Amount?.toFixed(2) || '0.00',
-          "PAX": b.pax,
-          "Home Delivery": b.isHomeDelivery ? 'Yes' : 'No',
-          "Pickup": b.isPickup ? 'Yes' : 'No',
-          "Cancelled": b.isCancelled ? 'Yes' : 'No',
-          "NC KOT": b.ncKot || 'N/A',
-          "NC Name": b.ncName || 'N/A',
-          "NC Purpose": b.ncPurpose || 'N/A',
-          "Billed Date": b.billedDate ? new Date(b.billedDate).toLocaleString() : 'N/A',
-          "Mobile No": b.mobile || 'N/A',
-          "Address": b.address || 'N/A',
-          "Landmark": b.landmark || 'N/A',
-          "Handover Emp": b.handOverEmpID || 'N/A',
-          "DayEnd Emp": b.dayEndEmpID || 'N/A'
-        });
+    paymentTypes.forEach((pt) => {
+      const amount = (r as any)[pt] ?? 0;
+      row[`${pt} (₹)`] = Number(amount).toFixed(2);
+    });
 
-        return row;
-      });
+    return row;
+  });
 
-      // Calculate and add total row for Excel
-      const initialTotals: { [key: string]: number } = {
-        grossAmount: 0,
-        discount: 0,
-        amount: 0,
-        cgst: 0,
-        sgst: 0,
-        roundOff: 0,
-        revAmt: 0,
-        serviceCharge_Amount: 0,
-        totalAmount: 0,
-        cardAmount: 0,
-        igst: 0,
-        ...dynamicPaymentModes.reduce((acc, mode) => {
-          const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
-          acc[modeKey] = 0;
-          return acc;
-        }, {} as { [key: string]: number })
-      };
+  if (totals) {
+    const totalRow: any = {
+      "Bill Date": "Total",
+      "Bill No Range": "",
+      "Total Bills": totals.TotalBills,
+      "Settlement Amt (₹)": Number(totals.SettlementAmount || 0).toFixed(2),
+       "Gross Amount (₹)": safeTotal(totals.GrossAmount, rows, "GrossAmount").toFixed(2), // ✅ fixed
+      "Discount (₹)": Number(totals.Discount || 0).toFixed(2),
+      "Total Amt (₹)": Number(totals.TotalAmount || 0).toFixed(2),
+      "Tip Amount (₹)": Number(totals.TipAmount || 0).toFixed(2),
+      "Taxable Value (₹)": Number(totals.TaxableValue || 0).toFixed(2),
+      "CGST (₹)": Number(totals.CGST || 0).toFixed(2),
+      "SGST (₹)": Number(totals.SGST || 0).toFixed(2),
+      "Round Off (₹)": Number(totals.RoundOFF || 0).toFixed(2),
+      "Rev Amt (₹)": Number(totals.RevAmt || 0).toFixed(2),
+      "Water (₹)": Number(totals.Water || 0).toFixed(2),
+      "Total Items": totals.TotalItems,
+    };
 
-      const totals = billSummaryData.reduce((acc, bill) => {
-        acc.grossAmount += bill.grossAmount || 0;
-        acc.discount += bill.discount || 0;
-        acc.amount += bill.amount || 0;
-        acc.cgst += bill.cgst || 0;
-        acc.sgst += bill.sgst || 0;
-        acc.roundOff += bill.roundOff || 0;
-        acc.igst += bill.igst || 0;
-        acc.revAmt += bill.revAmt || 0;
-        acc.serviceCharge_Amount += bill.serviceCharge_Amount || 0;
-        acc.totalAmount += bill.totalAmount || 0;
-        acc.cardAmount += bill.creditDetails?.amount || 0;
-        dynamicPaymentModes.forEach(pm => {
-          const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
-          let amount = 0;
-          if (modeKey.includes('cash')) amount = bill.cash ?? 0;
-          else if (modeKey.includes('card')) amount = bill.card ?? 0;
-          else if (modeKey.includes('credit')) amount = bill.credit ?? 0;
-          else if (modeKey.includes('gpay')) amount = bill.gpay ?? 0;
-          else if (modeKey.includes('phonepe')) amount = bill.phonepe ?? 0;
-          else if (modeKey.includes('qr')) amount = bill.qrcode ?? 0;
-          else amount = (bill as any)[modeKey] ?? 0;
-          acc[modeKey] = (acc[modeKey] || 0) + amount;
-        });
-        return acc;
-      }, initialTotals);
+    paymentTypes.forEach((pt) => {
+      totalRow[`${pt} (₹)`] = Number(totals[pt] ?? 0).toFixed(2);
+    });
 
-      const totalRow: any = {
-        'Bill No': 'Total',
-        'Sale Amt (₹)': totals.totalAmount.toFixed(2),
-        'Discount (₹)': totals.discount.toFixed(2),
-        'Net Amt (₹)': totals.amount.toFixed(2),
-        'CGST (₹)': totals.cgst.toFixed(2),
-        'SGST (₹)': totals.sgst.toFixed(2),
-        'Round Off': totals.roundOff.toFixed(2),
-        'Gross Total (₹)': totals.grossAmount.toFixed(2),
-      };
-
-      dynamicPaymentModes.forEach(pm => {
-        const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
-        totalRow[`${pm.mode_name} (₹)`] = (totals as any)[modeKey]?.toFixed(2) || '0.00';
-      });
-
-      Object.assign(totalRow, {
-        'Rev Amt': totals.revAmt.toFixed(2),
-        'Card Amount (₹)': totals.cardAmount.toFixed(2),
-        'IGST (₹)': totals.igst.toFixed(2),
-        'Service Charge (₹)': totals.serviceCharge_Amount.toFixed(2),
-      });
-
-      data.push(totalRow);
-    }
+    data.push(totalRow);
+  }
+}
     // The other report categories are not the focus of the request.
     // Keeping their logic as is.
     else if (reportCategory === "reverseKOTs") {
@@ -1527,272 +1506,123 @@ const ReportPage = () => {
   //     </Card>
   //   );
   // };
-  const renderBillSummarySection = () => {
-  // IMPORTANT:
-  // Backend `Reportcontroller.js` sends dynamic payment columns on each bill row using
-  // the raw PaymentType values as keys (e.g., Cash, Card, GPay, PhonePe, QRCode...).
-  //
-  // Issue: earlier implementation tried to detect keys using fragile numeric-convertibility checks.
-  // Fix: Prefer keys coming from `dynamicPaymentModes` (mode_name). Fallback: detect keys from row object.
+const renderDailySummarySection = () => {
+  const rows = dailySummaryRows;
+  const totals = dailySummaryGrandTotals;
+  const paymentTypes = dailySummaryPaymentTypes;
 
-  const paymentModeKeys = (() => {
-    const first = (billSummaryData && billSummaryData.length > 0 ? (billSummaryData[0] as any) : null);
+  console.log('📊 renderDailySummarySection - rows:', rows?.length, 'paymentTypes:', paymentTypes, 'totals:', totals);
 
-    if (!first) return [] as { label: string; key: string }[];
+  if (!rows || rows.length === 0) {
+    return (
+      <Card className="p-2 shadow-sm border-0">
+        <Card.Header style={{ backgroundColor: "#E3F2FD" }}>
+          <h5 className="mb-0">📊 Daily Summary</h5>
+        </Card.Header>
+        <Card.Body>
+          <div className="text-center">No data available for the selected date range.</div>
+        </Card.Body>
+      </Card>
+    );
+  }
 
-    // 1) Prefer payment columns from API payment modes ordering
-    //    (mode_name should match PaymentType values used as SQL aliases)
-    const apiModeKeys = (dynamicPaymentModes || [])
-      .map((pm) => pm?.mode_name)
-      .filter((k): k is string => !!k);
+  // Log sample row to see available keys
+  console.log('🔍 Sample row keys:', Object.keys(rows[0]));
+  console.log('🔍 Sample row:', rows[0]);
 
-    const paymentKeysFromApi = apiModeKeys
-      .filter((k) => k in first) // must exist on the backend row
-      .map((k) => ({ label: k, key: k }));
+  // 1) Static columns
+  const staticColumns: { key: string; label: string; textAlign: 'left' | 'right' | 'center' }[] = [
+    { key: 'BillDate', label: 'BillDate', textAlign: 'left' },
+    { key: 'BillNoRange', label: 'BillNo', textAlign: 'left' },
+    { key: 'SettlementAmount', label: 'Settel Amt', textAlign: 'right' },
+    { key: 'GrossAmount', label: 'Gross Amount', textAlign: 'right' },
+    { key: 'Discount', label: 'Discount', textAlign: 'right' },
+    { key: 'TotalAmount', label: 'Total Amt', textAlign: 'right' },
+    { key: 'TipAmount', label: 'Tip Amount', textAlign: 'right' },
+    { key: 'TaxableValue', label: 'TaxableValue', textAlign: 'right' },
+    { key: 'CGST', label: 'CGST', textAlign: 'right' },
+    { key: 'SGST', label: 'SGST', textAlign: 'right' },
+    { key: 'RoundOFF', label: 'Round off', textAlign: 'right' },
+  ];
 
-    if (paymentKeysFromApi.length > 0) return paymentKeysFromApi;
+  // 2) Dynamic payment columns from the backend's paymentTypes list
+  const paymentColumns = paymentTypes.map((pt) => ({
+    key: pt,
+    label: pt,
+    textAlign: 'right' as const,
+  }));
+  // Helper: total nikalo backend se, warna rows se sum karke fallback do
+const getColumnTotal = (key: string) => {
+  const backendVal = totals ? Number(totals[key]) : NaN;
+  if (!isNaN(backendVal)) {
+    return backendVal.toFixed(2);
+  }
+  // Backend value corrupt/missing hai (jaise concatenated string) - rows se sum karo
+  const sum = rows.reduce((acc, r) => acc + (Number(r[key]) || 0), 0);
+  return sum.toFixed(2);
+};
 
-    // 2) Fallback: discover payment-like columns from first row
-    const excluded = new Set([
-      'billNo','orderNo','billDate','settleAmount','tipAmount','billAmount','netAmount','taxbleAmount',
-      'kotNo','revKotNo','revKot','grossAmount','discount','amount','cgst','sgst','igst','cess','roundOff',
-      'revAmt','serviceCharge','serviceCharge_Amount','discountType','discPer','ncPurpose','totalAmount',
-      'paymentMode','customerName','address','mobile','orderType','waiter','captain','pax','user',
-      'itemsCount','tax','reverseBill','date','ncKot','ncName','creditDetails',
-      // also ignore known structured payment fields (non-dynamic)
-      'cash','credit','card','gpay','phonepe','qrcode','outlet','outletid','outlet_name','table_name','department_name'
-    ]);
+  console.log('🔧 Static columns:', staticColumns.map(c => c.key));
+  console.log('🔧 Payment columns:', paymentColumns.map(c => c.key));
 
-    const paymentKeys = Object.keys(first).filter((k) => !excluded.has(k) && first[k] !== undefined);
+  const columns = [...staticColumns, ...paymentColumns];
 
-    // Deterministic order: prefer common modes first, then rest.
-    const priority = ['Cash','Card','Credit','GPay','UPI','PhonePe','QR','QRCode','Cheque','DD'];
-    paymentKeys.sort((a,b)=>{
-      const ia = priority.indexOf(a);
-      const ib = priority.indexOf(b);
-      if (ia === -1 && ib === -1) return a.localeCompare(b);
-      if (ia === -1) return 1;
-      if (ib === -1) return -1;
-      return ia - ib;
-    });
-
-    return paymentKeys.map((k) => ({ label: k, key: k }));
-  })();
-
-  const initialTotals: any = {
-    settleAmount: 0,
-    tipAmount: 0,
-    billAmount: 0,
-    discount: 0,
-    netAmount: 0,
-    taxbleAmount: 0,
-    cgst: 0,
-    sgst: 0,
-    roundOff: 0,
-    grossAmount: 0,
-    ...paymentModeKeys.reduce((acc: any, pm) => {
-      acc[pm.key] = 0;
-      return acc;
-    }, {})
+  // Helper to get display value
+  const getDisplayValue = (row: any, key: string) => {
+    const value = row[key];
+    if (value === undefined || value === null) return '—';
+    if (typeof value === 'number') return value.toFixed(2);
+    return value;
   };
-
-  const totals = billSummaryData.reduce((acc: any, bill: any) => {
-
-    acc.settleAmount += bill.settleAmount || 0;
-    acc.tipAmount += bill.tipAmount || 0;
-    acc.billAmount += bill.billAmount || 0;
-    acc.discount += bill.discount || 0;
-    acc.netAmount += bill.netAmount || 0;
-    acc.taxbleAmount += bill.taxbleAmount || 0;
-    acc.cgst += bill.cgst || 0;
-    acc.sgst += bill.sgst || 0;
-    acc.roundOff += bill.roundOff || 0;
-    acc.grossAmount += bill.grossAmount || 0;
-
-    paymentModeKeys.forEach((pm) => {
-      acc[pm.key] += Number(bill[pm.key] || 0);
-    });
-
-    return acc;
-
-  }, initialTotals);
 
   return (
     <Card className="p-2 shadow-sm border-0">
-
       <Card.Header style={{ backgroundColor: "#E3F2FD" }}>
-        <h5 className="mb-0">📋 Bill Summary</h5>
+        <h5 className="mb-0">📊 Daily Summary</h5>
       </Card.Header>
-
-      <Card.Body style={{ overflowY: "auto", maxHeight: "70vh" }}>
-
+      <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh' }}>
         <Table bordered hover responsive size="sm">
-
           <thead style={{ backgroundColor: "#FFF3E0" }}>
             <tr>
-
-              <th>Bill No</th>
-              <th>Bill Date</th>
-              <th>Settle Amount</th>
-              <th>Tip Amount</th>
-              <th>Bill Amount</th>
-              <th>Discount</th>
-              <th>Net Amount</th>
-              <th>Taxable Amount</th>
-              <th>CGST</th>
-              <th>SGST</th>
-              <th>Round Off</th>
-              <th>Gross Total</th>
-
-              {/* Dynamic Payment Mode Columns */}
-              {paymentModeKeys.map((pm, i) => (
-                <th key={i}>{pm.label} (₹)</th>
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  style={{
+                    position: 'sticky',
+                    top: 0,
+                    backgroundColor: '#FFF3E0',
+                    zIndex: 1,
+                    textAlign: col.textAlign,
+                  }}
+                >
+                  {col.label}
+                </th>
               ))}
-
-              <th>Order Type</th>
-
             </tr>
           </thead>
-
           <tbody>
-
-            {billSummaryData.length > 0 ? (
-              billSummaryData.map((b: any, i: number) => (
-
-                <tr key={i}>
-
-                  <td>{b.billNo}</td>
-                  <td>{b.billDate}</td>
-
-                  <td className="text-end">
-                    {(b.settleAmount || 0).toFixed(2)}
+            {rows.map((row, idx) => (
+              <tr key={idx}>
+                {columns.map((col) => (
+                  <td key={col.key} style={{ textAlign: col.textAlign }}>
+                    {getDisplayValue(row, col.key)}
                   </td>
-
-                  <td className="text-end">
-  {(b.tipAmount || 0).toFixed(2)}  
-</td>
-
-                  <td className="text-end">
-                    {(b.billAmount || 0).toFixed(2)}
-                  </td>
-
-                  <td className="text-end">
-                    {(b.discount || 0).toFixed(2)}
-                  </td>
-
-                  <td className="text-end">
-                    {(b.netAmount || 0).toFixed(2)}
-                  </td>
-
-                  <td className="text-end">
-                    {(b.taxbleAmount || 0).toFixed(2)}
-                  </td>
-
-                  <td className="text-end">
-                    {(b.cgst || 0).toFixed(2)}
-                  </td>
-
-                  <td className="text-end">
-                    {(b.sgst || 0).toFixed(2)}
-                  </td>
-
-                  <td className="text-end">
-                    {(b.roundOff || 0).toFixed(2)}
-                  </td>
-
-                  <td className="text-end">
-                    {(b.grossAmount || 0).toFixed(2)}
-                  </td>
-
-                  {/* Dynamic Payment Values */}
-                  {paymentModeKeys.map((pm, idx) => (
-                    <td key={idx} className="text-end">
-                      {(Number(b[pm.key]) || 0).toFixed(2)}
-                    </td>
-                  ))}
-
-                  <td>{b.orderType}</td>
-
-                </tr>
-
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={13 + paymentModeKeys.length}
-                  className="text-center"
-                >
-                  No data available
-                </td>
+                ))}
               </tr>
-            )}
-
+            ))}
           </tbody>
-
-          <tfoot className="fw-bold">
-
-            <tr>
-
-              <td>Total</td>
-              <td></td>
-
-              <td className="text-end">
-                {totals.settleAmount.toFixed(2)}
-              </td>
-
-              <td className="text-end">
-                {totals.tipAmount.toFixed(2)}
-              </td>
-
-              <td className="text-end">
-                {totals.billAmount.toFixed(2)}
-              </td>
-
-              <td className="text-end">
-                {totals.discount.toFixed(2)}
-              </td>
-
-              <td className="text-end">
-                {totals.netAmount.toFixed(2)}
-              </td>
-
-              <td className="text-end">
-                {totals.taxbleAmount.toFixed(2)}
-              </td>
-
-              <td className="text-end">
-                {totals.cgst.toFixed(2)}
-              </td>
-
-              <td className="text-end">
-                {totals.sgst.toFixed(2)}
-              </td>
-
-              <td className="text-end">
-                {totals.roundOff.toFixed(2)}
-              </td>
-
-              <td className="text-end">
-                {totals.grossAmount.toFixed(2)}
-              </td>
-
-              {/* Dynamic Totals */}
-              {paymentModeKeys.map((pm, idx) => (
-                <td key={idx} className="text-end">
-                  {(totals[pm.key] || 0).toFixed(2)}
-                </td>
-              ))}
-
-              <td></td>
-
-            </tr>
-
-          </tfoot>
-
+         <tfoot className="fw-bold">
+  <tr>
+    <td colSpan={2} style={{ textAlign: 'center' }}>Grand Total</td>
+    {columns.slice(2).map((col) => (
+      <td key={col.key} style={{ textAlign: col.textAlign }}>
+        {getColumnTotal(col.key)}
+      </td>
+    ))}
+  </tr>
+</tfoot>
         </Table>
-
       </Card.Body>
-
     </Card>
   );
 };
@@ -2702,7 +2532,7 @@ const ReportPage = () => {
   const renderReportContent = () => {
     switch (reportCategory) {
       case "billSummary":
-        return renderBillSummarySection();
+        return renderDailySummarySection ();
       case "creditSummary":
         return renderCreditSummarySection();
       case "discountSummary":
@@ -2736,7 +2566,7 @@ const ReportPage = () => {
       case "kotUsedSummary":
         return renderKotUsedSummarySection();
       default:
-        return renderBillSummarySection();
+        return renderDailySummarySection();
     }
   };
 

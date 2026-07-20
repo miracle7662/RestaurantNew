@@ -234,6 +234,8 @@ exports.getCheckinFullDetails = async (req, res) => {
 // POST /rooms – create a new room
 // ----------------------------------------------------------------------
 exports.addRoom = async (req, res) => {
+    console.log('📥 [addRoom] Request received', { body: req.body, user: req.user?.id }); // Avoid logging full user object if sensitive
+
     try {
         const {
             room_no,
@@ -250,32 +252,41 @@ exports.addRoom = async (req, res) => {
         } = req.body;
 
         const userId = getCurrentUserId(req);
+        console.log('👤 [addRoom] userId resolved:', userId);
+
         let hotelId = hotelid || getCurrentUserHotelId(req);
         const created_date = new Date();
+        console.log('🏨 [addRoom] hotelId resolved:', hotelId);
 
         if (!hotelId) {
+            console.warn('⚠️ [addRoom] Hotel ID missing');
             return res.status(400).json({ success: false, message: 'Hotel ID not found' });
         }
 
         if (!room_no || !room_name || !room_category_id) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Room number, name, and category are required' 
+            console.warn('⚠️ [addRoom] Missing required fields', { room_no, room_name, room_category_id });
+            return res.status(400).json({
+                success: false,
+                message: 'Room number, name, and category are required'
             });
         }
 
         // Check for duplicate room number in same hotel
+        console.log(`🔍 [addRoom] Checking duplicate room_no: ${room_no} for hotelId: ${hotelId}`);
         const [existing] = await db.execute(
             'SELECT room_id FROM room_master WHERE room_no = ? AND hotelid = ?',
             [room_no, hotelId]
         );
-        
+
         if (existing.length > 0) {
+            console.warn(`⚠️ [addRoom] Duplicate room_no: ${room_no} already exists (room_id: ${existing[0].room_id})`);
             return res.status(409).json({
                 success: false,
                 message: 'Room with this number already exists in this hotel',
             });
         }
+
+        console.log('✅ [addRoom] No duplicate found, proceeding to insert');
 
         const [result] = await db.execute(`
             INSERT INTO room_master (
@@ -298,7 +309,85 @@ exports.addRoom = async (req, res) => {
             created_date
         ]);
 
+        const newRoomId = result.insertId;
+        console.log(`✅ [addRoom] Room inserted successfully with room_id: ${newRoomId}`);
+
+        // ── Auto-create matching row in msttablemanagement ──
+      try {
+    console.log('🔗 [addRoom] Attempting to auto-create msttablemanagement entries for room_id:', newRoomId);
+
+    const [deptRows] = await db.execute(`
+        SELECT
+            d.departmentid,
+            d.department_name,
+            d.outletid,
+            o.hotelid
+        FROM msttable_department d
+        INNER JOIN mst_outlets o
+            ON o.outletid = d.outletid
+        WHERE
+            d.department_name = 'Room Service'
+            AND o.hotelid = ?
+    `, [hotelId]);
+
+    if (deptRows.length === 0) {
+        console.warn(
+            `⚠️ [addRoom] No "Room Service" department found for hotel ${hotelId}. Skipping msttablemanagement creation.`
+        );
+    } else {
+
+        console.log(`📋 [addRoom] Found ${deptRows.length} Room Service department(s)`);
+
+        for (const dept of deptRows) {
+
+            console.log(
+                `➡️ Creating msttablemanagement entry for Outlet ${dept.outletid}, Department ${dept.departmentid}`
+            );
+
+            await db.execute(`
+                INSERT INTO msttablemanagement (
+                    table_name,
+                    hotelid,
+                    outletid,
+                    marketid,
+                    departmentid,
+                    department_name,
+                    status,
+                    created_by_id,
+                    created_date
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+                room_no,
+                dept.hotelid,
+                dept.outletid,
+                1, // marketid
+                dept.departmentid,
+                dept.department_name,
+                11,
+                created_by_id || userId,
+                created_date
+            ]);
+
+            console.log(
+                `✅ Room ${room_no} created in Outlet ${dept.outletid}`
+            );
+        }
+
+        console.log(
+            `🎉 Successfully created ${deptRows.length} msttablemanagement entries for Room ${room_no}`
+        );
+    }
+
+} catch (linkErr) {
+    console.error(
+        '❌ [addRoom] Failed to auto-create linked msttablemanagement entries:',
+        linkErr
+    );
+    // Don't fail room creation
+}
+
         // Fetch the newly created room with joined names
+        console.log(`📄 [addRoom] Fetching newly created room with id: ${newRoomId}`);
         const [newRoom] = await db.execute(`
             SELECT
                 rm.room_id,
@@ -329,25 +418,32 @@ exports.addRoom = async (req, res) => {
             LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
             LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
             WHERE rm.room_id = ?
-        `, [result.insertId]);
+        `, [newRoomId]);
+
+        if (newRoom.length === 0) {
+            console.error(`❌ [addRoom] Failed to fetch inserted room (id: ${newRoomId})`);
+            // Still return success with partial data? We'll send 201 but no data.
+        }
 
         const formattedRoom = {
             ...newRoom[0],
-            created_date: formatDate(newRoom[0].created_date),
-            updated_date: formatDate(newRoom[0].updated_date)
+            created_date: formatDate(newRoom[0]?.created_date),
+            updated_date: formatDate(newRoom[0]?.updated_date)
         };
 
+        console.log(`✅ [addRoom] Room fetch successful, returning response for room_id: ${newRoomId}`);
         res.status(201).json({
             success: true,
             message: 'Room added successfully',
             data: formattedRoom,
         });
+
     } catch (error) {
-        console.error('Error adding room:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to add room', 
-            error: error.message 
+        console.error('❌ [addRoom] Error adding room:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to add room',
+            error: error.message
         });
     }
 };
@@ -747,54 +843,37 @@ exports.getHotelBookingMeta = async (req, res) => {
 
 exports.deleteRoom = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { hotelid } = req.body || {};
-        let hotelId = hotelid || getCurrentUserHotelId(req);
+        const { room_id } = req.params;
 
+        if (!room_id) {
+            return res.status(400).json({ success: false, message: 'Room ID is required' });
+        }
 
-        const [existing] = await db.execute(
-            'SELECT hotelid FROM room_master WHERE room_id = ?',
-            [id]
+        const [roomRows] = await db.execute(
+            'SELECT room_id FROM room_master WHERE room_id = ?',
+            [room_id]
         );
-        
-        if (existing.length === 0) {
+
+        if (roomRows.length === 0) {
             return res.status(404).json({ success: false, message: 'Room not found' });
         }
 
-        if (!hotelId) hotelId = existing[0].hotelid;
-        if (existing[0].hotelid !== hotelId) {
-            return res.status(403).json({ success: false, message: 'Access denied' });
-        }
+        // Delete the linked msttablemanagement row first (tableid == room_id)
+        await db.execute('DELETE FROM msttablemanagement WHERE tableid = ?', [room_id]);
 
-        const [result] = await db.execute(
-            'DELETE FROM room_master WHERE room_id = ?',
-            [id]
-        );
+        // Delete the room itself
+        await db.execute('DELETE FROM room_master WHERE room_id = ?', [room_id]);
 
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ success: false, message: 'Room not found' });
-        }
-
-        res.json({
+        res.status(200).json({
             success: true,
-            message: 'Room deleted successfully',
-            data: { room_id: parseInt(id) },
+            message: 'Room and linked table deleted successfully',
         });
     } catch (error) {
         console.error('Error deleting room:', error);
-        
-        // Check for foreign key constraint error
-        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            return res.status(409).json({
-                success: false,
-                message: 'Cannot delete room as it is referenced in other records'
-            });
-        }
-        
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to delete room', 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete room',
+            error: error.message
         });
     }
 };

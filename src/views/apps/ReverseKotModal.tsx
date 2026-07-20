@@ -60,6 +60,9 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     const [nextRevKotNo, setNextRevKotNo] = useState<number>((revKotNo ?? 0) + 1);
     const [reasonOptions, setReasonOptions] = useState<string[]>(DEFAULT_REASONS);
     const [customReasonInput, setCustomReasonInput] = useState<{ [key: number]: string }>({});
+    
+    // Track last used reason
+    const [lastUsedReason, setLastUsedReason] = useState<string>('Cancelled by Guest');
 
     // Refs for navigation
     const cancelRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -78,6 +81,12 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                 console.error('Failed to parse saved reasons', e);
             }
         }
+        
+        // Load last used reason from localStorage
+        const savedLastReason = localStorage.getItem('reverseKotLastReason');
+        if (savedLastReason) {
+            setLastUsedReason(savedLastReason);
+        }
     }, []);
 
     // Save reasons to localStorage whenever they change
@@ -85,7 +94,13 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         localStorage.setItem('reverseKotReasons', JSON.stringify(reasons));
     };
 
-    // Add new reason to dropdown options
+    // Save last used reason to localStorage
+    const saveLastReasonToLocalStorage = (reason: string) => {
+        localStorage.setItem('reverseKotLastReason', reason);
+        setLastUsedReason(reason);
+    };
+
+    // Add new reason to dropdown options and update last used
     const addNewReason = (newReason: string, idx: number) => {
         if (!newReason || newReason.trim() === '') return false;
         
@@ -101,9 +116,11 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
             setReasonOptions(updatedReasons);
             saveReasonsToLocalStorage(updatedReasons);
             toast.success(`New reason "${trimmedReason}" added to list`);
-            return true;
         }
-        return false;
+        
+        // Always update last used reason (even if it exists)
+        saveLastReasonToLocalStorage(trimmedReason);
+        return true;
     };
 
     // Handle custom reason input change (for editable dropdown)
@@ -114,39 +131,67 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         const updated = [...items];
         updated[idx].reason = value;
         setItems(updated);
+        
+        // Update last used reason when user types something
+        if (value.trim()) {
+            saveLastReasonToLocalStorage(value.trim());
+        }
     };
 
-    // Set default reason when cancel quantity is entered via Enter key
+    // Set default reason when cancel quantity is entered
     const setDefaultReasonOnEnter = (idx: number) => {
         const updated = [...items];
         // Only set default reason if cancelQty > 0 and reason is empty
         if (updated[idx].cancelQty > 0 && (!updated[idx].reason || updated[idx].reason.trim() === '')) {
-            const defaultReason = 'Cancelled by Guest';
+            // Use last used reason instead of hardcoded "Cancelled by Guest"
+            const defaultReason = lastUsedReason || 'Cancelled by Guest';
             updated[idx].reason = defaultReason;
             setCustomReasonInput(prev => ({ ...prev, [idx]: defaultReason }));
             setItems(updated);
         }
     };
 
-    // Handle Enter key on reason input (editable dropdown)
+    // ✅ MODIFIED: Handle Enter key on reason input - select the typed reason and move to next
     const handleReasonKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
+            
             const currentValue = customReasonInput[idx] || items[idx].reason || '';
             
             if (currentValue.trim()) {
-                // Add the typed reason to dropdown list
+                // ✅ Add the typed reason to dropdown list and update last used
                 addNewReason(currentValue, idx);
+                
+                // ✅ Update the item's reason with the typed value (confirm selection)
+                const updated = [...items];
+                updated[idx].reason = currentValue.trim();
+                setItems(updated);
+                setCustomReasonInput(prev => ({ ...prev, [idx]: currentValue.trim() }));
+                
+                // ✅ Show toast to confirm selection
+                toast.info(`Reason selected: "${currentValue.trim()}"`);
             }
             
-            // Move to next row or save
+            // Move to next row's Cancel field or Save if last row
             if (idx === items.length - 1) {
-                handleReverseKotSave();
+                // Last row: trigger save after a small delay
+                setTimeout(() => {
+                    handleReverseKotSave();
+                }, 300);
             } else {
-                focusNextCancel(idx);
+                // Move to next row's Cancel field
+                setTimeout(() => {
+                    const nextIdx = idx + 1;
+                    if (nextIdx < items.length) {
+                        cancelRefs.current[nextIdx]?.focus();
+                        cancelRefs.current[nextIdx]?.select();
+                    }
+                }, 100);
             }
         }
     };
+
+    
 
     // Fetch next reverse KOT number when modal opens
     useEffect(() => {
@@ -259,8 +304,10 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
             if (currentCancelQty > 0) {
                 // Set default reason when Enter is pressed on Cancel field
                 setDefaultReasonOnEnter(idx);
-                reasonRefs.current[idx]?.focus();
-                reasonRefs.current[idx]?.select();
+                setTimeout(() => {
+                    reasonRefs.current[idx]?.focus();
+                    reasonRefs.current[idx]?.select();
+                }, 100);
             } else {
                 // If no quantity typed, move to next row's Cancel field (or save if last row)
                 focusNextCancel(idx);
@@ -444,13 +491,27 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                                                 list={`reason-list-${idx}`}
                                                 type="text"
                                                 size="sm"
-                                               placeholder={isCancelled ? "Type or select reason..." : ''}
+                                                placeholder={isCancelled ? "Type or select reason..." : ''}
                                                 value={customReasonInput[idx] !== undefined ? customReasonInput[idx] : (row.reason || '')}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleReasonInputChange(idx, e.target.value)}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                    handleReasonInputChange(idx, e.target.value);
+                                                }}
                                                 onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleReasonKeyDown(idx, e)}
+                                                onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
+                                                    // Update last used reason when focus leaves and value exists
+                                                    if (e.target.value.trim()) {
+                                                        saveLastReasonToLocalStorage(e.target.value.trim());
+                                                        
+                                                        // ✅ Confirm selection on blur
+                                                        const updated = [...items];
+                                                        updated[idx].reason = e.target.value.trim();
+                                                        setItems(updated);
+                                                        setCustomReasonInput(prev => ({ ...prev, [idx]: e.target.value.trim() }));
+                                                    }
+                                                }}
                                                 disabled={!isCancelled}
                                                 style={{ 
-                                                    backgroundColor: !isCancelled ?'#fff' : '#fff'
+                                                    backgroundColor: !isCancelled ? '#fff' : '#fff'
                                                 }}
                                                 ref={(el: HTMLInputElement | null) => { reasonRefs.current[idx] = el; }}
                                             />

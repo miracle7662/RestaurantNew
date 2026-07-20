@@ -60,6 +60,8 @@ const defaultForm: RoomFormData = {
 
 const RoomMaster = () => {
     const { user } = useAuthContext();
+        console.log("Current User:", user);
+
     const hotelId = user?.hotelid;
 
     const [rooms, setRooms] = useState<Room[]>([]);
@@ -233,6 +235,7 @@ const RoomMaster = () => {
                 block_id: payload.block_id ? parseInt(payload.block_id) : undefined,
                 floor_id: payload.floor_id ? parseInt(payload.floor_id) : undefined,
                 hotelid: hotelId,
+                outletid: user?.outletid, 
                 created_by_id: user?.id,
                 updated_by_id: user?.id,
             };

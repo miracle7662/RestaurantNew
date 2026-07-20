@@ -74,7 +74,7 @@ export interface PaymentMode {
   mode_name: string
 }
 
-/** Report API response */
+/** Report API response (detailed orders) */
 export interface ReportApiResponse {
   success: boolean
   data?: {
@@ -90,6 +90,60 @@ export interface ReportParams {
   outletid?: string | number
 }
 
+/* ─── Daily Summary Types ─── */
+
+/** A single daily summary row (grouped by date) */
+export interface DailySummaryRow {
+  BillDate: string
+  BillNoRange: string
+  TotalBills: number
+  TotalAmount: number
+  GrossAmount: number
+  Discount: number
+  TaxableValue: number
+  CGST: number
+  SGST: number
+  RoundOFF: number
+  RevAmt: number
+  Water: number
+  TotalItems: number
+  TipAmount: number
+  SettlementAmount: number
+  // Dynamic payment type columns (e.g., Cash, Card, etc.)
+  [paymentType: string]: string | number
+}
+
+/** Grand totals for the daily summary */
+export interface DailySummaryGrandTotals {
+  TotalBills: number
+  TotalAmount: number
+  GrossAmount: number
+  Discount: number
+  TaxableValue: number
+  CGST: number
+  SGST: number
+  RoundOFF: number
+  RevAmt: number
+  Water: number
+  TotalItems: number
+  TipAmount: number
+  SettlementAmount: number
+  // Dynamic payment type totals
+  [paymentType: string]: number
+}
+
+/** Response from the daily summary endpoint */
+export interface DailySummaryResponse {
+  success: boolean
+  data?: {
+    summaryType: 'dailySummary'
+    rows: DailySummaryRow[]
+    grandTotals: DailySummaryGrandTotals
+    paymentTypes: string[]
+  }
+  message?: string
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
  * Report Service
  * ═══════════════════════════════════════════════════════════════════════════════ */
@@ -97,8 +151,8 @@ export interface ReportParams {
 const ReportService = {
 
   /**
-   * Get daily sales report data
-   * @param params - Query parameters (start date, end date, outletid)
+   * Get daily sales report data (detailed orders)
+   * @param params - Query parameters (start date, end date, outletid, caseType)
    */
   getDailySalesReport: async (params: ReportParams & { caseType?: string }): Promise<ReportApiResponse> => {
     try {
@@ -116,6 +170,26 @@ const ReportService = {
       throw error
     }
   },
+
+  /**
+   * Get daily summary report (grouped by date, aggregated totals)
+   * @param params - start/end dates (optional, defaults to today)
+   */
+getDailySummary: async (params: { start?: string; end?: string; outletid?: number }): Promise<DailySummaryResponse> => {
+  try {
+    const queryParams = new URLSearchParams()
+    if (params.start) queryParams.append('start', params.start)
+    if (params.end) queryParams.append('end', params.end)
+    if (params.outletid) queryParams.append('outletid', String(params.outletid)) // ✅ add this line
+
+    const response = await HttpClient.get<DailySummaryResponse>(
+      `/reports/daily-summary?${queryParams.toString()}`
+    )
+    return response
+  } catch (error) {
+    throw error
+  }
+},
 
   /**
    * Get payment modes by outlet
@@ -138,4 +212,3 @@ const ReportService = {
 export { ReportService }
 
 export default ReportService
-

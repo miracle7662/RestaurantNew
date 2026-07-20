@@ -24,7 +24,7 @@ interface BillDetail {
   settlement_breakdown?: string;
 }
 interface PaymentSummary  { PaymentType: string; totalAmount: number; billCount: number; }
-interface CreditSummary   { customerName: string; creditAmount: number; billCount: number; }
+interface CreditSummary   { customerName: string; creditAmount: number; TxnNo: string; }
 interface DiscountSummary { TxnNo: string; table_name: string; Discount: number; reason: string; }
 interface ReverseKOT      { kotNo: string; table_name: string; item_name: string; RevQty: number; amount: number; TxnDatetime: string; billedDate?: string; BilledDate?: string;  }
 interface ReverseBill     { billNo: string; table_name: string; reversedAmount: number; TxnDatetime: string; BilledDate?: string; }
@@ -170,28 +170,7 @@ const isSplitPayment = (paymentMode: string): boolean => {
   return modes.length > 1;
 };
 
-const groupBillsByPaymentMode = (billDetails: BillDetail[]) => {
-  const groups: Record<string, { bills: BillDetail[]; totalAmount: number }> = {};
-  (billDetails || []).forEach((bill) => {
-    const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
-    if (Object.keys(breakdown).length > 0) {
-      Object.entries(breakdown).forEach(([mode, amount]) => {
-        const modeKey = mode.toLowerCase();
-        if (modeKey === 'cash') return;
-        if (!groups[modeKey]) groups[modeKey] = { bills: [], totalAmount: 0 };
-        groups[modeKey].bills.push({ ...bill, netAmount: amount });
-        groups[modeKey].totalAmount += amount;
-      });
-    } else {
-      const modeRaw = (bill.paymentMode || 'Cash').trim().toLowerCase();
-      if (modeRaw === 'cash') return;
-      if (!groups[modeRaw]) groups[modeRaw] = { bills: [], totalAmount: 0 };
-      groups[modeRaw].bills.push(bill);
-      groups[modeRaw].totalAmount += Number(bill.netAmount || 0);
-    }
-  });
-  return groups;
-};
+
 
 // ─────────────────────────────────────────────
 // SECTION COMPONENTS
@@ -204,34 +183,76 @@ const SolidHr = () => <hr className="rc-hr-solid" />;
 // Columns: Bill(52) | Tbl(20) | Disc(32) | Gross(44) | GST(28) | Tip(28) | Net(44) | Mode(auto)
 const BILL_COLS = '52px 20px 18px 44px 28px 28px 50px auto';
 
+// ─────────────────────────────────────────────────────────────
+// Updated BillDetailsSection with tip allocation for non‑cash payments
+// ─────────────────────────────────────────────────────────────
 const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
   if (!data?.length) return null;
 
+  // Helper: parse settlement_breakdown string into object
+  const parseBreakdown = (breakdown: string | undefined): Record<string, number> => {
+    const result: Record<string, number> = {};
+    if (!breakdown) return result;
+    breakdown.split(',').forEach(item => {
+      const [type, amount] = item.split(':');
+      if (type && amount) result[type.trim()] = Number(amount) || 0;
+    });
+    return result;
+  };
+
+  // ✅ Helper: compute net amount WITHOUT adding tip (actual payment received)
+  const computeDisplayNet = (bill: BillDetail): number => {
+    const breakdown = parseBreakdown(bill.settlement_breakdown);
+    const hasSplit = Object.keys(breakdown).length > 0;
+
+    if (hasSplit) {
+      // Split payment - sum all amounts without tip
+      const orderedEntries = (bill.settlement_breakdown || '')
+        .split(',')
+        .map(pair => {
+          const [type, amt] = pair.split(':');
+          return { type: type?.trim().toLowerCase(), amount: Number(amt) || 0 };
+        })
+        .filter(item => item.type);
+
+      let total = 0;
+      for (const entry of orderedEntries) {
+        total += entry.amount;
+      }
+      return total;
+    } else {
+      // Single payment - netAmount without tip
+      return Number(bill.netAmount || 0);
+    }
+  };
+
   let tDisc = 0, tTax = 0, tGST = 0, tTip = 0, tNet = 0;
 
-  const rows = data.map((b, i) => {
-    const gst = Number(b.CGST || 0) + Number(b.SGST || 0);
-    tDisc  += Number(b.Discount || 0);
-    tTax += Number(b.TaxableValue || 0);
-    tGST   += gst;
-    tTip   += Number(b.tipAmount || 0);
-    tNet   += Number(b.netAmount || 0);
+  const rows = data.map((bill, i) => {
+    const gst = Number(bill.CGST || 0) + Number(bill.SGST || 0);
+    const displayNet = computeDisplayNet(bill); // ✅ Without tip
+
+    tDisc += Number(bill.Discount || 0);
+    tTax  += Number(bill.TaxableValue || 0);
+    tGST  += gst;
+    tTip  += Number(bill.tipAmount || 0);
+    tNet  += displayNet; // ✅ Without tip
 
     return (
       <div key={i} className="rc-col-row" style={{ gridTemplateColumns: BILL_COLS, columnGap: '2px' }}>
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {String(b.TxnNo).slice(-5)}
+          {String(bill.TxnNo).slice(-5)}
         </span>
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {(b.table_name || '').substring(0, 4)}
+          {(bill.table_name || '').substring(0, 4)}
         </span>
-        <span style={{ textAlign: 'right' }}>{fmt(b.Discount)}</span>
-        <span style={{ textAlign: 'right' }}>{fmt(b.TaxableValue)}</span>
+        <span style={{ textAlign: 'right' }}>{fmt(bill.Discount)}</span>
+        <span style={{ textAlign: 'right' }}>{fmt(bill.TaxableValue)}</span>
         <span style={{ textAlign: 'right' }}>{gst.toFixed(0)}</span>
-        <span style={{ textAlign: 'right' }}>{fmt(b.tipAmount)}</span>
-        <span style={{ textAlign: 'right' }}>{fmt(b.netAmount)}</span>
+        <span style={{ textAlign: 'right' }}>{fmt(bill.tipAmount)}</span>
+        <span style={{ textAlign: 'right' }}>{fmt(displayNet)}</span> {/* ✅ Without tip */}
         <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', paddingLeft: '5px' }}>
-          {(b.paymentMode || 'Cash').substring(0, 2)  .toUpperCase()}
+          {(bill.paymentMode || 'Cash').substring(0, 2).toUpperCase()}
         </span>
       </div>
     );
@@ -280,8 +301,30 @@ const PaymentSummarySection: React.FC<{ data: PaymentSummary[] }> = ({ data }) =
 // Columns: BillNo(52) | Table(52) | Amount(1fr)
 const MODE_COLS = '52px 52px 1fr';
 
+// ✅ REPLACE with this simplified version
 const PaymentModeDetailsSection: React.FC<{ billDetails: BillDetail[] }> = ({ billDetails }) => {
-  const groups = groupBillsByPaymentMode(billDetails);
+  // Directly parse settlement_breakdown without group function
+  const groups: Record<string, { bills: BillDetail[]; totalAmount: number }> = {};
+  
+  (billDetails || []).forEach((bill) => {
+    const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
+    if (Object.keys(breakdown).length > 0) {
+      Object.entries(breakdown).forEach(([mode, amount]) => {
+        const modeKey = mode.toLowerCase();
+        if (modeKey === 'cash') return;
+        if (!groups[modeKey]) groups[modeKey] = { bills: [], totalAmount: 0 };
+        groups[modeKey].bills.push({ ...bill, netAmount: amount });
+        groups[modeKey].totalAmount += amount;
+      });
+    } else {
+      const modeRaw = (bill.paymentMode || 'Cash').trim().toLowerCase();
+      if (modeRaw === 'cash') return;
+      if (!groups[modeRaw]) groups[modeRaw] = { bills: [], totalAmount: 0 };
+      groups[modeRaw].bills.push(bill);
+      groups[modeRaw].totalAmount += Number(bill.netAmount || 0);
+    }
+  });
+
   if (Object.keys(groups).length === 0) return null;
 
   return (
@@ -363,7 +406,6 @@ const SplitPaymentsSection: React.FC<{ billDetails: BillDetail[] }> = ({ billDet
   );
 };
 
-// Columns: Customer(1fr) | Bills(28) | Amount(58)
 const CREDIT_COLS = '1fr 28px 58px';
 
 const CreditSummarySection: React.FC<{ data: CreditSummary[] }> = ({ data }) => {
@@ -374,7 +416,7 @@ const CreditSummarySection: React.FC<{ data: CreditSummary[] }> = ({ data }) => 
       <SecHdr title="CREDIT SUMMARY" />
       <div className="rc-col-hdr" style={{ gridTemplateColumns: CREDIT_COLS, columnGap: '4px' }}>
         <span>Customer</span>
-        <span style={{ textAlign: 'right' }}>Bills</span>
+        <span style={{ textAlign: 'right' }}>Bill No</span>
         <span style={{ textAlign: 'right' }}>Amount</span>
       </div>
       {data.map((c, i) => (
@@ -382,7 +424,7 @@ const CreditSummarySection: React.FC<{ data: CreditSummary[] }> = ({ data }) => 
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {(c.customerName || '').substring(0, 18)}
           </span>
-          <span style={{ textAlign: 'right' }}>{c.billCount}</span>
+          <span style={{ textAlign: 'right' }}>{c.TxnNo}</span>
           <span style={{ textAlign: 'right' }}>{fmt(c.creditAmount)}</span>
         </div>
       ))}
@@ -712,7 +754,7 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
     data.creditSummary.forEach(c => {
       b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
               <span style="width:55%;overflow:hidden;white-space:nowrap">${(c.customerName || '').substring(0, 18)}</span>
-              <span style="width:15%;text-align:right">${c.billCount}</span>
+              <span style="width:15%;text-align:right">${c.TxnNo}</span>
               <span style="width:30%;text-align:right">${f(c.creditAmount)}</span>
             </div>`;
       total += Number(c.creditAmount || 0);
@@ -846,11 +888,11 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   return `<html>
 <head>
   <style>
-    @page { size: 80mm auto; margin: 0; }
-    html, body { margin: 0; padding: 0; width: 80mm; background: #ffffff; }
+    @page { size: 75mm auto; margin: 0; }
+    html, body { margin: 0; padding: 0; width: 75mm; background: #ffffff; }
     body {
       font-family: monospace; font-size: 12.5px; line-height: 1.2;
-      width: 76mm; margin: 0 auto; padding: 2mm 2mm 4mm 2mm;
+      width: 71mm; margin: 0 auto; padding: 2mm 2mm 4mm 2mm;
       color: #000000; -webkit-print-color-adjust: exact; print-color-adjust: exact;
       overflow: visible !important;
     }

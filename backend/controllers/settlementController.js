@@ -389,7 +389,7 @@ exports.replaceSettlement = async (req, res) => {
         paymentMode.paymenttypeid,
         s.PaymentType,
         Number(s.Amount),
-        tipAmountFromPayload,
+        Number(s.TipAmount) || 0,
         HotelID,
         txnNo,
         userId,

@@ -27,6 +27,8 @@ export interface ItemDetailData {
   TxnDatetime: string
   table_name: string | null
   TableID: number | null
+  SpecialInst: string
+
 }
 
 /** Filter option */

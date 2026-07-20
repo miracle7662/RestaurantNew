@@ -6,6 +6,7 @@ import { Modal, Button } from 'react-bootstrap';
 import TableManagementService from '@/common/api/tablemanagement';
 import TableDepartmentService from '@/common/api/tabledepartment';
 import OrderService from '@/common/api/order';
+import SalesDashboardModal from './Transaction/Salesdashboard'; // Import the modal component
 
 // Types
 type TableStatus = 'blank' | 'running' | 'printed' | 'paid' | 'running-kot' | 'occupied' | 'available' | 'reserved';
@@ -113,13 +114,13 @@ export default function App() {
   const [allTables, setAllTables] = useState<Table[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // ✅ PERSIST TABLE INPUT USING SESSION STORAGE
   const [tableInput, setTableInput] = useState(() => {
     const saved = sessionStorage.getItem('lastTableInput');
     return saved || '';
   });
-  
+
   const [showModal, setShowModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [focusedButton, setFocusedButton] = useState<'yes' | 'no'>('yes');
@@ -133,6 +134,10 @@ export default function App() {
     printed: 0,
     pending: 0
   });
+  
+  // ✅ State for Sales Dashboard Modal
+  const [showSalesDashboard, setShowSalesDashboard] = useState(false);
+  
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
@@ -151,7 +156,7 @@ export default function App() {
         setTableCardWidth(parseInt(e.newValue));
       }
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
@@ -174,6 +179,15 @@ export default function App() {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // ✅ RESTORE DEPARTMENT FROM SESSION STORAGE ON MOUNT
+  useEffect(() => {
+    const savedDept = sessionStorage.getItem('lastSelectedDepartment');
+    if (savedDept) {
+      const deptId = savedDept === 'all' ? 'all' : Number(savedDept);
+      setSelectedDepartmentId(deptId);
+    }
   }, []);
 
   useEffect(() => {
@@ -274,17 +288,29 @@ export default function App() {
     };
 
     const fetchDepartments = async () => {
-      try {
-        if (!user) {
-          throw new Error('User not authenticated');
-        }
-        const params = { hotelid: user?.hotelid };
-        const data = await TableDepartmentService.list(params);
-        setDepartments(data.data || data);
-      } catch (err: any) {
-        setError(err.message);
-      }
-    };
+  try {
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // 🚨 fail fast, same as Order.tsx
+    if (user.role_level === 'outlet_user' && !user.outletid) {
+      setError('No outlet assigned to this user.');
+      setDepartments([]);
+      return;
+    }
+
+    const params: { hotelid: number; outletid?: number } = { hotelid: user.hotelid };
+    if (user.role_level === 'outlet_user' && user.outletid) {
+      params.outletid = Number(user.outletid);
+    }
+
+    const data = await TableDepartmentService.list(params);
+    setDepartments(data.data || data);
+  } catch (err: any) {
+    setError(err.message);
+  }
+};
 
     const fetchData = async () => {
       setLoading(true);
@@ -307,6 +333,42 @@ export default function App() {
       document.removeEventListener('keydown', handleEscapeKey);
     };
   }, [user, navigate]);
+
+  // ✅ KEYBOARD SHORTCUT: Ctrl+Shift+Q to open Sales Dashboard (working)
+  useEffect(() => {
+    const handleSalesDashboardShortcut = (event: KeyboardEvent) => {
+      // Check for Ctrl+Shift+Q
+      if (event.ctrlKey && event.shiftKey && !event.altKey && (event.key === 'q' || event.key === 'Q')) {
+        event.preventDefault();
+        event.stopPropagation();
+        setShowSalesDashboard(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleSalesDashboardShortcut);
+
+    return () => {
+      document.removeEventListener('keydown', handleSalesDashboardShortcut);
+    };
+  }, []);
+
+  // ✅ Also try Ctrl+Alt+Shift+Q as fallback (if browser allows)
+  // useEffect(() => {
+  //   const handleAltShortcut = (event: KeyboardEvent) => {
+  //     // Check for Ctrl+Alt+Shift+Q
+  //     if (event.ctrlKey && event.altKey && event.shiftKey && (event.key === 'q' || event.key === 'Q')) {
+  //       event.preventDefault();
+  //       event.stopPropagation();
+  //       setShowSalesDashboard(true);
+  //     }
+  //   };
+
+  //   document.addEventListener('keydown', handleAltShortcut);
+
+  //   return () => {
+  //     document.removeEventListener('keydown', handleAltShortcut);
+  //   };
+  // }, []);
 
   useEffect(() => {
     const updateTableStatuses = () => {
@@ -342,12 +404,15 @@ export default function App() {
     if (!showModal || !selectedTable) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowLeft') {
-        setFocusedButton('yes');
-        yesButtonRef.current?.focus();
-      } else if (event.key === 'ArrowRight') {
-        setFocusedButton('no');
-        noButtonRef.current?.focus();
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        const nextButton = focusedButton === 'yes' ? 'no' : 'yes';
+        setFocusedButton(nextButton);
+        if (nextButton === 'yes') {
+          yesButtonRef.current?.focus();
+        } else {
+          noButtonRef.current?.focus();
+        }
       } else if (event.key === 'Enter') {
         if (focusedButton === 'yes') {
           navigate('/apps/Billview', {
@@ -358,7 +423,8 @@ export default function App() {
               departmentId: selectedTable.departmentid,
               departmentName: selectedTable.department_name,
               openSettlement: true,
-              txnId: selectedTable.txnId
+              txnId: selectedTable.txnId,
+              returnToDepartment: selectedDepartmentId
             }
           });
         } else {
@@ -369,7 +435,8 @@ export default function App() {
               outletId: selectedTable.outletid,
               departmentId: selectedTable.departmentid,
               departmentName: selectedTable.department_name,
-              txnId: selectedTable.txnId
+              txnId: selectedTable.txnId,
+              returnToDepartment: selectedDepartmentId
             }
           });
         }
@@ -382,7 +449,8 @@ export default function App() {
             outletId: selectedTable.outletid,
             departmentId: selectedTable.departmentid,
             departmentName: selectedTable.department_name,
-            txnId: selectedTable.txnId
+            txnId: selectedTable.txnId,
+            returnToDepartment: selectedDepartmentId
           }
         });
         setShowModal(false);
@@ -394,7 +462,7 @@ export default function App() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showModal, selectedTable, navigate, focusedButton]);
+  }, [showModal, selectedTable, navigate, focusedButton, selectedDepartmentId]);
 
   useEffect(() => {
     if (showModal && yesButtonRef.current) {
@@ -408,10 +476,12 @@ export default function App() {
         const key = event.key;
         if (key === '0') {
           setSelectedDepartmentId('all');
+          sessionStorage.setItem('lastSelectedDepartment', 'all');
         } else if (key >= '1' && key <= '9') {
           const index = parseInt(key) - 1;
           if (departments[index]) {
             setSelectedDepartmentId(departments[index].departmentid);
+            sessionStorage.setItem('lastSelectedDepartment', String(departments[index].departmentid));
           }
         }
       }
@@ -462,6 +532,9 @@ export default function App() {
   };
 
   const handleTakeAwayClick = () => {
+    // Save current department selection
+    sessionStorage.setItem('lastSelectedDepartment', String(selectedDepartmentId));
+    
     const outletId = user?.outletid || allTables[0]?.outletid || null;
     const departmentId = selectedDepartmentId !== 'all' ? selectedDepartmentId : (departments.length > 0 ? departments[0].departmentid : null);
 
@@ -473,12 +546,16 @@ export default function App() {
         departmentId,
         departmentName: departments.find(d => d.departmentid === departmentId)?.department_name || '',
         tableId: null,
-        tableName: 'TAKE AWAY'
+        tableName: 'TAKE AWAY',
+        returnToDepartment: selectedDepartmentId
       }
     });
   };
 
   const handleTableClick = (table: Table) => {
+    // Save current department selection
+    sessionStorage.setItem('lastSelectedDepartment', String(selectedDepartmentId));
+    
     if (table.status === 'printed' || (table.status === 'running-kot' && table.billNo)) {
       setSelectedTable(table);
       setShowModal(true);
@@ -489,7 +566,8 @@ export default function App() {
           tableName: table.name,
           outletId: table.outletid,
           departmentId: table.departmentid,
-          departmentName: table.department_name
+          departmentName: table.department_name,
+          returnToDepartment: selectedDepartmentId
         }
       });
     }
@@ -505,6 +583,9 @@ export default function App() {
         const table = allTables.find(t => t.name.toLowerCase() === input);
 
         if (table) {
+          // Save current department selection
+          sessionStorage.setItem('lastSelectedDepartment', String(selectedDepartmentId));
+          
           if (table.status === 'printed' ||
             (table.status === 'running-kot' && table.billNo)) {
             setSelectedTable({
@@ -520,7 +601,8 @@ export default function App() {
                 tableName: table.name,
                 outletId: table.outletid,
                 departmentId: table.departmentid,
-                departmentName: table.department_name
+                departmentName: table.department_name,
+                returnToDepartment: selectedDepartmentId
               }
             });
           }
@@ -552,6 +634,26 @@ export default function App() {
       fetchTakeawayOrders();
     }
   }, [(location as any).state]);
+
+  // ✅ Handle return from Billview - restore department
+  useEffect(() => {
+    const returnDept = (location.state as any)?.returnToDepartment;
+    if (returnDept !== undefined && returnDept !== null) {
+      setSelectedDepartmentId(returnDept);
+      sessionStorage.setItem('lastSelectedDepartment', String(returnDept));
+      // Clear the state to prevent re-triggering
+      const newState = { ...location.state };
+      delete newState.returnToDepartment;
+      // Note: We can't directly modify location.state, but we've saved to sessionStorage
+    }
+  }, [location.state]);
+
+  // ✅ Update sessionStorage when department changes via dropdown
+  const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value === 'all' ? 'all' : Number(e.target.value);
+    setSelectedDepartmentId(value);
+    sessionStorage.setItem('lastSelectedDepartment', String(value));
+  };
 
   return (
     <div className="d-flex flex-column" style={{ height: '100vh', minHeight: '100vh' }}>
@@ -616,7 +718,7 @@ export default function App() {
           justify-content: start;
         }
       `}</style>
-      
+
       {/* Toolbar */}
       <div className="full-screen-toolbar">
         <div className="container-fluid">
@@ -639,7 +741,7 @@ export default function App() {
                 <select
                   className="form-select form-select-sm"
                   value={selectedDepartmentId}
-                  onChange={e => setSelectedDepartmentId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                  onChange={handleDepartmentChange}
                   style={{ minWidth: '150px', width: '100%', maxWidth: '320px', fontWeight: 'bold', fontSize: '1.1rem', height: '40px' }}
                 >
                   <option value="all">All Departments</option>
@@ -737,12 +839,30 @@ export default function App() {
                   const maxKot = kotNumbers.length > 0 ? Math.max(...kotNumbers) : null;
                   const orderType = order.type === 'Pickup' ? 'Pickup' : order.type === 'Delivery' ? 'Delivery' : 'TAKEAWAY';
 
+                  // ✅ CHECK IF BILL IS PRINTED (isBilled === 1)
+                  const isBilled = order.isBilled === 1 || order.isbilled === 1;
+
+                  // ✅ Determine card color based on bill status
+                  const cardBgColor = isBilled ? '#df1114' : 'white'; // Red for printed, white otherwise
+                  const textColor = isBilled ? 'white' : 'inherit';
+
+                  // ✅ Determine card color based on bill status
+
                   return (
                     <div
                       key={order.id}
                       className="card p-2 shadow-sm"
-                      style={{ width: 140, cursor: 'pointer' }}
-                      onClick={() =>
+                      style={{
+                        width: 140,
+                        cursor: 'pointer',
+                        backgroundColor: cardBgColor,
+                        color: textColor,
+                        transition: 'all 0.2s ease'
+                      }}
+                      onClick={() => {
+                        // Save current department selection
+                        sessionStorage.setItem('lastSelectedDepartment', String(selectedDepartmentId));
+                        
                         navigate('/apps/Billview', {
                           state: {
                             mode: 'TAKEAWAY',
@@ -753,13 +873,16 @@ export default function App() {
                             departmentId: selectedDepartmentId !== 'all' ? selectedDepartmentId : departments[0]?.departmentid || null,
                             departmentName: departments.find(d => d.departmentid === selectedDepartmentId)?.department_name || '',
                             tableId: null,
-                            tableName: 'TAKE AWAY'
+                            tableName: 'TAKE AWAY',
+                            returnToDepartment: selectedDepartmentId
                           }
-                        })
-                      }
+                        });
+                      }}
                     >
                       <div className="d-flex align-items-center justify-content-between mb-1">
-                        <div className="fw-bold text-danger">{order.orderNo}</div>
+                        <div className="fw-bold" style={{ color: isBilled ? 'white' : '#dc3545' }}>
+                          {order.orderNo}
+                        </div>
                         {(orderType === 'Pickup' || orderType === 'Delivery') && (
                           <div
                             className="d-flex align-items-center justify-content-center rounded"
@@ -782,6 +905,16 @@ export default function App() {
                       <div className="small text-muted">{order.customer?.name || 'N/A'}</div>
                       <div className="fw-semibold">₹{Math.round(order.total)}</div>
                       {maxKot && <div className="small text-primary">KOT: {maxKot}</div>}
+
+
+                      {/* ✅ Show "Printed" badge on red card */}
+                      {isBilled && (
+                        <div className="mt-1">
+                          <span className="badge bg-light text-danger" style={{ fontSize: '9px' }}>
+                            Printed
+                          </span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -789,7 +922,7 @@ export default function App() {
           </div>
         )}
       </div>
-      
+
       {/* Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="sm">
         <Modal.Header closeButton className="py-2 px-3">
@@ -808,43 +941,70 @@ export default function App() {
           </div>
         </Modal.Body>
         <Modal.Footer>
-          <Button ref={yesButtonRef} variant="primary" onClick={() => {
-            if (selectedTable) {
-              navigate('/apps/Billview', {
-                state: {
-                  tableId: selectedTable.id,
-                  tableName: selectedTable.name,
-                  outletId: selectedTable.outletid,
-                  departmentId: selectedTable.departmentid,
-                  departmentName: selectedTable.department_name,
-                  openSettlement: true,
-                  txnId: selectedTable.txnId
-                }
-              });
-            }
-            setShowModal(false);
-          }}>
+          <Button
+            ref={yesButtonRef}
+            variant={focusedButton === 'yes' ? 'primary' : 'outline-secondary'}
+            className={focusedButton === 'yes' ? 'border-1 border-dark shadow fw-bold' : 'fw-normal'}
+            onClick={() => {
+              if (selectedTable) {
+                // Save current department selection
+                sessionStorage.setItem('lastSelectedDepartment', String(selectedDepartmentId));
+                
+                navigate('/apps/Billview', {
+                  state: {
+                    tableId: selectedTable.id,
+                    tableName: selectedTable.name,
+                    outletId: selectedTable.outletid,
+                    departmentId: selectedTable.departmentid,
+                    departmentName: selectedTable.department_name,
+                    openSettlement: true,
+                    txnId: selectedTable.txnId,
+                    returnToDepartment: selectedDepartmentId
+                  }
+                });
+              }
+              setShowModal(false);
+            }}
+          >
             Yes
           </Button>
-          <Button ref={noButtonRef} variant="secondary" onClick={() => {
-            if (selectedTable) {
-              navigate('/apps/Billview', {
-                state: {
-                  tableId: selectedTable.id,
-                  tableName: selectedTable.name,
-                  outletId: selectedTable.outletid,
-                  departmentId: selectedTable.departmentid,
-                  departmentName: selectedTable.department_name,
-                  txnId: selectedTable.txnId
-                }
-              });
-            }
-            setShowModal(false);
-          }}>
+          <Button
+            ref={noButtonRef}
+            variant={focusedButton === 'no' ? 'primary' : 'outline-secondary'}
+            className={focusedButton === 'no' ? 'border-1 border-dark shadow fw-bold' : 'fw-normal'}
+            onClick={() => {
+              if (selectedTable) {
+                // Save current department selection
+                sessionStorage.setItem('lastSelectedDepartment', String(selectedDepartmentId));
+                
+                navigate('/apps/Billview', {
+                  state: {
+                    tableId: selectedTable.id,
+                    tableName: selectedTable.name,
+                    outletId: selectedTable.outletid,
+                    departmentId: selectedTable.departmentid,
+                    departmentName: selectedTable.department_name,
+                    txnId: selectedTable.txnId,
+                    returnToDepartment: selectedDepartmentId
+                  }
+                });
+              }
+              setShowModal(false);
+            }}
+          >
             No
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* ✅ Sales Dashboard Modal - Opens with Ctrl+Shift+Q */}
+      <SalesDashboardModal
+  show={showSalesDashboard}
+  onHide={() => setShowSalesDashboard(false)}
+  curr_Date={user?.currDate}
+  hotelId={user?.hotelid}
+  outletId={user?.outletid}
+/>
     </div>
   );
 }

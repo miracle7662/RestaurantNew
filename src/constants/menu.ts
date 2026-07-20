@@ -353,7 +353,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
   },
 
      {
-        key: 'HotelBookingPanel',
+        key: 'Front-Desk',
         label: 'Front Desk',
         url: '/hotel-master/HotelBookingPanel',
          icon: 'fi fi-rr-concierge-bell',
@@ -389,7 +389,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         label: 'Hotel Report',
         url: '/pages/HotelReport',
          icon: 'fi fi-rr-chart-histogram',
-        parentKey: 'pages',
+        parentKey: 'hotel-master',
       },
      
 
@@ -402,9 +402,9 @@ const MENU_ITEMS: MenuItemTypes[] = [
       },
 
        {
-        key: 'company-master',
+        key: 'Setting',
         label: 'Setting',
-        url: '/hotel-master/Company-master',
+        url: '/hotel-master/Setting',
          icon: 'fi fi-rr-settings',
         parentKey: 'hotel-master',
       },

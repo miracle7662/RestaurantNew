@@ -16,6 +16,7 @@ export interface DayendTransaction {
   TxnID: number
   TxnNo: string
   TableID: number
+  tableName  : string
   outletid: number
   HotelID: number
   TotalAmount: number

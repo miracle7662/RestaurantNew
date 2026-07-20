@@ -112,7 +112,7 @@ exports.getCheckins = async (req, res) => {
 
         const checkins = result[0] || [];
 
-        // ✅ सही मैपिंग - सिर्फ वही फील्ड्स जो SP में मौजूद हैं
+        
        const formattedCheckins = checkins.map(checkin => ({
     ...checkin,
     detail_checkin_datetime: formatDateTime(checkin.detail_checkin_datetime),   // ✅ formatDate → formatDateTime
@@ -654,6 +654,12 @@ exports.addCheckin = async (req, res) => {
 
     console.log('💳 Payment Method:', paymentMethod);
 
+   // In addCheckin controller
+const outletId = body.outletid || req.user?.outletid || 1;
+console.log('🔍 Outlet from body:', body.outletid);
+console.log('🔍 Outlet from user:', req.user?.outletid);
+console.log('✅ Using outletId:', outletId);
+
     // ----- Build parameters (43 total - added payment_method) -----
     const params = [
       body.guest_id ? Number(body.guest_id) : null,
@@ -684,7 +690,7 @@ exports.addCheckin = async (req, res) => {
       toNum(body.tot_cess_amount),
       toNum(body.tot_advance),
       toNum(body.hotelid),
-      toNum(body.outletid) || 1,
+      outletId,
       toStr(body.id_type),
       toStr(body.id_number),
       body.department_id ? Number(body.department_id) : null,
@@ -747,7 +753,10 @@ exports.addCheckin = async (req, res) => {
           debug: parsedResult.debug
         });
       } else {
-        throw new Error(parsedResult.message || 'Unknown error from stored procedure');
+        console.error('❌ [addCheckin] SP Error Details:', parsedResult);
+        const fullErr = new Error(parsedResult.message || 'Unknown error from stored procedure');
+        fullErr.sqlDetails = parsedResult;
+        throw fullErr;
       }
     } else {
       throw new Error('No result from stored procedure');
@@ -756,9 +765,13 @@ exports.addCheckin = async (req, res) => {
   } catch (err) {
     if (connection) await connection.rollback();
     console.error('❌ addCheckin error:', err.message);
+    if (err.sqlDetails) console.error('❌ SQL Details:', err.sqlDetails);
     res.status(500).json({
       success: false,
       message: err.message || 'Internal server error',
+      sqlError: err.sqlDetails?.error,
+      sqlstate: err.sqlDetails?.sqlstate,
+      errno: err.sqlDetails?.errno,
       ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     });
   } finally {

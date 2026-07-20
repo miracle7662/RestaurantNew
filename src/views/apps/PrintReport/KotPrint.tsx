@@ -29,6 +29,7 @@ interface MenuItem {
   variantId?: number;
   variantName?: string;
   specialInst?: string; // ✅ ADDED
+  isRuntimeRate?: boolean;
 }
 
 interface KotPreviewPrintProps {
@@ -248,20 +249,20 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   }
 
   #kot-preview-content {
-    padding-top: 40px !important;
+    padding-top: 60px !important;
   }
 }
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
       width: 72mm !important; max-width: 72mm !important; min-width: 72mm !important;
       margin: 0; padding: 0;
-      font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.3;
+      font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.0;
       color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact;
       overflow-x: hidden;
     }
     #kot-preview-content {
       width: 72mm !important; max-width: 72mm !important; min-width: 72mm !important;
-      padding: 6px 5px 6px 8px; margin: 0; font-weight: bold; overflow-x: hidden;
+      padding: 6px 8px 6px 12px; margin: 0; font-weight: bold; overflow-x: hidden;
     }
     #kot-preview-content * { max-width: 100%; word-wrap: break-word; overflow-wrap: break-word; }
     .center { text-align: center; } .right { text-align: right; }
@@ -269,9 +270,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     .text-small { font-size: 10px; } .text-smaller { font-size: 9px; }
     .separator { border: none; border-top: 1px dashed #000; margin: 5px 0; }
     .item-row {
-  display: grid; column-gap: 4px; font-weight: bold;
-  padding: 3px 0; margin-bottom: 3px;
-  align-items: start; width: 100%;
+     display: grid; column-gap: 10px; font-weight: bold;
+     padding: 1px 0;  margin-bottom: 0px; 
+     align-items: start; width: 100%;
+     line-height: 1.1;
 }
     .item-qty  { text-align: center; font-size: 12pt; font-weight: bold; }
     .item-name { text-align: left; font-size: 12pt; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
@@ -284,11 +286,11 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     .header-qty  { text-align: center; } .header-item { text-align: left; }
     .header-rate { text-align: right; }  .header-amt  { text-align: right; }
     .kot-variant { font-size: 9pt; color: #0066cc; font-weight: bold; }
-    .totals-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt; padding: 2px 0; }
-    .basic-details { display: grid; grid-template-columns: auto 1fr; gap: 8px; margin-bottom: 10px; font-size: 9pt; padding-left:3px; width: 100%; }
-    .table-box { border: 1px solid #696868; min-width: 60px; min-height: 50px; display: flex;   margin-left: 3px;align-items: center; justify-content: center; font-size: 14pt; font-weight: bold; padding: 4px; }
+    .totals-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 11pt; padding: 2px 0; }
+    .basic-details { display: grid; grid-template-columns: auto 1fr; gap: 4px; margin-bottom: 6px; font-size: 9pt; padding-left:3px; width: 100%; }
+    .table-box { border: 1px solid #696868; min-width: 60px; min-height: 50px; display: flex;   margin-left: 3px;align-items: center; justify-content: center; font-size: 16pt; font-weight: bold; padding: 4px; }
     .details-grid { display: grid; grid-template-columns: auto auto; gap: 1px 6px; text-align: left; justify-content: end; }
-    hr.dashed { border: none; border-top: 1px dashed #000; margin: 6px 0; width: 100%; }
+    hr.dashed { border: none; border-top: 1px dashed #000; margin: 4px 0; width: 100%; }
   </style>
 </head>
 <body>
@@ -355,7 +357,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
       if (window.electronAPI?.directPrint) {
         await window.electronAPI.directPrint(kotHTML, finalPrinterName);
-        toast.success("KOT Printed Successfully!");
+        // toast.success("KOT Printed Successfully!");
         if (onPrint) onPrint();
         if (onClose) onClose();
         setTimeout(onHide, 300);
@@ -448,8 +450,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       ["Pickup", "Quick Bill", "Delivery"].includes(activeTab);
     const groupKotItemsByCategory = localFormData.group_kot_items_by_category;
 
-    const qtyW = "40px";
-    const rateW = "38px";
+    const qtyW = "45px";
+    const rateW = "40px";
     const amtW = "42px";
     const gridCols = [
       qtyW,
@@ -529,25 +531,33 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         ? `<div style="font-weight:bold;margin-bottom:4px;font-size:9pt;">Category: Main Course</div>`
         : ""}
 
-    ${kotItems.map((item) => {
-          const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
-          const variantHtml = item.variantName
-            ? `<span class="kot-variant"> (${item.variantName})</span>`
-            : "";
-          const specialInstHtml = item.specialInst
-            ? `<div style="font-weight:bold;font-size:10pt;margin-top:2px;">📝 ${item.specialInst}</div>`
-            : "";
-          return `
-      <div class="item-row" style="grid-template-columns:${gridCols};">
-        <div class="item-qty">${qty}</div>
-        <div class="item-name">
-          ${item.name}${variantHtml}
-          ${specialInstHtml}
-        </div>
-        ${showRateColumn ? `<div class="item-rate">${Number(item.price || 0)}</div>` : ""}
-        ${showAmountColumn ? `<div class="item-amt">${(item.price * qty).toFixed(2)}</div>` : ""}
-      </div>`;
-        }).join("")}
+  ${kotItems.map((item) => {
+  const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
+  const variantHtml = item.variantName
+    ? `<span class="kot-variant"> (${item.variantName})</span>`
+    : "";
+
+  // ✅ Runtime rate item: SpecialInst replaces item name
+  const displayName = item.isRuntimeRate && item.specialInst
+    ? item.specialInst
+    : item.name;
+
+  // ✅ Only show as note-below-name for NON-runtime items
+  const specialInstHtml = (!item.isRuntimeRate && item.specialInst)
+    ? `<div style="font-weight:bold;font-size:10pt;margin-top:2px;">📝 ${item.specialInst}</div>`
+    : "";
+
+  return `
+  <div class="item-row" style="grid-template-columns:${gridCols};">
+    <div class="item-qty">${qty}</div>
+    <div class="item-name">
+      ${displayName}${variantHtml}
+      ${specialInstHtml}
+    </div>
+    ${showRateColumn ? `<div class="item-rate">${Number(item.price || 0)}</div>` : ""}
+    ${showAmountColumn ? `<div class="item-amt">${(item.price * qty).toFixed(2)}</div>` : ""}
+  </div>`;
+}).join("")}
 <hr style="border:none; border-top:1px solid #000; margin:6px 0;" />
     <div class="totals-row">
       <div style="min-width:${qtyW};text-align:center;">

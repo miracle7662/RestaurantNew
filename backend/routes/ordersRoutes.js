@@ -3,6 +3,7 @@ const router = express.Router();
 const controller = require('../controllers/ordersController');
 
 router.get('/taxes', controller.getTaxesByOutletAndDepartment);
+router.get("/department-sales", controller.getDepartmentSales);
 router.get('/shift-types', controller.getShiftTypes);
 
 

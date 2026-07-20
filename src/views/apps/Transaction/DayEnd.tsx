@@ -51,6 +51,7 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 interface Order {
   orderNo: string;
   table: number;
+  tableName  : string;
   waiter: string;
   amount: number;
   type: string;
@@ -59,6 +60,7 @@ interface Order {
   items: number;
   kotNo: string;
   revKotNo: string;
+  creditName?: string;  
   discount: number;
   ncKot: string;
   ncName?: string;
@@ -975,6 +977,7 @@ console.log('Loaded Report Data:', reportData);
                             <th>Rev Amt</th>
                             <th>KOT No</th>
                             <th>Rev KOT No</th>
+                            <th>Credit Name</th>
                             <th>NC Name</th>
                             <th>NC Purpose</th>
                             <th>isNCKOT</th>
@@ -1010,7 +1013,7 @@ console.log('Loaded Report Data:', reportData);
                                 <td className="fw-semibold">{order.orderNo}</td>
                                 <td>
                                   <Badge bg="light" text="dark" className="fs-6">
-                                    {order.table}
+                                    {order.tableName  }
                                   </Badge>
                                 </td>
                                   <td style={{ textAlign: 'right' }}>₹{(order.settlementAmount || 0).toLocaleString()}</td>
@@ -1036,6 +1039,7 @@ console.log('Loaded Report Data:', reportData);
                                    <td style={{ textAlign: 'right' }}>₹{(order.revAmt || 0).toLocaleString()}</td>
                                 <td><small className="text-muted">{order.kotNo}</small></td>
                                 <td><small className="text-muted">{order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}</small></td>
+                                <td>{order.creditName || <span className="text-muted">-</span>}</td>   {/* 👈 NEW */}
                                 <td>{order.ncName || ''}</td>
                                 <td title={order.ncPurpose || ''} style={{whiteSpace:'normal'}}>{order.ncPurpose || ''}</td>
                                 <td style={{textAlign:'center'}}><Badge bg={order.ncKot ? "primary" : "secondary"} className="fs-6">{order.ncKot ? 'Yes' : 'No'}</Badge></td>
@@ -1081,7 +1085,7 @@ console.log('Loaded Report Data:', reportData);
 
                             
                              <td style={{ textAlign: 'right' }}>₹{totalRevAmt.toLocaleString()}</td>
-                            <td></td><td></td><td></td><td></td>
+                            <td></td><td></td><td></td><td></td><td></td>
                             <td style={{ textAlign: 'center' }}>{orders.filter(o => o.ncKot).length}</td>
                             <td></td>
                             <td></td>

@@ -236,6 +236,7 @@ const CheckInForm = () => {
   const location = useLocation()
   const [loggedInUser] = useUser()
   const { user } = useAuthContext()
+  console.log("Current User:", user);
 
   const state = location.state as {
     rooms?: Array<{ roomId: number; roomNumber: string; roomCategoryName: string }>

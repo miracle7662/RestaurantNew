@@ -4,50 +4,51 @@ import { useAuthContext } from '@/common';
 
 interface PermissionContextType {
   permissions: UserPermission[];
-  loading: boolean;
-  canView: (moduleName: string) => boolean;
+  loading:     boolean;
+  canView:     (moduleKey: string) => boolean;
 }
 
 const PermissionContext = createContext<PermissionContextType>({
   permissions: [],
-  loading: true,
-  canView: () => true,
+  loading:     true,
+  canView:     () => true,
 });
 
 export const PermissionProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuthContext();
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]         = useState(true);
 
   useEffect(() => {
-       console.log('🔵 PermissionContext useEffect chala')
-  console.log('👤 user:', user)
-  console.log('🔑 user.id:', user?.id)
+    const isBypass =
+      user?.role?.toLowerCase()       === 'superadmin' ||
+      user?.role_level?.toLowerCase() === 'superadmin' ||
+      user?.role_level?.toLowerCase() === 'hotel_admin';
 
-      const userId = user?.id
-
-   if (!userId) {
-      setLoading(false)
-      return
+    if (!user?.id || isBypass) {
+      setLoading(false);
+      return;
     }
-  console.log('🔄 Fetching permissions for userid:', user.userid)
-  permissionService.getUserPermissions(user.id).then((data) => {
-    console.log('✅ Permissions loaded:', data)
-    setPermissions(data)
-    setLoading(false)
-  }).catch((err) => {
-    console.log('❌ Permission fetch failed:', err)
-    setLoading(false)
-  })
-},  [user?.id])
 
-  const canView = (moduleName: string): boolean => {
-      if (user?.role === 'superadmin' || user?.role_level === 'superadmin') {
-    return true
-  }
-    
+    permissionService.getUserPermissions(user.id)
+      .then(data => { setPermissions(data); setLoading(false); })
+      .catch(()  => setLoading(false));
+
+  }, [user?.id, user?.role, user?.role_level]);
+
+  const canView = (moduleKey: string): boolean => {
+    // Logout hamesha visible
+    if (moduleKey === 'Logout') return true;
+
+    if (
+      user?.role?.toLowerCase()       === 'superadmin' ||
+      user?.role_level?.toLowerCase() === 'superadmin' ||
+      user?.role_level?.toLowerCase() === 'hotel_admin'
+    ) return true;
+
+    // ✅ module_key se match (JOIN se aa raha hai DB se)
     const perm = permissions.find(
-      (p) => p.module_name.toLowerCase() === moduleName.toLowerCase()
+      p => p.module_key.toLowerCase() === moduleKey.toLowerCase().trim()
     );
     return perm ? perm.can_view === 1 : false;
   };

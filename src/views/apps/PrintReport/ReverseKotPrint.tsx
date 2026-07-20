@@ -153,12 +153,12 @@ const ReverseKotPrint: React.FC<ReverseKotPrintProps> = ({
 <hr style="border-top:1px dashed #000; margin:8px 0;" />
 
 <div style="display: flex; justify-content: space-between; align-items: center;">
-  <div style="font-size: 10pt;">
+  <div style="font-size: 9pt;">
     <div><strong>Date:</strong> ${dateTime}</div>
     <div><strong>Reverse KOT No:</strong> ${reverseKotNos}</div>
     <div><strong>Waiter:</strong> ${selectedWaiter || user?.name || "-"}</div>
   </div>
-  <div style="border: 1px solid #696868; min-width: 70px; min-height: 55px; display: flex; align-items: center; justify-content: center; font-size: 16pt; font-weight: bold; margin-left: 10px;">
+  <div style="border: 1px solid #696868; min-width: 50px; min-height: 50px; display: flex; align-items: center; justify-content: center; font-size: 16pt; font-weight: bold; margin-left: 8px; margin-right: 2px; flex-shrink: 0; box-sizing: border-box;">
     ${displayTableName}
   </div>
 </div>
@@ -193,7 +193,6 @@ ${reverseItems
 
 <hr style="border-top:1px dashed #000; margin:8px 0;" />
 
-<div style="text-align:center;">*** REVERSE KOT ***</div>
     `;
   }, [
     restaurantName,
@@ -223,9 +222,9 @@ ${reverseItems
     html, body { overflow: visible !important; }
   }
   body {
-    width: 70mm;
-    margin-left: 4mm;
-    margin-right: 2mm;
+    width: 72mm;
+    margin-left: 3mm;
+    margin-right: 3mm;
     font-family: 'Courier New', monospace;
     font-size: 11px;
     line-height: 1.3;
