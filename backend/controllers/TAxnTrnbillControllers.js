@@ -779,34 +779,31 @@ exports.deleteBill = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.settleBill = async (req, res) => {
   try {
-    const { id } = req.params
-    const { settlements = [], curr_date, TipAmount } = req.body
+    const { id } = req.params;
+    const { settlements = [], curr_date, TipAmount } = req.body;
 
     if (!Array.isArray(settlements) || settlements.length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: 'settlements array is required', data: null })
+      return res.status(400).json({
+        success: false,
+        message: 'settlements array is required',
+        data: null,
+      });
     }
 
-    const [billRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
-    const bill = billRows[0]
-    if (!bill)
-      return res.status(404).json({ success: false, message: 'Bill not found', data: null })
+    const [billRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)]);
+    const bill = billRows[0];
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Bill not found', data: null });
+    }
 
     // Start transaction
-    await db.query('START TRANSACTION')
+    await db.query('START TRANSACTION');
 
     try {
       for (const s of settlements) {
-        // Use InsertDate from request body if provided, otherwise use current datetime
-        const insertDate = s.InsertDate ? s.InsertDate : new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-        // Get TipAmount - default to 0 if not provided
-        // Use tip from the individual settlement
+        const insertDate = s.InsertDate || new Date().toISOString().replace('T', ' ').substring(0, 19);
         const tipAmount = Number(s.TipAmount) || 0;
 
-        // 🔥 FIX: For Credit payments, use customer data from settlement object
-        // For non-credit payments, fallback to bill's customer data
         const isCredit = s.PaymentType && s.PaymentType.toLowerCase() === 'credit';
 
         let customerId = bill.customerid;
@@ -814,81 +811,156 @@ exports.settleBill = async (req, res) => {
         let mobileNo = bill.MobileNo;
 
         if (isCredit && s.customerid) {
-          // Use credit-specific customer data from settlement
           customerId = s.customerid;
           customerName = s.customerName || customerName;
           mobileNo = s.mobile || mobileNo;
         }
 
-        await db.query(`
+        // ---- INSERT INTO TrnSettlement ----
+        await db.query(
+          `
           INSERT INTO TrnSettlement (
             PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, 
             TxnID, TxnNo, UserId, customerid, CustomerName, MobileNo, 
             Receive, Refund, TipAmount, table_name, isSettled, InsertDate
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-        `, [
-          s.PaymentTypeID ?? 1,
-          s.PaymentType || null,
-          Number(s.Amount) || 0,
-          s.Batch || null,
-          s.Name || null,
-          bill.orderNo || bill.TxnNo,
-          bill.HotelID,
-          Number(id),
-          bill.TxnNo,
-          bill.UserId,
-          customerId,           // 🔥 Use customer ID from settlement for credit
-          customerName,         // 🔥 Use customer name from settlement for credit
-          mobileNo,             // 🔥 Use mobile from settlement for credit
-          Number(s.received_amount) || 0,
-          Number(s.refund_amount) || 0,
-          Number(s.TipAmount) || 0,
-          bill.table_name || null,
-          insertDate
-        ])
-      }
+          `,
+          [
+            s.PaymentTypeID ?? 1,
+            s.PaymentType || null,
+            Number(s.Amount) || 0,
+            s.Batch || null,
+            s.Name || null,
+            bill.orderNo || bill.TxnNo,
+            bill.HotelID,
+            Number(id),
+            bill.TxnNo,
+            bill.UserId,
+            customerId,
+            customerName,
+            mobileNo,
+            Number(s.received_amount) || 0,
+            Number(s.refund_amount) || 0,
+            Number(s.TipAmount) || 0,
+            bill.table_name || null,
+            insertDate,
+          ]
+        );
 
-      await db.query(`
+        // ---- 🔥 NEW: Room Credit → post to guest folio ----
+        if (s.PaymentType === 'Room Credit') {
+          const checkinid = s.checkinid || req.body.checkinid; // per settlement or root
+          if (!checkinid) {
+            throw new Error('checkinid is required for Room Credit payment');
+          }
+
+          console.log(`🔍 Room Credit processing for checkinid: ${checkinid}`);
+
+          // Get detail_id from checkin_detail_master
+          const [detailRows] = await db.query(
+            `SELECT detail_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
+            [checkinid]
+          );
+
+          if (detailRows.length === 0) {
+            throw new Error(`No checkin detail found for checkin_id: ${checkinid}`);
+          }
+
+          const detailId = detailRows[0].detail_id;
+
+          const description = `Restaurant Bill - ${bill.table_name || 'Order'} #${bill.orderNo || bill.TxnNo}`;
+
+          // Insert into guest folio
+          await db.query(
+            `
+            INSERT INTO checkin_guest_folio_master (
+              checkin_id,
+              hotel_id,
+              detail_id,
+              room_id,
+              transaction_type,
+              transaction_datetime,
+              description,
+              debit_amount,
+              credit_amount,
+              reference_number,
+              payment_method,
+              created_by_id,
+              created_date
+            ) VALUES (?, ?, ?, NULL, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
+            `,
+            [
+              checkinid,
+              bill.HotelID,
+              detailId,
+              insertDate,
+              description,
+              Number(s.Amount),
+              bill.orderNo || bill.TxnNo,
+              s.PaymentType,
+              bill.UserId || null,
+              insertDate,
+            ]
+          );
+
+          console.log(`✅ Room Credit posted to checkin_guest_folio_master for checkin_id: ${checkinid}`);
+        }
+      } // end for each settlement
+
+      // ---- Update bill header ----
+      await db.query(
+        `
         UPDATE TAxnTrnbill 
-        SET isSetteled = 1, isBilled = 1, BilledDate = CURRENT_TIMESTAMP, orderNo = COALESCE(orderNo, TxnNo)
+        SET isSetteled = 1, isBilled = 1, BilledDate = CURRENT_TIMESTAMP, 
+            orderNo = COALESCE(orderNo, TxnNo)
         WHERE TxnID = ?
-      `, [Number(id)])
+        `,
+        [Number(id)]
+      );
 
-      await db.query(`UPDATE TAxnTrnbilldetails SET isSetteled = 1 WHERE TxnID = ?`, [Number(id)])
+      await db.query(`UPDATE TAxnTrnbilldetails SET isSetteled = 1 WHERE TxnID = ?`, [Number(id)]);
 
-      // Set table status to vacant (0) after settlement
+      // ---- Update table status ----
       if (bill.TableID) {
-        const [tableInfoRows] = await db.query(`SELECT * FROM msttablemanagement WHERE tableid = ?`, [bill.TableID]);
-        const tableInfo = tableInfoRows[0];
-        await db.query(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`, [bill.TableID])
-        await db.query(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`, [bill.TableID])
+        await db.query(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`, [bill.TableID]);
+        await db.query(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`, [bill.TableID]);
       }
 
-      await db.query('COMMIT')
+      await db.query('COMMIT');
     } catch (error) {
-      await db.query('ROLLBACK')
-      throw error
+      await db.query('ROLLBACK');
+      throw error;
     }
 
-    const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
-    const header = headerRows[0]
-    const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
-    const [stl] = await db.query(`
+    // ---- Fetch updated data for response ----
+    const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)]);
+    const header = headerRows[0];
+    const [items] = await db.query(
+      'SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID',
+      [Number(id)]
+    );
+    const [stl] = await db.query(
+      `
       SELECT * FROM TrnSettlement 
       WHERE OrderNo = ? AND HotelID = ?
       ORDER BY SettlementID
-    `, [header.orderNo || null, header.HotelID || null])
+      `,
+      [header.orderNo || null, header.HotelID || null]
+    );
 
-    res.json(ok('Bill settled', { ...header, customerid: header.customerid, details: items, settlement: stl }))
+    res.json(ok('Bill settled', { ...header, customerid: header.customerid, details: items, settlement: stl }));
   } catch (error) {
-    console.error('--- ERROR in settleBill ---')
-    console.error(error)
-    res
-      .status(500)
-      .json({ success: false, message: 'Failed to settle bill', data: null, error: error.message })
+    console.error('--- ERROR in settleBill ---');
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to settle bill',
+      data: null,
+      error: error.message,
+    });
   }
-}
+};
 
 exports.addItemToBill = async (req, res) => {
   try {
