@@ -409,8 +409,10 @@ getAllBills: (filters?: { curr_date?: string }, user?: any): Promise<ApiResponse
   /**
    * Get bill by ID
    */
-  getBillById: (id: number): Promise<ApiResponse<BillDetailsResponse>> =>
-    HttpClient.get<ApiResponse<BillDetailsResponse>>(`/TAxnTrnbill/${id}`),
+getBillById: (id: number, hotelId: number): Promise<ApiResponse<BillDetailsResponse>> =>
+  HttpClient.get<ApiResponse<BillDetailsResponse>>(`/TAxnTrnbill/${id}`, {
+    params: { hotelId }
+  }),
 
   /**
    * Get billed bill by table ID
