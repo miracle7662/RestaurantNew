@@ -8,6 +8,7 @@ router.get('/at-glance', controller.getAtGlance);
 router.get("/daily-sales-summary", controller.getDailySalesSummary);
 router.get("/daily-sales-summary-report", controller.getDailySalesSummaryReport);
 router.get( "/payment-mode-summary", controller.getPaymentModeSummary);
+router.get('/active-room-credit', controller.getActiveCheckinsForRoomCredit);
 router.post('/', controller.addCheckin);
 router.get('/next-reg-number', controller.getNextRegNumber);
 router.get('/details/:checkinId', controller.getDetailsByCheckinId);

@@ -843,31 +843,51 @@ exports.getHotelBookingMeta = async (req, res) => {
 
 exports.deleteRoom = async (req, res) => {
     try {
-        const { room_id } = req.params;
+        const { id } = req.params;
+        const room_id = id;
 
         if (!room_id) {
-            return res.status(400).json({ success: false, message: 'Room ID is required' });
+            return res.status(400).json({
+                success: false,
+                message: 'Room ID is required'
+            });
         }
 
         const [roomRows] = await db.execute(
-            'SELECT room_id FROM room_master WHERE room_id = ?',
+            `SELECT room_id, room_no, hotelid
+             FROM room_master
+             WHERE room_id = ?`,
             [room_id]
         );
 
         if (roomRows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Room not found' });
+            return res.status(404).json({
+                success: false,
+                message: 'Room not found'
+            });
         }
 
-        // Delete the linked msttablemanagement row first (tableid == room_id)
-        await db.execute('DELETE FROM msttablemanagement WHERE tableid = ?', [room_id]);
+        const { room_no, hotelid } = roomRows[0];
 
-        // Delete the room itself
-        await db.execute('DELETE FROM room_master WHERE room_id = ?', [room_id]);
+        // Delete linked table — only from 'Room Service' department
+        await db.execute(
+            `DELETE FROM msttablemanagement
+             WHERE table_name = ? AND hotelid = ? AND department_name = 'Room Service'`,
+            [room_no, hotelid]
+        );
+
+        // Delete room
+        await db.execute(
+            `DELETE FROM room_master
+             WHERE room_id = ?`,
+            [room_id]
+        );
 
         res.status(200).json({
             success: true,
             message: 'Room and linked table deleted successfully',
         });
+
     } catch (error) {
         console.error('Error deleting room:', error);
         res.status(500).json({

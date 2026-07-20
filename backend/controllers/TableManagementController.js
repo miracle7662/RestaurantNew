@@ -41,30 +41,19 @@ exports.getAllTables = async (req, res) => {
       LEFT JOIN msttable_department d ON t.departmentid = d.departmentid
       LEFT JOIN mst_outlets o ON t.outletid = o.outletid
       LEFT JOIN msthotelmasters h ON t.hotelid = h.hotelid
-      WHERE t.status IN (0,1) 
+      WHERE t.status IN (0,1,2)
     `;
     let params = [];
     let conditions = [];
 
-if (hotelid && outletid) {
-  conditions.push(`
-    (
-      (d.department_name = 'Room Service' AND t.hotelid = ?)
-      OR
-      (d.department_name <> 'Room Service' AND t.outletid = ?)
-    )
-  `);
-
-  params.push(hotelid, outletid);
-
-} else if (hotelid) {
-  conditions.push('t.hotelid = ?');
-  params.push(hotelid);
-
-} else if (outletid) {
-  conditions.push('t.outletid = ?');
-  params.push(outletid);
-}
+    if (hotelid) {
+      conditions.push('t.hotelid = ?');
+      params.push(hotelid);
+    }
+    if (outletid) {
+      conditions.push('t.outletid = ?');
+      params.push(outletid);
+    }
     if (search) {
       conditions.push('(t.table_name LIKE ? OR o.outlet_name LIKE ? OR h.hotel_name LIKE ?)');
       const searchParam = `%${search}%`;
@@ -72,7 +61,7 @@ if (hotelid && outletid) {
     }
 
     if (conditions.length > 0) {
-  sql += ` AND ${conditions.join(' AND ')}`;
+       sql += ` AND ${conditions.join(' AND ')}`;
 }
 
      // ✅ Add ORDER BY - table_name wise sorting

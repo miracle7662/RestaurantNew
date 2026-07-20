@@ -1775,6 +1775,8 @@ const CheckInForm = () => {
         const departmentName = firstRoomDeptInfo?.department_name || ''
 
         const roomIdsString = roomRows.map((r) => r.roomId).join(',')
+        const roomNoString = roomRows.map((r) => r.roomNumber).join(',')   // <-- ye line add karo
+
 
         // ---- 1. Master Payload (only fields expected by sp_add_checkin) ----
         const masterPayload = {
@@ -1783,7 +1785,7 @@ const CheckInForm = () => {
           plan_name: values.planName,
           checkin_datetime: checkinDateTime,
           checkout_datetime: checkoutDateTime,
-          room_no: firstRow.roomNumber,
+          room_no: roomNoString, 
           room_id: roomIdsString,
           tot_room_tariff: round2(totRoomTariff),
           tot_ex_pax_charge: round2(totExPaxCharge),

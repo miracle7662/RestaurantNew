@@ -186,6 +186,7 @@ exports.getAllBills = async (req, res) => {
 exports.getBillById = async (req, res) => {
   try {
     const { id } = req.params;
+    const { hotelId } = req.query;   
     const txnId = Number(id);
 
     if (!txnId || Number.isNaN(txnId)) {

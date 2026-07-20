@@ -973,7 +973,13 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await OrderService.getBillById(Number(orderId));
+      console.log("Order ID:", orderId);
+      console.log("Hotel ID:", user?.hotelid);
+ 
+     const response = await OrderService.getBillById(
+  Number(orderId),
+  Number(user.hotelid)
+);
 
       const data = response.data || response;
       if (!data) {

@@ -405,7 +405,54 @@ exports.getTodayCheckouts = async (req, res) => {
 // POST /checkins – create a new checkin
 // ----------------------------------------------------------------------
 
+exports.getActiveCheckinsForRoomCredit = async (req, res) => {
+  try {
+    const { hotelid, room_no } = req.query;
+    if (!hotelid) {
+      return res.status(400).json({ success: false, message: 'Hotel ID is required' });
+    }
 
+    // Step 1: find matching active checkin_id(s) for this room_no
+    let checkinIdSql = `
+      SELECT checkin_id FROM checkin_master
+      WHERE hotelid = ? AND status = 'active'
+    `;
+    const checkinIdParams = [hotelid];
+
+    if (room_no) {
+      checkinIdSql += ` AND FIND_IN_SET(?, room_no) > 0`;
+      checkinIdParams.push(room_no);
+    }
+
+    const [checkinRows] = await db.query(checkinIdSql, checkinIdParams);
+    const checkinIds = checkinRows.map(r => r.checkin_id);
+
+    if (checkinIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Step 2: fetch ALL rooms + guest names under those checkin_id(s)
+    // ✅ FIX: fallback to guest_master.name when checkin_detail_master.guest_name is empty
+    const [rows] = await db.query(`
+      SELECT
+        cm.checkin_id,
+        cm.reg_no,
+        cdm.room_id,
+        cdm.room_number AS room_no,
+        COALESCE(NULLIF(cdm.guest_name, ''), gm.name, 'Guest') AS guest_name
+      FROM checkin_master cm
+      INNER JOIN checkin_detail_master cdm ON cm.checkin_id = cdm.checkin_id
+      LEFT JOIN guest_master gm ON gm.guest_id = cdm.guest_id
+      WHERE cm.checkin_id IN (?)
+      ORDER BY cm.checkin_id, cdm.room_number
+    `, [checkinIds]);
+
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('getActiveCheckinsForRoomCredit error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch active checkins' });
+  }
+};
 
 exports.addCheckin = async (req, res) => {
   let connection;
@@ -778,6 +825,8 @@ console.log('✅ Using outletId:', outletId);
     if (connection) connection.release();
   }
 };
+
+
 // ----------------------------------------------------------------------
 // PUT /checkins/:id – update checkin
 // ----------------------------------------------------------------------
