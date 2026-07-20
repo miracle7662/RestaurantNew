@@ -94,7 +94,11 @@ exports.getOutletsForDropdown = async (req, res) => {
 
 // Create new outlet user
 exports.createOutletUser = async (req, res) => {
+  const connection = await db.getConnection()
+
   try {
+    await connection.beginTransaction()
+
     const {
       username,
       email,
@@ -131,6 +135,8 @@ exports.createOutletUser = async (req, res) => {
 
     // Validate required fields
     if (!username || !password || !full_name || !outletid) {
+      await connection.rollback()
+      connection.release()
       return res.status(400).json({
         message: 'Required fields missing',
         missing: { username, email, password, full_name, outletid },
@@ -138,8 +144,13 @@ exports.createOutletUser = async (req, res) => {
     }
 
     // Check if username already exists
-    const [existingUsers] = await db.query('SELECT userid FROM mst_users WHERE username = ?', [username])
+    const [existingUsers] = await connection.query(
+      'SELECT userid FROM mst_users WHERE username = ?',
+      [username]
+    )
     if (existingUsers.length > 0) {
+      await connection.rollback()
+      connection.release()
       return res.status(400).json({ message: 'Username already exists' })
     }
 
@@ -147,25 +158,34 @@ exports.createOutletUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Validate parent user
-    const [parentUsers] = await db.query('SELECT role_level, hotelid FROM mst_users WHERE userid = ?', [parent_user_id])
+    const [parentUsers] = await connection.query(
+      'SELECT role_level, hotelid FROM mst_users WHERE userid = ?',
+      [parent_user_id]
+    )
     const parentUser = parentUsers[0]
     if (!parentUser) {
+      await connection.rollback()
+      connection.release()
       return res.status(400).json({ message: 'Invalid parent user', parent_user_id })
     }
 
     // Validate outlet ID
     const outletId = parseInt(outletid)
     if (isNaN(outletId)) {
+      await connection.rollback()
+      connection.release()
       return res.status(400).json({ message: 'Invalid outlet ID provided', outletid })
     }
 
     // Validate outlet exists and is active
-    const [outlets] = await db.query(
+    const [outlets] = await connection.query(
       'SELECT outletid, hotelid FROM mst_outlets WHERE outletid = ? AND status = 0',
       [outletId]
     )
     const outlet = outlets[0]
     if (!outlet) {
+      await connection.rollback()
+      connection.release()
       return res.status(400).json({ message: 'Outlet ID is invalid or inactive', outletid })
     }
 
@@ -173,6 +193,8 @@ exports.createOutletUser = async (req, res) => {
 
     // Verify outlet belongs to the provided or parent hotel
     if (outlet.hotelid !== finalHotelId) {
+      await connection.rollback()
+      connection.release()
       return res.status(400).json({
         message: 'Selected outlet does not belong to the specified hotel',
         finalHotelId,
@@ -197,11 +219,38 @@ exports.createOutletUser = async (req, res) => {
       usertypeid, shift_time, mac_address, assign_warehouse, language_preference || 'English',
       address, city, sub_locality, web_access ? 1 : 0, self_order ? 1 : 0, captain_app ? 1 : 0,
       kds_app ? 1 : 0, captain_old_kot_access || 'Enabled', verify_mac_ip ? 1 : 0,
-      status || 0, last_login || null, created_by_id, formatMySQLDate(created_date)
+      status || 0, last_login || null, created_by_id, formatMySQLDate(created_date),
     ]
 
-    const [insertResult] = await db.query(insertQuery, insertParams)
+    const [insertResult] = await connection.query(insertQuery, insertParams)
     const userid = insertResult.insertId
+
+    // ─── Hotel type fetch karo (msthotelmasters + msthoteltype JOIN) ──────
+    const [hotelRows] = await connection.query(`
+      SELECT ht.hotel_type
+      FROM msthotelmasters h
+      INNER JOIN msthoteltype ht ON ht.hoteltypeid = h.hoteltypeid
+      WHERE h.hotelid = ?
+    `, [finalHotelId])
+
+    const hotelType = hotelRows[0]?.hotel_type || 'restaurant'
+    console.log(`🏨 Hotel type for hotelid ${finalHotelId}:`, hotelType)
+
+    // ─── Stored Procedure call — default permissions insert ───────────────
+    // sp_insert_default_permissions handles:
+    //   - hotel_type based modules (restaurant / lodging / both)
+    //   - outlet_type based modules (Bar, Pantry, Front Desk, etc.)
+    //   - usertypeid based modules  (Captain, Cashier, Manager, etc.)
+    //   - Priority: specific match > NULL match
+    //   - Skips if permissions already exist for this user
+    await connection.query(
+      `CALL sp_insert_default_permissions(?, ?, ?, ?, ?)`,
+      [userid, hotelType, outletId, usertypeid || null, created_by_id]
+    )
+
+    console.log(`✅ Default permissions inserted via SP — userid: ${userid}, hotel_type: ${hotelType}, outletid: ${outletId}, usertypeid: ${usertypeid || null}`)
+
+    await connection.commit()
 
     res.json({
       success: true,
@@ -213,11 +262,15 @@ exports.createOutletUser = async (req, res) => {
         role_level: 'outlet_user',
         outletid: outletId,
         hotelid: finalHotelId,
-      }
+      },
     })
+
   } catch (error) {
+    await connection.rollback()
     console.error('Error creating outlet user:', error)
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message })
+  } finally {
+    connection.release()
   }
 }
 

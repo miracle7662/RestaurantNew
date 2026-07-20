@@ -114,69 +114,13 @@ exports.saveUserPermissions = async (req, res) => {
 // controllers/userPermissionsController.js mein add karo
 
 // Default ON module_keys (restaurant)
-const DEFAULT_RESTAURANT_MODULES = [
-  'POS',
-  'Settlement', 
-  'KitchenAllocation',
-  'Handover',
-  'DayEnd',
-  'Customers',
-  'Menu',
-  'DailySalesReport',
-  'Settings',
-  'BackdatedDayend',
-  'Logout',
-]
 
-exports.insertDefaultPermissions = async (userid, hotelType, createdById, connection) => {
-  try {
-    const type = hotelType?.toLowerCase().trim();
 
-    let typeFilter;
-    if (type === 'lodging') {
-      typeFilter = `menu_type IN ('lodging', 'common')`;
-    } else if (type === 'both') {
-      typeFilter = `menu_type IN ('restaurant', 'lodging', 'both', 'common')`;
-    } else {
-      typeFilter = `menu_type IN ('restaurant', 'both', 'common')`;
-    }
-
-    // Saare active modules fetch karo
-    const [modules] = await connection.query(`
-      SELECT moduleid, module_key, menu_type
-      FROM mst_modules
-      WHERE is_active = 1
-        AND is_menu   = 1
-        AND is_title  = 0
-        AND ${typeFilter}
-      ORDER BY display_order ASC
-    `);
-
-    if (!modules.length) return;
-
-    // Default ON keys ka Set
-    const defaultOnKeys = new Set(DEFAULT_RESTAURANT_MODULES);
-
-    const values = modules.map(m => [
-      userid,
-      m.moduleid,
-      defaultOnKeys.has(m.module_key) ? 1 : 0,  // can_view
-      0,                                          // can_create
-      0,                                          // can_edit
-      0,                                          // can_delete
-      createdById,
-      new Date(),
-    ]);
-
-    await connection.query(`
-      INSERT INTO mst_user_permissions
-        (userid, moduleid, can_view, can_create, can_edit, can_delete, created_by_id, created_date)
-      VALUES ?
-    `, [values]);
-
-    console.log(`✅ Default permissions inserted for userid: ${userid}`);
-  } catch (error) {
-    console.error('insertDefaultPermissions Error:', error);
-    throw error;
-  }
-};
+// Ab sirf SP call karta hai — logic SP mein hai
+exports.insertDefaultPermissions = async (userid, hotelType, outletId, usertypeid, createdById, connection) => {
+  await connection.query(
+    `CALL sp_insert_default_permissions(?, ?, ?, ?, ?)`,
+    [userid, hotelType || 'restaurant', outletId || null, usertypeid || null, createdById]
+  )
+  console.log(`✅ Default permissions via SP — userid: ${userid}`)
+}
