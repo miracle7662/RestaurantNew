@@ -168,10 +168,15 @@ exports.createSettlement = async (req, res) => {
       Amount,
       HotelID,
       EditedBy,
-      InsertDate,
-      customerid = null,
-      checkinid   // ✅ NEW: required when PaymentType === 'Room Credit'
+      InsertDate
     } = req.body;
+
+    // ✅ FIX: await + destructuring
+    const [billRows] = await db.query(`
+      SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
+    `, [OrderNo, OrderNo]);
+
+    const txnID = billRows[0]?.TxnID || null;
 
     if (!OrderNo || !PaymentType || !Amount || !HotelID) {
       return res.status(400).json({
@@ -180,20 +185,7 @@ exports.createSettlement = async (req, res) => {
       });
     }
 
-    // ✅ NEW: Room Credit requires a checkin_id
-    if (PaymentType === 'Room Credit' && !checkinid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please select a checkin for Room Credit payment'
-      });
-    }
-
-    const [billRows] = await db.query(`
-      SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
-    `, [OrderNo, OrderNo]);
-
-    const txnID = billRows[0]?.TxnID || null;
-
+    // ✅ FIX: await + destructuring
     const [paymentRows] = await db.query(`
       SELECT paymenttypeid
       FROM payment_types
@@ -214,7 +206,7 @@ exports.createSettlement = async (req, res) => {
     const insertDate =
       InsertDate || new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-    // ✅ FIX: customerid value ab included hai
+    // ✅ FIX: await
     await db.query(`
       INSERT INTO TrnSettlement (
         OrderNo,
@@ -236,50 +228,9 @@ exports.createSettlement = async (req, res) => {
       paymentTypeID,
       PaymentType,
       Number(Amount),
-      customerid,
       HotelID,
       insertDate
     ]);
-
-    // ✅ NEW: Room Credit selected → post charge to lodging folio
-    if (PaymentType === 'Room Credit') {
-      const [detailRows] = await db.query(
-        `SELECT detail_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
-        [checkinid]
-      );
-      const detailId = detailRows[0]?.detail_id || null;
-
-      await db.query(`
-        INSERT INTO checkin_guest_folio_master (
-          checkin_id,
-          hotel_id,
-          detail_id,
-          room_id,
-          transaction_type,
-          transaction_datetime,
-          description,
-          debit_amount,
-          credit_amount,
-          reference_number,
-          payment_method,
-          created_by_id,
-          created_date
-        ) VALUES (?, ?, ?, NULL, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
-      `, [
-        checkinid,
-        HotelID,
-        detailId,
-        insertDate,
-        `Restaurant Bill - ${req.body.table_name || 'Order'} #${OrderNo}`,
-        Number(Amount),
-        OrderNo,
-        PaymentType,
-        EditedBy || null,
-        insertDate
-      ]);
-
-      console.log(`✅ Room Credit posted to checkin_guest_folio_master for checkin_id: ${checkinid}`);
-    }
 
     res.json({
       success: true,
@@ -287,7 +238,8 @@ exports.createSettlement = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('createSettlement error:', error);
+    console.error('createSettlement error:', error); // helpful debug
+
     res.status(500).json({
       success: false,
       message: 'Failed to create settlement'
