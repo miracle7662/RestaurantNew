@@ -405,7 +405,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         key: 'Setting',
         label: 'Setting',
         url: '/hotel-master/Setting',
-         icon: 'fi fi-rr-settings',
+         icon: 'fi fi-rr-setting',
         parentKey: 'hotel-master',
       },
 

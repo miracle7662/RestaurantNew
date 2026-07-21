@@ -135,6 +135,7 @@ const ReservationSummary = React.lazy(() => import('../views/pages/hotel-master/
 const CheckInForm = React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/CheckInForm'))
 const RoomDetailSummary = React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/RoomDetailSummary'))
 const Editsettelment = React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/Editsettelment'))
+const Setting = React.lazy(() => import('../views/pages/hotel-master/Setting/Setting'))
 const Amendments =  React.lazy(() => import('../views/pages/hotel-master/HotelBookingPanel/Amendments'))
 const HotelReport = React.lazy(() => import('../views/pages/HotelReport'))
 
@@ -896,6 +897,13 @@ const appsRoutes: RoutesProps = {
           path: '/hotel-master/Editsettelment',
           name: 'Editsettelment',
           element: < Editsettelment/>,
+          route: PrivateRoute,
+        },
+
+         {
+          path: '/hotel-master/Setting',
+          name: 'Setting',
+          element: < Setting/>,
           route: PrivateRoute,
         },
 
