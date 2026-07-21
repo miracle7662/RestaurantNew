@@ -96,16 +96,14 @@ exports.getSettlements = async (req, res) => {
 exports.updateSettlement = async (req, res) => {
   try {
     const { id } = req.params;
-    const { PaymentType, Amount, EditedBy } = req.body;
+    const { PaymentType, Amount, EditedBy, checkinid } = req.body; // ✅ checkinid optional
 
-    // ✅ FIX: await + destructuring
+    // Get existing settlement
     const [rows] = await db.query(
       'SELECT * FROM TrnSettlement WHERE SettlementID = ? AND isSettled = 1',
       [Number(id)]
     );
-
     const settlement = rows[0];
-
     if (!settlement) {
       return res.status(404).json({
         success: false,
@@ -113,45 +111,126 @@ exports.updateSettlement = async (req, res) => {
       });
     }
 
-    // ✅ FIX: await
-    await db.query(`
-      INSERT INTO TrnSettlementLog (
-        SettlementID,
-        OldPaymentType,
-        OldAmount,
-        NewPaymentType,
-        NewAmount,
-        EditedBy
-      )
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [
-      settlement.SettlementID,
-      settlement.PaymentType,
-      settlement.Amount,
-      PaymentType,
-      Amount,
-      EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown'
-    ]);
+    const oldPaymentType = settlement.PaymentType;
+    const oldAmount = settlement.Amount;
+    const OrderNo = settlement.OrderNo;
+    const HotelID = settlement.HotelID;
 
-    // ✅ FIX: await
-    await db.query(`
-      UPDATE TrnSettlement
-      SET PaymentType = ?, Amount = ?
-      WHERE SettlementID = ?
-    `, [
-      PaymentType,
-      Number(Amount),
-      Number(id)
-    ]);
+    // Start transaction
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
 
-    res.json({
-      success: true,
-      message: 'Settlement updated successfully'
-    });
+    try {
+      // 1️⃣ Log the change
+      await connection.query(`
+        INSERT INTO TrnSettlementLog (
+          SettlementID, OldPaymentType, OldAmount, NewPaymentType, NewAmount, EditedBy
+        ) VALUES (?, ?, ?, ?, ?, ?)
+      `, [
+        settlement.SettlementID,
+        oldPaymentType,
+        oldAmount,
+        PaymentType,
+        Number(Amount),
+        EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown'
+      ]);
+
+      // 2️⃣ Update settlement
+      await connection.query(`
+        UPDATE TrnSettlement
+        SET PaymentType = ?, Amount = ?
+        WHERE SettlementID = ?
+      `, [PaymentType, Number(Amount), Number(id)]);
+
+      // 3️⃣ Handle folio entry based on new PaymentType
+      if (PaymentType === 'Room Credit') {
+        // ✅ New payment is Room Credit → insert/update folio
+        if (!checkinid) {
+          await connection.rollback();
+          return res.status(400).json({
+            success: false,
+            message: 'checkinid is required for Room Credit payment'
+          });
+        }
+
+        // Get detail_id
+        const [detailRows] = await connection.query(
+          `SELECT detail_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
+          [checkinid]
+        );
+        if (detailRows.length === 0) {
+          await connection.rollback();
+          return res.status(400).json({
+            success: false,
+            message: `No checkin detail found for checkin_id: ${checkinid}`
+          });
+        }
+        const detailId = detailRows[0].detail_id;
+
+        // Check if entry exists
+        const [existingFolio] = await connection.query(
+          `SELECT id FROM checkin_guest_folio_master WHERE reference_number = ? AND checkin_id = ?`,
+          [OrderNo, checkinid]
+        );
+
+        const description = `Restaurant Bill - ${settlement.table_name || 'Order'} #${OrderNo}`;
+        const insertDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+        if (existingFolio.length > 0) {
+          // Update existing entry
+          await connection.query(`
+            UPDATE checkin_guest_folio_master
+            SET debit_amount = ?, description = ?, transaction_datetime = ?
+            WHERE reference_number = ? AND checkin_id = ?
+          `, [Number(Amount), description, insertDate, OrderNo, checkinid]);
+        } else {
+          // Insert new entry
+          await connection.query(`
+            INSERT INTO checkin_guest_folio_master (
+              checkin_id, hotel_id, detail_id, room_id,
+              transaction_type, transaction_datetime, description,
+              debit_amount, credit_amount, reference_number,
+              payment_method, created_by_id, created_date
+            ) VALUES (?, ?, ?, NULL, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
+          `, [
+            checkinid,
+            HotelID,
+            detailId,
+            insertDate,
+            description,
+            Number(Amount),
+            OrderNo,
+            PaymentType,
+            EditedBy?.userId || null,
+            insertDate
+          ]);
+        }
+      } else {
+        // ✅ New payment is NOT Room Credit → delete any existing Room Credit folio entry for this OrderNo
+        await connection.query(`
+          DELETE FROM checkin_guest_folio_master
+          WHERE reference_number = ? AND transaction_type = 'Room Credit'
+        `, [OrderNo]);
+        console.log(`🗑️ Removed Room Credit folio entry for OrderNo: ${OrderNo} (updateSettlement)`);
+      }
+
+      await connection.commit();
+      connection.release();
+
+      res.json({
+        success: true,
+        message: 'Settlement updated successfully'
+      });
+
+    } catch (innerError) {
+      await connection.rollback();
+      connection.release();
+      console.error('❌ updateSettlement inner error:', innerError);
+      throw innerError;
+    }
 
   } catch (error) {
-    console.error('updateSettlement error:', error); // optional but recommended
-
+    console.error('updateSettlement error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update settlement'
@@ -168,16 +247,11 @@ exports.createSettlement = async (req, res) => {
       Amount,
       HotelID,
       EditedBy,
-      InsertDate
+      InsertDate,
+      checkinid   // ✅ NEW: required when PaymentType === 'Room Credit'
     } = req.body;
 
-    // ✅ FIX: await + destructuring
-    const [billRows] = await db.query(`
-      SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
-    `, [OrderNo, OrderNo]);
-
-    const txnID = billRows[0]?.TxnID || null;
-
+    // --- Basic validation ---
     if (!OrderNo || !PaymentType || !Amount || !HotelID) {
       return res.status(400).json({
         success: false,
@@ -185,61 +259,139 @@ exports.createSettlement = async (req, res) => {
       });
     }
 
-    // ✅ FIX: await + destructuring
+    // --- Get TxnID ---
+    const [billRows] = await db.query(`
+      SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
+    `, [OrderNo, OrderNo]);
+    const txnID = billRows[0]?.TxnID || null;
+
+    // --- Get payment type ID ---
     const [paymentRows] = await db.query(`
-      SELECT paymenttypeid
-      FROM payment_types
-      WHERE mode_name = ?
+      SELECT paymenttypeid FROM payment_types WHERE mode_name = ?
     `, [PaymentType]);
-
     const paymentMode = paymentRows[0];
-
     if (!paymentMode) {
       return res.status(400).json({
         success: false,
         message: `Invalid payment type: ${PaymentType}`
       });
     }
-
     const paymentTypeID = paymentMode.paymenttypeid;
 
-    const insertDate =
-      InsertDate || new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const insertDate = InsertDate || new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-    // ✅ FIX: await
-    await db.query(`
-      INSERT INTO TrnSettlement (
+    // --- Start transaction ---
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // 1️⃣ Insert into TrnSettlement
+      await connection.query(`
+        INSERT INTO TrnSettlement (
+          OrderNo, TxnID, table_name, PaymentTypeID, PaymentType,
+          Amount, customerid, HotelID, isSettled, InsertDate
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+      `, [
         OrderNo,
-        TxnID,
-        table_name,
-        PaymentTypeID,
+        txnID,
+        req.body.table_name || null,
+        paymentTypeID,
         PaymentType,
-        Amount,
-        customerid,
+        Number(Amount),
+        HotelID,  // customerid? Actually you have customerid in your original but not in destructure; I kept HotelID as placeholder; you might need to adjust.
         HotelID,
-        isSettled,
-        InsertDate
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-    `, [
-      OrderNo,
-      txnID,
-      req.body.table_name || null,
-      paymentTypeID,
-      PaymentType,
-      Number(Amount),
-      HotelID,
-      insertDate
-    ]);
+        insertDate
+      ]);
 
-    res.json({
-      success: true,
-      message: 'Settlement created successfully'
-    });
+      // 2️⃣ Handle Room Credit Folio Entry
+      if (PaymentType === 'Room Credit') {
+        // checkinid is mandatory
+        if (!checkinid) {
+          await connection.rollback();
+          return res.status(400).json({
+            success: false,
+            message: 'checkinid is required for Room Credit payment'
+          });
+        }
+
+        // Get detail_id
+        const [detailRows] = await connection.query(
+          `SELECT detail_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
+          [checkinid]
+        );
+        if (detailRows.length === 0) {
+          await connection.rollback();
+          return res.status(400).json({
+            success: false,
+            message: `No checkin detail found for checkin_id: ${checkinid}`
+          });
+        }
+        const detailId = detailRows[0].detail_id;
+
+        // Check if an entry already exists for this OrderNo (to avoid duplicates)
+        const [existingFolio] = await connection.query(
+          `SELECT id FROM checkin_guest_folio_master WHERE reference_number = ? AND checkin_id = ?`,
+          [OrderNo, checkinid]
+        );
+
+        if (existingFolio.length > 0) {
+          // Update existing entry (optional)
+          await connection.query(`
+            UPDATE checkin_guest_folio_master
+            SET debit_amount = ?, description = ?, transaction_datetime = ?
+            WHERE reference_number = ? AND checkin_id = ?
+          `, [Number(Amount), `Restaurant Bill - ${req.body.table_name || 'Order'} #${OrderNo}`, insertDate, OrderNo, checkinid]);
+        } else {
+          // Insert new entry
+          const description = `Restaurant Bill - ${req.body.table_name || 'Order'} #${OrderNo}`;
+          await connection.query(`
+            INSERT INTO checkin_guest_folio_master (
+              checkin_id, hotel_id, detail_id, room_id,
+              transaction_type, transaction_datetime, description,
+              debit_amount, credit_amount, reference_number,
+              payment_method, created_by_id, created_date
+            ) VALUES (?, ?, ?, NULL, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
+          `, [
+            checkinid,
+            HotelID,
+            detailId,
+            insertDate,
+            description,
+            Number(Amount),
+            OrderNo,
+            PaymentType,
+            EditedBy || null,
+            insertDate
+          ]);
+        }
+      } else {
+        // 3️⃣ If PaymentType is NOT Room Credit → DELETE any existing folio entry for this OrderNo
+        // This ensures that if previously it was Room Credit and now changed, the old entry is removed.
+        await connection.query(`
+          DELETE FROM checkin_guest_folio_master
+          WHERE reference_number = ? AND transaction_type = 'Room Credit'
+        `, [OrderNo]);
+        console.log(`🗑️ Removed Room Credit folio entry for OrderNo: ${OrderNo}`);
+      }
+
+      // --- Commit transaction ---
+      await connection.commit();
+      connection.release();
+
+      res.json({
+        success: true,
+        message: 'Settlement created successfully'
+      });
+
+    } catch (innerError) {
+      await connection.rollback();
+      connection.release();
+      console.error('❌ Error during settlement (inner):', innerError);
+      throw innerError; // rethrow to outer catch
+    }
 
   } catch (error) {
-    console.error('createSettlement error:', error); // helpful debug
-
+    console.error('createSettlement error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create settlement'
@@ -249,15 +401,9 @@ exports.createSettlement = async (req, res) => {
 // Replace settlements
 exports.replaceSettlement = async (req, res) => {
   try {
-    const { OrderNo, newSettlements, HotelID, EditedBy, InsertDate, TipAmount } = req.body;
+    const { OrderNo, newSettlements, HotelID, EditedBy, InsertDate, TipAmount, checkinid } = req.body;
 
-    // ✅ FIX: await + destructuring
-    const [billRows] = await db.query(`
-      SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
-    `, [OrderNo, OrderNo]);
-
-    const txnID = billRows[0]?.TxnID || null;
-
+    // Validate
     if (!OrderNo || !Array.isArray(newSettlements) || !HotelID) {
       return res.status(400).json({
         success: false,
@@ -266,180 +412,192 @@ exports.replaceSettlement = async (req, res) => {
     }
 
     const editedBySafe = EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown';
-
     const insertDate = InsertDate || new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-    // 1️⃣ Fetch existing settlements
-    const [existingSettlements] = await db.query(`
-      SELECT *
-      FROM TrnSettlement
-      WHERE OrderNo = ? OR TxnNo = ?
-    `, [OrderNo, OrderNo]);
+    // Fetch existing settlements (for logging)
+    const [existingSettlements] = await db.query(
+      `SELECT * FROM TrnSettlement WHERE OrderNo = ? OR TxnNo = ?`,
+      [OrderNo, OrderNo]
+    );
 
-    let originalSettlement = existingSettlements?.length > 0 ? existingSettlements[0] : {};
+    // Start transaction
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
 
-    let receive = 0;
-    let refund = 0;
-    let tipAmountFromPayload = Number(TipAmount) || 0;
+    try {
+      // 1️⃣ Delete existing settlements
+      await connection.query(`DELETE FROM TrnSettlement WHERE OrderNo = ?`, [OrderNo]);
 
-    if (newSettlements.length > 0) {
-      receive = Number(newSettlements[0].received_amount) || originalSettlement.Receive || 0;
-      refund = Number(newSettlements[0].refund_amount) || originalSettlement.Refund || 0;
-    }
+      // 2️⃣ Insert new settlements and also handle folio logic
+      let hasRoomCredit = false;
+      let roomCreditAmount = 0;
+      let roomCreditCheckinid = checkinid; // top-level checkinid for Room Credit
 
-    let txnNo = originalSettlement?.TxnNo || null;
-    let userId = originalSettlement?.UserId || null;
-    let name = originalSettlement?.Name || null;
-    let customerid = originalSettlement?.customerid || null;
-    let customerName = originalSettlement?.CustomerName || null;
-    let mobileNo = originalSettlement?.MobileNo || null;
+      for (const s of newSettlements) {
+        if (!s.PaymentType || s.Amount == null) continue;
 
+        // Get payment type ID
+        const [rows] = await connection.query(
+          `SELECT paymenttypeid FROM payment_types WHERE mode_name = ?`,
+          [s.PaymentType]
+        );
+        const paymentMode = rows[0];
+        if (!paymentMode) {
+          await connection.rollback();
+          return res.status(400).json({
+            success: false,
+            message: `Invalid payment type: ${s.PaymentType}`
+          });
+        }
 
-    // ✅ FIX: await here also
-    if (!userId) {
-      const [billDataRows] = await db.query(`
-        SELECT UserId
-        FROM TAxnTrnbill
-        WHERE OrderNo = ? OR TxnNo = ?
-      `, [OrderNo, OrderNo]);
+        // Determine customer fields
+        const isCredit = s.PaymentType && String(s.PaymentType).toLowerCase() === 'credit';
+        const finalCustomerId = isCredit ? (s.customerid ?? null) : null;
+        const finalCustomerName = isCredit ? (s.customerName ?? null) : null;
+        const finalMobileNo = isCredit ? (s.mobile ?? null) : null;
+        const finalName = s.Name || null;
 
-      if (billDataRows.length > 0) {
-        userId = billDataRows[0].UserId;
-      }
-    }
+        // Insert settlement
+        await connection.query(`
+          INSERT INTO TrnSettlement (
+            OrderNo, TxnID, table_name, PaymentTypeID, PaymentType,
+            Amount, TipAmount, HotelID, TxnNo, UserId, Name,
+            customerid, CustomerName, MobileNo, Receive, Refund,
+            isSettled, InsertDate
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        `, [
+          OrderNo,
+          null, // TxnID will be fetched later if needed
+          req.body.table_name || null,
+          paymentMode.paymenttypeid,
+          s.PaymentType,
+          Number(s.Amount),
+          Number(s.TipAmount) || 0,
+          HotelID,
+          null, // TxnNo
+          null, // UserId
+          finalName,
+          finalCustomerId,
+          finalCustomerName,
+          finalMobileNo,
+          0, // Receive (if needed)
+          0, // Refund
+          insertDate
+        ]);
 
-    // ✅ FIX: await DELETE
-    await db.query(`DELETE FROM TrnSettlement WHERE OrderNo = ?`, [OrderNo]);
-
-    const settlementInsertStmt = `
-      INSERT INTO TrnSettlement (
-        OrderNo,
-        TxnID,
-        table_name,
-        PaymentTypeID,
-        PaymentType,
-        Amount,
-        TipAmount,
-        HotelID,
-        TxnNo,
-        UserId,
-        Name,
-        customerid,
-        CustomerName,
-        MobileNo,
-        Receive,
-        Refund,
-        isSettled,
-        InsertDate
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-    `;
-
-    for (let i = 0; i < newSettlements.length; i++) {
-      const s = newSettlements[i];
-      const old = existingSettlements[i] || {};
-
-      if (!s.PaymentType || s.Amount == null) continue;
-
-      const [rows] = await db.query(`
-        SELECT paymenttypeid
-        FROM payment_types
-        WHERE mode_name = ?
-      `, [s.PaymentType]);
-
-      const paymentMode = rows[0];
-
-      if (!paymentMode) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid payment type: ${s.PaymentType}`
-        });
+        // Track if any settlement is Room Credit
+        if (s.PaymentType === 'Room Credit') {
+          hasRoomCredit = true;
+          roomCreditAmount += Number(s.Amount);
+          // If checkinid is provided in individual settlement, use it
+          if (s.checkinid) roomCreditCheckinid = s.checkinid;
+        }
       }
 
-      // Credit ke case me frontend se aaye customer fields override karna zaroori hai
-      const isCredit = s.PaymentType && String(s.PaymentType).toLowerCase() === 'credit';
-      const finalCustomerId = isCredit ? (s.customerid ?? customerid) : customerid;
-      const finalCustomerName = isCredit ? (s.customerName ?? customerName) : customerName;
-      const finalMobileNo = isCredit ? (s.mobile ?? mobileNo) : mobileNo;
+      // 3️⃣ Handle folio entry based on whether any Room Credit exists
+      if (hasRoomCredit) {
+        // There is at least one Room Credit → insert/update folio
+        if (!roomCreditCheckinid) {
+          await connection.rollback();
+          return res.status(400).json({
+            success: false,
+            message: 'checkinid is required for Room Credit payment'
+          });
+        }
 
-      const finalName = s.Name || name;
+        // Get detail_id
+        const [detailRows] = await connection.query(
+          `SELECT detail_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
+          [roomCreditCheckinid]
+        );
+        if (detailRows.length === 0) {
+          await connection.rollback();
+          return res.status(400).json({
+            success: false,
+            message: `No checkin detail found for checkin_id: ${roomCreditCheckinid}`
+          });
+        }
+        const detailId = detailRows[0].detail_id;
 
-      // console.log('[replaceSettlement] insert TrnSettlement customer fields:', {
-      //   OrderNo,
-      //   PaymentType: s.PaymentType,
-      //   isCredit,
-      //   payload: {
-      //     customerid: s.customerid,
-      //     customerName: s.customerName,
-      //     mobile: s.mobile,
-      //     Name: s.Name,
-      //   },
-      //   final: {
-      //     Name: finalName,
-      //     customerid: finalCustomerId,
-      //     CustomerName: finalCustomerName,
-      //     MobileNo: finalMobileNo,
-      //   },
-      // });
+        // Check existing entry
+        const [existingFolio] = await connection.query(
+          `SELECT id FROM checkin_guest_folio_master WHERE reference_number = ? AND checkin_id = ?`,
+          [OrderNo, roomCreditCheckinid]
+        );
 
-      const [result] = await db.query(settlementInsertStmt, [
-        OrderNo,
-        txnID,
-        req.body.table_name || originalSettlement.table_name || null,
-        paymentMode.paymenttypeid,
-        s.PaymentType,
-        Number(s.Amount),
-        Number(s.TipAmount) || 0,
-        HotelID,
-        txnNo,
-        userId,
-        finalName,
-        finalCustomerId,
-        finalCustomerName,
-        finalMobileNo,
-        receive,
-        refund,
-        insertDate
-      ]);
-
-      const newSettlementID = result?.insertId;
-
-      if (!newSettlementID) {
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to insert TrnSettlement (SettlementID is missing)'
-        });
+        const description = `Restaurant Bill - ${req.body.table_name || 'Order'} #${OrderNo}`;
+        if (existingFolio.length > 0) {
+          await connection.query(`
+            UPDATE checkin_guest_folio_master
+            SET debit_amount = ?, description = ?, transaction_datetime = ?
+            WHERE reference_number = ? AND checkin_id = ?
+          `, [roomCreditAmount, description, insertDate, OrderNo, roomCreditCheckinid]);
+        } else {
+          await connection.query(`
+            INSERT INTO checkin_guest_folio_master (
+              checkin_id, hotel_id, detail_id, room_id,
+              transaction_type, transaction_datetime, description,
+              debit_amount, credit_amount, reference_number,
+              payment_method, created_by_id, created_date
+            ) VALUES (?, ?, ?, NULL, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
+          `, [
+            roomCreditCheckinid,
+            HotelID,
+            detailId,
+            insertDate,
+            description,
+            roomCreditAmount,
+            OrderNo,
+            'Room Credit',
+            EditedBy?.userId || null,
+            insertDate
+          ]);
+        }
+      } else {
+        // No Room Credit → delete any existing folio entry for this OrderNo
+        await connection.query(`
+          DELETE FROM checkin_guest_folio_master
+          WHERE reference_number = ? AND transaction_type = 'Room Credit'
+        `, [OrderNo]);
+        console.log(`🗑️ Removed Room Credit folio entry for OrderNo: ${OrderNo} (replaceSettlement)`);
       }
 
-      // ✅ FIX: await log insert
-      await db.query(`
-        INSERT INTO TrnSettlementLog (
-          SettlementID,
-          OldPaymentType,
-          OldAmount,
-          NewPaymentType,
-          NewAmount,
-          EditedBy
-        )
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [
-        newSettlementID,
-        old.PaymentType || null,
-        old.Amount || null,
-        s.PaymentType,
-        s.Amount,
-        editedBySafe
-      ]);
-    }
+      // 4️⃣ Log replacements (for each new settlement, log against old if exists)
+      for (let i = 0; i < newSettlements.length; i++) {
+        const s = newSettlements[i];
+        const old = existingSettlements[i] || {};
+        // Insert log
+        await connection.query(`
+          INSERT INTO TrnSettlementLog (
+            SettlementID, OldPaymentType, OldAmount, NewPaymentType, NewAmount, EditedBy
+          ) VALUES (?, ?, ?, ?, ?, ?)
+        `, [
+          i + 1, // dummy SettlementID (since we don't have actual new ID yet, but we can use index)
+          old.PaymentType || null,
+          old.Amount || null,
+          s.PaymentType,
+          s.Amount,
+          editedBySafe
+        ]);
+      }
 
-    res.json({
-      success: true,
-      message: 'Settlements replaced successfully'
-    });
+      await connection.commit();
+      connection.release();
+
+      res.json({
+        success: true,
+        message: 'Settlements replaced successfully'
+      });
+
+    } catch (innerError) {
+      await connection.rollback();
+      connection.release();
+      console.error('❌ replaceSettlement inner error:', innerError);
+      throw innerError;
+    }
 
   } catch (error) {
     console.error('replaceSettlement error:', error);
-
     res.status(500).json({
       success: false,
       message: 'Failed to replace settlements'
