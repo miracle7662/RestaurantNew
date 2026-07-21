@@ -469,35 +469,74 @@ const HotelBookingPanel = () => {
     }
   }, [rooms, searchQuery, typeFilter, floorFilter])
 
-  const groupedByFloor: FloorGroup[] = useMemo(() => {
-    const map = new Map<number, Room[]>()
-    filteredRooms.forEach((room) => {
-      if (!map.has(room.floor_id)) map.set(room.floor_id, [])
-      map.get(room.floor_id)!.push(room)
-    })
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([id, rs]) => ({
-        id,
-        name: floorMap.get(id) || '',
-        rooms: rs.sort((a, b) => a.number.localeCompare(b.number)),
-      }))
-  }, [filteredRooms, floorMap])
+// HotelBookingPanel.tsx मध्ये
 
-  const groupedByCategory: FloorGroup[] = useMemo(() => {
+const groupedByFloor: FloorGroup[] = useMemo(() => {
     const map = new Map<number, Room[]>()
     filteredRooms.forEach((room) => {
-      if (!map.has(room.room_category_id)) map.set(room.room_category_id, [])
-      map.get(room.room_category_id)!.push(room)
+        if (!map.has(room.floor_id)) map.set(room.floor_id, [])
+        map.get(room.floor_id)!.push(room)
     })
     return Array.from(map.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([id, rs]) => ({
-        id,
-        name: categoryMap.get(id) || 'Uncategorized',
-        rooms: rs.sort((a, b) => a.number.localeCompare(b.number)),
-      }))
-  }, [filteredRooms, categoryMap])
+        .sort(([a], [b]) => a - b)
+        .map(([id, rs]) => ({
+            id,
+            name: floorMap.get(id) || '',
+            rooms: rs.sort((a, b) => {
+                // Extract numeric part from room number
+                const getSortNumber = (roomNo: string): number => {
+                    const match = roomNo.match(/^(\d+)/);
+                    if (match) return parseInt(match[1]);
+                    // For S1, S2, S3, S4
+                    const sMatch = roomNo.match(/^S(\d+)/);
+                    if (sMatch) return parseInt(sMatch[1]) + 1000; // S series after all numbers
+                    return 999999;
+                };
+                
+                const numA = getSortNumber(a.number);
+                const numB = getSortNumber(b.number);
+                
+                if (numA !== numB) {
+                    return numA - numB;
+                }
+                
+                // If same number, sort alphabetically
+                return a.number.localeCompare(b.number);
+            }),
+        }))
+}, [filteredRooms, floorMap])
+
+const groupedByCategory: FloorGroup[] = useMemo(() => {
+    const map = new Map<number, Room[]>()
+    filteredRooms.forEach((room) => {
+        if (!map.has(room.room_category_id)) map.set(room.room_category_id, [])
+        map.get(room.room_category_id)!.push(room)
+    })
+    return Array.from(map.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([id, rs]) => ({
+            id,
+            name: categoryMap.get(id) || 'Uncategorized',
+            rooms: rs.sort((a, b) => {
+                // Same sorting logic as above
+                const getSortNumber = (roomNo: string): number => {
+                    const match = roomNo.match(/^(\d+)/);
+                    if (match) return parseInt(match[1]);
+                    const sMatch = roomNo.match(/^S(\d+)/);
+                    if (sMatch) return parseInt(sMatch[1]) + 1000;
+                    return 999999;
+                };
+                
+                const numA = getSortNumber(a.number);
+                const numB = getSortNumber(b.number);
+                
+                if (numA !== numB) {
+                    return numA - numB;
+                }
+                return a.number.localeCompare(b.number);
+            }),
+        }))
+}, [filteredRooms, categoryMap])
 
   const activeGroups = viewMode === 'floor' ? groupedByFloor : groupedByCategory
 

@@ -717,38 +717,68 @@ exports.getHotelBookingMeta = async (req, res) => {
         });
 
         // ✅ Rooms fetch करें जिसमें room_status_id भी आएगा
-        const roomsSql = `
-         SELECT
-                rm.room_id,
-                rm.room_no,
-                rm.room_name,
-                rm.display_name,
-                rm.room_category_id,
-                rc.category_name,
-                rm.room_ext_no,
-                rm.room_status_id,  -- ✅ यह important है
-                rs.status_name as room_status,
-                rm.department_id,
-                dm.department_name,
-                rm.block_id,
-                bm.block_name,
-                rm.floor_id,
-                fm.floor_name,
-                fm.floor_number,
-                rm.hotelid,
-                rm.created_date,
-                rm.updated_date,
-                rm.created_by_id,
-                rm.updated_by_id
-            FROM room_master rm
-            LEFT JOIN room_category rc ON rm.room_category_id = rc.room_category_id
-            LEFT JOIN departmentmaster dm ON rm.department_id = dm.department_id
-            LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
-            LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
-            left join room_status rs on rs.room_status_id =rm.room_status_id
-            WHERE rm.hotelid = ?
-            ORDER BY rm.floor_id ASC, rm.room_no ASC
-        `;
+   const roomsSql = `
+
+    SELECT
+        rm.room_id,
+        rm.room_no,
+        rm.room_name,
+        rm.display_name,
+        rm.room_category_id,
+        rc.category_name,
+        rc.display_seq AS category_display_seq,
+        rm.room_ext_no,
+        rm.room_status_id,
+        rs.status_name AS room_status,
+        rs.status_color,
+        rm.department_id,
+        dm.department_name,
+        rm.block_id,
+        bm.block_name,
+        rm.floor_id,
+        fm.floor_name,
+        fm.floor_number,
+        rm.hotelid,
+        rm.created_date,
+        rm.updated_date,
+        rm.created_by_id,
+        rm.updated_by_id,
+        -- Extract numeric part for sorting
+        CAST(
+            CASE 
+                -- For "1", "2", "10", "101" etc.
+                WHEN rm.room_no REGEXP '^[0-9]+' 
+                THEN REGEXP_SUBSTR(rm.room_no, '^[0-9]+')
+                -- For "S1", "S2" etc.
+                WHEN rm.room_no LIKE 'S%' 
+                THEN REGEXP_SUBSTR(rm.room_no, '[0-9]+')
+                ELSE '999999'
+            END AS UNSIGNED
+        ) AS sort_number,
+        -- Extract alpha part for S1, S2 ordering
+        CASE 
+            WHEN rm.room_no LIKE 'S%' THEN 'S'
+            ELSE ''
+        END AS sort_alpha
+    FROM room_master rm
+    LEFT JOIN room_category rc ON rm.room_category_id = rc.room_category_id
+    LEFT JOIN departmentmaster dm ON rm.department_id = dm.department_id
+    LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
+    LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
+    LEFT JOIN room_status rs ON rs.room_status_id = rm.room_status_id
+    WHERE rm.hotelid = 18
+    ORDER BY
+        -- First by floor
+        COALESCE(fm.floor_number, 999999) ASC,
+        rm.floor_id ASC,
+        -- Then by numeric part
+        sort_number ASC,
+        -- Then by alpha part (S comes after numbers)
+        sort_alpha ASC,
+        -- Finally by original room_no
+        rm.room_no ASC
+
+`;
 
         const floorsSql = `
             SELECT
@@ -788,8 +818,7 @@ exports.getHotelBookingMeta = async (req, res) => {
                 rc.updated_date
             FROM room_category rc            
             LEFT JOIN departmentmaster dm ON rc.department_id = dm.department_id
-            WHERE rc.hotelid = ?
-            ORDER BY rc.display_seq ASC, rc.room_category_id ASC
+            WHERE rc.hotelid = ? ORDER BY  rc.room_category_id ASC
         `;
 
         const [rooms] = await db.execute(roomsSql, [hotelId]);
