@@ -118,6 +118,8 @@ const ldgSettlementRoutes = require('./modules/hotelbooking/routes/ldgSettlement
 const roomTransferRoutes = require('./modules/hotelbooking/routes/roomTransferRoutes');
 const frontdeskSettingsRoutes = require('./modules/hotelbooking/routes/frontdeskSettingsRoutes');
 const DiscountRoutes = require('./modules/hotelbooking/routes/DiscountRoutes');
+const gracePeriodRoutes = require("./modules/hotelbooking/routes/GracePeriodRoutes");
+
 
 // ✅ Correct order of middleware
 app.use(cors());
@@ -225,6 +227,8 @@ app.use('/api/guest-history', guestHistoryRoutes);
 app.use('/api/room-status', roomStatusRoutes);
 app.use('/api/ldg-settlement', ldgSettlementRoutes);
 app.use('/api/frontdesk-settings', frontdeskSettingsRoutes);
+app.use("/api/grace-period-settings", gracePeriodRoutes);
+
 
 // Room transfer (updates checkin_master + detail + charges)
 app.use('/api/room-transfer', roomTransferRoutes);
