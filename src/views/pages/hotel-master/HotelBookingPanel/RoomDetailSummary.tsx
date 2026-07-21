@@ -592,12 +592,15 @@ const handlePaymentModeChange = (modeId: number) => {
           particulars: row.particulars || '',
           department_name: row.department_name || '',
            // ✅ ADD THESE LINES - Capture credit and debit from API
-    credit_amount: toNumber(row.credit_amount) || 0,
-    debit_amount: toNumber(row.debit_amount) || 0,
+          credit_amount: toNumber(row.credit_amount) || 0,
+          debit_amount: toNumber(row.debit_amount) || 0,
         }
       })
 
       setDisplayRows(displayRowsResult)
+
+      
+      
 
       // Bill date summary
       const billSummaryItems: BillDateSummaryItem[] = displayRowsResult.map((row, idx) => ({
