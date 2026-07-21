@@ -766,7 +766,7 @@ exports.getHotelBookingMeta = async (req, res) => {
     LEFT JOIN blockmaster bm ON rm.block_id = bm.block_id
     LEFT JOIN floormaster fm ON rm.floor_id = fm.floor_id
     LEFT JOIN room_status rs ON rs.room_status_id = rm.room_status_id
-    WHERE rm.hotelid = 18
+    WHERE rm.hotelid = ?
     ORDER BY
         -- First by floor
         COALESCE(fm.floor_number, 999999) ASC,
