@@ -82,13 +82,13 @@ interface DisplayDetailRow {
   particulars: string
   department_name: string
   sortKey?: string
-   credit_amount?: number
+  credit_amount?: number
   debit_amount?: number
 }
 
 interface CombinedGuestSummary {
   checkin_id: number
-  guest_id: number | string 
+  guest_id: number | string
   guest_name: string
   room_numbers: string[]
   room_categories: string[]
@@ -294,21 +294,21 @@ const RoomDetailSummary = () => {
   const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set())
 
   const [graceSettings, setGraceSettings] = useState<{ grace_before: number; grace_after: number }>({
-  grace_before: 30,
-  grace_after: 30,
-})
-const [, setGraceAppliedTrigger] = useState(0) // OK click hone par force re-check
-const [graceApplied, setGraceApplied] = useState(false)          // ✅ OK dabne ke baad hi true
-const [, setGraceWaivedRoomNumbers] = useState<Set<string>>(new Set()) // ✅ konse rooms pe grace lagi
+    grace_before: 30,
+    grace_after: 30,
+  })
+  const [, setGraceAppliedTrigger] = useState(0) // OK click hone par force re-check
+  const [graceApplied, setGraceApplied] = useState(false)          // ✅ OK dabne ke baad hi true
+  const [, setGraceWaivedRoomNumbers] = useState<Set<string>>(new Set()) // ✅ konse rooms pe grace lagi
 
 
 
-  
+
 
   const { occupiedItem } = (location.state as any) || {}
   const checkinIdFromState = occupiedItem?.checkin_id
 
-  
+
   console.log('🔑 checkinIdFromState:', checkinIdFromState)
 
   useEffect(() => {
@@ -363,96 +363,96 @@ const [, setGraceWaivedRoomNumbers] = useState<Set<string>>(new Set()) // ✅ ko
   }
 
   // Fetch payment modes for dropdown
-useEffect(() => {
-  if (!hotelId) return
+  useEffect(() => {
+    if (!hotelId) return
 
-  const fetchPaymentModes = async () => {
-    try {
-      const outletId = user?.outletid || hotelId
-      const res = await OutletPaymentModeService.list({ outletid: outletId })
-      if (res.success && res.data) {
-        setOutletPaymentModes(res.data)
+    const fetchPaymentModes = async () => {
+      try {
+        const outletId = user?.outletid || hotelId
+        const res = await OutletPaymentModeService.list({ outletid: outletId })
+        if (res.success && res.data) {
+          setOutletPaymentModes(res.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch payment modes:', error)
       }
-    } catch (error) {
-      console.error('Failed to fetch payment modes:', error)
     }
-  }
-  fetchPaymentModes()
-}, [hotelId, user])
+    fetchPaymentModes()
+  }, [hotelId, user])
 
 
-useEffect(() => {
-  if (!hotelId) return
-  const loadGraceSettings = async () => {
-    try {
-      const res: any = await GracePeriodService.getSettings(hotelId)
-      if (res.success && res.data) {
-        setGraceSettings({
-          grace_before: toNumber(res.data.grace_before) || 30,
-          grace_after: toNumber(res.data.grace_after) || 30,
-        })
-        setGraceCheckboxes({
-          applyGracePeriod: false, // ✅ default hamesha unchecked
-          exPax: !!res.data.ex_pax,
-          child: !!res.data.child,
-          driver: !!res.data.driver,
-          discountAllow: !!res.data.discount_allow,
-          serviceCharge: !!res.data.service_charge,
-          gst: !!res.data.gst,
-        })
+  useEffect(() => {
+    if (!hotelId) return
+    const loadGraceSettings = async () => {
+      try {
+        const res: any = await GracePeriodService.getSettings(hotelId)
+        if (res.success && res.data) {
+          setGraceSettings({
+            grace_before: toNumber(res.data.grace_before) || 30,
+            grace_after: toNumber(res.data.grace_after) || 30,
+          })
+          setGraceCheckboxes({
+            applyGracePeriod: false, // ✅ default hamesha unchecked
+            exPax: !!res.data.ex_pax,
+            child: !!res.data.child,
+            driver: !!res.data.driver,
+            discountAllow: !!res.data.discount_allow,
+            serviceCharge: !!res.data.service_charge,
+            gst: !!res.data.gst,
+          })
+        }
+      } catch (err) {
+        console.error('Failed to load grace period settings:', err)
       }
-    } catch (err) {
-      console.error('Failed to load grace period settings:', err)
     }
+    loadGraceSettings()
+  }, [hotelId])
+
+
+  // Sync selected payment mode with combined summary
+  // ==================== SYNC PAYMENT MODE WITH SUMMARY ====================
+  useEffect(() => {
+    // Don't run if no payment modes or no summary
+    if (outletPaymentModes.length === 0 || !combinedSummary) return
+
+    // Don't override user selection
+    if (selectedPaymentModeId) return
+
+    const paymentMethod = combinedSummary.payment_method || 'Cash'
+
+    const matchedMode = outletPaymentModes.find(
+      (m) => m.mode_name?.toLowerCase() === paymentMethod.toLowerCase()
+    )
+
+    if (matchedMode) {
+      setSelectedPaymentModeId(matchedMode.id)
+      setSelectedPaymentModeName(matchedMode.mode_name)
+    }
+  }, [combinedSummary, outletPaymentModes, selectedPaymentModeId])
+
+
+
+  const handlePaymentModeChange = (modeId: number) => {
+    const selectedMode = outletPaymentModes.find((m) => m.id === modeId)
+    if (!selectedMode) return
+
+    console.log('💳 Payment mode changed to:', selectedMode.mode_name)
+
+    setSelectedPaymentModeId(modeId)
+    setSelectedPaymentModeName(selectedMode.mode_name || 'Cash')
+    setIsPaymentModeChanging(true)
+
+    // Update the combined summary with new payment method
+    if (combinedSummary) {
+      setCombinedSummary({
+        ...combinedSummary,
+        payment_method: selectedMode.mode_name || 'Cash',
+        payment_methods: [selectedMode.mode_name || 'Cash'],
+      })
+    }
+
+    setIsPaymentModeChanging(false)
   }
-  loadGraceSettings()
-}, [hotelId])
-
-
-// Sync selected payment mode with combined summary
-// ==================== SYNC PAYMENT MODE WITH SUMMARY ====================
-useEffect(() => {
-  // Don't run if no payment modes or no summary
-  if (outletPaymentModes.length === 0 || !combinedSummary) return
-
-  // Don't override user selection
-  if (selectedPaymentModeId) return
-
-  const paymentMethod = combinedSummary.payment_method || 'Cash'
-
-  const matchedMode = outletPaymentModes.find(
-    (m) => m.mode_name?.toLowerCase() === paymentMethod.toLowerCase()
-  )
-
-  if (matchedMode) {
-    setSelectedPaymentModeId(matchedMode.id)
-    setSelectedPaymentModeName(matchedMode.mode_name)
-  }
-}, [combinedSummary, outletPaymentModes, selectedPaymentModeId])
-
-
-
-const handlePaymentModeChange = (modeId: number) => {
-  const selectedMode = outletPaymentModes.find((m) => m.id === modeId)
-  if (!selectedMode) return
-
-  console.log('💳 Payment mode changed to:', selectedMode.mode_name)
-  
-  setSelectedPaymentModeId(modeId)
-  setSelectedPaymentModeName(selectedMode.mode_name || 'Cash')
-  setIsPaymentModeChanging(true)
-
-  // Update the combined summary with new payment method
-  if (combinedSummary) {
-    setCombinedSummary({
-      ...combinedSummary,
-      payment_method: selectedMode.mode_name || 'Cash',
-      payment_methods: [selectedMode.mode_name || 'Cash'],
-    })
-  }
-
-  setIsPaymentModeChanging(false)
-}
   // ==================== FETCH DATA ====================
 
   const fetchData = async () => {
@@ -580,7 +580,7 @@ const handlePaymentModeChange = (modeId: number) => {
           tax_percent: isPostCharge ? 0 : toNumber(row.tax_percent),
           tax_amount: isPostCharge ? 0 : toNumber(row.pax_tax),
           total_amount: totalAmount,
-         is_extension: row.parent_detail_id !== null && row.parent_detail_id !== undefined && row.parent_detail_id !== 0,
+          is_extension: row.parent_detail_id !== null && row.parent_detail_id !== undefined && row.parent_detail_id !== 0,
           isPostCharge,
           parent_detail_id: row.parent_detail_id ?? null,
           selected: true,
@@ -593,7 +593,7 @@ const handlePaymentModeChange = (modeId: number) => {
           description: row.description || '',
           particulars: row.particulars || '',
           department_name: row.department_name || '',
-           // ✅ ADD THESE LINES - Capture credit and debit from API
+          // ✅ ADD THESE LINES - Capture credit and debit from API
           credit_amount: toNumber(row.credit_amount) || 0,
           debit_amount: toNumber(row.debit_amount) || 0,
         }
@@ -601,8 +601,8 @@ const handlePaymentModeChange = (modeId: number) => {
 
       setDisplayRows(displayRowsResult)
 
-      
-      
+
+
 
       // Bill date summary
       const billSummaryItems: BillDateSummaryItem[] = displayRowsResult.map((row, idx) => ({
@@ -671,9 +671,9 @@ const handlePaymentModeChange = (modeId: number) => {
           reg_no: summaryRow.reg_no || '',
           booking_ref: summaryRow.booking_ref || '',
           plan_name: summaryRow.plan_name || '',
-           // ✅ ADD NEW FIELDS
-    total_credit_amount: toNumber(summaryRow.total_credit_amount) || 0,
-    total_debit_amount: toNumber(summaryRow.total_debit_amount) || 0,
+          // ✅ ADD NEW FIELDS
+          total_credit_amount: toNumber(summaryRow.total_credit_amount) || 0,
+          total_debit_amount: toNumber(summaryRow.total_debit_amount) || 0,
         }
 
         setCombinedSummary(combinedSummaryData)
@@ -691,7 +691,7 @@ const handlePaymentModeChange = (modeId: number) => {
 
       } else {
         console.warn('⚠️ No summary from stored procedure, using basic data')
-        
+
         const firstRow = details[0]
         const roomNumbersSet = new Set(displayRowsResult.map((r) => r.room_number))
 
@@ -762,174 +762,174 @@ const handlePaymentModeChange = (modeId: number) => {
     }
   }
 
-const handleGraceOk = async () => {
-  try {
-    const res: any = await GracePeriodService.getSettings(hotelId)
-    if (res.success && res.data) {
-      setGraceSettings({
-        grace_before: toNumber(res.data.grace_before) || 30,
-        grace_after: toNumber(res.data.grace_after) || 30,
-      })
+  const handleGraceOk = async () => {
+    try {
+      const res: any = await GracePeriodService.getSettings(hotelId)
+      if (res.success && res.data) {
+        setGraceSettings({
+          grace_before: toNumber(res.data.grace_before) || 30,
+          grace_after: toNumber(res.data.grace_after) || 30,
+        })
+      }
+    } catch (err) {
+      console.error('Failed to refresh grace settings:', err)
     }
-  } catch (err) {
-    console.error('Failed to refresh grace settings:', err)
+
+    setGraceAppliedTrigger((prev) => prev + 1)
+
+    if (!graceCheckboxes.applyGracePeriod) {
+      setGraceApplied(false)
+      setGraceWaivedRoomNumbers(new Set())
+      toast('Grace Period apply nahi kiya gaya (checkbox unchecked)', { icon: 'ℹ️' })
+      return
+    }
+
+    // ✅ ab actual apply karo
+    const now = new Date()
+    const matchedRows = displayRows.filter(
+      (row) =>
+        selectedRooms.has(row.room_number) &&
+        isExtensionWithinGracePeriod(row, graceSettings.grace_after, now),
+    )
+
+    setGraceApplied(true)
+    setGraceWaivedRoomNumbers(new Set(matchedRows.map((r) => r.room_number)))
+
+    if (matchedRows.length > 0) {
+      toast.success(`✅ Grace Period Applied — ${matchedRows.length} extension charge(s) waive`)
+    } else {
+      toast('Grace Period is enabled, but there are no eligible room extensions at this time.');
+    }
   }
-
-  setGraceAppliedTrigger((prev) => prev + 1)
-
-  if (!graceCheckboxes.applyGracePeriod) {
-    setGraceApplied(false)
-    setGraceWaivedRoomNumbers(new Set())
-    toast('Grace Period apply nahi kiya gaya (checkbox unchecked)', { icon: 'ℹ️' })
-    return
-  }
-
-  // ✅ ab actual apply karo
-  const now = new Date()
-  const matchedRows = displayRows.filter(
-    (row) =>
-      selectedRooms.has(row.room_number) &&
-      isExtensionWithinGracePeriod(row, graceSettings.grace_after, now),
-  )
-
-  setGraceApplied(true)
-  setGraceWaivedRoomNumbers(new Set(matchedRows.map((r) => r.room_number)))
-
-  if (matchedRows.length > 0) {
-    toast.success(`✅ Grace Period Applied — ${matchedRows.length} extension charge(s) waive`)
-  } else {
-   toast('Grace Period is enabled, but there are no eligible room extensions at this time.');
-  }
-}
 
   // ==================== HELPER: Get filtered summary for selected rooms only ====================
 
-const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
-  if (!combinedSummary) return null
+  const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
+    if (!combinedSummary) return null
 
-  // Get rows filtered by selected rooms
-  const selectedRows = displayRows.filter((row) => selectedRooms.has(row.room_number))
+    // Get rows filtered by selected rooms
+    const selectedRows = displayRows.filter((row) => selectedRooms.has(row.room_number))
 
-  if (selectedRows.length === 0) return null
+    if (selectedRows.length === 0) return null
 
-  // Calculate totals from selected rows
-  const totalRoomTariff = selectedRows.reduce((sum, row) => sum + row.room_tariff, 0)
-  const totalExPaxCharge = selectedRows.reduce((sum, row) => sum + row.ex_pax_total, 0)
-  const totalChildPaidAmount = selectedRows.reduce((sum, row) => sum + row.child_total, 0)
-  const totalDriverCharge = selectedRows.reduce((sum, row) => sum + row.driver_total, 0)
-  const totalTaxAmount = selectedRows.reduce((sum, row) => sum + row.tax_amount, 0)
-  const totalAmount = selectedRows.reduce((sum, row) => sum + row.total_amount, 0)
-  const totalDiscountAmount = selectedRows.reduce((sum, row) => sum + row.discount_amount, 0)
+    // Calculate totals from selected rows
+    const totalRoomTariff = selectedRows.reduce((sum, row) => sum + row.room_tariff, 0)
+    const totalExPaxCharge = selectedRows.reduce((sum, row) => sum + row.ex_pax_total, 0)
+    const totalChildPaidAmount = selectedRows.reduce((sum, row) => sum + row.child_total, 0)
+    const totalDriverCharge = selectedRows.reduce((sum, row) => sum + row.driver_total, 0)
+    const totalTaxAmount = selectedRows.reduce((sum, row) => sum + row.tax_amount, 0)
+    const totalAmount = selectedRows.reduce((sum, row) => sum + row.total_amount, 0)
+    const totalDiscountAmount = selectedRows.reduce((sum, row) => sum + row.discount_amount, 0)
 
-  // ✅ FIX: Collect unique guest IDs and names
-  const uniqueGuestIds = new Set<number>()
-  const uniqueGuestNames = new Set<string>()
-  
-  selectedRows.forEach(row => {
-    if (row.guest_id) uniqueGuestIds.add(row.guest_id)
-    if (row.guest_name && row.guest_name !== 'Guest') uniqueGuestNames.add(row.guest_name)
-  })
+    // ✅ FIX: Collect unique guest IDs and names
+    const uniqueGuestIds = new Set<number>()
+    const uniqueGuestNames = new Set<string>()
 
-  // Convert to comma-separated strings
-  const guestIdsStr = Array.from(uniqueGuestIds).join(', ')
-  const guestNamesStr = Array.from(uniqueGuestNames).join(', ')
+    selectedRows.forEach(row => {
+      if (row.guest_id) uniqueGuestIds.add(row.guest_id)
+      if (row.guest_name && row.guest_name !== 'Guest') uniqueGuestNames.add(row.guest_name)
+    })
 
-  // Calculate unique days
-  const billDates = new Set(
-    selectedRows
-      .filter(r => !r.isPostCharge)
-      .map(r => r.bill_date_formatted)
-  )
-  const totalDays = billDates.size || 1
+    // Convert to comma-separated strings
+    const guestIdsStr = Array.from(uniqueGuestIds).join(', ')
+    const guestNamesStr = Array.from(uniqueGuestNames).join(', ')
 
-  // Room-wise aggregations
-  const roomAdultsMap = new Map<string, number>()
-  const roomPaxMap = new Map<string, number>()
-  const roomExPaxMap = new Map<string, number>()
-  const roomChildMap = new Map<string, number>()
-  const roomDriverMap = new Map<string, number>()
+    // Calculate unique days
+    const billDates = new Set(
+      selectedRows
+        .filter(r => !r.isPostCharge)
+        .map(r => r.bill_date_formatted)
+    )
+    const totalDays = billDates.size || 1
 
-  selectedRows.forEach(row => {
-    if (!row.isPostCharge) {
-      const room = row.room_number
-      
-      if (!roomAdultsMap.has(room) || row.adults > roomAdultsMap.get(room)!) {
-        roomAdultsMap.set(room, row.adults)
+    // Room-wise aggregations
+    const roomAdultsMap = new Map<string, number>()
+    const roomPaxMap = new Map<string, number>()
+    const roomExPaxMap = new Map<string, number>()
+    const roomChildMap = new Map<string, number>()
+    const roomDriverMap = new Map<string, number>()
+
+    selectedRows.forEach(row => {
+      if (!row.isPostCharge) {
+        const room = row.room_number
+
+        if (!roomAdultsMap.has(room) || row.adults > roomAdultsMap.get(room)!) {
+          roomAdultsMap.set(room, row.adults)
+        }
+        if (!roomPaxMap.has(room) || row.pax > roomPaxMap.get(room)!) {
+          roomPaxMap.set(room, row.pax)
+        }
+        if (!roomExPaxMap.has(room) || row.ex_pax_count > roomExPaxMap.get(room)!) {
+          roomExPaxMap.set(room, row.ex_pax_count)
+        }
+        if (!roomChildMap.has(room) || row.child_count > roomChildMap.get(room)!) {
+          roomChildMap.set(room, row.child_count)
+        }
+        if (!roomDriverMap.has(room) || row.driver_count > roomDriverMap.get(room)!) {
+          roomDriverMap.set(room, row.driver_count)
+        }
       }
-      if (!roomPaxMap.has(room) || row.pax > roomPaxMap.get(room)!) {
-        roomPaxMap.set(room, row.pax)
-      }
-      if (!roomExPaxMap.has(room) || row.ex_pax_count > roomExPaxMap.get(room)!) {
-        roomExPaxMap.set(room, row.ex_pax_count)
-      }
-      if (!roomChildMap.has(room) || row.child_count > roomChildMap.get(room)!) {
-        roomChildMap.set(room, row.child_count)
-      }
-      if (!roomDriverMap.has(room) || row.driver_count > roomDriverMap.get(room)!) {
-        roomDriverMap.set(room, row.driver_count)
-      }
+    })
+
+    const totalAdults = Array.from(roomAdultsMap.values()).reduce((sum, val) => sum + val, 0)
+    const totalPax = Array.from(roomPaxMap.values()).reduce((sum, val) => sum + val, 0)
+    const totalExPax = Array.from(roomExPaxMap.values()).reduce((sum, val) => sum + val, 0)
+    const totalChildPaid = Array.from(roomChildMap.values()).reduce((sum, val) => sum + val, 0)
+    const totalChildUnpaid = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.child_unpaid), 0)
+    const totalDriver = Array.from(roomDriverMap.values()).reduce((sum, val) => sum + val, 0)
+
+    const uniqueRoomNumbers = Array.from(new Set(selectedRows.map((r) => r.room_number)))
+    const uniqueRoomCategories = Array.from(
+      new Set(selectedRows.map((r) => r.room_category_name).filter((c) => c !== '-'))
+    )
+    const uniqueConvertedCategories = Array.from(
+      new Set(selectedRows.map((r) => r.converted_category_name).filter((c) => c !== '-'))
+    )
+
+    const hasExtensions = selectedRows.some((row) => row.is_extension)
+    const extensionCount = selectedRows.filter((row) => row.is_extension).length
+    const extensionDays = selectedRows.filter((row) => row.is_extension).length
+
+    const avgTaxPercent = selectedRows.length > 0
+      ? selectedRows.reduce((sum, row) => sum + row.tax_percent, 0) / selectedRows.length
+      : 0
+
+    const total_credit_amount = selectedRows.reduce((sum, row) => sum + (row.credit_amount || 0), 0)
+    const total_debit_amount = selectedRows.reduce((sum, row) => sum + (row.debit_amount || 0), 0)
+
+    return {
+      ...combinedSummary,
+      guest_id: guestIdsStr || combinedSummary.guest_id, // ✅ Now shows comma-separated IDs
+      guest_name: guestNamesStr || combinedSummary.guest_name, // ✅ Shows comma-separated names
+      room_numbers: uniqueRoomNumbers,
+      room_numbers_str: uniqueRoomNumbers.join(', '),
+      room_categories: uniqueRoomCategories,
+      room_categories_str: uniqueRoomCategories.join(', '),
+      converted_categories: uniqueConvertedCategories,
+      converted_categories_str: uniqueConvertedCategories.join(', '),
+      total_room_tariff: totalRoomTariff,
+      total_ex_pax_charge: totalExPaxCharge,
+      total_child_paid_amount: totalChildPaidAmount,
+      total_driver_charge: totalDriverCharge,
+      total_tax_amount: totalTaxAmount,
+      total_amount: totalAmount,
+      total_days: totalDays,
+      total_adults: totalAdults,
+      total_pax: totalPax,
+      total_ex_pax: totalExPax,
+      total_child_paid: totalChildPaid,
+      total_child_unpaid: totalChildUnpaid,
+      total_driver: totalDriver,
+      avg_tax_percent: avgTaxPercent,
+      has_extensions: hasExtensions,
+      extension_count: extensionCount,
+      extension_days: extensionDays,
+      total_discount_amount: totalDiscountAmount,
+      total_credit_amount: total_credit_amount,
+      total_debit_amount: total_debit_amount,
+      payment_method: combinedSummary.payment_method || 'Cash',
     }
-  })
-
-  const totalAdults = Array.from(roomAdultsMap.values()).reduce((sum, val) => sum + val, 0)
-  const totalPax = Array.from(roomPaxMap.values()).reduce((sum, val) => sum + val, 0)
-  const totalExPax = Array.from(roomExPaxMap.values()).reduce((sum, val) => sum + val, 0)
-  const totalChildPaid = Array.from(roomChildMap.values()).reduce((sum, val) => sum + val, 0)
-  const totalChildUnpaid = selectedRows.reduce((sum, row) => sum + (row.isPostCharge ? 0 : row.child_unpaid), 0)
-  const totalDriver = Array.from(roomDriverMap.values()).reduce((sum, val) => sum + val, 0)
-
-  const uniqueRoomNumbers = Array.from(new Set(selectedRows.map((r) => r.room_number)))
-  const uniqueRoomCategories = Array.from(
-    new Set(selectedRows.map((r) => r.room_category_name).filter((c) => c !== '-'))
-  )
-  const uniqueConvertedCategories = Array.from(
-    new Set(selectedRows.map((r) => r.converted_category_name).filter((c) => c !== '-'))
-  )
-
-  const hasExtensions = selectedRows.some((row) => row.is_extension)
-  const extensionCount = selectedRows.filter((row) => row.is_extension).length
-  const extensionDays = selectedRows.filter((row) => row.is_extension).length
-
-  const avgTaxPercent = selectedRows.length > 0
-    ? selectedRows.reduce((sum, row) => sum + row.tax_percent, 0) / selectedRows.length
-    : 0
-
-  const total_credit_amount = selectedRows.reduce((sum, row) => sum + (row.credit_amount || 0), 0)
-  const total_debit_amount = selectedRows.reduce((sum, row) => sum + (row.debit_amount || 0), 0)
-
-  return {
-    ...combinedSummary,
-    guest_id: guestIdsStr || combinedSummary.guest_id, // ✅ Now shows comma-separated IDs
-    guest_name: guestNamesStr || combinedSummary.guest_name, // ✅ Shows comma-separated names
-    room_numbers: uniqueRoomNumbers,
-    room_numbers_str: uniqueRoomNumbers.join(', '),
-    room_categories: uniqueRoomCategories,
-    room_categories_str: uniqueRoomCategories.join(', '),
-    converted_categories: uniqueConvertedCategories,
-    converted_categories_str: uniqueConvertedCategories.join(', '),
-    total_room_tariff: totalRoomTariff,
-    total_ex_pax_charge: totalExPaxCharge,
-    total_child_paid_amount: totalChildPaidAmount,
-    total_driver_charge: totalDriverCharge,
-    total_tax_amount: totalTaxAmount,
-    total_amount: totalAmount,
-    total_days: totalDays,
-    total_adults: totalAdults,
-    total_pax: totalPax,
-    total_ex_pax: totalExPax,
-    total_child_paid: totalChildPaid,
-    total_child_unpaid: totalChildUnpaid,
-    total_driver: totalDriver,
-    avg_tax_percent: avgTaxPercent,
-    has_extensions: hasExtensions,
-    extension_count: extensionCount,
-    extension_days: extensionDays,
-    total_discount_amount: totalDiscountAmount,
-    total_credit_amount: total_credit_amount,
-    total_debit_amount: total_debit_amount,
-    payment_method: combinedSummary.payment_method || 'Cash',
   }
-}
 
   // ==================== HANDLER FUNCTIONS ====================
 
@@ -961,37 +961,37 @@ const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
     })
   }
 
- const getFilteredRowsBySelectedRooms = (): DisplayDetailRow[] => {
-  if (selectedRooms.size === 0) return []
+  const getFilteredRowsBySelectedRooms = (): DisplayDetailRow[] => {
+    if (selectedRooms.size === 0) return []
 
-  return displayRows
-    .filter((row) => selectedRooms.has(row.room_number))
-    // ✅ Grace period filter — sirf jab checkbox ON hai
-    .filter((row) => {
-  if (!graceApplied) return true              // ✅ OK dabne se pehle koi filter nahi
-  return !isExtensionWithinGracePeriod(row, graceSettings.grace_after, currentDateTime)
-})
-    .sort((a, b) => {
-      const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0)
-      const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0)
-      const dateCompare = dateA.getTime() - dateB.getTime()
-      if (dateCompare !== 0) return dateCompare
+    return displayRows
+      .filter((row) => selectedRooms.has(row.room_number))
+      // ✅ Grace period filter — sirf jab checkbox ON hai
+      .filter((row) => {
+        if (!graceApplied) return true              // ✅ OK dabne se pehle koi filter nahi
+        return !isExtensionWithinGracePeriod(row, graceSettings.grace_after, currentDateTime)
+      })
+      .sort((a, b) => {
+        const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0)
+        const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0)
+        const dateCompare = dateA.getTime() - dateB.getTime()
+        if (dateCompare !== 0) return dateCompare
 
-      const getPriority = (row: DisplayDetailRow): number => {
-        if ((row.department_name || '').toLowerCase().includes('advance')) return 4
-        if (row.isPostCharge) return row.total_amount < 0 ? 3 : 2
-        if (row.is_extension) return 1
-        return 0
-      }
-      const priorityDiff = getPriority(a) - getPriority(b)
-      if (priorityDiff !== 0) return priorityDiff
+        const getPriority = (row: DisplayDetailRow): number => {
+          if ((row.department_name || '').toLowerCase().includes('advance')) return 4
+          if (row.isPostCharge) return row.total_amount < 0 ? 3 : 2
+          if (row.is_extension) return 1
+          return 0
+        }
+        const priorityDiff = getPriority(a) - getPriority(b)
+        if (priorityDiff !== 0) return priorityDiff
 
-      const roomCompare = a.room_number.localeCompare(b.room_number, undefined, { numeric: true })
-      if (roomCompare !== 0) return roomCompare
+        const roomCompare = a.room_number.localeCompare(b.room_number, undefined, { numeric: true })
+        if (roomCompare !== 0) return roomCompare
 
-      return (a.day_number || 0) - (b.day_number || 0)
-    })
-}
+        return (a.day_number || 0) - (b.day_number || 0)
+      })
+  }
 
   const filteredRowsByRoom = getFilteredRowsBySelectedRooms()
   const selectedRowsForCheckout = filteredRowsByRoom.filter((row) => row.selected)
@@ -1021,119 +1021,119 @@ const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
     setShowCheckoutModal(true)
   }
 
-const handleConfirmCheckout = async () => {
-  if (!combinedSummary) return
-  
-  setCheckoutProcessing(true)
-  
-  try {
-    const finalTotalAmount = grandTotal || combinedSummary.total_amount
-    // Compute total nights from selected rooms
-    
-    // Generate invoice number
-    let invoiceNo = ''
+  const handleConfirmCheckout = async () => {
+    if (!combinedSummary) return
+
+    setCheckoutProcessing(true)
+
     try {
-      const invoiceRes = await CheckoutService.getNextInvoiceNo()
-      if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
-        invoiceNo = invoiceRes.data.ldg_bill_no
-        console.log('📄 Fetched invoice number:', invoiceNo)
-      }
-    } catch (invoiceErr) {
-      console.warn('⚠️ Could not fetch invoice number; server will auto-assign one', invoiceErr)
-    }
+      const finalTotalAmount = grandTotal || combinedSummary.total_amount
+      // Compute total nights from selected rooms
 
-    // Get selected room IDs
-    const selectedRoomIds = Array.from(selectedRooms)
-      .map(roomNo => {
-        const row = displayRows.find(r => r.room_number === roomNo)
-        return row?.room_id
-      })
-      .filter((id): id is number => id !== null && id !== undefined)
-
-    const roomIdsCommaString = selectedRoomIds.join(',')
-
-    // ✅ FIX: Format datetime for MySQL (YYYY-MM-DD HH:MM:SS)
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const day = String(now.getDate()).padStart(2, '0')
-    const hours = String(now.getHours()).padStart(2, '0')
-    const minutes = String(now.getMinutes()).padStart(2, '0')
-    const seconds = String(now.getSeconds()).padStart(2, '0')
-    const currentDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-    const totalNights = filteredSummary?.total_days || 1;
-    
-    console.log('🕐 Current checkout datetime (MySQL format):', currentDateTime)
-
-    // Get payment method with proper fallback
-    const paymentMethod = selectedPaymentModeName || 
-                         combinedSummary.payment_method || 
-                         'Cash'
-    
-    console.log('💳 ===== CHECKOUT PAYMENT DETAILS =====')
-    console.log('💳 selectedPaymentModeName:', selectedPaymentModeName)
-    console.log('💳 combinedSummary.payment_method:', combinedSummary.payment_method)
-    console.log('💳 Final paymentMethod:', paymentMethod)
-    console.log('💳 selectedPaymentModeId:', selectedPaymentModeId)
-
-    // Prepare checkout payload WITH formatted DATE/TIME
-    const checkoutPayload = {
-      checkin_id: combinedSummary.checkin_id,
-      checkout_reason: checkoutReason || 'Regular checkout',
-      payment_id: selectedPaymentModeId ?? undefined,
-      payment_mode: paymentMethod,
-      payment_method: paymentMethod,
-      total_amount: finalTotalAmount,
-      room_id: roomIdsCommaString,
-      round_off_amount: 0,
-      net_payable: finalTotalAmount,
-      selected_rooms: Array.from(selectedRooms),
-      invoiceNoFromBody: invoiceNo,
-      is_settle: 0,
-      is_print: 1,
-      checkout_datetime: currentDateTime, // ✅ MySQL-compatible format
-      total_nights: totalNights,   // <-- Add this line
-    }
-
-    console.log('📤 Sending checkout payload:', JSON.stringify(checkoutPayload, null, 2))
-
-    // Perform checkout
-    const response = await CheckoutService.performCheckout(checkoutPayload)
-
-    if (response.success) {
-      // Set checkout ID
-      if (response.data?.checkout_id) {
-        setCheckoutId(response.data.checkout_id)
+      // Generate invoice number
+      let invoiceNo = ''
+      try {
+        const invoiceRes = await CheckoutService.getNextInvoiceNo()
+        if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
+          invoiceNo = invoiceRes.data.ldg_bill_no
+          console.log('📄 Fetched invoice number:', invoiceNo)
+        }
+      } catch (invoiceErr) {
+        console.warn('⚠️ Could not fetch invoice number; server will auto-assign one', invoiceErr)
       }
 
-      // Set bill number
-      if (response.data?.ldg_bill_no) {
-        setGeneratedBillNumber(response.data.ldg_bill_no)
-      } else if (invoiceNo) {
-        setGeneratedBillNumber(invoiceNo)
+      // Get selected room IDs
+      const selectedRoomIds = Array.from(selectedRooms)
+        .map(roomNo => {
+          const row = displayRows.find(r => r.room_number === roomNo)
+          return row?.room_id
+        })
+        .filter((id): id is number => id !== null && id !== undefined)
+
+      const roomIdsCommaString = selectedRoomIds.join(',')
+
+      // ✅ FIX: Format datetime for MySQL (YYYY-MM-DD HH:MM:SS)
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const day = String(now.getDate()).padStart(2, '0')
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      const seconds = String(now.getSeconds()).padStart(2, '0')
+      const currentDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+      const totalNights = filteredSummary?.total_days || 1;
+
+      console.log('🕐 Current checkout datetime (MySQL format):', currentDateTime)
+
+      // Get payment method with proper fallback
+      const paymentMethod = selectedPaymentModeName ||
+        combinedSummary.payment_method ||
+        'Cash'
+
+      console.log('💳 ===== CHECKOUT PAYMENT DETAILS =====')
+      console.log('💳 selectedPaymentModeName:', selectedPaymentModeName)
+      console.log('💳 combinedSummary.payment_method:', combinedSummary.payment_method)
+      console.log('💳 Final paymentMethod:', paymentMethod)
+      console.log('💳 selectedPaymentModeId:', selectedPaymentModeId)
+
+      // Prepare checkout payload WITH formatted DATE/TIME
+      const checkoutPayload = {
+        checkin_id: combinedSummary.checkin_id,
+        checkout_reason: checkoutReason || 'Regular checkout',
+        payment_id: selectedPaymentModeId ?? undefined,
+        payment_mode: paymentMethod,
+        payment_method: paymentMethod,
+        total_amount: finalTotalAmount,
+        room_id: roomIdsCommaString,
+        round_off_amount: 0,
+        net_payable: finalTotalAmount,
+        selected_rooms: Array.from(selectedRooms),
+        invoiceNoFromBody: invoiceNo,
+        is_settle: 0,
+        is_print: 1,
+        checkout_datetime: currentDateTime, // ✅ MySQL-compatible format
+        total_nights: totalNights,   // <-- Add this line
       }
 
-      // Get checked out rooms
-      const roomIdsCommaFromResponse = response.data?.checked_out_room_ids_comma ||
-        (response.data?.checked_out_room_ids || []).join(', ')
+      console.log('📤 Sending checkout payload:', JSON.stringify(checkoutPayload, null, 2))
 
-      toast.success(`✅ Checkout completed for room ID(s): ${roomIdsCommaFromResponse}`)
+      // Perform checkout
+      const response = await CheckoutService.performCheckout(checkoutPayload)
 
-      // Reset and show bill
-      setShowCheckoutModal(false)
-      setCheckoutReason('')
-      setCheckoutDone(true)
-      setShowBillModal(true)
-    } else {
-      toast.error(response.message || '❌ Checkout failed')
+      if (response.success) {
+        // Set checkout ID
+        if (response.data?.checkout_id) {
+          setCheckoutId(response.data.checkout_id)
+        }
+
+        // Set bill number
+        if (response.data?.ldg_bill_no) {
+          setGeneratedBillNumber(response.data.ldg_bill_no)
+        } else if (invoiceNo) {
+          setGeneratedBillNumber(invoiceNo)
+        }
+
+        // Get checked out rooms
+        const roomIdsCommaFromResponse = response.data?.checked_out_room_ids_comma ||
+          (response.data?.checked_out_room_ids || []).join(', ')
+
+        toast.success(`✅ Checkout completed for room ID(s): ${roomIdsCommaFromResponse}`)
+
+        // Reset and show bill
+        setShowCheckoutModal(false)
+        setCheckoutReason('')
+        setCheckoutDone(true)
+        setShowBillModal(true)
+      } else {
+        toast.error(response.message || '❌ Checkout failed')
+      }
+    } catch (error: any) {
+      console.error('❌ Checkout failed:', error)
+      toast.error(error.response?.data?.message || 'Failed to process checkout')
+    } finally {
+      setCheckoutProcessing(false)
     }
-  } catch (error: any) {
-    console.error('❌ Checkout failed:', error)
-    toast.error(error.response?.data?.message || 'Failed to process checkout')
-  } finally {
-    setCheckoutProcessing(false)
   }
-}
 
   const handleCancelCheckout = () => {
     setShowCheckoutModal(false)
@@ -1486,13 +1486,13 @@ const handleConfirmCheckout = async () => {
                         )}
                       </div>
                       <div style={{ position: 'absolute', bottom: '4px', right: '8px' }}>
-                       <Button
-  size="sm"
-  variant="primary"
-  style={{ width: '50px', height: '26px', fontSize: '12px', padding: '0' }}
-  onClick={handleGraceOk}>
-  OK
-</Button>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          style={{ width: '50px', height: '26px', fontSize: '12px', padding: '0' }}
+                          onClick={handleGraceOk}>
+                          OK
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -1821,8 +1821,8 @@ const handleConfirmCheckout = async () => {
                           <th>Total Amount</th>
                           <th>Debit Amount</th>
                           <th>Credit Amount</th>
-                           
-                        <th>Dummy PAX</th>
+
+                          <th>Dummy PAX</th>
 
                         </tr>
                       </thead>
@@ -1839,36 +1839,36 @@ const handleConfirmCheckout = async () => {
                             </td>
                             <td>{filteredSummary.guest_name}</td>
                             <td>{filteredSummary.guest_id}</td>
-                        <td>
-  {outletPaymentModes.length > 0 ? (
-    <Form.Select
-      size="sm"
-      value={selectedPaymentModeId || ''}
-      onChange={(e) => handlePaymentModeChange(Number(e.target.value))}
-      disabled={isPaymentModeChanging || outletPaymentModes.length === 0}
-      style={{
-        minWidth: '100px',
-        fontSize: '0.75rem',
-        padding: '2px 6px',
-        height: '28px',
-        border: '1px solid #ced4da',
-        borderRadius: '4px',
-        backgroundColor: isPaymentModeChanging ? '#f8f9fa' : '#fff',
-      }}
-    >
-      <option value="">Select Mode</option>
-      {outletPaymentModes.map((mode) => (
-        <option key={mode.id} value={mode.id}>
-          {mode.mode_name || 'Unknown'}
-        </option>
-      ))}
-    </Form.Select>
-  ) : (
-    <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-      {combinedSummary?.payment_method || 'Cash'}
-    </span>
-  )}
-</td>
+                            <td>
+                              {outletPaymentModes.length > 0 ? (
+                                <Form.Select
+                                  size="sm"
+                                  value={selectedPaymentModeId || ''}
+                                  onChange={(e) => handlePaymentModeChange(Number(e.target.value))}
+                                  disabled={isPaymentModeChanging || outletPaymentModes.length === 0}
+                                  style={{
+                                    minWidth: '100px',
+                                    fontSize: '0.75rem',
+                                    padding: '2px 6px',
+                                    height: '28px',
+                                    border: '1px solid #ced4da',
+                                    borderRadius: '4px',
+                                    backgroundColor: isPaymentModeChanging ? '#f8f9fa' : '#fff',
+                                  }}
+                                >
+                                  <option value="">Select Mode</option>
+                                  {outletPaymentModes.map((mode) => (
+                                    <option key={mode.id} value={mode.id}>
+                                      {mode.mode_name || 'Unknown'}
+                                    </option>
+                                  ))}
+                                </Form.Select>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                  {combinedSummary?.payment_method || 'Cash'}
+                                </span>
+                              )}
+                            </td>
                             <td className="room-numbers-cell fw-bold">
                               {filteredSummary.room_numbers_str || '-'}
                             </td>
@@ -1895,46 +1895,46 @@ const handleConfirmCheckout = async () => {
                               {formatAmountClean(filteredSummary.total_amount)}
                             </td>
                             <td className="fw-bold text-success">
-                {formatAmountClean(filteredSummary.total_credit_amount || 0)}
-              </td>
-              <td className="fw-bold text-danger">
-                {formatAmountClean(filteredSummary.total_debit_amount || 0)}
-              </td>
-              <td>
-                <Form.Control
-                  type="number"
-                  size="sm"
-                  value={editablePax}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value) || 0
-                    setEditablePax(val)
-                  }}
-                  onBlur={() => {
-                    // Update the filteredSummary when user finishes editing
-                    if (filteredSummary && editablePax !== filteredSummary.total_pax) {
-                      // You can optionally call an API to update the pax count
-                      console.log(`Pax updated from ${filteredSummary.total_pax} to ${editablePax}`)
-                      // Update the summary data
-                      setCombinedSummary(prev => prev ? {
-                        ...prev,
-                        total_pax: editablePax
-                      } : null)
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      (e.target as HTMLInputElement).blur()
-                    }
-                  }}
-                  style={{
-                    width: '60px',
-                    display: 'inline-block',
-                    padding: '2px 4px',
-                    fontSize: '0.85rem'
-                  }}
-                />
-              </td>
-              
+                              {formatAmountClean(filteredSummary.total_credit_amount || 0)}
+                            </td>
+                            <td className="fw-bold text-danger">
+                              {formatAmountClean(filteredSummary.total_debit_amount || 0)}
+                            </td>
+                            <td>
+                              <Form.Control
+                                type="number"
+                                size="sm"
+                                value={editablePax}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || 0
+                                  setEditablePax(val)
+                                }}
+                                onBlur={() => {
+                                  // Update the filteredSummary when user finishes editing
+                                  if (filteredSummary && editablePax !== filteredSummary.total_pax) {
+                                    // You can optionally call an API to update the pax count
+                                    console.log(`Pax updated from ${filteredSummary.total_pax} to ${editablePax}`)
+                                    // Update the summary data
+                                    setCombinedSummary(prev => prev ? {
+                                      ...prev,
+                                      total_pax: editablePax
+                                    } : null)
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    (e.target as HTMLInputElement).blur()
+                                  }
+                                }}
+                                style={{
+                                  width: '60px',
+                                  display: 'inline-block',
+                                  padding: '2px 4px',
+                                  fontSize: '0.85rem'
+                                }}
+                              />
+                            </td>
+
                           </tr>
                         ) : (
                           <tr>
