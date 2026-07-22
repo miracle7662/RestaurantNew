@@ -299,7 +299,7 @@ const RoomDetailSummary = () => {
 })
 const [, setGraceAppliedTrigger] = useState(0) // OK click hone par force re-check
 const [graceApplied, setGraceApplied] = useState(false)          // ✅ OK dabne ke baad hi true
-const [graceWaivedRoomNumbers, setGraceWaivedRoomNumbers] = useState<Set<string>>(new Set()) // ✅ konse rooms pe grace lagi
+const [, setGraceWaivedRoomNumbers] = useState<Set<string>>(new Set()) // ✅ konse rooms pe grace lagi
 
 
 
