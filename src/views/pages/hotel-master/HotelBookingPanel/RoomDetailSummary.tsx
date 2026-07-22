@@ -798,9 +798,7 @@ const handleGraceOk = async () => {
   if (matchedRows.length > 0) {
     toast.success(`✅ Grace Period Applied — ${matchedRows.length} extension charge(s) waive`)
   } else {
-    toast('Grace Period ON hai, par is waqt koi extension grace window ke andar nahi hai', {
-      icon: '⚠️',
-    })
+   toast('Grace Period is enabled, but there are no eligible room extensions at this time.');
   }
 }
 

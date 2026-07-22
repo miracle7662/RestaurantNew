@@ -869,7 +869,7 @@ exports.settleBill = async (req, res) => {
 
           const detailId = detailRows[0].detail_id;
 
-          const description = `Restaurant Bill - ${bill.table_name || 'Order'} #${bill.orderNo || bill.TxnNo}`;
+          const description = `FOOD - ${bill.table_name || 'Order'} #${bill.orderNo || bill.TxnNo}`;
 
           // Insert into guest folio
           await db.query(
