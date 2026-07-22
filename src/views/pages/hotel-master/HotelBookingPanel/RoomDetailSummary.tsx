@@ -298,6 +298,8 @@ const RoomDetailSummary = () => {
   grace_after: 30,
 })
 const [, setGraceAppliedTrigger] = useState(0) // OK click hone par force re-check
+const [graceApplied, setGraceApplied] = useState(false)          // ✅ OK dabne ke baad hi true
+const [graceWaivedRoomNumbers, setGraceWaivedRoomNumbers] = useState<Set<string>>(new Set()) // ✅ konse rooms pe grace lagi
 
 
 
@@ -390,7 +392,7 @@ useEffect(() => {
           grace_after: toNumber(res.data.grace_after) || 30,
         })
         setGraceCheckboxes({
-          applyGracePeriod: !!res.data.apply_grace_period,
+          applyGracePeriod: false, // ✅ default hamesha unchecked
           exPax: !!res.data.ex_pax,
           child: !!res.data.child,
           driver: !!res.data.driver,
@@ -760,7 +762,7 @@ const handlePaymentModeChange = (modeId: number) => {
     }
   }
 
-  const handleGraceOk = async () => {
+const handleGraceOk = async () => {
   try {
     const res: any = await GracePeriodService.getSettings(hotelId)
     if (res.success && res.data) {
@@ -772,8 +774,34 @@ const handlePaymentModeChange = (modeId: number) => {
   } catch (err) {
     console.error('Failed to refresh grace settings:', err)
   }
-  setGraceAppliedTrigger((prev) => prev + 1) // force re-check
-  toast.success('Grace period settings applied')
+
+  setGraceAppliedTrigger((prev) => prev + 1)
+
+  if (!graceCheckboxes.applyGracePeriod) {
+    setGraceApplied(false)
+    setGraceWaivedRoomNumbers(new Set())
+    toast('Grace Period apply nahi kiya gaya (checkbox unchecked)', { icon: 'ℹ️' })
+    return
+  }
+
+  // ✅ ab actual apply karo
+  const now = new Date()
+  const matchedRows = displayRows.filter(
+    (row) =>
+      selectedRooms.has(row.room_number) &&
+      isExtensionWithinGracePeriod(row, graceSettings.grace_after, now),
+  )
+
+  setGraceApplied(true)
+  setGraceWaivedRoomNumbers(new Set(matchedRows.map((r) => r.room_number)))
+
+  if (matchedRows.length > 0) {
+    toast.success(`✅ Grace Period Applied — ${matchedRows.length} extension charge(s) waive`)
+  } else {
+    toast('Grace Period ON hai, par is waqt koi extension grace window ke andar nahi hai', {
+      icon: '⚠️',
+    })
+  }
 }
 
   // ==================== HELPER: Get filtered summary for selected rooms only ====================
@@ -942,9 +970,9 @@ const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
     .filter((row) => selectedRooms.has(row.room_number))
     // ✅ Grace period filter — sirf jab checkbox ON hai
     .filter((row) => {
-      if (!graceCheckboxes.applyGracePeriod) return true
-      return !isExtensionWithinGracePeriod(row, graceSettings.grace_after, currentDateTime)
-    })
+  if (!graceApplied) return true              // ✅ OK dabne se pehle koi filter nahi
+  return !isExtensionWithinGracePeriod(row, graceSettings.grace_after, currentDateTime)
+})
     .sort((a, b) => {
       const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0)
       const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0)

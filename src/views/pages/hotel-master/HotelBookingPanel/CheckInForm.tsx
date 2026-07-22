@@ -3362,8 +3362,8 @@ const CheckInForm = () => {
                               type="date"
                               size="sm"
                               className="w-100 fs-small"
-                              readOnly   // ← user select/type nahi kar sakta
-                              value={getTodayLocal()} // value force karein (agar Formik value update ho toh bhi)
+                              // readOnly   // ← user select/type nahi kar sakta
+                              // value={getTodayLocal()} // value force karein (agar Formik value update ho toh bhi)
                             />
                           </Col>
 
