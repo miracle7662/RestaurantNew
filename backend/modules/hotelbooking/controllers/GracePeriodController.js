@@ -20,6 +20,13 @@ exports.getGracePeriodSettings = async (req, res) => {
                 hotelid,
                 grace_before,
                 grace_after,
+                apply_grace_period,
+                ex_pax,
+                child,
+                driver,
+                discount_allow,
+                service_charge,
+                gst,
                 created_by,
                 updated_by,
                 created_at,
@@ -38,7 +45,14 @@ exports.getGracePeriodSettings = async (req, res) => {
                     grace_period_id: null,
                     hotelid: Number(hotelid),
                     grace_before: 30,
-                    grace_after: 30
+                    grace_after: 30,
+                    apply_grace_period: 0,
+                    ex_pax: 0,
+                    child: 0,
+                    driver: 0,
+                    discount_allow: 0,
+                    service_charge: 0,
+                    gst: 0
                 }
             });
         }
@@ -70,6 +84,13 @@ exports.saveGracePeriodSettings = async (req, res) => {
             hotelid,
             grace_before,
             grace_after,
+            apply_grace_period,
+            ex_pax,
+            child,
+            driver,
+            discount_allow,
+            service_charge,
+            gst,
             userid
         } = req.body;
 
@@ -93,20 +114,41 @@ exports.saveGracePeriodSettings = async (req, res) => {
                 hotelid,
                 grace_before,
                 grace_after,
+                apply_grace_period,
+                ex_pax,
+                child,
+                driver,
+                discount_allow,
+                service_charge,
+                gst,
                 created_by,
                 updated_by
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
             ON DUPLICATE KEY UPDATE
                 grace_before = VALUES(grace_before),
                 grace_after = VALUES(grace_after),
+                apply_grace_period = VALUES(apply_grace_period),
+                ex_pax = VALUES(ex_pax),
+                child = VALUES(child),
+                driver = VALUES(driver),
+                discount_allow = VALUES(discount_allow),
+                service_charge = VALUES(service_charge),
+                gst = VALUES(gst),
                 updated_by = VALUES(updated_by),
                 updated_at = CURRENT_TIMESTAMP`,
             [
                 hotelid,
                 grace_before,
                 grace_after,
+                apply_grace_period ? 1 : 0,
+                ex_pax ? 1 : 0,
+                child ? 1 : 0,
+                driver ? 1 : 0,
+                discount_allow ? 1 : 0,
+                service_charge ? 1 : 0,
+                gst ? 1 : 0,
                 userid,
                 userid
             ]
@@ -118,6 +160,13 @@ exports.saveGracePeriodSettings = async (req, res) => {
                 hotelid,
                 grace_before,
                 grace_after,
+                apply_grace_period,
+                ex_pax,
+                child,
+                driver,
+                discount_allow,
+                service_charge,
+                gst,
                 created_by,
                 updated_by,
                 created_at,
@@ -142,4 +191,4 @@ exports.saveGracePeriodSettings = async (req, res) => {
             error: error.message
         });
     }
-};
+}; 

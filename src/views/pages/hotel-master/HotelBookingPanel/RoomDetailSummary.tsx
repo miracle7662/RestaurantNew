@@ -13,6 +13,7 @@ import CheckoutBillModal from './CheckoutBillModal'
 import CheckoutService from '@/common/hotel/checkout'
 import RoomService from '@/common/hotel/room'
 import OutletPaymentModeService from '@/common/api/outletpaymentmode'
+import GracePeriodService from '@/common/hotel/graceperiod'
 
 // ==================== INTERFACES ====================
 
@@ -201,6 +202,39 @@ const parseBillDateToDate = (billDateFormatted: string): Date => {
   return new Date(0)
 }
 
+const isExtensionWithinGracePeriod = (
+  row: DisplayDetailRow,
+  graceAfterMinutes: number,
+  now: Date,
+): boolean => {
+  // 👇 SABSE PEHLE ye log daalein — chahe is_extension false ho tab bhi print hoga
+  console.log('🔍 Grace function called:', {
+    room: row.room_number,
+    is_extension: row.is_extension,
+    created_at: row.created_at,
+    detail_checkin_datetime: row.detail_checkin_datetime,
+  })
+
+  if (!row.is_extension) return false
+
+  const referenceTime = row.created_at || row.detail_checkin_datetime
+  if (!referenceTime) return false
+
+  const extensionStart = new Date(referenceTime)
+  const diffMinutes = (now.getTime() - extensionStart.getTime()) / (1000 * 60)
+
+  console.log('🔍 Grace details:', {
+    room: row.room_number,
+    referenceTime,
+    isValid: !isNaN(extensionStart.getTime()),
+    diffMinutes,
+    graceAfterMinutes,
+  })
+
+  if (isNaN(extensionStart.getTime())) return false
+  return diffMinutes >= 0 && diffMinutes <= graceAfterMinutes
+}
+
 // ==================== MAIN COMPONENT ====================
 
 const RoomDetailSummary = () => {
@@ -258,6 +292,14 @@ const RoomDetailSummary = () => {
 
   const [, setRoomNumberMap] = useState<Map<number, string>>(new Map())
   const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set())
+
+  const [graceSettings, setGraceSettings] = useState<{ grace_before: number; grace_after: number }>({
+  grace_before: 30,
+  grace_after: 30,
+})
+const [, setGraceAppliedTrigger] = useState(0) // OK click hone par force re-check
+
+
 
   
 
@@ -335,6 +377,34 @@ useEffect(() => {
   }
   fetchPaymentModes()
 }, [hotelId, user])
+
+
+useEffect(() => {
+  if (!hotelId) return
+  const loadGraceSettings = async () => {
+    try {
+      const res: any = await GracePeriodService.getSettings(hotelId)
+      if (res.success && res.data) {
+        setGraceSettings({
+          grace_before: toNumber(res.data.grace_before) || 30,
+          grace_after: toNumber(res.data.grace_after) || 30,
+        })
+        setGraceCheckboxes({
+          applyGracePeriod: !!res.data.apply_grace_period,
+          exPax: !!res.data.ex_pax,
+          child: !!res.data.child,
+          driver: !!res.data.driver,
+          discountAllow: !!res.data.discount_allow,
+          serviceCharge: !!res.data.service_charge,
+          gst: !!res.data.gst,
+        })
+      }
+    } catch (err) {
+      console.error('Failed to load grace period settings:', err)
+    }
+  }
+  loadGraceSettings()
+}, [hotelId])
 
 
 // Sync selected payment mode with combined summary
@@ -508,14 +578,14 @@ const handlePaymentModeChange = (modeId: number) => {
           tax_percent: isPostCharge ? 0 : toNumber(row.tax_percent),
           tax_amount: isPostCharge ? 0 : toNumber(row.pax_tax),
           total_amount: totalAmount,
-          is_extension: !!row.is_extension_day,
+         is_extension: row.parent_detail_id !== null && row.parent_detail_id !== undefined && row.parent_detail_id !== 0,
           isPostCharge,
           parent_detail_id: row.parent_detail_id ?? null,
           selected: true,
           cumulative_total: cumulativeTotal,
           guest_name: row.guest_name || 'Guest',
           payment_method: row.payment_method || 'Cash',
-          created_at: row.charge_created_at || row.checkin_datetime,
+          created_at: row.charge_created_at || row.detail_checkin_datetime || row.checkin_datetime,
           has_checkout_datetime: !!row.checkout_datetime,
           checkout_time_formatted: row.checkout_datetime ? formatDateTime(row.checkout_datetime) : '-',
           description: row.description || '',
@@ -687,6 +757,22 @@ const handlePaymentModeChange = (modeId: number) => {
     }
   }
 
+  const handleGraceOk = async () => {
+  try {
+    const res: any = await GracePeriodService.getSettings(hotelId)
+    if (res.success && res.data) {
+      setGraceSettings({
+        grace_before: toNumber(res.data.grace_before) || 30,
+        grace_after: toNumber(res.data.grace_after) || 30,
+      })
+    }
+  } catch (err) {
+    console.error('Failed to refresh grace settings:', err)
+  }
+  setGraceAppliedTrigger((prev) => prev + 1) // force re-check
+  toast.success('Grace period settings applied')
+}
+
   // ==================== HELPER: Get filtered summary for selected rooms only ====================
 
 const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
@@ -846,32 +932,37 @@ const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
     })
   }
 
-  const getFilteredRowsBySelectedRooms = (): DisplayDetailRow[] => {
-    if (selectedRooms.size === 0) return []
+ const getFilteredRowsBySelectedRooms = (): DisplayDetailRow[] => {
+  if (selectedRooms.size === 0) return []
 
-    return displayRows
-      .filter((row) => selectedRooms.has(row.room_number))
-      .sort((a, b) => {
-        const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0)
-        const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0)
-        const dateCompare = dateA.getTime() - dateB.getTime()
-        if (dateCompare !== 0) return dateCompare
+  return displayRows
+    .filter((row) => selectedRooms.has(row.room_number))
+    // ✅ Grace period filter — sirf jab checkbox ON hai
+    .filter((row) => {
+      if (!graceCheckboxes.applyGracePeriod) return true
+      return !isExtensionWithinGracePeriod(row, graceSettings.grace_after, currentDateTime)
+    })
+    .sort((a, b) => {
+      const dateA = a.bill_date_formatted ? parseBillDateToDate(a.bill_date_formatted) : new Date(0)
+      const dateB = b.bill_date_formatted ? parseBillDateToDate(b.bill_date_formatted) : new Date(0)
+      const dateCompare = dateA.getTime() - dateB.getTime()
+      if (dateCompare !== 0) return dateCompare
 
-        const getPriority = (row: DisplayDetailRow): number => {
-          if ((row.department_name || '').toLowerCase().includes('advance')) return 4
-          if (row.isPostCharge) return row.total_amount < 0 ? 3 : 2
-          if (row.is_extension) return 1
-          return 0
-        }
-        const priorityDiff = getPriority(a) - getPriority(b)
-        if (priorityDiff !== 0) return priorityDiff
+      const getPriority = (row: DisplayDetailRow): number => {
+        if ((row.department_name || '').toLowerCase().includes('advance')) return 4
+        if (row.isPostCharge) return row.total_amount < 0 ? 3 : 2
+        if (row.is_extension) return 1
+        return 0
+      }
+      const priorityDiff = getPriority(a) - getPriority(b)
+      if (priorityDiff !== 0) return priorityDiff
 
-        const roomCompare = a.room_number.localeCompare(b.room_number, undefined, { numeric: true })
-        if (roomCompare !== 0) return roomCompare
+      const roomCompare = a.room_number.localeCompare(b.room_number, undefined, { numeric: true })
+      if (roomCompare !== 0) return roomCompare
 
-        return (a.day_number || 0) - (b.day_number || 0)
-      })
-  }
+      return (a.day_number || 0) - (b.day_number || 0)
+    })
+}
 
   const filteredRowsByRoom = getFilteredRowsBySelectedRooms()
   const selectedRowsForCheckout = filteredRowsByRoom.filter((row) => row.selected)
@@ -1366,13 +1457,13 @@ const handleConfirmCheckout = async () => {
                         )}
                       </div>
                       <div style={{ position: 'absolute', bottom: '4px', right: '8px' }}>
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          style={{ width: '50px', height: '26px', fontSize: '12px', padding: '0' }}
-                          onClick={() => toast.success('Settings applied')}>
-                          OK
-                        </Button>
+                       <Button
+  size="sm"
+  variant="primary"
+  style={{ width: '50px', height: '26px', fontSize: '12px', padding: '0' }}
+  onClick={handleGraceOk}>
+  OK
+</Button>
                       </div>
                     </div>
                   </div>
@@ -1402,7 +1493,7 @@ const handleConfirmCheckout = async () => {
                             </thead>
                             <tbody>
                               {selectedRowsForCheckout.map((row, idx) => (
-                                <tr key={`datewise-${row.guest_room_charges_id}`}>
+                                <tr key={row.id}>
                                   <td>
                                     {row.room_number}
                                     {row.isPostCharge

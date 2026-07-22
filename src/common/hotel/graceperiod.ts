@@ -20,6 +20,11 @@ const GracePeriodService = {
    */
   saveSettings: (data: GracePeriodSettings) =>
     HttpClient.post(`/grace-period-settings`, data),
+
+  
 };
+
+
+
 
 export default GracePeriodService;
