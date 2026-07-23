@@ -1,12 +1,21 @@
-# Task: Fix "/hotel-master/Setting" Route Not Found
+# Bill-Wise Checkout Support - TODO
 
-## Steps
+## Step 1: Modify `sp_perform_checkout.sql` ✅ DONE
+- [x] Add `IN p_bill_no INT` parameter (18th)
+- [x] Add `IN p_is_last_bill TINYINT` parameter (19th)  
+- [x] Add variable `v_pending_bills INT` for tracking remaining unsettled bills
+- [x] Add variable `v_bill_invoice_no VARCHAR(50)` for separate invoice per bill
+- [x] Add bill_no filter to all folio aggregation queries (advance, post_charges, allowances)
+- [x] Add bill_no filter to Checkout_Folio_Master insert
+- [x] Add bill_no filter to is_settle update on checkin_guest_folio_master
+- [x] Condition room updates on p_bill_no = 0 or p_bill_no = 1 (lodging only)
+- [x] Add final pending-bill check to determine check-in status (active vs checked_out vs partial_checkout)
+- [x] Backward compatibility: p_bill_no=0 or NULL processes all bills (legacy behavior)
 
-- [x] Step 0: Analyze the error and identify root causes
-- [x] Step 1: Gather information (read route files, menu config, existing APIs)
-- [x] Step 2: Plan created and approved
-
-- [ ] Step 3: Rewrite `src/views/pages/hotel-master/Setting/Setting.tsx` as a proper Hotel UI Settings page
-- [ ] Step 4: Add route for `/hotel-master/Setting` in `src/routes/index.tsx`
-- [ ] Step 5: Verify the fix
+## Step 2: Testing ⏳ PENDING
+- [ ] Test single-bill checkout (p_bill_no=0 or NULL) - legacy behavior preserved
+- [ ] Test bill-wise checkout with multiple bills
+- [ ] Verify room status only updates for bill_no=1 (lodging)
+- [ ] Verify check-in remains active when pending bills exist
+- [ ] Verify separate invoices for separate bills
 

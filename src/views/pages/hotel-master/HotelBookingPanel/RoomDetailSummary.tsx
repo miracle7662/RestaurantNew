@@ -228,7 +228,7 @@ const isExtensionWithinGracePeriod = (
 // ==================== MAIN COMPONENT ====================
 
 const RoomDetailSummary = () => {
-  console.log('🚀 RoomDetailSummary component mounted')
+  // console.log('🚀 RoomDetailSummary component mounted')
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuthContext()
@@ -274,6 +274,9 @@ const RoomDetailSummary = () => {
   const [paymentBank, setPaymentBank] = useState<string>('')
   const [checkoutId, setCheckoutId] = useState<number | null>(null)
 
+  const [allCheckoutIds, setAllCheckoutIds] = useState<number[]>([])
+const [allLdgBillNos, setAllLdgBillNos] = useState<string[]>([])
+
   // Payment mode states
   const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([])
   const [selectedPaymentModeId, setSelectedPaymentModeId] = useState<number | null>(null)
@@ -297,10 +300,13 @@ const RoomDetailSummary = () => {
   // Temporary inputs for bill wise panel (only non-Lodging types)
   const [billWiseInputs, setBillWiseInputs] = useState<{ [type: string]: string }>({})
 
+  // Add after other state declarations
+
+
   const { occupiedItem } = (location.state as any) || {}
   const checkinIdFromState = occupiedItem?.checkin_id
 
-  console.log('🔑 checkinIdFromState:', checkinIdFromState)
+  // console.log('🔑 checkinIdFromState:', checkinIdFromState)
 
   useEffect(() => {
     if (!checkinIdFromState) {
@@ -507,6 +513,7 @@ const RoomDetailSummary = () => {
           checkin_id: row.checkin_id ?? 0,
           guest_id: row.guest_id,
           detail_id: row.detail_id ?? undefined,
+          folio_id: row.folio_id ?? undefined,
           room_id: row.room_id,
           room_number: roomNumber,
           room_category_name: isPostCharge
@@ -829,9 +836,10 @@ const applyBillWise = async () => {
     const assignments = updatedRows
       .filter(row => row.isPostCharge)
       .map(row => ({
-        folio_id: row.detail_id!,
+        folio_id: row.folio_id!,
         bill_no: row.bill_no,
       }));
+      console.log('📤 Assignments being sent:', assignments);
 
     if (assignments.length === 0) {
       toast.error('No post charges to update');
@@ -1185,6 +1193,9 @@ const applyBillWise = async () => {
         if (!firstLdgBillNo) firstLdgBillNo = invoiceNo;
       }
     }
+        // ✅ Store arrays in state (before showing modal)
+    setAllCheckoutIds(allCheckoutIds)
+    setAllLdgBillNos(allLdgBillNos)
 
     // 5. All bills processed successfully
     const billNumbersStr = allLdgBillNos.join(', ');
@@ -2552,27 +2563,34 @@ const applyBillWise = async () => {
         </Modal.Footer>
       </Modal>
 
-      <CheckoutBillModal
+            <CheckoutBillModal
         show={showBillModal}
         onHide={() => {
           setShowBillModal(false)
           setCheckoutDone(false)
+          // ✅ Reset arrays
+          setAllCheckoutIds([])
+          setAllLdgBillNos([])
           navigate('/hotel-master/HotelBookingPanel', {
             state: {
               checkoutSuccess: true,
               checkedOutRooms: Array.from(selectedRooms),
               checkin_id: combinedSummary?.checkin_id,
+              billNumbers: allLdgBillNos, // pass all bill numbers
             }
           })
         }}
-        checkoutId={checkoutId || 0}
-        ldgBillNo={generatedBillNumber}
         hotelId={hotelId}
-        billNumber={generatedBillNumber}
+        // Legacy single props (first bill – keep for backward compatibility)
+       checkoutId={allCheckoutIds[0] || 0}
+       ldgBillNo={allLdgBillNos[0] || ''}
+        // ✅ Multi-bill arrays
+        checkoutIds={allCheckoutIds}
+        billNumbers={allLdgBillNos}
+        selectedRooms={Array.from(selectedRooms)}
         paymentTransactionId={paymentTransactionId}
         paymentDate={paymentDate}
         paymentBank={paymentBank}
-        selectedRooms={Array.from(selectedRooms)}
       />
     </>
   )
