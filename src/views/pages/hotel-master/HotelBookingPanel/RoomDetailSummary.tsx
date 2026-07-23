@@ -11,6 +11,7 @@ import CheckoutBillModal from './CheckoutBillModal'
 
 // API Services
 import CheckoutService from '@/common/hotel/checkout'
+import CheckInService from '@/common/hotel/checkIn'
 import RoomService from '@/common/hotel/room'
 import OutletPaymentModeService from '@/common/api/outletpaymentmode'
 import GracePeriodService from '@/common/hotel/graceperiod'
@@ -23,6 +24,7 @@ interface DisplayDetailRow {
   checkin_id: number
   guest_id: number
   detail_id?: number
+  
   room_id: number
   room_number: string
   room_category_name: string
@@ -793,27 +795,56 @@ setBillWiseInputs(inputs)
   }
 
   // ---------- Apply Bill Wise changes (only non-Lodging) ----------
-  const applyBillWise = () => {
-    const newMap = new Map<string, number>()
-    // Lodging always stays 1
-    newMap.set('Lodging', 1)
-    for (const [type, val] of Object.entries(billWiseInputs)) {
-      const num = parseInt(val, 10)
-      if (!isNaN(num) && num > 0) {
-        newMap.set(type, num)
-      }
+const applyBillWise = async () => {
+  const newMap = new Map<string, number>();
+  newMap.set('Lodging', 1);
+  for (const [type, val] of Object.entries(billWiseInputs)) {
+    const num = parseInt(val, 10);
+    if (!isNaN(num) && num > 0) {
+      newMap.set(type, num);
+    }
+  }
+
+  const updatedRows = displayRows.map(row => {
+    const type = getTransactionType(row);
+    const billNo = type === 'Lodging' ? 1 : (newMap.get(type) || row.bill_no);
+    return { ...row, bill_no: billNo };
+  });
+  setDisplayRows(updatedRows);
+  setBillNumberMap(newMap);
+
+  // ✅ Get checkin_id from multiple sources
+  const checkinId =
+    combinedSummary?.checkin_id ||
+    checkinIdFromState ||
+    (displayRows.length > 0 ? displayRows[0].checkin_id : null);
+
+  if (!checkinId || isNaN(Number(checkinId)) || Number(checkinId) <= 0) {
+    toast.error('Invalid checkin ID. Please refresh the page.');
+    return;
+  }
+
+  try {
+    const assignments = updatedRows
+  .filter(row => row.isPostCharge)
+  .map(row => ({
+    folio_id: row.folio_id,    // ✅ Correct
+    bill_no: row.bill_no,
+  }));
+
+    if (assignments.length === 0) {
+      toast.error('No post charges to update');
+      return;
     }
 
-    // Update rows: Lodging stays 1, others use the new map
-    const updatedRows = displayRows.map(row => {
-      const type = getTransactionType(row)
-      const billNo = type === 'Lodging' ? 1 : (newMap.get(type) || row.bill_no)
-      return { ...row, bill_no: billNo }
-    })
-    setDisplayRows(updatedRows)
-    setBillNumberMap(newMap)
-    toast.success('Bill numbers updated successfully')
+    // ✅ Send only billAssignments
+    await CheckInService.updateBillNo({ billAssignments: assignments });
+    toast.success('Bill numbers saved successfully');
+  } catch (error) {
+    console.error('Failed to save bill numbers:', error);
+    toast.error('Failed to save bill numbers');
   }
+};
 
   // ==================== HANDLER FUNCTIONS ====================
 

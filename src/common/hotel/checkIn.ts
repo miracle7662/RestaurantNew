@@ -439,6 +439,15 @@ export interface ActiveRoomCreditCheckin {
   guest_name: string;
 }
 
+export interface BillAssignment {
+  folio_id: number;
+  bill_no: number;
+}
+
+export interface UpdateBillNoPayload {
+  billAssignments: BillAssignment[];
+}
+
 // ============================================================================
 // SERVICE
 // ============================================================================
@@ -575,8 +584,17 @@ getDailySalesSummaryReport: (params: {
    */
   remove: (id: number): Promise<ApiResponse<null>> =>
     HttpClient.delete<ApiResponse<null>>(`/checkins/${id}`),
-};
 
+
+  /**
+ * Update bill numbers for guest folio entries.
+ */
+// Use:
+// Service (checkIn.ts)
+updateBillNo: (payload: UpdateBillNoPayload): Promise<ApiResponse<any>> =>
+  HttpClient.put("/checkins/update-bill-no", payload),
+
+};
 
 
 export default CheckInService;

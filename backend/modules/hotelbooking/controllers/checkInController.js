@@ -1112,6 +1112,53 @@ exports.updatePartialCheckin = async (req, res) => {
     }
 };
 
+exports.updateBillNo = async (req, res) => {
+  const connection = await pool.getConnection();
+
+  try {
+    const { billAssignments } = req.body;
+
+    if (!billAssignments || billAssignments.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No bill assignments found",
+      });
+    }
+
+    await connection.beginTransaction();
+
+    for (const item of billAssignments) {
+      await connection.query(
+        `
+        UPDATE checkin_guest_folio_master
+        SET bill_no = ?
+        WHERE folio_id = ?;
+        `,
+        [item.bill_no, item.folio_id]
+      );
+    }
+
+    await connection.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: "Bill numbers updated successfully",
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update bill numbers",
+    });
+
+  } finally {
+    connection.release();
+  }
+};
+
 // ----------------------------------------------------------------------
 // POST /checkins/:id/extend – EXTEND STAY (Alternative method)
 // ----------------------------------------------------------------------
