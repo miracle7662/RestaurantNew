@@ -1,4 +1,4 @@
-// pages/RoomDetailSummary.tsx - Complete with corrections
+// pages/RoomDetailSummary.tsx - Complete with Bill No and Bill Wise enhancements
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Row, Col, Button, Card, Tabs, Tab, Form, Nav, Modal } from 'react-bootstrap'
@@ -84,11 +84,14 @@ interface DisplayDetailRow {
   sortKey?: string
   credit_amount?: number
   debit_amount?: number
+  source_type?: string          // NEW: from API (ROOM_CHARGE or FOLIO_ENTRY)
+  // Bill number for bill wise grouping
+  bill_no: number
 }
 
 interface CombinedGuestSummary {
   checkin_id: number
-  guest_id: number | string
+  guest_id: number | string 
   guest_name: string
   room_numbers: string[]
   room_categories: string[]
@@ -128,8 +131,8 @@ interface CombinedGuestSummary {
   booking_ref?: string
   plan_name?: string
   total_discount_amount?: number
-  total_credit_amount?: number    // Total credit from folio
-  total_debit_amount?: number     // Total debit from folio
+  total_credit_amount?: number
+  total_debit_amount?: number
 }
 
 interface BillDateSummaryItem {
@@ -207,14 +210,6 @@ const isExtensionWithinGracePeriod = (
   graceAfterMinutes: number,
   now: Date,
 ): boolean => {
-  // 👇 SABSE PEHLE ye log daalein — chahe is_extension false ho tab bhi print hoga
-  console.log('🔍 Grace function called:', {
-    room: row.room_number,
-    is_extension: row.is_extension,
-    created_at: row.created_at,
-    detail_checkin_datetime: row.detail_checkin_datetime,
-  })
-
   if (!row.is_extension) return false
 
   const referenceTime = row.created_at || row.detail_checkin_datetime
@@ -222,14 +217,6 @@ const isExtensionWithinGracePeriod = (
 
   const extensionStart = new Date(referenceTime)
   const diffMinutes = (now.getTime() - extensionStart.getTime()) / (1000 * 60)
-
-  console.log('🔍 Grace details:', {
-    room: row.room_number,
-    referenceTime,
-    isValid: !isNaN(extensionStart.getTime()),
-    diffMinutes,
-    graceAfterMinutes,
-  })
 
   if (isNaN(extensionStart.getTime())) return false
   return diffMinutes >= 0 && diffMinutes <= graceAfterMinutes
@@ -297,17 +284,18 @@ const RoomDetailSummary = () => {
     grace_before: 30,
     grace_after: 30,
   })
-  const [, setGraceAppliedTrigger] = useState(0) // OK click hone par force re-check
-  const [graceApplied, setGraceApplied] = useState(false)          // ✅ OK dabne ke baad hi true
-  const [, setGraceWaivedRoomNumbers] = useState<Set<string>>(new Set()) // ✅ konse rooms pe grace lagi
+  const [, setGraceAppliedTrigger] = useState(0)
+  const [graceApplied, setGraceApplied] = useState(false)
+  const [, setGraceWaivedRoomNumbers] = useState<Set<string>>(new Set())
 
-
-
-
+  // ========== BILL WISE STATE ==========
+  // Map transaction type -> bill number
+  const [billNumberMap, setBillNumberMap] = useState<Map<string, number>>(new Map())
+  // Temporary inputs for bill wise panel (only non-Lodging types)
+  const [billWiseInputs, setBillWiseInputs] = useState<{ [type: string]: string }>({})
 
   const { occupiedItem } = (location.state as any) || {}
   const checkinIdFromState = occupiedItem?.checkin_id
-
 
   console.log('🔑 checkinIdFromState:', checkinIdFromState)
 
@@ -380,7 +368,6 @@ const RoomDetailSummary = () => {
     fetchPaymentModes()
   }, [hotelId, user])
 
-
   useEffect(() => {
     if (!hotelId) return
     const loadGraceSettings = async () => {
@@ -392,7 +379,7 @@ const RoomDetailSummary = () => {
             grace_after: toNumber(res.data.grace_after) || 30,
           })
           setGraceCheckboxes({
-            applyGracePeriod: false, // ✅ default hamesha unchecked
+            applyGracePeriod: false,
             exPax: !!res.data.ex_pax,
             child: !!res.data.child,
             driver: !!res.data.driver,
@@ -408,41 +395,30 @@ const RoomDetailSummary = () => {
     loadGraceSettings()
   }, [hotelId])
 
-
   // Sync selected payment mode with combined summary
-  // ==================== SYNC PAYMENT MODE WITH SUMMARY ====================
   useEffect(() => {
-    // Don't run if no payment modes or no summary
     if (outletPaymentModes.length === 0 || !combinedSummary) return
-
-    // Don't override user selection
     if (selectedPaymentModeId) return
 
     const paymentMethod = combinedSummary.payment_method || 'Cash'
-
     const matchedMode = outletPaymentModes.find(
       (m) => m.mode_name?.toLowerCase() === paymentMethod.toLowerCase()
     )
-
     if (matchedMode) {
       setSelectedPaymentModeId(matchedMode.id)
       setSelectedPaymentModeName(matchedMode.mode_name)
     }
   }, [combinedSummary, outletPaymentModes, selectedPaymentModeId])
 
-
-
   const handlePaymentModeChange = (modeId: number) => {
     const selectedMode = outletPaymentModes.find((m) => m.id === modeId)
     if (!selectedMode) return
 
     console.log('💳 Payment mode changed to:', selectedMode.mode_name)
-
     setSelectedPaymentModeId(modeId)
     setSelectedPaymentModeName(selectedMode.mode_name || 'Cash')
     setIsPaymentModeChanging(true)
 
-    // Update the combined summary with new payment method
     if (combinedSummary) {
       setCombinedSummary({
         ...combinedSummary,
@@ -450,9 +426,9 @@ const RoomDetailSummary = () => {
         payment_methods: [selectedMode.mode_name || 'Cash'],
       })
     }
-
     setIsPaymentModeChanging(false)
   }
+
   // ==================== FETCH DATA ====================
 
   const fetchData = async () => {
@@ -471,11 +447,9 @@ const RoomDetailSummary = () => {
     setError(null)
 
     try {
-      // 1. Room number map
       const roomMap = await fetchRoomNumbers()
       setRoomNumberMap(roomMap)
 
-      // 2. API call that returns both details AND summary
       const roomIdsCommaString = Array.from(selectedRooms)
         .map((roomNo) => displayRows.find((r) => r.room_number === roomNo)?.room_id)
         .filter((id): id is number => id !== null && id !== undefined)
@@ -512,10 +486,11 @@ const RoomDetailSummary = () => {
         return
       }
 
-      // 3. Build display rows from the DETAILS result set
+      // Build display rows
       const roomCumulativeMap = new Map<string, number>()
       const displayRowsResult: DisplayDetailRow[] = details.map((row: any, idx: number) => {
-        const isPostCharge = !!row.is_post_charge
+        // ----- FIX: use source_type to determine if post-charge -----
+        const isPostCharge = row.source_type === 'FOLIO_ENTRY'
         const roomNumber = row.room_number ? String(row.room_number) : `Room-${row.room_id}`
         const totalAmount = roundToTwo(toNumber(row.total_amount))
 
@@ -593,16 +568,47 @@ const RoomDetailSummary = () => {
           description: row.description || '',
           particulars: row.particulars || '',
           department_name: row.department_name || '',
-          // ✅ ADD THESE LINES - Capture credit and debit from API
           credit_amount: toNumber(row.credit_amount) || 0,
           debit_amount: toNumber(row.debit_amount) || 0,
+          source_type: row.source_type || 'ROOM_CHARGE',   // NEW
+          // Initialize bill_no to 0; will be set later
+          bill_no: 0,
         }
       })
 
+      // ---------- Assign default bill numbers by transaction type ----------
+      // Lodging always gets bill number 1
+      // ---------- Assign default bill numbers: all rows get bill_no = 1 ----------
+const typeMap = new Map<string, number>()
+
+// Set all rows to bill_no = 1
+displayRowsResult.forEach(row => {
+  row.bill_no = 1
+  // Also build a map of transaction types for the Bill Wise panel
+  const type = getTransactionType(row)
+  if (!typeMap.has(type)) {
+    typeMap.set(type, 1)
+  }
+})
+
+// Ensure Lodging is in the map (though it's already there)
+if (!typeMap.has('Lodging')) {
+  typeMap.set('Lodging', 1)
+}
+
+// Store the map in state
+setBillNumberMap(typeMap)
+
+// Populate billWiseInputs with only non-Lodging types
+const inputs: { [type: string]: string } = {}
+typeMap.forEach((val, key) => {
+  if (key !== 'Lodging') {
+    inputs[key] = String(val) // all '1'
+  }
+})
+setBillWiseInputs(inputs)
+
       setDisplayRows(displayRowsResult)
-
-
-
 
       // Bill date summary
       const billSummaryItems: BillDateSummaryItem[] = displayRowsResult.map((row, idx) => ({
@@ -611,7 +617,7 @@ const RoomDetailSummary = () => {
         roomNumber: row.room_number,
         roomCategory: row.room_category_name,
         convertedCategory: row.converted_category_name,
-        billNo: idx + 1,
+        billNo: row.bill_no,
         dayNumber: row.day_number,
         description: row.description,
         amount: row.room_tariff,
@@ -622,10 +628,9 @@ const RoomDetailSummary = () => {
       }))
       setBillDateSummary(billSummaryItems)
 
-      // 4. USE THE SUMMARY FROM THE STORED PROCEDURE
+      // Summary from stored procedure
       if (summary && summary.length > 0) {
         const summaryRow = summary[0]
-
         const roomNumbersArray = summaryRow.room_numbers_str
           ? summaryRow.room_numbers_str.split(', ').filter(Boolean)
           : []
@@ -671,11 +676,9 @@ const RoomDetailSummary = () => {
           reg_no: summaryRow.reg_no || '',
           booking_ref: summaryRow.booking_ref || '',
           plan_name: summaryRow.plan_name || '',
-          // ✅ ADD NEW FIELDS
           total_credit_amount: toNumber(summaryRow.total_credit_amount) || 0,
           total_debit_amount: toNumber(summaryRow.total_debit_amount) || 0,
         }
-
         setCombinedSummary(combinedSummaryData)
 
         setGeneratedBillNumber('')
@@ -691,7 +694,6 @@ const RoomDetailSummary = () => {
 
       } else {
         console.warn('⚠️ No summary from stored procedure, using basic data')
-
         const firstRow = details[0]
         const roomNumbersSet = new Set(displayRowsResult.map((r) => r.room_number))
 
@@ -762,57 +764,94 @@ const RoomDetailSummary = () => {
     }
   }
 
-  const handleGraceOk = async () => {
-    try {
-      const res: any = await GracePeriodService.getSettings(hotelId)
-      if (res.success && res.data) {
-        setGraceSettings({
-          grace_before: toNumber(res.data.grace_before) || 30,
-          grace_after: toNumber(res.data.grace_after) || 30,
-        })
+  // ---------- Helper: get transaction type for a row ----------
+  // ✅ IMPROVED: uses source_type and clean names
+  const getTransactionType = (row: DisplayDetailRow): string => {
+    // If it's a room charge (source_type = ROOM_CHARGE) or we have no source_type but it's not a post-charge, it's Lodging
+    if (!row.isPostCharge) {
+      return 'Lodging'
+    }
+
+    // For post-charges (folio entries)
+    // 1) Use department_name if available
+    if (row.department_name && row.department_name.trim() !== '') {
+      return row.department_name
+    }
+
+    // 2) Infer from description
+    const desc = (row.description || '').toLowerCase()
+    if (desc.includes('restaurant')) return 'Restaurant'
+    if (desc.includes('bar')) return 'Bar'
+    if (desc.includes('pantry')) return 'Pantry'
+    if (desc.includes('food')) return 'Food'
+    if (desc.includes('laundry')) return 'Laundry'
+    if (desc.includes('advance')) return 'Advance'
+    if (desc.includes('allowance')) return 'Allowance'
+
+    // 3) Fallback to description itself (may be long)
+    return row.description || 'Other'
+  }
+
+  // ---------- Apply Bill Wise changes (only non-Lodging) ----------
+  const applyBillWise = () => {
+    const newMap = new Map<string, number>()
+    // Lodging always stays 1
+    newMap.set('Lodging', 1)
+    for (const [type, val] of Object.entries(billWiseInputs)) {
+      const num = parseInt(val, 10)
+      if (!isNaN(num) && num > 0) {
+        newMap.set(type, num)
       }
-    } catch (err) {
-      console.error('Failed to refresh grace settings:', err)
     }
 
-    setGraceAppliedTrigger((prev) => prev + 1)
+    // Update rows: Lodging stays 1, others use the new map
+    const updatedRows = displayRows.map(row => {
+      const type = getTransactionType(row)
+      const billNo = type === 'Lodging' ? 1 : (newMap.get(type) || row.bill_no)
+      return { ...row, bill_no: billNo }
+    })
+    setDisplayRows(updatedRows)
+    setBillNumberMap(newMap)
+    toast.success('Bill numbers updated successfully')
+  }
 
-    if (!graceCheckboxes.applyGracePeriod) {
-      setGraceApplied(false)
-      setGraceWaivedRoomNumbers(new Set())
-      toast('Grace Period apply nahi kiya gaya (checkbox unchecked)', { icon: 'ℹ️' })
-      return
-    }
+  // ==================== HANDLER FUNCTIONS ====================
 
-    // ✅ ab actual apply karo
-    const now = new Date()
-    const matchedRows = displayRows.filter(
-      (row) =>
-        selectedRooms.has(row.room_number) &&
-        isExtensionWithinGracePeriod(row, graceSettings.grace_after, now),
-    )
-
-    setGraceApplied(true)
-    setGraceWaivedRoomNumbers(new Set(matchedRows.map((r) => r.room_number)))
-
-    if (matchedRows.length > 0) {
-      toast.success(`✅ Grace Period Applied — ${matchedRows.length} extension charge(s) waive`)
-    } else {
-      toast('Grace Period is enabled, but there are no eligible room extensions at this time.');
+  const handleGuestSummarySelect = (isChecked: boolean) => {
+    if (combinedSummary) {
+      setCombinedSummary({ ...combinedSummary, selected: isChecked })
+      setDisplayRows((prev) => prev.map((row) => ({ ...row, selected: isChecked })))
     }
   }
 
-  // ==================== HELPER: Get filtered summary for selected rooms only ====================
+  const handleRoomSelectionToggle = (roomNumber: string) => {
+    if (uniqueRooms.length === 1) {
+      toast.error('At least one room must be selected for checkout')
+      return
+    }
 
+    setSelectedRooms((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(roomNumber)) {
+        if (newSet.size === 1) {
+          toast.error('At least one room must be selected for checkout')
+          return prev
+        }
+        newSet.delete(roomNumber)
+      } else {
+        newSet.add(roomNumber)
+      }
+      return newSet
+    })
+  }
+
+  // ==================== HELPER: Get filtered summary for selected rooms only ====================
   const getFilteredSummaryForSelectedRooms = (): CombinedGuestSummary | null => {
     if (!combinedSummary) return null
 
-    // Get rows filtered by selected rooms
     const selectedRows = displayRows.filter((row) => selectedRooms.has(row.room_number))
-
     if (selectedRows.length === 0) return null
 
-    // Calculate totals from selected rows
     const totalRoomTariff = selectedRows.reduce((sum, row) => sum + row.room_tariff, 0)
     const totalExPaxCharge = selectedRows.reduce((sum, row) => sum + row.ex_pax_total, 0)
     const totalChildPaidAmount = selectedRows.reduce((sum, row) => sum + row.child_total, 0)
@@ -821,20 +860,15 @@ const RoomDetailSummary = () => {
     const totalAmount = selectedRows.reduce((sum, row) => sum + row.total_amount, 0)
     const totalDiscountAmount = selectedRows.reduce((sum, row) => sum + row.discount_amount, 0)
 
-    // ✅ FIX: Collect unique guest IDs and names
     const uniqueGuestIds = new Set<number>()
     const uniqueGuestNames = new Set<string>()
-
     selectedRows.forEach(row => {
       if (row.guest_id) uniqueGuestIds.add(row.guest_id)
       if (row.guest_name && row.guest_name !== 'Guest') uniqueGuestNames.add(row.guest_name)
     })
-
-    // Convert to comma-separated strings
     const guestIdsStr = Array.from(uniqueGuestIds).join(', ')
     const guestNamesStr = Array.from(uniqueGuestNames).join(', ')
 
-    // Calculate unique days
     const billDates = new Set(
       selectedRows
         .filter(r => !r.isPostCharge)
@@ -842,7 +876,6 @@ const RoomDetailSummary = () => {
     )
     const totalDays = billDates.size || 1
 
-    // Room-wise aggregations
     const roomAdultsMap = new Map<string, number>()
     const roomPaxMap = new Map<string, number>()
     const roomExPaxMap = new Map<string, number>()
@@ -852,7 +885,6 @@ const RoomDetailSummary = () => {
     selectedRows.forEach(row => {
       if (!row.isPostCharge) {
         const room = row.room_number
-
         if (!roomAdultsMap.has(room) || row.adults > roomAdultsMap.get(room)!) {
           roomAdultsMap.set(room, row.adults)
         }
@@ -899,8 +931,8 @@ const RoomDetailSummary = () => {
 
     return {
       ...combinedSummary,
-      guest_id: guestIdsStr || combinedSummary.guest_id, // ✅ Now shows comma-separated IDs
-      guest_name: guestNamesStr || combinedSummary.guest_name, // ✅ Shows comma-separated names
+      guest_id: guestIdsStr || combinedSummary.guest_id,
+      guest_name: guestNamesStr || combinedSummary.guest_name,
       room_numbers: uniqueRoomNumbers,
       room_numbers_str: uniqueRoomNumbers.join(', '),
       room_categories: uniqueRoomCategories,
@@ -931,44 +963,15 @@ const RoomDetailSummary = () => {
     }
   }
 
-  // ==================== HANDLER FUNCTIONS ====================
-
-  const handleGuestSummarySelect = (isChecked: boolean) => {
-    if (combinedSummary) {
-      setCombinedSummary({ ...combinedSummary, selected: isChecked })
-      setDisplayRows((prev) => prev.map((row) => ({ ...row, selected: isChecked })))
-    }
-  }
-
-  const handleRoomSelectionToggle = (roomNumber: string) => {
-    if (uniqueRooms.length === 1) {
-      toast.error('At least one room must be selected for checkout')
-      return
-    }
-
-    setSelectedRooms((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(roomNumber)) {
-        if (newSet.size === 1) {
-          toast.error('At least one room must be selected for checkout')
-          return prev
-        }
-        newSet.delete(roomNumber)
-      } else {
-        newSet.add(roomNumber)
-      }
-      return newSet
-    })
-  }
-
+  // ==================== HELPER: Get filtered rows for selected rooms ====================
+  // ✅ MOVED HERE (before usage) to fix "used before declaration" error
   const getFilteredRowsBySelectedRooms = (): DisplayDetailRow[] => {
     if (selectedRooms.size === 0) return []
 
     return displayRows
       .filter((row) => selectedRooms.has(row.room_number))
-      // ✅ Grace period filter — sirf jab checkbox ON hai
       .filter((row) => {
-        if (!graceApplied) return true              // ✅ OK dabne se pehle koi filter nahi
+        if (!graceApplied) return true
         return !isExtensionWithinGracePeriod(row, graceSettings.grace_after, currentDateTime)
       })
       .sort((a, b) => {
@@ -993,20 +996,34 @@ const RoomDetailSummary = () => {
       })
   }
 
+  // Now it's safe to use
   const filteredRowsByRoom = getFilteredRowsBySelectedRooms()
   const selectedRowsForCheckout = filteredRowsByRoom.filter((row) => row.selected)
 
-  // ✅ grandTotal calculated from filtered rows (selected rooms only)
+  // Grand total from filtered rows
   const grandTotal = roundToTwo(
-    selectedRowsForCheckout.reduce((sum, row) => sum + row.total_amount, 0),
+    selectedRowsForCheckout.reduce((sum, row) => sum + row.total_amount, 0)
   )
+
+  // ---------- Group rows by bill number for summary table ----------
+  const getBillWiseSummaryRows = () => {
+    const rows = filteredRowsByRoom
+    const map = new Map<number, { billNo: number; rows: DisplayDetailRow[] }>()
+    rows.forEach(row => {
+      const billNo = row.bill_no || 0
+      if (!map.has(billNo)) {
+        map.set(billNo, { billNo, rows: [] })
+      }
+      map.get(billNo)!.rows.push(row)
+    })
+    // Convert to array and sort by bill number
+    return Array.from(map.values()).sort((a, b) => a.billNo - b.billNo)
+  }
+
+  const billWiseSummaryRows = getBillWiseSummaryRows()
 
   const [editablePax, setEditablePax] = useState<number>(0)
 
-
-
-
-  // ✅ filteredSummary for the Room Summary table (selected rooms only)
   const filteredSummary = getFilteredSummaryForSelectedRooms()
 
   const handleCheckoutClick = () => {
@@ -1023,14 +1040,12 @@ const RoomDetailSummary = () => {
 
   const handleConfirmCheckout = async () => {
     if (!combinedSummary) return
-
+    
     setCheckoutProcessing(true)
-
+    
     try {
       const finalTotalAmount = grandTotal || combinedSummary.total_amount
-      // Compute total nights from selected rooms
-
-      // Generate invoice number
+      
       let invoiceNo = ''
       try {
         const invoiceRes = await CheckoutService.getNextInvoiceNo()
@@ -1042,7 +1057,6 @@ const RoomDetailSummary = () => {
         console.warn('⚠️ Could not fetch invoice number; server will auto-assign one', invoiceErr)
       }
 
-      // Get selected room IDs
       const selectedRoomIds = Array.from(selectedRooms)
         .map(roomNo => {
           const row = displayRows.find(r => r.room_number === roomNo)
@@ -1052,7 +1066,6 @@ const RoomDetailSummary = () => {
 
       const roomIdsCommaString = selectedRoomIds.join(',')
 
-      // ✅ FIX: Format datetime for MySQL (YYYY-MM-DD HH:MM:SS)
       const now = new Date()
       const year = now.getFullYear()
       const month = String(now.getMonth() + 1).padStart(2, '0')
@@ -1062,21 +1075,19 @@ const RoomDetailSummary = () => {
       const seconds = String(now.getSeconds()).padStart(2, '0')
       const currentDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
       const totalNights = filteredSummary?.total_days || 1;
-
+      
       console.log('🕐 Current checkout datetime (MySQL format):', currentDateTime)
 
-      // Get payment method with proper fallback
-      const paymentMethod = selectedPaymentModeName ||
-        combinedSummary.payment_method ||
-        'Cash'
-
+      const paymentMethod = selectedPaymentModeName || 
+                         combinedSummary.payment_method || 
+                         'Cash'
+      
       console.log('💳 ===== CHECKOUT PAYMENT DETAILS =====')
       console.log('💳 selectedPaymentModeName:', selectedPaymentModeName)
       console.log('💳 combinedSummary.payment_method:', combinedSummary.payment_method)
       console.log('💳 Final paymentMethod:', paymentMethod)
       console.log('💳 selectedPaymentModeId:', selectedPaymentModeId)
 
-      // Prepare checkout payload WITH formatted DATE/TIME
       const checkoutPayload = {
         checkin_id: combinedSummary.checkin_id,
         checkout_reason: checkoutReason || 'Regular checkout',
@@ -1091,35 +1102,29 @@ const RoomDetailSummary = () => {
         invoiceNoFromBody: invoiceNo,
         is_settle: 0,
         is_print: 1,
-        checkout_datetime: currentDateTime, // ✅ MySQL-compatible format
-        total_nights: totalNights,   // <-- Add this line
+        checkout_datetime: currentDateTime,
+        total_nights: totalNights,
       }
 
       console.log('📤 Sending checkout payload:', JSON.stringify(checkoutPayload, null, 2))
 
-      // Perform checkout
       const response = await CheckoutService.performCheckout(checkoutPayload)
 
       if (response.success) {
-        // Set checkout ID
         if (response.data?.checkout_id) {
           setCheckoutId(response.data.checkout_id)
         }
-
-        // Set bill number
         if (response.data?.ldg_bill_no) {
           setGeneratedBillNumber(response.data.ldg_bill_no)
         } else if (invoiceNo) {
           setGeneratedBillNumber(invoiceNo)
         }
 
-        // Get checked out rooms
         const roomIdsCommaFromResponse = response.data?.checked_out_room_ids_comma ||
           (response.data?.checked_out_room_ids || []).join(', ')
 
         toast.success(`✅ Checkout completed for room ID(s): ${roomIdsCommaFromResponse}`)
 
-        // Reset and show bill
         setShowCheckoutModal(false)
         setCheckoutReason('')
         setCheckoutDone(true)
@@ -1155,6 +1160,46 @@ const RoomDetailSummary = () => {
     if (row.isPostCharge) return row.total_amount < 0 ? 'allowance-row' : 'postcharge-row'
     if (row.is_extension) return 'extension-row'
     return 'original-row'
+  }
+
+  // ==================== GRACE PERIOD HANDLER ====================
+  const handleGraceOk = async () => {
+    try {
+      const res: any = await GracePeriodService.getSettings(hotelId)
+      if (res.success && res.data) {
+        setGraceSettings({
+          grace_before: toNumber(res.data.grace_before) || 30,
+          grace_after: toNumber(res.data.grace_after) || 30,
+        })
+      }
+    } catch (err) {
+      console.error('Failed to refresh grace settings:', err)
+    }
+
+    setGraceAppliedTrigger((prev) => prev + 1)
+
+    if (!graceCheckboxes.applyGracePeriod) {
+      setGraceApplied(false)
+      setGraceWaivedRoomNumbers(new Set())
+      toast('Grace Period apply nahi kiya gaya (checkbox unchecked)', { icon: 'ℹ️' })
+      return
+    }
+
+    const now = new Date()
+    const matchedRows = displayRows.filter(
+      (row) =>
+        selectedRooms.has(row.room_number) &&
+        isExtensionWithinGracePeriod(row, graceSettings.grace_after, now),
+    )
+
+    setGraceApplied(true)
+    setGraceWaivedRoomNumbers(new Set(matchedRows.map((r) => r.room_number)))
+
+    if (matchedRows.length > 0) {
+      toast.success(`✅ Grace Period Applied — ${matchedRows.length} extension charge(s) waive`)
+    } else {
+      toast('Grace Period is enabled, but there are no eligible room extensions at this time.')
+    }
   }
 
   if (error) {
@@ -1312,6 +1357,19 @@ const RoomDetailSummary = () => {
         .info-box-content {
           scrollbar-width: thin;
           scrollbar-color: #c8c8c8 #f1f1f1;
+        }
+        /* Bill Wise panel input styles */
+        .bill-wise-input {
+          width: 50px;
+          padding: 2px 4px;
+          font-size: 0.85rem;
+          border: 1px solid #ced4da;
+          border-radius: 4px;
+          text-align: center;
+        }
+        .bill-wise-type {
+          font-weight: 500;
+          font-size: 0.85rem;
         }
       `}</style>
 
@@ -1531,7 +1589,7 @@ const RoomDetailSummary = () => {
                                         ? ` (Ext. Day ${row.day_number})`
                                         : ` (Day ${row.day_number})`}
                                   </td>
-                                  <td>{idx + 1}</td>
+                                  <td>{row.bill_no || idx + 1}</td>
                                   <td>
                                     <span className="bill-date-highlight">
                                       {row.bill_date_formatted}
@@ -1564,48 +1622,91 @@ const RoomDetailSummary = () => {
                       <Form.Check
                         type="checkbox"
                         checked={billWiseChecked}
-                        onChange={(e) => setBillWiseChecked(e.target.checked)}
+                        onChange={(e) => {
+                          const checked = e.target.checked
+                          setBillWiseChecked(checked)
+                          // When checked, populate inputs from current billNumberMap
+                          if (checked) {
+                            const inputs: { [type: string]: string } = {}
+                            billNumberMap.forEach((val, key) => {
+                              if (key !== 'Lodging') {
+                                inputs[key] = String(val)
+                              }
+                            })
+                            setBillWiseInputs(inputs)
+                          }
+                        }}
                         label="Bill Wise (F6)"
                       />
                     </div>
                     <div className="info-box-content p-0">
-                      {selectedRowsForCheckout.length > 0 ? (
-                        <div
-                          className="date-wise-scroll"
-                          style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                          <table className="mini-table">
-                            <tbody>
-                              {selectedRowsForCheckout.map((r, idx) => (
-                                <tr key={`billwise-${r.guest_room_charges_id}-${idx}`}>
-                                  <td>
-                                    {r.room_number}
-                                    {r.isPostCharge
-                                      ? ` (${r.description})`
-                                      : r.is_extension
-                                        ? ` (Ext Day ${r.day_number})`
-                                        : ` (Day ${r.day_number})`}{' '}
-                                    -{' '}
-                                    <span className="bill-date-highlight">
-                                      {r.bill_date_formatted}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                      {billWiseChecked ? (
+                        // Show only non-Lodging transaction types with input fields and Apply button
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
+                          {Object.keys(billWiseInputs).map((type) => (
+                            <div key={type} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                              <span className="bill-wise-type">{type}</span>
+                              <Form.Control
+                                type="number"
+                                className="bill-wise-input"
+                                min="1"
+                                value={billWiseInputs[type] || ''}
+                                onChange={(e) => {
+                                  setBillWiseInputs(prev => ({ ...prev, [type]: e.target.value }))
+                                }}
+                              />
+                            </div>
+                          ))}
+                          <Button
+                            size="sm"
+                            variant="success"
+                            className="mt-1"
+                            style={{ width: '100%', fontSize: '0.7rem' }}
+                            onClick={applyBillWise}
+                          >
+                            Apply
+                          </Button>
                         </div>
                       ) : (
-                        <div
-                          className="info-box-value p-2 text-center"
-                          style={{
-                            fontSize: '12px',
-                            flex: 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}>
-                          No item selected
-                        </div>
+                        // Default: show rows
+                        selectedRowsForCheckout.length > 0 ? (
+                          <div
+                            className="date-wise-scroll"
+                            style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                            <table className="mini-table">
+                              <tbody>
+                                {selectedRowsForCheckout.map((r, idx) => (
+                                  <tr key={`billwise-${r.guest_room_charges_id}-${idx}`}>
+                                    <td>
+                                      {r.room_number}
+                                      {r.isPostCharge
+                                        ? ` (${r.description})`
+                                        : r.is_extension
+                                          ? ` (Ext Day ${r.day_number})`
+                                          : ` (Day ${r.day_number})`}{' '}
+                                      -{' '}
+                                      <span className="bill-date-highlight">
+                                        {r.bill_date_formatted}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div
+                            className="info-box-value p-2 text-center"
+                            style={{
+                              fontSize: '12px',
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}>
+                            No item selected
+                          </div>
+                        )
                       )}
                     </div>
                   </div>
@@ -1663,6 +1764,7 @@ const RoomDetailSummary = () => {
                               <th>Driver Total</th>
                               <th>Total</th>
                               <th>Cumulative</th>
+                              <th>Bill No</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1767,12 +1869,15 @@ const RoomDetailSummary = () => {
                                   <td className="text-success fw-bold text-end">
                                     {formatAmountClean(row.cumulative_total)}
                                   </td>
+                                  <td className="text-center fw-bold">
+                                    {row.bill_no || '-'}
+                                  </td>
                                 </tr>
                               )
                             })}
                             {filteredDisplayRowsForTable.length === 0 && (
                               <tr>
-                                <td colSpan={29} className="text-center py-4 text-muted">
+                                <td colSpan={30} className="text-center py-4 text-muted">
                                   No rooms selected. Please select at least one room from the Room
                                   No. panel.
                                 </td>
@@ -1786,7 +1891,7 @@ const RoomDetailSummary = () => {
                 </Col>
               </Row>
 
-              {/* ==================== ROOM SUMMARY - TOTAL CHARGES ==================== */}
+              {/* ==================== ROOM SUMMARY - TOTAL CHARGES (GROUPED BY BILL NO) ==================== */}
               <Card className="shadow-sm mb-3">
                 <Card.Header className="bg-fo-header text-black py-1">
                   <span className="fw-bold">Room Summary - Total Charges</span>
@@ -1821,124 +1926,126 @@ const RoomDetailSummary = () => {
                           <th>Total Amount</th>
                           <th>Debit Amount</th>
                           <th>Credit Amount</th>
-
                           <th>Dummy PAX</th>
-
+                          <th>Bill No</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {/* ✅ USE FILTERED SUMMARY - ONLY SELECTED ROOMS */}
-                        {filteredSummary && selectedRooms.size > 0 ? (
-                          <tr className="combined-row-summary">
-                            <td>
-                              <Form.Check
-                                type="checkbox"
-                                checked={filteredSummary.selected}
-                                onChange={(e) => handleGuestSummarySelect(e.target.checked)}
-                              />
-                            </td>
-                            <td>{filteredSummary.guest_name}</td>
-                            <td>{filteredSummary.guest_id}</td>
-                            <td>
-                              {outletPaymentModes.length > 0 ? (
-                                <Form.Select
-                                  size="sm"
-                                  value={selectedPaymentModeId || ''}
-                                  onChange={(e) => handlePaymentModeChange(Number(e.target.value))}
-                                  disabled={isPaymentModeChanging || outletPaymentModes.length === 0}
-                                  style={{
-                                    minWidth: '100px',
-                                    fontSize: '0.75rem',
-                                    padding: '2px 6px',
-                                    height: '28px',
-                                    border: '1px solid #ced4da',
-                                    borderRadius: '4px',
-                                    backgroundColor: isPaymentModeChanging ? '#f8f9fa' : '#fff',
-                                  }}
-                                >
-                                  <option value="">Select Mode</option>
-                                  {outletPaymentModes.map((mode) => (
-                                    <option key={mode.id} value={mode.id}>
-                                      {mode.mode_name || 'Unknown'}
-                                    </option>
-                                  ))}
-                                </Form.Select>
-                              ) : (
-                                <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                                  {combinedSummary?.payment_method || 'Cash'}
-                                </span>
-                              )}
-                            </td>
-                            <td className="room-numbers-cell fw-bold">
-                              {filteredSummary.room_numbers_str || '-'}
-                            </td>
-                            <td className="text-wrap-cell">
-                              {filteredSummary.room_categories_str || '-'}
-                            </td>
-                            <td className="text-wrap-cell">
-                              {filteredSummary.converted_categories_str || '-'}
-                            </td>
-                            <td>{filteredSummary.total_days}</td>
-                            <td>{filteredSummary.total_adults}</td>
-                            <td>{filteredSummary.total_pax}</td>
-                            <td>{formatAmountClean(filteredSummary.total_room_tariff)}</td>
-                            <td>{formatAmountClean(filteredSummary.total_discount_amount || 0)}</td>
-                            <td>{filteredSummary.total_ex_pax}</td>
-                            <td>{formatAmountClean(filteredSummary.total_ex_pax_charge)}</td>
-                            <td>{filteredSummary.total_child_paid}</td>
-                            <td>{formatAmountClean(filteredSummary.total_child_paid_amount)}</td>
-                            <td>{filteredSummary.total_driver}</td>
-                            <td>{formatAmountClean(filteredSummary.total_driver_charge)}</td>
-                            <td>{filteredSummary.avg_tax_percent.toFixed(2)}%</td>
-                            <td>{formatAmountClean(filteredSummary.total_tax_amount)}</td>
-                            <td className="fw-bold text-primary">
-                              {formatAmountClean(filteredSummary.total_amount)}
-                            </td>
-                            <td className="fw-bold text-success">
-                              {formatAmountClean(filteredSummary.total_credit_amount || 0)}
-                            </td>
-                            <td className="fw-bold text-danger">
-                              {formatAmountClean(filteredSummary.total_debit_amount || 0)}
-                            </td>
-                            <td>
-                              <Form.Control
-                                type="number"
-                                size="sm"
-                                value={editablePax}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value) || 0
-                                  setEditablePax(val)
-                                }}
-                                onBlur={() => {
-                                  // Update the filteredSummary when user finishes editing
-                                  if (filteredSummary && editablePax !== filteredSummary.total_pax) {
-                                    // You can optionally call an API to update the pax count
-                                    console.log(`Pax updated from ${filteredSummary.total_pax} to ${editablePax}`)
-                                    // Update the summary data
-                                    setCombinedSummary(prev => prev ? {
-                                      ...prev,
-                                      total_pax: editablePax
-                                    } : null)
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    (e.target as HTMLInputElement).blur()
-                                  }
-                                }}
-                                style={{
-                                  width: '60px',
-                                  display: 'inline-block',
-                                  padding: '2px 4px',
-                                  fontSize: '0.85rem'
-                                }}
-                              />
-                            </td>
+                        {billWiseSummaryRows.length > 0 ? (
+                          billWiseSummaryRows.map((group, idx) => {
+                            const rows = group.rows
+                            // Compute totals for this bill group
+                            const totalRoomTariff = rows.reduce((s, r) => s + r.room_tariff, 0)
+                            const totalExPaxCharge = rows.reduce((s, r) => s + r.ex_pax_total, 0)
+                            const totalChildPaidAmount = rows.reduce((s, r) => s + r.child_total, 0)
+                            const totalDriverCharge = rows.reduce((s, r) => s + r.driver_total, 0)
+                            const totalTaxAmount = rows.reduce((s, r) => s + r.tax_amount, 0)
+                            const totalAmount = rows.reduce((s, r) => s + r.total_amount, 0)
+                            const totalDiscountAmount = rows.reduce((s, r) => s + r.discount_amount, 0)
+                            const totalCredit = rows.reduce((s, r) => s + (r.credit_amount || 0), 0)
+                            const totalDebit = rows.reduce((s, r) => s + (r.debit_amount || 0), 0)
 
-                          </tr>
+                            // Guest info from first row
+                            const firstRow = rows[0]
+                            const guestName = firstRow.guest_name
+                            const guestId = firstRow.guest_id
+                            const roomNumbersStr = Array.from(new Set(rows.map(r => r.room_number))).join(', ')
+                            const roomCategories = Array.from(new Set(rows.map(r => r.room_category_name).filter(c => c !== '-'))).join(', ')
+                            const convertedCategories = Array.from(new Set(rows.map(r => r.converted_category_name).filter(c => c !== '-'))).join(', ')
+                            const totalDays = Math.max(...rows.map(r => r.day_number || 0)) // approximate
+                            // Pax values: use first non-post row for pax, adults, etc.
+                            const nonPost = rows.find(r => !r.isPostCharge)
+                            const adults = nonPost ? nonPost.adults : 0
+                            const pax = nonPost ? nonPost.pax : 0
+                            const exPax = nonPost ? nonPost.ex_pax_count : 0
+                            const child = nonPost ? nonPost.child_count : 0
+                            const driver = nonPost ? nonPost.driver_count : 0
+                            const avgTax = rows.length ? rows.reduce((s, r) => s + r.tax_percent, 0) / rows.length : 0
+
+                            return (
+                              <tr key={`bill-${group.billNo}`} className="combined-row-summary">
+                                <td>
+                                  <Form.Check
+                                    type="checkbox"
+                                    checked={true}
+                                    onChange={() => {}}
+                                  />
+                                </td>
+                                <td>{guestName}</td>
+                                <td>{guestId}</td>
+                                <td>
+                                  {outletPaymentModes.length > 0 ? (
+                                    <Form.Select
+                                      size="sm"
+                                      value={selectedPaymentModeId || ''}
+                                      onChange={(e) => handlePaymentModeChange(Number(e.target.value))}
+                                      disabled={isPaymentModeChanging || outletPaymentModes.length === 0}
+                                      style={{
+                                        minWidth: '100px',
+                                        fontSize: '0.75rem',
+                                        padding: '2px 6px',
+                                        height: '28px',
+                                        border: '1px solid #ced4da',
+                                        borderRadius: '4px',
+                                        backgroundColor: isPaymentModeChanging ? '#f8f9fa' : '#fff',
+                                      }}
+                                    >
+                                      <option value="">Select Mode</option>
+                                      {outletPaymentModes.map((mode) => (
+                                        <option key={mode.id} value={mode.id}>
+                                          {mode.mode_name || 'Unknown'}
+                                        </option>
+                                      ))}
+                                    </Form.Select>
+                                  ) : (
+                                    <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                      {combinedSummary?.payment_method || 'Cash'}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="room-numbers-cell fw-bold">{roomNumbersStr}</td>
+                                <td className="text-wrap-cell">{roomCategories}</td>
+                                <td className="text-wrap-cell">{convertedCategories}</td>
+                                <td>{totalDays}</td>
+                                <td>{adults}</td>
+                                <td>{pax}</td>
+                                <td>{formatAmountClean(totalRoomTariff)}</td>
+                                <td>{formatAmountClean(totalDiscountAmount)}</td>
+                                <td>{exPax}</td>
+                                <td>{formatAmountClean(totalExPaxCharge)}</td>
+                                <td>{child}</td>
+                                <td>{formatAmountClean(totalChildPaidAmount)}</td>
+                                <td>{driver}</td>
+                                <td>{formatAmountClean(totalDriverCharge)}</td>
+                                <td>{avgTax.toFixed(2)}%</td>
+                                <td>{formatAmountClean(totalTaxAmount)}</td>
+                                <td className="fw-bold text-primary">{formatAmountClean(totalAmount)}</td>
+                                <td className="fw-bold text-success">{formatAmountClean(totalCredit)}</td>
+                                <td className="fw-bold text-danger">{formatAmountClean(totalDebit)}</td>
+                                <td>
+                                  <Form.Control
+                                    type="number"
+                                    size="sm"
+                                    value={editablePax}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value) || 0
+                                      setEditablePax(val)
+                                    }}
+                                    style={{
+                                      width: '60px',
+                                      display: 'inline-block',
+                                      padding: '2px 4px',
+                                      fontSize: '0.85rem'
+                                    }}
+                                  />
+                                </td>
+                                <td className="fw-bold text-center">{group.billNo}</td>
+                              </tr>
+                            )
+                          })
                         ) : (
                           <tr>
-                            <td colSpan={21} className="text-center text-muted py-2">
+                            <td colSpan={25} className="text-center text-muted py-2">
                               {selectedRooms.size === 0 ? 'No rooms selected' : 'No data available'}
                             </td>
                           </tr>
@@ -1951,7 +2058,7 @@ const RoomDetailSummary = () => {
             </div>
           </>
         ) : (
-          // Summary Tab
+          // Summary Tab (unchanged)
           <>
             <div className="guest-company-row d-flex flex-wrap gap-4 align-items-center">
               <div>
@@ -2034,7 +2141,7 @@ const RoomDetailSummary = () => {
                                     {item.bill_date_formatted}
                                   </td>
                                   <td className="fw-bold">{item.room_number}</td>
-                                  <td>{idx + 1}</td>
+                                  <td>{item.bill_no || idx + 1}</td>
                                   <td>{item.isPostCharge ? '-' : item.day_number}</td>
                                   <td>
                                     {item.isPostCharge ? (
@@ -2391,4 +2498,4 @@ const RoomDetailSummary = () => {
   )
 }
 
-export default RoomDetailSummary 
+export default RoomDetailSummary
