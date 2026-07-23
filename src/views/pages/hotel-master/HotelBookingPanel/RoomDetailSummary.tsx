@@ -24,6 +24,7 @@ interface DisplayDetailRow {
   checkin_id: number
   guest_id: number
   detail_id?: number
+  folio_id?: number
   
   room_id: number
   room_number: string
@@ -826,11 +827,11 @@ const applyBillWise = async () => {
 
   try {
     const assignments = updatedRows
-  .filter(row => row.isPostCharge)
-  .map(row => ({
-    folio_id: row.folio_id,    // ✅ Correct
-    bill_no: row.bill_no,
-  }));
+      .filter(row => row.isPostCharge)
+      .map(row => ({
+        folio_id: row.detail_id!,
+        bill_no: row.bill_no,
+      }));
 
     if (assignments.length === 0) {
       toast.error('No post charges to update');
@@ -1069,107 +1070,155 @@ const applyBillWise = async () => {
     setShowCheckoutModal(true)
   }
 
-  const handleConfirmCheckout = async () => {
-    if (!combinedSummary) return
-    
-    setCheckoutProcessing(true)
-    
-    try {
-      const finalTotalAmount = grandTotal || combinedSummary.total_amount
-      
-      let invoiceNo = ''
+ const handleConfirmCheckout = async () => {
+  if (!combinedSummary) return;
+
+  setCheckoutProcessing(true);
+
+  try {
+    // 1. Get all rows for selected rooms
+    const selectedRows = displayRows.filter(row => selectedRooms.has(row.room_number));
+
+    // 2. Group by bill_no (default to 1 if not set)
+    const groups = new Map<number, DisplayDetailRow[]>();
+    selectedRows.forEach(row => {
+      const bn = row.bill_no || 1;
+      if (!groups.has(bn)) groups.set(bn, []);
+      groups.get(bn)!.push(row);
+    });
+
+    const billNumbers = Array.from(groups.keys()).sort((a, b) => a - b);
+    if (billNumbers.length === 0) {
+      toast.error('No charges to checkout');
+      setCheckoutProcessing(false);
+      return;
+    }
+
+    // 3. Prepare common data
+    const selectedRoomIds = Array.from(selectedRooms)
+      .map(roomNo => {
+        const row = displayRows.find(r => r.room_number === roomNo);
+        return row?.room_id;
+      })
+      .filter((id): id is number => id !== null && id !== undefined);
+
+    const roomIdsCommaString = selectedRoomIds.join(',');
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const currentDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    const totalNights = filteredSummary?.total_days || 1;
+
+    const paymentMethod = selectedPaymentModeName ||
+                         combinedSummary.payment_method ||
+                         'Cash';
+
+    console.log('💳 Payment method:', paymentMethod);
+    console.log('💳 Payment ID:', selectedPaymentModeId);
+
+    let allCheckoutIds: number[] = [];
+    let allLdgBillNos: string[] = [];
+    let firstCheckoutId: number | null = null;
+    let firstLdgBillNo: string | null = null;
+
+    // 4. Loop over each bill number
+    for (let i = 0; i < billNumbers.length; i++) {
+      const billNo = billNumbers[i];
+      const isLast = (i === billNumbers.length - 1);
+
+      // Compute total for this bill
+      const rowsForBill = groups.get(billNo) || [];
+      const billTotal = rowsForBill.reduce((sum, row) => sum + row.total_amount, 0);
+
+      // Optionally fetch a new invoice number for each bill
+      let invoiceNo = '';
       try {
-        const invoiceRes = await CheckoutService.getNextInvoiceNo()
+        const invoiceRes = await CheckoutService.getNextInvoiceNo();
         if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
-          invoiceNo = invoiceRes.data.ldg_bill_no
-          console.log('📄 Fetched invoice number:', invoiceNo)
+          invoiceNo = invoiceRes.data.ldg_bill_no;
         }
-      } catch (invoiceErr) {
-        console.warn('⚠️ Could not fetch invoice number; server will auto-assign one', invoiceErr)
-      }
+      } catch (e) { /* ignore */ }
 
-      const selectedRoomIds = Array.from(selectedRooms)
-        .map(roomNo => {
-          const row = displayRows.find(r => r.room_number === roomNo)
-          return row?.room_id
-        })
-        .filter((id): id is number => id !== null && id !== undefined)
-
-      const roomIdsCommaString = selectedRoomIds.join(',')
-
-      const now = new Date()
-      const year = now.getFullYear()
-      const month = String(now.getMonth() + 1).padStart(2, '0')
-      const day = String(now.getDate()).padStart(2, '0')
-      const hours = String(now.getHours()).padStart(2, '0')
-      const minutes = String(now.getMinutes()).padStart(2, '0')
-      const seconds = String(now.getSeconds()).padStart(2, '0')
-      const currentDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-      const totalNights = filteredSummary?.total_days || 1;
-      
-      console.log('🕐 Current checkout datetime (MySQL format):', currentDateTime)
-
-      const paymentMethod = selectedPaymentModeName || 
-                         combinedSummary.payment_method || 
-                         'Cash'
-      
-      console.log('💳 ===== CHECKOUT PAYMENT DETAILS =====')
-      console.log('💳 selectedPaymentModeName:', selectedPaymentModeName)
-      console.log('💳 combinedSummary.payment_method:', combinedSummary.payment_method)
-      console.log('💳 Final paymentMethod:', paymentMethod)
-      console.log('💳 selectedPaymentModeId:', selectedPaymentModeId)
-
-      const checkoutPayload = {
+      const payload = {
         checkin_id: combinedSummary.checkin_id,
         checkout_reason: checkoutReason || 'Regular checkout',
         payment_id: selectedPaymentModeId ?? undefined,
         payment_mode: paymentMethod,
         payment_method: paymentMethod,
-        total_amount: finalTotalAmount,
+        total_amount: billTotal,
         room_id: roomIdsCommaString,
         round_off_amount: 0,
-        net_payable: finalTotalAmount,
+        net_payable: billTotal,
         selected_rooms: Array.from(selectedRooms),
         invoiceNoFromBody: invoiceNo,
         is_settle: 0,
         is_print: 1,
         checkout_datetime: currentDateTime,
         total_nights: totalNights,
+        // ✅ Multi‑bill parameters
+        bill_no: billNo,
+        is_last_bill: isLast ? 1 : 0,
+      };
+
+      console.log(`📤 Processing bill ${billNo} (${isLast ? 'last' : 'intermediate'})`, payload);
+
+      const response = await CheckoutService.performCheckout(payload);
+      if (!response.success) {
+        throw new Error(response.message || `Checkout failed for bill ${billNo}`);
       }
 
-      console.log('📤 Sending checkout payload:', JSON.stringify(checkoutPayload, null, 2))
-
-      const response = await CheckoutService.performCheckout(checkoutPayload)
-
-      if (response.success) {
-        if (response.data?.checkout_id) {
-          setCheckoutId(response.data.checkout_id)
-        }
-        if (response.data?.ldg_bill_no) {
-          setGeneratedBillNumber(response.data.ldg_bill_no)
-        } else if (invoiceNo) {
-          setGeneratedBillNumber(invoiceNo)
-        }
-
-        const roomIdsCommaFromResponse = response.data?.checked_out_room_ids_comma ||
-          (response.data?.checked_out_room_ids || []).join(', ')
-
-        toast.success(`✅ Checkout completed for room ID(s): ${roomIdsCommaFromResponse}`)
-
-        setShowCheckoutModal(false)
-        setCheckoutReason('')
-        setCheckoutDone(true)
-        setShowBillModal(true)
-      } else {
-        toast.error(response.message || '❌ Checkout failed')
+      // Collect results
+      if (response.data?.checkout_id) {
+        allCheckoutIds.push(response.data.checkout_id);
+        if (!firstCheckoutId) firstCheckoutId = response.data.checkout_id;
       }
-    } catch (error: any) {
-      console.error('❌ Checkout failed:', error)
-      toast.error(error.response?.data?.message || 'Failed to process checkout')
-    } finally {
-      setCheckoutProcessing(false)
+      if (response.data?.ldg_bill_no) {
+        allLdgBillNos.push(response.data.ldg_bill_no);
+        if (!firstLdgBillNo) firstLdgBillNo = response.data.ldg_bill_no;
+      } else if (invoiceNo) {
+        allLdgBillNos.push(invoiceNo);
+        if (!firstLdgBillNo) firstLdgBillNo = invoiceNo;
+      }
     }
+
+    // 5. All bills processed successfully
+    const billNumbersStr = allLdgBillNos.join(', ');
+    toast.success(`✅ Checkout completed! Bills: ${billNumbersStr}`);
+
+    setShowCheckoutModal(false);
+    setCheckoutReason('');
+    setCheckoutDone(true);
+
+    // Store the first checkout ID and bill number for the modal
+    if (firstCheckoutId) {
+      setCheckoutId(firstCheckoutId);
+      setGeneratedBillNumber(firstLdgBillNo || allLdgBillNos[0] || '');
+      setShowBillModal(true);
+    } else {
+      // If no checkout ID, just navigate
+      setCheckoutDone(false);
+      navigate('/hotel-master/HotelBookingPanel', {
+        state: {
+          checkoutSuccess: true,
+          checkedOutRooms: Array.from(selectedRooms),
+          checkin_id: combinedSummary.checkin_id,
+          billNumbers: allLdgBillNos,
+        },
+      });
+    }
+
+  } catch (error: any) {
+    console.error('❌ Checkout failed:', error);
+    toast.error(error.message || 'Failed to process checkout');
+  } finally {
+    setCheckoutProcessing(false);
   }
+};
 
   const handleCancelCheckout = () => {
     setShowCheckoutModal(false)

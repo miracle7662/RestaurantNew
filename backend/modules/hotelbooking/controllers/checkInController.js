@@ -1113,7 +1113,7 @@ exports.updatePartialCheckin = async (req, res) => {
 };
 
 exports.updateBillNo = async (req, res) => {
-  const connection = await pool.getConnection();
+  const connection = await db.getConnection();
 
   try {
     const { billAssignments } = req.body;
