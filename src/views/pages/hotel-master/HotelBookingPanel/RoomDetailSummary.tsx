@@ -268,11 +268,11 @@ const RoomDetailSummary = () => {
   const [checkoutDone, setCheckoutDone] = useState(false)
   const [showBillModal, setShowBillModal] = useState(false)
 
-  const [generatedBillNumber, setGeneratedBillNumber] = useState<string>('')
+  const [, setGeneratedBillNumber] = useState<string>('')
   const [paymentTransactionId, setPaymentTransactionId] = useState<string>('')
   const [paymentDate, setPaymentDate] = useState<string>('')
   const [paymentBank, setPaymentBank] = useState<string>('')
-  const [checkoutId, setCheckoutId] = useState<number | null>(null)
+  const [, setCheckoutId] = useState<number | null>(null)
 
   const [allCheckoutIds, setAllCheckoutIds] = useState<number[]>([])
 const [allLdgBillNos, setAllLdgBillNos] = useState<string[]>([])
@@ -857,12 +857,12 @@ const applyBillWise = async () => {
 
   // ==================== HANDLER FUNCTIONS ====================
 
-  const handleGuestSummarySelect = (isChecked: boolean) => {
-    if (combinedSummary) {
-      setCombinedSummary({ ...combinedSummary, selected: isChecked })
-      setDisplayRows((prev) => prev.map((row) => ({ ...row, selected: isChecked })))
-    }
-  }
+  // const handleGuestSummarySelect = (isChecked: boolean) => {
+  //   if (combinedSummary) {
+  //     setCombinedSummary({ ...combinedSummary, selected: isChecked })
+  //     setDisplayRows((prev) => prev.map((row) => ({ ...row, selected: isChecked })))
+  //   }
+  // }
 
   const handleRoomSelectionToggle = (roomNumber: string) => {
     if (uniqueRooms.length === 1) {
