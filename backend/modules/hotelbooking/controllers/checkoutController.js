@@ -425,7 +425,7 @@ exports.performCheckout = async (req, res) => {
       is_settle || 0,
       is_print || 1,
       userId,
-      checkout_datetime || null,
+      formatDateTime(checkout_datetime),
       is_undo,
       undo_room_ids ? JSON.stringify(undo_room_ids) : null,
       total_nights,
