@@ -16,9 +16,34 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_perform_checkout`(
     IN p_is_undo TINYINT,
     IN p_undo_room_ids JSON,
     IN p_total_nights INT,
-    IN p_checkout_detail_rows JSON,
-    IN p_checkout_folio_rows JSON,
-    IN p_checkout_master_totals JSON
+    -- New parameters for frontend data
+    IN p_room_tariff_sum DECIMAL(10,2),
+    IN p_ex_pax_charge DECIMAL(10,2),
+    IN p_child_paid_amount DECIMAL(10,2),
+    IN p_driver_charge DECIMAL(10,2),
+    IN p_discount_amount DECIMAL(10,2),
+    IN p_cgst_amount DECIMAL(10,2),
+    IN p_sgst_amount DECIMAL(10,2),
+    IN p_igst_amount DECIMAL(10,2),
+    IN p_ex_cgst_amount DECIMAL(10,2),
+    IN p_ex_sgst_amount DECIMAL(10,2),
+    IN p_ex_igst_amount DECIMAL(10,2),
+    IN p_child_cgst_amount DECIMAL(10,2),
+    IN p_child_sgst_amount DECIMAL(10,2),
+    IN p_child_igst_amount DECIMAL(10,2),
+    IN p_driver_cgst_amount DECIMAL(10,2),
+    IN p_driver_sgst_amount DECIMAL(10,2),
+    IN p_driver_igst_amount DECIMAL(10,2),
+    IN p_cess_amount DECIMAL(10,2),
+    IN p_service_charge_amount DECIMAL(10,2),
+    IN p_advance_amt DECIMAL(10,2),
+    IN p_guest_id INT,
+    IN p_guest_name VARCHAR(255),
+    IN p_address VARCHAR(500),
+    IN p_mobile VARCHAR(20),
+    IN p_company_id INT,
+    IN p_company_name VARCHAR(255),
+    IN p_room_details JSON   -- Room wise details with all data
 )
 sp_perform_checkout: BEGIN
     DECLARE v_now DATETIME;
@@ -30,10 +55,12 @@ sp_perform_checkout: BEGIN
     DECLARE v_guest_id INT;
 
     DECLARE v_selected_rooms_str VARCHAR(2000) DEFAULT '';
+    DECLARE v_selected_room_ids VARCHAR(2000) DEFAULT '';
     DECLARE v_selected_room_ids_all VARCHAR(2000) DEFAULT '';
     DECLARE v_active_room_ids VARCHAR(2000) DEFAULT '';
     DECLARE v_active_room_count INT DEFAULT 0;
     DECLARE v_all_checked_out_room_ids VARCHAR(2000) DEFAULT '';
+    DECLARE v_all_checked_out_room_numbers VARCHAR(2000) DEFAULT '';
 
     DECLARE v_selected_active_room_ids VARCHAR(2000) DEFAULT '';
     DECLARE v_checked_out_selected_room_ids VARCHAR(2000) DEFAULT '';
@@ -45,10 +72,16 @@ sp_perform_checkout: BEGIN
     DECLARE v_case4_merge_required TINYINT DEFAULT 0;
     DECLARE v_case5_merge_required TINYINT DEFAULT 0;
 
-    -- Totals from frontend
+    -- Use input parameters directly (no SELECT from tables)
     DECLARE v_room_tariff_sum DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_adults INT DEFAULT 0;
+    DECLARE v_pax INT DEFAULT 0;
+    DECLARE v_ex_pax INT DEFAULT 0;
     DECLARE v_ex_pax_charge DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_child_paid INT DEFAULT 0;
+    DECLARE v_child_unpaid INT DEFAULT 0;
     DECLARE v_child_paid_amount DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_driver INT DEFAULT 0;
     DECLARE v_driver_charge DECIMAL(10,2) DEFAULT 0;
     DECLARE v_discount_amount DECIMAL(10,2) DEFAULT 0;
     DECLARE v_cgst_amount DECIMAL(10,2) DEFAULT 0;
@@ -66,7 +99,10 @@ sp_perform_checkout: BEGIN
     DECLARE v_cess_amount DECIMAL(10,2) DEFAULT 0;
     DECLARE v_service_charge_amount DECIMAL(10,2) DEFAULT 0;
     DECLARE v_total_nights INT DEFAULT 0;
+
     DECLARE v_advance_amt DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_post_changes_amt DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_allowances_amt DECIMAL(10,2) DEFAULT 0;
 
     DECLARE v_processed_rooms_json JSON;
     DECLARE v_processed_room_ids_json JSON;
@@ -78,9 +114,14 @@ sp_perform_checkout: BEGIN
     DECLARE v_remaining_active INT DEFAULT 0;
     DECLARE v_checkout_id INT;
 
+    DECLARE v_merge_mode TINYINT DEFAULT 0;
+    DECLARE v_split_mode TINYINT DEFAULT 0;
     DECLARE v_keeper_checkout_id INT DEFAULT 0;
     DECLARE v_source_checkout_id INT DEFAULT 0;
     DECLARE v_new_checkout_id INT DEFAULT 0;
+    DECLARE v_done INT DEFAULT 0;
+    DECLARE v_cur_checkout_id INT;
+    DECLARE v_merge_triggered TINYINT DEFAULT 0;
 
     DECLARE v_existing_checkout_id INT DEFAULT 0;
     DECLARE v_is_re_checkout TINYINT DEFAULT 0;
@@ -90,96 +131,23 @@ sp_perform_checkout: BEGIN
     DECLARE v_checkout_dt DATETIME;
 
     DECLARE v_undo_checkin_id INT DEFAULT 0;
+    DECLARE v_undo_checkout_id INT DEFAULT 0;
     DECLARE v_undo_ldg_bill_no VARCHAR(50) DEFAULT '';
     DECLARE v_undo_room_count INT DEFAULT 0;
     DECLARE v_undo_remaining_rooms INT DEFAULT 0;
     DECLARE v_undo_rooms_str VARCHAR(2000) DEFAULT '';
+    DECLARE v_room_count INT DEFAULT 0;
 
-    -- JSON parsing variables
-    DECLARE v_detail_index INT DEFAULT 0;
-    DECLARE v_detail_count INT DEFAULT 0;
-    DECLARE v_folio_index INT DEFAULT 0;
-    DECLARE v_folio_count INT DEFAULT 0;
-    DECLARE v_detail_json JSON;
-    DECLARE v_folio_json JSON;
-    
-    -- Variables for JSON extraction
-    DECLARE v_room_id INT;
-    DECLARE v_room_number VARCHAR(50);
-    DECLARE v_room_category_id INT;
-    DECLARE v_room_category_name VARCHAR(255);
-    DECLARE v_converted_category_id INT;
-    DECLARE v_converted_category_name VARCHAR(255);
-    DECLARE v_guest_name VARCHAR(255);
-    DECLARE v_address VARCHAR(500);
-    DECLARE v_mobile VARCHAR(20);
-    DECLARE v_company_id INT;
-    DECLARE v_company_name VARCHAR(255);
-    DECLARE v_emailed TINYINT;
-    DECLARE v_checkin_datetime DATETIME;
-    DECLARE v_no_of_days INT;
-    DECLARE v_adults INT;
-    DECLARE v_pax INT;
-    DECLARE v_ex_pax INT;
-    DECLARE v_child_paid INT;
-    DECLARE v_child_unpaid INT;
-    DECLARE v_driver INT;
-    DECLARE v_room_tariff DECIMAL(10,2);
-    DECLARE v_ex_pax_charge_room DECIMAL(10,2);
-    DECLARE v_child_paid_amount_room DECIMAL(10,2);
-    DECLARE v_driver_charge_room DECIMAL(10,2);
-    DECLARE v_discount_percent DECIMAL(10,2);
-    DECLARE v_discount_amount_room DECIMAL(10,2);
-    DECLARE v_tax_percen_room DECIMAL(10,2);
-    DECLARE v_cgst_percent DECIMAL(10,2);
-    DECLARE v_cgst_amount_room DECIMAL(10,2);
-    DECLARE v_sgst_percent DECIMAL(10,2);
-    DECLARE v_sgst_amount_room DECIMAL(10,2);
-    DECLARE v_igst_percent DECIMAL(10,2);
-    DECLARE v_igst_amount_room DECIMAL(10,2);
-    DECLARE v_tax_percen_ex DECIMAL(10,2);
-    DECLARE v_ex_cgst_percent DECIMAL(10,2);
-    DECLARE v_ex_cgst_amount_room DECIMAL(10,2);
-    DECLARE v_ex_sgst_percent DECIMAL(10,2);
-    DECLARE v_ex_sgst_amount_room DECIMAL(10,2);
-    DECLARE v_ex_igst_percent DECIMAL(10,2);
-    DECLARE v_ex_igst_amount_room DECIMAL(10,2);
-    DECLARE v_tax_percen_child DECIMAL(10,2);
-    DECLARE v_child_cgst_percent DECIMAL(10,2);
-    DECLARE v_child_cgst_amount_room DECIMAL(10,2);
-    DECLARE v_child_sgst_percent DECIMAL(10,2);
-    DECLARE v_child_sgst_amount_room DECIMAL(10,2);
-    DECLARE v_child_igst_percent DECIMAL(10,2);
-    DECLARE v_child_igst_amount_room DECIMAL(10,2);
-    DECLARE v_tax_percen_driver DECIMAL(10,2);
-    DECLARE v_driver_cgst_percent DECIMAL(10,2);
-    DECLARE v_driver_cgst_amount_room DECIMAL(10,2);
-    DECLARE v_driver_sgst_percent DECIMAL(10,2);
-    DECLARE v_driver_sgst_amount_room DECIMAL(10,2);
-    DECLARE v_driver_igst_percent DECIMAL(10,2);
-    DECLARE v_driver_igst_amount_room DECIMAL(10,2);
-    DECLARE v_service_charge DECIMAL(10,2);
-    DECLARE v_service_charge_amount_room DECIMAL(10,2);
-    DECLARE v_cess_percent DECIMAL(10,2);
-    DECLARE v_cess_amount_room DECIMAL(10,2);
-    DECLARE v_parent_detail_id INT;
-    DECLARE v_merged TINYINT;
-    DECLARE v_is_settle_room TINYINT;
-    DECLARE v_tax DECIMAL(10,2);
-    DECLARE v_created_date DATETIME;
-    DECLARE v_created_by_id INT;
-    
-    -- Folio variables
-    DECLARE v_detail_id INT;
-    DECLARE v_transaction_type VARCHAR(50);
-    DECLARE v_transaction_datetime DATETIME;
-    DECLARE v_description VARCHAR(500);
-    DECLARE v_debit_amount DECIMAL(10,2);
-    DECLARE v_credit_amount DECIMAL(10,2);
-    DECLARE v_reference_number VARCHAR(50);
-    DECLARE v_payment_method_folio VARCHAR(50);
+    DECLARE merge_cursor CURSOR FOR
+        SELECT DISTINCT cm.checkout_id
+        FROM Checkout_Master cm
+        INNER JOIN Checkout_Detail cd ON cm.checkout_id = cd.checkout_id
+        WHERE cm.checkin_id = p_checkin_id
+          AND FIND_IN_SET(cd.room_id, v_all_checked_out_room_ids) > 0
+        ORDER BY cm.checkout_id;
 
-    -- Error handler
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = 1;
+
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
@@ -209,9 +177,9 @@ sp_perform_checkout: BEGIN
     SET v_debug_msg = CONCAT('Payment resolved: method=', v_final_payment_method);
 
     -- ============================================================================
-    -- VALIDATE CHECKIN EXISTS
+    -- ✅ FIX: Only validate checkin exists (no data retrieval)
     -- ============================================================================
-    SELECT hotelid, guest_id INTO v_hotel_id, v_guest_id 
+    SELECT hotelid INTO v_hotel_id 
     FROM CheckIn_Master 
     WHERE checkin_id = p_checkin_id;
     
@@ -222,37 +190,35 @@ sp_perform_checkout: BEGIN
     END IF;
 
     -- ============================================================================
-    -- PARSE FRONTEND TOTALS FROM p_checkout_master_totals JSON
+    -- ✅ FIX: Use frontend data directly (no SELECT from checkin_detail_master)
     -- ============================================================================
-    IF p_checkout_master_totals IS NOT NULL AND JSON_TYPE(p_checkout_master_totals) = 'OBJECT' THEN
-        SET v_room_tariff_sum = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.room_tariff_sum')), 0);
-        SET v_ex_pax_charge = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.ex_pax_charge')), 0);
-        SET v_child_paid_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.child_paid_amount')), 0);
-        SET v_driver_charge = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.driver_charge')), 0);
-        SET v_discount_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.discount_amount')), 0);
-        SET v_cgst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.cgst_amount')), 0);
-        SET v_sgst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.sgst_amount')), 0);
-        SET v_igst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.igst_amount')), 0);
-        SET v_ex_cgst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.ex_cgst_amount')), 0);
-        SET v_ex_sgst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.ex_sgst_amount')), 0);
-        SET v_ex_igst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.ex_igst_amount')), 0);
-        SET v_child_cgst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.child_cgst_amount')), 0);
-        SET v_child_sgst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.child_sgst_amount')), 0);
-        SET v_child_igst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.child_igst_amount')), 0);
-        SET v_driver_cgst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.driver_cgst_amount')), 0);
-        SET v_driver_sgst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.driver_sgst_amount')), 0);
-        SET v_driver_igst_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.driver_igst_amount')), 0);
-        SET v_cess_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.cess_amount')), 0);
-        SET v_service_charge_amount = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.service_charge_amount')), 0);
-        SET v_advance_amt = COALESCE(JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.advance_amt')), 0);
-        SET v_total_nights = COALESCE(p_total_nights, JSON_UNQUOTE(JSON_EXTRACT(p_checkout_master_totals, '$.total_nights')), 0);
-        
-        SET v_debug_msg = CONCAT('Totals parsed from frontend: room_tariff_sum=', v_room_tariff_sum, 
-                                 ', total_nights=', v_total_nights);
-    END IF;
+    
+    -- Assign input parameters to local variables
+    SET v_room_tariff_sum = COALESCE(p_room_tariff_sum, 0);
+    SET v_ex_pax_charge = COALESCE(p_ex_pax_charge, 0);
+    SET v_child_paid_amount = COALESCE(p_child_paid_amount, 0);
+    SET v_driver_charge = COALESCE(p_driver_charge, 0);
+    SET v_discount_amount = COALESCE(p_discount_amount, 0);
+    SET v_cgst_amount = COALESCE(p_cgst_amount, 0);
+    SET v_sgst_amount = COALESCE(p_sgst_amount, 0);
+    SET v_igst_amount = COALESCE(p_igst_amount, 0);
+    SET v_ex_cgst_amount = COALESCE(p_ex_cgst_amount, 0);
+    SET v_ex_sgst_amount = COALESCE(p_ex_sgst_amount, 0);
+    SET v_ex_igst_amount = COALESCE(p_ex_igst_amount, 0);
+    SET v_child_cgst_amount = COALESCE(p_child_cgst_amount, 0);
+    SET v_child_sgst_amount = COALESCE(p_child_sgst_amount, 0);
+    SET v_child_igst_amount = COALESCE(p_child_igst_amount, 0);
+    SET v_driver_cgst_amount = COALESCE(p_driver_cgst_amount, 0);
+    SET v_driver_sgst_amount = COALESCE(p_driver_sgst_amount, 0);
+    SET v_driver_igst_amount = COALESCE(p_driver_igst_amount, 0);
+    SET v_cess_amount = COALESCE(p_cess_amount, 0);
+    SET v_service_charge_amount = COALESCE(p_service_charge_amount, 0);
+    SET v_advance_amt = COALESCE(p_advance_amt, 0);
+    SET v_total_nights = COALESCE(p_total_nights, 0);
+    SET v_guest_id = COALESCE(p_guest_id, 0);
 
     -- ============================================================================
-    -- CASE 6: UNDO CHECKOUT FOR SPECIFIC ROOMS
+    -- CASE 6: UNDO CHECKOUT FOR SPECIFIC ROOMS (Full or Partial Undo)
     -- ============================================================================
     IF p_is_undo = 1 AND p_undo_room_ids IS NOT NULL AND JSON_TYPE(p_undo_room_ids) = 'ARRAY' THEN
         
@@ -284,10 +250,14 @@ sp_perform_checkout: BEGIN
             LEAVE sp_perform_checkout;
         END IF;
         
+        SET v_debug_msg = CONCAT('Found checkout: checkout_id=', p_checkin_id, ', checkin_id=', v_undo_checkin_id);
+        
         SELECT COUNT(*) INTO v_undo_room_count
         FROM Checkout_Detail cd
+        INNER JOIN checkin_detail_master cdm ON cd.room_id = cdm.room_id AND cd.checkin_id = cdm.checkin_id
         WHERE cd.checkout_id = p_checkin_id
-          AND FIND_IN_SET(cd.room_id, v_undo_rooms_str) > 0;
+          AND FIND_IN_SET(cd.room_id, v_undo_rooms_str) > 0
+          AND cdm.is_checkout = 1;
         
         IF v_undo_room_count = 0 THEN
             SELECT JSON_OBJECT('success', FALSE, 'message', 'No valid checked-out rooms found to undo') AS result;
@@ -299,6 +269,8 @@ sp_perform_checkout: BEGIN
         FROM Checkout_Detail
         WHERE checkout_id = p_checkin_id
           AND NOT FIND_IN_SET(room_id, v_undo_rooms_str) > 0;
+        
+        SET v_debug_msg = CONCAT('Rooms to undo: ', v_undo_room_count, ', Remaining rooms: ', v_undo_remaining_rooms);
         
         UPDATE checkin_detail_master
         SET is_checkout = 0, updated_by_id = v_user_id, updated_date = v_now
@@ -321,6 +293,7 @@ sp_perform_checkout: BEGIN
         WHERE checkout_id = p_checkin_id 
           AND FIND_IN_SET(room_id, v_undo_rooms_str) > 0;
         
+        -- Full Undo (no rooms remain)
         IF v_undo_remaining_rooms = 0 THEN
             DELETE FROM Checkout_Master WHERE checkout_id = p_checkin_id;
             
@@ -345,7 +318,9 @@ sp_perform_checkout: BEGIN
             ) AS result;
             LEAVE sp_perform_checkout;
             
+        -- Partial Undo (some rooms remain)
         ELSE
+            -- Recalculate remaining totals
             SELECT
                 COALESCE(SUM(room_tariff), 0),
                 COALESCE(SUM(ex_pax_charge), 0),
@@ -391,6 +366,10 @@ sp_perform_checkout: BEGIN
             FROM Checkout_Detail
             WHERE checkout_id = p_checkin_id;
 
+            IF p_total_nights IS NOT NULL THEN
+                SET v_total_nights = p_total_nights;
+            END IF;
+            
             SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
             INTO v_processed_rooms_json
             FROM (SELECT DISTINCT room_number FROM Checkout_Detail WHERE checkout_id = p_checkin_id) d;
@@ -466,12 +445,9 @@ sp_perform_checkout: BEGIN
         END IF;
     END IF;
 
-    -- ============================================================================
-    -- PARSE SELECTED ROOMS
-    -- ============================================================================
+    -- 2. Parse selected rooms JSON
     IF p_selected_rooms IS NOT NULL AND JSON_TYPE(p_selected_rooms) = 'ARRAY' THEN
         SET v_i = 0;
-        SET v_selected_rooms_str = '';
         WHILE v_i < JSON_LENGTH(p_selected_rooms) DO
             SET v_room_value = JSON_UNQUOTE(JSON_EXTRACT(p_selected_rooms, CONCAT('$[', v_i, ']')));
             IF v_selected_rooms_str = '' THEN
@@ -483,9 +459,7 @@ sp_perform_checkout: BEGIN
         END WHILE;
     END IF;
 
-    -- ============================================================================
-    -- GET ROOM IDS FOR SELECTED ROOMS
-    -- ============================================================================
+    -- 3. Get room IDs for all selected rooms (only need room_ids)
     IF v_selected_rooms_str != '' THEN
         SELECT GROUP_CONCAT(DISTINCT room_id)
         INTO v_selected_room_ids_all
@@ -500,9 +474,7 @@ sp_perform_checkout: BEGIN
         LEAVE sp_perform_checkout;
     END IF;
 
-    -- ============================================================================
-    -- GET COUNTS FOR CASE DETECTION
-    -- ============================================================================
+    -- 4. Get counts for Case 4 & 5 detection
     SELECT COUNT(*) INTO v_total_rooms_in_checkin
     FROM checkin_detail_master
     WHERE checkin_id = p_checkin_id;
@@ -516,6 +488,7 @@ sp_perform_checkout: BEGIN
     FROM Checkout_Master
     WHERE checkin_id = p_checkin_id;
 
+    -- 5. Get active and checked-out rooms from selection
     SELECT GROUP_CONCAT(DISTINCT room_id)
     INTO v_selected_active_room_ids
     FROM checkin_detail_master
@@ -530,12 +503,13 @@ sp_perform_checkout: BEGIN
       AND is_checkout = 1
       AND FIND_IN_SET(room_id, v_selected_room_ids_all) > 0;
 
+    -- 6. Get active room count
     SELECT COUNT(*) INTO v_active_room_count
     FROM checkin_detail_master
     WHERE checkin_id = p_checkin_id AND is_checkout = 0;
 
     -- ============================================================================
-    -- CASE 4: Merge Before Checkout
+    -- CASE 4: Merge Before Checkout (active rooms exist + multiple masters + all rooms selected)
     -- ============================================================================
     IF v_active_room_count > 0 
        AND v_checkout_master_count > 1 
@@ -543,7 +517,9 @@ sp_perform_checkout: BEGIN
         
         SET v_case4_merge_required = 1;
         SET v_debug_msg = CONCAT('Case 4 detected: Active Rooms=', v_active_room_count, 
-                                 ', Checkout Masters=', v_checkout_master_count);
+                                 ', Checkout Masters=', v_checkout_master_count,
+                                 ', Selected Rooms=', v_selected_rooms_count,
+                                 ', Total Rooms=', v_total_rooms_in_checkin);
         
         IF v_selected_active_room_ids IS NOT NULL AND v_selected_active_room_ids != '' THEN
             SET v_active_room_ids = v_selected_active_room_ids;
@@ -570,197 +546,84 @@ sp_perform_checkout: BEGIN
             SET v_debug_msg = CONCAT('Case 4 - Keeper: ', v_keeper_checkout_id, 
                                      ', Sources: ', IFNULL(@other_checkout_ids, 'None'));
             
-            -- Insert checkout detail rows from frontend JSON
-            IF p_checkout_detail_rows IS NOT NULL AND JSON_TYPE(p_checkout_detail_rows) = 'ARRAY' THEN
-                SET v_detail_count = JSON_LENGTH(p_checkout_detail_rows);
-                SET v_detail_index = 0;
-                
-                WHILE v_detail_index < v_detail_count DO
-                    SET v_detail_json = JSON_EXTRACT(p_checkout_detail_rows, CONCAT('$[', v_detail_index, ']'));
-                    
-                    SET v_room_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.room_id'));
-                    SET v_room_number = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.room_number'));
-                    SET v_room_category_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.room_category_id'));
-                    SET v_room_category_name = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.room_category_name'));
-                    SET v_converted_category_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.converted_category_id'));
-                    SET v_converted_category_name = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.converted_category_name'));
-                    SET v_guest_name = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.guest_name'));
-                    SET v_address = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.address'));
-                    SET v_mobile = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.mobile'));
-                    SET v_company_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.company_id'));
-                    SET v_company_name = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.company_name'));
-                    SET v_emailed = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.emailed'));
-                    SET v_checkin_datetime = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.checkin_datetime'));
-                    SET v_no_of_days = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.no_of_days'));
-                    SET v_adults = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.adults'));
-                    SET v_pax = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.pax'));
-                    SET v_ex_pax = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_pax'));
-                    SET v_child_paid = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_paid'));
-                    SET v_child_unpaid = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_unpaid'));
-                    SET v_driver = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver'));
-                    SET v_room_tariff = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.room_tariff'));
-                    SET v_ex_pax_charge_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_pax_charge'));
-                    SET v_child_paid_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_paid_amount'));
-                    SET v_driver_charge_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_charge'));
-                    SET v_discount_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.discount_percent'));
-                    SET v_discount_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.discount_amount'));
-                    SET v_tax_percen_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.tax_percen_room'));
-                    SET v_cgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.cgst_percent'));
-                    SET v_cgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.cgst_amount'));
-                    SET v_sgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.sgst_percent'));
-                    SET v_sgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.sgst_amount'));
-                    SET v_igst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.igst_percent'));
-                    SET v_igst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.igst_amount'));
-                    SET v_tax_percen_ex = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.tax_percen_ex'));
-                    SET v_ex_cgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_cgst_percent'));
-                    SET v_ex_cgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_cgst_amount'));
-                    SET v_ex_sgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_sgst_percent'));
-                    SET v_ex_sgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_sgst_amount'));
-                    SET v_ex_igst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_igst_percent'));
-                    SET v_ex_igst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_igst_amount'));
-                    SET v_tax_percen_child = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.tax_percen_child'));
-                    SET v_child_cgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_cgst_percent'));
-                    SET v_child_cgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_cgst_amount'));
-                    SET v_child_sgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_sgst_percent'));
-                    SET v_child_sgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_sgst_amount'));
-                    SET v_child_igst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_igst_percent'));
-                    SET v_child_igst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_igst_amount'));
-                    SET v_tax_percen_driver = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.tax_percen_driver'));
-                    SET v_driver_cgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_cgst_percent'));
-                    SET v_driver_cgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_cgst_amount'));
-                    SET v_driver_sgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_sgst_percent'));
-                    SET v_driver_sgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_sgst_amount'));
-                    SET v_driver_igst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_igst_percent'));
-                    SET v_driver_igst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_igst_amount'));
-                    SET v_service_charge = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.service_charge'));
-                    SET v_service_charge_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.service_charge_amount'));
-                    SET v_cess_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.cess_percent'));
-                    SET v_cess_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.cess_amount'));
-                    SET v_parent_detail_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.parent_detail_id'));
-                    SET v_merged = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.merged'));
-                    SET v_is_settle_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.is_settle'));
-                    SET v_tax = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.tax'));
-                    SET v_created_date = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.created_date'));
-                    SET v_created_by_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.created_by_id'));
-                    
-                    INSERT INTO Checkout_Detail (
-                        checkin_id, checkout_id, hotelid, room_id, room_number,
-                        room_category_id, room_category_name,
-                        converted_category_id, converted_category_name,
-                        guest_id, guest_name, address, mobile,
-                        company_id, company_name, emailed,
-                        checkin_datetime, checkout_datetime, no_of_days,
-                        adults, pax, ex_pax,
-                        child_paid, child_unpaid, driver,
-                        room_tariff,
-                        ex_pax_charge, child_paid_amount, driver_charge,
-                        discount_percent, discount_amount,
-                        tax_percen_room,
-                        cgst_percent, cgst_amount,
-                        sgst_percent, sgst_amount,
-                        igst_percent, igst_amount,
-                        tax_percen_ex,
-                        ex_cgst_percent, ex_cgst_amount,
-                        ex_sgst_percent, ex_sgst_amount,
-                        ex_igst_percent, ex_igst_amount,
-                        tax_percen_child,
-                        child_cgst_percent, child_cgst_amount,
-                        child_sgst_percent, child_sgst_amount,
-                        child_igst_percent, child_igst_amount,
-                        tax_percen_driver,
-                        driver_cgst_percent, driver_cgst_amount,
-                        driver_sgst_percent, driver_sgst_amount,
-                        driver_igst_percent, driver_igst_amount,
-                        service_charge, service_charge_amount,
-                        cess_percent, cess_amount,
-                        parent_detail_id,
-                        is_checkout,
-                        merged,
-                        is_settle,
-                        tax,
-                        created_date, updated_date,
-                        created_by_id, updated_by_id
-                    )
-                    VALUES (
-                        p_checkin_id,
-                        v_keeper_checkout_id,
-                        v_hotel_id,
-                        v_room_id,
-                        v_room_number,
-                        v_room_category_id,
-                        v_room_category_name,
-                        v_converted_category_id,
-                        v_converted_category_name,
-                        v_guest_id,
-                        v_guest_name,
-                        v_address,
-                        v_mobile,
-                        v_company_id,
-                        v_company_name,
-                        v_emailed,
-                        v_checkin_datetime,
-                        v_checkout_dt,
-                        v_no_of_days,
-                        v_adults,
-                        v_pax,
-                        v_ex_pax,
-                        v_child_paid,
-                        v_child_unpaid,
-                        v_driver,
-                        v_room_tariff,
-                        v_ex_pax_charge_room,
-                        v_child_paid_amount_room,
-                        v_driver_charge_room,
-                        v_discount_percent,
-                        v_discount_amount_room,
-                        v_tax_percen_room,
-                        v_cgst_percent,
-                        v_cgst_amount_room,
-                        v_sgst_percent,
-                        v_sgst_amount_room,
-                        v_igst_percent,
-                        v_igst_amount_room,
-                        v_tax_percen_ex,
-                        v_ex_cgst_percent,
-                        v_ex_cgst_amount_room,
-                        v_ex_sgst_percent,
-                        v_ex_sgst_amount_room,
-                        v_ex_igst_percent,
-                        v_ex_igst_amount_room,
-                        v_tax_percen_child,
-                        v_child_cgst_percent,
-                        v_child_cgst_amount_room,
-                        v_child_sgst_percent,
-                        v_child_sgst_amount_room,
-                        v_child_igst_percent,
-                        v_child_igst_amount_room,
-                        v_tax_percen_driver,
-                        v_driver_cgst_percent,
-                        v_driver_cgst_amount_room,
-                        v_driver_sgst_percent,
-                        v_driver_sgst_amount_room,
-                        v_driver_igst_percent,
-                        v_driver_igst_amount_room,
-                        v_service_charge,
-                        v_service_charge_amount_room,
-                        v_cess_percent,
-                        v_cess_amount_room,
-                        v_parent_detail_id,
-                        1,
-                        v_merged,
-                        v_is_settle_room,
-                        v_tax,
-                        v_created_date,
-                        v_now,
-                        v_created_by_id,
-                        v_user_id
-                    );
-                    
-                    SET v_detail_index = v_detail_index + 1;
-                END WHILE;
-            END IF;
+            -- Insert newly checked out rooms using frontend data
+            INSERT INTO Checkout_Detail (
+                checkin_id, checkout_id, hotelid, room_id, room_number,
+                room_category_id, room_category_name,
+                converted_category_id, converted_category_name,
+                guest_id, guest_name, address, mobile,
+                company_id, company_name, emailed,
+                checkin_datetime, checkout_datetime, no_of_days,
+                adults, pax, ex_pax,
+                child_paid, child_unpaid, driver,
+                room_tariff,
+                ex_pax_charge, child_paid_amount, driver_charge,
+                discount_percent, discount_amount,
+                tax_percen_room,
+                cgst_percent, cgst_amount,
+                sgst_percent, sgst_amount,
+                igst_percent, igst_amount,
+                tax_percen_ex,
+                ex_cgst_percent, ex_cgst_amount,
+                ex_sgst_percent, ex_sgst_amount,
+                ex_igst_percent, ex_igst_amount,
+                tax_percen_child,
+                child_cgst_percent, child_cgst_amount,
+                child_sgst_percent, child_sgst_amount,
+                child_igst_percent, child_igst_amount,
+                tax_percen_driver,
+                driver_cgst_percent, driver_cgst_amount,
+                driver_sgst_percent, driver_sgst_amount,
+                driver_igst_percent, driver_igst_amount,
+                service_charge, service_charge_amount,
+                cess_percent, cess_amount,
+                parent_detail_id,
+                is_checkout,
+                merged,
+                is_settle,
+                tax,
+                created_date, updated_date,
+                created_by_id, updated_by_id
+            )
+            SELECT
+                p_checkin_id, v_keeper_checkout_id, v_hotel_id, 
+                cdm.room_id, cdm.room_number,
+                cdm.room_category_id, cdm.room_category_name,
+                cdm.converted_category_id, cdm.converted_category_name,
+                v_guest_id, p_guest_name, p_address, p_mobile,
+                p_company_id, p_company_name, cdm.emailed,
+                cdm.checkin_datetime, v_checkout_dt, v_total_nights,
+                cdm.adults, cdm.pax, cdm.ex_pax,
+                cdm.child_paid, cdm.child_unpaid, cdm.driver,
+                cdm.room_tariff,
+                cdm.ex_pax_charge, cdm.child_paid_amount, cdm.driver_charge,
+                cdm.discount_percent, v_discount_amount,
+                cdm.tax_percen_room,
+                cdm.cgst_percent, v_cgst_amount,
+                cdm.sgst_percent, v_sgst_amount,
+                cdm.igst_percent, v_igst_amount,
+                cdm.tax_percen_ex,
+                cdm.ex_cgst_percent, v_ex_cgst_amount,
+                cdm.ex_sgst_percent, v_ex_sgst_amount,
+                cdm.ex_igst_percent, v_ex_igst_amount,
+                cdm.tax_percen_child,
+                cdm.child_cgst_percent, v_child_cgst_amount,
+                cdm.child_sgst_percent, v_child_sgst_amount,
+                cdm.child_igst_percent, v_child_igst_amount,
+                cdm.tax_percen_driver,
+                cdm.driver_cgst_percent, v_driver_cgst_amount,
+                cdm.driver_sgst_percent, v_driver_sgst_amount,
+                cdm.driver_igst_percent, v_driver_igst_amount,
+                cdm.service_charge, v_service_charge_amount,
+                cdm.cess_percent, v_cess_amount,
+                cdm.parent_detail_id,
+                1, cdm.merged, cdm.is_settle, cdm.tax,
+                cdm.created_date, v_now, cdm.created_by_id, v_user_id
+            FROM checkin_detail_master cdm
+            WHERE cdm.checkin_id = p_checkin_id
+              AND FIND_IN_SET(cdm.room_id, v_active_room_ids) > 0;
             
-            -- Move data from other checkouts to keeper
+            -- Move data from other checkouts
             IF @other_checkout_ids IS NOT NULL AND @other_checkout_ids != '' THEN
                 
                 INSERT INTO Checkout_Detail (
@@ -882,59 +745,42 @@ sp_perform_checkout: BEGIN
                 DEALLOCATE PREPARE stmt;
             END IF;
             
-            -- Insert folio rows from frontend JSON
+            -- Rebuild folio records using frontend data
             DELETE FROM Checkout_Folio_Master WHERE checkout_id = v_keeper_checkout_id;
             
-            IF p_checkout_folio_rows IS NOT NULL AND JSON_TYPE(p_checkout_folio_rows) = 'ARRAY' THEN
-                SET v_folio_count = JSON_LENGTH(p_checkout_folio_rows);
-                SET v_folio_index = 0;
-                
-                WHILE v_folio_index < v_folio_count DO
-                    SET v_folio_json = JSON_EXTRACT(p_checkout_folio_rows, CONCAT('$[', v_folio_index, ']'));
-                    
-                    SET v_detail_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.detail_id'));
-                    SET v_room_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.room_id'));
-                    SET v_transaction_type = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.transaction_type'));
-                    SET v_transaction_datetime = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.transaction_datetime'));
-                    SET v_description = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.description'));
-                    SET v_debit_amount = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.debit_amount'));
-                    SET v_credit_amount = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.credit_amount'));
-                    SET v_reference_number = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.reference_number'));
-                    SET v_payment_method_folio = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.payment_method'));
-                    SET v_created_by_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.created_by_id'));
-                    SET v_created_date = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.created_date'));
-                    
-                    INSERT INTO Checkout_Folio_Master (
-                        checkin_id, checkout_id, hotel_id, detail_id, room_id,
-                        transaction_type, transaction_datetime,
-                        description, debit_amount, credit_amount,
-                        reference_number, payment_method,
-                        created_by_id, created_date, updated_by_id, updated_date
-                    )
-                    VALUES (
-                        p_checkin_id,
-                        v_keeper_checkout_id,
-                        v_hotel_id,
-                        v_detail_id,
-                        v_room_id,
-                        v_transaction_type,
-                        v_transaction_datetime,
-                        v_description,
-                        v_debit_amount,
-                        v_credit_amount,
-                        v_reference_number,
-                        COALESCE(v_final_payment_method, v_payment_method_folio, 'Cash'),
-                        v_created_by_id,
-                        v_created_date,
-                        v_user_id,
-                        v_now
-                    );
-                    
-                    SET v_folio_index = v_folio_index + 1;
-                END WHILE;
-            END IF;
+            -- Insert folio records from frontend data (p_folio_data parameter needed)
+            -- OR use existing folio data from checkin_guest_folio_master
+            INSERT INTO Checkout_Folio_Master (
+                checkin_id, checkout_id, hotel_id, detail_id, room_id,
+                transaction_type, transaction_datetime,
+                description, debit_amount, credit_amount,
+                reference_number, payment_method,
+                created_by_id, created_date, updated_by_id, updated_date
+            )
+            SELECT
+                cgfm.checkin_id,
+                v_keeper_checkout_id,
+                cgfm.hotel_id,
+                cgfm.detail_id,
+                cgfm.room_id,
+                cgfm.transaction_type,
+                cgfm.transaction_datetime,
+                cgfm.description,
+                cgfm.debit_amount,
+                cgfm.credit_amount,
+                cgfm.reference_number,
+                COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
+                cgfm.created_by_id,
+                cgfm.created_date,
+                v_user_id,
+                v_now
+            FROM checkin_guest_folio_master cgfm
+            WHERE cgfm.checkin_id = p_checkin_id
+              AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0);
             
-            -- Get processed rooms
+            -- Use frontend totals (already set from input parameters)
+            -- v_room_tariff_sum, v_ex_pax_charge, etc. are already set
+            
             SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
             INTO v_processed_rooms_json
             FROM (SELECT DISTINCT room_number FROM Checkout_Detail WHERE checkout_id = v_keeper_checkout_id) d;
@@ -1021,7 +867,7 @@ sp_perform_checkout: BEGIN
     END IF;
 
     -- ============================================================================
-    -- CASE 5: Merge After Full Checkout
+    -- CASE 5: Merge After Full Checkout (no active rooms + multiple masters + all rooms selected)
     -- ============================================================================
     IF v_active_room_count = 0 
        AND v_checkout_master_count > 1 
@@ -1043,7 +889,10 @@ sp_perform_checkout: BEGIN
         WHERE checkin_id = p_checkin_id
           AND checkout_id != v_keeper_checkout_id;
         
-        -- Merge other checkouts into keeper
+        SET v_debug_msg = CONCAT('Case 5 - Keeper: ', v_keeper_checkout_id, 
+                                 ', Sources: ', IFNULL(@other_checkout_ids, 'None'));
+        
+        -- Move data from other checkouts
         IF @other_checkout_ids IS NOT NULL AND @other_checkout_ids != '' THEN
             
             INSERT INTO Checkout_Detail (
@@ -1165,59 +1014,37 @@ sp_perform_checkout: BEGIN
             DEALLOCATE PREPARE stmt;
         END IF;
         
-        -- Insert folio rows from frontend
+        -- Rebuild folio records
         DELETE FROM Checkout_Folio_Master WHERE checkout_id = v_keeper_checkout_id;
         
-        IF p_checkout_folio_rows IS NOT NULL AND JSON_TYPE(p_checkout_folio_rows) = 'ARRAY' THEN
-            SET v_folio_count = JSON_LENGTH(p_checkout_folio_rows);
-            SET v_folio_index = 0;
-            
-            WHILE v_folio_index < v_folio_count DO
-                SET v_folio_json = JSON_EXTRACT(p_checkout_folio_rows, CONCAT('$[', v_folio_index, ']'));
-                
-                SET v_detail_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.detail_id'));
-                SET v_room_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.room_id'));
-                SET v_transaction_type = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.transaction_type'));
-                SET v_transaction_datetime = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.transaction_datetime'));
-                SET v_description = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.description'));
-                SET v_debit_amount = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.debit_amount'));
-                SET v_credit_amount = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.credit_amount'));
-                SET v_reference_number = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.reference_number'));
-                SET v_payment_method_folio = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.payment_method'));
-                SET v_created_by_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.created_by_id'));
-                SET v_created_date = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.created_date'));
-                
-                INSERT INTO Checkout_Folio_Master (
-                    checkin_id, checkout_id, hotel_id, detail_id, room_id,
-                    transaction_type, transaction_datetime,
-                    description, debit_amount, credit_amount,
-                    reference_number, payment_method,
-                    created_by_id, created_date, updated_by_id, updated_date
-                )
-                VALUES (
-                    p_checkin_id,
-                    v_keeper_checkout_id,
-                    v_hotel_id,
-                    v_detail_id,
-                    v_room_id,
-                    v_transaction_type,
-                    v_transaction_datetime,
-                    v_description,
-                    v_debit_amount,
-                    v_credit_amount,
-                    v_reference_number,
-                    COALESCE(v_final_payment_method, v_payment_method_folio, 'Cash'),
-                    v_created_by_id,
-                    v_created_date,
-                    v_user_id,
-                    v_now
-                );
-                
-                SET v_folio_index = v_folio_index + 1;
-            END WHILE;
-        END IF;
+        INSERT INTO Checkout_Folio_Master (
+            checkin_id, checkout_id, hotel_id, detail_id, room_id,
+            transaction_type, transaction_datetime,
+            description, debit_amount, credit_amount,
+            reference_number, payment_method,
+            created_by_id, created_date, updated_by_id, updated_date
+        )
+        SELECT
+            cgfm.checkin_id,
+            v_keeper_checkout_id,
+            cgfm.hotel_id,
+            cgfm.detail_id,
+            cgfm.room_id,
+            cgfm.transaction_type,
+            cgfm.transaction_datetime,
+            cgfm.description,
+            cgfm.debit_amount,
+            cgfm.credit_amount,
+            cgfm.reference_number,
+            COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
+            cgfm.created_by_id,
+            cgfm.created_date,
+            v_user_id,
+            v_now
+        FROM checkin_guest_folio_master cgfm
+        WHERE cgfm.checkin_id = p_checkin_id;
         
-        -- Get processed rooms
+        -- Use frontend totals
         SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
         INTO v_processed_rooms_json
         FROM (SELECT DISTINCT room_number FROM Checkout_Detail WHERE checkout_id = v_keeper_checkout_id) d;
@@ -1308,7 +1135,7 @@ sp_perform_checkout: BEGIN
     WHERE checkin_id = p_checkin_id AND is_checkout = 1;
 
     -- ============================================================================
-    -- CHECK FOR RE-CHECKOUT
+    -- RE-CHECKOUT: Selected room(s) are already checked out, rebuild same bill
     -- ============================================================================
     IF (v_selected_active_room_ids IS NULL OR v_selected_active_room_ids = '') 
        AND (v_checked_out_selected_room_ids IS NOT NULL AND v_checked_out_selected_room_ids != '') THEN
@@ -1350,20 +1177,27 @@ sp_perform_checkout: BEGIN
             SET is_checkout = 0, updated_by_id = v_user_id, updated_date = v_now
             WHERE checkin_id = p_checkin_id
               AND FIND_IN_SET(room_id, v_checked_out_selected_room_ids) > 0;
+            
+            SET v_debug_msg = CONCAT('No existing checkout found. Treating as normal checkout for rooms: ', 
+                                     v_checked_out_selected_room_ids);
         END IF;
         
+    -- ============================================================================
+    -- MIXED MODE: Some selected rooms are active, some already checked out
+    -- ============================================================================
     ELSEIF v_selected_active_room_ids IS NOT NULL AND v_selected_active_room_ids != '' 
            AND v_checked_out_selected_room_ids IS NOT NULL AND v_checked_out_selected_room_ids != '' THEN
         SET v_mixed_mode = 1;
         SET v_active_room_ids = v_selected_active_room_ids;
         
+    -- Normal case: all selected rooms are active (Case 1, 2, 3)
     ELSEIF v_selected_active_room_ids IS NOT NULL AND v_selected_active_room_ids != '' THEN
         SET v_active_room_ids = v_selected_active_room_ids;
         
     ELSE
         SELECT JSON_OBJECT(
             'success', FALSE,
-            'message', 'No active rooms selected.'
+            'message', 'No active rooms selected. Please select rooms that are currently checked in.'
         ) AS result;
         ROLLBACK;
         LEAVE sp_perform_checkout;
@@ -1388,10 +1222,12 @@ sp_perform_checkout: BEGIN
     END IF;
 
     -- ============================================================================
-    -- NORMAL CHECKOUT (Using frontend data)
+    -- NORMAL CHECKOUT (Case 1/2/3 – Full or Partial)
+    -- Using frontend data
     -- ============================================================================
+    -- All totals already set from input parameters
+    -- No SELECT from checkin_detail_master needed
     
-    -- Get processed rooms
     SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
     INTO v_processed_rooms_json
     FROM (SELECT DISTINCT room_number FROM checkin_detail_master WHERE checkin_id = p_checkin_id AND FIND_IN_SET(room_id, v_active_room_ids) > 0) d;
@@ -1410,6 +1246,7 @@ sp_perform_checkout: BEGIN
         - v_discount_amount
     );
 
+    -- Get remaining active count (to decide full vs partial)
     SELECT COUNT(*) INTO v_remaining_active
     FROM checkin_detail_master
     WHERE checkin_id = p_checkin_id AND is_checkout = 0;
@@ -1469,6 +1306,8 @@ sp_perform_checkout: BEGIN
 
         SET v_checkout_id = LAST_INSERT_ID();
         
+        SET v_debug_msg = CONCAT('New checkout created. checkout_id: ', v_checkout_id, ', ldg_bill_no: ', v_ldg_bill_no);
+        
     ELSE
         SET v_checkout_id = v_existing_checkout_id;
         SET v_ldg_bill_no = v_existing_ldg_bill_no;
@@ -1506,260 +1345,197 @@ sp_perform_checkout: BEGIN
             is_partial_checkout = CASE WHEN v_remaining_active > 0 THEN 1 ELSE 0 END,
             status = CASE WHEN v_remaining_active = 0 THEN 'checked_out' ELSE 'partial_checkout' END
         WHERE checkout_id = v_existing_checkout_id;
+        
+        SET v_debug_msg = CONCAT('Re-checkout - updated existing checkout_id: ', v_existing_checkout_id, 
+                                 ', ldg_bill_no: ', v_existing_ldg_bill_no);
     END IF;
 
-    -- Ensure checkout_id is set
+    -- Ensure checkout_id is set for re-checkout
     IF v_is_re_checkout = 1 AND (v_checkout_id IS NULL OR v_checkout_id = 0) THEN
         SELECT checkout_id INTO v_checkout_id
         FROM Checkout_Master
         WHERE checkin_id = p_checkin_id
         ORDER BY checkout_id DESC
         LIMIT 1;
+        
+        SET v_debug_msg = CONCAT('Fixed checkout_id from DB: ', v_checkout_id);
     END IF;
 
     -- ============================================================================
-    -- Insert Checkout_Detail from frontend JSON (Normal Checkout)
+    -- Insert Checkout_Detail (Using frontend data + room details from JSON)
     -- ============================================================================
-    IF p_checkout_detail_rows IS NOT NULL AND JSON_TYPE(p_checkout_detail_rows) = 'ARRAY' THEN
-        SET v_detail_count = JSON_LENGTH(p_checkout_detail_rows);
-        SET v_detail_index = 0;
-        
-        WHILE v_detail_index < v_detail_count DO
-            SET v_detail_json = JSON_EXTRACT(p_checkout_detail_rows, CONCAT('$[', v_detail_index, ']'));
-            
-            SET v_room_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.room_id'));
-            SET v_room_number = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.room_number'));
-            SET v_room_category_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.room_category_id'));
-            SET v_room_category_name = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.room_category_name'));
-            SET v_converted_category_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.converted_category_id'));
-            SET v_converted_category_name = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.converted_category_name'));
-            SET v_guest_name = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.guest_name'));
-            SET v_address = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.address'));
-            SET v_mobile = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.mobile'));
-            SET v_company_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.company_id'));
-            SET v_company_name = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.company_name'));
-            SET v_emailed = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.emailed'));
-            SET v_checkin_datetime = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.checkin_datetime'));
-            SET v_no_of_days = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.no_of_days'));
-            SET v_adults = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.adults'));
-            SET v_pax = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.pax'));
-            SET v_ex_pax = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_pax'));
-            SET v_child_paid = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_paid'));
-            SET v_child_unpaid = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_unpaid'));
-            SET v_driver = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver'));
-            SET v_room_tariff = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.room_tariff'));
-            SET v_ex_pax_charge_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_pax_charge'));
-            SET v_child_paid_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_paid_amount'));
-            SET v_driver_charge_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_charge'));
-            SET v_discount_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.discount_percent'));
-            SET v_discount_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.discount_amount'));
-            SET v_tax_percen_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.tax_percen_room'));
-            SET v_cgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.cgst_percent'));
-            SET v_cgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.cgst_amount'));
-            SET v_sgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.sgst_percent'));
-            SET v_sgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.sgst_amount'));
-            SET v_igst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.igst_percent'));
-            SET v_igst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.igst_amount'));
-            SET v_tax_percen_ex = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.tax_percen_ex'));
-            SET v_ex_cgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_cgst_percent'));
-            SET v_ex_cgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_cgst_amount'));
-            SET v_ex_sgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_sgst_percent'));
-            SET v_ex_sgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_sgst_amount'));
-            SET v_ex_igst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_igst_percent'));
-            SET v_ex_igst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_igst_amount'));
-            SET v_tax_percen_child = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.tax_percen_child'));
-            SET v_child_cgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_cgst_percent'));
-            SET v_child_cgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_cgst_amount'));
-            SET v_child_sgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_sgst_percent'));
-            SET v_child_sgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_sgst_amount'));
-            SET v_child_igst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_igst_percent'));
-            SET v_child_igst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.child_igst_amount'));
-            SET v_tax_percen_driver = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.tax_percen_driver'));
-            SET v_driver_cgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_cgst_percent'));
-            SET v_driver_cgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_cgst_amount'));
-            SET v_driver_sgst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_sgst_percent'));
-            SET v_driver_sgst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_sgst_amount'));
-            SET v_driver_igst_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_igst_percent'));
-            SET v_driver_igst_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.driver_igst_amount'));
-            SET v_service_charge = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.service_charge'));
-            SET v_service_charge_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.service_charge_amount'));
-            SET v_cess_percent = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.cess_percent'));
-            SET v_cess_amount_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.cess_amount'));
-            SET v_parent_detail_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.parent_detail_id'));
-            SET v_merged = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.merged'));
-            SET v_is_settle_room = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.is_settle'));
-            SET v_tax = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.tax'));
-            SET v_created_date = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.created_date'));
-            SET v_created_by_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.created_by_id'));
-            
-            INSERT INTO Checkout_Detail (
-                checkin_id, checkout_id, hotelid, room_id, room_number,
-                room_category_id, room_category_name,
-                converted_category_id, converted_category_name,
-                guest_id, guest_name, address, mobile,
-                company_id, company_name, emailed,
-                checkin_datetime, checkout_datetime, no_of_days,
-                adults, pax, ex_pax,
-                child_paid, child_unpaid, driver,
-                room_tariff,
-                ex_pax_charge, child_paid_amount, driver_charge,
-                discount_percent, discount_amount,
-                tax_percen_room,
-                cgst_percent, cgst_amount,
-                sgst_percent, sgst_amount,
-                igst_percent, igst_amount,
-                tax_percen_ex,
-                ex_cgst_percent, ex_cgst_amount,
-                ex_sgst_percent, ex_sgst_amount,
-                ex_igst_percent, ex_igst_amount,
-                tax_percen_child,
-                child_cgst_percent, child_cgst_amount,
-                child_sgst_percent, child_sgst_amount,
-                child_igst_percent, child_igst_amount,
-                tax_percen_driver,
-                driver_cgst_percent, driver_cgst_amount,
-                driver_sgst_percent, driver_sgst_amount,
-                driver_igst_percent, driver_igst_amount,
-                service_charge, service_charge_amount,
-                cess_percent, cess_amount,
-                parent_detail_id,
-                is_checkout,
-                merged,
-                is_settle,
-                tax,
-                created_date, updated_date,
-                created_by_id, updated_by_id
-            )
-            VALUES (
-                p_checkin_id,
-                v_checkout_id,
-                v_hotel_id,
-                v_room_id,
-                v_room_number,
-                v_room_category_id,
-                v_room_category_name,
-                v_converted_category_id,
-                v_converted_category_name,
-                v_guest_id,
-                v_guest_name,
-                v_address,
-                v_mobile,
-                v_company_id,
-                v_company_name,
-                v_emailed,
-                v_checkin_datetime,
-                v_checkout_dt,
-                v_no_of_days,
-                v_adults,
-                v_pax,
-                v_ex_pax,
-                v_child_paid,
-                v_child_unpaid,
-                v_driver,
-                v_room_tariff,
-                v_ex_pax_charge_room,
-                v_child_paid_amount_room,
-                v_driver_charge_room,
-                v_discount_percent,
-                v_discount_amount_room,
-                v_tax_percen_room,
-                v_cgst_percent,
-                v_cgst_amount_room,
-                v_sgst_percent,
-                v_sgst_amount_room,
-                v_igst_percent,
-                v_igst_amount_room,
-                v_tax_percen_ex,
-                v_ex_cgst_percent,
-                v_ex_cgst_amount_room,
-                v_ex_sgst_percent,
-                v_ex_sgst_amount_room,
-                v_ex_igst_percent,
-                v_ex_igst_amount_room,
-                v_tax_percen_child,
-                v_child_cgst_percent,
-                v_child_cgst_amount_room,
-                v_child_sgst_percent,
-                v_child_sgst_amount_room,
-                v_child_igst_percent,
-                v_child_igst_amount_room,
-                v_tax_percen_driver,
-                v_driver_cgst_percent,
-                v_driver_cgst_amount_room,
-                v_driver_sgst_percent,
-                v_driver_sgst_amount_room,
-                v_driver_igst_percent,
-                v_driver_igst_amount_room,
-                v_service_charge,
-                v_service_charge_amount_room,
-                v_cess_percent,
-                v_cess_amount_room,
-                v_parent_detail_id,
-                1,
-                v_merged,
-                v_is_settle_room,
-                v_tax,
-                v_created_date,
-                v_now,
-                v_created_by_id,
-                v_user_id
-            );
-            
-            SET v_detail_index = v_detail_index + 1;
-        END WHILE;
-    END IF;
+    INSERT INTO Checkout_Detail (
+        checkin_id, checkout_id, hotelid, room_id, room_number,
+        room_category_id, room_category_name,
+        converted_category_id, converted_category_name,
+        guest_id, guest_name, address, mobile,
+        company_id, company_name, emailed,
+        checkin_datetime, checkout_datetime, no_of_days,
+        adults, pax, ex_pax,
+        child_paid, child_unpaid, driver,
+        room_tariff,
+        ex_pax_charge, child_paid_amount, driver_charge,
+        discount_percent, discount_amount,
+        tax_percen_room,
+        cgst_percent, cgst_amount,
+        sgst_percent, sgst_amount,
+        igst_percent, igst_amount,
+        tax_percen_ex,
+        ex_cgst_percent, ex_cgst_amount,
+        ex_sgst_percent, ex_sgst_amount,
+        ex_igst_percent, ex_igst_amount,
+        tax_percen_child,
+        child_cgst_percent, child_cgst_amount,
+        child_sgst_percent, child_sgst_amount,
+        child_igst_percent, child_igst_amount,
+        tax_percen_driver,
+        driver_cgst_percent, driver_cgst_amount,
+        driver_sgst_percent, driver_sgst_amount,
+        driver_igst_percent, driver_igst_amount,
+        service_charge, service_charge_amount,
+        cess_percent, cess_amount,
+        parent_detail_id,
+        is_checkout,
+        merged,
+        is_settle,
+        tax,
+        created_date, updated_date,
+        created_by_id, updated_by_id
+    )
+    SELECT
+        p_checkin_id,
+        v_checkout_id,
+        v_hotel_id,
+        cdm.room_id,
+        cdm.room_number,
+        cdm.room_category_id,
+        cdm.room_category_name,
+        cdm.converted_category_id,
+        cdm.converted_category_name,
+        v_guest_id,
+        p_guest_name,
+        p_address,
+        p_mobile,
+        p_company_id,
+        p_company_name,
+        cdm.emailed,
+        cdm.checkin_datetime,
+        v_checkout_dt,
+        v_total_nights,
+        cdm.adults,
+        cdm.pax,
+        cdm.ex_pax,
+        cdm.child_paid,
+        cdm.child_unpaid,
+        cdm.driver,
+        cdm.room_tariff,
+        cdm.ex_pax_charge,
+        cdm.child_paid_amount,
+        cdm.driver_charge,
+        cdm.discount_percent,
+        v_discount_amount,
+        cdm.tax_percen_room,
+        cdm.cgst_percent,
+        v_cgst_amount,
+        cdm.sgst_percent,
+        v_sgst_amount,
+        cdm.igst_percent,
+        v_igst_amount,
+        cdm.tax_percen_ex,
+        cdm.ex_cgst_percent,
+        v_ex_cgst_amount,
+        cdm.ex_sgst_percent,
+        v_ex_sgst_amount,
+        cdm.ex_igst_percent,
+        v_ex_igst_amount,
+        cdm.tax_percen_child,
+        cdm.child_cgst_percent,
+        v_child_cgst_amount,
+        cdm.child_sgst_percent,
+        v_child_sgst_amount,
+        cdm.child_igst_percent,
+        v_child_igst_amount,
+        cdm.tax_percen_driver,
+        cdm.driver_cgst_percent,
+        v_driver_cgst_amount,
+        cdm.driver_sgst_percent,
+        v_driver_sgst_amount,
+        cdm.driver_igst_percent,
+        v_driver_igst_amount,
+        cdm.service_charge,
+        v_service_charge_amount,
+        cdm.cess_percent,
+        v_cess_amount,
+        cdm.parent_detail_id,
+        1,
+        cdm.merged,
+        cdm.is_settle,
+        cdm.tax,
+        cdm.created_date,
+        v_now,
+        cdm.created_by_id,
+        v_user_id
+    FROM checkin_detail_master cdm
+    WHERE cdm.checkin_id = p_checkin_id
+      AND FIND_IN_SET(cdm.room_id, v_active_room_ids) > 0;
 
     -- ============================================================================
-    -- Insert Folio records from frontend JSON (Normal Checkout)
+    -- Insert Folio records (Using frontend data)
     -- ============================================================================
-    IF p_checkout_folio_rows IS NOT NULL AND JSON_TYPE(p_checkout_folio_rows) = 'ARRAY' THEN
-        SET v_folio_count = JSON_LENGTH(p_checkout_folio_rows);
-        SET v_folio_index = 0;
-        
-        WHILE v_folio_index < v_folio_count DO
-            SET v_folio_json = JSON_EXTRACT(p_checkout_folio_rows, CONCAT('$[', v_folio_index, ']'));
-            
-            SET v_detail_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.detail_id'));
-            SET v_room_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.room_id'));
-            SET v_transaction_type = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.transaction_type'));
-            SET v_transaction_datetime = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.transaction_datetime'));
-            SET v_description = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.description'));
-            SET v_debit_amount = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.debit_amount'));
-            SET v_credit_amount = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.credit_amount'));
-            SET v_reference_number = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.reference_number'));
-            SET v_payment_method_folio = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.payment_method'));
-            SET v_created_by_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.created_by_id'));
-            SET v_created_date = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.created_date'));
-            
-            INSERT INTO Checkout_Folio_Master (
-                checkin_id, checkout_id, hotel_id, detail_id, room_id,
-                transaction_type, transaction_datetime,
-                description, debit_amount, credit_amount,
-                reference_number, payment_method,
-                created_by_id, created_date, updated_by_id, updated_date
-            )
-            VALUES (
-                p_checkin_id,
-                v_checkout_id,
-                v_hotel_id,
-                v_detail_id,
-                v_room_id,
-                v_transaction_type,
-                v_transaction_datetime,
-                v_description,
-                v_debit_amount,
-                v_credit_amount,
-                v_reference_number,
-                COALESCE(v_final_payment_method, v_payment_method_folio, 'Cash'),
-                v_created_by_id,
-                v_created_date,
-                v_user_id,
-                v_now
-            );
-            
-            SET v_folio_index = v_folio_index + 1;
-        END WHILE;
-    END IF;
+    INSERT INTO Checkout_Folio_Master (
+        checkin_id, checkout_id, hotel_id, detail_id, room_id,
+        transaction_type, transaction_datetime,
+        description, debit_amount, credit_amount,
+        reference_number, payment_method,
+        created_by_id, created_date, updated_by_id, updated_date
+    )
+    SELECT
+        cgfm.checkin_id, 
+        v_checkout_id, 
+        cgfm.hotel_id, 
+        cgfm.detail_id, 
+        cgfm.room_id,
+        cgfm.transaction_type, 
+        cgfm.transaction_datetime,
+        cgfm.description, 
+        cgfm.debit_amount, 
+        cgfm.credit_amount,
+        cgfm.reference_number, 
+        COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
+        cgfm.created_by_id, 
+        cgfm.created_date, 
+        v_user_id, 
+        v_now
+    FROM checkin_guest_folio_master cgfm
+    WHERE cgfm.checkin_id = p_checkin_id
+      AND (
+          cgfm.room_id IS NULL
+          OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0
+      );
+
+    -- ============================================================================
+    -- Insert Room Charges (Using frontend data)
+    -- ============================================================================
+    INSERT INTO Checkout_Room_Charges (
+        checkin_id, checkout_id, guest_id, room_id, category_id,
+        pax_count, pax_price, pax_tax,
+        ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
+        child_count, child_price, child_tax, child_tax_percent, child_total,
+        driver_count, driver_price, driver_tax, driver_tax_percent, driver_total,
+        total_amount, checkin_datetime, checkout_datetime,
+        created_at, updated_at
+    )
+    SELECT
+        cgrc.checkin_id, v_checkout_id, cgrc.guest_id, cgrc.room_id, cgrc.category_id,
+        cgrc.pax_count, cgrc.pax_price, cgrc.pax_tax,
+        cgrc.ex_pax_count, cgrc.ex_pax_price, cgrc.ex_pax_tax, cgrc.ex_pax_tax_percent, cgrc.ex_pax_total,
+        cgrc.child_count, cgrc.child_price, cgrc.child_tax, cgrc.child_tax_percent, cgrc.child_total,
+        cgrc.driver_count, cgrc.driver_price, cgrc.driver_tax, cgrc.driver_tax_percent, cgrc.driver_total,
+        cgrc.total_amount, cgrc.checkin_datetime, v_checkout_dt,
+        NOW(), NOW()
+    FROM checkin_guest_room_charges cgrc
+    WHERE cgrc.checkin_id = p_checkin_id
+      AND FIND_IN_SET(cgrc.room_id, v_active_room_ids) > 0;
 
     -- ============================================================================
     -- Update statuses
@@ -1856,55 +1632,32 @@ sp_perform_checkout: BEGIN
 
         DELETE FROM Checkout_Folio_Master WHERE checkout_id = v_keeper_checkout_id;
 
-        -- Insert folio rows from frontend
-        IF p_checkout_folio_rows IS NOT NULL AND JSON_TYPE(p_checkout_folio_rows) = 'ARRAY' THEN
-            SET v_folio_count = JSON_LENGTH(p_checkout_folio_rows);
-            SET v_folio_index = 0;
-            
-            WHILE v_folio_index < v_folio_count DO
-                SET v_folio_json = JSON_EXTRACT(p_checkout_folio_rows, CONCAT('$[', v_folio_index, ']'));
-                
-                SET v_detail_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.detail_id'));
-                SET v_room_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.room_id'));
-                SET v_transaction_type = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.transaction_type'));
-                SET v_transaction_datetime = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.transaction_datetime'));
-                SET v_description = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.description'));
-                SET v_debit_amount = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.debit_amount'));
-                SET v_credit_amount = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.credit_amount'));
-                SET v_reference_number = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.reference_number'));
-                SET v_payment_method_folio = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.payment_method'));
-                SET v_created_by_id = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.created_by_id'));
-                SET v_created_date = JSON_UNQUOTE(JSON_EXTRACT(v_folio_json, '$.created_date'));
-                
-                INSERT INTO Checkout_Folio_Master (
-                    checkin_id, checkout_id, hotel_id, detail_id, room_id,
-                    transaction_type, transaction_datetime,
-                    description, debit_amount, credit_amount,
-                    reference_number, payment_method,
-                    created_by_id, created_date, updated_by_id, updated_date
-                )
-                VALUES (
-                    p_checkin_id,
-                    v_keeper_checkout_id,
-                    v_hotel_id,
-                    v_detail_id,
-                    v_room_id,
-                    v_transaction_type,
-                    v_transaction_datetime,
-                    v_description,
-                    v_debit_amount,
-                    v_credit_amount,
-                    v_reference_number,
-                    COALESCE(v_final_payment_method, v_payment_method_folio, 'Cash'),
-                    v_created_by_id,
-                    v_created_date,
-                    v_user_id,
-                    v_now
-                );
-                
-                SET v_folio_index = v_folio_index + 1;
-            END WHILE;
-        END IF;
+        INSERT INTO Checkout_Folio_Master (
+            checkin_id, checkout_id, hotel_id, detail_id, room_id,
+            transaction_type, transaction_datetime,
+            description, debit_amount, credit_amount,
+            reference_number, payment_method,
+            created_by_id, created_date, updated_by_id, updated_date
+        )
+        SELECT
+            cgfm.checkin_id,
+            v_keeper_checkout_id,
+            cgfm.hotel_id,
+            cgfm.detail_id,
+            cgfm.room_id,
+            cgfm.transaction_type,
+            cgfm.transaction_datetime,
+            cgfm.description,
+            cgfm.debit_amount,
+            cgfm.credit_amount,
+            cgfm.reference_number,
+            COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
+            cgfm.created_by_id,
+            cgfm.created_date,
+            v_user_id,
+            v_now
+        FROM checkin_guest_folio_master cgfm
+        WHERE cgfm.checkin_id = p_checkin_id;
 
         SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
         INTO v_processed_rooms_json
