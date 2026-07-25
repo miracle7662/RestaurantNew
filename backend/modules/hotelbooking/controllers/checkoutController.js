@@ -375,6 +375,13 @@ exports.performCheckout = async (req, res) => {
       checkout_detail_rows = [],
       checkout_folio_rows = [],
       checkout_master_totals = {},
+      // Guest & company details (sent from frontend or fallback)
+      guest_id = 0,
+      guest_name = '',
+      address = '',
+      mobile = '',
+      company_id = 0,
+      company_name = '',
     } = req.body;
 
     const userId = getCurrentUserId(req);
@@ -408,49 +415,101 @@ exports.performCheckout = async (req, res) => {
       });
     }
 
-    // (Optional) Additional checks can remain
+    // --------------------------------------------------------------------------
+    // EXTRACT ALL REQUIRED TOTALS FROM checkout_master_totals
+    // --------------------------------------------------------------------------
+    const {
+      room_tariff_sum = 0,
+      ex_pax_charge = 0,
+      child_paid_amount = 0,
+      driver_charge = 0,
+      discount_amount = 0,
+      cgst_amount = 0,
+      sgst_amount = 0,
+      igst_amount = 0,
+      ex_cgst_amount = 0,
+      ex_sgst_amount = 0,
+      ex_igst_amount = 0,
+      child_cgst_amount = 0,
+      child_sgst_amount = 0,
+      child_igst_amount = 0,
+      driver_cgst_amount = 0,
+      driver_sgst_amount = 0,
+      driver_igst_amount = 0,
+      cess_amount = 0,
+      service_charge_amount = 0,
+      advance_amt = 0,
+    } = checkout_master_totals;
 
-    // ✅ BUILD PARAMETERS ARRAY – NOW 20 PARAMETERS
+    // --------------------------------------------------------------------------
+    // BUILD THE 44 PARAMETERS ARRAY (order must match procedure definition)
+    // --------------------------------------------------------------------------
     const params = [
-      checkin_id,
-      checkout_reason || 'Regular checkout',
-      payment_method || 'Cash',
-      total_amount || 0,
-      round_off_amount || 0,
-      net_payable || 0,
-      JSON.stringify(selected_rooms),
-      invoiceNoFromBody || null,
-      payment_id || null,
-      payment_mode || payment_method || 'Cash',
-      is_settle || 0,
-      is_print || 1,
-      userId,
-      formatDateTime(checkout_datetime),
-      is_undo,
-      undo_room_ids ? JSON.stringify(undo_room_ids) : null,
-      total_nights,
-      // ✅ NEW: Add the three JSON parameters as strings
-      JSON.stringify(checkout_detail_rows),
-      JSON.stringify(checkout_folio_rows),
-      JSON.stringify(checkout_master_totals),
+      checkin_id,                                           // 1  p_checkin_id
+      checkout_reason || 'Regular checkout',                // 2  p_checkout_reason
+      payment_method || 'Cash',                             // 3  p_payment_method
+      total_amount || 0,                                   // 4  p_total_amount
+      round_off_amount || 0,                               // 5  p_round_off_amount
+      net_payable || 0,                                    // 6  p_net_payable
+      JSON.stringify(selected_rooms),                       // 7  p_selected_rooms
+      invoiceNoFromBody || null,                           // 8  p_invoice_no
+      payment_id || null,                                  // 9  p_payment_id
+      payment_mode || payment_method || 'Cash',            // 10 p_payment_mode
+      is_settle || 0,                                      // 11 p_is_settle
+      is_print || 1,                                       // 12 p_is_print
+      userId,                                              // 13 p_user_id
+      formatDateTime(checkout_datetime),                   // 14 p_checkout_datetime
+      is_undo,                                             // 15 p_is_undo
+      undo_room_ids ? JSON.stringify(undo_room_ids) : null, // 16 p_undo_room_ids
+      total_nights,                                        // 17 p_total_nights
+
+      // 18–37: all individual totals
+      room_tariff_sum,                                     // 18 p_room_tariff_sum
+      ex_pax_charge,                                       // 19 p_ex_pax_charge
+      child_paid_amount,                                   // 20 p_child_paid_amount
+      driver_charge,                                       // 21 p_driver_charge
+      discount_amount,                                     // 22 p_discount_amount
+      cgst_amount,                                         // 23 p_cgst_amount
+      sgst_amount,                                         // 24 p_sgst_amount
+      igst_amount,                                         // 25 p_igst_amount
+      ex_cgst_amount,                                      // 26 p_ex_cgst_amount
+      ex_sgst_amount,                                      // 27 p_ex_sgst_amount
+      ex_igst_amount,                                      // 28 p_ex_igst_amount
+      child_cgst_amount,                                   // 29 p_child_cgst_amount
+      child_sgst_amount,                                   // 30 p_child_sgst_amount
+      child_igst_amount,                                   // 31 p_child_igst_amount
+      driver_cgst_amount,                                  // 32 p_driver_cgst_amount
+      driver_sgst_amount,                                  // 33 p_driver_sgst_amount
+      driver_igst_amount,                                  // 34 p_driver_igst_amount
+      cess_amount,                                         // 35 p_cess_amount
+      service_charge_amount,                               // 36 p_service_charge_amount
+      advance_amt,                                         // 37 p_advance_amt
+
+      // 38–43: guest & company info
+      guest_id || 0,                                       // 38 p_guest_id
+      guest_name || null,                                  // 39 p_guest_name
+      address || null,                                     // 40 p_address
+      mobile || null,                                      // 41 p_mobile
+      company_id || 0,                                     // 42 p_company_id
+      company_name || null,                                // 43 p_company_name
+
+      // 44: room_details JSON (use the detail rows from frontend)
+      JSON.stringify(checkout_detail_rows),                // 44 p_room_details
     ];
 
     console.log('🔵 ==========================================');
-    console.log('🔵 Calling sp_perform_checkout with params:');
+    console.log('🔵 Calling sp_perform_checkout with 44 params:');
     console.log('🔵 ==========================================');
     params.forEach((param, index) => {
       console.log(`   [${index + 1}] ${param !== null ? param : 'NULL'} (${typeof param})`);
     });
     console.log('🔵 ==========================================');
 
-    console.log(
-  "checkout_folio_rows",
-  JSON.stringify(checkout_folio_rows, null, 2)
-);
-
-    // ✅ EXECUTE STORED PROCEDURE – 20 PLACEHOLDERS
+    // --------------------------------------------------------------------------
+    // EXECUTE STORED PROCEDURE – NOW WITH 44 PLACEHOLDERS
+    // --------------------------------------------------------------------------
     const [results] = await connection.execute(
-      `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params
     );
 
@@ -459,7 +518,7 @@ exports.performCheckout = async (req, res) => {
     await connection.commit();
     console.log('🔵 Transaction committed successfully');
 
-    // Process results
+    // Process results (unchanged)
     let result = null;
     if (results && results.length > 0 && results[0] && results[0].length > 0) {
       const firstRow = results[0][0];
@@ -484,7 +543,7 @@ exports.performCheckout = async (req, res) => {
       throw new Error('No data returned from stored procedure');
     }
 
-    // Check outcome
+    // Check outcome (unchanged)
     if (result && result.success === true) {
       console.log('✅ Checkout SUCCESSFUL');
       console.log(`✅ Checkout ID: ${result.checkout_id}`);

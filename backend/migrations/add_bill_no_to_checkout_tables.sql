@@ -1539,17 +1539,8 @@ sp_perform_checkout: BEGIN
             SET v_company_id = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.company_id'));
             SET v_company_name = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.company_name'));
             SET v_emailed = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.emailed'));
-SET v_checkin_datetime = STR_TO_DATE(
-    LEFT(
-        REPLACE(
-            JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.checkin_datetime')),
-            'T', ' '
-        ),
-        19
-    ),
-    '%Y-%m-%d %H:%i:%s'
-); 
-           SET v_no_of_days = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.no_of_days'));
+            SET v_checkin_datetime = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.checkin_datetime'));
+            SET v_no_of_days = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.no_of_days'));
             SET v_adults = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.adults'));
             SET v_pax = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.pax'));
             SET v_ex_pax = JSON_UNQUOTE(JSON_EXTRACT(v_detail_json, '$.ex_pax'));
