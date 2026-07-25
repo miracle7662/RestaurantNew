@@ -86,6 +86,8 @@ export interface BillPreviewResponse {
 export interface PerformCheckoutPayload {
   checkin_id: number;
   checkout_reason?: string;
+   graceApplied?: boolean;
+
   
   /** Payment method name e.g. "Cash", "Card", "UPI" */
   payment_method?: string;
@@ -181,6 +183,14 @@ const CheckoutService = {
 
   performCheckout: (payload: PerformCheckoutPayload): Promise<ApiResponse<CheckoutResponse>> =>
     HttpClient.post<ApiResponse<CheckoutResponse>>('/checkouts/perform', payload),
+
+  processCheckoutWithGrace: (
+  payload: PerformCheckoutPayload
+): Promise<ApiResponse<CheckoutResponse>> =>
+  HttpClient.post<ApiResponse<CheckoutResponse>>(
+    "/checkouts/process-checkout-with-grace",
+    payload
+  ),
 
   remove: (id: number): Promise<ApiResponse<null>> =>
     HttpClient.delete<ApiResponse<null>>(`/checkouts/${id}`),
