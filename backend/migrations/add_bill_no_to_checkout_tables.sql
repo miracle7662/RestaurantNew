@@ -1,3 +1,5 @@
+
+
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_perform_checkout`(
     IN p_checkin_id INT,
     IN p_checkout_reason VARCHAR(255),
@@ -43,7 +45,8 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_perform_checkout`(
     IN p_mobile VARCHAR(20),
     IN p_company_id INT,
     IN p_company_name VARCHAR(255),
-    IN p_room_details JSON   -- Room wise details with all data
+    IN p_room_details JSON,   -- Room wise details with all data
+    IN p_bill_no INT   -- NEW: bill number (1=Lodging, 2=Restaurant, 3=Bar, 4=Pantry)
 )
 sp_perform_checkout: BEGIN
     DECLARE v_now DATETIME;
@@ -221,6 +224,147 @@ sp_perform_checkout: BEGIN
     SET v_total_nights = COALESCE(p_total_nights, 0);
     SET v_guest_id = COALESCE(p_guest_id, 0);
 
+ -- ============================================================================
+-- CASE 7: BILL‑WISE CHECKOUT FOR NON‑LODGING BILLS (Bill No > 1)
+-- ============================================================================
+IF p_bill_no > 1 THEN
+    SET v_error_msg = 'Case 7: Bill-wise checkout for non-lodging bill';
+    SET v_debug_msg = CONCAT('Processing bill_no = ', p_bill_no);
+
+    -- 1. Check if this bill has any folio transactions
+    SELECT COUNT(*) INTO @folio_count
+    FROM checkin_guest_folio_master
+    WHERE checkin_id = p_checkin_id AND bill_no = p_bill_no;
+
+    IF @folio_count = 0 THEN
+        SELECT JSON_OBJECT('success', FALSE, 'message', CONCAT('No transactions found for bill_no ', p_bill_no)) AS result;
+        ROLLBACK;
+        LEAVE sp_perform_checkout;
+    END IF;
+
+    -- 2. Check if a checkout already exists for this bill (re-checkout)
+    SELECT checkout_id, ldg_bill_no INTO v_existing_checkout_id, v_existing_ldg_bill_no
+    FROM Checkout_Master
+    WHERE checkin_id = p_checkin_id AND bill_no = p_bill_no
+    ORDER BY checkout_id DESC LIMIT 1;
+
+    IF v_existing_checkout_id > 0 THEN
+        -- Re-checkout: delete existing details and reuse same checkout
+        DELETE FROM Checkout_Folio_Master WHERE checkout_id = v_existing_checkout_id;
+        DELETE FROM Checkout_Detail      WHERE checkout_id = v_existing_checkout_id; -- none for non-lodging
+        DELETE FROM Checkout_Room_Charges WHERE checkout_id = v_existing_checkout_id;
+        SET v_checkout_id = v_existing_checkout_id;
+        SET v_ldg_bill_no = v_existing_ldg_bill_no;
+        SET v_is_re_checkout = 1;
+    ELSE
+        -- New checkout: generate new invoice number
+        SET v_ldg_bill_no = generate_next_invoice_no();
+        SET v_is_re_checkout = 0;
+    END IF;
+
+    -- 3. Compute totals from folio for this bill
+    SELECT 
+        COALESCE(SUM(debit_amount - credit_amount), 0) INTO v_total_computed
+    FROM checkin_guest_folio_master
+    WHERE checkin_id = p_checkin_id AND bill_no = p_bill_no;
+
+    -- Use frontend total if provided, else computed
+    IF p_total_amount IS NOT NULL AND p_total_amount > 0 THEN
+        SET v_total_computed = p_total_amount;
+    END IF;
+
+    -- 4. Create or update Checkout_Master
+    IF v_is_re_checkout = 0 THEN
+        INSERT INTO Checkout_Master (
+            checkin_id, guest_id, ldg_bill_no, bill_no, hotelid,
+            total_amount, total_nights,
+            checkout_date, checkout_by_id, checkout_reason,
+            status, is_partial_checkout,
+            checked_out_rooms, room_id,
+            payment_method,
+            created_by_id, created_date, updated_by_id, updated_date
+        )
+        SELECT
+            cm.checkin_id, cm.guest_id, v_ldg_bill_no, p_bill_no, cm.hotelid,
+            v_total_computed, 0,    -- total_nights = 0 for non-lodging
+            v_checkout_dt, v_user_id, COALESCE(p_checkout_reason, 'Bill checkout'),
+            'checked_out', 0,
+            JSON_ARRAY(), JSON_ARRAY(),
+            v_final_payment_method,
+            cm.created_by_id, cm.created_date, v_user_id, v_now
+        FROM CheckIn_Master cm
+        WHERE cm.checkin_id = p_checkin_id;
+
+        SET v_checkout_id = LAST_INSERT_ID();
+    ELSE
+        -- Update existing checkout master
+        UPDATE Checkout_Master
+        SET total_amount = v_total_computed,
+            checkout_date = v_checkout_dt,
+            payment_method = v_final_payment_method,
+            updated_by_id = v_user_id,
+            updated_date = v_now
+        WHERE checkout_id = v_existing_checkout_id;
+        SET v_checkout_id = v_existing_checkout_id;
+    END IF;
+
+    -- 5. Copy folio transactions for this bill
+    INSERT INTO Checkout_Folio_Master (
+        checkin_id, checkout_id, hotel_id, detail_id, room_id,
+        transaction_type, transaction_datetime,
+        description, debit_amount, credit_amount,
+        reference_number, payment_method,
+        created_by_id, created_date, updated_by_id, updated_date
+    )
+    SELECT
+        cgfm.checkin_id, v_checkout_id, cgfm.hotel_id, cgfm.detail_id, cgfm.room_id,
+        cgfm.transaction_type, cgfm.transaction_datetime,
+        cgfm.description, cgfm.debit_amount, cgfm.credit_amount,
+        cgfm.reference_number,
+        COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash'),
+        cgfm.created_by_id, cgfm.created_date, v_user_id, v_now
+    FROM checkin_guest_folio_master cgfm
+    WHERE cgfm.checkin_id = p_checkin_id
+      AND cgfm.bill_no = p_bill_no;
+
+    -- 6. No room charges or detail copy for non-lodging bills
+
+    -- 7. Commit and return (with consistent keys)
+    COMMIT;
+
+    SELECT JSON_OBJECT(
+        'success', TRUE,
+        'message', CONCAT('Bill ', p_bill_no, ' checkout completed'),
+        'checkout_id', v_checkout_id,
+        'checkin_id', p_checkin_id,
+        'bill_no', p_bill_no,
+        'ldg_bill_no', v_ldg_bill_no,                    -- Changed from 'invoice_no'
+        'total_amount', v_total_computed,
+        'payment_method', v_final_payment_method,
+        'checkout_datetime', v_checkout_dt,
+        'is_re_checkout', v_is_re_checkout,
+        'case_type', 'Case 7 - Bill-wise Checkout',
+        'data', JSON_OBJECT(                              -- Added for consistency
+            'checkout_id', v_checkout_id,
+            'checkin_id', p_checkin_id,
+            'is_partial', 0,
+            'ldg_bill_no', v_ldg_bill_no,
+            'payment_method', v_final_payment_method,
+            'aggregated_values', JSON_OBJECT(
+                'advance_amt', 0,
+                'post_changes_amt', 0,
+                'allowances_amt', 0,
+                'discount_amount', 0,
+                'cgst_amt', 0,
+                'sgst_amt', 0,
+                'igst_amt', 0,
+                'total_amount', v_total_computed,
+                'net_payable', v_total_computed
+            )
+        )
+    ) AS result;
+    LEAVE sp_perform_checkout;
+END IF;
     -- ============================================================================
     -- CASE 6: UNDO CHECKOUT FOR SPECIFIC ROOMS (Full or Partial Undo)
     -- ============================================================================
@@ -814,8 +958,9 @@ sp_perform_checkout: BEGIN
                 v_now
             FROM checkin_guest_folio_master cgfm
             WHERE cgfm.checkin_id = p_checkin_id
-              AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0);
-            
+              AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0)
+              AND cgfm.bill_no = 1;   -- Added filter for lodging only
+
             -- Use frontend totals (already set from input parameters)
             -- v_room_tariff_sum, v_ex_pax_charge, etc. are already set
             
@@ -1082,7 +1227,8 @@ sp_perform_checkout: BEGIN
             v_user_id,
             v_now
         FROM checkin_guest_folio_master cgfm
-        WHERE cgfm.checkin_id = p_checkin_id;
+        WHERE cgfm.checkin_id = p_checkin_id
+          AND cgfm.bill_no = 1;   -- Added filter for lodging only
         
         -- Use frontend totals
         SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
@@ -1186,6 +1332,7 @@ sp_perform_checkout: BEGIN
         INNER JOIN Checkout_Detail cd ON cm.checkout_id = cd.checkout_id
         WHERE cm.checkin_id = p_checkin_id
           AND FIND_IN_SET(cd.room_id, v_checked_out_selected_room_ids) > 0
+          AND cm.bill_no = 1   -- Only lodging bill can have details
         ORDER BY cm.checkout_id ASC
         LIMIT 1;
         
@@ -1252,6 +1399,7 @@ sp_perform_checkout: BEGIN
         INTO v_keeper_checkout_id, v_existing_ldg_bill_no
         FROM Checkout_Master
         WHERE checkin_id = p_checkin_id
+          AND bill_no = 1   -- Only lodging bill
         ORDER BY checkout_id ASC
         LIMIT 1;
 
@@ -1342,7 +1490,7 @@ sp_perform_checkout: BEGIN
         END IF;
 
         INSERT INTO Checkout_Master (
-            checkin_id, guest_id, ldg_bill_no, reg_no, booking, plan_name,
+            checkin_id, guest_id, ldg_bill_no, bill_no, reg_no, booking, plan_name,
             checkin_datetime, room_no,
             tot_room_tariff, tot_ex_pax_charge, tot_child_paid_amount, tot_driver_charge,
             tot_discount_amount,
@@ -1360,7 +1508,7 @@ sp_perform_checkout: BEGIN
             payment_method
         )
         SELECT
-            cm.checkin_id, cm.guest_id, v_ldg_bill_no, cm.reg_no, cm.booking, cm.plan_name,
+            cm.checkin_id, cm.guest_id, v_ldg_bill_no, p_bill_no, cm.reg_no, cm.booking, cm.plan_name,
             cm.checkin_datetime, NULL,
             v_room_tariff_sum, v_ex_pax_charge, v_child_paid_amount, v_driver_charge,
             v_discount_amount,
@@ -1435,6 +1583,7 @@ sp_perform_checkout: BEGIN
         SELECT checkout_id INTO v_checkout_id
         FROM Checkout_Master
         WHERE checkin_id = p_checkin_id
+          AND bill_no = 1
         ORDER BY checkout_id DESC
         LIMIT 1;
         
@@ -1559,40 +1708,46 @@ sp_perform_checkout: BEGIN
     WHERE cdm.checkin_id = p_checkin_id
       AND FIND_IN_SET(cdm.room_id, v_active_room_ids) > 0;
 
-    -- ============================================================================
-    -- Insert Folio records (Using frontend data)
-    -- ============================================================================
-    INSERT INTO Checkout_Folio_Master (
-        checkin_id, checkout_id, hotel_id, detail_id, room_id,
-        transaction_type, transaction_datetime,
-        description, debit_amount, credit_amount,
-        reference_number, payment_method,
-        created_by_id, created_date, updated_by_id, updated_date
-    )
-    SELECT
-        cgfm.checkin_id, 
-        v_checkout_id, 
-        cgfm.hotel_id, 
-        cgfm.detail_id, 
-        cgfm.room_id,
-        cgfm.transaction_type, 
-        cgfm.transaction_datetime,
-        cgfm.description, 
-        cgfm.debit_amount, 
-        cgfm.credit_amount,
-        cgfm.reference_number, 
-        COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
-        cgfm.created_by_id, 
-        cgfm.created_date, 
-        v_user_id, 
-        v_now
-    FROM checkin_guest_folio_master cgfm
-    WHERE cgfm.checkin_id = p_checkin_id
-      AND (
-          cgfm.room_id IS NULL
-          OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0
-      );
-
+   -- ============================================================================
+-- Insert Folio records (filtered by bill_no, room condition only for lodging)
+-- ============================================================================
+INSERT INTO Checkout_Folio_Master (
+    checkin_id, checkout_id, hotel_id, detail_id, room_id,
+    transaction_type, transaction_datetime,
+    description, debit_amount, credit_amount,
+    reference_number, payment_method,
+    created_by_id, created_date, updated_by_id, updated_date,
+    bill_no   -- ✅ यह कॉलम जोड़ें (मौजूद होना चाहिए)
+)
+SELECT
+    cgfm.checkin_id, 
+    v_checkout_id, 
+    cgfm.hotel_id, 
+    cgfm.detail_id, 
+    cgfm.room_id,
+    cgfm.transaction_type, 
+    cgfm.transaction_datetime,
+    cgfm.description, 
+    cgfm.debit_amount, 
+    cgfm.credit_amount,
+    cgfm.reference_number, 
+    COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
+    cgfm.created_by_id, 
+    cgfm.created_date, 
+    v_user_id, 
+    v_now,
+    COALESCE(p_bill_no, 1)   -- ✅ बिल नंबर भी इंसर्ट करें
+FROM checkin_guest_folio_master cgfm
+WHERE cgfm.checkin_id = p_checkin_id
+  AND (v_is_billwise = 0 OR cgfm.bill_no = p_bill_no)   -- ✅ बिल के अनुसार फ़िल्टर
+  AND (
+      -- Legacy mode: room filter applies
+      v_is_billwise = 0
+      -- Lodging bill (bill_no = 1): room filter applies
+      OR (v_is_billwise = 1 AND p_bill_no = 1 AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0))
+      -- Non‑lodging bill (bill_no > 1): NO room filter – copy ALL transactions of that bill
+      OR (v_is_billwise = 1 AND p_bill_no > 1)
+  );
     -- ============================================================================
     -- Insert Room Charges (Using frontend data)
     -- ============================================================================
@@ -1615,7 +1770,8 @@ sp_perform_checkout: BEGIN
         NOW(), NOW()
     FROM checkin_guest_room_charges cgrc
     WHERE cgrc.checkin_id = p_checkin_id
-      AND FIND_IN_SET(cgrc.room_id, v_active_room_ids) > 0;
+      AND FIND_IN_SET(cgrc.room_id, v_active_room_ids) > 0
+      AND cgrc.bill_no = 1;   -- Lodging only
 
     -- ============================================================================
     -- Update statuses
@@ -1680,13 +1836,15 @@ sp_perform_checkout: BEGIN
         SELECT checkout_id INTO v_keeper_checkout_id
         FROM Checkout_Master
         WHERE checkin_id = p_checkin_id
+          AND bill_no = 1   -- lodging only
         ORDER BY checkout_id ASC
         LIMIT 1;
 
         SELECT GROUP_CONCAT(DISTINCT checkout_id) INTO @other_checkout_ids
         FROM Checkout_Master
         WHERE checkin_id = p_checkin_id
-          AND checkout_id != v_keeper_checkout_id;
+          AND checkout_id != v_keeper_checkout_id
+          AND bill_no = 1;   -- only lodging bills
 
         -- ========================================================================
         -- FIX: LDG BILL NUMBER LOGIC — move any remaining source checkouts'
@@ -1844,7 +2002,8 @@ sp_perform_checkout: BEGIN
             v_user_id,
             v_now
         FROM checkin_guest_folio_master cgfm
-        WHERE cgfm.checkin_id = p_checkin_id;
+        WHERE cgfm.checkin_id = p_checkin_id
+          AND cgfm.bill_no = 1;   -- lodging only
 
         SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
         INTO v_processed_rooms_json
