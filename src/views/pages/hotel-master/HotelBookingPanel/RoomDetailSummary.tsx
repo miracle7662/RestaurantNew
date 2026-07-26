@@ -1281,6 +1281,7 @@ const handleConfirmCheckout = async () => {
       return;
     }
 
+    // Group by bill_no
     const groups = new Map<number, DisplayDetailRow[]>();
     selectedRows.forEach(row => {
       const bn = row.bill_no || 1;
@@ -1295,143 +1296,96 @@ const handleConfirmCheckout = async () => {
       return;
     }
 
-    const selectedRoomNumbers = Array.from(new Set(selectedRows.map(r => r.room_number)));
-    const selectedRoomIds = Array.from(new Set(selectedRows.map(r => r.room_id)));
-    const roomIdsCommaString = selectedRoomIds.join(',');
-
+    const paymentMethod = selectedPaymentModeName || combinedSummary.payment_method || 'Cash';
     const now = new Date();
     const currentDateTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-    const paymentMethod = selectedPaymentModeName || combinedSummary.payment_method || 'Cash';
-
-    const allDetailRows: any[] = [];
-    const allFolioRows: any[] = [];
-    const allMasterTotals: any[] = [];
+    const allCheckoutIds: number[] = [];
+    const allLdgBillNos: string[] = [];
 
     for (const billNo of billNumbers) {
-      const rowsForBill = groups.get(billNo) || [];
-
-      let invoiceNo = '';
-      try {
-        const invoiceRes = await CheckoutService.getNextInvoiceNo();
-        if (invoiceRes.success && invoiceRes.data?.ldg_bill_no) {
-          invoiceNo = invoiceRes.data.ldg_bill_no;
-        }
-      } catch (e) { /* ignore */ }
-
-      if (!invoiceNo) {
-        invoiceNo = `INV-${Date.now()}-${billNo}`;
-      }
-
-      const detailRows = buildCheckoutDetailRows(rowsForBill);
-      const folioRows = buildCheckoutFolioRows(rowsForBill);
+      const rowsForBill = groups.get(billNo)!;
       const masterTotals = computeMasterTotals(rowsForBill);
+      const selectedRoomNumbers = Array.from(new Set(rowsForBill.map(r => r.room_number)));
 
-      allDetailRows.push(...detailRows);
-      allFolioRows.push(...folioRows);
-      allMasterTotals.push({
+      // Build payload – flatten all totals into individual fields
+      const payload = {
+        checkin_id: combinedSummary.checkin_id,
+        checkout_reason: checkoutReason || 'Regular checkout',
+        payment_id: selectedPaymentModeId ?? undefined,
+        payment_mode: paymentMethod,
+        payment_method: paymentMethod,
+        total_amount: masterTotals.total_amount || 0,
+        room_id: '', // not used
+        round_off_amount: 0,
+        net_payable: masterTotals.net_payable || masterTotals.total_amount || 0,
+        selected_rooms: selectedRoomNumbers,
+        is_settle: 0,
+        is_print: 1,
+        checkout_datetime: currentDateTime,
+        total_nights: masterTotals.total_nights || 1,
+        // Individual totals (flattened)
+        room_tariff_sum: masterTotals.room_tariff,
+        ex_pax_charge: masterTotals.extra_pax_charge,
+        child_paid_amount: masterTotals.child_charge,
+        driver_charge: masterTotals.driver_charge,
+        discount_amount: masterTotals.discount,
+        cgst_amount: masterTotals.cgst,
+        sgst_amount: masterTotals.sgst,
+        igst_amount: masterTotals.igst,
+        ex_cgst_amount: masterTotals.ex_cgst,
+        ex_sgst_amount: masterTotals.ex_sgst,
+        ex_igst_amount: masterTotals.ex_igst,
+        child_cgst_amount: masterTotals.child_cgst,
+        child_sgst_amount: masterTotals.child_sgst,
+        child_igst_amount: masterTotals.child_igst,
+        driver_cgst_amount: masterTotals.driver_cgst,
+        driver_sgst_amount: masterTotals.driver_sgst,
+        driver_igst_amount: masterTotals.driver_igst,
+        cess_amount: masterTotals.cess,
+        service_charge_amount: masterTotals.service_charge_amount,
+        advance_amt: masterTotals.advance || 0,
+        // Bill number (crucial)
         bill_no: billNo,
-        invoice_no: invoiceNo,
-        ...masterTotals,
-      });
-    }
+        // Guest info
+        guest_id: combinedSummary.guest_id as number,
+        guest_name: combinedSummary.guest_name,
+        address: combinedSummary.guest_address || '',
+        mobile: combinedSummary.guest_mobile || '',
+        company_id: 0,
+        company_name: '',
+      };
 
-      const aggregatedTotals = allMasterTotals.reduce((acc, billTotals) => {
-      Object.keys(billTotals).forEach(key => {
-        // Skip non-numeric keys like 'bill_no' and 'invoice_no'
-        if (key !== 'bill_no' && key !== 'invoice_no') {
-          acc[key] = (acc[key] || 0) + (billTotals[key] || 0);
-        }
-      });
-      return acc;
-    }, {} as Record<string, number>);
-
-   const payload = {
-  checkin_id: combinedSummary.checkin_id,
-  checkout_reason: checkoutReason || 'Regular checkout',
-  payment_id: selectedPaymentModeId ?? undefined,
-  payment_mode: paymentMethod,
-  payment_method: paymentMethod,
-  total_amount: aggregatedTotals.total_amount || 0,  // use aggregated
-  room_id: roomIdsCommaString,   // optional – backend ignores it, can keep
-  round_off_amount: 0,
-  net_payable: aggregatedTotals.net_payable || aggregatedTotals.total_amount || 0,
-  selected_rooms: selectedRoomNumbers,
-  invoiceNoFromBody: allMasterTotals[0]?.invoice_no || '',
-  is_settle: 0,
-  is_print: 1,
-  checkout_datetime: currentDateTime,
-  total_nights: aggregatedTotals.total_nights || 1,
-  checkout_detail_rows: allDetailRows,
-  checkout_folio_rows: allFolioRows,
-  checkout_master_totals: aggregatedTotals,   // ✅ now a single object
-};
-
-    const response = await CheckoutService.performCheckout(payload);
-    if (!response.success) {
-      throw new Error(response.message || 'Checkout failed');
-    }
-
-    const responseData = response as any;
-
-    // ✅ Extract checkout_ids and ldg_bill_nos – safely parse if they are strings
-    let checkoutIds: number[] = [];
-    let ldgBillNos: string[] = [];
-
-    const ids = responseData.checkout_ids;
-    const bills = responseData.ldg_bill_nos;
-
-    if (ids) {
-      if (typeof ids === 'string') {
-        try { checkoutIds = JSON.parse(ids); } catch { checkoutIds = []; }
-      } else if (Array.isArray(ids)) {
-        checkoutIds = ids;
-      } else {
-        checkoutIds = [ids];
+      const response = await CheckoutService.performCheckout(payload) as any;
+      if (!response.success) {
+        throw new Error(response.message || `Checkout failed for bill ${billNo}`);
       }
+
+      allCheckoutIds.push(response.checkout_id);
+      allLdgBillNos.push(response.ldg_bill_no);
     }
 
-    if (bills) {
-      if (typeof bills === 'string') {
-        try { ldgBillNos = JSON.parse(bills); } catch { ldgBillNos = []; }
-      } else if (Array.isArray(bills)) {
-        ldgBillNos = bills;
-      } else {
-        ldgBillNos = [bills];
-      }
-    }
+    setAllCheckoutIds(allCheckoutIds);
+    setAllLdgBillNos(allLdgBillNos);
 
-    // Fallback: if no arrays, use single values
-    if (checkoutIds.length === 0 && responseData.checkout_id) {
-      checkoutIds = [responseData.checkout_id];
-    }
-    if (ldgBillNos.length === 0 && responseData.ldg_bill_no) {
-      ldgBillNos = [responseData.ldg_bill_no];
-    }
-
-    setAllCheckoutIds(checkoutIds);
-    setAllLdgBillNos(ldgBillNos);
-
-    toast.success(`✅ Checkout completed! Bills: ${ldgBillNos.join(', ')}`);
+    toast.success(`✅ Checkout completed! Bills: ${allLdgBillNos.join(', ')}`);
 
     setShowCheckoutModal(false);
     setCheckoutReason('');
     setCheckoutDone(true);
 
-    if (checkoutIds.length > 0 && checkoutIds[0] > 0) {
-      const firstId = checkoutIds[0];
-      const firstBill = ldgBillNos[0] || '';
-      setCheckoutId(firstId);
-      setGeneratedBillNumber(firstBill);
+    if (allCheckoutIds.length > 0 && allCheckoutIds[0] > 0) {
+      setCheckoutId(allCheckoutIds[0]);
+      setGeneratedBillNumber(allLdgBillNos[0] || '');
       setShowBillModal(true);
     } else {
       setCheckoutDone(false);
       navigate('/hotel-master/HotelBookingPanel', {
         state: {
           checkoutSuccess: true,
-          checkedOutRooms: selectedRoomNumbers,
+          checkedOutRooms: Array.from(selectedRooms),
           checkin_id: combinedSummary.checkin_id,
-          billNumbers: ldgBillNos,
+          billNumbers: allLdgBillNos,
         },
       });
     }

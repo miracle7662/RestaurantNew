@@ -370,17 +370,17 @@ exports.performCheckout = async (req, res) => {
       is_undo = 0,
       undo_room_ids = null,
       total_nights = null,
-      // ✅ NEW PARAMETERS FROM FRONTEND
-      checkout_detail_rows = [],
-      checkout_folio_rows = [],
-      checkout_master_totals = {},
-      // Guest & company details (sent from frontend or fallback)
+      // Guest & company details
       guest_id = 0,
       guest_name = '',
       address = '',
       mobile = '',
       company_id = 0,
       company_name = '',
+      // New bill-wise parameter
+      bill_no = null,                     // <-- ADDED
+      // Totals object – we extract from it
+      checkout_master_totals = {},
     } = req.body;
 
     const userId = getCurrentUserId(req);
@@ -388,23 +388,14 @@ exports.performCheckout = async (req, res) => {
     console.log(`🔵 Checkin ID: ${checkin_id}`);
     console.log(`🔵 Selected Rooms: ${JSON.stringify(selected_rooms)}`);
     console.log(`🔵 Payment Method: ${payment_method || 'Cash'}`);
-    console.log(`🔵 Checkout DateTime: ${checkout_datetime || 'Will use server time'}`);
-    console.log(`🔵 Total Amount: ${total_amount}`);
-    console.log(`🔵 Net Payable: ${net_payable}`);
-   
-    console.log(`🔵 Is Undo Mode: ${is_undo}`);
-    console.log(`🔵 Undo Room IDs: ${JSON.stringify(undo_room_ids)}`);
-    console.log(`🔵 Checkout Detail Rows: ${JSON.stringify(checkout_detail_rows)}`);
-    console.log(`🔵 Checkout Folio Rows: ${JSON.stringify(checkout_folio_rows)}`);
-    console.log(`🔵 Checkout Master Totals: ${JSON.stringify(checkout_master_totals)}`);
+    console.log(`🔵 Bill No: ${bill_no ?? 'NULL (legacy)'}`);
+    console.log(`🔵 Is Undo: ${is_undo}`);
 
     // Check if checkin exists
-    console.log('🔵 Checking if checkin exists...');
     const [checkinCheck] = await connection.execute(
       'SELECT checkin_id, status FROM CheckIn_Master WHERE checkin_id = ?',
       [checkin_id]
     );
-    
     if (!checkinCheck || checkinCheck.length === 0) {
       console.error('🔴 Checkin not found!');
       await connection.rollback();
@@ -441,63 +432,73 @@ exports.performCheckout = async (req, res) => {
     } = checkout_master_totals;
 
     // --------------------------------------------------------------------------
-    // BUILD THE 44 PARAMETERS ARRAY (order must match procedure definition)
+    // BUILD PARAMETER ARRAY – EXACTLY 45 PARAMETERS
+    // Order must match sp_perform_checkout signature:
+    //  1-17  : checkin_id, checkout_reason, ..., total_nights
+    // 18-37  : individual totals (20)
+    // 38-43  : guest/company (6)
+    // 44     : p_room_details (null)
+    // 45     : p_bill_no
     // --------------------------------------------------------------------------
     const params = [
-      checkin_id,                                           // 1  p_checkin_id
-      checkout_reason || 'Regular checkout',                // 2  p_checkout_reason
-      payment_method || 'Cash',                             // 3  p_payment_method
-      total_amount || 0,                                   // 4  p_total_amount
-      round_off_amount || 0,                               // 5  p_round_off_amount
-      net_payable || 0,                                    // 6  p_net_payable
-      JSON.stringify(selected_rooms),                       // 7  p_selected_rooms
-       null,                           // 8  p_invoice_no
-      payment_id || null,                                  // 9  p_payment_id
-      payment_mode || payment_method || 'Cash',            // 10 p_payment_mode
-      is_settle || 0,                                      // 11 p_is_settle
-      is_print || 1,                                       // 12 p_is_print
-      userId,                                              // 13 p_user_id
-      formatDateTime(checkout_datetime),                   // 14 p_checkout_datetime
-      is_undo,                                             // 15 p_is_undo
-      undo_room_ids ? JSON.stringify(undo_room_ids) : null, // 16 p_undo_room_ids
-      total_nights,                                        // 17 p_total_nights
+      // 1-17
+      checkin_id,                                           // 1
+      checkout_reason || 'Regular checkout',                // 2
+      payment_method || 'Cash',                             // 3
+      total_amount || 0,                                    // 4
+      round_off_amount || 0,                                // 5
+      net_payable || 0,                                     // 6
+      JSON.stringify(selected_rooms),                       // 7
+      null,                                                 // 8  p_invoice_no (generated inside SP)
+      payment_id || null,                                   // 9
+      payment_mode || payment_method || 'Cash',             // 10
+      is_settle || 0,                                       // 11
+      is_print || 1,                                        // 12
+      userId,                                               // 13
+      formatDateTime(checkout_datetime),                    // 14
+      is_undo,                                              // 15
+      undo_room_ids ? JSON.stringify(undo_room_ids) : null, // 16
+      total_nights,                                         // 17
 
-      // 18–37: all individual totals
-      room_tariff_sum,                                     // 18 p_room_tariff_sum
-      ex_pax_charge,                                       // 19 p_ex_pax_charge
-      child_paid_amount,                                   // 20 p_child_paid_amount
-      driver_charge,                                       // 21 p_driver_charge
-      discount_amount,                                     // 22 p_discount_amount
-      cgst_amount,                                         // 23 p_cgst_amount
-      sgst_amount,                                         // 24 p_sgst_amount
-      igst_amount,                                         // 25 p_igst_amount
-      ex_cgst_amount,                                      // 26 p_ex_cgst_amount
-      ex_sgst_amount,                                      // 27 p_ex_sgst_amount
-      ex_igst_amount,                                      // 28 p_ex_igst_amount
-      child_cgst_amount,                                   // 29 p_child_cgst_amount
-      child_sgst_amount,                                   // 30 p_child_sgst_amount
-      child_igst_amount,                                   // 31 p_child_igst_amount
-      driver_cgst_amount,                                  // 32 p_driver_cgst_amount
-      driver_sgst_amount,                                  // 33 p_driver_sgst_amount
-      driver_igst_amount,                                  // 34 p_driver_igst_amount
-      cess_amount,                                         // 35 p_cess_amount
-      service_charge_amount,                               // 36 p_service_charge_amount
-      advance_amt,                                         // 37 p_advance_amt
+      // 18-37: individual totals (20)
+      room_tariff_sum,                                      // 18
+      ex_pax_charge,                                        // 19
+      child_paid_amount,                                    // 20
+      driver_charge,                                        // 21
+      discount_amount,                                      // 22
+      cgst_amount,                                          // 23
+      sgst_amount,                                          // 24
+      igst_amount,                                          // 25
+      ex_cgst_amount,                                       // 26
+      ex_sgst_amount,                                       // 27
+      ex_igst_amount,                                       // 28
+      child_cgst_amount,                                    // 29
+      child_sgst_amount,                                    // 30
+      child_igst_amount,                                    // 31
+      driver_cgst_amount,                                   // 32
+      driver_sgst_amount,                                   // 33
+      driver_igst_amount,                                   // 34
+      cess_amount,                                          // 35
+      service_charge_amount,                                // 36
+      advance_amt,                                          // 37
 
-      // 38–43: guest & company info
-      guest_id || 0,                                       // 38 p_guest_id
-      guest_name || null,                                  // 39 p_guest_name
-      address || null,                                     // 40 p_address
-      mobile || null,                                      // 41 p_mobile
-      company_id || 0,                                     // 42 p_company_id
-      company_name || null,                                // 43 p_company_name
+      // 38-43: guest & company
+      guest_id || 0,                                        // 38
+      guest_name || null,                                   // 39
+      address || null,                                      // 40
+      mobile || null,                                       // 41
+      company_id || 0,                                      // 42
+      company_name || null,                                 // 43
 
-      // 44: room_details JSON (use the detail rows from frontend)
-      JSON.stringify(checkout_detail_rows),                // 44 p_room_details
+      // 44: p_room_details (not used, can be null)
+      null,                                                 // 44
+
+      // 45: bill_no (optional, null for legacy)
+      bill_no,                                              // 45
     ];
 
     console.log('🔵 ==========================================');
-    console.log('🔵 Calling sp_perform_checkout with 44 params:');
+    console.log(`🔵 Calling sp_perform_checkout with ${params.length} params:`);
     console.log('🔵 ==========================================');
     params.forEach((param, index) => {
       console.log(`   [${index + 1}] ${param !== null ? param : 'NULL'} (${typeof param})`);
@@ -505,50 +506,48 @@ exports.performCheckout = async (req, res) => {
     console.log('🔵 ==========================================');
 
     // --------------------------------------------------------------------------
-    // EXECUTE STORED PROCEDURE – NOW WITH 44 PLACEHOLDERS
+    // EXECUTE STORED PROCEDURE – 45 PLACEHOLDERS
     // --------------------------------------------------------------------------
     const [results] = await connection.execute(
-      `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params
     );
 
     console.log('🔵 Stored procedure executed successfully');
-
     await connection.commit();
     console.log('🔵 Transaction committed successfully');
 
-    // Process results (unchanged)
+    // --------------------------------------------------------------------------
+    // PARSE RESPONSE
+    // --------------------------------------------------------------------------
     let result = null;
     if (results && results.length > 0 && results[0] && results[0].length > 0) {
       const firstRow = results[0][0];
-      console.log('🔵 First row from result set:', JSON.stringify(firstRow, null, 2));
-
       if (firstRow && firstRow.result) {
         try {
           result = typeof firstRow.result === 'string'
             ? JSON.parse(firstRow.result)
             : firstRow.result;
-          console.log('🔵 Parsed result successfully:');
-          console.log(JSON.stringify(result, null, 2));
+          console.log('🔵 Parsed result:', JSON.stringify(result, null, 2));
         } catch (parseError) {
           console.error('🔴 Failed to parse result JSON:', parseError);
           throw new Error('Invalid JSON response from stored procedure');
         }
       } else {
         result = firstRow;
-        console.log('🔵 Using raw row as result:', JSON.stringify(result, null, 2));
       }
     } else {
       throw new Error('No data returned from stored procedure');
     }
 
-    // Check outcome (unchanged)
+    // --------------------------------------------------------------------------
+    // RETURN RESPONSE
+    // --------------------------------------------------------------------------
     if (result && result.success === true) {
       console.log('✅ Checkout SUCCESSFUL');
       console.log(`✅ Checkout ID: ${result.checkout_id}`);
       console.log(`✅ LDG Bill No: ${result.ldg_bill_no}`);
-      console.log(`✅ Checkout Time: ${result.checkout_datetime || 'Set by database'}`);
-      console.log(`✅ Case Type: ${result.case_type || 'Normal'}`);
+      console.log(`✅ Bill No: ${result.bill_no ?? 'N/A'}`);
 
       return res.status(200).json({
         success: true,
@@ -556,15 +555,14 @@ exports.performCheckout = async (req, res) => {
         checkout_id: result.checkout_id,
         checkin_id: result.checkin_id,
         ldg_bill_no: result.ldg_bill_no,
+        bill_no: result.bill_no,                     // exposed to frontend
         is_partial: result.is_partial,
         payment_method: result.payment_method,
         checkout_datetime: result.checkout_datetime,
         checked_out_rooms: result.checked_out_rooms,
         checked_out_room_ids: result.checked_out_room_ids,
-        rooms_updated_count: result.rooms_updated_count,
+        is_re_checkout: result.is_re_checkout,
         case_type: result.case_type || 'Normal Checkout',
-        rooms_undone: result.rooms_undone,
-        rooms_remaining: result.rooms_remaining,
         data: result.data,
       });
     } else {
@@ -581,7 +579,6 @@ exports.performCheckout = async (req, res) => {
         console.error('🔴 Rollback failed:', rollbackError);
       }
     }
-    
     return res.status(500).json({
       success: false,
       message: error.message || 'Checkout failed',
