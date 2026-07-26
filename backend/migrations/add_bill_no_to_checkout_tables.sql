@@ -138,6 +138,10 @@ sp_perform_checkout: BEGIN
     DECLARE v_undo_rooms_str VARCHAR(2000) DEFAULT '';
     DECLARE v_room_count INT DEFAULT 0;
 
+    -- FIX: LDG BILL NUMBER LOGIC (Section 10 - critical room undo rule)
+    DECLARE v_rooms_with_other_bills VARCHAR(2000) DEFAULT '';
+    DECLARE v_rooms_to_reactivate VARCHAR(2000) DEFAULT '';
+
     DECLARE merge_cursor CURSOR FOR
         SELECT DISTINCT cm.checkout_id
         FROM Checkout_Master cm
@@ -271,15 +275,47 @@ sp_perform_checkout: BEGIN
           AND NOT FIND_IN_SET(room_id, v_undo_rooms_str) > 0;
         
         SET v_debug_msg = CONCAT('Rooms to undo: ', v_undo_room_count, ', Remaining rooms: ', v_undo_remaining_rooms);
-        
-        UPDATE checkin_detail_master
-        SET is_checkout = 0, updated_by_id = v_user_id, updated_date = v_now
-        WHERE checkin_id = v_undo_checkin_id
-          AND FIND_IN_SET(room_id, v_undo_rooms_str) > 0;
-        
-        UPDATE room_master
-        SET room_status_id = 1, updated_by_id = v_user_id, updated_date = v_now
-        WHERE FIND_IN_SET(room_id, v_undo_rooms_str) > 0;
+
+        -- ============================================================================
+        -- FIX: LDG BILL NUMBER LOGIC / CRITICAL ROOM UNDO RULE (Section 10)
+        -- A room must only be pushed back to "active" (is_checkout = 0,
+        -- room_status_id = 1) when NO OTHER Checkout_Detail row (i.e. no other
+        -- bill / checkout_id) still exists for that room under this checkin.
+        -- Previously every undone room was blindly reactivated even if the
+        -- room still had another valid bill (e.g. bill-wise checkout where a
+        -- Restaurant or Bar bill for the same room is untouched).
+        -- ============================================================================
+        SELECT GROUP_CONCAT(DISTINCT cd.room_id)
+        INTO v_rooms_with_other_bills
+        FROM Checkout_Detail cd
+        WHERE cd.checkin_id = v_undo_checkin_id
+          AND cd.checkout_id <> p_checkin_id
+          AND FIND_IN_SET(cd.room_id, v_undo_rooms_str) > 0;
+
+        SET v_rooms_to_reactivate = v_undo_rooms_str;
+        IF v_rooms_with_other_bills IS NOT NULL AND v_rooms_with_other_bills != '' THEN
+            SELECT GROUP_CONCAT(DISTINCT room_id)
+            INTO v_rooms_to_reactivate
+            FROM (
+                SELECT DISTINCT room_id
+                FROM checkin_detail_master
+                WHERE checkin_id = v_undo_checkin_id
+                  AND FIND_IN_SET(room_id, v_undo_rooms_str) > 0
+                  AND NOT FIND_IN_SET(room_id, v_rooms_with_other_bills) > 0
+            ) t;
+            SET v_debug_msg = CONCAT(v_debug_msg, ' | Rooms kept checked-out (other bill exists): ', v_rooms_with_other_bills);
+        END IF;
+
+        IF v_rooms_to_reactivate IS NOT NULL AND v_rooms_to_reactivate != '' THEN
+            UPDATE checkin_detail_master
+            SET is_checkout = 0, updated_by_id = v_user_id, updated_date = v_now
+            WHERE checkin_id = v_undo_checkin_id
+              AND FIND_IN_SET(room_id, v_rooms_to_reactivate) > 0;
+
+            UPDATE room_master
+            SET room_status_id = 1, updated_by_id = v_user_id, updated_date = v_now
+            WHERE FIND_IN_SET(room_id, v_rooms_to_reactivate) > 0;
+        END IF;
         
         DELETE FROM Checkout_Folio_Master 
         WHERE checkout_id = p_checkin_id 
@@ -530,6 +566,8 @@ sp_perform_checkout: BEGIN
             WHERE checkin_id = p_checkin_id
               AND FIND_IN_SET(room_id, v_active_room_ids) > 0;
             
+            -- FIX: LDG BILL NUMBER LOGIC — keeper's existing ldg_bill_no is reused,
+            -- generate_next_invoice_no() is never called in Case 4.
             SELECT checkout_id, ldg_bill_no 
             INTO v_keeper_checkout_id, v_ldg_bill_no
             FROM Checkout_Master
@@ -876,6 +914,8 @@ sp_perform_checkout: BEGIN
         SET v_case5_merge_required = 1;
         SET v_debug_msg = CONCAT('Case 5 detected: All rooms already checked out. Merging all bills.');
         
+        -- FIX: LDG BILL NUMBER LOGIC — keeper's existing ldg_bill_no is reused,
+        -- generate_next_invoice_no() is never called in Case 5.
         SELECT checkout_id, ldg_bill_no 
         INTO v_keeper_checkout_id, v_ldg_bill_no
         FROM Checkout_Master
@@ -1150,6 +1190,8 @@ sp_perform_checkout: BEGIN
         LIMIT 1;
         
         IF v_existing_checkout_id IS NOT NULL AND v_existing_checkout_id > 0 THEN
+            -- FIX: LDG BILL NUMBER LOGIC — reuse existing checkout identity/bill,
+            -- never call generate_next_invoice_no() here.
             SET v_is_re_checkout = 1;
             SET v_ldg_bill_no = v_existing_ldg_bill_no;
             SET v_checkout_id = v_existing_checkout_id;
@@ -1189,6 +1231,39 @@ sp_perform_checkout: BEGIN
            AND v_checked_out_selected_room_ids IS NOT NULL AND v_checked_out_selected_room_ids != '' THEN
         SET v_mixed_mode = 1;
         SET v_active_room_ids = v_selected_active_room_ids;
+
+        -- ========================================================================
+        -- FIX: LDG BILL NUMBER LOGIC (Mixed Mode)
+        -- Determine the keeper checkout up front and route the newly-active
+        -- rooms straight into it via the re-checkout code path below.
+        -- Previously this fell through to the "normal checkout" branch, which:
+        --   1) called generate_next_invoice_no() / used p_invoice_no to create a
+        --      brand-new Checkout_Master row and bill number for the newly
+        --      active rooms, even though that row was about to be discarded —
+        --      wasting an invoice number (violates Section 6 & 11), and
+        --   2) that temporary checkout's Checkout_Detail/Checkout_Room_Charges
+        --      rows were then DELETEd in the merge step below without ever
+        --      being copied into the keeper — real data loss.
+        -- Setting v_is_re_checkout = 1 here reuses the keeper's existing
+        -- ldg_bill_no/checkout_id and writes the new room detail rows directly
+        -- into it, so no invoice is generated and nothing needs to be moved.
+        -- ========================================================================
+        SELECT checkout_id, ldg_bill_no
+        INTO v_keeper_checkout_id, v_existing_ldg_bill_no
+        FROM Checkout_Master
+        WHERE checkin_id = p_checkin_id
+        ORDER BY checkout_id ASC
+        LIMIT 1;
+
+        IF v_keeper_checkout_id IS NOT NULL AND v_keeper_checkout_id > 0 THEN
+            SET v_is_re_checkout = 1;
+            SET v_existing_checkout_id = v_keeper_checkout_id;
+            SET v_checkout_id = v_keeper_checkout_id;
+            SET v_ldg_bill_no = v_existing_ldg_bill_no;
+            SET v_room_ids_to_update = v_selected_active_room_ids;
+            SET v_debug_msg = CONCAT('Mixed mode: routing new rooms into keeper checkout_id=', v_keeper_checkout_id,
+                                     ', ldg_bill_no=', v_existing_ldg_bill_no);
+        END IF;
         
     -- Normal case: all selected rooms are active (Case 1, 2, 3)
     ELSEIF v_selected_active_room_ids IS NOT NULL AND v_selected_active_room_ids != '' THEN
@@ -1255,6 +1330,11 @@ sp_perform_checkout: BEGIN
     -- Insert or Update Checkout_Master
     -- ============================================================================
     IF v_is_re_checkout = 0 THEN
+        -- FIX: LDG BILL NUMBER LOGIC — this is the ONLY place in the whole
+        -- procedure that may call generate_next_invoice_no(); it only runs for
+        -- a genuinely new checkout (not re-checkout, not mixed mode, not
+        -- Case 4/5). The value is captured once into v_ldg_bill_no and reused
+        -- for every subsequent statement in this execution.
         IF p_invoice_no IS NULL OR p_invoice_no = '' THEN
             SET v_ldg_bill_no = generate_next_invoice_no();
         ELSE
@@ -1607,6 +1687,113 @@ sp_perform_checkout: BEGIN
         FROM Checkout_Master
         WHERE checkin_id = p_checkin_id
           AND checkout_id != v_keeper_checkout_id;
+
+        -- ========================================================================
+        -- FIX: LDG BILL NUMBER LOGIC — move any remaining source checkouts'
+        -- Checkout_Detail / Checkout_Room_Charges into the keeper BEFORE they
+        -- are deleted. (With the routing fix above, @other_checkout_ids will
+        -- normally be empty for the common 2-bill mixed-mode case since the
+        -- new rooms were already written directly into the keeper; this only
+        -- matters when 3+ Checkout_Master rows genuinely exist and still need
+        -- to be folded together.) Without this step the source rows were
+        -- previously destroyed with no replacement — real data loss.
+        -- ========================================================================
+        IF @other_checkout_ids IS NOT NULL AND @other_checkout_ids != '' THEN
+
+            INSERT INTO Checkout_Detail (
+                checkin_id, checkout_id, hotelid, room_id, room_number,
+                room_category_id, room_category_name,
+                converted_category_id, converted_category_name,
+                guest_id, guest_name, address, mobile,
+                company_id, company_name, emailed,
+                checkin_datetime, checkout_datetime, no_of_days,
+                adults, pax, ex_pax,
+                child_paid, child_unpaid, driver,
+                room_tariff,
+                ex_pax_charge, child_paid_amount, driver_charge,
+                discount_percent, discount_amount,
+                tax_percen_room,
+                cgst_percent, cgst_amount,
+                sgst_percent, sgst_amount,
+                igst_percent, igst_amount,
+                tax_percen_ex,
+                ex_cgst_percent, ex_cgst_amount,
+                ex_sgst_percent, ex_sgst_amount,
+                ex_igst_percent, ex_igst_amount,
+                tax_percen_child,
+                child_cgst_percent, child_cgst_amount,
+                child_sgst_percent, child_sgst_amount,
+                child_igst_percent, child_igst_amount,
+                tax_percen_driver,
+                driver_cgst_percent, driver_cgst_amount,
+                driver_sgst_percent, driver_sgst_amount,
+                driver_igst_percent, driver_igst_amount,
+                service_charge, service_charge_amount,
+                cess_percent, cess_amount,
+                parent_detail_id,
+                is_checkout,
+                merged,
+                is_settle,
+                tax,
+                created_date, updated_date,
+                created_by_id, updated_by_id
+            )
+            SELECT
+                checkin_id, v_keeper_checkout_id, hotelid, room_id, room_number,
+                room_category_id, room_category_name,
+                converted_category_id, converted_category_name,
+                guest_id, guest_name, address, mobile,
+                company_id, company_name, emailed,
+                checkin_datetime, v_checkout_dt, no_of_days,
+                adults, pax, ex_pax,
+                child_paid, child_unpaid, driver,
+                room_tariff,
+                ex_pax_charge, child_paid_amount, driver_charge,
+                discount_percent, discount_amount,
+                tax_percen_room,
+                cgst_percent, cgst_amount,
+                sgst_percent, sgst_amount,
+                igst_percent, igst_amount,
+                tax_percen_ex,
+                ex_cgst_percent, ex_cgst_amount,
+                ex_sgst_percent, ex_sgst_amount,
+                ex_igst_percent, ex_igst_amount,
+                tax_percen_child,
+                child_cgst_percent, child_cgst_amount,
+                child_sgst_percent, child_sgst_amount,
+                child_igst_percent, child_igst_amount,
+                tax_percen_driver,
+                driver_cgst_percent, driver_cgst_amount,
+                driver_sgst_percent, driver_sgst_amount,
+                driver_igst_percent, driver_igst_amount,
+                service_charge, service_charge_amount,
+                cess_percent, cess_amount,
+                parent_detail_id,
+                1, merged, is_settle, tax,
+                created_date, v_now, created_by_id, v_user_id
+            FROM Checkout_Detail
+            WHERE FIND_IN_SET(checkout_id, @other_checkout_ids) > 0;
+
+            INSERT INTO Checkout_Room_Charges (
+                checkin_id, checkout_id, guest_id, room_id, category_id,
+                pax_count, pax_price, pax_tax,
+                ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
+                child_count, child_price, child_tax, child_tax_percent, child_total,
+                driver_count, driver_price, driver_tax, driver_tax_percent, driver_total,
+                total_amount, checkin_datetime, checkout_datetime,
+                created_at, updated_at
+            )
+            SELECT
+                checkin_id, v_keeper_checkout_id, guest_id, room_id, category_id,
+                pax_count, pax_price, pax_tax,
+                ex_pax_count, ex_pax_price, ex_pax_tax, ex_pax_tax_percent, ex_pax_total,
+                child_count, child_price, child_tax, child_tax_percent, child_total,
+                driver_count, driver_price, driver_tax, driver_tax_percent, driver_total,
+                total_amount, checkin_datetime, v_checkout_dt,
+                NOW(), NOW()
+            FROM Checkout_Room_Charges
+            WHERE FIND_IN_SET(checkout_id, @other_checkout_ids) > 0;
+        END IF;
 
         IF @other_checkout_ids IS NOT NULL AND @other_checkout_ids != '' THEN
             SET @delete_query = CONCAT('DELETE FROM Checkout_Folio_Master WHERE checkout_id IN (', @other_checkout_ids, ')');

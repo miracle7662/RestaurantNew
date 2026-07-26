@@ -362,7 +362,6 @@ exports.performCheckout = async (req, res) => {
       round_off_amount,
       net_payable,
       selected_rooms = [],
-      invoiceNoFromBody,
       payment_id,
       payment_mode,
       is_settle,
@@ -392,7 +391,7 @@ exports.performCheckout = async (req, res) => {
     console.log(`🔵 Checkout DateTime: ${checkout_datetime || 'Will use server time'}`);
     console.log(`🔵 Total Amount: ${total_amount}`);
     console.log(`🔵 Net Payable: ${net_payable}`);
-    console.log(`🔵 Invoice No: ${invoiceNoFromBody || 'Auto generate'}`);
+   
     console.log(`🔵 Is Undo Mode: ${is_undo}`);
     console.log(`🔵 Undo Room IDs: ${JSON.stringify(undo_room_ids)}`);
     console.log(`🔵 Checkout Detail Rows: ${JSON.stringify(checkout_detail_rows)}`);
@@ -452,7 +451,7 @@ exports.performCheckout = async (req, res) => {
       round_off_amount || 0,                               // 5  p_round_off_amount
       net_payable || 0,                                    // 6  p_net_payable
       JSON.stringify(selected_rooms),                       // 7  p_selected_rooms
-      invoiceNoFromBody || null,                           // 8  p_invoice_no
+       null,                           // 8  p_invoice_no
       payment_id || null,                                  // 9  p_payment_id
       payment_mode || payment_method || 'Cash',            // 10 p_payment_mode
       is_settle || 0,                                      // 11 p_is_settle
