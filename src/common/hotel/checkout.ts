@@ -114,6 +114,14 @@ export interface PerformCheckoutPayload {
   /** Override invoice number. If omitted, backend auto-generates. */
   invoiceNoFromBody?: string;
 
+  /**
+   * Bill number for bill-wise checkout.
+   * 1 = Lodging (default), 2 = Restaurant, 3 = Bar, 4 = Pantry
+   * If omitted/NULL/0, falls back to legacy mode (all folio rows copied).
+   * For non-lodging bills (>1), only the folio rows for that bill are copied.
+   */
+  bill_no?: number;
+
   /** 1 = settled, 0 = unsettled. Default: 1 */
   is_settle?: number;
 
