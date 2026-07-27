@@ -47,35 +47,39 @@ exports.getSettlements = async (req, res) => {
       ? `WHERE ${whereClauses.join(' AND ')}`
       : '';
 
-    const sql = `
-      SELECT 
-        s.SettlementID,
-        s.OrderNo,
-        s.table_name,
-        s.PaymentType,
-        s.Amount,
-        s.TipAmount,
-        s.Receive,
-        s.Refund,
-        s.HotelID,
-        s.TxnID,
-        s.TxnNo AS TaxNo,
-        s.UserId,
-        s.Name,
-        s.CustomerName,
-        s.MobileNo,
-        s.InsertDate,
-        s.isSettled,
-        s.customerid,
-        tb.department_name AS department,
-        mo.outlet_name
-      FROM TrnSettlement s
-      LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.OrderNo OR s.TxnNo = b.TxnNo
-      left join msttable_department tb on tb.departmentid=b.DeptID
-      left join mst_outlets mo on mo.outletid=b.outletid
-      ${whereSql}
-      ORDER BY s.TxnNo asc
-    `;
+  const sql = `
+  SELECT 
+    s.SettlementID,
+    s.OrderNo,
+    s.table_name,
+    s.PaymentType,
+    s.Amount,
+    s.TipAmount,
+    s.Receive,
+    s.Refund,
+    s.HotelID,
+    s.TxnID,
+    s.TxnNo AS TaxNo,
+    s.UserId,
+    s.Name,
+    s.CustomerName,
+    s.MobileNo,
+    s.InsertDate,
+    s.isSettled,
+    s.customerid,
+    tb.department_name AS department,
+    mo.outlet_name,
+    f.checkin_id AS checkinid
+  FROM TrnSettlement s
+  LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.OrderNo OR s.TxnNo = b.TxnNo
+  LEFT JOIN msttable_department tb ON tb.departmentid = b.DeptID
+  LEFT JOIN mst_outlets mo ON mo.outletid = b.outletid
+  LEFT JOIN checkin_guest_folio_master f
+    ON f.reference_number = s.OrderNo
+    AND f.transaction_type = 'Room Credit'
+  ${whereSql}
+  ORDER BY s.TxnNo asc
+`;
 
     const [settlements] = await db.query(sql, params);// FIXED: Await the query result
 
@@ -96,7 +100,7 @@ exports.getSettlements = async (req, res) => {
 exports.updateSettlement = async (req, res) => {
   try {
     const { id } = req.params;
-    const { PaymentType, Amount, EditedBy, checkinid } = req.body; // ✅ checkinid optional
+    const { PaymentType, Amount, EditedBy, checkinid } = req.body;
 
     // Get existing settlement
     const [rows] = await db.query(
@@ -135,83 +139,135 @@ exports.updateSettlement = async (req, res) => {
         EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown'
       ]);
 
-      // 2️⃣ Update settlement
+      // 2️⃣ Update the settlement row
       await connection.query(`
         UPDATE TrnSettlement
         SET PaymentType = ?, Amount = ?
         WHERE SettlementID = ?
       `, [PaymentType, Number(Amount), Number(id)]);
 
-      // 3️⃣ Handle folio entry based on new PaymentType
+      // ---------------------------------------------------------------
+      // 3️⃣ Handle Room Credit folio (with fixes)
+      // ---------------------------------------------------------------
+      // First, check if there is an existing Room Credit folio for this OrderNo
+      const [existingFolioRows] = await connection.query(
+        `SELECT folio_id, checkin_id, detail_id, room_id, debit_amount
+         FROM checkin_guest_folio_master
+         WHERE reference_number = ? AND transaction_type = 'Room Credit'`,
+        [OrderNo]
+      );
+      const existingFolio = existingFolioRows[0];
+
       if (PaymentType === 'Room Credit') {
-        // ✅ New payment is Room Credit → insert/update folio
-        if (!checkinid) {
-          await connection.rollback();
-          return res.status(400).json({
-            success: false,
-            message: 'checkinid is required for Room Credit payment'
-          });
-        }
+        // ✅ New payment IS Room Credit
+        if (existingFolio) {
+          // ✅ CASE A: Existing folio found → UPDATE it (preserve original checkin_id)
+          const folioId = existingFolio.folio_id;
+          const roomCreditCheckinid = existingFolio.checkin_id; // SOURCE OF TRUTH
+          const detailId = existingFolio.detail_id;
+          const roomId = existingFolio.room_id;
 
-        // Get detail_id
-        const [detailRows] = await connection.query(
-          `SELECT detail_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
-          [checkinid]
-        );
-        if (detailRows.length === 0) {
-          await connection.rollback();
-          return res.status(400).json({
-            success: false,
-            message: `No checkin detail found for checkin_id: ${checkinid}`
-          });
-        }
-        const detailId = detailRows[0].detail_id;
+          console.log(
+            `Room Credit folio update (single settlement): folio_id=${folioId}, ` +
+            `checkin_id=${roomCreditCheckinid}, ` +
+            `OrderNo=${OrderNo}, ` +
+            `oldAmount=${existingFolio.debit_amount}, ` +
+            `newAmount=${Number(Amount)}`
+          );
 
-        // Check if entry exists
-        const [existingFolio] = await connection.query(
-          `SELECT id FROM checkin_guest_folio_master WHERE reference_number = ? AND checkin_id = ?`,
-          [OrderNo, checkinid]
-        );
+          const description = `FOOD - ${settlement.table_name || 'Order'} #${OrderNo}`;
+          const insertDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-        const description = `Restaurant Bill - ${settlement.table_name || 'Order'} #${OrderNo}`;
-        const insertDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-
-        if (existingFolio.length > 0) {
-          // Update existing entry
+          // UPDATE using folio_id
           await connection.query(`
             UPDATE checkin_guest_folio_master
-            SET debit_amount = ?, description = ?, transaction_datetime = ?
-            WHERE reference_number = ? AND checkin_id = ?
-          `, [Number(Amount), description, insertDate, OrderNo, checkinid]);
+            SET
+              checkin_id = ?,
+              hotel_id = ?,
+              detail_id = ?,
+              room_id = ?,
+              debit_amount = ?,
+              credit_amount = 0,
+              description = ?,
+              transaction_datetime = ?,
+              payment_method = ?,
+              created_by_id = ?
+            WHERE folio_id = ?
+          `, [
+            roomCreditCheckinid,        // preserve original checkin_id
+            HotelID,
+            detailId,
+            roomId,
+            Number(Amount),
+            description,
+            insertDate,
+            'Room Credit',
+            EditedBy?.userId || null,
+            folioId
+          ]);
+
+          console.log(`✅ Room Credit folio updated: folio_id=${folioId}`);
         } else {
-          // Insert new entry
+          // ✅ CASE B: No existing folio → INSERT new one (use provided checkinid)
+          if (!checkinid) {
+            await connection.rollback();
+            return res.status(400).json({
+              success: false,
+              message: 'checkinid is required for new Room Credit payment'
+            });
+          }
+
+          console.log(`Inserting new Room Credit folio for checkin_id=${checkinid}, OrderNo=${OrderNo}`);
+
+          // Get detail_id and room_id from checkin_detail_master
+          const [detailRows] = await connection.query(
+            `SELECT detail_id, room_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
+            [checkinid]
+          );
+          if (detailRows.length === 0) {
+            await connection.rollback();
+            return res.status(400).json({
+              success: false,
+              message: `No checkin detail found for checkin_id: ${checkinid}`
+            });
+          }
+          const detailId = detailRows[0].detail_id;
+          const roomId = detailRows[0].room_id;
+
+          const description = `FOOD - ${settlement.table_name || 'Order'} #${OrderNo}`;
+          const insertDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
           await connection.query(`
             INSERT INTO checkin_guest_folio_master (
-              checkin_id, hotel_id, detail_id, room_id,
-              transaction_type, transaction_datetime, description,
-              debit_amount, credit_amount, reference_number,
-              payment_method, created_by_id, created_date
-            ) VALUES (?, ?, ?, NULL, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
+              checkin_id, hotel_id, detail_id, room_id, transaction_type,
+              transaction_datetime, description, debit_amount, credit_amount,
+              reference_number, payment_method, created_by_id, created_date
+            ) VALUES (?, ?, ?, ?, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
           `, [
             checkinid,
             HotelID,
             detailId,
+            roomId,
             insertDate,
             description,
             Number(Amount),
             OrderNo,
-            PaymentType,
+            'Room Credit',
             EditedBy?.userId || null,
             insertDate
           ]);
+
+          console.log(`✅ New Room Credit folio inserted for checkin_id=${checkinid}`);
         }
       } else {
-        // ✅ New payment is NOT Room Credit → delete any existing Room Credit folio entry for this OrderNo
-        await connection.query(`
-          DELETE FROM checkin_guest_folio_master
-          WHERE reference_number = ? AND transaction_type = 'Room Credit'
-        `, [OrderNo]);
-        console.log(`🗑️ Removed Room Credit folio entry for OrderNo: ${OrderNo} (updateSettlement)`);
+        // ✅ New payment is NOT Room Credit → DELETE any existing Room Credit folio
+        if (existingFolio) {
+          await connection.query(`
+            DELETE FROM checkin_guest_folio_master
+            WHERE reference_number = ? AND transaction_type = 'Room Credit'
+          `, [OrderNo]);
+          console.log(`🗑️ Room Credit folio deleted for OrderNo=${OrderNo} (payment changed)`);
+        }
       }
 
       await connection.commit();
@@ -248,7 +304,7 @@ exports.createSettlement = async (req, res) => {
       HotelID,
       EditedBy,
       InsertDate,
-      checkinid   // ✅ NEW: required when PaymentType === 'Room Credit'
+      checkinid   // required when PaymentType === 'Room Credit'
     } = req.body;
 
     // --- Basic validation ---
@@ -259,11 +315,22 @@ exports.createSettlement = async (req, res) => {
       });
     }
 
-    // --- Get TxnID ---
+    // --- Get bill header (TxnID, table_name, customerid) ---
     const [billRows] = await db.query(`
-      SELECT TxnID FROM TAxnTrnbill WHERE OrderNo = ? OR TxnNo = ?
+      SELECT TxnID, table_name, customerid
+      FROM TAxnTrnbill
+      WHERE OrderNo = ? OR TxnNo = ?
     `, [OrderNo, OrderNo]);
-    const txnID = billRows[0]?.TxnID || null;
+    const bill = billRows[0];
+    if (!bill) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bill not found for OrderNo: ' + OrderNo
+      });
+    }
+    const txnID = bill.TxnID;
+    const tableName = bill.table_name;
+    const customerId = bill.customerid;
 
     // --- Get payment type ID ---
     const [paymentRows] = await db.query(`
@@ -285,7 +352,7 @@ exports.createSettlement = async (req, res) => {
     await connection.beginTransaction();
 
     try {
-      // 1️⃣ Insert into TrnSettlement
+      // 1️⃣ Insert into TrnSettlement (fix customerid)
       await connection.query(`
         INSERT INTO TrnSettlement (
           OrderNo, TxnID, table_name, PaymentTypeID, PaymentType,
@@ -294,11 +361,11 @@ exports.createSettlement = async (req, res) => {
       `, [
         OrderNo,
         txnID,
-        req.body.table_name || null,
+        tableName,
         paymentTypeID,
         PaymentType,
         Number(Amount),
-        HotelID,  // customerid? Actually you have customerid in your original but not in destructure; I kept HotelID as placeholder; you might need to adjust.
+        customerId,          // ✅ use actual customerid from bill
         HotelID,
         insertDate
       ]);
@@ -314,59 +381,106 @@ exports.createSettlement = async (req, res) => {
           });
         }
 
-        // Get detail_id
-        const [detailRows] = await connection.query(
-          `SELECT detail_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
-          [checkinid]
+        // 🔍 First, check if a Room Credit folio already exists for this OrderNo
+        const [existingFolioRows] = await connection.query(
+          `SELECT folio_id, checkin_id, detail_id, room_id, debit_amount
+           FROM checkin_guest_folio_master
+           WHERE reference_number = ? AND transaction_type = 'Room Credit'`,
+          [OrderNo]
         );
-        if (detailRows.length === 0) {
-          await connection.rollback();
-          return res.status(400).json({
-            success: false,
-            message: `No checkin detail found for checkin_id: ${checkinid}`
-          });
-        }
-        const detailId = detailRows[0].detail_id;
+        const existingFolio = existingFolioRows[0];
 
-        // Check if an entry already exists for this OrderNo (to avoid duplicates)
-        const [existingFolio] = await connection.query(
-          `SELECT id FROM checkin_guest_folio_master WHERE reference_number = ? AND checkin_id = ?`,
-          [OrderNo, checkinid]
-        );
+        if (existingFolio) {
+          // ✅ Existing folio found → UPDATE it (preserve original checkin_id)
+          const folioId = existingFolio.folio_id;
+          const roomCreditCheckinid = existingFolio.checkin_id; // SOURCE OF TRUTH
+          const detailId = existingFolio.detail_id;
+          const roomId = existingFolio.room_id;
 
-        if (existingFolio.length > 0) {
-          // Update existing entry (optional)
+          console.log(
+            `Room Credit folio update (createSettlement): folio_id=${folioId}, ` +
+            `checkin_id=${roomCreditCheckinid}, ` +
+            `OrderNo=${OrderNo}, ` +
+            `oldAmount=${existingFolio.debit_amount}, ` +
+            `newAmount=${Number(Amount)}`
+          );
+
+          const description = `FOOD - ${tableName || 'Order'} #${OrderNo}`;
+
+          // UPDATE using folio_id
           await connection.query(`
             UPDATE checkin_guest_folio_master
-            SET debit_amount = ?, description = ?, transaction_datetime = ?
-            WHERE reference_number = ? AND checkin_id = ?
-          `, [Number(Amount), `Restaurant Bill - ${req.body.table_name || 'Order'} #${OrderNo}`, insertDate, OrderNo, checkinid]);
+            SET
+              checkin_id = ?,
+              hotel_id = ?,
+              detail_id = ?,
+              room_id = ?,
+              debit_amount = ?,
+              credit_amount = 0,
+              description = ?,
+              transaction_datetime = ?,
+              payment_method = ?,
+              created_by_id = ?
+            WHERE folio_id = ?
+          `, [
+            roomCreditCheckinid,        // preserve original checkin_id
+            HotelID,
+            detailId,
+            roomId,
+            Number(Amount),
+            description,
+            insertDate,
+            'Room Credit',
+            EditedBy?.userId || null,
+            folioId
+          ]);
+
+          console.log(`✅ Room Credit folio updated: folio_id=${folioId}`);
         } else {
-          // Insert new entry
-          const description = `Restaurant Bill - ${req.body.table_name || 'Order'} #${OrderNo}`;
+          // ✅ No existing folio → INSERT new one (use provided checkinid)
+          console.log(`Inserting new Room Credit folio for checkin_id=${checkinid}, OrderNo=${OrderNo}`);
+
+          // Get detail_id and room_id from checkin_detail_master
+          const [detailRows] = await connection.query(
+            `SELECT detail_id, room_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
+            [checkinid]
+          );
+          if (detailRows.length === 0) {
+            await connection.rollback();
+            return res.status(400).json({
+              success: false,
+              message: `No checkin detail found for checkin_id: ${checkinid}`
+            });
+          }
+          const detailId = detailRows[0].detail_id;
+          const roomId = detailRows[0].room_id;
+
+          const description = `FOOD - ${tableName || 'Order'} #${OrderNo}`;
+
           await connection.query(`
             INSERT INTO checkin_guest_folio_master (
-              checkin_id, hotel_id, detail_id, room_id,
-              transaction_type, transaction_datetime, description,
-              debit_amount, credit_amount, reference_number,
-              payment_method, created_by_id, created_date
-            ) VALUES (?, ?, ?, NULL, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
+              checkin_id, hotel_id, detail_id, room_id, transaction_type,
+              transaction_datetime, description, debit_amount, credit_amount,
+              reference_number, payment_method, created_by_id, created_date
+            ) VALUES (?, ?, ?, ?, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
           `, [
             checkinid,
             HotelID,
             detailId,
+            roomId,
             insertDate,
             description,
             Number(Amount),
             OrderNo,
-            PaymentType,
-            EditedBy || null,
+            'Room Credit',
+            EditedBy?.userId || null,
             insertDate
           ]);
+
+          console.log(`✅ New Room Credit folio inserted for checkin_id=${checkinid}`);
         }
       } else {
-        // 3️⃣ If PaymentType is NOT Room Credit → DELETE any existing folio entry for this OrderNo
-        // This ensures that if previously it was Room Credit and now changed, the old entry is removed.
+        // 3️⃣ If PaymentType is NOT Room Credit → DELETE any existing folio for this OrderNo
         await connection.query(`
           DELETE FROM checkin_guest_folio_master
           WHERE reference_number = ? AND transaction_type = 'Room Credit'
@@ -387,7 +501,7 @@ exports.createSettlement = async (req, res) => {
       await connection.rollback();
       connection.release();
       console.error('❌ Error during settlement (inner):', innerError);
-      throw innerError; // rethrow to outer catch
+      throw innerError;
     }
 
   } catch (error) {
@@ -425,14 +539,163 @@ exports.replaceSettlement = async (req, res) => {
     await connection.beginTransaction();
 
     try {
-      // 1️⃣ Delete existing settlements
+      // 🔍 Step 1: Get bill header (TxnID, table_name, customer details)
+      const [billRows] = await connection.query(
+        `SELECT TxnID, table_name, CustomerName, MobileNo, customerid 
+         FROM TAxnTrnbill WHERE orderNo = ? OR TxnNo = ?`,
+        [OrderNo, OrderNo]
+      );
+      const bill = billRows[0];
+      if (!bill) {
+        await connection.rollback();
+        return res.status(404).json({
+          success: false,
+          message: 'Bill not found for OrderNo: ' + OrderNo
+        });
+      }
+
+      // 🔍 Step 2: Check for existing Room Credit folio for this OrderNo
+      const [existingFolioRows] = await connection.query(
+        `SELECT folio_id, checkin_id, hotel_id, detail_id, room_id, debit_amount
+         FROM checkin_guest_folio_master
+         WHERE reference_number = ? AND transaction_type = 'Room Credit'`,
+        [OrderNo]
+      );
+      const existingFolio = existingFolioRows[0];
+
+      // 🔍 Step 3: Determine if any new settlement is Room Credit
+      const roomCreditSettlement = newSettlements.find(
+        s => s.PaymentType === 'Room Credit'
+      );
+
+      // ------------------------------------------------------------------
+      //  FOLIO HANDLING (fix)
+      // ------------------------------------------------------------------
+      if (roomCreditSettlement) {
+        // There is at least one Room Credit in the new settlements
+        const roomCreditAmount = Number(roomCreditSettlement.Amount) || 0;
+
+        if (existingFolio) {
+          // ✅ CASE A: Existing folio found → UPDATE it (preserve original checkin_id)
+          const folioId = existingFolio.folio_id;
+          const roomCreditCheckinid = existingFolio.checkin_id; // SOURCE OF TRUTH
+          const detailId = existingFolio.detail_id;
+          const roomId = existingFolio.room_id;
+
+          console.log(
+            `Room Credit folio update: folio_id=${folioId}, ` +
+            `checkin_id=${roomCreditCheckinid}, ` +
+            `OrderNo=${OrderNo}, ` +
+            `oldAmount=${existingFolio.debit_amount}, ` +
+            `newAmount=${roomCreditAmount}`
+          );
+
+          // Description
+          const description = `FOOD - ${bill.table_name || 'Order'} #${OrderNo}`;
+
+          // UPDATE the existing folio using folio_id
+          await connection.query(
+            `UPDATE checkin_guest_folio_master
+             SET
+               checkin_id = ?,
+               hotel_id = ?,
+               detail_id = ?,
+               room_id = ?,
+               debit_amount = ?,
+               credit_amount = 0,
+               description = ?,
+               transaction_datetime = ?,
+               payment_method = ?,
+               created_by_id = ?
+             WHERE folio_id = ?`,
+            [
+              roomCreditCheckinid,   // preserve original checkin_id
+              HotelID,
+              detailId,
+              roomId,
+              roomCreditAmount,
+              description,
+              insertDate,
+              'Room Credit',
+              EditedBy?.userId || null,
+              folioId
+            ]
+          );
+
+          console.log(`✅ Room Credit folio updated: folio_id=${folioId}`);
+        } else {
+          // ✅ CASE B: No existing folio → INSERT new one (use provided checkinid)
+          const newCheckinid = roomCreditSettlement.checkinid || checkinid;
+          if (!newCheckinid) {
+            await connection.rollback();
+            return res.status(400).json({
+              success: false,
+              message: 'checkinid is required for new Room Credit payment'
+            });
+          }
+
+          console.log(`Inserting new Room Credit folio for checkin_id=${newCheckinid}, OrderNo=${OrderNo}`);
+
+          // Get detail_id and room_id from checkin_detail_master
+          const [detailRows] = await connection.query(
+            `SELECT detail_id, room_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
+            [newCheckinid]
+          );
+          if (detailRows.length === 0) {
+            await connection.rollback();
+            return res.status(400).json({
+              success: false,
+              message: `No checkin detail found for checkin_id: ${newCheckinid}`
+            });
+          }
+          const detailId = detailRows[0].detail_id;
+          const roomId = detailRows[0].room_id;
+
+          const description = `FOOD - ${bill.table_name || 'Order'} #${OrderNo}`;
+
+          await connection.query(
+            `INSERT INTO checkin_guest_folio_master (
+               checkin_id, hotel_id, detail_id, room_id, transaction_type,
+               transaction_datetime, description, debit_amount, credit_amount,
+               reference_number, payment_method, created_by_id, created_date
+             ) VALUES (?, ?, ?, ?, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)`,
+            [
+              newCheckinid,
+              HotelID,
+              detailId,
+              roomId,
+              insertDate,
+              description,
+              roomCreditAmount,
+              OrderNo,
+              'Room Credit',
+              EditedBy?.userId || null,
+              insertDate
+            ]
+          );
+
+          console.log(`✅ New Room Credit folio inserted for checkin_id=${newCheckinid}`);
+        }
+      } else {
+        // ✅ CASE C: No Room Credit in new settlements → DELETE existing folio if any
+        if (existingFolio) {
+          await connection.query(
+            `DELETE FROM checkin_guest_folio_master
+             WHERE reference_number = ? AND transaction_type = 'Room Credit'`,
+            [OrderNo]
+          );
+          console.log(`🗑️ Room Credit folio deleted for OrderNo=${OrderNo} (payment changed)`);
+        }
+      }
+
+      // ------------------------------------------------------------------
+      //  1️⃣ Delete existing settlements (original logic)
+      // ------------------------------------------------------------------
       await connection.query(`DELETE FROM TrnSettlement WHERE OrderNo = ?`, [OrderNo]);
 
-      // 2️⃣ Insert new settlements and also handle folio logic
-      let hasRoomCredit = false;
-      let roomCreditAmount = 0;
-      let roomCreditCheckinid = checkinid; // top-level checkinid for Room Credit
-
+      // ------------------------------------------------------------------
+      //  2️⃣ Insert new settlements (original logic, but now using bill.TxnID)
+      // ------------------------------------------------------------------
       for (const s of newSettlements) {
         if (!s.PaymentType || s.Amount == null) continue;
 
@@ -452,9 +715,9 @@ exports.replaceSettlement = async (req, res) => {
 
         // Determine customer fields
         const isCredit = s.PaymentType && String(s.PaymentType).toLowerCase() === 'credit';
-        const finalCustomerId = isCredit ? (s.customerid ?? null) : null;
-        const finalCustomerName = isCredit ? (s.customerName ?? null) : null;
-        const finalMobileNo = isCredit ? (s.mobile ?? null) : null;
+        const finalCustomerId = isCredit ? (s.customerid ?? null) : bill.customerid;
+        const finalCustomerName = isCredit ? (s.customerName ?? null) : bill.CustomerName;
+        const finalMobileNo = isCredit ? (s.mobile ?? null) : bill.MobileNo;
         const finalName = s.Name || null;
 
         // Insert settlement
@@ -467,112 +730,37 @@ exports.replaceSettlement = async (req, res) => {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
         `, [
           OrderNo,
-          null, // TxnID will be fetched later if needed
-          req.body.table_name || null,
+          bill.TxnID,                      // ✅ use actual TxnID from bill
+          bill.table_name || null,
           paymentMode.paymenttypeid,
           s.PaymentType,
           Number(s.Amount),
           Number(s.TipAmount) || 0,
           HotelID,
-          null, // TxnNo
-          null, // UserId
+          null, // TxnNo (if needed)
+          EditedBy?.userId || null,
           finalName,
           finalCustomerId,
           finalCustomerName,
           finalMobileNo,
-          0, // Receive (if needed)
-          0, // Refund
+          Number(s.received_amount) || 0,
+          Number(s.refund_amount) || 0,
           insertDate
         ]);
-
-        // Track if any settlement is Room Credit
-        if (s.PaymentType === 'Room Credit') {
-          hasRoomCredit = true;
-          roomCreditAmount += Number(s.Amount);
-          // If checkinid is provided in individual settlement, use it
-          if (s.checkinid) roomCreditCheckinid = s.checkinid;
-        }
       }
 
-      // 3️⃣ Handle folio entry based on whether any Room Credit exists
-      if (hasRoomCredit) {
-        // There is at least one Room Credit → insert/update folio
-        if (!roomCreditCheckinid) {
-          await connection.rollback();
-          return res.status(400).json({
-            success: false,
-            message: 'checkinid is required for Room Credit payment'
-          });
-        }
-
-        // Get detail_id
-        const [detailRows] = await connection.query(
-          `SELECT detail_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
-          [roomCreditCheckinid]
-        );
-        if (detailRows.length === 0) {
-          await connection.rollback();
-          return res.status(400).json({
-            success: false,
-            message: `No checkin detail found for checkin_id: ${roomCreditCheckinid}`
-          });
-        }
-        const detailId = detailRows[0].detail_id;
-
-        // Check existing entry
-        const [existingFolio] = await connection.query(
-          `SELECT id FROM checkin_guest_folio_master WHERE reference_number = ? AND checkin_id = ?`,
-          [OrderNo, roomCreditCheckinid]
-        );
-
-        const description = `Restaurant Bill - ${req.body.table_name || 'Order'} #${OrderNo}`;
-        if (existingFolio.length > 0) {
-          await connection.query(`
-            UPDATE checkin_guest_folio_master
-            SET debit_amount = ?, description = ?, transaction_datetime = ?
-            WHERE reference_number = ? AND checkin_id = ?
-          `, [roomCreditAmount, description, insertDate, OrderNo, roomCreditCheckinid]);
-        } else {
-          await connection.query(`
-            INSERT INTO checkin_guest_folio_master (
-              checkin_id, hotel_id, detail_id, room_id,
-              transaction_type, transaction_datetime, description,
-              debit_amount, credit_amount, reference_number,
-              payment_method, created_by_id, created_date
-            ) VALUES (?, ?, ?, NULL, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
-          `, [
-            roomCreditCheckinid,
-            HotelID,
-            detailId,
-            insertDate,
-            description,
-            roomCreditAmount,
-            OrderNo,
-            'Room Credit',
-            EditedBy?.userId || null,
-            insertDate
-          ]);
-        }
-      } else {
-        // No Room Credit → delete any existing folio entry for this OrderNo
-        await connection.query(`
-          DELETE FROM checkin_guest_folio_master
-          WHERE reference_number = ? AND transaction_type = 'Room Credit'
-        `, [OrderNo]);
-        console.log(`🗑️ Removed Room Credit folio entry for OrderNo: ${OrderNo} (replaceSettlement)`);
-      }
-
-      // 4️⃣ Log replacements (for each new settlement, log against old if exists)
+      // ------------------------------------------------------------------
+      //  3️⃣ Log replacements (original logic, unchanged)
+      // ------------------------------------------------------------------
       for (let i = 0; i < newSettlements.length; i++) {
         const s = newSettlements[i];
         const old = existingSettlements[i] || {};
-        // Insert log
         await connection.query(`
           INSERT INTO TrnSettlementLog (
             SettlementID, OldPaymentType, OldAmount, NewPaymentType, NewAmount, EditedBy
           ) VALUES (?, ?, ?, ?, ?, ?)
         `, [
-          i + 1, // dummy SettlementID (since we don't have actual new ID yet, but we can use index)
+          i + 1,
           old.PaymentType || null,
           old.Amount || null,
           s.PaymentType,
