@@ -104,6 +104,7 @@ interface Settlement {
   paymentBreakdown?: Record<string, number>;
   outletName?: string;
   department?: string;
+  checkinid?: number;
 }
 
 interface PaymentMode {
@@ -376,6 +377,9 @@ const EditSettlementPage: React.FC = () => {
         EditedBy: currentUser,
         InsertDate: user?.currDate,
         TipAmount: tip || 0,
+        checkinid: editing.checkinid , 
+        
+        
       });
 
       setNotification({

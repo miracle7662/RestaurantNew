@@ -309,23 +309,25 @@ IF p_bill_no > 1 THEN
     END IF;
 
     -- 5. Copy folio transactions for this bill
-    INSERT INTO Checkout_Folio_Master (
-        checkin_id, checkout_id, hotel_id, detail_id, room_id,
-        transaction_type, transaction_datetime,
-        description, debit_amount, credit_amount,
-        reference_number, payment_method,
-        created_by_id, created_date, updated_by_id, updated_date
-    )
-    SELECT
-        cgfm.checkin_id, v_checkout_id, cgfm.hotel_id, cgfm.detail_id, cgfm.room_id,
-        cgfm.transaction_type, cgfm.transaction_datetime,
-        cgfm.description, cgfm.debit_amount, cgfm.credit_amount,
-        cgfm.reference_number,
-        COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash'),
-        cgfm.created_by_id, cgfm.created_date, v_user_id, v_now
-    FROM checkin_guest_folio_master cgfm
-    WHERE cgfm.checkin_id = p_checkin_id
-      AND cgfm.bill_no = p_bill_no;
+  INSERT INTO Checkout_Folio_Master (
+    checkin_id, checkout_id, hotel_id, detail_id, room_id,
+    transaction_type, transaction_datetime,
+    description, debit_amount, credit_amount,
+    reference_number, payment_method,
+    created_by_id, created_date, updated_by_id, updated_date,
+    bill_no   -- ✅ जोड़ें
+)
+SELECT
+    cgfm.checkin_id, v_checkout_id, cgfm.hotel_id, cgfm.detail_id, cgfm.room_id,
+    cgfm.transaction_type, cgfm.transaction_datetime,
+    cgfm.description, cgfm.debit_amount, cgfm.credit_amount,
+    cgfm.reference_number,
+    COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash'),
+    cgfm.created_by_id, cgfm.created_date, v_user_id, v_now,
+    p_bill_no   -- ✅ bill_no डालें
+FROM checkin_guest_folio_master cgfm
+WHERE cgfm.checkin_id = p_checkin_id
+  AND cgfm.bill_no = p_bill_no;
 
     -- 6. No room charges or detail copy for non-lodging bills
 

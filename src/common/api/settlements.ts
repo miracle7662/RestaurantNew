@@ -97,6 +97,7 @@ const SettlementService = {
     EditedBy?: any;
     InsertDate?: string;
     TipAmount?: number;
+    checkinid?: number;
   }): Promise<ApiResponse<null>> =>
     HttpClient.post<ApiResponse<null>>('/settlements/replace', payload)
 }

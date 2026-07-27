@@ -859,7 +859,7 @@ exports.settleBill = async (req, res) => {
 
           // Get detail_id from checkin_detail_master
           const [detailRows] = await db.query(
-            `SELECT detail_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
+            `SELECT detail_id, room_id FROM checkin_detail_master WHERE checkin_id = ? LIMIT 1`,
             [checkinid]
           );
 
@@ -868,6 +868,7 @@ exports.settleBill = async (req, res) => {
           }
 
           const detailId = detailRows[0].detail_id;
+          const roomId = detailRows[0].room_id;   // ✅ NEW
 
           const description = `FOOD - ${bill.table_name || 'Order'} #${bill.orderNo || bill.TxnNo}`;
 
@@ -888,12 +889,13 @@ exports.settleBill = async (req, res) => {
               payment_method,
               created_by_id,
               created_date
-            ) VALUES (?, ?, ?, NULL, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, 'Room Credit', ?, ?, ?, 0, ?, ?, ?, ?)
             `,
             [
               checkinid,
               bill.HotelID,
               detailId,
+              roomId,
               insertDate,
               description,
               Number(s.Amount),
