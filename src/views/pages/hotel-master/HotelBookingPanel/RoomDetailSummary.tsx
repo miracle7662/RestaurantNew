@@ -60,6 +60,11 @@ interface DisplayDetailRow {
   sgst_amount: number
   igst_amount: number
   cess_amount: number
+
+  cgst_percent: number;
+  sgst_percent: number;
+  igst_percent: number;
+  cess_percent: number;
   service_charge_amount: number
   adults: number
   pax: number
@@ -439,117 +444,7 @@ const [allLdgBillNos, setAllLdgBillNos] = useState<string[]>([])
   }
 
   // Build checkout_detail_rows from a list of rows (non-post charges)
-const buildCheckoutDetailRows = (rows: DisplayDetailRow[]) => {
-  return rows
-    .filter(row => !row.isPostCharge)
-    .map(row => {
-      const baseTotal = row.room_tariff + row.ex_pax_total + row.child_total + row.driver_total;
-      let roomRatio = 0, exRatio = 0, childRatio = 0, driverRatio = 0;
-      if (baseTotal > 0) {
-        roomRatio = row.room_tariff / baseTotal;
-        exRatio = row.ex_pax_total / baseTotal;
-        childRatio = row.child_total / baseTotal;
-        driverRatio = row.driver_total / baseTotal;
-      }
 
-      const totalCgst = row.cgst_amount || 0;
-      const totalSgst = row.sgst_amount || 0;
-      const totalIgst = row.igst_amount || 0;
-
-      return {
-        room_id: row.room_id,
-        room_number: row.room_number,
-        room_category_id: 0,
-        room_category_name: row.room_category_name || '',
-        converted_category_id: 0,
-        converted_category_name: row.converted_category_name || '',
-        guest_name: row.guest_name || 'Guest',
-        address: '',
-        mobile: '',
-        company_id: 0,
-        company_name: '',
-        emailed: 0,
-        checkin_datetime: row.detail_checkin_datetime || row.checkin_datetime,
-        no_of_days: row.no_of_days || 1,
-        adults: row.adults || 0,
-        pax: row.pax || 0,
-        ex_pax: row.ex_pax_count || 0,
-        child_paid: row.child_count || 0,
-        child_unpaid: row.child_unpaid || 0,
-        driver: row.driver_count || 0,
-        room_tariff: row.room_tariff || 0,
-        ex_pax_charge: row.ex_pax_total || 0,
-        child_paid_amount: row.child_total || 0,
-        driver_charge: row.driver_total || 0,
-        discount_percent: row.discount_percent || 0,
-        discount_amount: row.discount_amount || 0,
-        tax_percen_room: row.tax_percent || 0,
-        cgst_percent: 0,
-        cgst_amount: totalCgst * roomRatio,
-        sgst_percent: 0,
-        sgst_amount: totalSgst * roomRatio,
-        igst_percent: 0,
-        igst_amount: totalIgst * roomRatio,
-        tax_percen_ex: row.ex_pax_tax_percent || 0,
-        ex_cgst_percent: 0,
-        ex_cgst_amount: totalCgst * exRatio,
-        ex_sgst_percent: 0,
-        ex_sgst_amount: totalSgst * exRatio,
-        ex_igst_percent: 0,
-        ex_igst_amount: totalIgst * exRatio,
-        tax_percen_child: row.child_tax_percent || 0,
-        child_cgst_percent: 0,
-        child_cgst_amount: totalCgst * childRatio,
-        child_sgst_percent: 0,
-        child_sgst_amount: totalSgst * childRatio,
-        child_igst_percent: 0,
-        child_igst_amount: totalIgst * childRatio,
-        tax_percen_driver: row.driver_tax_percent || 0,
-        driver_cgst_percent: 0,
-        driver_cgst_amount: totalCgst * driverRatio,
-        driver_sgst_percent: 0,
-        driver_sgst_amount: totalSgst * driverRatio,
-        driver_igst_percent: 0,
-        driver_igst_amount: totalIgst * driverRatio,
-        service_charge: 0,
-        service_charge_amount: row.service_charge_amount || 0,
-        cess_percent: 0,
-        cess_amount: row.cess_amount || 0,
-        parent_detail_id: row.parent_detail_id || null,
-        merged: 0,
-        is_settle: 0,
-        tax: row.tax_amount || 0,
-        bill_no: row.bill_no || 1,
-      };
-    });
-};
-
-// Build checkout_folio_rows from a list of rows (post-charges)
-const buildCheckoutFolioRows = (rows: DisplayDetailRow[]) => {
-  console.log("First Row:", rows[0]);
-  return rows
-    .filter(row => (row.folio_id ?? 0) > 0)
-    .map(row => ({
-      folio_id: row.folio_id,
-      room_id: row.room_id,
-      transaction_type: row.department_name || row.description || 'Other',
-      transaction_datetime:
-        row.created_at ||
-        row.checkin_datetime ||
-        new Date().toISOString(),
-      description: row.description || '',
-      debit_amount:
-        row.debit_amount > 0
-          ? row.debit_amount
-          : (row.total_amount > 0 ? row.total_amount : 0),
-      credit_amount:
-        row.credit_amount > 0
-          ? row.credit_amount
-          : (row.total_amount < 0 ? -row.total_amount : 0),
-      payment_method: row.payment_method || 'Cash',
-      bill_no: row.bill_no || 1,
-    }));
-};
 
 // Compute master totals for a group of rows
 const computeMasterTotals = (rows: DisplayDetailRow[]) => {
@@ -752,6 +647,10 @@ const computeMasterTotals = (rows: DisplayDetailRow[]) => {
             : roundToTwo((toNumber(row.room_tariff) * toNumber(row.discount_percent)) / 100),
           tax_percent: isPostCharge ? 0 : toNumber(row.tax_percent),
           tax_amount: isPostCharge ? 0 : toNumber(row.pax_tax),
+          cgst_percent: toNumber(row.cgst_percent),
+          sgst_percent: toNumber(row.sgst_percent),
+          igst_percent: toNumber(row.igst_percent),
+          cess_percent: toNumber(row.cess_percent),
           total_amount: totalAmount,
           is_extension: row.parent_detail_id !== null && row.parent_detail_id !== undefined && row.parent_detail_id !== 0,
           isPostCharge,
@@ -1252,7 +1151,6 @@ const applyBillWise = async () => {
 
   const [editablePax, setEditablePax] = useState<number>(0)
 
-  const filteredSummary = getFilteredSummaryForSelectedRooms()
 
   const handleCheckoutClick = () => {
     if (!combinedSummary) {

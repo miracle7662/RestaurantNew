@@ -1,5 +1,3 @@
-
-
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_perform_checkout`(
     IN p_checkin_id INT,
     IN p_checkout_reason VARCHAR(255),
@@ -273,27 +271,56 @@ IF p_bill_no > 1 THEN
         SET v_total_computed = p_total_amount;
     END IF;
 
+    -- 3.5 Build room list for this non-lodging bill (from folio, since no Checkout_Detail rows exist)
+SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
+INTO v_processed_rooms_json
+FROM (
+    SELECT DISTINCT cdm.room_number
+    FROM checkin_guest_folio_master cgfm
+    INNER JOIN checkin_detail_master cdm
+        ON cdm.checkin_id = cgfm.checkin_id AND cdm.room_id = cgfm.room_id
+    WHERE cgfm.checkin_id = p_checkin_id
+      AND cgfm.bill_no = p_bill_no
+      AND cgfm.room_id IS NOT NULL
+) d;
+
+SELECT COALESCE(JSON_ARRAYAGG(room_id), JSON_ARRAY())
+INTO v_processed_room_ids_json
+FROM (
+    SELECT DISTINCT room_id
+    FROM checkin_guest_folio_master
+    WHERE checkin_id = p_checkin_id
+      AND bill_no = p_bill_no
+      AND room_id IS NOT NULL
+) d;
+
     -- 4. Create or update Checkout_Master
     IF v_is_re_checkout = 0 THEN
-        INSERT INTO Checkout_Master (
-            checkin_id, guest_id, ldg_bill_no, bill_no, hotelid,
-            total_amount, total_nights,
-            checkout_date, checkout_by_id, checkout_reason,
-            status, is_partial_checkout,
-            checked_out_rooms, room_id,
-            payment_method,
-            created_by_id, created_date, updated_by_id, updated_date
-        )
-        SELECT
-            cm.checkin_id, cm.guest_id, v_ldg_bill_no, p_bill_no, cm.hotelid,
-            v_total_computed, 0,    -- total_nights = 0 for non-lodging
-            v_checkout_dt, v_user_id, COALESCE(p_checkout_reason, 'Bill checkout'),
-            'checked_out', 0,
-            JSON_ARRAY(), JSON_ARRAY(),
-            v_final_payment_method,
-            cm.created_by_id, cm.created_date, v_user_id, v_now
-        FROM CheckIn_Master cm
-        WHERE cm.checkin_id = p_checkin_id;
+      INSERT INTO Checkout_Master (
+    checkin_id, guest_id, ldg_bill_no, bill_no, reg_no, booking, plan_name,
+    checkin_datetime, room_no, hotelid,
+    total_amount, total_nights,
+    id_type, id_number, department_id, department_name,
+    special_instruction, message,
+    checkout_date, checkout_by_id, checkout_reason,
+    status, is_partial_checkout,
+    checked_out_rooms, room_id,
+    payment_method,
+    created_by_id, created_date, updated_by_id, updated_date
+)
+SELECT
+    cm.checkin_id, cm.guest_id, v_ldg_bill_no, p_bill_no, cm.reg_no, cm.booking, cm.plan_name,
+    cm.checkin_datetime, NULL, cm.hotelid,
+    v_total_computed, 0,
+    cm.id_type, cm.id_number, cm.department_id, cm.department_name,
+    cm.special_instruction, cm.message,
+    v_checkout_dt, v_user_id, COALESCE(p_checkout_reason, 'Bill checkout'),
+    'checked_out', 0,
+    v_processed_rooms_json, v_processed_room_ids_json,
+    v_final_payment_method,
+    cm.created_by_id, cm.created_date, v_user_id, v_now
+FROM CheckIn_Master cm
+WHERE cm.checkin_id = p_checkin_id;
 
         SET v_checkout_id = LAST_INSERT_ID();
     ELSE
@@ -309,25 +336,23 @@ IF p_bill_no > 1 THEN
     END IF;
 
     -- 5. Copy folio transactions for this bill
-  INSERT INTO Checkout_Folio_Master (
-    checkin_id, checkout_id, hotel_id, detail_id, room_id,
-    transaction_type, transaction_datetime,
-    description, debit_amount, credit_amount,
-    reference_number, payment_method,
-    created_by_id, created_date, updated_by_id, updated_date,
-    bill_no   -- ✅ जोड़ें
-)
-SELECT
-    cgfm.checkin_id, v_checkout_id, cgfm.hotel_id, cgfm.detail_id, cgfm.room_id,
-    cgfm.transaction_type, cgfm.transaction_datetime,
-    cgfm.description, cgfm.debit_amount, cgfm.credit_amount,
-    cgfm.reference_number,
-    COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash'),
-    cgfm.created_by_id, cgfm.created_date, v_user_id, v_now,
-    p_bill_no   -- ✅ bill_no डालें
-FROM checkin_guest_folio_master cgfm
-WHERE cgfm.checkin_id = p_checkin_id
-  AND cgfm.bill_no = p_bill_no;
+    INSERT INTO Checkout_Folio_Master (
+        checkin_id, checkout_id, hotel_id, detail_id, room_id,
+        transaction_type, transaction_datetime,
+        description, debit_amount, credit_amount,
+        reference_number, payment_method,
+        created_by_id, created_date, updated_by_id, updated_date
+    )
+    SELECT
+        cgfm.checkin_id, v_checkout_id, cgfm.hotel_id, cgfm.detail_id, cgfm.room_id,
+        cgfm.transaction_type, cgfm.transaction_datetime,
+        cgfm.description, cgfm.debit_amount, cgfm.credit_amount,
+        cgfm.reference_number,
+        COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash'),
+        cgfm.created_by_id, cgfm.created_date, v_user_id, v_now
+    FROM checkin_guest_folio_master cgfm
+    WHERE cgfm.checkin_id = p_checkin_id
+      AND cgfm.bill_no = p_bill_no;
 
     -- 6. No room charges or detail copy for non-lodging bills
 
@@ -961,6 +986,7 @@ END IF;
             FROM checkin_guest_folio_master cgfm
             WHERE cgfm.checkin_id = p_checkin_id
               AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0)
+              AND cgfm.bill_no = 1;   -- Added filter for lodging only
 
             -- Use frontend totals (already set from input parameters)
             -- v_room_tariff_sum, v_ex_pax_charge, etc. are already set
@@ -1229,8 +1255,8 @@ END IF;
             v_now
         FROM checkin_guest_folio_master cgfm
         WHERE cgfm.checkin_id = p_checkin_id
-        AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0);
-
+          AND cgfm.bill_no = 1;   -- Added filter for lodging only
+        
         -- Use frontend totals
         SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
         INTO v_processed_rooms_json
@@ -1417,6 +1443,55 @@ END IF;
     -- Normal case: all selected rooms are active (Case 1, 2, 3)
     ELSEIF v_selected_active_room_ids IS NOT NULL AND v_selected_active_room_ids != '' THEN
         SET v_active_room_ids = v_selected_active_room_ids;
+
+            --  Compute all aggregated totals directly from checkin_detail_master
+    IF v_active_room_ids IS NOT NULL AND v_active_room_ids != '' THEN
+        SELECT 
+            COALESCE(SUM(room_tariff), 0),
+            COALESCE(SUM(ex_pax_charge), 0),
+            COALESCE(SUM(child_paid_amount), 0),
+            COALESCE(SUM(driver_charge), 0),
+            COALESCE(SUM(discount_amount), 0),
+            COALESCE(SUM(cgst_amount), 0),
+            COALESCE(SUM(sgst_amount), 0),
+            COALESCE(SUM(igst_amount), 0),
+            COALESCE(SUM(ex_cgst_amount), 0),
+            COALESCE(SUM(ex_sgst_amount), 0),
+            COALESCE(SUM(ex_igst_amount), 0),
+            COALESCE(SUM(child_cgst_amount), 0),
+            COALESCE(SUM(child_sgst_amount), 0),
+            COALESCE(SUM(child_igst_amount), 0),
+            COALESCE(SUM(driver_cgst_amount), 0),
+            COALESCE(SUM(driver_sgst_amount), 0),
+            COALESCE(SUM(driver_igst_amount), 0),
+            COALESCE(SUM(cess_amount), 0),
+            COALESCE(SUM(service_charge_amount), 0),
+            COALESCE(MAX(no_of_days), 0)
+        INTO 
+            v_room_tariff_sum,
+            v_ex_pax_charge,
+            v_child_paid_amount,
+            v_driver_charge,
+            v_discount_amount,
+            v_cgst_amount,
+            v_sgst_amount,
+            v_igst_amount,
+            v_ex_cgst_amount,
+            v_ex_sgst_amount,
+            v_ex_igst_amount,
+            v_child_cgst_amount,
+            v_child_sgst_amount,
+            v_child_igst_amount,
+            v_driver_cgst_amount,
+            v_driver_sgst_amount,
+            v_driver_igst_amount,
+            v_cess_amount,
+            v_service_charge_amount,
+            v_total_nights
+        FROM checkin_detail_master
+        WHERE checkin_id = p_checkin_id
+          AND FIND_IN_SET(room_id, v_active_room_ids) > 0;
+    END IF;
         
     ELSE
         SELECT JSON_OBJECT(
@@ -1509,7 +1584,7 @@ END IF;
             payment_method
         )
         SELECT
-            cm.checkin_id, cm.guest_id, v_ldg_bill_no, COALESCE(p_bill_no, 1), cm.reg_no, cm.booking, cm.plan_name,
+            cm.checkin_id, cm.guest_id, v_ldg_bill_no, p_bill_no, cm.reg_no, cm.booking, cm.plan_name,
             cm.checkin_datetime, NULL,
             v_room_tariff_sum, v_ex_pax_charge, v_child_paid_amount, v_driver_charge,
             v_discount_amount,
@@ -1593,8 +1668,6 @@ END IF;
 
     -- ============================================================================
     -- Insert Checkout_Detail (Using frontend data + room details from JSON)
-    -- Only runs for lodging (legacy or p_bill_no = 1) because v_active_room_ids
-    -- is empty for non-lodging.
     -- ============================================================================
     INSERT INTO Checkout_Detail (
         checkin_id, checkout_id, hotelid, room_id, room_number,
@@ -1632,8 +1705,7 @@ END IF;
         is_settle,
         tax,
         created_date, updated_date,
-        created_by_id, updated_by_id,
-        bill_no
+        created_by_id, updated_by_id
     )
     SELECT
         p_checkin_id,
@@ -1669,36 +1741,36 @@ END IF;
         v_discount_amount,
         cdm.tax_percen_room,
         cdm.cgst_percent,
-        v_cgst_amount,
+        cdm.cgst_amount,        
         cdm.sgst_percent,
-        v_sgst_amount,
+        cdm.sgst_amount,        
         cdm.igst_percent,
-        v_igst_amount,
+        cdm.igst_amount,        
         cdm.tax_percen_ex,
         cdm.ex_cgst_percent,
-        v_ex_cgst_amount,
+        cdm.ex_cgst_amount,     
         cdm.ex_sgst_percent,
-        v_ex_sgst_amount,
+        cdm.ex_sgst_amount,     
         cdm.ex_igst_percent,
-        v_ex_igst_amount,
+        cdm.ex_igst_amount,     
         cdm.tax_percen_child,
         cdm.child_cgst_percent,
-        v_child_cgst_amount,
+        cdm.child_cgst_amount,  
         cdm.child_sgst_percent,
-        v_child_sgst_amount,
+        cdm.child_sgst_amount,  
         cdm.child_igst_percent,
-        v_child_igst_amount,
+        cdm.child_igst_amount,  
         cdm.tax_percen_driver,
         cdm.driver_cgst_percent,
-        v_driver_cgst_amount,
+        cdm.driver_cgst_amount, 
         cdm.driver_sgst_percent,
-        v_driver_sgst_amount,
+        cdm.driver_sgst_amount, 
         cdm.driver_igst_percent,
-        v_driver_igst_amount,
+        cdm.driver_igst_amount, 
         cdm.service_charge,
-        v_service_charge_amount,
+        cdm.service_charge_amount, 
         cdm.cess_percent,
-        v_cess_amount,
+        cdm.cess_amount,        
         cdm.parent_detail_id,
         1,
         cdm.merged,
@@ -1707,53 +1779,45 @@ END IF;
         cdm.created_date,
         v_now,
         cdm.created_by_id,
-        v_user_id,
-        COALESCE(p_bill_no, 1)
+        v_user_id
     FROM checkin_detail_master cdm
     WHERE cdm.checkin_id = p_checkin_id
       AND FIND_IN_SET(cdm.room_id, v_active_room_ids) > 0;
 
-   -- ============================================================================
--- Insert Folio records (filtered by bill_no, room condition only for lodging)
--- ============================================================================
-INSERT INTO Checkout_Folio_Master (
-    checkin_id, checkout_id, hotel_id, detail_id, room_id,
-    transaction_type, transaction_datetime,
-    description, debit_amount, credit_amount,
-    reference_number, payment_method,
-    created_by_id, created_date, updated_by_id, updated_date,
-    bill_no
-)
-SELECT
-    cgfm.checkin_id, 
-    v_checkout_id, 
-    cgfm.hotel_id, 
-    cgfm.detail_id, 
-    cgfm.room_id,
-    cgfm.transaction_type, 
-    cgfm.transaction_datetime,
-    cgfm.description, 
-    cgfm.debit_amount, 
-    cgfm.credit_amount,
-    cgfm.reference_number, 
-    COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
-    cgfm.created_by_id, 
-    cgfm.created_date, 
-    v_user_id, 
-    v_now,
-    COALESCE(p_bill_no, 1)
-FROM checkin_guest_folio_master cgfm
-WHERE cgfm.checkin_id = p_checkin_id
-  AND (
-      -- Legacy mode (p_bill_no IS NULL/0): copy ALL folio rows (no bill_no filter)
-      (p_bill_no IS NULL OR p_bill_no = 0)
-      -- Lodging bill (p_bill_no = 1): only copy folio rows where bill_no = 1
-      OR (p_bill_no = 1 AND cgfm.bill_no = 1)
-  )
-  AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0);
+    -- ============================================================================
+    -- Insert Folio records (Using frontend data)
+    -- ============================================================================
+    INSERT INTO Checkout_Folio_Master (
+        checkin_id, checkout_id, hotel_id, detail_id, room_id,
+        transaction_type, transaction_datetime,
+        description, debit_amount, credit_amount,
+        reference_number, payment_method,
+        created_by_id, created_date, updated_by_id, updated_date
+    )
+    SELECT
+        cgfm.checkin_id, 
+        v_checkout_id, 
+        cgfm.hotel_id, 
+        cgfm.detail_id, 
+        cgfm.room_id,
+        cgfm.transaction_type, 
+        cgfm.transaction_datetime,
+        cgfm.description, 
+        cgfm.debit_amount, 
+        cgfm.credit_amount,
+        cgfm.reference_number, 
+        COALESCE(v_final_payment_method, cgfm.payment_method, 'Cash') AS payment_method,
+        cgfm.created_by_id, 
+        cgfm.created_date, 
+        v_user_id, 
+        v_now
+    FROM checkin_guest_folio_master cgfm
+    WHERE cgfm.checkin_id = p_checkin_id
+      AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0)
+      AND cgfm.bill_no = 1;   -- Lodging only
+
     -- ============================================================================
     -- Insert Room Charges (Using frontend data)
-    -- Only runs for lodging (legacy or p_bill_no = 1) because bill_no filter below.
     -- ============================================================================
     INSERT INTO Checkout_Room_Charges (
         checkin_id, checkout_id, guest_id, room_id, category_id,
@@ -1762,8 +1826,7 @@ WHERE cgfm.checkin_id = p_checkin_id
         child_count, child_price, child_tax, child_tax_percent, child_total,
         driver_count, driver_price, driver_tax, driver_tax_percent, driver_total,
         total_amount, checkin_datetime, checkout_datetime,
-        created_at, updated_at,
-        bill_no
+        created_at, updated_at
     )
     SELECT
         cgrc.checkin_id, v_checkout_id, cgrc.guest_id, cgrc.room_id, cgrc.category_id,
@@ -1772,15 +1835,11 @@ WHERE cgfm.checkin_id = p_checkin_id
         cgrc.child_count, cgrc.child_price, cgrc.child_tax, cgrc.child_tax_percent, cgrc.child_total,
         cgrc.driver_count, cgrc.driver_price, cgrc.driver_tax, cgrc.driver_tax_percent, cgrc.driver_total,
         cgrc.total_amount, cgrc.checkin_datetime, v_checkout_dt,
-        NOW(), NOW(),
-        COALESCE(p_bill_no, 1)
+        NOW(), NOW()
     FROM checkin_guest_room_charges cgrc
     WHERE cgrc.checkin_id = p_checkin_id
-      AND FIND_IN_SET(cgrc.room_id, v_active_room_ids) > 0
-      AND (
-      (p_bill_no IS NULL OR p_bill_no = 0)   -- लीगेसी: सभी चार्ज
-      OR (p_bill_no = 1 AND cgrc.bill_no = 1) -- लॉजिंग: केवल bill_no=1
-  );
+      AND FIND_IN_SET(cgrc.room_id, v_active_room_ids) > 0;
+    
 
     -- ============================================================================
     -- Update statuses
@@ -2012,7 +2071,7 @@ WHERE cgfm.checkin_id = p_checkin_id
             v_now
         FROM checkin_guest_folio_master cgfm
         WHERE cgfm.checkin_id = p_checkin_id
-          AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0);
+          AND cgfm.bill_no = 1;   -- lodging only
 
         SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
         INTO v_processed_rooms_json

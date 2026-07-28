@@ -1771,8 +1771,7 @@ WHERE cgfm.checkin_id = p_checkin_id
     FROM checkin_guest_room_charges cgrc
     WHERE cgrc.checkin_id = p_checkin_id
       AND FIND_IN_SET(cgrc.room_id, v_active_room_ids) > 0
-      AND cgrc.bill_no = 1;   -- Lodging only
-
+    
     -- ============================================================================
     -- Update statuses
     -- ============================================================================
