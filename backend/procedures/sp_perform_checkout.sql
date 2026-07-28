@@ -1397,6 +1397,56 @@ END IF;
             SET v_debug_msg = CONCAT('No existing checkout found. Treating as normal checkout for rooms: ', 
                                      v_checked_out_selected_room_ids);
         END IF;
+
+
+            -- Recompute aggregated totals for the rooms being re-checked out
+    IF v_active_room_ids IS NOT NULL AND v_active_room_ids != '' THEN
+        SELECT 
+            COALESCE(SUM(room_tariff), 0),
+            COALESCE(SUM(ex_pax_charge), 0),
+            COALESCE(SUM(child_paid_amount), 0),
+            COALESCE(SUM(driver_charge), 0),
+            COALESCE(SUM(discount_amount), 0),
+            COALESCE(SUM(cgst_amount), 0),
+            COALESCE(SUM(sgst_amount), 0),
+            COALESCE(SUM(igst_amount), 0),
+            COALESCE(SUM(ex_cgst_amount), 0),
+            COALESCE(SUM(ex_sgst_amount), 0),
+            COALESCE(SUM(ex_igst_amount), 0),
+            COALESCE(SUM(child_cgst_amount), 0),
+            COALESCE(SUM(child_sgst_amount), 0),
+            COALESCE(SUM(child_igst_amount), 0),
+            COALESCE(SUM(driver_cgst_amount), 0),
+            COALESCE(SUM(driver_sgst_amount), 0),
+            COALESCE(SUM(driver_igst_amount), 0),
+            COALESCE(SUM(cess_amount), 0),
+            COALESCE(SUM(service_charge_amount), 0),
+            COALESCE(MAX(no_of_days), 0)
+        INTO 
+            v_room_tariff_sum,
+            v_ex_pax_charge,
+            v_child_paid_amount,
+            v_driver_charge,
+            v_discount_amount,
+            v_cgst_amount,
+            v_sgst_amount,
+            v_igst_amount,
+            v_ex_cgst_amount,
+            v_ex_sgst_amount,
+            v_ex_igst_amount,
+            v_child_cgst_amount,
+            v_child_sgst_amount,
+            v_child_igst_amount,
+            v_driver_cgst_amount,
+            v_driver_sgst_amount,
+            v_driver_igst_amount,
+            v_cess_amount,
+            v_service_charge_amount,
+            v_total_nights
+        FROM checkin_detail_master
+        WHERE checkin_id = p_checkin_id
+          AND FIND_IN_SET(room_id, v_active_room_ids) > 0;
+    END IF;
         
     -- ============================================================================
     -- MIXED MODE: Some selected rooms are active, some already checked out
@@ -2091,6 +2141,53 @@ END IF;
             - v_discount_amount
         );
 
+
+            -- Recompute aggregated totals from the merged Checkout_Detail
+    SELECT
+        COALESCE(SUM(room_tariff), 0),
+        COALESCE(SUM(ex_pax_charge), 0),
+        COALESCE(SUM(child_paid_amount), 0),
+        COALESCE(SUM(driver_charge), 0),
+        COALESCE(SUM(discount_amount), 0),
+        COALESCE(SUM(cgst_amount), 0),
+        COALESCE(SUM(sgst_amount), 0),
+        COALESCE(SUM(igst_amount), 0),
+        COALESCE(SUM(ex_cgst_amount), 0),
+        COALESCE(SUM(ex_sgst_amount), 0),
+        COALESCE(SUM(ex_igst_amount), 0),
+        COALESCE(SUM(child_cgst_amount), 0),
+        COALESCE(SUM(child_sgst_amount), 0),
+        COALESCE(SUM(child_igst_amount), 0),
+        COALESCE(SUM(driver_cgst_amount), 0),
+        COALESCE(SUM(driver_sgst_amount), 0),
+        COALESCE(SUM(driver_igst_amount), 0),
+        COALESCE(SUM(cess_amount), 0),
+        COALESCE(SUM(service_charge_amount), 0),
+        COALESCE(MAX(no_of_days), 0)
+    INTO
+        v_room_tariff_sum,
+        v_ex_pax_charge,
+        v_child_paid_amount,
+        v_driver_charge,
+        v_discount_amount,
+        v_cgst_amount,
+        v_sgst_amount,
+        v_igst_amount,
+        v_ex_cgst_amount,
+        v_ex_sgst_amount,
+        v_ex_igst_amount,
+        v_child_cgst_amount,
+        v_child_sgst_amount,
+        v_child_igst_amount,
+        v_driver_cgst_amount,
+        v_driver_sgst_amount,
+        v_driver_igst_amount,
+        v_cess_amount,
+        v_service_charge_amount,
+        v_total_nights
+    FROM Checkout_Detail
+    WHERE checkout_id = v_keeper_checkout_id;
+
         UPDATE Checkout_Master
         SET
             tot_room_tariff = v_room_tariff_sum,
@@ -2191,4 +2288,4 @@ END IF;
             )
         )
     ) AS result;
-END
+END 
