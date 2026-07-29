@@ -432,27 +432,27 @@ exports.performCheckout = async (req, res) => {
     // EXTRACT ALL REQUIRED TOTALS FROM checkout_master_totals
     // --------------------------------------------------------------------------
     const {
-      room_tariff_sum = 0,
-      ex_pax_charge = 0,
-      child_paid_amount = 0,
-      driver_charge = 0,
-      discount_amount = 0,
-      cgst_amount = 0,
-      sgst_amount = 0,
-      igst_amount = 0,
-      ex_cgst_amount = 0,
-      ex_sgst_amount = 0,
-      ex_igst_amount = 0,
-      child_cgst_amount = 0,
-      child_sgst_amount = 0,
-      child_igst_amount = 0,
-      driver_cgst_amount = 0,
-      driver_sgst_amount = 0,
-      driver_igst_amount = 0,
-      cess_amount = 0,
-      service_charge_amount = 0,
-      advance_amt = 0,
-    } = checkout_master_totals;
+  room_tariff_sum = 0,
+  ex_pax_charge = 0,
+  child_paid_amount = 0,
+  driver_charge = 0,
+  discount_amount = 0,
+  cgst_amount = 0,
+  sgst_amount = 0,
+  igst_amount = 0,
+  ex_cgst_amount = 0,
+  ex_sgst_amount = 0,
+  ex_igst_amount = 0,
+  child_cgst_amount = 0,
+  child_sgst_amount = 0,
+  child_igst_amount = 0,
+  driver_cgst_amount = 0,
+  driver_sgst_amount = 0,
+  driver_igst_amount = 0,
+  cess_amount = 0,
+  service_charge_amount = 0,
+  advance_amt = 0,
+} = req.body;
 
     // --------------------------------------------------------------------------
     // BUILD PARAMETER ARRAY – EXACTLY 45 PARAMETERS

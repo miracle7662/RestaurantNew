@@ -2288,4 +2288,4 @@ END IF;
             )
         )
     ) AS result;
-END 
+END

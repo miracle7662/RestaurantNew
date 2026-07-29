@@ -95,6 +95,8 @@ interface DisplayDetailRow {
   source_type?: string          // NEW: from API (ROOM_CHARGE or FOLIO_ENTRY)
   // Bill number for bill wise grouping
   bill_no: number
+  advance_amt: number
+
 }
 
 interface CombinedGuestSummary {
@@ -457,6 +459,15 @@ const computeMasterTotals = (rows: DisplayDetailRow[]) => {
   let totalDriverCgst = 0, totalDriverSgst = 0, totalDriverIgst = 0;
   let totalAmount = 0;
   let nights = new Set(rows.map(r => r.bill_date_formatted)).size || 1;
+ let totalAdvance = rows.reduce((sum, row) => {
+  if (
+    row.source_type === "FOLIO_ENTRY" &&
+    row.description?.toUpperCase().includes("ADVANCE")
+  ) {
+    return sum + Number(row.credit_amount || 0);
+  }
+  return sum;
+}, 0);
 
   rows.forEach(row => {
     const baseTotal = row.room_tariff + row.ex_pax_total + row.child_total + row.driver_total;
@@ -514,7 +525,7 @@ const computeMasterTotals = (rows: DisplayDetailRow[]) => {
     service_charge: totalServiceCharge,   // amount, stored procedure uses `service_charge` as percentage but we pass amount in `service_charge_amount` separately
     service_charge_amount: totalServiceCharge,
     cess: totalCess,
-    advance: 0,
+    advance: totalAdvance,
     total_nights: nights,
     total_amount: totalAmount,
     net_payable: totalAmount,
@@ -667,6 +678,7 @@ const computeMasterTotals = (rows: DisplayDetailRow[]) => {
           department_name: row.department_name || '',
           credit_amount: toNumber(row.credit_amount) || 0,
           debit_amount: toNumber(row.debit_amount) || 0,
+          advance_amt: toNumber(row.advance_amt) || 0,
           source_type: row.source_type || 'ROOM_CHARGE',   // NEW
           // Initialize bill_no to 0; will be set later
           bill_no: 0,
@@ -1233,7 +1245,7 @@ const handleConfirmCheckout = async () => {
       const rowsForBill = groups.get(billNo)!;
       const masterTotals = computeMasterTotals(rowsForBill);
       const selectedRoomNumbers = Array.from(new Set(rowsForBill.map(r => r.room_number)));
-
+      
       // Build payload – flatten all totals into individual fields
       const payload = {
         checkin_id: combinedSummary.checkin_id,
@@ -1270,7 +1282,7 @@ const handleConfirmCheckout = async () => {
         driver_igst_amount: masterTotals.driver_igst,
         cess_amount: masterTotals.cess,
         service_charge_amount: masterTotals.service_charge_amount,
-        advance_amt: masterTotals.advance || 0,
+        advance_amt: masterTotals.advance ,
         // Bill number (crucial)
         bill_no: billNo,
         // Guest info
