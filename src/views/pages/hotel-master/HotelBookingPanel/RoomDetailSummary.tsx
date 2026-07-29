@@ -471,9 +471,9 @@ const computeMasterTotals = (rows: DisplayDetailRow[]) => {
 
   rows.forEach(row => {
     const baseTotal = row.room_tariff + row.ex_pax_total + row.child_total + row.driver_total;
-    let r = 0, e = 0, c = 0, d = 0;
+    let  e = 0, c = 0, d = 0;
     if (baseTotal > 0) {
-      r = row.room_tariff / baseTotal;
+      // r = row.room_tariff / baseTotal;
       e = row.ex_pax_total / baseTotal;
       c = row.child_total / baseTotal;
       d = row.driver_total / baseTotal;
