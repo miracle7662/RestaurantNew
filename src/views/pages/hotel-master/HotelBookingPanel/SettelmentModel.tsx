@@ -87,10 +87,20 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   }, [isMixedPayment, grandTotal, selectedPaymentModes]);
 
   // ✅ ADDED: paymentModesTotal separated from tip, used for excess-amount validation
-  const paymentModesTotal = Object.values(paymentAmounts).reduce((sum, v) => sum + (Number(v) || 0), 0);
-  const totalReceived = paymentModesTotal + (tip || 0);
-  const balance = grandTotal - totalReceived;
-  const balanceDue = balance > 0 ? balance : 0;
+  const paymentModesTotal = Object.values(paymentAmounts).reduce(
+  (sum, v) => sum + (Number(v) || 0),
+  0
+);
+
+// IMPORTANT:
+// Tip ko bill payment ke against count nahi karna hai.
+const balance = grandTotal - paymentModesTotal;
+const balanceDue = balance > 0 ? balance : 0;
+
+// Payment amount must exactly match bill amount
+const paymentMismatch = Math.abs(paymentModesTotal - grandTotal) > 0.01;
+
+// Payment amount bill se zyada hai
 
   // ✅ ADDED: Excess-amount check — only applies when bill (grandTotal) > 0.
   // Table rule: ₹0 bill → any payment amount allowed (no "exceeds bill" block).
@@ -192,17 +202,33 @@ const handleSettle = useCallback(async () => {
   const currentModes = selectedPaymentModesRef.current
   const currentAmounts = paymentAmountsRef.current
 
-  // ✅ Balance due check (Bill=500, Payment=400 → blocked)
-  if (balanceDue > 0) {
-    toast.error(`Balance due: ₹${balanceDue.toFixed(2)}`)
-    return
-  }
+ // Payment amount must exactly match bill amount.
+// Tip is NOT included in this calculation.
+if (paymentModesTotal < grandTotal - 0.01) {
+  const remaining = grandTotal - paymentModesTotal;
 
-  // ✅ Excess amount check (Bill=500, Payment=600 → blocked). Skipped when bill is ₹0.
-  if (excessAmount > 0) {
-    toast.error(`Entered amount exceeds bill by ₹${excessAmount.toFixed(2)}`)
-    return
-  }
+  toast.error(
+    `Payment amount is short by ₹${remaining.toFixed(2)}. Bill total is ₹${grandTotal.toFixed(2)}.`
+  );
+  return;
+}
+
+if (paymentModesTotal > grandTotal + 0.01) {
+  const excess = paymentModesTotal - grandTotal;
+
+  toast.error(
+    `Payment amount exceeds bill by ₹${excess.toFixed(2)}.`
+  );
+  return;
+}
+
+// Exact match required
+if (Math.abs(paymentModesTotal - grandTotal) > 0.01) {
+  toast.error(
+    `Payment amount ₹${paymentModesTotal.toFixed(2)} must match bill total ₹${grandTotal.toFixed(2)}.`
+  );
+  return;
+}
 
   // Agar total 0 hai aur koi mode select nahi hua, to ek dummy/zero settlement bhej do
   const modesToSettle = currentModes.length > 0
@@ -652,6 +678,7 @@ const handleSettle = useCallback(async () => {
           onClick={handleSettle}
           disabled={
             loading ||
+            paymentMismatch ||
             balanceDue > 0 ||
             excessAmount > 0 ||           // ✅ ADDED: block settle when payment exceeds bill
             selectedPaymentModes.length === 0
