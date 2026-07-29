@@ -239,6 +239,11 @@ exports.createSettlement = async (req, res) => {
           `UPDATE room_master SET room_status_id = 4 WHERE room_id = ?`,  // 4 = Clean/Vacant
           [rid]
         );
+
+         await conn.query(
+          `UPDATE checkout_master SET is_settle = 1 WHERE checkout_id = ? `,
+          [checkout_id, rid]
+        )
       }
 
       // 5. FETCH INSERTED ROW
