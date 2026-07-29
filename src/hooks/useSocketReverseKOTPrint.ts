@@ -10,6 +10,9 @@ export interface SocketReverseKOTPayload {
   items: any[];
   reason?: string;
   reversalDate?: string | null;
+  device_name?: string | null;
+  table_name?: string | null;
+
 }
 
 export function useSocketReverseKOTPrint(outletId: number | null | undefined) {
@@ -63,6 +66,7 @@ export function useSocketReverseKOTPrint(outletId: number | null | undefined) {
             revKotNo: data?.revKotNo,
             itemsLen: data?.items?.length ?? 0,
             reason: data?.reason,
+            device_name: data?.device_name,
           });
 
           setPendingReverseKOTs((prev) => {
@@ -95,4 +99,3 @@ export function useSocketReverseKOTPrint(outletId: number | null | undefined) {
 
   return { pendingReverseKOTs, removeReverseKOT };
 }
-

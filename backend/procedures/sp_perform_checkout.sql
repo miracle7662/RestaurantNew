@@ -1864,8 +1864,7 @@ END IF;
     FROM checkin_guest_folio_master cgfm
     WHERE cgfm.checkin_id = p_checkin_id
       AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0)
-     AND (p_bill_no = -1 OR cgfm.bill_no = p_bill_no);
-
+      AND cgfm.bill_no = 1;   -- Lodging only
 
     -- ============================================================================
     -- Insert Room Charges (Using frontend data)

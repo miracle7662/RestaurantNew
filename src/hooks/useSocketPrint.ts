@@ -16,6 +16,7 @@ export interface SocketOrderPayload {
   customerName: string | null;
   mobileNo: string | null;
   txnId: number;
+  device_name?: string | null;
 }
 
 export function useSocketPrint(outletId: number | null | undefined) {

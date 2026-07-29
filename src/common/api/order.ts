@@ -460,6 +460,7 @@ getBillById: (id: number, hotelId: number): Promise<ApiResponse<BillDetailsRespo
       customerName?: string | null
       mobileNo?: string | null
       customerid?: number | null
+      device_name?: string | null
     }
   ): Promise<ApiResponse<Bill>> =>
     HttpClient.put<ApiResponse<Bill>>(`/TAxnTrnbill/${txnId}/mark-billed`, payload),
@@ -501,6 +502,7 @@ getBillById: (id: number, hotelId: number): Promise<ApiResponse<BillDetailsRespo
     userId: number
     reversalReason: string
     curr_date?: string
+    device_name: string;
   }): Promise<ApiResponse<ReverseKOTItem>> =>
     HttpClient.post<ApiResponse<ReverseKOTItem>>('/TAxnTrnbill/create-reverse-kot', payload),
 

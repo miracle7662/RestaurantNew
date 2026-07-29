@@ -369,7 +369,9 @@ const handleOpenPermModal = async (outletUser: OutletUser) => {
       const userData: OutletUser = {
         username,
         email,
-        password: modalType === 'Add Outlet User' ? password : (password && password.trim() !== '' ? password : undefined),
+        password: modalType === 'Add Outlet User'
+        ? password
+        : (password && password.trim() !== '' ? password : undefined), 
         full_name: fullName,
         phone,
         role_level: 'outlet_user',

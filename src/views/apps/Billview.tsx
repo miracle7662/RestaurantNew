@@ -973,10 +973,7 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-      console.log("Order ID:", orderId);
-      console.log("Hotel ID:", user?.hotelid);
- 
-     const response = await OrderService.getBillById(
+      const response = await OrderService.getBillById(
   Number(orderId),
   Number(user.hotelid)
 );
@@ -2317,6 +2314,7 @@ const ModernBill = () => {
         const reliableKotNo = res.data?.KOTNo ?? res.data?.KOTNo ?? editableKot ?? defaultKot ?? 0;
         // console.log("✅ Opening KOT Preview Modal with KOT#:", reliableKotNo);
         setCurrentKotNoForPrint(reliableKotNo);
+        setActiveTab('Dine-in'); 
         setShowKotPrintModal(true);
         // Navigation handled by KotPreviewPrint onHide ✅
         return;
@@ -2444,6 +2442,7 @@ const ModernBill = () => {
         userId: user?.id,
         reversalReason: 'Reverse ',
         curr_date: user?.currDate,
+        device_name: deviceName,
       });
 
       console.log('Reverse KOT API response:', result);
@@ -2542,6 +2541,7 @@ const ModernBill = () => {
         customerName: customerName || null,
         mobileNo: customerNo || null,
         customerid: customerId || null,
+        device_name: deviceName, 
       });
 
       const generatedTxnNo = response.data?.TxnNo;
@@ -2632,6 +2632,7 @@ const ModernBill = () => {
         customerName: customerName || null,
         mobileNo: customerNo || null,
         customerid: customerId || null,
+         device_name: deviceName, 
       });
 
       console.log('MarkBill Response:', response);
@@ -4581,7 +4582,8 @@ const ModernBill = () => {
         activeTab={isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : activeTab}
 
         // ✅ FORCE selectedTable for takeaway
-        selectedTable={isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : (activeTab === 'Dine-in' ? tableNo : activeTab)}
+        // KotPreviewPrint call mein:
+selectedTable={isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : tableNo}
         orderNo={orderNo}
         customerName={customerName}
         mobileNumber={customerNo}

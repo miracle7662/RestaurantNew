@@ -237,7 +237,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   <meta charset="UTF-8" />
   <title>KOT</title>
   <style>
-    @page { size: 72mm auto; margin: 0; }
+    @page { size: 76mm auto; margin: 0; }
   @media print {
   html, body {
     overflow: visible !important;
@@ -249,20 +249,20 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   }
 
   #kot-preview-content {
-    padding-top: 60px !important;
+    padding-top: 90px !important;
   }
 }
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
-      width: 72mm !important; max-width: 72mm !important; min-width: 72mm !important;
+      width: 76mm !important; max-width: 76mm !important; min-width: 76mm !important;
       margin: 0; padding: 0;
       font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.0;
       color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact;
       overflow-x: hidden;
     }
     #kot-preview-content {
-      width: 72mm !important; max-width: 72mm !important; min-width: 72mm !important;
-      padding: 6px 8px 6px 12px; margin: 0; font-weight: bold; overflow-x: hidden;
+      width: 76mm !important; max-width: 76mm !important; min-width: 76mm !important;
+      padding: 6px 8px 6px 16px; margin: 0; font-weight: bold; overflow-x: hidden;
     }
     #kot-preview-content * { max-width: 100%; word-wrap: break-word; overflow-wrap: break-word; }
     .center { text-align: center; } .right { text-align: right; }
@@ -287,9 +287,28 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     .header-rate { text-align: right; }  .header-amt  { text-align: right; }
     .kot-variant { font-size: 9pt; color: #0066cc; font-weight: bold; }
     .totals-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 11pt; padding: 2px 0; }
-    .basic-details { display: grid; grid-template-columns: auto 1fr; gap: 4px; margin-bottom: 6px; font-size: 9pt; padding-left:3px; width: 100%; }
-    .table-box { border: 1px solid #696868; min-width: 60px; min-height: 50px; display: flex;   margin-left: 3px;align-items: center; justify-content: center; font-size: 16pt; font-weight: bold; padding: 4px; }
-    .details-grid { display: grid; grid-template-columns: auto auto; gap: 1px 6px; text-align: left; justify-content: end; }
+   .basic-details {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 0px;
+  margin-bottom: 6px;
+  font-size: 9pt;
+  padding-left: 3px;
+  width: 100%;
+}
+
+.table-box {
+  border: 1px solid #696868;
+  width: 60px;
+  height: 50px;
+  display: flex;
+  margin-left: 8px;
+  align-items: center;
+  justify-content: center;
+  font-size: 16pt;
+  font-weight: bold;
+  padding: 4px;
+}   .details-grid { display: grid; grid-template-columns: auto auto; gap: 1px 6px; text-align: left; justify-content: end; }
     hr.dashed { border: none; border-top: 1px dashed #000; margin: 4px 0; width: 100%; }
   </style>
 </head>
@@ -496,7 +515,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       <div class="table-box">${showTable ? selectedTable : activeTab}</div>
      <div class="details-grid">
   ${activeTab !== "Quick Bill" || showKotNoQuickBill
-        ? `<div><strong style="font-size:11pt;">KOT No:</strong></div>
+        ? `<div><strong style="font-size:11pt;">KOTno:</strong></div>
        <div style="font-weight:bold;font-size:14pt;">${displayKOTNo}</div>`
         : ""}
   <div><strong>Date:</strong></div>

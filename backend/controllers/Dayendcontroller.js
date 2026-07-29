@@ -2,19 +2,29 @@ const db = require('../config/db');
 // Convert to India Standard Time (UTC+5:30)
 
 const getDayendData = async (req, res) => {
-  // Supports optional `date` query param to force filtering by DATE(TxnDatetime)=date
-  // When not provided, falls back to business date derived from getBusinessDate(outlet_id, hotelid)
-
   try {
-
     console.log("========================================");
     console.log("DAYEND API START");
     console.log("========================================");
 
-    // ======================================================
-    // GET PAYMENT TYPES
-    // ======================================================
+    const { outletid: outlet_id, hotelid, date } = req.query;
 
+    // 1. BUSINESS DATE CALCULATION
+    let businessDate = null;
+    if (date) {
+      businessDate = date;
+    } else if (outlet_id && hotelid) {
+      businessDate = await getBusinessDate(outlet_id, hotelid);
+    }
+    if (!businessDate) {
+      const now = new Date();
+      const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+      businessDate = indiaTime.toISOString().split('T')[0];
+    }
+
+    console.log("DAYEND businessDate =>", businessDate);
+
+    // 2. GET PAYMENT TYPES (Dynamic)
     const [paymentTypes] = await db.query(`
       SELECT DISTINCT PaymentType
       FROM TrnSettlement
@@ -25,496 +35,290 @@ const getDayendData = async (req, res) => {
 
     console.log("PAYMENT TYPES =>", paymentTypes);
 
-    // ======================================================
-    // DYNAMIC PAYMENT COLUMNS
-    // ======================================================
-
-    const paymentColumns = paymentTypes
-      .map(
-        (p) => `
+    // 3. BUILD DYNAMIC PAYMENT COLUMNS
+    const paymentColumns = paymentTypes.length > 0 
+      ? paymentTypes.map(p => `
           COALESCE(
-            MAX(
-              CASE
-                WHEN s.PaymentType = '${p.PaymentType}'
-                THEN s.Amount
-                ELSE 0
-              END
-            ),
+            MAX(CASE WHEN s.PaymentType = '${p.PaymentType}' THEN s.Amount ELSE 0 END),
             0
           ) AS \`${p.PaymentType}\`
-        `
-      )
-      .join(",");
+        `).join(',')
+      : '';
 
-    // ======================================================
-    // MAIN QUERY
-    // ======================================================
-
+    // 4. OPTIMIZED MAIN QUERY (Using subqueries instead of CTEs for better performance)
     const query = `
+  WITH 
+-- Step 1: Get eligible bills (already filtered by date and status)
+eligible_bills AS (
+  SELECT 
+    TxnID,
+    TxnNo,
+    orderNo,
+    TableID,
+    table_name,
+    outletid,
+    HotelID,
+    Amount,
+    Discount,
+    GrossAmt,
+    CGST,
+    SGST,
+    RoundOFF,
+    RevKOT,
+    TxnDatetime,
+    TaxableValue,
+    BilledDate,
+    Steward,
+    UserId,
+    isSetteled,
+    isBilled,
+    isreversebill,
+    isCancelled,
+    isDayEnd,
+    DayEndEmpID,
+    NCPurpose,
+    NCName
+  FROM TAxnTrnbill
+  WHERE isDayEnd = 0
+    AND (isSetteled = 1 OR isreversebill = 1)
+    AND TxnDatetime = ?
+),
 
-      SELECT
+-- Step 2: Pre-aggregate bill details (only for eligible bills)
+bill_details_agg AS (
+  SELECT 
+    d.TxnID,
+    SUM(d.Qty) AS TotalItems,
+    SUM(
+      CASE 
+        WHEN LOWER(i.item_name) LIKE '%waiter%' 
+        THEN d.RuntimeRate * d.Qty 
+        ELSE 0 
+      END
+    ) AS Waiter,
+    GROUP_CONCAT(DISTINCT CASE WHEN d.Qty > 0 THEN d.KOTNo END) AS KOTNo,
+    GROUP_CONCAT(DISTINCT d.RevKOTNo) AS RevKOTNo,
+    GROUP_CONCAT(DISTINCT CASE WHEN d.isNCKOT = 1 THEN d.KOTNo END) AS NCKOT
+  FROM TAxnTrnbilldetails d
+  INNER JOIN mstrestmenu i ON d.ItemID = i.restitemid
+  WHERE d.TxnID IN (SELECT TxnID FROM eligible_bills)
+  GROUP BY d.TxnID
+),
 
-        t.TxnID,
-        t.TxnNo,
-        t.TableID,
-        t.table_name,
-        t.outletid,
-        t.HotelID,
-        t.Amount AS TotalAmount,
-        t.Discount,
-        t.GrossAmt AS GrossAmount,
-        t.CGST,
-        t.SGST,
-        t.RoundOFF,
-        t.RevKOT AS RevAmt,
-        t.TxnDatetime,
-        t.TaxableValue,
-        t.BilledDate,
-        t.Steward AS Captain,
-        t.UserId,
+-- Step 3: Get all settlements for eligible bills (using JOIN instead of IN)
+settlements_all AS (
+  SELECT 
+    s.OrderNo,
+    s.PaymentType,
+    s.Amount,
+    s.TipAmount,
+    s.customerName
+  FROM TrnSettlement s
+  INNER JOIN eligible_bills b 
+    ON (s.OrderNo = b.TxnNo OR s.OrderNo = b.orderNo)
+  WHERE s.isSettled = 1
+),
 
-        u.username AS UserName,
+-- Step 4: Aggregate settlements
+settlements_agg AS (
+  SELECT 
+    OrderNo,
+    PaymentType,
+    SUM(Amount) AS Amount,
+    SUM(COALESCE(TipAmount, 0)) AS TipAmount
+  FROM settlements_all
+  GROUP BY OrderNo, PaymentType
+),
 
-        -- ==================================================
-        -- WAITER AMOUNT
-        -- ==================================================
-
-        (
-          SELECT COALESCE(
-            SUM(
-              CASE
-                WHEN LOWER(i.item_name) LIKE '%waiter%'
-                THEN d.RuntimeRate * d.Qty
-                ELSE 0
-              END
-            ),
-            0
-          )
-          FROM TAxnTrnbilldetails d
-          JOIN mstrestmenu i
-            ON d.ItemID = i.restitemid
-          WHERE d.TxnID = t.TxnID
-        ) AS Waiter,
-
-        -- ==================================================
-        -- CREDIT CUSTOMER NAME
-        -- ==================================================
-
-        (
-          SELECT GROUP_CONCAT(DISTINCT cs.customerName SEPARATOR ', ')
-          FROM TrnSettlement cs
-          WHERE (
-                  CAST(cs.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
-                  OR CAST(cs.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
-                )
-            AND cs.isSettled = 1
-            AND LOWER(cs.PaymentType) = 'credit'
-            AND cs.customerName IS NOT NULL
-            AND cs.customerName != ''
-        ) AS CreditName,
-
-        -- ==================================================
-        -- KOT DETAILS
-        -- ==================================================
-
-        GROUP_CONCAT(
-          DISTINCT CASE
-            WHEN td.Qty > 0
-            THEN td.KOTNo
-          END
-        ) AS KOTNo,
-
-        COALESCE(
-          GROUP_CONCAT(DISTINCT td.RevKOTNo),
-          ''
-        ) AS RevKOTNo,
-
-        GROUP_CONCAT(
-          DISTINCT CASE
-            WHEN td.isNCKOT = 1
-            THEN td.KOTNo
-          END
-        ) AS NCKOT,
-
-        t.NCPurpose,
-        t.NCName,
-
-        -- ==================================================
-        -- PAYMENT MODE COLUMNS
-        -- ==================================================
-
-        ${paymentColumns},
-
-        -- ==================================================
-        -- PAYMENT DETAILS
-        -- ==================================================
-
-        GROUP_CONCAT(
-          DISTINCT CONCAT(
-            s.PaymentType,
-            ':',
-            s.Amount
-          )
-        ) AS Settlements,
-
-        GROUP_CONCAT(
-          DISTINCT s.PaymentType
-        ) AS PaymentType,
-
-        -- ==================================================
-        -- TIP AMOUNT
-        -- ==================================================
-
-        COALESCE(
-          SUM(
-            DISTINCT COALESCE(s.TipAmount, 0)
-          ),
-          0
-        ) AS TipAmountTotal,
-
-        -- ==================================================
-        -- SETTLEMENT AMOUNT
-        -- BILL TOTAL + TIP
-        -- ==================================================
-
-        (
-          COALESCE(t.Amount, 0)
-          +
-          COALESCE(
-            SUM(
-              DISTINCT COALESCE(s.TipAmount, 0)
-            ),
-            0
-          )
-        ) AS SettlementAmountTotal,
-
-        -- ==================================================
-        -- STATUS
-        -- ==================================================
-
-        t.isSetteled,
-        t.isBilled,
-        t.isreversebill,
-        t.isCancelled,
-        t.isDayEnd,
-        t.DayEndEmpID,
-
-        -- ==================================================
-        -- TOTAL ITEMS
-        -- ==================================================
-
-        COALESCE(
-          SUM(td.Qty),
-          0
-        ) AS TotalItems
-
-      FROM TAxnTrnbill t
-
-      -- ==================================================
-      -- BILL DETAILS
-      -- ==================================================
-
-      LEFT JOIN TAxnTrnbilldetails td
-        ON t.TxnID = td.TxnID
-
-      -- ==================================================
-      -- USER DETAILS
-      -- ==================================================
-
-      LEFT JOIN mst_users u
-        ON t.UserId = u.userid
-
-      -- ==================================================
-      -- AGGREGATED SETTLEMENTS
-      -- ==================================================
-
-      LEFT JOIN (
-
-        SELECT
-
-          OrderNo,
-          PaymentType,
-
-          SUM(Amount) AS Amount,
-
-          SUM(
-            COALESCE(TipAmount, 0)
-          ) AS TipAmount
-
-        FROM TrnSettlement
-
-        WHERE isSettled = 1
-
-        GROUP BY
-          OrderNo,
-          PaymentType
-
-      ) s
-
-      ON (
-        CAST(s.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
-        OR CAST(s.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
-      )
-
-      -- ==================================================
-        -- FILTERS
-        -- ==================================================
-
-      WHERE t.isDayEnd = 0
-
-
-    AND (
-    t.isSetteled = 1
-    OR t.isreversebill = 1
+-- Step 5: Get credit names separately
+credit_names AS (
+  SELECT 
+    OrderNo,
+    GROUP_CONCAT(DISTINCT customerName SEPARATOR ', ') AS CreditName
+  FROM settlements_all
+  WHERE LOWER(PaymentType) = 'credit'
+    AND customerName IS NOT NULL
+    AND customerName != ''
+  GROUP BY OrderNo
 )
 
-      -- ==================================================
-      -- BUSINESS DATE FILTER (curr_date)
-      -- ==================================================
+-- Step 6: Final query
+SELECT 
+  b.TxnID,
+  b.TxnNo,
+  b.TableID,
+  b.table_name,
+  b.outletid,
+  b.HotelID,
+  b.Amount AS TotalAmount,
+  b.Discount,
+  b.GrossAmt AS GrossAmount,
+  b.CGST,
+  b.SGST,
+  b.RoundOFF,
+  b.RevKOT AS RevAmt,
+  b.TxnDatetime,
+  b.TaxableValue,
+  b.BilledDate,
+  b.Steward AS Captain,
+  b.UserId,
+  u.username AS UserName,
+  COALESCE(bd.Waiter, 0) AS Waiter,
+  COALESCE(cn.CreditName, '') AS CreditName,
+  COALESCE(bd.KOTNo, '') AS KOTNo,
+  COALESCE(bd.RevKOTNo, '') AS RevKOTNo,
+  COALESCE(bd.NCKOT, '') AS NCKOT,
+  b.NCPurpose,
+  b.NCName,
+  ${paymentColumns},
+  GROUP_CONCAT(DISTINCT CONCAT(s.PaymentType, ':', s.Amount)) AS Settlements,
+  GROUP_CONCAT(DISTINCT s.PaymentType) AS PaymentType,
+  COALESCE(SUM(s.TipAmount), 0) AS TipAmountTotal,
+  (COALESCE(b.Amount, 0) + COALESCE(SUM(s.TipAmount), 0)) AS SettlementAmountTotal,
+  b.isSetteled,
+  b.isBilled,
+  b.isreversebill,
+  b.isCancelled,
+  b.isDayEnd,
+  b.DayEndEmpID,
+  COALESCE(bd.TotalItems, 0) AS TotalItems
 
-      AND DATE(t.TxnDatetime) = ?
+FROM eligible_bills b
 
-      -- ==================================================
-      -- GROUP BY
-      -- ==================================================
+LEFT JOIN mst_users u 
+  ON b.UserId = u.userid
 
-      GROUP BY
-        t.TxnID,
-        t.TxnNo
+LEFT JOIN bill_details_agg bd 
+  ON b.TxnID = bd.TxnID
 
-      ORDER BY
-        t.TxnNo asc
+LEFT JOIN settlements_agg s 
+  ON (s.OrderNo = b.TxnNo OR s.OrderNo = b.orderNo)
+
+LEFT JOIN credit_names cn 
+  ON (cn.OrderNo = b.TxnNo OR cn.OrderNo = b.orderNo)
+
+GROUP BY 
+  b.TxnID,
+  b.TxnNo,
+  b.TableID,
+  b.table_name,
+  b.outletid,
+  b.HotelID,
+  b.Amount,
+  b.Discount,
+  b.GrossAmt,
+  b.CGST,
+  b.SGST,
+  b.RoundOFF,
+  b.RevKOT,
+  b.TxnDatetime,
+  b.TaxableValue,
+  b.BilledDate,
+  b.Steward,
+  b.UserId,
+  u.username,
+  b.NCPurpose,
+  b.NCName,
+  b.isSetteled,
+  b.isBilled,
+  b.isreversebill,
+  b.isCancelled,
+  b.isDayEnd,
+  b.DayEndEmpID,
+  bd.Waiter,
+  bd.KOTNo,
+  bd.RevKOTNo,
+  bd.NCKOT,
+  bd.TotalItems,
+  cn.CreditName
+
+ORDER BY b.TxnNo ASC
     `;
 
     console.log("========================================");
-    console.log("FINAL QUERY =>");
+    console.log("OPTIMIZED QUERY =>");
     console.log(query);
     console.log("========================================");
 
-    // ======================================================
-    // EXECUTE QUERY
-    // ======================================================
+    // 5. EXECUTE QUERY
+    const [rows] = await db.query(query, [businessDate, businessDate]);
 
-    // Business date (curr_date) to filter by TxnDatetime
-    // If frontend sends explicit `date`, use it directly.
-    const { outletid: outlet_id, hotelid, date } = req.query;
-
-    let businessDate = null;
-
-    if (date) {
-      businessDate = date;
-    } else if (outlet_id && hotelid) {
-      businessDate = await getBusinessDate(outlet_id, hotelid);
-    }
-
-    if (!businessDate) {
-      const now = new Date();
-      const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-      businessDate = indiaTime.toISOString().split('T')[0];
-    }
-
-    const [rows] = await db.query(query, [businessDate]);
-
-
-    console.log("DAYEND getDayendData req.query =>", req.query);
-    console.log("DAYEND getDayendData businessDate =>", businessDate);
     console.log("TOTAL ROWS =>", rows.length);
 
-
-    // ======================================================
-    // FORMAT RESPONSE
-    // ======================================================
-
+    // 6. FORMAT RESPONSE (EXACT SAME AS BEFORE)
     const orders = rows.map((row) => {
+      const payments = {};
+      let tipAdded = false;
 
-      // ====================================================
-      // PAYMENT BREAKDOWN
-      // ====================================================
+      if (row.Settlements) {
+        const settlements = row.Settlements.split(',');
 
-const payments = {};
-let tipAdded = false;
+        settlements.forEach((settlement) => {
+          const [paymentType, amount] = settlement.split(':');
 
-if (row.Settlements) {
-  const settlements = row.Settlements.split(',');
+          if (paymentType) {
+            let finalAmount = Number(amount || 0);
 
-  settlements.forEach((settlement) => {
-    const [paymentType, amount] = settlement.split(':');
+            if (
+              !tipAdded &&
+              paymentType.trim().toLowerCase() !== "cash"
+            ) {
+              finalAmount += Number(row.TipAmountTotal || 0);
+              tipAdded = true;
+            }
 
-    if (paymentType) {
-      let finalAmount = Number(amount || 0);
-
-      // Add tip only once to the first non-cash payment mode
-      if (
-        !tipAdded &&
-        paymentType.trim().toLowerCase() !== "cash"
-      ) {
-        finalAmount += Number(row.TipAmountTotal || 0);
-        tipAdded = true;
+            payments[paymentType.trim()] = finalAmount;
+          }
+        });
       }
 
-      payments[paymentType.trim()] = finalAmount;
-    }
-  });
-
-  // If all payments are Cash, don't add tip to Cash
-}
       return {
-
-        // ==================================================
-        // BASIC DETAILS
-        // ==================================================
-
         txnId: row.TxnID,
-
         orderNo: row.TxnNo,
-
         table: row.TableID,
-
         tableName: row.table_name || '',
-
         waiter: row.Captain || 'Unknown',
-
         captain: row.Captain || 'N/A',
-
         user: row.UserName || 'N/A',
-
         outletid: row.outletid,
-
         hotelid: row.HotelID,
-
         date: row.TxnDatetime,
-
         time: row.BilledDate,
-
-        // New field: exact billed date/time (used for showing time in DayEnd order details)
         billedDate: row.BilledDate,
-
-
-        // ==================================================
-        // AMOUNTS
-        // ==================================================
-
-        amount: Number(
-          row.TotalAmount || 0
-        ),
-
-        grossAmount: Number(
-          row.GrossAmount || 0
-        ),
-
-        discount: Number(
-          row.Discount || 0
-        ),
-
-        cgst: Number(
-          row.CGST || 0
-        ),
-
-        sgst: Number(
-          row.SGST || 0
-        ),
-
-        roundOff: Number(
-          row.RoundOFF || 0
-        ),
-
-        revAmt: Number(
-          row.RevAmt || 0
-        ),
-
-        waiters: Number(
-          row.Waiter || 0
-        ),
-
-        creditName: row.CreditName || '', 
-
+        amount: Number(row.TotalAmount || 0),
+        grossAmount: Number(row.GrossAmount || 0),
+        discount: Number(row.Discount || 0),
+        cgst: Number(row.CGST || 0),
+        sgst: Number(row.SGST || 0),
+        roundOff: Number(row.RoundOFF || 0),
+        revAmt: Number(row.RevAmt || 0),
+        waiters: Number(row.Waiter || 0),
+        creditName: row.CreditName || '',
         taxableValue: Number(row.TaxableValue || 0),
-
-
-        // ==================================================
-        // TIP
-        // ==================================================
-
-        tip: Number(
-          row.TipAmountTotal || 0
-        ),
-
-        // ==================================================
-        // BILL AMOUNT
-        // TOTAL BILL + TIP
-        // ==================================================
-
-        settlementAmount: Number(
-          row.SettlementAmountTotal || 0
-        ),
-
-        // ==================================================
-        // PAYMENT
-        // ==================================================
-
+        tip: Number(row.TipAmountTotal || 0),
+        settlementAmount: Number(row.SettlementAmountTotal || 0),
         paymentType: row.PaymentType || '',
-
         payments,
-
         settlements: row.Settlements || '',
-
         type: row.isreversebill
           ? 'Reversed'
-          : (
-              row.PaymentType
-              || (
-                row.isSetteled
-                  ? 'Cash'
-                  : 'Unpaid'
-              )
-            ),
-
-        // ==================================================
-        // STATUS
-        // ==================================================
-
-        status: row.isSetteled
-          ? 'Settled'
-          : (
-              row.isBilled
-                ? 'Billed'
-                : 'Pending'
-            ),
-
+          : (row.PaymentType || (row.isSetteled ? 'Cash' : 'Unpaid')),
+        status: row.isSetteled ? 'Settled' : (row.isBilled ? 'Billed' : 'Pending'),
         isDayEnd: row.isDayEnd,
-
         dayEndEmpID: row.DayEndEmpID,
-
         reverseBill: row.isreversebill,
-
-        // ==================================================
-        // KOT DETAILS
-        // ==================================================
-
-        items: Number(
-          row.TotalItems || 0
-        ),
-
+        items: Number(row.TotalItems || 0),
         kotNo: row.KOTNo || '',
-
         revKotNo: row.RevKOTNo || '',
-
         ncKot: row.NCKOT || '',
-
         ncPurpose: row.NCPurpose || '',
-
         ncName: row.NCName || '',
       };
     });
 
     console.log("========================================");
-    console.log("FINAL ORDERS =>");
-    console.log(JSON.stringify(orders, null, 2));
+    console.log("FINAL ORDERS COUNT =>", orders.length);
     console.log("========================================");
-
-    // ======================================================
-    // RESPONSE
-    // ======================================================
 
     res.json({
       success: true,
@@ -524,12 +328,7 @@ if (row.Settlements) {
     });
 
   } catch (error) {
-
-    console.error(
-      'Error fetching dayend data:',
-      error
-    );
-
+    console.error('Error fetching dayend data:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch dayend data'
@@ -1022,44 +821,42 @@ const getBillDetailsData = async (businessDate, dayEndEmpID) => {
 
     // Step 4: Final query (exactly like your SQL but with placeholders)
     const query = `
-      SELECT 
-        t.TxnID,
-        t.TxnNo,
-        t.table_name,
-        t.Amount AS netAmount,
-        t.GrossAmt AS grossAmount,
-        t.TaxableValue,
-        IFNULL(t.Discount,0) AS Discount,
-        IFNULL(t.CGST,0) AS CGST,
-        IFNULL(t.SGST,0) AS SGST,
-        t.RoundOFF,
-        t.TxnDatetime,
-        
-        ${paymentColumns},
-        
-        ${settlementBreakdownCol},
-        
-        SUM(IFNULL(s.tipAmount,0)) AS tipAmount,
-        SUM(IFNULL(s.Amount,0)) AS totalSettlement
+  SELECT 
+    t.TxnID,
+    t.TxnNo,
+    t.table_name,
+    t.Amount AS netAmount,
+    (t.Amount + IFNULL(SUM(s.tipAmount),0)) AS totalAmountWithTip,
+    t.GrossAmt AS grossAmount,
+    t.TaxableValue,
+    IFNULL(t.Discount,0) AS Discount,
+    IFNULL(t.CGST,0) AS CGST,
+    IFNULL(t.SGST,0) AS SGST,
+    t.RoundOFF,
+    t.TxnDatetime,
+    
+    ${paymentColumns},
+    
+    ${settlementBreakdownCol},
+    
+    SUM(IFNULL(s.tipAmount,0)) AS tipAmount,
+    SUM(IFNULL(s.Amount,0)) AS totalSettlement,
+    (SUM(IFNULL(s.Amount,0)) + IFNULL(SUM(s.tipAmount),0)) AS totalSettlementWithTip
 
-      FROM TAxnTrnbill t
-
-      LEFT JOIN TrnSettlement s
-        ON s.TxnNo = t.TxnNo
-        AND s.isSettled = 1
-
-      WHERE t.isDayEnd = 1
-        AND t.DayEndEmpID = ?
-        AND t.isNCKOT = 0
-        AND t.isreversebill = 0
-        AND DATE(t.TxnDatetime) = ?
-        AND t.isCancelled = 0
-
-      GROUP BY t.TxnID, t.TxnNo, t.table_name, t.Amount, t.GrossAmt, 
-               t.Discount, t.CGST, t.SGST, t.RoundOFF, t.TxnDatetime
-
-      ORDER BY t.TxnNo ASC
-    `;
+  FROM TAxnTrnbill t
+  LEFT JOIN TrnSettlement s
+    ON s.TxnNo = t.TxnNo
+    AND s.isSettled = 1
+  WHERE t.isDayEnd = 1
+    AND t.DayEndEmpID = ?
+    AND t.isNCKOT = 0
+    AND t.isreversebill = 0
+    AND DATE(t.TxnDatetime) = ?
+    AND t.isCancelled = 0
+  GROUP BY t.TxnID, t.TxnNo, t.table_name, t.Amount, t.GrossAmt, 
+           t.Discount, t.CGST, t.SGST, t.RoundOFF, t.TxnDatetime
+  ORDER BY t.TxnNo ASC
+`;
 
     const [rows] = await db.query(query, [dayEndEmpID, businessDate]);
 
@@ -1082,28 +879,94 @@ const getBillDetailsData = async (businessDate, dayEndEmpID) => {
 
 const getPaymentSummaryData = async (businessDate, dayEndEmpID) => {
   const query = `
-    SELECT 
-      s.PaymentType,
-      SUM(s.Amount) AS totalAmount,
-      COUNT(DISTINCT s.OrderNo) AS billCount
+    WITH settlement_base AS (
+      SELECT
+        s.SettlementID,
+        s.OrderNo,
+        s.PaymentType,
+        COALESCE(s.Amount, 0) AS Amount,
+        COALESCE(s.TipAmount, 0) AS TipAmount
+      FROM TrnSettlement s
+      WHERE s.isSettled = 1
+    ),
 
-    FROM trnsettlement s
+    order_tips AS (
+      SELECT
+        OrderNo,
+        SUM(TipAmount) AS TipAmount
+      FROM settlement_base
+      GROUP BY OrderNo
+    ),
 
-    WHERE s.isSettled = 1
-      AND DATE(s.InsertDate) = ?
+    sett_ranked AS (
+      SELECT
+        sb.OrderNo,
+        sb.PaymentType,
+        SUM(sb.Amount) AS Amount,
 
-      AND EXISTS (
-          SELECT 1
-          FROM TAxnTrnBill t
-          WHERE t.TxnNo = s.TxnNo
-            AND t.DayEndEmpID = ?
+        ROW_NUMBER() OVER (
+          PARTITION BY sb.OrderNo
+          ORDER BY MIN(sb.SettlementID) ASC
+        ) AS rn
+
+      FROM settlement_base sb
+
+      GROUP BY
+        sb.OrderNo,
+        sb.PaymentType
+    ),
+
+    sett_adjusted AS (
+      SELECT
+        sr.OrderNo,
+        sr.PaymentType,
+
+        sr.Amount
+        +
+        CASE
+          WHEN sr.rn = 1
+               AND LOWER(TRIM(sr.PaymentType)) <> 'cash'
+          THEN COALESCE(ot.TipAmount, 0)
+          ELSE 0
+        END AS finalAmount
+
+      FROM sett_ranked sr
+
+      LEFT JOIN order_tips ot
+        ON ot.OrderNo = sr.OrderNo
+    )
+
+    SELECT
+      sa.PaymentType,
+
+      SUM(sa.finalAmount) AS totalAmount,
+
+      COUNT(DISTINCT sa.OrderNo) AS billCount
+
+    FROM sett_adjusted sa
+
+    INNER JOIN TAxnTrnbill t
+      ON (
+        CAST(t.TxnNo AS CHAR) = CAST(sa.OrderNo AS CHAR)
+        OR
+        CAST(t.orderNo AS CHAR) = CAST(sa.OrderNo AS CHAR)
       )
 
-    GROUP BY s.PaymentType
+    WHERE
+      t.isDayEnd = 1
+      AND t.DayEndEmpID = ?
+      AND DATE(t.TxnDatetime) = ?
+      AND t.isCancelled = 0
+
+    GROUP BY sa.PaymentType
+
     ORDER BY totalAmount DESC;
   `;
 
-  const [rows] = await db.query(query, [businessDate, dayEndEmpID]);
+  const [rows] = await db.query(query, [
+    dayEndEmpID,
+    businessDate
+  ]);
 
   return rows;
 };
@@ -1768,238 +1631,192 @@ const getBackDayendData = async (req, res) => {
     // Main query - payment type values are directly embedded (safe because they come from DB)
     // Date parameters use placeholders
     const query = `
-      SELECT
+    WITH 
+-- Step 1: Get eligible bills (already filtered by date and status)
+eligible_bills AS (
+  SELECT 
+    TxnID,
+    TxnNo,
+    orderNo,
+    TableID,
+    table_name,
+    outletid,
+    HotelID,
+    Amount,
+    Discount,
+    GrossAmt,
+    CGST,
+    SGST,
+    RoundOFF,
+    RevKOT,
+    TxnDatetime,
+    TaxableValue,
+    BilledDate,
+    Steward,
+    UserId,
+    isSetteled,
+    isBilled,
+    isreversebill,
+    isCancelled,
+    isDayEnd,
+    DayEndEmpID,
+    NCPurpose,
+    NCName
+  FROM TAxnTrnbill
+  WHERE isDayEnd = 1
+    AND (isSetteled = 1 OR isreversebill = 1)
+    AND TxnDatetime = ?
+),
 
-        t.TxnID,
-        t.TxnNo,
-        t.TableID,
-        t.table_name,
-        t.outletid,
-        t.HotelID,
-        t.Amount AS TotalAmount,
-        t.Discount,
-        t.GrossAmt AS GrossAmount,
-        t.CGST,
-        t.SGST,
-        t.RoundOFF,
-        t.RevKOT AS RevAmt,
-        t.TxnDatetime,
-        t.TaxableValue,
-        t.BilledDate,
-        t.Steward AS Captain,
-        t.UserId,
+-- Step 2: Pre-aggregate bill details (only for eligible bills)
+bill_details_agg AS (
+  SELECT 
+    d.TxnID,
+    SUM(d.Qty) AS TotalItems,
+    SUM(
+      CASE 
+        WHEN LOWER(i.item_name) LIKE '%waiter%' 
+        THEN d.RuntimeRate * d.Qty 
+        ELSE 0 
+      END
+    ) AS Waiter,
+    GROUP_CONCAT(DISTINCT CASE WHEN d.Qty > 0 THEN d.KOTNo END) AS KOTNo,
+    GROUP_CONCAT(DISTINCT d.RevKOTNo) AS RevKOTNo,
+    GROUP_CONCAT(DISTINCT CASE WHEN d.isNCKOT = 1 THEN d.KOTNo END) AS NCKOT
+  FROM TAxnTrnbilldetails d
+  INNER JOIN mstrestmenu i ON d.ItemID = i.restitemid
+  WHERE d.TxnID IN (SELECT TxnID FROM eligible_bills)
+  GROUP BY d.TxnID
+),
 
-        u.username AS UserName,
+-- Step 3: Get all settlements for eligible bills (using JOIN instead of IN)
+settlements_all AS (
+  SELECT 
+    s.OrderNo,
+    s.PaymentType,
+    s.Amount,
+    s.TipAmount,
+    s.customerName
+  FROM TrnSettlement s
+  INNER JOIN eligible_bills b 
+    ON (s.OrderNo = b.TxnNo OR s.OrderNo = b.orderNo)
+  WHERE s.isSettled = 1
+),
 
-        -- ==================================================
-        -- WATER AMOUNT
-        -- ==================================================
+-- Step 4: Aggregate settlements
+settlements_agg AS (
+  SELECT 
+    OrderNo,
+    PaymentType,
+    SUM(Amount) AS Amount,
+    SUM(COALESCE(TipAmount, 0)) AS TipAmount
+  FROM settlements_all
+  GROUP BY OrderNo, PaymentType
+),
 
-        (
-          SELECT COALESCE(
-            SUM(
-              CASE
-                WHEN LOWER(i.item_name) LIKE '%water%'
-                THEN d.RuntimeRate * d.Qty
-                ELSE 0
-              END
-            ),
-            0
-          )
-          FROM TAxnTrnbilldetails d
-          JOIN mstrestmenu i
-            ON d.ItemID = i.restitemid
-          WHERE d.TxnID = t.TxnID
-        ) AS Water,
-
-         -- ==================================================
-        -- CREDIT CUSTOMER NAME
-        -- ==================================================
-
-        (
-          SELECT GROUP_CONCAT(DISTINCT cs.customerName SEPARATOR ', ')
-          FROM TrnSettlement cs
-          WHERE (
-                  CAST(cs.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
-                  OR CAST(cs.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
-                )
-            AND cs.isSettled = 1
-            AND LOWER(cs.PaymentType) = 'credit'
-            AND cs.customerName IS NOT NULL
-            AND cs.customerName != ''
-        ) AS CreditName,
-
-        -- ==================================================
-        -- KOT DETAILS
-        -- ==================================================
-
-        GROUP_CONCAT(
-          DISTINCT CASE
-            WHEN td.Qty > 0
-            THEN td.KOTNo
-          END
-        ) AS KOTNo,
-
-        COALESCE(
-          GROUP_CONCAT(DISTINCT td.RevKOTNo),
-          ''
-        ) AS RevKOTNo,
-
-        GROUP_CONCAT(
-          DISTINCT CASE
-            WHEN td.isNCKOT = 1
-            THEN td.KOTNo
-          END
-        ) AS NCKOT,
-
-        t.NCPurpose,
-        t.NCName,
-
-        -- ==================================================
-        -- PAYMENT MODE COLUMNS
-        -- ==================================================
-
-        ${paymentColumns},
-
-        -- ==================================================
-        -- PAYMENT DETAILS
-        -- ==================================================
-
-        GROUP_CONCAT(
-          DISTINCT CONCAT(
-            s.PaymentType,
-            ':',
-            s.Amount
-          )
-        ) AS Settlements,
-
-        GROUP_CONCAT(
-          DISTINCT s.PaymentType
-        ) AS PaymentType,
-
-        -- ==================================================
-        -- TIP AMOUNT
-        -- ==================================================
-
-        COALESCE(
-          SUM(
-            DISTINCT COALESCE(s.TipAmount, 0)
-          ),
-          0
-        ) AS TipAmountTotal,
-
-        -- ==================================================
-        -- SETTLEMENT AMOUNT
-        -- BILL TOTAL + TIP
-        -- ==================================================
-
-        (
-          COALESCE(t.Amount, 0)
-          +
-          COALESCE(
-            SUM(
-              DISTINCT COALESCE(s.TipAmount, 0)
-            ),
-            0
-          )
-        ) AS SettlementAmountTotal,
-
-        -- ==================================================
-        -- STATUS
-        -- ==================================================
-
-        t.isSetteled,
-        t.isBilled,
-        t.isreversebill,
-        t.isCancelled,
-        t.isDayEnd,
-        t.DayEndEmpID,
-
-        -- ==================================================
-        -- TOTAL ITEMS
-        -- ==================================================
-
-        COALESCE(
-          SUM(td.Qty),
-          0
-        ) AS TotalItems
-
-      FROM TAxnTrnbill t
-
-      -- ==================================================
-      -- BILL DETAILS
-      -- ==================================================
-
-      LEFT JOIN TAxnTrnbilldetails td
-        ON t.TxnID = td.TxnID
-
-      -- ==================================================
-      -- USER DETAILS
-      -- ==================================================
-
-      LEFT JOIN mst_users u
-        ON t.UserId = u.userid
-
-      -- ==================================================
-      -- AGGREGATED SETTLEMENTS
-      -- ==================================================
-
-      LEFT JOIN (
-
-        SELECT
-
-          OrderNo,
-          PaymentType,
-
-          SUM(Amount) AS Amount,
-
-          SUM(
-            COALESCE(TipAmount, 0)
-          ) AS TipAmount
-
-        FROM TrnSettlement
-
-        WHERE isSettled = 1
-
-        GROUP BY
-          OrderNo,
-          PaymentType
-
-      ) s
-
-      ON (
-        CAST(s.OrderNo AS CHAR) = CAST(t.TxnNo AS CHAR)
-        OR CAST(s.OrderNo AS CHAR) = CAST(t.orderNo AS CHAR)
-      )
-
-      -- ==================================================
-        -- FILTERS
-        -- ==================================================
-
-      WHERE t.isDayEnd = 1
-
-
-    AND (
-    t.isSetteled = 1
-    OR t.isreversebill = 1
+-- Step 5: Get credit names separately
+credit_names AS (
+  SELECT 
+    OrderNo,
+    GROUP_CONCAT(DISTINCT customerName SEPARATOR ', ') AS CreditName
+  FROM settlements_all
+  WHERE LOWER(PaymentType) = 'credit'
+    AND customerName IS NOT NULL
+    AND customerName != ''
+  GROUP BY OrderNo
 )
 
-      -- ==================================================
-      -- BUSINESS DATE FILTER (curr_date)
-      -- ==================================================
+-- Step 6: Final query
+SELECT 
+  b.TxnID,
+  b.TxnNo,
+  b.TableID,
+  b.table_name,
+  b.outletid,
+  b.HotelID,
+  b.Amount AS TotalAmount,
+  b.Discount,
+  b.GrossAmt AS GrossAmount,
+  b.CGST,
+  b.SGST,
+  b.RoundOFF,
+  b.RevKOT AS RevAmt,
+  b.TxnDatetime,
+  b.TaxableValue,
+  b.BilledDate,
+  b.Steward AS Captain,
+  b.UserId,
+  u.username AS UserName,
+  COALESCE(bd.Waiter, 0) AS Waiter,
+  COALESCE(cn.CreditName, '') AS CreditName,
+  COALESCE(bd.KOTNo, '') AS KOTNo,
+  COALESCE(bd.RevKOTNo, '') AS RevKOTNo,
+  COALESCE(bd.NCKOT, '') AS NCKOT,
+  b.NCPurpose,
+  b.NCName,
+  ${paymentColumns},
+  GROUP_CONCAT(DISTINCT CONCAT(s.PaymentType, ':', s.Amount)) AS Settlements,
+  GROUP_CONCAT(DISTINCT s.PaymentType) AS PaymentType,
+  COALESCE(SUM(s.TipAmount), 0) AS TipAmountTotal,
+  (COALESCE(b.Amount, 0) + COALESCE(SUM(s.TipAmount), 0)) AS SettlementAmountTotal,
+  b.isSetteled,
+  b.isBilled,
+  b.isreversebill,
+  b.isCancelled,
+  b.isDayEnd,
+  b.DayEndEmpID,
+  COALESCE(bd.TotalItems, 0) AS TotalItems
 
-      AND DATE(t.TxnDatetime) = ?
+FROM eligible_bills b
 
-      -- ==================================================
-      -- GROUP BY
-      -- ==================================================
+LEFT JOIN mst_users u 
+  ON b.UserId = u.userid
 
-      GROUP BY
-        t.TxnID,
-        t.TxnNo
+LEFT JOIN bill_details_agg bd 
+  ON b.TxnID = bd.TxnID 
 
-      ORDER BY
-        t.TxnNo asc
+LEFT JOIN settlements_agg s 
+  ON (s.OrderNo = b.TxnNo OR s.OrderNo = b.orderNo)
+
+LEFT JOIN credit_names cn 
+  ON (cn.OrderNo = b.TxnNo OR cn.OrderNo = b.orderNo)
+
+GROUP BY 
+  b.TxnID,
+  b.TxnNo,
+  b.TableID,
+  b.table_name,
+  b.outletid,
+  b.HotelID,
+  b.Amount,
+  b.Discount,
+  b.GrossAmt,
+  b.CGST,
+  b.SGST,
+  b.RoundOFF,
+  b.RevKOT,
+  b.TxnDatetime,
+  b.TaxableValue,
+  b.BilledDate,
+  b.Steward,
+  b.UserId,
+  u.username,
+  b.NCPurpose,
+  b.NCName,
+  b.isSetteled,
+  b.isBilled,
+  b.isreversebill,
+  b.isCancelled,
+  b.isDayEnd,
+  b.DayEndEmpID,
+  bd.Waiter,
+  bd.KOTNo,
+  bd.RevKOTNo,
+  bd.NCKOT,
+  bd.TotalItems,
+  cn.CreditName
+
+ORDER BY b.TxnNo ASC
     `;
  
     

@@ -2119,6 +2119,7 @@ const handlePrintAndSaveKOT = async () => {
         userId: user?.id,
         reversalReason: 'Full Reverse from UI', // You can add a specific reason here if needed
         curr_date: user?.currDate,
+         device_name: deviceName,
 
       });
 
@@ -2274,11 +2275,10 @@ const handlePrintAndSaveKOT = async () => {
       // setShowOrderDetails(true); // Show order panel ONLY if needed
 
       // 2. Fetch FULL bill data including header (tax, discount, dept)
-      const fullBillRes = await OrderService.getBillById(bill.TxnID);
-      if (!fullBillRes.success || !fullBillRes.data) {
-        toast.error('Failed to load bill details');
-        return;
-      }
+      const fullBillRes = await OrderService.getBillById(
+  bill.TxnID,
+  user.hotelid
+);
       const fullBill = fullBillRes.data;
       const header = fullBill.header ?? {};
 
@@ -2986,7 +2986,10 @@ const handlePrintAndSaveKOT = async () => {
       setShowOrderDetails(true); // Show the order details panel
 
       // 2. Fetch FULL bill data including header (tax, discount, dept)
-      const fullBillRes = await OrderService.getBillById(order.id);
+      const fullBillRes = await OrderService.getBillById(
+  order.id,
+  user.hotelid
+);
       if (!fullBillRes.success || !fullBillRes.data) {
         toast.error('Failed to load order details');
         return;

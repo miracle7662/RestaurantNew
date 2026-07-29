@@ -16,6 +16,7 @@ export interface SocketBillPayload {
   pax: number | null;
   steward: string | null;
   orderType: string | null;
+  device_name?: string | null;
 }
 
 export function useSocketBillPrint(outletId: number | null | undefined) {
@@ -65,15 +66,39 @@ export function useSocketBillPrint(outletId: number | null | undefined) {
         socket.on('new_bill', (data: SocketBillPayload) => {
           console.log('🚨 MOBILE BILL DETECTED →', data.billNo, 'Outlet:', data.outletid, 'Table:', data.table_name);
           console.log('📦 Bill Items:', data.items?.map((i: any) => `${i.item_name || i.ItemName} x${i.Qty || i.qty}`).join(', '));
-          setPendingBills((prev) => {
-            // Prevent duplicate entries for same txnId
-            if (prev.some((b) => b.txnId === data.txnId)) {
-              console.warn('⚠️ Duplicate bill ignored:', data.billNo);
-              return prev;
-            }
-            console.log('✅ New bill queued for print:', data.billNo);
-            return [...prev, data];
-          });
+         setPendingBills((prev) => {
+  const existingIndex = prev.findIndex(
+    (b) => b.txnId === data.txnId
+  );
+
+  // ✅ Same transaction received again:
+  // replace old bill with latest bill data
+  if (existingIndex !== -1) {
+    console.log(
+      '🔄 Updating existing bill with latest items:',
+      data.billNo,
+      'Old items:',
+      prev[existingIndex].items?.length,
+      'New items:',
+      data.items?.length
+    );
+
+    const updated = [...prev];
+    updated[existingIndex] = data;
+
+    return updated;
+  }
+
+  // ✅ Completely new bill
+  console.log(
+    '✅ New bill queued for print:',
+    data.billNo,
+    'Items:',
+    data.items?.length
+  );
+
+  return [...prev, data];
+});
         });
 
         socket.on('disconnect', (reason: string) => {

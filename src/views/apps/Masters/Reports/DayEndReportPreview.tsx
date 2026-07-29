@@ -170,6 +170,47 @@ const isSplitPayment = (paymentMode: string): boolean => {
   return modes.length > 1;
 };
 
+const getModeAmountsWithTip = (bill: BillDetail): Record<string, number> => {
+  const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
+  const tip = Number(bill.tipAmount || 0);
+  const result: Record<string, number> = {};
+
+  if (Object.keys(breakdown).length > 0) {
+    // Split payment – preserve order from settlement_breakdown string
+    const entries = (bill.settlement_breakdown || '')
+      .split(',')
+      .map(pair => {
+        const [type, amt] = pair.split(':');
+        return { type: type?.trim().toLowerCase(), amount: Number(amt) || 0 };
+      })
+      .filter(entry => entry.type);
+
+    let tipAdded = false;
+    for (const entry of entries) {
+      let amount = entry.amount;
+      if (!tipAdded && entry.type !== 'cash') {
+        amount += tip;
+        tipAdded = true;
+      }
+      result[entry.type] = (result[entry.type] || 0) + amount;
+    }
+    // If all modes are cash (rare), add tip to the first mode
+    if (!tipAdded && Object.keys(result).length > 0) {
+      const firstMode = Object.keys(result)[0];
+      result[firstMode] += tip;
+    }
+  } else {
+    // Single payment mode
+    const mode = (bill.paymentMode || 'Cash').trim().toLowerCase();
+    let amount = Number(bill.netAmount || 0);
+    // Add tip to this mode (we'll later skip cash modes if desired)
+    amount += tip;
+    result[mode] = amount;
+  }
+  return result;
+};
+
+
 
 
 // ─────────────────────────────────────────────
@@ -201,30 +242,39 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
   };
 
   // ✅ Helper: compute net amount WITHOUT adding tip (actual payment received)
-  const computeDisplayNet = (bill: BillDetail): number => {
-    const breakdown = parseBreakdown(bill.settlement_breakdown);
-    const hasSplit = Object.keys(breakdown).length > 0;
+ const computeDisplayNet = (bill: BillDetail): number => {
+  const breakdown = parseBreakdown(bill.settlement_breakdown);
+  const hasSplit = Object.keys(breakdown).length > 0;
 
-    if (hasSplit) {
-      // Split payment - sum all amounts without tip
-      const orderedEntries = (bill.settlement_breakdown || '')
-        .split(',')
-        .map(pair => {
-          const [type, amt] = pair.split(':');
-          return { type: type?.trim().toLowerCase(), amount: Number(amt) || 0 };
-        })
-        .filter(item => item.type);
+  let paymentTotal = 0;
 
-      let total = 0;
-      for (const entry of orderedEntries) {
-        total += entry.amount;
-      }
-      return total;
-    } else {
-      // Single payment - netAmount without tip
-      return Number(bill.netAmount || 0);
+  if (hasSplit) {
+    // Split payment: add all payment amounts
+    const orderedEntries = (bill.settlement_breakdown || '')
+      .split(',')
+      .map(pair => {
+        const [type, amt] = pair.split(':');
+
+        return {
+          type: type?.trim().toLowerCase(),
+          amount: Number(amt) || 0
+        };
+      })
+      .filter(item => item.type);
+
+    for (const entry of orderedEntries) {
+      paymentTotal += entry.amount;
     }
-  };
+  } else {
+    // Single payment
+    paymentTotal = Number(bill.netAmount || 0);
+  }
+
+  // Tip is separate from payment breakdown, so add it once
+  const tip = Number(bill.tipAmount || 0);
+
+  return paymentTotal + tip;
+};
 
   let tDisc = 0, tTax = 0, tGST = 0, tTip = 0, tNet = 0;
 
@@ -303,26 +353,20 @@ const MODE_COLS = '52px 52px 1fr';
 
 // ✅ REPLACE with this simplified version
 const PaymentModeDetailsSection: React.FC<{ billDetails: BillDetail[] }> = ({ billDetails }) => {
-  // Directly parse settlement_breakdown without group function
-  const groups: Record<string, { bills: BillDetail[]; totalAmount: number }> = {};
-  
+  const groups: Record<string, { bills: Array<{ bill: BillDetail; amount: number }>; totalAmount: number }> = {};
+
   (billDetails || []).forEach((bill) => {
-    const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
-    if (Object.keys(breakdown).length > 0) {
-      Object.entries(breakdown).forEach(([mode, amount]) => {
-        const modeKey = mode.toLowerCase();
-        if (modeKey === 'cash') return;
-        if (!groups[modeKey]) groups[modeKey] = { bills: [], totalAmount: 0 };
-        groups[modeKey].bills.push({ ...bill, netAmount: amount });
-        groups[modeKey].totalAmount += amount;
-      });
-    } else {
-      const modeRaw = (bill.paymentMode || 'Cash').trim().toLowerCase();
-      if (modeRaw === 'cash') return;
-      if (!groups[modeRaw]) groups[modeRaw] = { bills: [], totalAmount: 0 };
-      groups[modeRaw].bills.push(bill);
-      groups[modeRaw].totalAmount += Number(bill.netAmount || 0);
-    }
+    const modeAmounts = getModeAmountsWithTip(bill);
+    Object.entries(modeAmounts).forEach(([mode, amount]) => {
+      const modeKey = mode.toLowerCase();
+      // Skip cash if you want to show only non‑cash modes (original behavior)
+      if (modeKey === 'cash') return;
+      if (!groups[modeKey]) {
+        groups[modeKey] = { bills: [], totalAmount: 0 };
+      }
+      groups[modeKey].bills.push({ bill, amount });
+      groups[modeKey].totalAmount += amount;
+    });
   });
 
   if (Object.keys(groups).length === 0) return null;
@@ -339,7 +383,7 @@ const PaymentModeDetailsSection: React.FC<{ billDetails: BillDetail[] }> = ({ bi
             <span>Table</span>
             <span style={{ textAlign: 'right' }}>Amount</span>
           </div>
-          {bills.map((bill, idx) => (
+          {bills.map(({ bill, amount }, idx) => (
             <div key={idx} className="rc-col-row" style={{ gridTemplateColumns: MODE_COLS, columnGap: '5px' }}>
               <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {String(bill.TxnNo).slice(-6)}
@@ -347,7 +391,7 @@ const PaymentModeDetailsSection: React.FC<{ billDetails: BillDetail[] }> = ({ bi
               <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {(bill.table_name || '').substring(0, 6)}
               </span>
-              <span style={{ textAlign: 'right' }}>₹{fmt(bill.netAmount)}</span>
+              <span style={{ textAlign: 'right' }}>₹{fmt(amount)}</span>
             </div>
           ))}
           <div className="rc-total">
@@ -364,12 +408,16 @@ const PaymentModeDetailsSection: React.FC<{ billDetails: BillDetail[] }> = ({ bi
 const SPLIT_COLS = '52px 52px 1fr 64px';
 
 const SplitPaymentsSection: React.FC<{ billDetails: BillDetail[] }> = ({ billDetails }) => {
+  // Bills with more than one payment mode in settlement_breakdown
   const splitBills = (billDetails || []).filter(bill => {
     const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
     return Object.keys(breakdown).length > 1;
   });
+
   if (splitBills.length === 0) return null;
-  const total = splitBills.reduce((sum, b) => sum + Number(b.netAmount || 0), 0);
+
+  // Total of all split bills including tip
+  const total = splitBills.reduce((sum, b) => sum + Number(b.netAmount || 0) + Number(b.tipAmount || 0), 0);
 
   return (
     <>
@@ -383,6 +431,7 @@ const SplitPaymentsSection: React.FC<{ billDetails: BillDetail[] }> = ({ billDet
       {splitBills.map((bill, idx) => {
         const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
         const modesText = Object.keys(breakdown).join(', ');
+        const amountWithTip = Number(bill.netAmount || 0) + Number(bill.tipAmount || 0);
         return (
           <div key={idx} className="rc-col-row" style={{ gridTemplateColumns: SPLIT_COLS, columnGap: '5px' }}>
             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -394,7 +443,7 @@ const SplitPaymentsSection: React.FC<{ billDetails: BillDetail[] }> = ({ billDet
             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {modesText}
             </span>
-            <span style={{ textAlign: 'right' }}>₹{fmt(bill.netAmount)}</span>
+            <span style={{ textAlign: 'right' }}>₹{fmt(amountWithTip)}</span>
           </div>
         );
       })}
@@ -657,61 +706,68 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   }
 
     // Detailed payment mode wise list (using the same logic as screen preview)
-  if (data.billDetails?.length) {
-    // Helper to parse settlement_breakdown (same as screen)
-    const parseBreakdown = (breakdown: string | undefined): Record<string, number> => {
-      const result: Record<string, number> = {};
-      if (!breakdown) return result;
-      breakdown.split(',').forEach(item => {
-        const [type, amount] = item.split(':');
-        if (type && amount) result[type.trim()] = Number(amount) || 0;
+// Detailed payment mode wise list – tip added to first non‑cash mode
+if (data.billDetails?.length) {
+  const groups: Record<string, { bills: Array<{ bill: BillDetail; amount: number }>; totalAmount: number }> = {};
+
+  data.billDetails.forEach(bill => {
+    const tip = Number(bill.tipAmount || 0);
+    const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
+    const modes = Object.keys(breakdown);
+
+    if (modes.length > 0) {
+      // Split bill – preserve order from settlement_breakdown string
+      const orderedEntries = (bill.settlement_breakdown || '')
+        .split(',')
+        .map(pair => {
+          const [type, amt] = pair.split(':');
+          return { type: type?.trim().toLowerCase(), amount: Number(amt) || 0 };
+        })
+        .filter(entry => entry.type && entry.type !== 'cash');
+
+      let tipAdded = false;
+      orderedEntries.forEach(entry => {
+        let amount = entry.amount;
+        if (!tipAdded && entry.type !== 'cash') {
+          amount += tip;   // add tip to first non‑cash mode
+          tipAdded = true;
+        }
+        const modeKey = entry.type;
+        if (!groups[modeKey]) groups[modeKey] = { bills: [], totalAmount: 0 };
+        groups[modeKey].bills.push({ bill, amount });
+        groups[modeKey].totalAmount += amount;
       });
-      return result;
-    };
-
-    // Group exactly like groupBillsByPaymentMode (includes split portions)
-    const groups: Record<string, { bills: Array<{ bill: BillDetail; amount: number }>; totalAmount: number }> = {};
-
-    data.billDetails.forEach(bill => {
-      const breakdown = parseBreakdown(bill.settlement_breakdown);
-      if (Object.keys(breakdown).length > 0) {
-        // Split bill – add each non‑cash portion
-        Object.entries(breakdown).forEach(([mode, amount]) => {
-          const modeKey = mode.toLowerCase();
-          if (modeKey === 'cash') return;
-          if (!groups[modeKey]) groups[modeKey] = { bills: [], totalAmount: 0 };
-          groups[modeKey].bills.push({ bill, amount });
-          groups[modeKey].totalAmount += amount;
-        });
-      } else {
-        // Single‑mode bill
-        const modeRaw = (bill.paymentMode || 'Cash').trim().toLowerCase();
-        if (modeRaw === 'cash') return;
-        if (!groups[modeRaw]) groups[modeRaw] = { bills: [], totalAmount: 0 };
-        groups[modeRaw].bills.push({ bill, amount: bill.netAmount });
-        groups[modeRaw].totalAmount += bill.netAmount;
-      }
-    });
-
-    // Render each mode section (same style as screen)
-    for (const [mode, { bills, totalAmount }] of Object.entries(groups)) {
-      b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">${mode.toUpperCase()} PAYMENTS</div>`;
-      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
-              <span style="width:35%">Bill No</span>
-              <span style="width:30%">Table</span>
-              <span style="width:35%;text-align:right">Amount</span>
-            </div>`;
-      for (const { bill, amount } of bills) {
-        b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
-                <span style="width:35%;overflow:hidden;white-space:nowrap">${String(bill.TxnNo).slice(-6)}</span>
-                <span style="width:30%;overflow:hidden;white-space:nowrap">${(bill.table_name || '').substring(0, 6)}</span>
-                <span style="width:35%;text-align:right">₹${f(amount)}</span>
-              </div>`;
-      }
-      b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
-      b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>Total (${mode.toUpperCase()})</span><span>₹${f(totalAmount)}</span></div>`;
+    } else {
+      // Single‑mode bill (non‑cash only)
+      const modeRaw = (bill.paymentMode || 'Cash').trim().toLowerCase();
+      if (modeRaw === 'cash') return; // skip cash
+      let amount = Number(bill.netAmount || 0);
+      amount += tip;   // tip goes to this single mode
+      if (!groups[modeRaw]) groups[modeRaw] = { bills: [], totalAmount: 0 };
+      groups[modeRaw].bills.push({ bill, amount });
+      groups[modeRaw].totalAmount += amount;
     }
+  });
+
+  // Render each mode section (unchanged)
+  for (const [mode, { bills, totalAmount }] of Object.entries(groups)) {
+    b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">${mode.toUpperCase()} PAYMENTS</div>`;
+    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+            <span style="width:35%">Bill No</span>
+            <span style="width:30%">Table</span>
+            <span style="width:35%;text-align:right">Amount</span>
+          </div>`;
+    for (const { bill, amount } of bills) {
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+              <span style="width:35%;overflow:hidden;white-space:nowrap">${String(bill.TxnNo).slice(-6)}</span>
+              <span style="width:30%;overflow:hidden;white-space:nowrap">${(bill.table_name || '').substring(0, 6)}</span>
+              <span style="width:35%;text-align:right">₹${f(amount)}</span>
+            </div>`;
+    }
+    b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
+    b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>Total (${mode.toUpperCase()})</span><span>₹${f(totalAmount)}</span></div>`;
   }
+}
   // Split Payments Section
   if (data.billDetails?.length) {
     const splitBills = data.billDetails.filter(bill => {

@@ -58,7 +58,7 @@ function toIST(date) {
 /* -------------------------------------------------------------------------- */
 exports.getAllBills = async (req, res) => {
   try {
-    const { isBilled, tableId } = req.query;
+    const { isBilled, tableId, curr_date } = req.query;
 
     let whereClauses = ['b.isCancelled = 0'];
     const params = [];
@@ -71,6 +71,12 @@ exports.getAllBills = async (req, res) => {
     if (tableId !== undefined) {
       whereClauses.push('b.TableID = ?');
       params.push(Number(tableId));
+    }
+
+    // ✅ Login user's business date
+    if (curr_date) {
+      whereClauses.push('DATE(b.TxnDatetime) = ?');
+      params.push(curr_date);
     }
 
     const sql = `
@@ -108,14 +114,16 @@ exports.getAllBills = async (req, res) => {
 
       FROM TAxnTrnbill b
       LEFT JOIN TAxnTrnbilldetails d 
-        ON d.TxnID = b.TxnID AND d.isCancelled = 0
+        ON d.TxnID = b.TxnID 
+        AND d.isCancelled = 0
+
       WHERE ${whereClauses.join(' AND ')}
+
       ORDER BY b.TxnDatetime DESC
     `;
 
     const [rows] = await db.query(sql, params);
 
-    // ✅ GROUP DATA IN NODE (SAFE)
     const grouped = {};
 
     rows.forEach((row) => {
@@ -126,7 +134,6 @@ exports.getAllBills = async (req, res) => {
         };
       }
 
-      // Push detail only if exists
       if (row.TXnDetailID) {
         grouped[row.TxnID].details.push({
           TXnDetailID: row.TXnDetailID,
@@ -169,7 +176,7 @@ exports.getAllBills = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ getAllBills Error:', error);
+    console.error('❌ getAllBills Error:', error.message);
 
     res.status(500).json({
       success: false,
@@ -186,7 +193,7 @@ exports.getAllBills = async (req, res) => {
 exports.getBillById = async (req, res) => {
   try {
     const { id } = req.params;
-    const { hotelId } = req.query;   
+    const { hotelId } = req.query;  
     const txnId = Number(id);
 
     if (!txnId || Number.isNaN(txnId)) {
@@ -984,11 +991,12 @@ exports.addItemToBill = async (req, res) => {
     try {
       for (const it of details) {
         const isNCKOT = toBool(it.isNCKOT)
+        // 🔥 FIX: Include item_no and item_name in INSERT for data quality
         await db.query(`
           INSERT INTO TAxnTrnbilldetails (
             TxnID, ItemID, Qty, RuntimeRate, AutoKOT, ManualKOT, SpecialInst, DeptID, HotelID,
-            isBilled, isNCKOT, NCName, NCPurpose
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            isBilled, isNCKOT, NCName, NCPurpose, item_no, item_name
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `, [
           Number(id),
           it.ItemID ?? null,
@@ -1003,8 +1011,11 @@ exports.addItemToBill = async (req, res) => {
           isNCKOT, // isNCKOT as provided or 0
           isNCKOT ? it.NCName || null : null,
           isNCKOT ? it.NCPurpose || null : null,
+          it.item_no ?? null,
+          it.item_name || null,
         ])
-      }
+
+         }
 
       await db.query('COMMIT')
     } catch (error) {
@@ -1014,7 +1025,13 @@ exports.addItemToBill = async (req, res) => {
 
     const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
     const header = headerRows[0]
-    const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
+    const [items] = await db.query(`
+      SELECT d.*, COALESCE(m.item_name, d.item_name, 'Unknown Item') as item_name
+      FROM TAxnTrnbilldetails d
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE d.TxnID = ?
+      ORDER BY d.TXnDetailID ASC
+    `, [Number(id)])
 
     res.json({ success: true, message: 'Items added', data: { ...header, details: items } })
   } catch (error) {
@@ -1499,6 +1516,7 @@ NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID,
             customerName: CustomerName,
             mobileNo: MobileNo,
             txnId,
+            device_name: req.body.device_name || null,
           });
           console.log(`📡 Delta KOT emit: ${mappedItems.filter(i => i.isNewItem).length}/${mappedItems.length} new items`);
           console.log(`📡 Emitted new_kot to room ${room} for KOT #${kotNo}`)
@@ -1529,7 +1547,7 @@ NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID,
 /* -------------------------------------------------------------------------- */
 exports.createReverseKOT = async (req, res) => {
   try {
-    const { txnId, tableId, reversedItems, userId, reversalReason, ReversalDate, curr_date } = req.body
+    const { txnId, tableId, reversedItems, userId, reversalReason, ReversalDate, curr_date, device_name, table_name } = req.body
 
     if (!txnId || !Array.isArray(reversedItems) || reversedItems.length === 0) {
       return res
@@ -2029,10 +2047,12 @@ exports.createReverseKOT = async (req, res) => {
             txnId,
             outletid,
             tableId: tableId ?? null,
+            table_name: table_name ?? null,
             revKotNo: newRevKOTNo,
             items: printedItems,
             reason: reversalReason ?? null,
             reversalDate: ReversalDate ?? null,
+            device_name: req.body.device_name || null,
           })
           console.log(`📡 REVERSE KOT EMIT → RevKOTNo #${newRevKOTNo} | Outlet: ${room}`)
         }
@@ -3096,9 +3116,22 @@ exports.markBillAsBilled = async (req, res) => {
       throw error
     }
 
+    // 🔥 FIX: Fetch items with JOIN to mstrestmenu for proper item_name
     const [headerRows] = await db.query('SELECT * FROM TAxnTrnbill WHERE TxnID = ?', [Number(id)])
     const header = headerRows[0]
-    const [items] = await db.query('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID', [Number(id)])
+    const [items] = await db.query(`
+      SELECT d.*, COALESCE(m.item_name, d.item_name, 'Unknown Item') as item_name
+      FROM TAxnTrnbilldetails d
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE d.TxnID = ?
+      ORDER BY d.TXnDetailID ASC
+    `, [Number(id)])
+
+    console.log(`📡 [markBillAsBilled] DB fetched ${items.length} items for TxnID=${id}:`);
+    items.forEach(item => {
+      const netQty = Number(item.Qty || 0) - Number(item.RevQty || 0);
+      console.log(`   → ${item.item_name || '?'} | Qty=${item.Qty} RevQty=${item.RevQty || 0} Net=${netQty} | Rate=${item.RuntimeRate} | isBilled=${item.isBilled}`);
+    });
 
     res.json(ok('Bill marked as billed', { ...header, customerid: header.customerid, details: items }))
 
@@ -3116,6 +3149,29 @@ exports.markBillAsBilled = async (req, res) => {
         const kotResult = kotResultRows[0]
         const kotNo = kotResult?.maxKOT || header.orderNo || null
 
+        // ✅ Build items with ALL valid items (old + newly added) using net qty
+        const socketItems = items
+          .filter(item => {
+            const netQty = Number(item.Qty || 0) - Number(item.RevQty || 0);
+            return netQty > 0; // Only items with remaining qty
+          })
+          .map(item => {
+            const netQty = Number(item.Qty || 0) - Number(item.RevQty || 0);
+            return {
+              TXnDetailID: item.TXnDetailID,
+              ItemID: item.ItemID,
+              ItemName: item.item_name || 'Unknown Item', // ✅ Proper item_name from JOIN
+              Qty: Math.max(0, netQty), // Net qty
+              RuntimeRate: item.RuntimeRate,
+              isBilled: 1
+            };
+          });
+
+        console.log(`📡 [markBillAsBilled] Socket emit ${socketItems.length} items for TxnID=${id}:`);
+        socketItems.forEach(item => {
+          console.log(`   → ${item.ItemName} x${item.Qty} (Rate=${item.RuntimeRate})`);
+        });
+
         io.to(room).emit('new_bill', {
           billNo: header.TxnNo,
           txnId: Number(id),
@@ -3125,21 +3181,14 @@ exports.markBillAsBilled = async (req, res) => {
           amount: header.Amount,
           customerName: header.CustomerName,
           mobileNo: header.MobileNo,
-          items: items.map(item => ({
-            TXnDetailID: item.TXnDetailID,
-            ItemID: item.ItemID,
-            ItemName: item.item_name, // From DB
-            Qty: item.Qty - (item.RevQty || 0), // Net qty
-            RuntimeRate: item.RuntimeRate,
-            isBilled: 1
-          })),
+          items: socketItems,
           settlement: [], // Empty unless fetched
           pax: header.PAX,
           steward: header.Steward,
-          orderType: header.Order_Type || 'Dine-in'
+          orderType: header.Order_Type || 'Dine-in',
+          device_name: req.body.device_name || null  // ✅ ADD DEVICE NAME
         });
-        console.log(`📡 MOBILE BILL EMIT → #${header.TxnNo} | Outlet: ${room} | Table: ${header.table_name || 'N/A'} | Items: ${items.length} | Amount: ₹${header.Amount}`);
-        console.log('📦 Bill Items Preview:', items.slice(0, 3).map(item => `${item.item_name || 'Item'} x${item.Qty || 0}`).join(', ') + (items.length > 3 ? '...' : ''));
+        console.log(`📡 MOBILE BILL EMIT → #${header.TxnNo} | Outlet: ${room} | Table: ${header.table_name || 'N/A'} | Items: ${socketItems.length} | Amount: ₹${header.Amount}`);
       }
     } catch (socketErr) {
       console.warn('Socket emit failed (non-critical):', socketErr.message)

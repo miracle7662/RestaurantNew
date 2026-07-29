@@ -5,8 +5,9 @@ import { UIModeProvider } from './common/context'
 import ThemeRoutes from './routes/Routes'
 import ConfigScreen from '@/components/Pages/ConfigScreen'
 import { loadConfig } from './config'
-
-import { PermissionProvider } from '@/common/context/PermissionContext';
+import SocketKOTPrinter from '@/components/SocketKOTPrinter'
+import SocketBillPrinter from '@/components/SocketBillPrinter'
+import SocketReverseKOTPrinter from '@/components/SocketReverseKOTPrinter'
 
 // Flaticons
 import './../node_modules/@flaticon/flaticon-uicons/css/all/all.css'
@@ -57,15 +58,16 @@ function App() {
   }
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <PermissionProvider>   
-        <UIModeProvider>
-          <ThemeRoutes />
-        </UIModeProvider>
-        </PermissionProvider>
-      </AuthProvider>
-    </ThemeProvider>
+  <ThemeProvider>
+  <AuthProvider>
+    <UIModeProvider>
+      <SocketKOTPrinter />
+      <SocketBillPrinter />
+      <SocketReverseKOTPrinter />
+      <ThemeRoutes />
+    </UIModeProvider>
+  </AuthProvider>
+</ThemeProvider>
   )
 }
 
