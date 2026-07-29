@@ -244,6 +244,33 @@ exports.createSettlement = async (req, res) => {
           `UPDATE checkout_master SET is_settle = 1 WHERE checkout_id = ? `,
           [checkout_id, rid]
         )
+
+        // Room Service table in msttablemanagement (status = 11 = free)
+        const [roomNoRows] = await conn.query(
+          `SELECT room_no FROM room_master WHERE room_id = ?`,
+          [rid]
+        );
+        const thisRoomNo = roomNoRows[0]?.room_no;
+
+        if (thisRoomNo) {
+          const [rsResult] = await conn.query(
+            `UPDATE msttablemanagement
+             SET status = 11
+             WHERE table_name = ?
+               AND hotelid = ?
+               AND department_name = 'Room Service'`,
+            [thisRoomNo, HotelID]
+          );
+
+          if (rsResult.affectedRows > 0) {
+            console.log(
+              `✅ [Settlement] Room Service table freed: table_name=${thisRoomNo}, hotelid=${HotelID}, status=11`
+            );
+          }
+        } else {
+          console.warn(`⚠️ [Settlement] room_no not found for room_id=${rid}, skipping msttablemanagement update`);
+        }
+      
       }
 
       // 5. FETCH INSERTED ROW
