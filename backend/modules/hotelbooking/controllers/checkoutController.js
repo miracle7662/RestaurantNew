@@ -672,6 +672,7 @@ exports.checkActiveRoomServiceOrders = async (req, res) => {
 // DELETE checkout record (soft delete - update status only)
 exports.deleteCheckout = async (req, res) => {
   try {
+  
     const { id } = req.params;
     
     const [existing] = await db.query('SELECT checkout_id FROM Checkout_Master WHERE checkout_id = ?', [id]);
