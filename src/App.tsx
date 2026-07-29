@@ -5,6 +5,8 @@ import { UIModeProvider } from './common/context'
 import ThemeRoutes from './routes/Routes'
 import ConfigScreen from '@/components/Pages/ConfigScreen'
 import { loadConfig } from './config'
+
+import { PermissionProvider } from '@/common/context/PermissionContext';
 import SocketKOTPrinter from '@/components/SocketKOTPrinter'
 import SocketBillPrinter from '@/components/SocketBillPrinter'
 import SocketReverseKOTPrinter from '@/components/SocketReverseKOTPrinter'
@@ -58,16 +60,18 @@ function App() {
   }
 
   return (
-  <ThemeProvider>
-  <AuthProvider>
-    <UIModeProvider>
-      <SocketKOTPrinter />
+    <ThemeProvider>
+      <AuthProvider>
+        <PermissionProvider>   
+        <UIModeProvider>
+          <SocketKOTPrinter />
       <SocketBillPrinter />
       <SocketReverseKOTPrinter />
-      <ThemeRoutes />
-    </UIModeProvider>
-  </AuthProvider>
-</ThemeProvider>
+          <ThemeRoutes />
+        </UIModeProvider>
+        </PermissionProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 
