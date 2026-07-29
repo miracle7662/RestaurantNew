@@ -617,6 +617,62 @@ exports.performCheckout = async (req, res) => {
     }
   }
 };
+
+
+// controllers/checkoutController.js
+
+exports.checkActiveRoomServiceOrders = async (req, res) => {
+  try {
+    const { hotelId, roomNumbers } = req.query;
+
+    if (!hotelId || !roomNumbers) {
+      return res.status(400).json({
+        success: false,
+        message: 'hotelId and roomNumbers are required'
+      });
+    }
+
+    const roomList = roomNumbers
+      .split(',')
+      .map(r => r.trim())
+      .filter(Boolean);
+
+    if (roomList.length === 0) {
+      return res.json({ success: true, data: { blockedRooms: [], details: [] } });
+    }
+
+    const placeholders = roomList.map(() => '?').join(',');
+
+    // ✅ Match: lodging room_no === msttablemanagement.table_name
+    // Only for 'Room Service' department, and only if status is 1 or 2 (active)
+    const sql = `
+      SELECT table_name, status, department_name, outletid
+      FROM msttablemanagement
+      WHERE hotelid = ?
+        AND department_name = 'Room Service'
+        AND table_name IN (${placeholders})
+        AND status IN (1, 2)
+    `;
+
+    const [rows] = await db.execute(sql, [Number(hotelId), ...roomList]);
+
+    const blockedRooms = [...new Set(rows.map(r => r.table_name))];
+
+    res.json({
+      success: true,
+      data: {
+        blockedRooms,   // e.g. ['3']
+        details: rows,  // [{ table_name: '3', status: 1, department_name: 'Room Service', outletid: 2 }]
+      }
+    });
+  } catch (error) {
+    console.error('checkActiveRoomServiceOrders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check room service status'
+    });
+  }
+};
 // DELETE checkout record (soft delete - update status only)
 exports.deleteCheckout = async (req, res) => {
   try {

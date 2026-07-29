@@ -1152,17 +1152,45 @@ const applyBillWise = async () => {
   const [editablePax, setEditablePax] = useState<number>(0)
 
 
-  const handleCheckoutClick = () => {
-    if (!combinedSummary) {
-      toast.error('No check-in data found')
-      return
-    }
-    if (selectedRooms.size === 0) {
-      toast.error('Please select at least one room for checkout')
-      return
-    }
-    setShowCheckoutModal(true)
+  // import RoomServiceCheckService hata do, ab CheckoutService hi kaafi hai
+
+const [checkingRoomService, setCheckingRoomService] = useState(false)
+
+const handleCheckoutClick = async () => {
+  if (!combinedSummary) {
+    toast.error('No check-in data found')
+    return
   }
+  if (selectedRooms.size === 0) {
+    toast.error('Please select at least one room for checkout')
+    return
+  }
+
+  // ✅ Room Service / Restaurant active order check
+  setCheckingRoomService(true)
+  try {
+    const roomNumbersArray = Array.from(selectedRooms)
+    const res = await CheckoutService.checkActiveRoomServiceOrders(hotelId!, roomNumbersArray)
+
+    if (res.success && res.data.blockedRooms.length > 0) {
+      const blocked = res.data.blockedRooms.join(', ')
+      toast.error(
+        `Checkout blocked! Room(s) ${blocked} has an active Room Service / Restaurant order (status 1 or 2). Please settle it first.`,
+        { duration: 5000 }
+      )
+      setCheckingRoomService(false)
+      return
+    }
+  } catch (err) {
+    console.error('Room service check failed:', err)
+    toast.error('Failed to verify room service status. Please try again.')
+    setCheckingRoomService(false)
+    return
+  }
+  setCheckingRoomService(false)
+
+  setShowCheckoutModal(true)
+}
 
 const handleConfirmCheckout = async () => {
   if (!combinedSummary) return;
@@ -2499,16 +2527,18 @@ const handleConfirmCheckout = async () => {
             )}
           </div>
           <div>
-            <Button
-              variant="success"
-              size="sm"
-              className="me-2"
-              onClick={handleCheckoutClick}
-              disabled={checkoutProcessing || selectedRooms.size === 0}>
-              {checkoutProcessing
-                ? 'Processing...'
-                : `Check Out (${selectedRooms.size} Room${selectedRooms.size !== 1 ? 's' : ''})`}
-            </Button>
+           <Button
+  variant="success"
+  size="sm"
+  className="me-2"
+  onClick={handleCheckoutClick}
+  disabled={checkoutProcessing || checkingRoomService || selectedRooms.size === 0}>
+  {checkingRoomService
+    ? 'Checking...'
+    : checkoutProcessing
+      ? 'Processing...'
+      : `Check Out (${selectedRooms.size} Room${selectedRooms.size !== 1 ? 's' : ''})`}
+</Button>
             <Button variant="secondary" size="sm" onClick={() => navigate(-1)}>
               Cancel (Esc)
             </Button>

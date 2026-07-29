@@ -178,6 +178,19 @@ export interface CheckoutBillData {
 }
 
 
+// ✅ NEW: Room Service / Restaurant active order check
+export interface RoomServiceCheckDetail {
+  table_name: string;
+  status: number;
+  OrderNo: string;
+}
+
+export interface RoomServiceCheckResponse {
+  blockedRooms: string[];   // e.g. ['101', '102']
+  details: RoomServiceCheckDetail[];
+}
+
+
 
 const CheckoutService = {
   list: (params?: { hotelid?: number }): Promise<ApiResponse<CheckoutMaster[]>> =>
@@ -232,7 +245,23 @@ getBillPreview: async (checkoutId?: number, ldgBillNo?: string): Promise<{
 
   getCheckoutBill: (checkoutId: number): Promise<ApiResponse<CheckoutBillData>> =>
     HttpClient.get<ApiResponse<CheckoutBillData>>(`/checkout/bill/${checkoutId}`),
+
+
+   checkActiveRoomServiceOrders: (
+    hotelId: number,
+    roomNumbers: string[]
+  ): Promise<ApiResponse<RoomServiceCheckResponse>> =>
+    HttpClient.get<ApiResponse<RoomServiceCheckResponse>>(
+      '/checkouts/active-orders-check',
+      {
+        params: {
+          hotelId,
+          roomNumbers: roomNumbers.join(','),
+        },
+      }
+    ),
 };
+
 
 // In checkout.ts, inside the CheckoutService object:
 
