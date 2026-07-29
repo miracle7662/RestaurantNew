@@ -65,8 +65,8 @@ function App() {
         <PermissionProvider>   
         <UIModeProvider>
           <SocketKOTPrinter />
-      <SocketBillPrinter />
-      <SocketReverseKOTPrinter />
+          <SocketBillPrinter />
+          <SocketReverseKOTPrinter />
           <ThemeRoutes />
         </UIModeProvider>
         </PermissionProvider>

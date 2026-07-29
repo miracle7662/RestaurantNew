@@ -382,10 +382,21 @@ const handleRoomSelect = (room: ActiveRoomCreditCheckin) => {
     }
   }, [isMixedPayment, grandTotal, selectedPaymentModes]);
 
-  const paymentModesTotal = Object.values(paymentAmounts).reduce((sum, v) => sum + (Number(v) || 0), 0);
-  const totalReceived = paymentModesTotal + (tip || 0);
-  const balance = grandTotal - totalReceived;
-  const balanceDue = balance > 0 ? balance : 0;
+  const paymentModesTotal = Object.values(paymentAmounts).reduce(
+  (sum, v) => sum + (Number(v) || 0),
+  0
+);
+
+// IMPORTANT:
+// Tip ko bill payment ke against count nahi karna hai.
+const balance = grandTotal - paymentModesTotal;
+const balanceDue = balance > 0 ? balance : 0;
+
+// Payment amount must exactly match bill amount
+const paymentMismatch = Math.abs(paymentModesTotal - grandTotal) > 0.01;
+
+// Payment amount bill se zyada hai
+
   // ✅ FIXED: Track overpayment in the payment-mode amounts only (excluding tip), e.g. typing
   // ₹2000 across payment modes against a ₹1500 bill. Tip is added on top intentionally and
   // should NOT count as excess, so compare paymentModesTotal (not totalReceived) to grandTotal.
@@ -599,15 +610,46 @@ if (hasRoomCredit && (!selectedCheckinId || !selectedRoomId)) {
       return;
     }
 
-    if (balanceDue > 0) {
-      toast.error(`Balance due: ₹${balanceDue.toFixed(2)}`);
-      return;
-    }
+  {balanceDue > 0 && (
+  <div className="alert alert-warning small py-2 mb-3">
+    Please complete ₹{balanceDue.toFixed(2)}
+  </div>
+)}
+
+
 
     if (excessAmount > 0) {
       toast.error(`Entered amount exceeds bill by ₹${excessAmount.toFixed(2)}`);
       return;
     }
+
+    // Payment amount must exactly match bill amount.
+// Tip is NOT included in this calculation.
+if (paymentModesTotal < grandTotal - 0.01) {
+  const remaining = grandTotal - paymentModesTotal;
+
+  toast.error(
+    `Payment amount is short by ₹${remaining.toFixed(2)}. Bill total is ₹${grandTotal.toFixed(2)}.`
+  );
+  return;
+}
+
+if (paymentModesTotal > grandTotal + 0.01) {
+  const excess = paymentModesTotal - grandTotal;
+
+  toast.error(
+    `Payment amount exceeds bill by ₹${excess.toFixed(2)}.`
+  );
+  return;
+}
+
+// Exact match required
+if (Math.abs(paymentModesTotal - grandTotal) > 0.01) {
+  toast.error(
+    `Payment amount ₹${paymentModesTotal.toFixed(2)} must match bill total ₹${grandTotal.toFixed(2)}.`
+  );
+  return;
+}
 
    const settlements = currentModes.map((name, index) => {
       const baseSettlement = {
@@ -1270,6 +1312,7 @@ if (hasRoomCredit && (!selectedCheckinId || !selectedRoomId)) {
           onClick={handleSettle}
           disabled={
             loading || 
+            paymentMismatch ||
             balanceDue > 0 || 
             excessAmount > 0 ||
             selectedPaymentModes.length === 0 || 
