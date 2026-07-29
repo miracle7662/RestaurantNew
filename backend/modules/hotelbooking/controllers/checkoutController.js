@@ -128,34 +128,61 @@ SELECT
     cm.*,
 
     GROUP_CONCAT(
-        CONCAT('Room ', cd.room_id, ' (', cd.guest_name, ')')
-        ORDER BY cd.room_id
+        CONCAT('Room ', x.room_id, ' (', x.guest_name, ')')
+        ORDER BY x.room_id
         SEPARATOR ' | '
     ) AS room_details,
 
     GROUP_CONCAT(
-        DISTINCT cd.guest_name
-        ORDER BY cd.guest_name
+        DISTINCT x.guest_name
+        ORDER BY x.guest_name
         SEPARATOR ', '
     ) AS guest_name,
 
-    COUNT(cd.room_id) AS total_rooms
+    COUNT(x.room_id) AS total_rooms
 
 FROM checkout_master cm
-INNER JOIN checkout_detail cd
-    ON cd.checkout_id = cm.checkout_id
-    AND cd.is_settle = 0
+
+LEFT JOIN
+(
+    -- Normal checkout room details
+    SELECT
+        checkout_id,
+        room_id,
+        guest_name
+    FROM checkout_detail
+    WHERE is_settle = 0
+
+
+    UNION ALL
+
+
+    -- Split checkout room details
+    SELECT
+        cf.checkout_id,
+        cf.room_id,
+        cd.guest_name
+    FROM checkout_folio_master cf
+
+    LEFT JOIN checkout_detail cd
+        ON cd.checkout_id = cf.checkout_id
+        AND cd.room_id = cf.room_id
+
+) x
+
+ON x.checkout_id = cm.checkout_id
+
 
 WHERE cm.hotelid = ?
-  AND cm.checkout_date = (
-        SELECT MAX(c2.checkout_date)
-        FROM checkout_master c2
-        WHERE c2.ldg_bill_no = cm.ldg_bill_no
-  )
 
-GROUP BY cm.checkout_id
 
-ORDER BY cm.ldg_bill_no;
+GROUP BY 
+    cm.checkout_id
+
+
+ORDER BY 
+    cm.ldg_bill_no,
+    cm.checkout_id;
     `, [hotelId]);
 
     res.json({ success: true, message: "Data fetched successfully", data: checkouts });
