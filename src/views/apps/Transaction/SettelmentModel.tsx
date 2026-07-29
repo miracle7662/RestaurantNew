@@ -117,7 +117,7 @@ useEffect(() => {
   );
   if (!isRoomCreditSelected) {
     setSelectedCheckinId(null);
-    setSelectedRoomId(null);          // ✅ reset bhi karo
+    setSelectedRoomId(null);
     return;
   }
 
@@ -128,19 +128,30 @@ useEffect(() => {
 
   setLoadingCheckins(true);
   CheckInService.getActiveRoomCreditCheckins({ 
-    hotelid: hotelId, 
-    room_no: table_name || undefined
+    hotelid: hotelId
+    // saare active checkins fetch honge, kisi table se filter nahi
   })
     .then((res) => {
       console.log('✅ [RoomCredit] API response:', res);
       if (res.success) {
         setRoomCreditCheckins(res.data);
 
-        // ✅ NEW: auto-select first room + its checkin
         if (res.data.length > 0) {
-          const first = res.data[0];
-          setSelectedRoomId(first.room_id);
-          setSelectedCheckinId(first.checkin_id);
+          // ✅ NEW: Agar current table_name kisi room ke room_no se match
+          // karta hai, to usi ko priority se auto-select karo.
+          // Warna fallback: list ka pehla item.
+          const matchedRoom = table_name
+            ? res.data.find(
+                (r: ActiveRoomCreditCheckin) =>
+                  String(r.room_no).trim().toLowerCase() ===
+                  String(table_name).trim().toLowerCase()
+              )
+            : null;
+
+          const selected = matchedRoom || res.data[0];
+
+          setSelectedRoomId(selected.room_id);
+          setSelectedCheckinId(selected.checkin_id);
         } else {
           setSelectedRoomId(null);
           setSelectedCheckinId(null);
@@ -152,8 +163,10 @@ useEffect(() => {
       toast.error('Failed to load active check-ins');
     })
     .finally(() => setLoadingCheckins(false));
-}, [selectedPaymentModes, table_name, hotelId]);
-
+}, [selectedPaymentModes, hotelId, table_name]);
+// ⬆️ table_name wapas dependency mein daala hai kyunki ab matching logic
+// isi par depend karta hai (fetch ab bhi hotelId-only hai, but selection
+// table_name-aware hai)
 
 const handleRoomSelect = (room: ActiveRoomCreditCheckin) => {
   setSelectedRoomId(room.room_id);
