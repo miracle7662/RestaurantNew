@@ -4031,9 +4031,10 @@ exports.getBillStatusByTable = async (req, res) => {
       `
       SELECT TxnID, isBilled, isSetteled, TxnNo, Amount, BilledDate
       FROM TAxnTrnbill
-      WHERE TableID = ?
-      ORDER BY TxnID DESC LIMIT 1
-    `,
+      WHERE TableID = ? AND isCancelled = 0
+      ORDER BY isSetteled ASC, TxnID DESC
+      LIMIT 1
+      `,
       [Number(tableId)]
     )
     const bill = billRows[0]
@@ -4044,7 +4045,6 @@ exports.getBillStatusByTable = async (req, res) => {
 
     res.json({ success: true, data: bill })
   } catch (error) {
-    // console.error('Error fetching bill status:', error)
     res.status(500).json({ success: false, message: 'Error fetching bill status' })
   }
 }
