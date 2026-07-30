@@ -984,9 +984,9 @@ END IF;
                 v_user_id,
                 v_now
             FROM checkin_guest_folio_master cgfm
-            WHERE cgfm.checkin_id = p_checkin_id
-              AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0)
-              AND cgfm.bill_no = 1;   -- Added filter for lodging only
+            WHERE cgfm.checkin_id = p_checkin_id;
+             
+             
 
             -- Use frontend totals (already set from input parameters)
             -- v_room_tariff_sum, v_ex_pax_charge, etc. are already set
@@ -1254,8 +1254,8 @@ END IF;
             v_user_id,
             v_now
         FROM checkin_guest_folio_master cgfm
-        WHERE cgfm.checkin_id = p_checkin_id
-          AND cgfm.bill_no = 1;   -- Added filter for lodging only
+        WHERE cgfm.checkin_id = p_checkin_id;
+         
         
         -- Use frontend totals
         SELECT COALESCE(JSON_ARRAYAGG(room_number), JSON_ARRAY())
@@ -1863,8 +1863,8 @@ END IF;
         v_now
     FROM checkin_guest_folio_master cgfm
     WHERE cgfm.checkin_id = p_checkin_id
-      AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0);
-     
+      AND (cgfm.room_id IS NULL OR FIND_IN_SET(cgfm.room_id, v_active_room_ids) > 0)
+      AND cgfm.bill_no = 1;   -- Lodging only
 
     -- ============================================================================
     -- Insert Room Charges (Using frontend data)

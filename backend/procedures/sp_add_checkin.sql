@@ -109,7 +109,7 @@ WITH guest_info AS (
     LEFT JOIN guest_info gi ON gi.checkout_id = cm.checkout_id
     LEFT JOIN cd_totals ct ON ct.checkout_id = cm.checkout_id
     WHERE cm.checkout_id = p_checkout_id
-      AND cm.hotelid = p_hotelid;   -- <-- added hotel validation
+      AND cm.hotelid = p_hotelid;
 
 
     /* ==========================================================
@@ -125,7 +125,6 @@ WITH guest_info AS (
              WHERE cm.checkout_id = p_checkout_id LIMIT 1)
         ) AS guest_name
     ),
-    -- Get room extension amounts grouped by room and date
     room_extensions AS (
         SELECT
             cf.room_id,
@@ -136,7 +135,6 @@ WITH guest_info AS (
           AND UPPER(TRIM(cf.transaction_type)) = 'ROOM EXTENSION'
         GROUP BY cf.room_id, DATE(cf.transaction_datetime)
     ),
-    -- Get the latest checkout_detail record per room
     latest_checkout_detail AS (
         SELECT 
             cd1.*
@@ -171,7 +169,6 @@ WITH guest_info AS (
         ROUND(SUM(x.post_charges), 2) AS post_charges,
         ROUND(SUM(x.allowance), 2) AS allowance,
 
-        -- FIX: dtotal_amount - Allowance is subtracted, Advance is added
         ROUND(
             SUM(x.tariff) + 
             SUM(x.ex_pax) + 
@@ -262,7 +259,7 @@ WITH guest_info AS (
     FROM
     (
         -- ============================================================
-        -- 1. ROOM CHARGES
+        -- 1. ROOM CHARGES (unchanged)
         -- ============================================================
         SELECT
             cd.room_number,
@@ -366,7 +363,7 @@ WITH guest_info AS (
         UNION ALL
 
         -- ============================================================
-        -- 2. FOOD (INCLUDING ROOM CREDIT WITH FOOD IN DESCRIPTION)
+        -- 2. FOOD (FIXED: now matches 'FOOD' anywhere in transaction_type)
         -- ============================================================
         SELECT
             COALESCE(lcd.room_number, 'COMMON') AS room_number,
@@ -465,6 +462,7 @@ WITH guest_info AS (
         WHERE cf.checkout_id = p_checkout_id
           AND (
               UPPER(TRIM(cf.transaction_type)) = 'FOOD'
+              OR UPPER(TRIM(cf.transaction_type)) LIKE '%FOOD%'          -- ✅ यह नई लाइन
               OR (
                   UPPER(TRIM(cf.transaction_type)) = 'ROOM CREDIT'
                   AND cf.description LIKE '%FOOD%'
@@ -474,7 +472,7 @@ WITH guest_info AS (
         UNION ALL
 
         -- ============================================================
-        -- 3. POST CHARGES (CHARGE)
+        -- 3. POST CHARGES (unchanged)
         -- ============================================================
         SELECT
             COALESCE(lcd.room_number, 'COMMON') AS room_number,
@@ -576,7 +574,7 @@ WITH guest_info AS (
         UNION ALL
 
         -- ============================================================
-        -- 4. ALLOWANCE
+        -- 4. ALLOWANCE (unchanged)
         -- ============================================================
         SELECT
             COALESCE(lcd.room_number, 'COMMON') AS room_number,
@@ -679,7 +677,7 @@ WITH guest_info AS (
         UNION ALL
 
         -- ============================================================
-        -- 5. ADVANCE ADDITION
+        -- 5. ADVANCE ADDITION (unchanged)
         -- ============================================================
         SELECT
             COALESCE(lcd.room_number, 'COMMON') AS room_number,
@@ -802,42 +800,38 @@ WITH guest_info AS (
         x.charge_id;
 
 
-    /* ==========================================================
+   /* ==========================================================
        RESULT SET 3 : FOOTER SUMMARY (FIXED)
     ========================================================== */
 
     WITH summary_totals AS (
         SELECT
-            cd.checkout_id,
-            
-            -- Calculate total from checkout_detail ONLY
-            -- Room Extension is already included in checkout_detail.room_tariff
+            cm.checkout_id,
             ROUND(
-                -- Room Charges (includes extensions already)
                 IFNULL(SUM(cd.room_tariff), 0) + 
                 IFNULL(SUM(cd.ex_pax_charge * cd.ex_pax), 0) + 
                 IFNULL(SUM(cd.child_paid_amount * cd.child_paid), 0) + 
                 IFNULL(SUM(cd.driver_charge * cd.driver), 0) +
-                
-                -- GST Components
                 IFNULL(SUM(cd.cgst_amount + cd.ex_cgst_amount + cd.child_cgst_amount + cd.driver_cgst_amount), 0) +
                 IFNULL(SUM(cd.sgst_amount + cd.ex_sgst_amount + cd.child_sgst_amount + cd.driver_sgst_amount), 0) +
                 IFNULL(SUM(cd.igst_amount + cd.ex_igst_amount + cd.child_igst_amount + cd.driver_igst_amount), 0) +
-                
-                -- CESS & Service Charge
                 IFNULL(SUM(cd.cess_amount), 0) +
                 IFNULL(SUM(cd.service_charge_amount), 0)  +      
-              
-                -- Food Charges (from folio)
                 COALESCE(
-                    (SELECT SUM(cf.debit_amount) 
-                     FROM checkout_folio_master cf 
-                     WHERE cf.checkout_id = p_checkout_id 
-                       AND UPPER(TRIM(cf.transaction_type)) = 'FOOD'),
-                    0
-                ) +
-                
-                -- Post Charges (CHARGE) (from folio)
+                (
+                    SELECT SUM(cf.debit_amount)
+                    FROM checkout_folio_master cf
+                    WHERE cf.checkout_id = p_checkout_id
+                    AND (
+                            UPPER(TRIM(cf.transaction_type)) = 'FOOD'
+                        OR UPPER(TRIM(cf.transaction_type)) LIKE '%FOOD%'
+                        OR (
+                                UPPER(TRIM(cf.transaction_type)) = 'ROOM CREDIT'
+                                AND UPPER(IFNULL(cf.description,'')) LIKE '%FOOD%'
+                        )
+                    )
+                ),0)
+                +
                 COALESCE(
                     (SELECT SUM(cf.debit_amount) 
                      FROM checkout_folio_master cf 
@@ -845,8 +839,6 @@ WITH guest_info AS (
                        AND UPPER(TRIM(cf.transaction_type)) = 'CHARGE'),
                     0
                 ) -
-                
-                -- Allowance (from folio)
                 COALESCE(
                     (SELECT SUM(cf.credit_amount) 
                      FROM checkout_folio_master cf 
@@ -856,37 +848,25 @@ WITH guest_info AS (
                 )
             , 2) AS total_bill_amount,
             
-            -- CGST Total
             ROUND(IFNULL(SUM(cd.cgst_amount), 0), 2) + 
             ROUND(IFNULL(SUM(cd.ex_cgst_amount), 0), 2) + 
             ROUND(IFNULL(SUM(cd.child_cgst_amount), 0), 2) + 
             ROUND(IFNULL(SUM(cd.driver_cgst_amount), 0), 2) AS total_cgst,
             
-            -- SGST Total
             ROUND(IFNULL(SUM(cd.sgst_amount), 0), 2) + 
             ROUND(IFNULL(SUM(cd.ex_sgst_amount), 0), 2) + 
             ROUND(IFNULL(SUM(cd.child_sgst_amount), 0), 2) + 
             ROUND(IFNULL(SUM(cd.driver_sgst_amount), 0), 2) AS total_sgst,
             
-            -- IGST Total
             ROUND(IFNULL(SUM(cd.igst_amount), 0), 2) + 
             ROUND(IFNULL(SUM(cd.ex_igst_amount), 0), 2) + 
             ROUND(IFNULL(SUM(cd.child_igst_amount), 0), 2) + 
             ROUND(IFNULL(SUM(cd.driver_igst_amount), 0), 2) AS total_igst,
             
-            -- CESS Total
             ROUND(IFNULL(SUM(cd.cess_amount), 0), 2) AS total_cess,
-            
-            -- Service Charge Total
             ROUND(IFNULL(SUM(cd.service_charge_amount), 0), 2) AS total_service_charge,
-            
-            -- Discount Total
             ROUND(IFNULL(SUM(cd.discount_amount), 0), 2) AS total_discount,
-            
-            -- Advance Total
             ROUND(IFNULL(MAX(cm.tot_advance), 0), 2) AS total_advance,
-            
-            -- Post Charges total (for display)
             ROUND(
                 COALESCE(
                     (SELECT SUM(cf.debit_amount) 
@@ -896,8 +876,6 @@ WITH guest_info AS (
                     0
                 ), 2
             ) AS total_post_charges,
-            
-            -- Allowance total (for display)
             ROUND(
                 COALESCE(
                     (SELECT SUM(cf.credit_amount) 
@@ -907,22 +885,27 @@ WITH guest_info AS (
                     0
                 ), 2
             ) AS total_allowance,
+                ROUND(
+        COALESCE(
+        (
+            SELECT SUM(cf.debit_amount)
+            FROM checkout_folio_master cf
+            WHERE cf.checkout_id = p_checkout_id
+            AND (
+                    UPPER(TRIM(cf.transaction_type)) = 'FOOD'
+                OR UPPER(TRIM(cf.transaction_type)) LIKE '%FOOD%'
+                OR (
+                        UPPER(TRIM(cf.transaction_type)) = 'ROOM CREDIT'
+                    AND UPPER(IFNULL(cf.description,'')) LIKE '%FOOD%'
+                )
+            )
+        ),0),2) AS total_food
             
-            -- Food total (for display)
-            ROUND(
-                COALESCE(
-                    (SELECT SUM(cf.debit_amount) 
-                     FROM checkout_folio_master cf 
-                     WHERE cf.checkout_id = p_checkout_id 
-                       AND UPPER(TRIM(cf.transaction_type)) = 'FOOD'),
-                    0
-                ), 2
-            ) AS total_food
-            
-        FROM checkout_detail cd
-        LEFT JOIN checkout_master cm ON cm.checkout_id = cd.checkout_id
-        WHERE cd.checkout_id = p_checkout_id AND cd.is_checkout = 1
-        GROUP BY cd.checkout_id
+        FROM checkout_master cm
+        LEFT JOIN checkout_detail cd 
+               ON cd.checkout_id = cm.checkout_id AND cd.is_checkout = 1
+        WHERE cm.checkout_id = p_checkout_id
+        GROUP BY cm.checkout_id
     )
     SELECT
         ROUND(IFNULL(st.total_bill_amount, 0), 2) AS bill_amount,
@@ -934,14 +917,12 @@ WITH guest_info AS (
         ROUND(IFNULL(st.total_discount, 0), 2) AS discount_amount,
         ROUND(IFNULL(st.total_advance, 0), 2) AS advance_amount,
 
-        -- Balance Amount = Bill Amount - Discount - Advance
         ROUND(
             IFNULL(st.total_bill_amount, 0)
             - IFNULL(st.total_discount, 0)
             - IFNULL(st.total_advance, 0)
         , 2) AS balance_amount,
 
-        -- Net Payable = Bill Amount - Discount
         ROUND(
             IFNULL(st.total_bill_amount, 0)
             - IFNULL(st.total_discount, 0)
