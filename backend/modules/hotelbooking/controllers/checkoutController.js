@@ -216,11 +216,10 @@ exports.getBillPreview = async (req, res) => {
             });
         }
 
-        // 2. Get hotelId – from user context, query param, or fallback to checkout record
+        // 2. Get hotelId
         let hotelId = req.user?.hotelId || req.query.hotel_id;
 
         if (!hotelId) {
-            // Fetch hotelId from the checkout record
             const [hotelResult] = await db.execute(
                 'SELECT hotelid FROM checkout_master WHERE checkout_id = ?',
                 [checkoutId]
@@ -244,8 +243,14 @@ exports.getBillPreview = async (req, res) => {
         const transactionRows = results[1] || [];
         const footerSummary = results[2][0] || {};
 
-        // ... rest of the mapping and response unchanged
-        // (keep your existing mapping code)
+        // ✅ Header values (already overridden by dummy_pax in SP)
+        const headerAdults = headerData.adults || 0;
+        const headerPax = headerData.pax || 0;
+        const headerExPax = headerData.ex_pax || 0;
+        const dummyPax = headerData.dummy_pax || 0;
+        const billNo = headerData.bill_no || 0;
+
+        // Transaction type mapping
         const typeMap = {
             'CHARGE': 'Post Charge',
             'ALLOWANCE': 'Allowance',
@@ -255,26 +260,107 @@ exports.getBillPreview = async (req, res) => {
             'FOOD': 'Food'
         };
 
+        // ✅ Build flatData with explicit field mapping – header fields stay intact
         const flatData = transactionRows.map(row => ({
-            ...headerData,
-            ...row,
+            // -------- Header fields (from checkout_master) --------
+            hotel_name: headerData.hotel_name,
+            hotel_address: headerData.hotel_address,
+            email: headerData.email,
+            website: headerData.website,
+            phone: headerData.phone,
+            trn_gstno: headerData.trn_gstno,
+
+            checkout_id: headerData.checkout_id,
+            checkin_id: headerData.checkin_id,
+            reg_no: headerData.reg_no,
+            ldg_bill_no: headerData.ldg_bill_no,
+            booking: headerData.booking,
+            plan_name: headerData.plan_name,
+            checkin_datetimecm: headerData.checkin_datetimecm,
+            checkout_datetimecm: headerData.checkout_datetimecm,
+            room_no: headerData.room_no,
+
+            // ✅ Overridden adults/pax/ex_pax from header (dummy_pax applied)
+            adults: headerAdults,
+            pax: headerPax,
+            ex_pax: headerExPax,
+
+            total_nights: headerData.total_nights,
+            payment_mode: headerData.payment_mode,
+
+            dummy_pax: dummyPax,
+            bill_no: billNo,
+
+            total_amount: headerData.total_amount,
+            net_payable: headerData.net_payable,
+            discount_amount: headerData.discount_amount,
+            advance_amt: headerData.advance_amt,
+            cgst_amt: headerData.cgst_amt,
+            sgst_amt: headerData.sgst_amt,
+            igst_amt: headerData.igst_amt,
+            cess_amt: headerData.cess_amt,
+            service_charge_amt: headerData.service_charge_amt,
+
+            guest_name: headerData.guest_name,
+            guest_mobile: headerData.guest_mobile,
+            guest_address: headerData.guest_address,
+            guest_email: headerData.guest_email,
+            company_name: headerData.company_name,
+            gst_no: headerData.gst_no,
+            id_type: headerData.id_type,
+            id_number: headerData.id_number,
+
+            // -------- Transaction row fields (from checkout_detail / folio) --------
+            room_number: row.room_number,
+            bill_date: row.bill_date,
+            tariff: row.tariff || 0,
+            ex_pax: row.ex_pax || 0,
+            child_paid_amount: row.child_paid_amount || 0,
+            driver_charge: row.driver_charge || 0,
+            cgst: row.cgst || 0,
+            sgst: row.sgst || 0,
+            igst: row.igst || 0,
+            food: row.food || 0,
+            post_charges: row.post_charges || 0,
+            allowance: row.allowance || 0,
+            dtotal_amount: row.dtotal_amount || row.total_amount || 0,
+            room_id: row.room_id || 0,
+            room_category_name: row.room_category_name || '-',
+            converted_category_name: row.converted_category_name || '-',
+            checkin_datetime: row.checkin_datetime,
+            checkout_datetime: row.checkout_datetime,
+            no_of_days: row.no_of_days || 1,
+            room_tariff_per_day: row.room_tariff_per_day || 0,
+            child_paid: row.child_paid || 0,
+            child_unpaid: row.child_unpaid || 0,
+            driver: row.driver || 0,
+            discount_percent: row.discount_percent || 0,
+            cgst_percent: row.cgst_percent || 0,
+            sgst_percent: row.sgst_percent || 0,
+            igst_percent: row.igst_percent || 0,
+            cess_percent: row.cess_percent || 0,
+            service_charge: row.service_charge || 0,
+            service_charge_amount: row.service_charge_amount || 0,
+            tax: row.tax || 18,
+            charge_id: row.charge_id || row.folio_id || 0,
+            payment_mode: row.payment_mode || 'Cash',
+            description: row.description || 'Room Charges',
+            transaction_type: typeMap[row.transaction_type] || row.transaction_type || '',
+
+            // Backward compatibility fields
             room_tariff: row.tariff || 0,
             ex_pax_total: row.ex_pax || 0,
             cgst_amount: row.cgst || 0,
             sgst_amount: row.sgst || 0,
-            total_amount: row.total_amount || 0,
-            room_total_amount: row.total_amount || 0,
-            post_charges: row.post_charges || 0,
-            allowance: row.allowance || 0,
-            transaction_type: typeMap[row.transaction_type] || row.transaction_type || '',
-            description: row.description || '',
-            net_payable: footerSummary.net_payable || headerData.net_payable || 0,
-            bill_amount: footerSummary.bill_amount || headerData.total_amount || 0,
+            total_amount: row.dtotal_amount || row.total_amount || 0,
+            room_total_amount: row.dtotal_amount || row.total_amount || 0,
             discount_amount_total: footerSummary.discount_amount || headerData.discount_amount || 0,
             advance_amount_total: footerSummary.advance_amount || headerData.advance_amt || 0,
             post_charges_total: footerSummary.post_charges || 0,
             allowance_total: footerSummary.allowance || 0,
             round_off_amount: footerSummary.round_off_amount || headerData.round_off_amount || 0,
+            net_payable: footerSummary.net_payable || headerData.net_payable || 0,
+            bill_amount: footerSummary.bill_amount || headerData.total_amount || 0,
         }));
 
         console.log(`✅ Mapped ${flatData.length} rows`);
@@ -283,7 +369,13 @@ exports.getBillPreview = async (req, res) => {
             success: true,
             message: "Bill Preview fetched successfully.",
             data: flatData,
-            summary: footerSummary
+            summary: {
+                ...footerSummary,
+                dummy_pax: dummyPax,
+                header_adults: headerAdults,      // explicit override for modal
+                adults: headerAdults,             // already in footer but keep for clarity
+                pax: headerPax,
+            }
         });
 
     } catch (error) {

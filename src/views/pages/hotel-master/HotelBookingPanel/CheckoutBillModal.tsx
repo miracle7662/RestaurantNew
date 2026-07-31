@@ -1,6 +1,6 @@
 // components/CheckoutBillModal.tsx
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react'
-import { Modal, Button, Spinner, Form } from 'react-bootstrap'  // ✅ added Form for dropdown
+import { Modal, Button, Spinner, Form } from 'react-bootstrap'
 import BillPrintSettingService, { BillPrintSetting } from '@/common/hotel/billPrintSettingService'
 import CheckoutService from '@/common/hotel/checkout'
 import BrandService from '@/common/api/brand'
@@ -63,11 +63,9 @@ interface CheckoutBillModalProps {
   paymentDate?: string
   paymentBank?: string
   selectedRooms?: string[]
-  // ✅ MULTI‑BILL: added arrays
   checkoutIds?: number[]
   billNumbers?: string[]
-  // ✅ NEW: Dummy PAX map (keyed by bill number string)
-  dummyPaxMap?: Record<string, number>
+  dummyPaxMap?: Record<string, number>   // kept for potential future use
 }
 
 interface TableRowWithIndex {
@@ -215,10 +213,8 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   paymentDate: propPaymentDate,
   paymentBank: propPaymentBank,
   selectedRooms = [],
-  // ✅ MULTI‑BILL: destructure new props
   checkoutIds = [],
   billNumbers = [],
-  // ✅ NEW: dummy PAX map
   dummyPaxMap = {},
 }) => {
   const printRef = useRef<HTMLDivElement>(null)
@@ -235,12 +231,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   const [hotelData, setHotelData] = useState<any>(null)
   const [, setHotelDataLoading] = useState(false)
 
-  // ✅ MULTI‑BILL: state for selected bill index
   const [selectedIndex, setSelectedIndex] = useState(0)
 
-  // ✅ MULTI‑BILL: compute list of available bills
   const billList = useMemo(() => {
-    // Prefer arrays if provided
     if (checkoutIds.length > 0 || billNumbers.length > 0) {
       const maxLen = Math.max(checkoutIds.length, billNumbers.length)
       const result = []
@@ -252,14 +245,12 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       }
       return result
     }
-    // Fallback to single props
     if (checkoutId || ldgBillNo) {
       return [{ checkoutId: checkoutId || 0, ldgBillNo: ldgBillNo || '' }]
     }
     return []
   }, [checkoutId, ldgBillNo, checkoutIds, billNumbers])
 
-  // ✅ MULTI‑BILL: reset index when bill list changes
   useEffect(() => {
     setSelectedIndex(0)
   }, [billList])
@@ -284,7 +275,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     fetchHotelData()
   }, [hotelId, show])
 
-  // ========== FETCH PRINT SETTINGS ==========
   useEffect(() => {
     const fetchSettings = async () => {
       if (hotelId && show) {
@@ -306,71 +296,65 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     if (show) fetchSettings()
   }, [hotelId, show])
 
-  // ========== FETCH BILL PREVIEW DATA ==========
- useEffect(() => {
-  const fetchBillPreview = async () => {
-    if (!show || billList.length === 0) return;
+  useEffect(() => {
+    const fetchBillPreview = async () => {
+      if (!show || billList.length === 0) return;
 
-    const selected = billList[selectedIndex];
-    if (!selected) return;
+      const selected = billList[selectedIndex];
+      if (!selected) return;
 
-    const id = selected.checkoutId || undefined;
-    const billNo = selected.ldgBillNo || undefined;
+      const id = selected.checkoutId || undefined;
+      const billNo = selected.ldgBillNo || undefined;
 
-    if (!id && !billNo) {
-      setBillError('No valid bill selected');
-      return;
-    }
-
-    // ✅ नया – केवल तभी skip करें जब यही बिल पहले fetch हो चुका हो
-    const currentKey = `${id}-${billNo}`;
-    if (lastFetchedKey.current === currentKey && billData.length > 0) {
-      console.log(`⏭️ Already have data for ${currentKey}, skipping fetch`);
-      return;
-    }
-    lastFetchedKey.current = currentKey;
-
-    // ✅ नया – पुराना data हटाएँ और ref रीसेट करें
-    fetchCalledRef.current = false;
-    setBillData([]);
-    setFooterSummary(null);
-    setBillLoading(true);
-    setBillError(null);
-
-    try {
-      const response = await CheckoutService.getBillPreview(id, billNo);
-      if (response.success && response.data) {
-        let filteredData = response.data;
-      
-        setBillData(filteredData);
-        if (response.summary) {
-          setFooterSummary(response.summary);
-          console.log('📊 Footer Summary:', response.summary);
-        }
-      } else {
-        setBillError(response.message || 'Failed to fetch bill data');
+      if (!id && !billNo) {
+        setBillError('No valid bill selected');
+        return;
       }
-    } catch (error: any) {
-      console.error('Failed to fetch bill preview:', error);
-      setBillError(error?.message || 'Failed to fetch bill data');
-    } finally {
-      setBillLoading(false);
-    }
-  };
 
-  if (show) {
-    fetchBillPreview();
-  }
+      const currentKey = `${id}-${billNo}`;
+      if (lastFetchedKey.current === currentKey && billData.length > 0) {
+        console.log(`⏭️ Already have data for ${currentKey}, skipping fetch`);
+        return;
+      }
+      lastFetchedKey.current = currentKey;
 
-  return () => {
-    if (!show) {
       fetchCalledRef.current = false;
-      lastFetchedKey.current = '';
-    }
-  };
-}, [show, billList, selectedIndex, selectedRooms]);
+      setBillData([]);
+      setFooterSummary(null);
+      setBillLoading(true);
+      setBillError(null);
 
-  // ========== BUILD DISPLAY ROWS - DIRECT FROM SP ==========
+      try {
+        const response = await CheckoutService.getBillPreview(id, billNo);
+        if (response.success && response.data) {
+          setBillData(response.data);
+          if (response.summary) {
+            setFooterSummary(response.summary);
+            console.log('📊 Footer Summary:', response.summary);
+          }
+        } else {
+          setBillError(response.message || 'Failed to fetch bill data');
+        }
+      } catch (error: any) {
+        console.error('Failed to fetch bill preview:', error);
+        setBillError(error?.message || 'Failed to fetch bill data');
+      } finally {
+        setBillLoading(false);
+      }
+    };
+
+    if (show) {
+      fetchBillPreview();
+    }
+
+    return () => {
+      if (!show) {
+        fetchCalledRef.current = false;
+        lastFetchedKey.current = '';
+      }
+    };
+  }, [show, billList, selectedIndex]);
+
   const displayRows = useMemo(() => {
     if (!billData.length) return []
 
@@ -431,7 +415,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     })
   }, [billData])
 
-  // ========== BUILD SUMMARY - DIRECT FROM HEADER ROW ==========
+  // ========== BUILD SUMMARY - FIXED: use header's adults (already overridden by SP) ==========
   const summary = useMemo(() => {
     if (!billData.length || !displayRows.length) return null
 
@@ -446,6 +430,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     ]
     const guestNameDisplay = guestNames.length ? guestNames.join(', ') : 'Guest'
 
+    // Build room map for categories and child/driver totals
     const roomMap = new Map<
       string,
       { adults: number; child_paid: number; driver: number; category: string }
@@ -462,34 +447,21 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       }
     })
 
-    // ✅ Get dummy PAX for this bill
-    const currentBill = billList[selectedIndex]
-    const dummyPax = currentBill?.ldgBillNo ? dummyPaxMap[currentBill.ldgBillNo] : undefined
-    // Use dummy pax if provided, otherwise fallback to actual adults sum
-    let totalAdults = 0,
-      totalChildPaid = 0,
-      totalDriver = 0
+    // ✅ Use header's adults (already overridden by SP's dummy_pax)
+    // If firstRow.adults is not available or zero, fallback to sum from roomMap
+    let totalAdults = toNumber(firstRow.adults || 0)
+    let totalChildPaid = 0
+    let totalDriver = 0
     const categoriesSet = new Set<string>()
+    
     roomMap.forEach((value) => {
-      // If dummy pax is set, use it for total adults (only if we have a single room? but we'll use it as total)
-      // For multiple rooms, we might need to distribute; but user likely expects total dummy pax.
-      // We'll set totalAdults = dummyPax if present, else sum actual.
-      if (dummyPax !== undefined) {
-        // We'll just set totalAdults = dummyPax (since user wants to override total adults count)
-        // But we need to be careful: if multiple rooms, user may want dummy pax per room? But the requirement says "dummy pax mai show ho" – probably total dummy pax.
-        // We'll use totalAdults = dummyPax for display.
-        // We'll still sum others as usual.
-      }
       totalChildPaid += value.child_paid
       totalDriver += value.driver
       if (value.category) categoriesSet.add(value.category)
     })
 
-    // Override totalAdults with dummy pax if provided
-    if (dummyPax !== undefined) {
-      totalAdults = dummyPax
-    } else {
-      // sum actual adults
+    // If header adults is zero, compute from roomMap as fallback
+    if (totalAdults === 0) {
       roomMap.forEach((value) => {
         totalAdults += value.adults
       })
@@ -497,7 +469,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
     const roomCategoriesStr = Array.from(categoriesSet).join(', ') || '-'
 
-    // ✅ Build guests display with dummy pax
     const guestsDisplayParts = []
     if (totalAdults > 0) guestsDisplayParts.push(`${totalAdults} Adults`)
     if (totalChildPaid > 0) guestsDisplayParts.push(`${totalChildPaid} Child`)
@@ -517,14 +488,14 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       room_numbers_str: roomNumbersStr,
       room_categories_str: roomCategoriesStr,
       total_days: firstRow.total_nights || 0,
-      total_adults: totalAdults, // overridden with dummy
+      total_adults: totalAdults,
       total_child_paid: totalChildPaid,
       total_driver: totalDriver,
       reg_no: firstRow.reg_no,
       plan_name: firstRow.plan_name,
       company_name: firstRow.company_name || '-',
       gst_no: firstRow.gst_no || '-',
-      guests_display: guestsDisplay, // uses dummy
+      guests_display: guestsDisplay,
       total_amount: toNumber(firstRow.total_amount || 0),
       discount_amount: toNumber(firstRow.discount_amount || 0),
       advance_amt: toNumber(firstRow.advance_amt || 0),
@@ -539,7 +510,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         ? firstRow.checked_out_rooms.split(',')
         : [],
     }
-  }, [displayRows, billData, billList, selectedIndex, dummyPaxMap])
+  }, [displayRows, billData])  // ✅ removed dummyPaxMap dependency
 
   // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
   const tableRows = useMemo(() => {
@@ -1270,7 +1241,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const roomNumbersDisplay = checkedOutRoomsStr || summary?.room_numbers_str || '-'
     const nightsDisplay = summary?.total_days || 0
     const tariffPlanDisplay = summary?.plan_name || 'Room Only'
-    // ✅ Use summary.guests_display which now uses dummy pax if set
     const guestsDisplay = summary?.guests_display || `${summary?.total_adults || 0} Adults`
 
     const firstRow = billData[0] || {}
@@ -1748,7 +1718,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         <Modal.Header closeButton className="py-2" style={{ background: headerBg, borderBottom: 'none' }}>
           <Modal.Title className="text-white fw-bold" style={{ fontSize: '0.85rem' }}>
             🧾 Hotel Booking Bill — {summary?.guest_name || 'Guest'}
-            {/* ✅ MULTI‑BILL: show count when multiple bills */}
             {billList.length > 1 && (
               <span style={{ fontSize: '0.7rem', marginLeft: '10px' }}>
                 ({selectedIndex + 1} of {billList.length})
@@ -1759,7 +1728,6 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
 
         <Modal.Body className="bill-modal-body p-0">
           <div className="bill-modal-action-bar no-print">
-            {/* ✅ MULTI‑BILL: dropdown to switch bills */}
             {billList.length > 1 && (
               <Form.Select
                 size="sm"

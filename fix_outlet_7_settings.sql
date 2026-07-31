@@ -5,7 +5,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_checkout_bill`(
 BEGIN
 
     /* ==========================================================
-       RESULT SET 1 : HEADER
+       RESULT SET 1 : HEADER (modified to support dummy_pax)
     ========================================================== */
 
 WITH guest_info AS (
@@ -67,13 +67,18 @@ WITH guest_info AS (
 
         cm.checked_out_rooms AS room_no,
 
-        COALESCE(ct.adults, 0) AS adults,
-        COALESCE(ct.pax, 0)    AS pax,
+        -- ✅ override adults and pax with dummy_pax if set
+        COALESCE(cm.dummy_pax, ct.adults, 0) AS adults,
+        COALESCE(cm.dummy_pax, ct.pax, 0)    AS pax,
         COALESCE(ct.ex_pax, 0) AS ex_pax,
 
         cm.total_nights,
 
         COALESCE(cm.payment_method, 'Cash') AS payment_mode,
+
+        -- ✅ include dummy_pax and bill_no for reference
+        cm.dummy_pax,
+        cm.bill_no,
 
         ROUND(IFNULL(cm.total_amount, 0), 2) AS total_amount,
         ROUND(
@@ -462,7 +467,7 @@ WITH guest_info AS (
         WHERE cf.checkout_id = p_checkout_id
           AND (
               UPPER(TRIM(cf.transaction_type)) = 'FOOD'
-              OR UPPER(TRIM(cf.transaction_type)) LIKE '%FOOD%'          -- ✅ यह नई लाइन
+              OR UPPER(TRIM(cf.transaction_type)) LIKE '%FOOD%'
               OR (
                   UPPER(TRIM(cf.transaction_type)) = 'ROOM CREDIT'
                   AND cf.description LIKE '%FOOD%'
@@ -801,7 +806,7 @@ WITH guest_info AS (
 
 
    /* ==========================================================
-       RESULT SET 3 : FOOTER SUMMARY (FIXED)
+       RESULT SET 3 : FOOTER SUMMARY (unchanged)
     ========================================================== */
 
     WITH summary_totals AS (
