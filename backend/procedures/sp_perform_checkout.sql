@@ -361,6 +361,10 @@ WHERE cm.checkin_id = p_checkin_id;
     -- 6. No room charges or detail copy for non-lodging bills
 
     -- 7. Commit and return (with consistent keys)
+
+    -- ===== Copy agent data to agent_room_checkout for this bill =====
+    CALL sp_copy_agent_to_checkout(v_checkout_id, v_user_id);
+
     COMMIT;
 
     SELECT JSON_OBJECT(
@@ -1058,6 +1062,8 @@ END IF;
                 SET room_status_id = 7, updated_by_id = v_user_id, updated_date = v_now
                 WHERE FIND_IN_SET(room_id, v_room_ids_to_update);
             END IF;
+
+             CALL sp_copy_agent_to_checkout(v_keeper_checkout_id, v_user_id);
             
             COMMIT;
             
@@ -1326,9 +1332,12 @@ END IF;
             SET room_status_id = 7, updated_by_id = v_user_id, updated_date = v_now
             WHERE FIND_IN_SET(room_id, v_room_ids_to_update);
         END IF;
+
+         -- ===== Copy agent data to agent_room_checkout =====
+        CALL sp_copy_agent_to_checkout(v_keeper_checkout_id, v_user_id);
         
         COMMIT;
-        
+     
         SELECT JSON_OBJECT(
             'success', TRUE,
             'message', CONCAT('Case 5: All bills merged into one. Deleted checkout IDs: ', IFNULL(@other_checkout_ids, 'None')),
@@ -2261,6 +2270,12 @@ END IF;
     -- ============================================================================
     -- FINAL COMMIT AND RESPONSE
     -- ============================================================================
+
+        -- ===== Copy agent data to agent_room_checkout =====
+    IF v_checkout_id IS NOT NULL AND v_checkout_id > 0 THEN
+        CALL sp_copy_agent_to_checkout(v_checkout_id, v_user_id);
+    END IF;
+
     COMMIT;
 
     SELECT JSON_OBJECT(
