@@ -19,6 +19,9 @@ import ArrivedService from '@/common/hotel/arrived'
 import DepartureService from '@/common/hotel/departure'
 import DocumentTypeService, { DocumentType } from '@/common/hotel/documentType'
 import { useAuthContext } from '@/common/context/useAuthContext'
+// ========== ADDED: Company add modal (same as CheckIn form) ==========
+import FormModal from '@/components/Common/models/FormModal'
+import CompanyForm from '../Company/CompanyForm'
 
 export type GuestFormData = {
   guest_id?: number
@@ -101,6 +104,20 @@ const defaultForm: GuestFormData = {
   documents: [],
 }
 
+// ========== ADDED: default payload for new company (same shape as CheckInForm) ==========
+const defaultCompanyForm = {
+  company_name: '',
+  gst_no: '',
+  address: '',
+  city_id: null,
+  state_id: null,
+  country_id: null,
+  contact_no: '',
+  email: '',
+  mst_hotelid: null,
+  created_by_id: null,
+}
+
 interface GuestFormProps {
   selectedItem: GuestFormData
   onSave: (values: GuestFormData) => void
@@ -140,6 +157,10 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   const [showPreview, setShowPreview] = useState(false)
   const [previewImage, setPreviewImage] = useState('')
 
+  // ========== ADDED: Company add modal state ==========
+  const [showCompanyModal, setShowCompanyModal] = useState(false)
+  const [savingCompany, setSavingCompany] = useState(false)
+
   // Loading states
   const [loadingFragments, setLoadingFragments] = useState(false)
   const [loadingCities, setLoadingCities] = useState(false)
@@ -154,6 +175,27 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   const [isCreatingPurpose, setIsCreatingPurpose] = useState(false)
   const [isCreatingArrived, setIsCreatingArrived] = useState(false)
   const [isCreatingDeparture, setIsCreatingDeparture] = useState(false)
+
+  const hotelId = selectedItem.hotelid || authUser?.hotelid
+
+  // ========== ADDED: reload companies list (used after adding a new company) ==========
+  const loadAllCompanies = async () => {
+    if (!hotelId) return
+    setLoadingCompanies(true)
+    try {
+      const companiesRes = await CompanyService.list({ hotelid: hotelId })
+      setCompanies(
+        (companiesRes?.data || []).map((c: any) => ({
+          company_id: c.company_id,
+          company_name: c.company_name,
+        })),
+      )
+    } catch (error) {
+      console.error('Failed to load companies:', error)
+    } finally {
+      setLoadingCompanies(false)
+    }
+  }
 
   // Fetch all reference data
   useEffect(() => {
@@ -501,6 +543,36 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
       setFieldValue('departure_to', upperValue)
     } finally {
       setIsCreatingDeparture(false)
+    }
+  }
+
+  // ========== ADDED: save newly added company (same flow as CheckInForm.handleCompanySave) ==========
+  const handleCompanySave = async (companyData: any) => {
+    setSavingCompany(true)
+    try {
+      const payload = {
+        ...companyData,
+        hotelid: hotelId,
+        created_by_id: authUser?.id,
+      }
+
+      const response = await CompanyService.create(payload)
+      const newCompany: any = response.data || response
+      const newCompanyId = newCompany.company_id || newCompany.id
+
+      toast.success('Company saved successfully')
+      setShowCompanyModal(false)
+
+      await loadAllCompanies()
+
+      if (newCompanyId) {
+        setFieldValue('company_id', newCompanyId)
+      }
+    } catch (error) {
+      console.error('Failed to save company:', error)
+      toast.error('Failed to save company')
+    } finally {
+      setSavingCompany(false)
     }
   }
 
@@ -1011,9 +1083,10 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
                         </Col>
                       </Row>
 
+                      {/* ========== UPDATED: Company field now has an Add (+) button, same as CheckInForm ========== */}
                       <Row className="align-items-center g-2 mb-1">
                         <Col md={4}>Company</Col>
-                        <Col md={8}>
+                        <Col md={7}>
                           <CreatableSelect
                             options={[
                               { label: 'Self', value: SELF_COMPANY_ID },
@@ -1038,6 +1111,15 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
                             isSearchable
                             menuPlacement="auto"
                           />
+                        </Col>
+                        <Col md={1}>
+                          <button
+                            type="button"
+                            className="btn btn-success btn-sm w-100 p-0"
+                            style={{ height: '29px' }}
+                            onClick={() => setShowCompanyModal(true)}>
+                            +
+                          </button>
                         </Col>
                       </Row>
 
@@ -1445,6 +1527,23 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
           </Modal.Body>
         </Modal>
       </form>
+
+      {/* ========== ADDED: Add New Company Modal (same as CheckInForm) ========== */}
+      <FormModal
+        size="lg"
+        show={showCompanyModal}
+        onHide={() => setShowCompanyModal(false)}
+        title="Add New Company"
+        onSave={handleCompanySave}
+        saving={savingCompany}
+        submitLabel="Save Company"
+        Component={CompanyForm}
+        selectedItem={{
+          ...defaultCompanyForm,
+          mst_hotelid: hotelId,
+          created_by_id: authUser?.id,
+        }}
+      />
     </FormikProvider>
   )
 })
