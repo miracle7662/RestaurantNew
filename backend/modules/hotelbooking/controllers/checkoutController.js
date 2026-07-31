@@ -216,11 +216,10 @@ exports.getBillPreview = async (req, res) => {
             });
         }
 
-        // 2. Get hotelId – from user context, query param, or fallback to checkout record
+        // 2. Get hotelId
         let hotelId = req.user?.hotelId || req.query.hotel_id;
 
         if (!hotelId) {
-            // Fetch hotelId from the checkout record
             const [hotelResult] = await db.execute(
                 'SELECT hotelid FROM checkout_master WHERE checkout_id = ?',
                 [checkoutId]
@@ -237,15 +236,21 @@ exports.getBillPreview = async (req, res) => {
 
         console.log('🔍 getBillPreview called with:', { checkout_id, ldg_bill_no, hotelId });
 
-        // 3. Call stored procedure with both parameters
+        // 3. Call stored procedure
         const [results] = await db.execute('CALL sp_checkout_bill(?, ?)', [checkoutId, hotelId]);
 
         const headerData = results[0][0] || {};
         const transactionRows = results[1] || [];
         const footerSummary = results[2][0] || {};
 
-        // ... rest of the mapping and response unchanged
-        // (keep your existing mapping code)
+        // ✅ Header values (already overridden by dummy_pax in SP)
+        const headerAdults = headerData.adults || 0;
+        const headerPax = headerData.pax || 0;
+        const headerExPax = headerData.ex_pax || 0;
+        const dummyPax = headerData.dummy_pax || 0;
+        const billNo = headerData.bill_no || 0;
+
+        // Transaction type mapping
         const typeMap = {
             'CHARGE': 'Post Charge',
             'ALLOWANCE': 'Allowance',
@@ -255,15 +260,22 @@ exports.getBillPreview = async (req, res) => {
             'FOOD': 'Food'
         };
 
+        // ✅ Minimal mapping – spread header & row, then override only conflicting fields
         const flatData = transactionRows.map(row => ({
             ...headerData,
             ...row,
+            // ✅ Force header's adults/pax/ex_pax (dummy_pax already applied)
+            adults: headerAdults,
+            pax: headerPax,
+            ex_pax: headerExPax,
+
+            // Backward compatibility / computed fields
             room_tariff: row.tariff || 0,
             ex_pax_total: row.ex_pax || 0,
             cgst_amount: row.cgst || 0,
             sgst_amount: row.sgst || 0,
-            total_amount: row.total_amount || 0,
-            room_total_amount: row.total_amount || 0,
+            total_amount: row.dtotal_amount || row.total_amount || 0,
+            room_total_amount: row.dtotal_amount || row.total_amount || 0,
             post_charges: row.post_charges || 0,
             allowance: row.allowance || 0,
             transaction_type: typeMap[row.transaction_type] || row.transaction_type || '',
@@ -283,7 +295,13 @@ exports.getBillPreview = async (req, res) => {
             success: true,
             message: "Bill Preview fetched successfully.",
             data: flatData,
-            summary: footerSummary
+            summary: {
+                ...footerSummary,
+                dummy_pax: dummyPax,
+                header_adults: headerAdults,
+                adults: headerAdults,
+                pax: headerPax,
+            }
         });
 
     } catch (error) {

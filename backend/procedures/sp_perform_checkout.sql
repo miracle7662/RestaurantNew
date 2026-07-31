@@ -44,7 +44,8 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_perform_checkout`(
     IN p_company_id INT,
     IN p_company_name VARCHAR(255),
     IN p_room_details JSON,   -- Room wise details with all data
-    IN p_bill_no INT   -- NEW: bill number (1=Lodging, 2=Restaurant, 3=Bar, 4=Pantry)
+    IN p_bill_no INT,   -- NEW: bill number (1=Lodging, 2=Restaurant, 3=Bar, 4=Pantry)
+    IN p_dummy_pax INT
 )
 sp_perform_checkout: BEGIN
     DECLARE v_now DATETIME;
@@ -306,6 +307,7 @@ FROM (
     status, is_partial_checkout,
     checked_out_rooms, room_id,
     payment_method,
+    dummy_pax,
     created_by_id, created_date, updated_by_id, updated_date
 )
 SELECT
@@ -318,6 +320,7 @@ SELECT
     'checked_out', 0,
     v_processed_rooms_json, v_processed_room_ids_json,
     v_final_payment_method,
+    p_dummy_pax,
     cm.created_by_id, cm.created_date, v_user_id, v_now
 FROM CheckIn_Master cm
 WHERE cm.checkin_id = p_checkin_id;
@@ -329,6 +332,7 @@ WHERE cm.checkin_id = p_checkin_id;
         SET total_amount = v_total_computed,
             checkout_date = v_checkout_dt,
             payment_method = v_final_payment_method,
+            dummy_pax = p_dummy_pax,
             updated_by_id = v_user_id,
             updated_date = v_now
         WHERE checkout_id = v_existing_checkout_id;
@@ -620,6 +624,7 @@ END IF;
                 checked_out_rooms = v_processed_rooms_json,
                 room_id = v_processed_room_ids_json,
                 is_partial_checkout = 1,
+                dummy_pax = p_dummy_pax,  
                 updated_by_id = v_user_id,
                 updated_date = v_now
             WHERE checkout_id = p_checkin_id;
@@ -1040,6 +1045,7 @@ END IF;
                 updated_date = v_now,
                 checkout_date = v_checkout_dt,
                 is_partial_checkout = 0,
+                dummy_pax = p_dummy_pax,  
                 status = 'checked_out'
             WHERE checkout_id = v_keeper_checkout_id;
             
@@ -1307,6 +1313,7 @@ END IF;
             updated_date = v_now,
             checkout_date = v_checkout_dt,
             is_partial_checkout = 0,
+            dummy_pax = p_dummy_pax,  
             status = 'checked_out'
         WHERE checkout_id = v_keeper_checkout_id;
         
@@ -1631,7 +1638,7 @@ END IF;
             created_by_id, created_date, updated_by_id, updated_date,
             status, checkout_date, checkout_by_id, checkout_reason,
             is_partial_checkout, checked_out_rooms, room_id,
-            payment_method
+            payment_method, dummy_pax
         )
         SELECT
             cm.checkin_id, cm.guest_id, v_ldg_bill_no, p_bill_no, cm.reg_no, cm.booking, cm.plan_name,
@@ -1654,7 +1661,8 @@ END IF;
             CASE WHEN v_remaining_active > 0 THEN 1 ELSE 0 END,
             v_processed_rooms_json,
             v_processed_room_ids_json,
-            v_final_payment_method
+            v_final_payment_method,
+            p_dummy_pax
         FROM CheckIn_Master cm
         WHERE cm.checkin_id = p_checkin_id;
 
@@ -1693,6 +1701,7 @@ END IF;
             checked_out_rooms = v_processed_rooms_json,
             room_id = v_processed_room_ids_json,
             payment_method = v_final_payment_method,
+            dummy_pax = p_dummy_pax,  
             updated_by_id = v_user_id,
             updated_date = v_now,
             checkout_date = v_checkout_dt,
@@ -1937,6 +1946,7 @@ END IF;
             checked_out_rooms = v_processed_rooms_json,
             room_id = v_processed_room_ids_json,
             payment_method = v_final_payment_method,
+            dummy_pax = p_dummy_pax,  
             updated_by_id = v_user_id,
             updated_date = v_now,
             checkout_date = v_checkout_dt,
@@ -2215,6 +2225,7 @@ END IF;
             checked_out_rooms = v_processed_rooms_json,
             room_id = v_processed_room_ids_json,
             payment_method = v_final_payment_method,
+            dummy_pax = p_dummy_pax,  
             updated_by_id = v_user_id,
             updated_date = v_now,
             checkout_date = v_checkout_dt,
