@@ -61,8 +61,34 @@ IN p_total_amount DECIMAL(10,2),
 IN p_status VARCHAR(20),
 IN p_created_by_id INT,
 
--- Payment Method (NEW)
-IN p_payment_method VARCHAR(50),  -- <-- NEW PARAMETER
+-- Payment Method
+IN p_payment_method VARCHAR(50),
+
+-- ========== NEW AGENT PARAMETERS ==========
+IN p_travel_agent_id INT,
+IN p_travel_agent_name VARCHAR(255),
+IN p_agent_code VARCHAR(50),
+IN p_commission_type VARCHAR(20),          -- e.g. 'PERCENTAGE' or 'FIXED'
+IN p_commission_value DECIMAL(10,2),
+IN p_agent_commission_amount DECIMAL(10,2),
+IN p_agent_cgst_percent DECIMAL(10,2),
+IN p_agent_cgst_amount DECIMAL(10,2),
+IN p_agent_sgst_percent DECIMAL(10,2),
+IN p_agent_sgst_amount DECIMAL(10,2),
+IN p_agent_igst_percent DECIMAL(10,2),
+IN p_agent_igst_amount DECIMAL(10,2),
+IN p_agent_cess_percent DECIMAL(10,2),
+IN p_agent_cess_amount DECIMAL(10,2),
+IN p_agent_tds_percent DECIMAL(10,2),
+IN p_agent_tds_amount DECIMAL(10,2),
+IN p_agent_tcs_percent DECIMAL(10,2),
+IN p_agent_tcs_amount DECIMAL(10,2),
+IN p_agent_service_fee DECIMAL(10,2),
+IN p_agent_total_commission DECIMAL(10,2),
+IN p_agent_pay_to_hotel DECIMAL(10,2),
+IN p_booking_id VARCHAR(100),
+IN p_booking_date DATE,
+-- ==========================================
 
 -- JSON
 IN p_details JSON,
@@ -537,6 +563,112 @@ p_created_by_id,
 
 0
 
+);
+
+-- =========================================================
+-- INSERT INTO agent_room_checkin FOR THIS ROOM
+-- =========================================================
+SET @v_room_tariff = JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.room_tariff'));
+SET @v_no_of_days = JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.no_of_days'));
+SET @v_discount_amount = JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.discount_amount'));
+SET @v_ex_pax_charge = JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.ex_pax_charge'));
+SET @v_child_paid_amount = JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.child_paid_amount'));
+SET @v_driver_charge = JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.driver_charge'));
+SET @v_tax = JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.tax'));
+
+SET @v_total_room_charges = (@v_room_tariff * @v_no_of_days) - @v_discount_amount;
+SET @v_total_extra_charges = @v_ex_pax_charge + @v_child_paid_amount + @v_driver_charge;
+SET @v_grand_total = @v_total_room_charges + @v_total_extra_charges + @v_tax;
+
+INSERT INTO agent_room_checkin (
+    checkin_id,
+    reg_no,
+    hotelid,
+    guest_id,
+    agent_id,
+    agent_name,
+    agent_code,
+    commission_type,
+    commission_value,
+    commission_amount,
+    agent_cgst_percent,
+    agent_cgst_amount,
+    agent_sgst_percent,
+    agent_sgst_amount,
+    agent_igst_percent,
+    agent_igst_amount,
+    agent_cess_percent,
+    agent_cess_amount,
+    agent_tds_percent,
+    agent_tds_amount,
+    agent_tcs_percent,
+    agent_tcs_amount,
+    agent_service_fee,
+    agent_total_commission,
+    agent_pay_to_hotel,
+    room_id,
+    room_number,
+    room_category_id,
+    converted_category_id,
+    total_room_charges,
+    total_extra_charges,
+    grand_total_amount,
+    payment_method,
+    plan_name,
+    booking_id,
+    booking_date,
+    status,
+    is_billed,
+    is_dayend,
+    created_by_id,
+    created_date,
+    updated_by_id,
+    updated_date
+)
+VALUES (
+    v_checkin_id,
+    v_formatted_reg_no,
+    p_hotelid,
+    JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.guest_id')),
+    p_travel_agent_id,
+    p_travel_agent_name,
+    p_agent_code,
+    p_commission_type,
+    p_commission_value,
+    p_agent_commission_amount,
+    p_agent_cgst_percent,
+    p_agent_cgst_amount,
+    p_agent_sgst_percent,
+    p_agent_sgst_amount,
+    p_agent_igst_percent,
+    p_agent_igst_amount,
+    p_agent_cess_percent,
+    p_agent_cess_amount,
+    p_agent_tds_percent,
+    p_agent_tds_amount,
+    p_agent_tcs_percent,
+    p_agent_tcs_amount,
+    p_agent_service_fee,
+    p_agent_total_commission,
+    p_agent_pay_to_hotel,
+    JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.room_id')),
+    JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.room_number')),
+    JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.room_category_id')),
+    JSON_UNQUOTE(JSON_EXTRACT(@detail,'$.converted_category_id')),
+    @v_total_room_charges,
+    @v_total_extra_charges,
+    @v_grand_total,
+    p_payment_method,
+    p_plan_name,
+    p_booking_id,
+    p_booking_date,
+    'active',
+    0,
+    0,
+    p_created_by_id,
+    v_now,
+    p_created_by_id,
+    v_now
 );
 
 IF v_first_detail_id IS NULL THEN

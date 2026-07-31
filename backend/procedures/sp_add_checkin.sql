@@ -5,7 +5,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_checkout_bill`(
 BEGIN
 
     /* ==========================================================
-       RESULT SET 1 : HEADER
+       RESULT SET 1 : HEADER (modified to use dummy_pax)
     ========================================================== */
 
 WITH guest_info AS (
@@ -67,13 +67,16 @@ WITH guest_info AS (
 
         cm.checked_out_rooms AS room_no,
 
-        COALESCE(ct.adults, 0) AS adults,
-        COALESCE(ct.pax, 0)    AS pax,
-        COALESCE(ct.ex_pax, 0) AS ex_pax,
+        -- ✅ dummy_pax override: if set, use it; otherwise fallback to actual adults
+        COALESCE(cm.dummy_pax, ct.adults) AS adults,
+        COALESCE(cm.dummy_pax, ct.pax)    AS pax,
+        ct.ex_pax AS ex_pax,
 
         cm.total_nights,
 
         COALESCE(cm.payment_method, 'Cash') AS payment_mode,
+
+        cm.dummy_pax,   -- added for reference (optional)
 
         ROUND(IFNULL(cm.total_amount, 0), 2) AS total_amount,
         ROUND(
@@ -113,8 +116,8 @@ WITH guest_info AS (
 
 
     /* ==========================================================
-       RESULT SET 2 : BILL DETAILS
-       ========================================================== */
+       RESULT SET 2 : BILL DETAILS (unchanged)
+    ========================================================== */
 
     WITH guest_name_cte AS (
         SELECT COALESCE(
@@ -363,7 +366,7 @@ WITH guest_info AS (
         UNION ALL
 
         -- ============================================================
-        -- 2. FOOD (FIXED: now matches 'FOOD' anywhere in transaction_type)
+        -- 2. FOOD (unchanged)
         -- ============================================================
         SELECT
             COALESCE(lcd.room_number, 'COMMON') AS room_number,
@@ -462,7 +465,7 @@ WITH guest_info AS (
         WHERE cf.checkout_id = p_checkout_id
           AND (
               UPPER(TRIM(cf.transaction_type)) = 'FOOD'
-              OR UPPER(TRIM(cf.transaction_type)) LIKE '%FOOD%'          -- ✅ यह नई लाइन
+              OR UPPER(TRIM(cf.transaction_type)) LIKE '%FOOD%'
               OR (
                   UPPER(TRIM(cf.transaction_type)) = 'ROOM CREDIT'
                   AND cf.description LIKE '%FOOD%'
@@ -801,7 +804,7 @@ WITH guest_info AS (
 
 
    /* ==========================================================
-       RESULT SET 3 : FOOTER SUMMARY (FIXED)
+       RESULT SET 3 : FOOTER SUMMARY (unchanged)
     ========================================================== */
 
     WITH summary_totals AS (

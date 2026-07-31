@@ -66,6 +66,8 @@ interface CheckoutBillModalProps {
   // ✅ MULTI‑BILL: added arrays
   checkoutIds?: number[]
   billNumbers?: string[]
+  // ✅ NEW: Dummy PAX map (keyed by bill number string)
+  dummyPaxMap?: Record<string, number>
 }
 
 interface TableRowWithIndex {
@@ -216,6 +218,8 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
   // ✅ MULTI‑BILL: destructure new props
   checkoutIds = [],
   billNumbers = [],
+  // ✅ NEW: dummy PAX map
+  dummyPaxMap = {},
 }) => {
   const printRef = useRef<HTMLDivElement>(null)
   const fetchCalledRef = useRef(false)
@@ -401,7 +405,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         room_id: row.room_id || 0,
         room_category_name: row.room_category_name || '-',
         converted_category_name: row.converted_category_name || '-',
-        checkin_datetime: row.checkin_datetimecmcm,
+        checkin_datetime: row.checkin_datetimecm,
         checkout_datetime: row.checkout_datetimecm,
         no_of_days: row.no_of_days || 1,
         adults: row.adults || 0,
@@ -458,19 +462,42 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       }
     })
 
+    // ✅ Get dummy PAX for this bill
+    const currentBill = billList[selectedIndex]
+    const dummyPax = currentBill?.ldgBillNo ? dummyPaxMap[currentBill.ldgBillNo] : undefined
+    // Use dummy pax if provided, otherwise fallback to actual adults sum
     let totalAdults = 0,
       totalChildPaid = 0,
       totalDriver = 0
     const categoriesSet = new Set<string>()
     roomMap.forEach((value) => {
-      totalAdults += value.adults
+      // If dummy pax is set, use it for total adults (only if we have a single room? but we'll use it as total)
+      // For multiple rooms, we might need to distribute; but user likely expects total dummy pax.
+      // We'll set totalAdults = dummyPax if present, else sum actual.
+      if (dummyPax !== undefined) {
+        // We'll just set totalAdults = dummyPax (since user wants to override total adults count)
+        // But we need to be careful: if multiple rooms, user may want dummy pax per room? But the requirement says "dummy pax mai show ho" – probably total dummy pax.
+        // We'll use totalAdults = dummyPax for display.
+        // We'll still sum others as usual.
+      }
       totalChildPaid += value.child_paid
       totalDriver += value.driver
       if (value.category) categoriesSet.add(value.category)
     })
 
+    // Override totalAdults with dummy pax if provided
+    if (dummyPax !== undefined) {
+      totalAdults = dummyPax
+    } else {
+      // sum actual adults
+      roomMap.forEach((value) => {
+        totalAdults += value.adults
+      })
+    }
+
     const roomCategoriesStr = Array.from(categoriesSet).join(', ') || '-'
 
+    // ✅ Build guests display with dummy pax
     const guestsDisplayParts = []
     if (totalAdults > 0) guestsDisplayParts.push(`${totalAdults} Adults`)
     if (totalChildPaid > 0) guestsDisplayParts.push(`${totalChildPaid} Child`)
@@ -490,14 +517,14 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
       room_numbers_str: roomNumbersStr,
       room_categories_str: roomCategoriesStr,
       total_days: firstRow.total_nights || 0,
-      total_adults: totalAdults,
+      total_adults: totalAdults, // overridden with dummy
       total_child_paid: totalChildPaid,
       total_driver: totalDriver,
       reg_no: firstRow.reg_no,
       plan_name: firstRow.plan_name,
       company_name: firstRow.company_name || '-',
       gst_no: firstRow.gst_no || '-',
-      guests_display: guestsDisplay,
+      guests_display: guestsDisplay, // uses dummy
       total_amount: toNumber(firstRow.total_amount || 0),
       discount_amount: toNumber(firstRow.discount_amount || 0),
       advance_amt: toNumber(firstRow.advance_amt || 0),
@@ -512,7 +539,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
         ? firstRow.checked_out_rooms.split(',')
         : [],
     }
-  }, [displayRows, billData])
+  }, [displayRows, billData, billList, selectedIndex, dummyPaxMap])
 
   // ========== GENERATE TABLE ROWS - GROUP BY ROOM & DATE ==========
   const tableRows = useMemo(() => {
@@ -1243,6 +1270,7 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     const roomNumbersDisplay = checkedOutRoomsStr || summary?.room_numbers_str || '-'
     const nightsDisplay = summary?.total_days || 0
     const tariffPlanDisplay = summary?.plan_name || 'Room Only'
+    // ✅ Use summary.guests_display which now uses dummy pax if set
     const guestsDisplay = summary?.guests_display || `${summary?.total_adults || 0} Adults`
 
     const firstRow = billData[0] || {}

@@ -1,126 +1,944 @@
--- Fix missing settings for outletid=7
--- Run these SQL commands in your MySQL database
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_checkout_bill`(
+    IN p_checkout_id INT,
+    IN p_hotelid INT
+)
+BEGIN
 
--- ===============================================
--- STEP 1: CHECK CURRENT STATUS (Run first)
--- ===============================================
-SELECT 'bill_print_settings' as table_name, COUNT(*) as records FROM mstbills_print_settings WHERE outletid=7
-UNION ALL SELECT 'general_settings', COUNT(*) FROM mstgeneral_settings WHERE outletid=7
-UNION ALL SELECT 'online_orders_settings', COUNT(*) FROM mstonline_orders_settings WHERE outletid=7
-UNION ALL SELECT 'bill_preview_settings', COUNT(*) FROM mstbill_preview_settings WHERE outletid=7
-UNION ALL SELECT 'kot_print_settings', COUNT(*) FROM mstkot_print_settings WHERE outletid=7;
+    /* ==========================================================
+       RESULT SET 1 : HEADER
+    ========================================================== */
 
--- ===============================================
--- STEP 2: INSERT MISSING RECORDS (Run only if records=0 above)
--- ===============================================
+WITH guest_info AS (
+    SELECT 
+        cm.checkout_id,
 
--- 1. Bill Print Settings (mstbills_print_settings)
-INSERT IGNORE INTO mstbills_print_settings (
-  outletid, bill_title_dine_in, bill_title_pickup, bill_title_delivery, bill_title_quick_bill,
-  mask_order_id, modifier_default_option_bill, print_bill_both_languages, show_alt_item_title_bill,
-  show_alt_name_bill, show_bill_amount_words, show_bill_no_bill, show_bill_number_prefix_bill,
-  show_bill_print_count, show_brand_name_bill, show_captain_bill, show_covers_bill,
-  show_custom_qr_codes_bill, show_customer_gst_bill, show_customer_bill, show_customer_paid_amount,
-  show_date_bill, show_default_payment, show_discount_reason_bill, show_due_amount_bill,
-  show_ebill_invoice_qrcode, show_item_hsn_code_bill, show_item_level_charges_separately,
-  show_item_note_bill, show_items_sequence_bill, show_kot_number_bill, show_logo_bill,
-  show_order_id_bill, show_order_no_bill, show_order_note_bill, order_type_dine_in,
-  order_type_pickup, order_type_delivery, order_type_quick_bill, show_outlet_name_bill,
-  payment_mode_dine_in, payment_mode_pickup, payment_mode_delivery, payment_mode_quick_bill,
-  table_name_dine_in, table_name_pickup, table_name_delivery, table_name_quick_bill,
-  show_tax_charge_bill, show_username_bill, show_waiter_bill, show_zatca_invoice_qr,
-  show_customer_address_pickup_bill, show_order_placed_time, hide_item_quantity_column,
-  hide_item_rate_column, hide_item_total_column, hide_total_without_tax, trn_gstno
-) VALUES (
-  7, 1,1,1,1, 0,0,0,0, 0,1,1,1, 0,1,0,1, 0,0,1,1, 1,1,0,1, 0,0,0, 1,1,0,1, 0,1,1, 1,1,1,1, 1,1,1,1, 1,0,0,0, 1,0,1,0, 0,1, 0,0,0,0,0, ''
-);
+        MAX(gm.name) AS guest_name,
+        MAX(gm.phone) AS phone,
+        MAX(gm.address) AS address,
+        MAX(gm.email) AS emailed,
 
--- 2. Bill Preview Settings (mstbill_preview_settings)
-INSERT IGNORE INTO mstbill_preview_settings (
-  outletid, outlet_name, email, website, upi_id, bill_prefix,
-  secondary_bill_prefix, bar_bill_prefix, show_upi_qr, enabled_bar_section,
-  show_phone_on_bill, note, footer_note, field1, field2, field3, field4, fssai_no
-) VALUES (
-  7, (SELECT outlet_name FROM mst_outlets WHERE outletid=7), '', '', '',
-  'BILL-', 'SEC-', 'BAR-', 0, 0, '', '', '', '', '', '', '', ''
-);
+        MAX(comp.company_name) AS company_name,
+        MAX(comp.gst_no) AS gst_no
 
--- 3. KOT Print Settings (mstkot_print_settings)
-INSERT IGNORE INTO mstkot_print_settings (
-  outletid, customer_on_kot_dine_in, customer_on_kot_pickup, customer_on_kot_delivery,
-  customer_on_kot_quick_bill, customer_kot_display_option, group_kot_items_by_category,
-  hide_table_name_quick_bill, show_new_order_tag, new_order_tag_label, show_running_order_tag,
-  running_order_tag_label, dine_in_kot_no, pickup_kot_no, delivery_kot_no, quick_bill_kot_no,
-  modifier_default_option, print_kot_both_languages, show_alternative_item, show_captain_username,
-  show_covers_as_guest, show_item_price, show_kot_no_quick_bill, show_kot_note, show_online_order_otp,
-  show_order_id_quick_bill, show_order_id_online_order, show_order_no_quick_bill_section,
-  show_order_type_symbol, show_store_name, show_terminal_username, show_username, show_waiter,
-  hide_item_Amt_column
-) VALUES (
-  7, 0,0,0,0, 'NAME_ONLY', 0, 0, 1, 'New', 1, 'Running',
-  'DIN-', 'PUP-', 'DEL-', 'QBL-', 0, 0, 0, 0, 0, 1, 0, 1, 0,
-  0, 0, 0, 1, 1, 0, 0, 1, 0
-);
+    FROM checkout_master cm
 
--- 4. General Settings (mstgeneral_settings)
-INSERT IGNORE INTO mstgeneral_settings (
-  outletid, customize_url_links, allow_charges_after_bill_print, allow_discount_after_bill_print,
-  allow_discount_before_save, allow_pre_order_tahd, ask_covers, ask_covers_captain,
-  ask_custom_order_id_quick_bill, ask_custom_order_type_quick_bill, ask_payment_mode_on_save_bill,
-  ask_waiter, ask_otp_change_order_status_order_window, ask_otp_change_order_status_receipt_section,
-  auto_accept_remote_kot, auto_out_of_stock, auto_sync, category_time_for_pos, count_sales_after_midnight,
-  customer_display, customer_mandatory, default_ebill_check, default_send_delivery_boy_check,
-  edit_customize_order_number, enable_backup_notification_service, enable_customer_display_access,
-  filter_items_by_order_type, generate_reports_start_close_dates, hide_clear_data_check_logout,
-  hide_item_price_options, hide_load_menu_button, make_cancel_delete_reason_compulsory,
-  make_discount_reason_mandatory, make_free_cancel_bill_reason_mandatory, make_payment_ref_number_mandatory,
-  mandatory_delivery_boy_selection, mark_order_as_transfer_order, online_payment_auto_settle,
-  order_sync_settings, separate_billing_by_section, set_entered_amount_as_opening,
-  show_alternative_item_report_print, show_clear_sales_report_logout, show_order_no_label_pos,
-  show_payment_history_button, show_remote_kot_option, show_send_payment_link, stock_availability_display,
-  todays_report, upi_payment_sound_notification, use_separate_bill_numbers_online,
-  when_send_todays_report, enable_currency_conversion, enable_user_login_validation,
-  allow_closing_shift_despite_bills, show_real_time_kot_bill_notifications
-) VALUES (
-  7, '[]', 0,0,1,0, '{\"dine_in\":true,\"pickup\":false,\"delivery\":false,\"quick_bill\":false}', 0,
-  0,0,0, '{\"dine_in\":true,\"pickup\":false,\"delivery\":false,\"quick_bill\":false}', 0,0,
-  0,0,0,'',0, '{\"media\":[]}', '{\"dine_in\":true,\"pickup\":true,\"delivery\":true,\"quick_bill\":false}',
-  1,0,'',0,0,0,0,0,1,1,1,0,0,0,0, '{\"auto_sync_interval\":\"300\",\"sync_batch_packet_size\":\"100\"}', 0,0,
-  0,0,1,1,0,0,1, '{\"sales_summary\":true,\"order_type_summary\":true,\"payment_type_summary\":true,\"discount_summary\":true,\"expense_summary\":true,\"bill_summary\":true,\"delivery_boy_summary\":true,\"waiter_summary\":true,\"kitchen_department_summary\":true,\"category_summary\":true,\"sold_items_summary\":true,\"cancel_items_summary\":true,\"wallet_summary\":true,\"due_payment_received_summary\":true,\"due_payment_receivable_summary\":true,\"payment_variance_summary\":true,\"currency_denominations_summary\":true}', 0,0,
-  'END_OF_DAY',0,1,0,1
-);
+    LEFT JOIN checkout_detail cdm
+        ON cdm.checkin_id = cm.checkin_id
+       AND cdm.is_checkout = 1
 
--- 5. Online Orders Settings (mstonline_orders_settings)
-INSERT IGNORE INTO mstonline_orders_settings (
-  outletid, show_in_preparation_kds, auto_accept_online_order, customize_order_preparation_time,
-  online_orders_time_delay, pull_order_on_accept, show_addons_separately, show_complete_online_order_id,
-  show_online_order_preparation_time, update_food_ready_status_kds
-) VALUES (7, 1,0,0, 0,0,0,1,1,1);
+    LEFT JOIN guest_master gm
+        ON gm.guest_id = cdm.guest_id
 
--- ===============================================
--- STEP 3: VERIFY FIX (Run after inserts)
--- ===============================================
-SELECT outletid FROM mst_outlets WHERE outletid=7;
--- Test endpoint should now return data:
--- curl http://localhost:3001/api/outlets/settings/7
+    LEFT JOIN company_master comp
+        ON comp.company_id = gm.company_id
 
--- ===============================================
--- STEP 6: CRITICAL - mstoutlet_settings (Main settings table)
--- ===============================================
-INSERT IGNORE INTO mstoutlet_settings (
-  outletid,
-  send_order_notification,
-  bill_number_length,
-  decimal_points,
-  notification_channel
-) VALUES (
-  7,
-  'ALL',
-  2,
-  2,
-  'SMS'
-);
+    WHERE cm.checkout_id = p_checkout_id
 
--- ===============================================
--- 🎉 SUCCESS! Frontend will now load settings properly
--- ===============================================
+    GROUP BY cm.checkout_id
+),
+    cd_totals AS (
+        SELECT
+            checkout_id,
+            COALESCE(SUM(adults), 0) AS adults,
+            COALESCE(SUM(pax), 0)    AS pax,
+            COALESCE(SUM(ex_pax), 0) AS ex_pax
+        FROM checkout_detail
+        WHERE checkout_id = p_checkout_id AND is_checkout = 1
+        GROUP BY checkout_id
+    )
+    SELECT
+        hm.hotel_name,
+        hm.address AS hotel_address,
+        hm.email,
+        hm.website,
+        hm.phone,
+        hm.trn_gstno,
+
+        cm.checkout_id,
+        cm.checkin_id,
+        cm.reg_no,
+        cm.ldg_bill_no,
+
+        cm.booking,
+        cm.plan_name,
+
+        cm.checkin_datetime AS checkin_datetimecm,
+        cm.checkout_date AS checkout_datetimecm,
+
+        cm.checked_out_rooms AS room_no,
+
+        COALESCE(ct.adults, 0) AS adults,
+        COALESCE(ct.pax, 0)    AS pax,
+        COALESCE(ct.ex_pax, 0) AS ex_pax,
+
+        cm.total_nights,
+
+        COALESCE(cm.payment_method, 'Cash') AS payment_mode,
+
+        ROUND(IFNULL(cm.total_amount, 0), 2) AS total_amount,
+        ROUND(
+            IFNULL(cm.total_amount, 0)
+            - IFNULL(cm.tot_discount_amount, 0)
+            - IFNULL(cm.tot_advance, 0)
+        , 2) AS net_payable,
+
+        ROUND(IFNULL(cm.tot_discount_amount, 0), 2) AS discount_amount,
+        ROUND(IFNULL(cm.tot_advance, 0), 2)         AS advance_amt,
+
+        0 AS post_changes_amt,
+        0 AS allowances_amt,
+        0 AS round_off_amount,
+
+        ROUND(IFNULL(cm.tot_cgst_amount, 0), 2)     AS cgst_amt,
+        ROUND(IFNULL(cm.tot_sgst_amount, 0), 2)     AS sgst_amt,
+        ROUND(IFNULL(cm.tot_igst_amount, 0), 2)     AS igst_amt,
+        ROUND(IFNULL(cm.tot_cess_amount, 0), 2)     AS cess_amt,
+        ROUND(IFNULL(cm.tot_service_charge_amount, 0), 2) AS service_charge_amt,
+
+        gi.guest_name,
+        gi.phone AS guest_mobile,
+        gi.address AS guest_address,
+        gi.emailed AS guest_email,
+        gi.company_name,
+        gi.gst_no,
+        NULL AS id_type,
+        NULL AS id_number
+
+    FROM checkout_master cm
+    LEFT JOIN msthotelmasters hm ON hm.hotelid = cm.hotelid
+    LEFT JOIN guest_info gi ON gi.checkout_id = cm.checkout_id
+    LEFT JOIN cd_totals ct ON ct.checkout_id = cm.checkout_id
+    WHERE cm.checkout_id = p_checkout_id
+      AND cm.hotelid = p_hotelid;
+
+
+    /* ==========================================================
+       RESULT SET 2 : BILL DETAILS
+       ========================================================== */
+
+    WITH guest_name_cte AS (
+        SELECT COALESCE(
+            (SELECT guest_name FROM checkout_detail 
+             WHERE checkout_id = p_checkout_id AND is_checkout = 1 LIMIT 1),
+            (SELECT cdm.guest_name FROM checkout_master cm 
+             JOIN checkin_detail_master cdm ON cdm.checkin_id = cm.checkin_id 
+             WHERE cm.checkout_id = p_checkout_id LIMIT 1)
+        ) AS guest_name
+    ),
+    room_extensions AS (
+        SELECT
+            cf.room_id,
+            DATE(cf.transaction_datetime) AS extension_date,
+            SUM(cf.debit_amount) AS total_extension_amount
+        FROM checkout_folio_master cf
+        WHERE cf.checkout_id = p_checkout_id
+          AND UPPER(TRIM(cf.transaction_type)) = 'ROOM EXTENSION'
+        GROUP BY cf.room_id, DATE(cf.transaction_datetime)
+    ),
+    latest_checkout_detail AS (
+        SELECT 
+            cd1.*
+        FROM checkout_detail cd1
+        INNER JOIN (
+            SELECT 
+                checkout_id,
+                room_id,
+                MAX(checkin_datetime) AS latest_checkin_datetime
+            FROM checkout_detail
+            WHERE checkout_id = p_checkout_id AND is_checkout = 1
+            GROUP BY checkout_id, room_id
+        ) cd2 ON cd1.checkout_id = cd2.checkout_id 
+            AND cd1.room_id = cd2.room_id 
+            AND cd1.checkin_datetime = cd2.latest_checkin_datetime
+        WHERE cd1.checkout_id = p_checkout_id AND cd1.is_checkout = 1
+    )
+    SELECT
+        x.room_number,
+        x.bill_date,
+
+        ROUND(SUM(x.tariff), 2) AS tariff,
+        ROUND(SUM(x.ex_pax), 2) AS ex_pax,
+        ROUND(SUM(x.child_paid_amount), 2) AS child_paid_amount,
+        ROUND(SUM(x.driver_charge), 2) AS driver_charge,
+
+        ROUND(SUM(x.cgst + x.ex_cgst_amount + x.child_cgst_amount + x.driver_cgst_amount), 2) AS cgst,
+        ROUND(SUM(x.sgst + x.ex_sgst_amount + x.child_sgst_amount + x.driver_sgst_amount), 2) AS sgst,
+        ROUND(SUM(x.igst + x.ex_igst_amount + x.child_igst_amount + x.driver_igst_amount), 2) AS igst,
+
+        ROUND(SUM(x.food), 2) AS food,
+        ROUND(SUM(x.post_charges), 2) AS post_charges,
+        ROUND(SUM(x.allowance), 2) AS allowance,
+
+        ROUND(
+            SUM(x.tariff) + 
+            SUM(x.ex_pax) + 
+            SUM(x.child_paid_amount) + 
+            SUM(x.driver_charge) +
+            SUM(x.cgst + x.ex_cgst_amount + x.child_cgst_amount + x.driver_cgst_amount) +
+            SUM(x.sgst + x.ex_sgst_amount + x.child_sgst_amount + x.driver_sgst_amount) +
+            SUM(x.igst + x.ex_igst_amount + x.child_igst_amount + x.driver_igst_amount) +
+            SUM(x.food) + 
+            SUM(x.post_charges) - 
+            SUM(x.allowance ) - 
+            SUM(x.discount_amount) +
+            SUM(CASE WHEN UPPER(x.transaction_type) = 'ADVANCE ADDITION' THEN x.allowance ELSE 0 END)
+        , 2) AS dtotal_amount,
+
+        MAX(x.room_id) AS room_id,
+        MAX(x.room_category_name) AS room_category_name,
+        MAX(x.converted_category_name) AS converted_category_name,
+
+        MAX(x.checkin_datetime) AS checkin_datetime,
+        MAX(x.checkout_datetime) AS checkout_datetime,
+
+        MAX(x.no_of_days) AS no_of_days,
+
+        MAX(x.room_tariff_per_day) AS room_tariff_per_day,
+
+        MAX(x.adults) AS adults,
+        MAX(x.pax) AS pax,
+        MAX(x.ex_pax_total) AS ex_pax_total,
+
+        MAX(x.child_paid) AS child_paid,
+        MAX(x.child_unpaid) AS child_unpaid,
+        MAX(x.driver) AS driver,
+
+        MAX(x.ex_cgst_percent) AS ex_cgst_percent,
+        MAX(x.ex_cgst_amount) AS ex_cgst_amount,
+        MAX(x.ex_sgst_percent) AS ex_sgst_percent,
+        MAX(x.ex_sgst_amount) AS ex_sgst_amount,
+        MAX(x.ex_igst_percent) AS ex_igst_percent,
+        MAX(x.ex_igst_amount) AS ex_igst_amount,
+
+        MAX(x.tax_percen_child) AS tax_percen_child,
+        MAX(x.child_cgst_percent) AS child_cgst_percent,
+        MAX(x.child_cgst_amount) AS child_cgst_amount,
+        MAX(x.child_sgst_percent) AS child_sgst_percent,
+        MAX(x.child_sgst_amount) AS child_sgst_amount,
+        MAX(x.child_igst_percent) AS child_igst_percent,
+        MAX(x.child_igst_amount) AS child_igst_amount,
+
+        MAX(x.tax_percen_driver) AS tax_percen_driver,
+        MAX(x.driver_cgst_percent) AS driver_cgst_percent,
+        MAX(x.driver_cgst_amount) AS driver_cgst_amount,
+        MAX(x.driver_sgst_percent) AS driver_sgst_percent,
+        MAX(x.driver_sgst_amount) AS driver_sgst_amount,
+        MAX(x.driver_igst_percent) AS driver_igst_percent,
+        MAX(x.driver_igst_amount) AS driver_igst_amount,
+
+        MAX(x.discount_percent) AS discount_percent,
+        MAX(x.discount_amount) AS discount_amount,
+
+        MAX(x.cgst_percent) AS cgst_percent,
+        MAX(x.cgst_amount) AS cgst_amount,
+
+        MAX(x.sgst_percent) AS sgst_percent,
+        MAX(x.sgst_amount) AS sgst_amount,
+
+        MAX(x.igst_percent) AS igst_percent,
+        MAX(x.igst_amount) AS igst_amount,
+
+        MAX(x.cess_percent) AS cess_percent,
+        MAX(x.cess_amount) AS cess_amount,
+
+        MAX(x.service_charge) AS service_charge,
+        MAX(x.service_charge_amount) AS service_charge_amount,
+
+        MAX(x.tax) AS tax,
+
+        MAX(x.charge_id) AS charge_id,
+
+        MAX(x.guest_name) AS guest_name,
+
+        MAX(x.payment_mode) AS payment_mode,
+
+        MAX(x.description) AS description,
+
+        MAX(x.transaction_type) AS transaction_type
+
+    FROM
+    (
+        -- ============================================================
+        -- 1. ROOM CHARGES (unchanged)
+        -- ============================================================
+        SELECT
+            cd.room_number,
+            DATE(cd.checkin_datetime) AS bill_date,
+
+            cd.room_id,
+            cd.room_category_name,
+            cd.converted_category_name,
+
+            cd.checkin_datetime,
+            cd.checkout_datetime,
+
+            cd.no_of_days,
+
+            IFNULL(cd.room_tariff, 0) AS tariff,
+            IFNULL(cd.ex_pax_charge * cd.ex_pax, 0) AS ex_pax,
+            IFNULL(cd.child_paid_amount * cd.child_paid, 0) AS child_paid_amount,
+            IFNULL(cd.driver_charge * cd.driver, 0) AS driver_charge,
+
+            IFNULL(cd.cgst_amount, 0) AS cgst,
+            IFNULL(cd.sgst_amount, 0) AS sgst,
+            IFNULL(cd.igst_amount, 0) AS igst,
+
+            0 AS food,
+            0 AS post_charges,
+            0 AS allowance,
+
+            IFNULL(cd.room_tariff, 0) AS room_tariff_per_day,
+
+            IFNULL(cd.adults, 0) AS adults,
+            IFNULL(cd.pax, 0) AS pax,
+            IFNULL(cd.ex_pax, 0) AS ex_pax_total,
+
+            IFNULL(cd.child_paid, 0) AS child_paid,
+            IFNULL(cd.child_unpaid, 0) AS child_unpaid,
+            IFNULL(cd.driver, 0) AS driver,
+
+            IFNULL(cd.ex_cgst_percent, 0) AS ex_cgst_percent,
+            IFNULL(cd.ex_cgst_amount, 0) AS ex_cgst_amount,
+            IFNULL(cd.ex_sgst_percent, 0) AS ex_sgst_percent,
+            IFNULL(cd.ex_sgst_amount, 0) AS ex_sgst_amount,
+            IFNULL(cd.ex_igst_percent, 0) AS ex_igst_percent,
+            IFNULL(cd.ex_igst_amount, 0) AS ex_igst_amount,
+
+            IFNULL(cd.tax_percen_child, 0) AS tax_percen_child,
+            IFNULL(cd.child_cgst_percent, 0) AS child_cgst_percent,
+            IFNULL(cd.child_cgst_amount, 0) AS child_cgst_amount,
+            IFNULL(cd.child_sgst_percent, 0) AS child_sgst_percent,
+            IFNULL(cd.child_sgst_amount, 0) AS child_sgst_amount,
+            IFNULL(cd.child_igst_percent, 0) AS child_igst_percent,
+            IFNULL(cd.child_igst_amount, 0) AS child_igst_amount,
+
+            IFNULL(cd.tax_percen_driver, 0) AS tax_percen_driver,
+            IFNULL(cd.driver_cgst_percent, 0) AS driver_cgst_percent,
+            IFNULL(cd.driver_cgst_amount, 0) AS driver_cgst_amount,
+            IFNULL(cd.driver_sgst_percent, 0) AS driver_sgst_percent,
+            IFNULL(cd.driver_sgst_amount, 0) AS driver_sgst_amount,
+            IFNULL(cd.driver_igst_percent, 0) AS driver_igst_percent,
+            IFNULL(cd.driver_igst_amount, 0) AS driver_igst_amount,
+
+            IFNULL(cd.discount_percent, 0) AS discount_percent,
+            IFNULL(cd.discount_amount, 0) AS discount_amount,
+
+            IFNULL(cd.cgst_percent, 0) AS cgst_percent,
+            IFNULL(cd.cgst_amount, 0) AS cgst_amount,
+
+            IFNULL(cd.sgst_percent, 0) AS sgst_percent,
+            IFNULL(cd.sgst_amount, 0) AS sgst_amount,
+
+            IFNULL(cd.igst_percent, 0) AS igst_percent,
+            IFNULL(cd.igst_amount, 0) AS igst_amount,
+
+            IFNULL(cd.cess_percent, 0) AS cess_percent,
+            IFNULL(cd.cess_amount, 0) AS cess_amount,
+
+            IFNULL(cd.service_charge, 0) AS service_charge,
+            IFNULL(cd.service_charge_amount, 0) AS service_charge_amount,
+
+            IFNULL(cd.tax, 0) AS tax,
+
+            cd.checkout_detail_id AS charge_id,
+
+            COALESCE(cd.guest_name, (SELECT guest_name FROM guest_name_cte)) AS guest_name,
+            (SELECT COALESCE(payment_method, 'Cash') FROM checkout_master WHERE checkout_id = p_checkout_id) AS payment_mode,
+
+            'ROOM CHARGES' AS transaction_type,
+            CONCAT('Room Charges (', cd.room_number, ')') AS description,
+
+            COALESCE(
+                (SELECT re.total_extension_amount 
+                 FROM room_extensions re 
+                 WHERE re.room_id = cd.room_id 
+                   AND re.extension_date = DATE(cd.checkin_datetime)),
+                0
+            ) AS extension_amount
+
+        FROM checkout_detail cd
+        WHERE cd.checkout_id = p_checkout_id
+          AND cd.is_checkout = 1
+
+        UNION ALL
+
+        -- ============================================================
+        -- 2. FOOD (FIXED: now matches 'FOOD' anywhere in transaction_type)
+        -- ============================================================
+        SELECT
+            COALESCE(lcd.room_number, 'COMMON') AS room_number,
+            DATE(cf.transaction_datetime) AS bill_date,
+
+            COALESCE(lcd.room_id, 0) AS room_id,
+            lcd.room_category_name,
+            lcd.converted_category_name,
+
+            cm.checkin_datetime,
+            cm.checkout_date AS checkout_datetime,
+
+            1 AS no_of_days,
+
+            0 AS tariff,
+            0 AS ex_pax,
+            0 AS child_paid_amount,
+            0 AS driver_charge,
+
+            0 AS cgst,
+            0 AS sgst,
+            0 AS igst,
+
+            IFNULL(cf.debit_amount, 0) AS food,
+            0 AS post_charges,
+            0 AS allowance,
+
+            0 AS room_tariff_per_day,
+
+            0 AS adults,
+            0 AS pax,
+            0 AS ex_pax_total,
+
+            0 AS child_paid,
+            0 AS child_unpaid,
+            0 AS driver,
+
+            0 AS ex_cgst_percent,
+            0 AS ex_cgst_amount,
+            0 AS ex_sgst_percent,
+            0 AS ex_sgst_amount,
+            0 AS ex_igst_percent,
+            0 AS ex_igst_amount,
+
+            0 AS tax_percen_child,
+            0 AS child_cgst_percent,
+            0 AS child_cgst_amount,
+            0 AS child_sgst_percent,
+            0 AS child_sgst_amount,
+            0 AS child_igst_percent,
+            0 AS child_igst_amount,
+
+            0 AS tax_percen_driver,
+            0 AS driver_cgst_percent,
+            0 AS driver_cgst_amount,
+            0 AS driver_sgst_percent,
+            0 AS driver_sgst_amount,
+            0 AS driver_igst_percent,
+            0 AS driver_igst_amount,
+
+            0 AS discount_percent,
+            0 AS discount_amount,
+
+            0 AS cgst_percent,
+            0 AS cgst_amount,
+            0 AS sgst_percent,
+            0 AS sgst_amount,
+            0 AS igst_percent,
+            0 AS igst_amount,
+
+            0 AS cess_percent,
+            0 AS cess_amount,
+
+            0 AS service_charge,
+            0 AS service_charge_amount,
+
+            0 AS tax,
+
+            cf.folio_id AS charge_id,
+
+            (SELECT guest_name FROM guest_name_cte) AS guest_name,
+            (SELECT COALESCE(payment_method, 'Cash') FROM checkout_master WHERE checkout_id = p_checkout_id) AS payment_mode,
+
+            'FOOD' AS transaction_type,
+
+            CASE
+                WHEN IFNULL(cf.description, '') <> '' THEN cf.description
+                ELSE 'Food Charges'
+            END AS description,
+
+            0 AS extension_amount
+
+        FROM checkout_folio_master cf
+        LEFT JOIN latest_checkout_detail lcd ON lcd.checkout_id = cf.checkout_id AND lcd.room_id = cf.room_id
+        INNER JOIN checkout_master cm ON cm.checkout_id = cf.checkout_id
+        WHERE cf.checkout_id = p_checkout_id
+          AND (
+              UPPER(TRIM(cf.transaction_type)) = 'FOOD'
+              OR UPPER(TRIM(cf.transaction_type)) LIKE '%FOOD%'          -- ✅ यह नई लाइन
+              OR (
+                  UPPER(TRIM(cf.transaction_type)) = 'ROOM CREDIT'
+                  AND cf.description LIKE '%FOOD%'
+              )
+          )
+
+        UNION ALL
+
+        -- ============================================================
+        -- 3. POST CHARGES (unchanged)
+        -- ============================================================
+        SELECT
+            COALESCE(lcd.room_number, 'COMMON') AS room_number,
+            DATE(cf.transaction_datetime) AS bill_date,
+
+            COALESCE(lcd.room_id, 0) AS room_id,
+            lcd.room_category_name,
+            lcd.converted_category_name,
+
+            cm.checkin_datetime,
+            cm.checkout_date AS checkout_datetime,
+
+            1 AS no_of_days,
+
+            0 AS tariff,
+            0 AS ex_pax,
+            0 AS child_paid_amount,
+            0 AS driver_charge,
+
+            0 AS cgst,
+            0 AS sgst,
+            0 AS igst,
+
+            0 AS food,
+            IFNULL(cf.debit_amount, 0) AS post_charges,
+            0 AS allowance,
+
+            0 AS room_tariff_per_day,
+
+            0 AS adults,
+            0 AS pax,
+            0 AS ex_pax_total,
+
+            0 AS child_paid,
+            0 AS child_unpaid,
+            0 AS driver,
+
+            0 AS ex_cgst_percent,
+            0 AS ex_cgst_amount,
+            0 AS ex_sgst_percent,
+            0 AS ex_sgst_amount,
+            0 AS ex_igst_percent,
+            0 AS ex_igst_amount,
+
+            0 AS tax_percen_child,
+            0 AS child_cgst_percent,
+            0 AS child_cgst_amount,
+            0 AS child_sgst_percent,
+            0 AS child_sgst_amount,
+            0 AS child_igst_percent,
+            0 AS child_igst_amount,
+
+            0 AS tax_percen_driver,
+            0 AS driver_cgst_percent,
+            0 AS driver_cgst_amount,
+            0 AS driver_sgst_percent,
+            0 AS driver_sgst_amount,
+            0 AS driver_igst_percent,
+            0 AS driver_igst_amount,
+
+            0 AS discount_percent,
+            0 AS discount_amount,
+
+            0 AS cgst_percent,
+            0 AS cgst_amount,
+            0 AS sgst_percent,
+            0 AS sgst_amount,
+            0 AS igst_percent,
+            0 AS igst_amount,
+
+            0 AS cess_percent,
+            0 AS cess_amount,
+
+            0 AS service_charge,
+            0 AS service_charge_amount,
+
+            0 AS tax,
+
+            cf.folio_id AS charge_id,
+
+            (SELECT guest_name FROM guest_name_cte) AS guest_name,
+            (SELECT COALESCE(payment_method, 'Cash') FROM checkout_master WHERE checkout_id = p_checkout_id) AS payment_mode,
+
+            'CHARGE' AS transaction_type,
+
+            CASE
+                WHEN IFNULL(cf.description, '') <> '' THEN cf.description
+                ELSE 'Post Charges'
+            END AS description,
+
+            0 AS extension_amount
+
+        FROM checkout_folio_master cf
+        LEFT JOIN latest_checkout_detail lcd ON lcd.checkout_id = cf.checkout_id AND (lcd.room_id = cf.room_id OR cf.room_id IS NULL)
+        INNER JOIN checkout_master cm ON cm.checkout_id = cf.checkout_id
+        WHERE cf.checkout_id = p_checkout_id
+          AND UPPER(TRIM(cf.transaction_type)) = 'CHARGE'
+
+        UNION ALL
+
+        -- ============================================================
+        -- 4. ALLOWANCE (unchanged)
+        -- ============================================================
+        SELECT
+            COALESCE(lcd.room_number, 'COMMON') AS room_number,
+            DATE(cf.transaction_datetime) AS bill_date,
+
+            COALESCE(lcd.room_id, 0) AS room_id,
+            lcd.room_category_name,
+            lcd.converted_category_name,
+
+            cm.checkin_datetime,
+            cm.checkout_date AS checkout_datetime,
+
+            1 AS no_of_days,
+
+            0 AS tariff,
+            0 AS ex_pax,
+            0 AS child_paid_amount,
+            0 AS driver_charge,
+
+            0 AS cgst,
+            0 AS sgst,
+            0 AS igst,
+
+            0 AS food,
+            0 AS post_charges,
+
+            IFNULL(cf.credit_amount, 0) AS allowance,
+
+            0 AS room_tariff_per_day,
+
+            0 AS adults,
+            0 AS pax,
+            0 AS ex_pax_total,
+
+            0 AS child_paid,
+            0 AS child_unpaid,
+            0 AS driver,
+
+            0 AS ex_cgst_percent,
+            0 AS ex_cgst_amount,
+            0 AS ex_sgst_percent,
+            0 AS ex_sgst_amount,
+            0 AS ex_igst_percent,
+            0 AS ex_igst_amount,
+
+            0 AS tax_percen_child,
+            0 AS child_cgst_percent,
+            0 AS child_cgst_amount,
+            0 AS child_sgst_percent,
+            0 AS child_sgst_amount,
+            0 AS child_igst_percent,
+            0 AS child_igst_amount,
+
+            0 AS tax_percen_driver,
+            0 AS driver_cgst_percent,
+            0 AS driver_cgst_amount,
+            0 AS driver_sgst_percent,
+            0 AS driver_sgst_amount,
+            0 AS driver_igst_percent,
+            0 AS driver_igst_amount,
+
+            0 AS discount_percent,
+            0 AS discount_amount,
+
+            0 AS cgst_percent,
+            0 AS cgst_amount,
+            0 AS sgst_percent,
+            0 AS sgst_amount,
+            0 AS igst_percent,
+            0 AS igst_amount,
+
+            0 AS cess_percent,
+            0 AS cess_amount,
+
+            0 AS service_charge,
+            0 AS service_charge_amount,
+
+            0 AS tax,
+
+            cf.folio_id AS charge_id,
+
+            (SELECT guest_name FROM guest_name_cte) AS guest_name,
+            (SELECT COALESCE(payment_method, 'Cash') FROM checkout_master WHERE checkout_id = p_checkout_id) AS payment_mode,
+
+            'ALLOWANCE' AS transaction_type,
+
+            CASE
+                WHEN IFNULL(cf.description, '') <> '' THEN cf.description
+                ELSE 'Allowance'
+            END AS description,
+
+            0 AS extension_amount
+
+        FROM checkout_folio_master cf
+        LEFT JOIN latest_checkout_detail lcd ON lcd.checkout_id = cf.checkout_id AND (lcd.room_id = cf.room_id OR cf.room_id IS NULL)
+        INNER JOIN checkout_master cm ON cm.checkout_id = cf.checkout_id
+        WHERE cf.checkout_id = p_checkout_id
+          AND UPPER(TRIM(cf.transaction_type)) = 'ALLOWANCE'
+
+        UNION ALL
+
+        -- ============================================================
+        -- 5. ADVANCE ADDITION (unchanged)
+        -- ============================================================
+        SELECT
+            COALESCE(lcd.room_number, 'COMMON') AS room_number,
+            DATE(cf.transaction_datetime) AS bill_date,
+
+            COALESCE(lcd.room_id, 0) AS room_id,
+            lcd.room_category_name,
+            lcd.converted_category_name,
+
+            cm.checkin_datetime,
+            cm.checkout_date AS checkout_datetime,
+
+            1 AS no_of_days,
+
+            0 AS tariff,
+            0 AS ex_pax,
+            0 AS child_paid_amount,
+            0 AS driver_charge,
+
+            0 AS cgst,
+            0 AS sgst,
+            0 AS igst,
+
+            0 AS food,
+            0 AS post_charges,
+
+            IFNULL(cf.credit_amount, 0) AS allowance,
+
+            0 AS room_tariff_per_day,
+
+            0 AS adults,
+            0 AS pax,
+            0 AS ex_pax_total,
+
+            0 AS child_paid,
+            0 AS child_unpaid,
+            0 AS driver,
+
+            0 AS ex_cgst_percent,
+            0 AS ex_cgst_amount,
+            0 AS ex_sgst_percent,
+            0 AS ex_sgst_amount,
+            0 AS ex_igst_percent,
+            0 AS ex_igst_amount,
+
+            0 AS tax_percen_child,
+            0 AS child_cgst_percent,
+            0 AS child_cgst_amount,
+            0 AS child_sgst_percent,
+            0 AS child_sgst_amount,
+            0 AS child_igst_percent,
+            0 AS child_igst_amount,
+
+            0 AS tax_percen_driver,
+            0 AS driver_cgst_percent,
+            0 AS driver_cgst_amount,
+            0 AS driver_sgst_percent,
+            0 AS driver_sgst_amount,
+            0 AS driver_igst_percent,
+            0 AS driver_igst_amount,
+
+            0 AS discount_percent,
+            0 AS discount_amount,
+
+            0 AS cgst_percent,
+            0 AS cgst_amount,
+            0 AS sgst_percent,
+            0 AS sgst_amount,
+            0 AS igst_percent,
+            0 AS igst_amount,
+
+            0 AS cess_percent,
+            0 AS cess_amount,
+
+            0 AS service_charge,
+            0 AS service_charge_amount,
+
+            0 AS tax,
+
+            cf.folio_id AS charge_id,
+
+            (SELECT guest_name FROM guest_name_cte) AS guest_name,
+            (SELECT COALESCE(payment_method, 'Cash') FROM checkout_master WHERE checkout_id = p_checkout_id) AS payment_mode,
+
+            'ADVANCE ADDITION' AS transaction_type,
+
+            CASE
+                WHEN IFNULL(cf.description, '') <> '' THEN cf.description
+                ELSE 'Advance Addition'
+            END AS description,
+
+            0 AS extension_amount
+
+        FROM checkout_folio_master cf
+        LEFT JOIN latest_checkout_detail lcd ON lcd.checkout_id = cf.checkout_id AND (lcd.room_id = cf.room_id OR cf.room_id IS NULL)
+        INNER JOIN checkout_master cm ON cm.checkout_id = cf.checkout_id
+        WHERE cf.checkout_id = p_checkout_id
+          AND UPPER(TRIM(cf.transaction_type)) = 'ADVANCE ADDITION'
+
+    ) x
+
+    GROUP BY
+        x.room_number,
+        x.bill_date,
+        x.transaction_type,
+        x.charge_id,
+        x.description
+
+    ORDER BY
+        x.room_number,
+        x.bill_date,
+        FIELD(
+            UPPER(x.transaction_type),
+            'ROOM CHARGES',
+            'FOOD',
+            'CHARGE',
+            'ALLOWANCE',
+            'ADVANCE ADDITION'
+        ),
+        x.charge_id;
+
+
+   /* ==========================================================
+       RESULT SET 3 : FOOTER SUMMARY (FIXED)
+    ========================================================== */
+
+    WITH summary_totals AS (
+        SELECT
+            cm.checkout_id,
+            ROUND(
+                IFNULL(SUM(cd.room_tariff), 0) + 
+                IFNULL(SUM(cd.ex_pax_charge * cd.ex_pax), 0) + 
+                IFNULL(SUM(cd.child_paid_amount * cd.child_paid), 0) + 
+                IFNULL(SUM(cd.driver_charge * cd.driver), 0) +
+                IFNULL(SUM(cd.cgst_amount + cd.ex_cgst_amount + cd.child_cgst_amount + cd.driver_cgst_amount), 0) +
+                IFNULL(SUM(cd.sgst_amount + cd.ex_sgst_amount + cd.child_sgst_amount + cd.driver_sgst_amount), 0) +
+                IFNULL(SUM(cd.igst_amount + cd.ex_igst_amount + cd.child_igst_amount + cd.driver_igst_amount), 0) +
+                IFNULL(SUM(cd.cess_amount), 0) +
+                IFNULL(SUM(cd.service_charge_amount), 0)  +      
+                COALESCE(
+                (
+                    SELECT SUM(cf.debit_amount)
+                    FROM checkout_folio_master cf
+                    WHERE cf.checkout_id = p_checkout_id
+                    AND (
+                            UPPER(TRIM(cf.transaction_type)) = 'FOOD'
+                        OR UPPER(TRIM(cf.transaction_type)) LIKE '%FOOD%'
+                        OR (
+                                UPPER(TRIM(cf.transaction_type)) = 'ROOM CREDIT'
+                                AND UPPER(IFNULL(cf.description,'')) LIKE '%FOOD%'
+                        )
+                    )
+                ),0)
+                +
+                COALESCE(
+                    (SELECT SUM(cf.debit_amount) 
+                     FROM checkout_folio_master cf 
+                     WHERE cf.checkout_id = p_checkout_id 
+                       AND UPPER(TRIM(cf.transaction_type)) = 'CHARGE'),
+                    0
+                ) -
+                COALESCE(
+                    (SELECT SUM(cf.credit_amount) 
+                     FROM checkout_folio_master cf 
+                     WHERE cf.checkout_id = p_checkout_id 
+                       AND UPPER(TRIM(cf.transaction_type)) = 'ALLOWANCE'),
+                    0
+                )
+            , 2) AS total_bill_amount,
+            
+            ROUND(IFNULL(SUM(cd.cgst_amount), 0), 2) + 
+            ROUND(IFNULL(SUM(cd.ex_cgst_amount), 0), 2) + 
+            ROUND(IFNULL(SUM(cd.child_cgst_amount), 0), 2) + 
+            ROUND(IFNULL(SUM(cd.driver_cgst_amount), 0), 2) AS total_cgst,
+            
+            ROUND(IFNULL(SUM(cd.sgst_amount), 0), 2) + 
+            ROUND(IFNULL(SUM(cd.ex_sgst_amount), 0), 2) + 
+            ROUND(IFNULL(SUM(cd.child_sgst_amount), 0), 2) + 
+            ROUND(IFNULL(SUM(cd.driver_sgst_amount), 0), 2) AS total_sgst,
+            
+            ROUND(IFNULL(SUM(cd.igst_amount), 0), 2) + 
+            ROUND(IFNULL(SUM(cd.ex_igst_amount), 0), 2) + 
+            ROUND(IFNULL(SUM(cd.child_igst_amount), 0), 2) + 
+            ROUND(IFNULL(SUM(cd.driver_igst_amount), 0), 2) AS total_igst,
+            
+            ROUND(IFNULL(SUM(cd.cess_amount), 0), 2) AS total_cess,
+            ROUND(IFNULL(SUM(cd.service_charge_amount), 0), 2) AS total_service_charge,
+            ROUND(IFNULL(SUM(cd.discount_amount), 0), 2) AS total_discount,
+            ROUND(IFNULL(MAX(cm.tot_advance), 0), 2) AS total_advance,
+            ROUND(
+                COALESCE(
+                    (SELECT SUM(cf.debit_amount) 
+                     FROM checkout_folio_master cf 
+                     WHERE cf.checkout_id = p_checkout_id 
+                       AND UPPER(TRIM(cf.transaction_type)) = 'CHARGE'),
+                    0
+                ), 2
+            ) AS total_post_charges,
+            ROUND(
+                COALESCE(
+                    (SELECT SUM(cf.credit_amount) 
+                     FROM checkout_folio_master cf 
+                     WHERE cf.checkout_id = p_checkout_id 
+                       AND UPPER(TRIM(cf.transaction_type)) = 'ALLOWANCE'),
+                    0
+                ), 2
+            ) AS total_allowance,
+                ROUND(
+        COALESCE(
+        (
+            SELECT SUM(cf.debit_amount)
+            FROM checkout_folio_master cf
+            WHERE cf.checkout_id = p_checkout_id
+            AND (
+                    UPPER(TRIM(cf.transaction_type)) = 'FOOD'
+                OR UPPER(TRIM(cf.transaction_type)) LIKE '%FOOD%'
+                OR (
+                        UPPER(TRIM(cf.transaction_type)) = 'ROOM CREDIT'
+                    AND UPPER(IFNULL(cf.description,'')) LIKE '%FOOD%'
+                )
+            )
+        ),0),2) AS total_food
+            
+        FROM checkout_master cm
+        LEFT JOIN checkout_detail cd 
+               ON cd.checkout_id = cm.checkout_id AND cd.is_checkout = 1
+        WHERE cm.checkout_id = p_checkout_id
+        GROUP BY cm.checkout_id
+    )
+    SELECT
+        ROUND(IFNULL(st.total_bill_amount, 0), 2) AS bill_amount,
+
+        ROUND(IFNULL(st.total_post_charges, 0), 2) AS post_charges,
+        ROUND(IFNULL(st.total_allowance, 0), 2) AS allowance,
+        ROUND(IFNULL(st.total_food, 0), 2) AS food,
+
+        ROUND(IFNULL(st.total_discount, 0), 2) AS discount_amount,
+        ROUND(IFNULL(st.total_advance, 0), 2) AS advance_amount,
+
+        ROUND(
+            IFNULL(st.total_bill_amount, 0)
+            - IFNULL(st.total_discount, 0)
+            - IFNULL(st.total_advance, 0)
+        , 2) AS balance_amount,
+
+        ROUND(
+            IFNULL(st.total_bill_amount, 0)
+            - IFNULL(st.total_discount, 0)
+        , 2) AS net_payable,
+
+        0 AS round_off_amount,
+
+        ROUND(IFNULL(st.total_cgst, 0), 2) AS cgst,
+        ROUND(IFNULL(st.total_sgst, 0), 2) AS sgst,
+        ROUND(IFNULL(st.total_igst, 0), 2) AS igst,
+        ROUND(IFNULL(st.total_cess, 0), 2) AS cess,
+        ROUND(IFNULL(st.total_service_charge, 0), 2) AS service_charge,
+
+        COALESCE(cm.payment_method, 'Cash') AS payment_mode
+
+    FROM checkout_master cm
+    LEFT JOIN summary_totals st ON st.checkout_id = cm.checkout_id
+    WHERE cm.checkout_id = p_checkout_id;
+END

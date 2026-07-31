@@ -401,7 +401,9 @@ exports.performCheckout = async (req, res) => {
       company_id = 0,
       company_name = '',
       // New bill-wise parameter
-      bill_no = null,                     // <-- ADDED
+      bill_no = null,                     // <-- existing
+      // ✅ NEW: dummy_pax
+      dummy_pax = 0,                      // <-- ADDED
       // Totals object – we extract from it
       checkout_master_totals = {},
     } = req.body;
@@ -412,6 +414,7 @@ exports.performCheckout = async (req, res) => {
     console.log(`🔵 Selected Rooms: ${JSON.stringify(selected_rooms)}`);
     console.log(`🔵 Payment Method: ${payment_method || 'Cash'}`);
     console.log(`🔵 Bill No: ${bill_no ?? 'NULL (legacy)'}`);
+    console.log(`🔵 Dummy PAX: ${dummy_pax}`);   // <-- ADDED LOG
     console.log(`🔵 Is Undo: ${is_undo}`);
 
     // Check if checkin exists
@@ -455,13 +458,14 @@ exports.performCheckout = async (req, res) => {
 } = req.body;
 
     // --------------------------------------------------------------------------
-    // BUILD PARAMETER ARRAY – EXACTLY 45 PARAMETERS
+    // BUILD PARAMETER ARRAY – NOW 46 PARAMETERS (added dummy_pax at end)
     // Order must match sp_perform_checkout signature:
     //  1-17  : checkin_id, checkout_reason, ..., total_nights
     // 18-37  : individual totals (20)
     // 38-43  : guest/company (6)
     // 44     : p_room_details (null)
     // 45     : p_bill_no
+    // 46     : p_dummy_pax         <-- NEW
     // --------------------------------------------------------------------------
     const params = [
       // 1-17
@@ -518,6 +522,9 @@ exports.performCheckout = async (req, res) => {
 
       // 45: bill_no (optional, null for legacy)
       bill_no,                                              // 45
+
+      // ✅ 46: dummy_pax (default 0)
+      dummy_pax,                                            // 46
     ];
 
     console.log('🔵 ==========================================');
@@ -529,10 +536,10 @@ exports.performCheckout = async (req, res) => {
     console.log('🔵 ==========================================');
 
     // --------------------------------------------------------------------------
-    // EXECUTE STORED PROCEDURE – 45 PLACEHOLDERS
+    // EXECUTE STORED PROCEDURE – NOW 46 PLACEHOLDERS
     // --------------------------------------------------------------------------
     const [results] = await connection.execute(
-      `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `CALL sp_perform_checkout(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params
     );
 
@@ -578,7 +585,7 @@ exports.performCheckout = async (req, res) => {
         checkout_id: result.checkout_id,
         checkin_id: result.checkin_id,
         ldg_bill_no: result.ldg_bill_no,
-        bill_no: result.bill_no,                     // exposed to frontend
+        bill_no: result.bill_no,
         is_partial: result.is_partial,
         payment_method: result.payment_method,
         checkout_datetime: result.checkout_datetime,

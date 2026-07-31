@@ -471,14 +471,11 @@ exports.addCheckin = async (req, res) => {
       if (!val) return null;
       if (val instanceof Date) return val;
       if (typeof val === 'string') {
-        // Agar already MySQL format mein hai toh wahi return karo
         if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(val)) {
           return val;
         }
-        
         const d = new Date(val);
         if (!isNaN(d.getTime())) {
-          // Local time components use karo, UTC nahi
           const year = d.getFullYear();
           const month = String(d.getMonth() + 1).padStart(2, '0');
           const day = String(d.getDate()).padStart(2, '0');
@@ -581,13 +578,9 @@ exports.addCheckin = async (req, res) => {
       detailsJson = JSON.stringify(cleaned);
     }
 
-    // ============================================================
-    // 🔥 FIX: Automatically generate room_charges from details
-    //    if they are missing or all zeros.
-    // ============================================================
+    // ----- Automatically generate room_charges if missing -----
     let roomChargesJson = null;
     if (body.room_charges && Array.isArray(body.room_charges) && body.room_charges.length > 0) {
-      // Check if all numeric amounts are zero – if so, rebuild from details
       const hasNonZero = body.room_charges.some(c =>
         toNum(c.pax_price) > 0 ||
         toNum(c.ex_pax_price) > 0 ||
@@ -595,9 +588,7 @@ exports.addCheckin = async (req, res) => {
         toNum(c.driver_price) > 0 ||
         toNum(c.total_amount) > 0
       );
-
       if (hasNonZero) {
-        // Use provided charges as-is
         const cleaned = body.room_charges.map(c => ({
           guest_id: toNum(c.guest_id),
           room_id: toNum(c.room_id),
@@ -628,19 +619,16 @@ exports.addCheckin = async (req, res) => {
         console.log('📥 Using provided room_charges (non-zero)');
       } else {
         console.log('⚠️ Provided room_charges are all zeros – rebuilding from details');
-        roomChargesJson = null; // will rebuild below
+        roomChargesJson = null;
       }
     }
 
-    // If roomChargesJson is still null, build from details (first detail per room)
     if (!roomChargesJson && body.details && Array.isArray(body.details)) {
       const charges = body.details.map(d => {
-        // Compute totals based on detail values
         const baseRoom = toNum(d.room_tariff) - toNum(d.discount_amount);
         const paxTax = toNum(d.cgst_amount) + toNum(d.sgst_amount) + toNum(d.igst_amount) +
                        toNum(d.cess_amount) + toNum(d.service_charge_amount);
         const totalRoom = baseRoom + paxTax;
-
         const exPaxTotal = toNum(d.ex_pax_charge) + toNum(d.ex_cgst_amount) + toNum(d.ex_sgst_amount) + toNum(d.ex_igst_amount);
         const childTotal = toNum(d.child_paid_amount) + toNum(d.child_cgst_amount) + toNum(d.child_sgst_amount) + toNum(d.child_igst_amount);
         const driverTotal = toNum(d.driver_charge) + toNum(d.driver_cgst_amount) + toNum(d.driver_sgst_amount) + toNum(d.driver_igst_amount);
@@ -694,20 +682,73 @@ exports.addCheckin = async (req, res) => {
       folioEntriesJson = JSON.stringify(cleaned);
     }
 
-    // ============================================================
-    // 🔥 GET PAYMENT METHOD from body
-    // ============================================================
-    const paymentMethod = toStr(body.payment_method) || toStr(body.paymentMethod) || 'Cash'; // Default to Cash if not provided
-
+    // ----- Payment Method -----
+    const paymentMethod = toStr(body.payment_method) || toStr(body.paymentMethod) || 'Cash';
     console.log('💳 Payment Method:', paymentMethod);
 
-   // In addCheckin controller
-const outletId = body.outletid || req.user?.outletid || 1;
-console.log('🔍 Outlet from body:', body.outletid);
-console.log('🔍 Outlet from user:', req.user?.outletid);
-console.log('✅ Using outletId:', outletId);
+    // ----- Outlet ID -----
+    const outletId = body.outletid || req.user?.outletid || 1;
+    console.log('🔍 Outlet from body:', body.outletid);
+    console.log('🔍 Outlet from user:', req.user?.outletid);
+    console.log('✅ Using outletId:', outletId);
 
-    // ----- Build parameters (43 total - added payment_method) -----
+    // ============================================================
+    // 🔥 NEW: EXTRACT AGENT PARAMETERS FROM BODY
+    // ============================================================
+    const travelAgentId = body.travel_agent_id || body.travelAgentId || null;
+    const travelAgentName = toStr(body.travel_agent_name) || toStr(body.travelAgent) || null;
+    const agentCode = toStr(body.agent_code) || toStr(body.agentCode) || null;
+    const commissionType = toStr(body.commission_type) || toStr(body.commissionType) || 'PERCENTAGE';
+    const commissionValue = toNum(body.commission_value) || toNum(body.commissionValue) || 0;
+    const agentCommissionAmount = toNum(body.agent_commission_amount) || toNum(body.agentAmount) || 0;
+    const agentCgstPercent = toNum(body.agent_cgst_percent) || toNum(body.agentCgstPer) || 0;
+    const agentCgstAmount = toNum(body.agent_cgst_amount) || toNum(body.agentCgst) || 0;
+    const agentSgstPercent = toNum(body.agent_sgst_percent) || toNum(body.agentSgstPer) || 0;
+    const agentSgstAmount = toNum(body.agent_sgst_amount) || toNum(body.agentSgst) || 0;
+    const agentIgstPercent = toNum(body.agent_igst_percent) || toNum(body.agentIgstPer) || 0;
+    const agentIgstAmount = toNum(body.agent_igst_amount) || toNum(body.agentIgst) || 0;
+    const agentCessPercent = toNum(body.agent_cess_percent) || toNum(body.agentCessPer) || 0;
+    const agentCessAmount = toNum(body.agent_cess_amount) || toNum(body.agentCess) || 0;
+    const agentTdsPercent = toNum(body.agent_tds_percent) || toNum(body.agentTdsPer) || 0;
+    const agentTdsAmount = toNum(body.agent_tds_amount) || toNum(body.agentTds) || 0;
+    const agentTcsPercent = toNum(body.agent_tcs_percent) || toNum(body.agentTcsPer) || 0;
+    const agentTcsAmount = toNum(body.agent_tcs_amount) || toNum(body.agentTcs) || 0;
+    const agentServiceFee = toNum(body.agent_service_fee) || toNum(body.agentServiceFee) || 0;
+    const agentTotalCommission = toNum(body.agent_total_commission) || toNum(body.agentTotal) || 0;
+    const agentPayToHotel = toNum(body.agent_pay_to_hotel) || toNum(body.agentPayToHotel) || 0;
+    const bookingId = toStr(body.booking_id) || toStr(body.bookingId) || null;
+    const bookingDate = body.booking_date || body.bookingDate || null;
+
+    console.log('🤝 Agent Parameters:', {
+      travelAgentId,
+      travelAgentName,
+      agentCode,
+      commissionType,
+      commissionValue,
+      agentCommissionAmount,
+      agentCgstPercent,
+      agentCgstAmount,
+      agentSgstPercent,
+      agentSgstAmount,
+      agentIgstPercent,
+      agentIgstAmount,
+      agentCessPercent,
+      agentCessAmount,
+      agentTdsPercent,
+      agentTdsAmount,
+      agentTcsPercent,
+      agentTcsAmount,
+      agentServiceFee,
+      agentTotalCommission,
+      agentPayToHotel,
+      bookingId,
+      bookingDate
+    });
+
+    // ============================================================
+    // Build parameters – order must match the stored procedure
+    // Total parameters now: 67 (43 original + 24 agent parameters)
+    // ============================================================
     const params = [
       body.guest_id ? Number(body.guest_id) : null,
       toStr(body.booking),
@@ -748,18 +789,45 @@ console.log('✅ Using outletId:', outletId);
       toNum(body.total_amount),
       toStr(body.status) || 'active',
       Number(userId),
-      paymentMethod, // <-- NEW PARAMETER: payment_method
+      paymentMethod, // 40th parameter
+
+      // ----- Agent parameters (24) -----
+      travelAgentId,
+      travelAgentName,
+      agentCode,
+      commissionType,
+      commissionValue,
+      agentCommissionAmount,
+      agentCgstPercent,
+      agentCgstAmount,
+      agentSgstPercent,
+      agentSgstAmount,
+      agentIgstPercent,
+      agentIgstAmount,
+      agentCessPercent,
+      agentCessAmount,
+      agentTdsPercent,
+      agentTdsAmount,
+      agentTcsPercent,
+      agentTcsAmount,
+      agentServiceFee,
+      agentTotalCommission,
+      agentPayToHotel,
+      bookingId,
+      bookingDate,
+
+      // ----- JSONs -----
       detailsJson,
       roomChargesJson,
       folioEntriesJson
     ];
 
-    // Validate that roomChargesJson is not null – procedure requires it
+    // Validate that roomChargesJson is not null
     if (!roomChargesJson) {
       throw new Error('Could not build room_charges – please provide valid room charge data.');
     }
 
-    console.log(`📊 Parameter count: ${params.length}`);
+    console.log(`📊 Parameter count: ${params.length}`); // Should be 67
     console.log(`📊 Room charges sample: ${roomChargesJson.substring(0, 200)}...`);
 
     const placeholders = params.map(() => '?').join(',');
@@ -795,7 +863,7 @@ console.log('✅ Using outletId:', outletId);
           data: masterRow[0],
           checkin_id: parsedResult.checkin_id,
           reg_no: parsedResult.reg_no,
-          payment_method: paymentMethod, // <-- Return payment method in response
+          payment_method: paymentMethod,
           room_ids: roomIdsString,
           debug: parsedResult.debug
         });

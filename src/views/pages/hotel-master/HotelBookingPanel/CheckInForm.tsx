@@ -1777,6 +1777,10 @@ const CheckInForm = () => {
         const roomIdsString = roomRows.map((r) => r.roomId).join(',')
         const roomNoString = roomRows.map((r) => r.roomNumber).join(',')   // <-- ye line add karo
 
+        const selectedAgent = values.travelAgentId 
+    ? travelAgents.find(a => a.agent_id === values.travelAgentId) 
+    : null;
+
 
         // ---- 1. Master Payload (only fields expected by sp_add_checkin) ----
         const masterPayload = {
@@ -1820,6 +1824,32 @@ const CheckInForm = () => {
           status: 'active',
           created_by_id: user?.id,
            payment_method: values.paymentMethod || 'Cash', // <-- ADD THIS LINE
+
+            // ----- Agent fields -----
+    travel_agent_id: values.travelAgentId || null,
+    travel_agent_name: values.travelAgent || null,
+    agent_code: selectedAgent?.agent_code || null,
+    commission_type: selectedAgent?.commission_type || 'PERCENTAGE',
+    commission_value: values.agentAmountPer || 0,
+    agent_commission_amount: values.agentAmount || 0,
+    agent_cgst_percent: values.agentCgstPer || 0,
+    agent_cgst_amount: values.agentCgst || 0,
+    agent_sgst_percent: values.agentSgstPer || 0,
+    agent_sgst_amount: values.agentSgst || 0,
+    agent_igst_percent: values.agentIgstPer || 0,
+    agent_igst_amount: values.agentIgst || 0,
+    agent_cess_percent: values.agentCessPer || 0,
+    agent_cess_amount: values.agentCess || 0,
+    agent_tds_percent: values.agentTdsPer || 0,
+    agent_tds_amount: values.agentTds || 0,
+    agent_tcs_percent: values.agentTcsPer || 0,
+    agent_tcs_amount: values.agentTcs || 0,
+    agent_service_fee: values.agentServiceFee || 0,
+    agent_total_commission: values.agentTotal || 0,
+    agent_pay_to_hotel: values.agentPayToHotel || 0,
+    booking_id: values.bookingId || null,
+    booking_date: values.bookingDate || null,
+
         }
 
         // ---- 2. Details Payload (full details per room) ----
@@ -3962,7 +3992,7 @@ const CheckInForm = () => {
                                 type="text"
                                 size="sm"
                                 className="w-100 fs-small input-24"
-                                readOnly
+                               
                               />
                             </Col>
                           </Row>

@@ -307,6 +307,9 @@ const [allLdgBillNos, setAllLdgBillNos] = useState<string[]>([])
   // Temporary inputs for bill wise panel (only non-Lodging types)
   const [billWiseInputs, setBillWiseInputs] = useState<{ [type: string]: string }>({})
 
+  // ✅ NEW: Dummy PAX per bill number
+  const [dummyPaxMap, setDummyPaxMap] = useState<Record<number, number>>({})
+
   // Add after other state declarations
 
 
@@ -685,37 +688,35 @@ const computeMasterTotals = (rows: DisplayDetailRow[]) => {
         }
       })
 
-      // ---------- Assign default bill numbers by transaction type ----------
-      // Lodging always gets bill number 1
       // ---------- Assign default bill numbers: all rows get bill_no = 1 ----------
-const typeMap = new Map<string, number>()
+      const typeMap = new Map<string, number>()
 
-// Set all rows to bill_no = 1
-displayRowsResult.forEach(row => {
-  row.bill_no = 1
-  // Also build a map of transaction types for the Bill Wise panel
-  const type = getTransactionType(row)
-  if (!typeMap.has(type)) {
-    typeMap.set(type, 1)
-  }
-})
+      // Set all rows to bill_no = 1
+      displayRowsResult.forEach(row => {
+        row.bill_no = 1
+        // Also build a map of transaction types for the Bill Wise panel
+        const type = getTransactionType(row)
+        if (!typeMap.has(type)) {
+          typeMap.set(type, 1)
+        }
+      })
 
-// Ensure Lodging is in the map (though it's already there)
-if (!typeMap.has('Lodging')) {
-  typeMap.set('Lodging', 1)
-}
+      // Ensure Lodging is in the map (though it's already there)
+      if (!typeMap.has('Lodging')) {
+        typeMap.set('Lodging', 1)
+      }
 
-// Store the map in state
-setBillNumberMap(typeMap)
+      // Store the map in state
+      setBillNumberMap(typeMap)
 
-// Populate billWiseInputs with only non-Lodging types
-const inputs: { [type: string]: string } = {}
-typeMap.forEach((val, key) => {
-  if (key !== 'Lodging') {
-    inputs[key] = String(val) // all '1'
-  }
-})
-setBillWiseInputs(inputs)
+      // Populate billWiseInputs with only non-Lodging types
+      const inputs: { [type: string]: string } = {}
+      typeMap.forEach((val, key) => {
+        if (key !== 'Lodging') {
+          inputs[key] = String(val) // all '1'
+        }
+      })
+      setBillWiseInputs(inputs)
 
       setDisplayRows(displayRowsResult)
 
@@ -1046,10 +1047,37 @@ const applyBillWise = async () => {
 
   const billWiseSummaryRows = getBillWiseSummaryRows()
 
-  const [editablePax, setEditablePax] = useState<number>(0)
+  // ✅ Initialize dummyPaxMap when billWiseSummaryRows change
+  useEffect(() => {
+    const initialMap: Record<number, number> = {}
+    billWiseSummaryRows.forEach(group => {
+      // Default dummy pax = total adults from this group (use first non-post row's adults)
+      const nonPostRow = group.rows.find(r => !r.isPostCharge)
+      const defaultAdults = nonPostRow ? nonPostRow.adults : 0
+      initialMap[group.billNo] = dummyPaxMap[group.billNo] ?? defaultAdults
+    })
+    setDummyPaxMap(initialMap)
+  }, [billWiseSummaryRows]) // Only run when groups change, but we need to avoid overwriting user edits.
+  // We'll use a separate effect to initialize only once.
 
+  // Better: initialize when billWiseSummaryRows first set, but preserve existing values.
+  useEffect(() => {
+    if (billWiseSummaryRows.length === 0) return
+    const newMap: Record<number, number> = { ...dummyPaxMap }
+    let changed = false
+    billWiseSummaryRows.forEach(group => {
+      if (newMap[group.billNo] === undefined) {
+        const nonPostRow = group.rows.find(r => !r.isPostCharge)
+        newMap[group.billNo] = nonPostRow ? nonPostRow.adults : 0
+        changed = true
+      }
+    })
+    if (changed) {
+      setDummyPaxMap(newMap)
+    }
+  }, [billWiseSummaryRows]) // We'll use the current dummyPaxMap in the effect closure, but it's fine.
 
-  // import RoomServiceCheckService hata do, ab CheckoutService hi kaafi hai
+  // Import RoomServiceCheckService hata do, ab CheckoutService hi kaafi hai
 
 const [checkingRoomService, setCheckingRoomService] = useState(false)
 
@@ -1131,6 +1159,9 @@ const handleConfirmCheckout = async () => {
       const masterTotals = computeMasterTotals(rowsForBill);
       const selectedRoomNumbers = Array.from(new Set(rowsForBill.map(r => r.room_number)));
       
+      // ✅ Get dummy PAX for this bill
+      const dummyPax = dummyPaxMap[billNo] ?? 0;
+
       // Build payload – flatten all totals into individual fields
       const payload = {
         checkin_id: combinedSummary.checkin_id,
@@ -1167,7 +1198,9 @@ const handleConfirmCheckout = async () => {
         driver_igst_amount: masterTotals.driver_igst,
         cess_amount: masterTotals.cess,
         service_charge_amount: masterTotals.service_charge_amount,
-        advance_amt: masterTotals.advance ,
+        advance_amt: masterTotals.advance,
+        // ✅ NEW: Dummy PAX
+        dummy_pax: dummyPax,
         // Bill number (crucial)
         bill_no: billNo,
         // Guest info
@@ -1200,6 +1233,7 @@ const handleConfirmCheckout = async () => {
     if (allCheckoutIds.length > 0 && allCheckoutIds[0] > 0) {
       setCheckoutId(allCheckoutIds[0]);
       setGeneratedBillNumber(allLdgBillNos[0] || '');
+      // ✅ Pass dummyPaxMap to bill modal
       setShowBillModal(true);
     } else {
       setCheckoutDone(false);
@@ -2106,10 +2140,10 @@ const handleConfirmCheckout = async () => {
                                   <Form.Control
                                     type="number"
                                     size="sm"
-                                    value={editablePax}
+                                    value={dummyPaxMap[group.billNo] ?? 0}
                                     onChange={(e) => {
                                       const val = parseInt(e.target.value) || 0
-                                      setEditablePax(val)
+                                      setDummyPaxMap(prev => ({ ...prev, [group.billNo]: val }))
                                     }}
                                     style={{
                                       width: '60px',
@@ -2578,6 +2612,8 @@ const handleConfirmCheckout = async () => {
         // ✅ Multi-bill arrays
         checkoutIds={allCheckoutIds}
         billNumbers={allLdgBillNos}
+        // ✅ Pass dummy PAX map
+        dummyPaxMap={dummyPaxMap}
         selectedRooms={Array.from(selectedRooms)}
         paymentTransactionId={paymentTransactionId}
         paymentDate={paymentDate}
