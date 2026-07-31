@@ -9,6 +9,8 @@ import GuestForm, { GuestFormData } from './GuestForm'
 import GuestService from '@/common/hotel/guest'
 import { useAuthContext } from '@/common/context/useAuthContext'
 import Pagination from '@/components/Common/Pagination'
+// ========== ADDED: History modal (same one used in CheckIn form) ==========
+import GuestHistoryModal from '../HotelBookingPanel/GuestHistoryModal'
 
 type Guest = {
   guest_id: number
@@ -117,6 +119,11 @@ const GuestMaster = () => {
   const [sortField, setSortField] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
+  // ========== ADDED: state for History modal ==========
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [historyGuestId, setHistoryGuestId] = useState<number | null>(null)
+  const [historyGuestName, setHistoryGuestName] = useState<string>('')
+
   const loadGuests = async () => {
     if (!hotelId) {
       toast.error('Hotel ID not found. Please login again.')
@@ -181,6 +188,13 @@ const GuestMaster = () => {
     setEditingGuest(null)
     setForm({ ...defaultForm, hotelid: hotelId, created_by_id: user?.id })
     setShowModal(true)
+  }
+
+  // ========== ADDED: open history modal for a guest ==========
+  const handleOpenHistoryModal = (guest: Guest) => {
+    setHistoryGuestId(guest.guest_id)
+    setHistoryGuestName(guest.name)
+    setShowHistoryModal(true)
   }
 
   const handleOpenEditModal = async (guest: Guest) => {
@@ -431,7 +445,7 @@ const GuestMaster = () => {
                 <th>Type</th>
                 <th>Discount %</th>
                 <th style={{ width: '120px' }}>Status</th>
-                <th style={{ width: '120px' }}>Actions</th>
+                <th style={{ width: '160px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -463,6 +477,14 @@ const GuestMaster = () => {
                       <div className="d-flex gap-2">
                         <Button variant="outline-primary" size="sm" onClick={() => handleOpenEditModal(guest)}>
                           <i className="fi fi-rr-edit" />
+                        </Button>
+                        {/* ========== ADDED: History button ========== */}
+                        <Button
+                          variant="outline-dark"
+                          size="sm"
+                          title="Guest History"
+                          onClick={() => handleOpenHistoryModal(guest)}>
+                          <i className="fi fi-rr-time-past" />
                         </Button>
                         <Button
                           variant="outline-danger"
@@ -501,6 +523,14 @@ const GuestMaster = () => {
         submitLabel={editingGuest ? 'Update' : 'Save'}
         Component={GuestForm}
         selectedItem={form}
+      />
+
+      {/* ========== ADDED: Guest History Modal ========== */}
+      <GuestHistoryModal
+        show={showHistoryModal}
+        onHide={() => setShowHistoryModal(false)}
+        guestId={historyGuestId}
+        guestName={historyGuestName}
       />
     </>
   )

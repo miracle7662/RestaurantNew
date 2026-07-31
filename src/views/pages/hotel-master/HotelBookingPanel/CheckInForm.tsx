@@ -3600,6 +3600,11 @@ const CheckInForm = () => {
                                 <th>A_Time</th>
                                 <th>D_Date</th>
                                 <th>D_Time</th>
+                                 <th>Room Tariff</th>
+                                <th>Dis</th>
+                                <th>Dis_Amt</th>
+                                <th>Tax%</th>
+                                <th>Tax Amt</th>
                                 <th>Adults</th>
                                 <th>Pax</th>
                                 <th>Ex_Pax</th>
@@ -3619,11 +3624,7 @@ const CheckInForm = () => {
                                 <th>Driver Tax</th>
                                 <th>Driver Total</th>
                                 <th>Day</th>
-                                <th>Room Tariff</th>
-                                <th>Dis</th>
-                                <th>Dis_Amt</th>
-                                <th>Tax%</th>
-                                <th>Tax Amt</th>
+                               
                                 <th>Total</th>
                                 <th>Actions</th>
                               </tr>
@@ -3651,6 +3652,11 @@ const CheckInForm = () => {
                                   <td>{row.arrivalTime}</td>
                                   <td>{row.departureDate}</td>
                                   <td>{row.departureTime}</td>
+                                  <td>{formatCellValue(row.rate)}</td>
+                                  <td>{safeNumber(row.discount)}%</td>
+                                  <td>{formatCellValue(row.discountAmt)}</td>
+                                  <td>{formatCellValue(row.taxPercent)}%</td>
+                                  <td>{formatCellValue(row.taxAmount)}</td>
                                   <td>{safeNumber(row.adults)}</td>
                                   <td>{safeNumber(row.pax)}</td>
                                   <td>{safeNumber(row.exPax)}</td>
@@ -3669,12 +3675,7 @@ const CheckInForm = () => {
                                   <td>{formatCellValue(row.driverTaxPercent)}%</td>
                                   <td>{formatCellValue(row.driverTax)}</td>
                                   <td>{formatCellValue(row.driverTotal)}</td>
-                                  <td>{safeNumber(row.nights)}</td>
-                                  <td>{formatCellValue(row.rate)}</td>
-                                  <td>{safeNumber(row.discount)}%</td>
-                                  <td>{formatCellValue(row.discountAmt)}</td>
-                                  <td>{formatCellValue(row.taxPercent)}%</td>
-                                  <td>{formatCellValue(row.taxAmount)}</td>
+                                  <td>{safeNumber(row.nights)}</td>                                
                                   <td>{formatCellValue(row.totalAmount)}</td>
                                   <td onClick={(e) => e.stopPropagation()}>
                                     <Button

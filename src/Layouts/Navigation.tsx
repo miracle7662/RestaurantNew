@@ -81,11 +81,22 @@ console.log('Calculated hotelType:', hotelType);
   }
 
   return (
-    <>
-      <AppMenu menuItems={menuItems} />
-      <div className="clearfix" />
-    </>
-  );
+  <>
+    <div
+  className="px-3 pt-4 pb-1 text-uppercase fw-bold"
+  style={{
+    fontSize: "11px",
+    color: "#6c757d",
+    letterSpacing: "1px",
+  }}
+>
+ 
+    </div>
+
+    <AppMenu menuItems={menuItems} />
+    <div className="clearfix" />
+  </>
+);
 };
 
 const Navigation = () => (
