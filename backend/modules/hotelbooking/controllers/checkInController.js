@@ -236,6 +236,47 @@ exports.getCheckin = async (req, res) => {
     }
 };
 
+
+
+// Get Agent Room Check-in List
+exports.getAgentRoomCheckins = async (req, res) => {
+  try {
+    const { hotelid, checkin_id } = req.query;
+
+    if (!hotelid || !checkin_id) {
+      return res.status(400).json({
+        success: false,
+        message: "hotelid and checkin_id are required."
+      });
+    }
+
+    const sql = `
+      SELECT *
+      FROM agent_room_checkin
+      WHERE hotelid = ?
+        AND checkin_id = ?
+      ORDER BY created_date DESC
+    `;
+
+    const [rows] = await db.query(sql, [hotelid, checkin_id]);
+
+    return res.status(200).json({
+      success: true,
+      count: rows.length,
+      data: rows
+    });
+
+  } catch (error) {
+    console.error("Error fetching Agent Room Checkins:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Agent Room Checkins",
+      error: error.message
+    });
+  }
+};
+
 // ----------------------------------------------------------------------
 // GET /checkins/next-reg-number – get next registration number
 // ----------------------------------------------------------------------

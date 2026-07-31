@@ -448,6 +448,53 @@ export interface UpdateBillNoPayload {
   billAssignments: BillAssignment[];
 }
 
+export interface AgentRoomCheckin {
+  checkin_transaction_id: number;
+  checkin_id: number;
+  reg_no: string;
+  hotelid: number;
+  guest_id: number;
+  agent_id: number;
+  agent_name: string;
+  agent_code: string;
+  commission_type: string;
+  commission_value: number;
+  commission_amount: number;
+  agent_cgst_percent: number;
+  agent_cgst_amount: number;
+  agent_sgst_percent: number;
+  agent_sgst_amount: number;
+  agent_igst_percent: number;
+  agent_igst_amount: number;
+  agent_cess_percent: number;
+  agent_cess_amount: number;
+  agent_tds_percent: number;
+  agent_tds_amount: number;
+  agent_tcs_percent: number;
+  agent_tcs_amount: number;
+  agent_service_fee: number;
+  agent_total_commission: number;
+  agent_pay_to_hotel: number;
+  room_id: number;
+  room_number: string;
+  room_category_id: number;
+  converted_category_id: number;
+  total_room_charges: number;
+  total_extra_charges: number;
+  grand_total_amount: number;
+  payment_method: string;
+  plan_name: string;
+  booking_id: number;
+  booking_date: string;
+  status: string;
+  is_billed: number;
+  is_dayend: number;
+  created_by_id: number;
+  created_date: string;
+  updated_by_id: number;
+  updated_date: string;
+}
+
 // ============================================================================
 // SERVICE
 // ============================================================================
@@ -549,6 +596,19 @@ getDailySalesSummaryReport: (params: {
    */
   getActiveRoomCreditCheckins: (params: { hotelid: number; room_no?: string }): Promise<ApiResponse<ActiveRoomCreditCheckin[]>> =>
   HttpClient.get<ApiResponse<ActiveRoomCreditCheckin[]>>('/checkins/active-room-credit', { params }),
+
+
+  /**
+ * Get Agent Room Checkins
+ */
+getAgentRoomCheckins: (params: {
+  hotelid: number;
+  checkin_id: number;
+}): Promise<ApiResponse<AgentRoomCheckin[]>> =>
+  HttpClient.get<ApiResponse<AgentRoomCheckin[]>>(
+    "/checkins/agent-room-checkins",
+    { params }
+  ),
   /**
    * Create a new checkin.
    */

@@ -7,6 +7,7 @@ router.get('/', controller.getCheckins);
 router.get('/at-glance', controller.getAtGlance);
 router.get("/daily-sales-summary", controller.getDailySalesSummary);
 router.get("/daily-sales-summary-report", controller.getDailySalesSummaryReport);
+router.get("/agent-room-checkins",controller.getAgentRoomCheckins);
 router.get( "/payment-mode-summary", controller.getPaymentModeSummary);
 router.get('/active-room-credit', controller.getActiveCheckinsForRoomCredit);
 router.post('/', controller.addCheckin);

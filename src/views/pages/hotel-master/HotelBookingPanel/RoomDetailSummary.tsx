@@ -161,6 +161,54 @@ interface BillDateSummaryItem {
   originalDayNumber: number
 }
 
+
+interface AgentRoomCheckin {
+  checkin_transaction_id: number
+  checkin_id: number
+  reg_no: string
+  hotelid: number
+  guest_id: number
+  agent_id: number
+  agent_name: string
+  agent_code: string
+  commission_type: string
+  commission_value: number
+  commission_amount: number
+  agent_cgst_percent: number
+  agent_cgst_amount: number
+  agent_sgst_percent: number
+  agent_sgst_amount: number
+  agent_igst_percent: number
+  agent_igst_amount: number
+  agent_cess_percent: number
+  agent_cess_amount: number
+  agent_tds_percent: number
+  agent_tds_amount: number
+  agent_tcs_percent: number
+  agent_tcs_amount: number
+  agent_service_fee: number
+  agent_total_commission: number
+  agent_pay_to_hotel: number
+  room_id: number
+  room_number: string
+  room_category_id: number
+  converted_category_id: number
+  total_room_charges: number
+  total_extra_charges: number
+  grand_total_amount: number
+  payment_method: string
+  plan_name: string
+  booking_id: string
+  booking_date: string
+  status: string
+  is_billed: number
+  is_dayend: number
+  created_by_id: number
+  created_date: string
+  updated_by_id: number
+  updated_date: string
+}
+
 // ==================== HELPER FUNCTIONS ====================
 
 const toNumber = (value: any): number => {
@@ -312,6 +360,9 @@ const [allLdgBillNos, setAllLdgBillNos] = useState<string[]>([])
 
   // Add after other state declarations
 
+  const [agentRoomCheckins, setAgentRoomCheckins] = useState<AgentRoomCheckin[]>([])
+const [agentLoading, setAgentLoading] = useState(false)
+
 
   const { occupiedItem } = (location.state as any) || {}
   const checkinIdFromState = occupiedItem?.checkin_id
@@ -449,6 +500,37 @@ const [allLdgBillNos, setAllLdgBillNos] = useState<string[]>([])
   }
 
   // Build checkout_detail_rows from a list of rows (non-post charges)
+
+
+  const fetchAgentRoomCheckins = async () => {
+  if (!hotelId || !checkinIdFromState) return
+  setAgentLoading(true)
+  try {
+    const res: any = await CheckInService.getAgentRoomCheckins({
+      hotelid: hotelId,
+      checkin_id: checkinIdFromState,
+    })
+    if (res.success && Array.isArray(res.data)) {
+      setAgentRoomCheckins(res.data)
+    } else {
+      setAgentRoomCheckins([])
+    }
+  } catch (err) {
+    console.error('Failed to fetch agent room checkins:', err)
+    setAgentRoomCheckins([])
+  } finally {
+    setAgentLoading(false)
+  }
+}
+
+useEffect(() => {
+  if (hotelId && checkinIdFromState) {
+    console.log('🔥 Calling fetchData...')
+    fetchData()
+    fetchAgentRoomCheckins()   // ✅ NEW
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [hotelId, checkinIdFromState])
 
 
 // Compute master totals for a group of rows
@@ -2225,6 +2307,9 @@ const handleConfirmCheckout = async () => {
                 <i className="fi fi-rr-refresh me-1"></i> Refresh
               </Button>
             </div>
+         
+
+
             <div className="px-3 py-2 overflow-auto" style={{ paddingBottom: '60px' }}>
               <Row className="mb-2 g-0">
                 <Col md={12} className="pe-0">
@@ -2426,6 +2511,80 @@ const handleConfirmCheckout = async () => {
                 </Card.Body>
               </Card>
             </div>
+
+            {(agentRoomCheckins.length > 0 || agentLoading) && (
+  <div className="px-3 py-2">
+    <Card className="shadow-sm mb-3">
+      <Card.Header className="bg-fo-header text-black py-1">
+        <span className="fw-bold">Travel Agent Information</span>
+      </Card.Header>
+      <Card.Body className="p-0">
+        {agentLoading ? (
+          <div className="p-2 text-muted small">Loading agent details...</div>
+        ) : (
+          <div className="scrollable-table" style={{ maxHeight: '180px' }}>
+            <table className="table-fo mb-0">
+              <thead className="bg-fo-header text-black">
+                <tr>
+                  <th>Agent Name</th>
+                  <th>Agent Code</th>
+                  <th>Room No</th>
+                  <th>Commission Type</th>
+                  <th>Comm. Value</th>
+                  <th>Comm. Amount</th>
+                  <th>CGST%</th>
+                  <th>CGST Amt</th>
+                  <th>SGST%</th>
+                  <th>SGST Amt</th>
+                  <th>IGST%</th>
+                  <th>IGST Amt</th>
+                  <th>TDS%</th>
+                  <th>TDS Amt</th>
+                  <th>TCS%</th>
+                  <th>TCS Amt</th>
+                  <th>Service Fee</th>
+                  <th>Total Commission</th>
+                  <th>Pay to Hotel</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agentRoomCheckins.map((agent, idx) => (
+                  <tr key={`agent-${agent.checkin_transaction_id}-${idx}`}>
+                    <td className="fw-bold">{agent.agent_name || '-'}</td>
+                    <td>{agent.agent_code || '-'}</td>
+                    <td className="text-center">{agent.room_number || '-'}</td>
+                    <td>{agent.commission_type || '-'}</td>
+                    <td className="text-end">{toNumber(agent.commission_value)}</td>
+                    <td className="text-end">{formatAmountClean(agent.commission_amount)}</td>
+                    <td className="text-center">{agent.agent_cgst_percent}%</td>
+                    <td className="text-end">{formatAmountClean(agent.agent_cgst_amount)}</td>
+                    <td className="text-center">{agent.agent_sgst_percent}%</td>
+                    <td className="text-end">{formatAmountClean(agent.agent_sgst_amount)}</td>
+                    <td className="text-center">{agent.agent_igst_percent}%</td>
+                    <td className="text-end">{formatAmountClean(agent.agent_igst_amount)}</td>
+                    <td className="text-center">{agent.agent_tds_percent}%</td>
+                    <td className="text-end">{formatAmountClean(agent.agent_tds_amount)}</td>
+                    <td className="text-center">{agent.agent_tcs_percent}%</td>
+                    <td className="text-end">{formatAmountClean(agent.agent_tcs_amount)}</td>
+                    <td className="text-end">{formatAmountClean(agent.agent_service_fee)}</td>
+                    <td className="text-end fw-bold text-primary">
+                      {formatAmountClean(agent.agent_total_commission)}
+                    </td>
+                    <td className="text-end fw-bold text-success">
+                      {formatAmountClean(agent.agent_pay_to_hotel)}
+                    </td>
+                    <td className="text-center">{agent.status || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card.Body>
+    </Card>
+  </div>
+)}
           </>
         )}
 
