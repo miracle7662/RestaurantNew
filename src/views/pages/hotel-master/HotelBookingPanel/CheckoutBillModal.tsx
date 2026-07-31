@@ -1235,7 +1235,9 @@ const CheckoutBillModal: React.FC<CheckoutBillModalProps> = ({
     if (printSettings?.show_booking_details !== 1) return null
     
     const invoiceNo = propBillNumber || billData[0]?.ldg_bill_no || generatedBillNo
-    const invoiceDateDisplay = propPaymentDate || invoiceDate
+    const invoiceDateDisplay = propPaymentDate
+  ? formatDateTime(propPaymentDate)
+  : invoiceDate;
     const bookingIdDisplay = summary?.reg_no || `BKD${summary?.checkin_id || '0000'}`
     const roomTypeDisplay = summary?.room_categories_str || '-'
     const roomNumbersDisplay = checkedOutRoomsStr || summary?.room_numbers_str || '-'
