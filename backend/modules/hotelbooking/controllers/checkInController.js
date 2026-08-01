@@ -936,6 +936,92 @@ exports.addCheckin = async (req, res) => {
 };
 
 
+exports.updatePaxDetails = async (req, res) => {
+    let connection;
+
+    try {
+        const { checkin_id, detail_id, pax, ex_pax, child_paid, driver, user_id } = req.body;
+
+        // 1. Required fields validation
+        if (!checkin_id || !detail_id || !user_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'checkin_id, detail_id, and user_id are required.'
+            });
+        }
+
+        // 2. Convert and validate numeric fields
+        const paxNum = Number(pax);
+        const exPaxNum = Number(ex_pax);
+        const childPaidNum = Number(child_paid);
+        const driverNum = Number(driver);
+        const userIdNum = Number(user_id);
+
+        if ([paxNum, exPaxNum, childPaidNum, driverNum, userIdNum].some(isNaN)) {
+            return res.status(400).json({
+                success: false,
+                message: 'All numeric fields must be valid numbers.'
+            });
+        }
+
+        if (paxNum < 0 || exPaxNum < 0 || childPaidNum < 0 || driverNum < 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Pax, ExPax, Child, and Driver counts cannot be negative.'
+            });
+        }
+
+        // 3. Get database connection
+        connection = await db.getConnection();
+
+        // 4. Execute stored procedure
+        const [result] = await connection.query(
+            'CALL sp_update_pax_details(?, ?, ?, ?, ?, ?, ?)',
+            [checkin_id, detail_id, paxNum, exPaxNum, childPaidNum, driverNum, userIdNum]
+        );
+
+        // 5. Extract updated data (first result set, first row)
+        const updatedData = result?.[0]?.[0] || null;
+
+        // 6. Success response
+        return res.status(200).json({
+            success: true,
+            message: 'Pax details updated successfully.',
+            data: updatedData
+        });
+
+    } catch (error) {
+        // 7. Enhanced error handling
+        console.error('Error in updatePaxDetails:', error);
+
+        let errorMessage = 'Failed to update pax details.';
+        if (error.code === 'ER_NO_REFERENCED_ROW_2' || error.code === 'ER_NO_REFERENCED_ROW') {
+            errorMessage = 'Invalid checkin_id or detail_id provided.';
+        } else if (error.code === 'ER_DUP_ENTRY') {
+            errorMessage = 'Duplicate entry error.';
+        } else if (error.sqlMessage?.includes('data too long')) {
+            errorMessage = 'One or more values exceed the allowed length.';
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: errorMessage,
+            ...(process.env.NODE_ENV === 'development' && {
+                error: error.sqlMessage || error.message
+            })
+        });
+
+    } finally {
+        // 8. Always release connection
+        if (connection) connection.release();
+    }
+};
+
+
+
+
+
+
 // ----------------------------------------------------------------------
 // PUT /checkins/:id – update checkin
 // ----------------------------------------------------------------------

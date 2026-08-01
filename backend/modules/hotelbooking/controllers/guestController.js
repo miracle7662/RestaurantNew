@@ -363,28 +363,39 @@ exports.addGuest = async (req, res) => {
         const finalDepartureName = departure_to ? departure_to.trim().toUpperCase() : null;
         const finalGuestTypeName = guest_type ? guest_type.trim() : null;
 
-        const [result] = await connection.execute(`
-            INSERT INTO guest_master (
-                fragment_id, name, organisation, address, city_id, state_id, country_id,
-                occupation, post_held, phone, mobile, email, website,
-                purpose_id, purpose, arrived_id, arrived_from, departure_id, departure_to, guest_type_id, guest_type,
-                birthday, anniversary, gender,
-                nationality_id, credit_allowed, company_id, discount_percent,
-                hotelid, created_by_id, created_at, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-            vFrag, name, organisation || null, address || null,
-            vCity, vState, vCountry,
-            occupation || null, post_held || null, phone || null, mobile,
-            email || null, website || null,
-            vPurpose, finalPurposeName, vArrived, finalArrivedName, vDeparture, finalDepartureName, vGuestType, finalGuestTypeName,
-            formattedBirthday, formattedAnniversary,
-            gender || 'Male',
-            vNat, credit_allowed ? 1 : 0, vComp,
-            discount_percent !== undefined ? discount_percent : 0,
-            vHotel, created_by_id || userId, created_at,
-            status !== undefined ? status : 1
-        ]);
+        const insertValues = [
+    vFrag, name, organisation || null, address || null,
+    vCity, vState, vCountry,
+    occupation || null, post_held || null, phone || null, mobile || null,
+    email || null, website || null,
+    vPurpose, finalPurposeName, vArrived, finalArrivedName,
+    vDeparture, finalDepartureName, vGuestType, finalGuestTypeName,
+    formattedBirthday, formattedAnniversary,
+    gender || 'Male',
+    vNat, credit_allowed ? 1 : 0, vComp ?? null,
+    discount_percent !== undefined ? discount_percent : 0,
+    vHotel, created_by_id || userId, created_at,
+    status !== undefined ? status : 1
+];
+
+console.log("Guest Insert Values:", insertValues);
+
+const undefinedValues = insertValues
+    .map((value, index) => ({ index, value }))
+    .filter(item => item.value === undefined);
+
+console.log("Undefined Values:", undefinedValues);
+
+const [result] = await connection.execute(`
+    INSERT INTO guest_master (
+        fragment_id, name, organisation, address, city_id, state_id, country_id,
+        occupation, post_held, phone, mobile, email, website,
+        purpose_id, purpose, arrived_id, arrived_from, departure_id, departure_to, guest_type_id, guest_type,
+        birthday, anniversary, gender,
+        nationality_id, credit_allowed, company_id, discount_percent,
+        hotelid, created_by_id, created_at, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`, insertValues);
 
         await connection.commit();
 
@@ -620,6 +631,88 @@ exports.updateGuest = async (req, res) => {
     }
 };
 
+exports.updateGuestInfo = async (req, res) => {
+
+     console.log("==== updateGuestInfo called ====");
+  console.log("Body:", req.body);
+  let connection;
+
+  try {
+    const connection = await db.getConnection();
+
+    let {
+  checkin_id,
+  guest_id,
+  guest,
+  documents,
+  updated_by_id,
+} = req.body;
+
+// Parse multipart JSON strings
+if (typeof guest === "string") {
+  guest = JSON.parse(guest);
+}
+
+if (typeof documents === "string") {
+  documents = JSON.parse(documents);
+}
+
+console.log("Parsed guest:", guest);
+console.log("Parsed documents:", documents);
+
+if (!checkin_id || !guest?.name) {
+  return res.status(400).json({
+    success: false,
+    message: "checkin_id and guest.name are required.",
+  });
+}
+
+    console.log("Calling SP:", {
+  checkin_id,
+  guest_id,
+  guest,
+  documents,
+  updated_by_id,
+});
+
+    await connection.execute(
+      "CALL UpdateGuestInfo(?, ?, ?, ?, ?)",
+      [
+        checkin_id,
+        guest_id ?? null,
+        JSON.stringify(guest),
+        JSON.stringify(documents ?? []),
+        updated_by_id ?? null,
+      ]
+    );
+
+    const [rows] = await connection.execute(
+      "SELECT guest_id FROM checkin_master WHERE checkin_id=?",
+      [checkin_id]
+    );
+
+    res.json({
+      success: true,
+      message: "Guest information updated successfully.",
+      data: {
+        guest_id: rows[0]?.guest_id ?? guest_id,
+        checkin_id,
+      },
+    });
+
+  } catch (err) {
+    console.error("updateGuestInfo:", err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 exports.deleteGuest = async (req, res) => {
     const connection = await db.getConnection();
     
@@ -721,6 +814,82 @@ exports.getDocument = async (req, res) => {
         console.error('Error in getDocument:', error);
         res.status(500).json({ success: false, message: 'Database error' });
     }
+};
+
+// controllers/guestController.js
+
+exports.getGuestFull = async (req, res) => {
+  try {
+    const { guestId } = req.params;
+
+    // ─── 1. Fetch guest with all joins ──────────────────────────────
+    const [guests] = await db.execute(`
+      SELECT 
+        g.*,
+        f.name AS fragment_name,
+        ct.city_name,
+        s.state_name,
+        co.country_name,
+        n.nationality,
+        comp.company_name,
+        gt.guest_type_name,
+        p.purpose_name,
+        a.arrived_name,
+        d.departure_name
+      FROM guest_master g
+      LEFT JOIN fragmentmaster f ON f.fragment_id = g.fragment_id
+      LEFT JOIN mstcitymaster ct ON ct.cityid = g.city_id
+      LEFT JOIN mststatemaster s ON s.stateid = g.state_id
+      LEFT JOIN mstcountrymaster co ON co.countryid = g.country_id
+      LEFT JOIN nationalitymaster n ON n.nationality_id = g.nationality_id
+      LEFT JOIN company_master comp ON comp.company_id = g.company_id
+      LEFT JOIN guest_type_master gt ON gt.guest_type_id = g.guest_type_id
+      LEFT JOIN purpose_master p ON p.purpose_id = g.purpose_id
+      LEFT JOIN arrived_master a ON a.arrived_id = g.arrived_id
+      LEFT JOIN departure_master d ON d.departure_id = g.departure_id
+      WHERE g.guest_id = ?
+    `, [guestId]);
+
+    if (!guests || guests.length === 0) {
+      return res.status(404).json({ success: false, message: 'Guest not found' });
+    }
+
+    const guest = guests[0];
+
+    // ─── 2. Fetch guest documents ──────────────────────────────────
+    const [documents] = await db.execute(
+      'SELECT * FROM guest_document WHERE guest_id = ? ORDER BY document_id DESC',
+      [guestId]
+    );
+
+    const docsWithUrls = documents.map(doc => ({
+      ...doc,
+      front_side_url: doc.front_side ? getFileUrl(req, doc.front_side) : null,
+      back_side_url: doc.back_side ? getFileUrl(req, doc.back_side) : null,
+      guest_photo_url: doc.guest_photo ? getFileUrl(req, doc.guest_photo) : null,
+      front_side: doc.front_side,
+      back_side: doc.back_side,
+      guest_photo: doc.guest_photo,
+    }));
+
+    // ─── 3. Fetch active document types ────────────────────────────
+    const [documentTypes] = await db.execute(
+      'SELECT * FROM document_type_master WHERE status = 1 ORDER BY document_type_name ASC'
+    );
+
+    // ─── 4. Send combined response ─────────────────────────────────
+    res.json({
+      success: true,
+      data: {
+        guest,
+        documents: docsWithUrls,
+        documentTypes,
+      },
+    });
+  } catch (error) {
+    console.error('Error in getGuestFull:', error);
+    res.status(500).json({ success: false, message: 'Database error' });
+  }
 };
 
 exports.addDocument = async (req, res) => {

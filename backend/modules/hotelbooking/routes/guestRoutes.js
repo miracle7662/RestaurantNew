@@ -3,9 +3,19 @@ const router = express.Router();
 const controller = require('../controllers/guestController');
 const { uploadGuestDocuments, uploadGuestPhoto } = require('../../../middleware/upload');
 const path = require('path');
+const multer = require('multer');
+const upload = multer({ 
+  // apni existing storage config yahan (diskStorage/memoryStorage jo baaki jagah use ho rahi hai)
+});
+
+
+router.put("/update-guest-info", upload.any(), controller.updateGuestInfo);
+router.get('/:guestId/full', controller.getGuestFull);
+
+
 
 // Guest routes
-router.get('/', controller.getGuests);
+//router.get('/', controller.getGuests);
 router.get('/:id', controller.getGuest);
 router.post('/', controller.addGuest);
 router.put('/:id', controller.updateGuest);
@@ -15,6 +25,9 @@ router.delete('/:id', controller.deleteGuest);
 router.post('/:guestId/photo', uploadGuestPhoto, controller.uploadGuestPhoto);
 router.get('/:guestId/photo', controller.getGuestPhoto);
 router.delete('/:guestId/photo', controller.deleteGuestPhoto);
+
+
+// routes/guestRoutes.js
 
 // Document routes with file upload middleware
 router.get('/:guestId/documents', controller.getDocuments);

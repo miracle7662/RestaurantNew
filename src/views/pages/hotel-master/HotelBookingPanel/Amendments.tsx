@@ -1467,16 +1467,40 @@ const PaxChangeComponent = ({
     setPreviewActive(false)
   }
 
+  // ============================================================
+  // HELPER: Get tariff for a given Pax count from tariffSlabs
+  // ============================================================
+  const getTariffForPax = (paxCount: number): number => {
+    if (!tariffSlabs.length) {
+      return selectedRoom.detail.room_tariff || 0
+    }
+    // Find exact match
+    const slab = tariffSlabs.find((t) => Number(t.no_of_pax) === paxCount)
+    if (slab) {
+      return Number(slab.room_tariff)
+    }
+    // Fallback: highest available tariff
+    const sorted = [...tariffSlabs].sort((a, b) => Number(a.no_of_pax) - Number(b.no_of_pax))
+    const maxSlab = sorted[sorted.length - 1]
+    if (maxSlab && paxCount > Number(maxSlab.no_of_pax)) {
+      return Number(maxSlab.room_tariff)
+    }
+    // Keep original
+    return selectedRoom.detail.room_tariff || 0
+  }
+
   const exPaxCalc = computeModeCharges('EXTRA_PAX', tempExPax)
   const childCalc = computeModeCharges('CHILD', tempChildPaid)
   const driverCalc = computeModeCharges('DRIVER', tempDriver)
 
   const updatedRow = useMemo(() => {
+    const newRoomTariff = getTariffForPax(tempPax)
     const updatedDetail = {
       ...selectedRoom.detail,
       pax: tempPax,
       ex_pax: tempExPax,
       driver: tempDriver,
+      room_tariff: newRoomTariff,   // ✅ updated tariff
     }
     const updatedCheckin = { 
       ...selectedRoom.checkin, 
@@ -1512,6 +1536,7 @@ const PaxChangeComponent = ({
     childCalc,
     driverCalc,
     nights,
+    tariffSlabs,   // ✅ now depends on tariffSlabs
   ])
 
   const originalExPaxCalc = useMemo(
@@ -1556,95 +1581,19 @@ const PaxChangeComponent = ({
   const handleUpdate = async () => {
     setLoadingUpdate(true)
     try {
-      // Calculate all values
-      const newTotal = parseFloat(updatedRow.totalAmount)
-      const baseRoomAmount = parseFloat(updatedRow.rate) * nights
-      const discountAmount = (baseRoomAmount * (selectedRoom.detail.discount_percent || 0)) / 100
-      const roomAmountAfterDiscount = baseRoomAmount - discountAmount
-      const taxPercent = parseFloat(updatedRow.taxPercent)
-      const taxAmount = (roomAmountAfterDiscount * taxPercent) / 100
-
-      // ========== 1. UPDATE detail_master ==========
-      const detailPayload = {
+      await CheckInService.updatePaxDetails({
+        checkin_id: selectedRoom.checkin.checkin_id,
+        detail_id: selectedRoom.detail.detail_id,
         pax: tempPax,
         ex_pax: tempExPax,
-        driver: tempDriver,
-        ex_pax_charge: exPaxCalc.perNightPrice,
-        driver_charge: driverCalc.perNightPrice,
-        child_paid_amount: childCalc.perNightPrice,
-        tax: taxAmount,
-        total_amount: newTotal,
-      }
-      await DetailService.update(selectedRoom.detail.detail_id, detailPayload)
-      console.log('[PAX] Updated detail_master:', detailPayload)
-
-      // ========== 2. UPDATE checkin_master (ALL FIELDS) ==========
-      const checkinPayload = {
         child_paid: tempChildPaid,
-        child_charge: childCalc.price,
-        ex_pax: tempExPax,
-        ex_pax_charge: exPaxCalc.price,
         driver: tempDriver,
-        driver_charge: driverCalc.price,
-        total_amount: newTotal,
-      }
-      await CheckInService.update(selectedRoom.checkin.checkin_id, checkinPayload)
-      console.log('[PAX] Updated checkin_master:', checkinPayload)
-
-      // ========== 3. UPDATE or CREATE guest_room_charges ==========
-     const chargesPayload = {
-  guest_id: selectedRoom.checkin.guest_id,
-  room_id: selectedRoom.detail.room_id,
-
-  detail_checkin_datetime: selectedRoom.detail.detail_checkin_datetime,
-  detail_checkout_datetime: selectedRoom.detail.detail_checkout_datetime,
-
-  ex_pax_count: tempExPax,
-  ex_pax_price: exPaxCalc.price,
-  ex_pax_tax: exPaxCalc.tax,
-  ex_pax_tax_percent: exPaxCalc.taxPercent,
-  ex_pax_total: exPaxCalc.total,
-
-  child_count: tempChildPaid,
-  child_price: childCalc.price,
-  child_tax: childCalc.tax,
-  child_tax_percent: childCalc.taxPercent,
-  child_total: childCalc.total,
-
-  driver_count: tempDriver,
-  driver_price: driverCalc.price,
-  driver_tax: driverCalc.tax,
-  driver_tax_percent: driverCalc.taxPercent,
-  driver_total: driverCalc.total,
-
-  total_amount: newTotal,
-}
-
-      const paxChargesId = selectedRoom.charges?.checkin_guest_room_charges_id || selectedRoom.charges?.id
-      if (paxChargesId) {
-        await GuestRoomChargesService.update(paxChargesId, chargesPayload)
-        console.log('[PAX] Updated guest_room_charges ID:', paxChargesId)
-      } else {
-        const newChargesPayload = {
-          checkin_id: selectedRoom.checkin.checkin_id,
-          ...chargesPayload,
-        }
-        await GuestRoomChargesService.create(newChargesPayload)
-        console.log('[PAX] Created new guest_room_charges')
-      }
-
-      // ========== 4. UPDATE folio entry ==========
-      await updateRoomChargeFolio(
-        selectedRoom.checkin.checkin_id,
-        selectedRoom.detail.detail_id,
-        newTotal,
-        selectedRoom.checkin.hotelid,
-      )
-      console.log('[PAX] Updated folio with new total:', newTotal)
+        user_id: user?.id || 1,
+      })
 
       toast.success(`Pax information updated successfully!
-        Pax: ${tempPax} | ExPax: ${tempExPax} | Child: ${tempChildPaid} | Driver: ${tempDriver}
-        Total: ${newTotal}`)
+        Pax: ${tempPax} | ExPax: ${tempExPax} | Child: ${tempChildPaid} | Driver: ${tempDriver}`)
+      
       onRefresh()
       onClose()
     } catch (error) {
@@ -3523,7 +3472,6 @@ interface ChangeGuestInfoProps {
   onClose: () => void
   onRefresh: () => void
 }
-
 const ChangeGuestInfoComponent = ({
   selectedRoom,
   allRoomsDetails,
@@ -3580,69 +3528,52 @@ const ChangeGuestInfoComponent = ({
   }
 
   const handleEditGuest = async () => {
-    let guest = selectedRoom.guest
-    // If guest data is not yet loaded, fetch it now
-    if (!guest && selectedRoom.checkin.guest_id) {
-      try {
-        const res = await GuestService.get(selectedRoom.checkin.guest_id)
-        guest = res?.data ?? res
-        if (!guest || !guest.guest_id) {
-          toast.error('Failed to load guest data')
-          return
-        }
-      } catch (err) {
-        console.error('Failed to fetch guest:', err)
-        toast.error('Could not load guest data')
-        return
-      }
-    }
-    
-    if (!guest) {
-      toast.error('Guest data not available')
+  const guestId = selectedRoom.guest?.guest_id ?? selectedRoom.checkin.guest_id
+  if (!guestId) {
+    toast.error('Guest data not available')
+    return
+  }
+
+  try {
+    const res = await GuestService.getFullGuest(guestId)
+    if (!res?.success || !res.data) {
+      toast.error(res?.message || 'Failed to load guest data')
       return
     }
 
-    // Fetch guest documents + document types (to map name → id for FormSelect)
-    let documents: any[] = []
-    try {
-      const [docsRes, docTypesRes] = await Promise.all([
-        GuestService.listDocuments(guest.guest_id),
-        DocumentTypeService.list({ status: 1 }),
-      ])
-      const rawDocs: any[] = docsRes?.data ?? []
-      const docTypes: any[] = docTypesRes?.data ?? []
+    const { guest, documents: rawDocs = [], document_types: docTypes = [] } = res.data
 
-      // Build a name→id map so stored name values resolve to numeric-string IDs
-      // The DB stores document_type as the type name (e.g. "PASSPORT"),
-      // but FormSelect options use value: String(dt.id) (e.g. "1").
-      const nameToId = new Map<string, string>()
-      const idToId = new Map<string, string>()
-      docTypes.forEach((dt: any) => {
-        nameToId.set(String(dt.document_type_name ?? '').toUpperCase(), String(dt.id))
-        idToId.set(String(dt.id), String(dt.id))
-      })
-
-      const resolveDocType = (val: string): string => {
-        if (!val) return ''
-        // Already an ID
-        if (idToId.has(val)) return val
-        // It's a name — look up its ID
-        return nameToId.get(val.toUpperCase()) ?? val
-      }
-
-      documents = rawDocs.map((d: any) => ({
-        document_id: d.document_id,
-        document_type: resolveDocType(String(d.document_type ?? '')),
-        document_number: d.document_no ?? '',
-        front_side: d.front_side_url ?? d.front_side ?? '',
-        back_side: d.back_side_url ?? d.back_side ?? '',
-        front_side_url: d.front_side_url ?? null,
-        back_side_url: d.back_side_url ?? null,
-      }))
-    } catch (err) {
-      console.error('Failed to fetch guest documents:', err)
+    if (!guest || !guest.guest_id) {
+      toast.error('Failed to load guest data')
+      return
     }
-    
+
+    // Build a name→id map so stored name values resolve to numeric-string IDs
+    // The DB stores document_type as the type name (e.g. "PASSPORT"),
+    // but FormSelect options use value: String(dt.id) (e.g. "1").
+    const nameToId = new Map<string, string>()
+    const idToId = new Map<string, string>()
+    docTypes.forEach((dt: any) => {
+      nameToId.set(String(dt.document_type_name ?? '').toUpperCase(), String(dt.id))
+      idToId.set(String(dt.id), String(dt.id))
+    })
+
+    const resolveDocType = (val: string): string => {
+      if (!val) return ''
+      if (idToId.has(val)) return val
+      return nameToId.get(val.toUpperCase()) ?? val
+    }
+
+    const documents = rawDocs.map((d: any) => ({
+      document_id: d.document_id,
+      document_type: resolveDocType(String(d.document_type ?? '')),
+      document_number: d.document_no ?? '',
+      front_side: d.front_side_url ?? d.front_side ?? '',
+      back_side: d.back_side_url ?? d.back_side ?? '',
+      front_side_url: d.front_side_url ?? null,
+      back_side_url: d.back_side_url ?? null,
+    }))
+
     // Transform guest data to match GuestForm expected format
     setEditingGuest({
       guest_id: guest.guest_id,
@@ -3675,155 +3606,139 @@ const ChangeGuestInfoComponent = ({
       documents: documents.length > 0 ? documents : [{ document_type: '', document_number: '', front_side: '', back_side: '' }],
     })
     setShowGuestModal(true)
+  } catch (err) {
+    console.error('Failed to fetch guest:', err)
+    toast.error('Could not load guest data')
   }
+}
 
-  const handleGuestSave = async (guestData: any) => {
-    setSavingGuest(true)
-    try {
-      let savedGuest: any
-      const guestId = editingGuest?.guest_id
-
-      // Prepare payload - ensure required fields are present
-      const payload: any = {
-        name: guestData.name?.trim(),
-        mobile: guestData.mobile?.trim(),
-        phone: guestData.phone?.trim() || '',
-        email: guestData.email?.trim() || '',
-        address: guestData.address?.trim() || '',
-        organisation: guestData.organisation?.trim() || '',
-        occupation: guestData.occupation?.trim() || '',
-        post_held: guestData.post_held?.trim() || '',
-        website: guestData.website?.trim() || '',
-        purpose: guestData.purpose?.trim() || '',
-        arrived_from: guestData.arrived_from?.trim() || '',
-        departure_to: guestData.departure_to?.trim() || '',
-        birthday: guestData.birthday || null,
-        anniversary: guestData.anniversary || null,
-        gender: guestData.gender || 'Male',
-        guest_type: guestData.guest_type || 'REGULAR',
-        credit_allowed: guestData.credit_allowed ? 1 : 0,
-        discount_percent: guestData.discount_percent || 0,
-        status: 1,
-        hotelid: hotelId,
-      }
-
-      // Add fragment_id if exists
-      if (guestData.fragment_id) {
-        payload.fragment_id = guestData.fragment_id
-      }
-      
-      // Add location IDs if they exist
-      if (guestData.country_id) payload.country_id = guestData.country_id
-      if (guestData.state_id) payload.state_id = guestData.state_id
-      if (guestData.city_id) payload.city_id = guestData.city_id
-      if (guestData.nationality_id) payload.nationality_id = guestData.nationality_id
-      if (guestData.company_id) payload.company_id = guestData.company_id
-
-      if (guestId) {
-        // UPDATE existing guest
-        payload.updated_by_id = user?.id
-        const response = await GuestService.update(guestId, payload)
-        
-        if (!response?.success) {
-          toast.error(response?.message || 'Guest update failed')
-          return
-        }
-        savedGuest = response.data
-        toast.success('Guest updated successfully')
-      } else {
-        // CREATE new guest
-        payload.created_by_id = user?.id
-        const response = await GuestService.create(payload)
-        
-        if (!response?.success) {
-          toast.error(response?.message || 'Guest creation failed')
-          return
-        }
-        savedGuest = response.data
-        toast.success('Guest created successfully')
-      }
-
-      if (!savedGuest || !savedGuest.guest_id) {
-        toast.error('No data returned from server — please refresh and try again')
-        return
-      }
-
-      // Update CheckIn_Master with new guest info
-      if (selectedRoom?.checkin?.checkin_id) {
-        const checkinId = selectedRoom.checkin.checkin_id
-        const checkinPayload: any = {
-          guest_name: savedGuest.name ?? guestData.name ?? '',
-          address: savedGuest.address ?? guestData.address ?? '',
-          mobile: savedGuest.mobile ?? guestData.mobile ?? '',
-          emailed: savedGuest.email ?? guestData.email ?? '',
-          company_name: savedGuest.company_name ?? guestData.company_name ?? selectedRoom.checkin.company_name ?? '',
-        }
-        
-        // If new guest was created, link it to the checkin
-        if (!guestId) {
-          checkinPayload.guest_id = savedGuest.guest_id
-        }
-        
-        await CheckInService.update(checkinId, checkinPayload)
-      }
-
-      // Save/update guest documents
-      const savedGuestId = savedGuest.guest_id
-      const submittedDocs: any[] = guestData.documents ?? []
-      for (const doc of submittedDocs) {
-        if (!doc.document_type && !doc.document_number) continue
-        const docPayload: any = {
-          document_type: doc.document_type,
-          document_no: doc.document_number,
-          front_side: doc._temp_front instanceof File ? doc._temp_front : undefined,
-          back_side: doc._temp_back instanceof File ? doc._temp_back : undefined,
-        }
-        try {
-          if (doc.document_id) {
-            await GuestService.updateDocument(savedGuestId, doc.document_id, docPayload)
-          } else {
-            await GuestService.createDocument(savedGuestId, docPayload)
-          }
-        } catch (docErr) {
-          console.error('Failed to save document:', docErr)
-        }
-      }
-
-      // Update the local state with the new guest name
-      setGuestName(savedGuest.name ?? guestData.name ?? guestName)
-      
-      onRefresh()
-      setShowGuestModal(false)
-      setEditingGuest(null)
-    } catch (error: any) {
-      console.error('Failed to save guest:', error)
-      const msg = error?.response?.data?.message ?? error?.message ?? 'Failed to save guest. Please try again.'
-      toast.error(msg)
-    } finally {
-      setSavingGuest(false)
-    }
-  }
-
-  const handleUpdate = async () => {
-    if (!guestName.trim()) {
-      toast.error('Guest name cannot be empty')
+const handleGuestSave = async (guestData: any) => {
+  setSavingGuest(true)
+  try {
+    const checkinId = selectedRoom?.checkin?.checkin_id
+    if (!checkinId) {
+      toast.error('Check-in not found')
       return
     }
-    setLoadingUpdate(true)
-    try {
-      await CheckInService.update(selectedRoom.checkin.checkin_id, {
-        guest_name: guestName.trim(),
-        company_name: companyName.trim(),
-      })
-      toast.success('Guest information updated')
-      onRefresh()
-    } catch (error) {
-      console.error('Failed to update guest info:', error)
-      toast.error('Could not update guest information')
-    } finally {
-      setLoadingUpdate(false)
+
+    const guestPayload = {
+      guest_id: editingGuest?.guest_id ?? undefined,
+      name: guestData.name?.trim(),
+      mobile: guestData.mobile?.trim(),
+      phone: guestData.phone?.trim() || '',
+      email: guestData.email?.trim() || '',
+      address: guestData.address?.trim() || '',
+      organisation: guestData.organisation?.trim() || '',
+      occupation: guestData.occupation?.trim() || '',
+      post_held: guestData.post_held?.trim() || '',
+      website: guestData.website?.trim() || '',
+      purpose: guestData.purpose?.trim() || '',
+      arrived_from: guestData.arrived_from?.trim() || '',
+      departure_to: guestData.departure_to?.trim() || '',
+      birthday: guestData.birthday || null,
+      anniversary: guestData.anniversary || null,
+      gender: guestData.gender || 'Male',
+      guest_type: guestData.guest_type || 'REGULAR',
+      credit_allowed: guestData.credit_allowed ? 1 : 0,
+      discount_percent: guestData.discount_percent || 0,
+      status: 1,
+      hotelid: hotelId,
+      ...(guestData.fragment_id ? { fragment_id: guestData.fragment_id } : {}),
+      ...(guestData.country_id ? { country_id: guestData.country_id } : {}),
+      ...(guestData.state_id ? { state_id: guestData.state_id } : {}),
+      ...(guestData.city_id ? { city_id: guestData.city_id } : {}),
+      ...(guestData.nationality_id ? { nationality_id: guestData.nationality_id } : {}),
+      ...(guestData.company_id ? { company_id: guestData.company_id } : {}),
     }
+
+    const documentsPayload = (guestData.documents ?? [])
+      .filter((doc: any) => doc.document_type || doc.document_number)
+      .map((doc: any) => ({
+        document_id: doc.document_id,
+        document_type: doc.document_type,
+        document_number: doc.document_number,
+        front_side: doc._temp_front instanceof File ? doc._temp_front : undefined,
+        back_side: doc._temp_back instanceof File ? doc._temp_back : undefined,
+      }))
+
+      console.log("UpdateGuestInfo Payload:", {
+  checkin_id: selectedRoom?.checkin?.checkin_id,
+  guest_id: editingGuest?.guest_id,
+  
+  documents: guestData.documents,
+  updated_by_id: user?.id,
+});
+
+    const response = await GuestService.updateGuestInfo({
+      checkin_id: checkinId,
+      guest_id: editingGuest?.guest_id ?? null,
+      guest: guestPayload,
+      documents: documentsPayload,
+      updated_by_id: user?.id,
+    })
+
+    if (!response?.success) {
+      toast.error(response?.message || 'Failed to save guest')
+      return
+    }
+
+    toast.success(editingGuest?.guest_id ? 'Guest updated successfully' : 'Guest created successfully')
+
+    // Update local state with the new guest name
+    setGuestName(guestData.name ?? guestName)
+
+    onRefresh()
+    setShowGuestModal(false)
+    setEditingGuest(null)
+  } catch (error: any) {
+    console.error('Failed to save guest:', error)
+    const msg = error?.response?.data?.message ?? error?.message ?? 'Failed to save guest. Please try again.'
+    toast.error(msg)
+  } finally {
+    setSavingGuest(false)
   }
+}
+
+  const handleUpdate = async () => {
+  if (!guestName.trim()) {
+    toast.error('Guest name cannot be empty');
+    return;
+  }
+
+  setLoadingUpdate(true);
+  try {
+    const checkinId = selectedRoom.checkin.checkin_id;
+    const existingGuestId = selectedRoom.checkin.guest_id;
+
+    // Build minimal guest payload with only name/company
+    const guestPayload = {
+      name: guestName.trim(),
+      organisation: companyName.trim(),
+      // Keep other fields as empty/default; the procedure will preserve existing data
+      mobile: selectedRoom.checkin.mobile || '',
+    };
+
+    const response = await GuestService.updateGuestInfo({
+      checkin_id: checkinId,
+      guest_id: existingGuestId || null,
+      guest: guestPayload,
+      documents: [], // No documents for quick update
+      updated_by_id: user?.id,
+    });
+
+    if (response.success) {
+      toast.success('Guest information updated');
+      onRefresh(); // Parent re‑fetches data → table updates
+    } else {
+      toast.error(response.message || 'Update failed');
+    }
+  } catch (error: any) {
+    console.error('Failed to update guest info:', error);
+    toast.error(error?.response?.data?.message || error?.message || 'Could not update guest information');
+  } finally {
+    setLoadingUpdate(false);
+  }
+};
 
   const handleTest = () => {
     setPreviewActive(true)
@@ -4037,6 +3952,7 @@ const ChangeGuestInfoComponent = ({
     </ActionBox>
   )
 }
+
 
 // ================== Transfer Room Component (FIXED - No database query in frontend) ==================
 // ================== Transfer Room Component (UPDATED - Single API) ==================

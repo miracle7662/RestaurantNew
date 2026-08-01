@@ -104,6 +104,30 @@ export interface GuestDocumentPayload {
   back_side?: File | string | null;
 }
 
+export interface UpdateGuestInfoPayload {
+  checkin_id: number
+  guest_id?: number | null
+
+  guest: GuestPayload
+
+  documents: {
+    document_id?: number
+    document_type: string
+    document_number: string
+    front_side?: File | null
+    back_side?: File | null
+  }[]
+
+  updated_by_id: number
+}
+
+interface GuestFullResponse {
+  guest: Guest;
+  documents: GuestDocument[];
+  documentTypes: { id: number; document_type_name: string; status: number }[];
+  document_types: { id: number; document_type_name: string; status: number }[];
+}
+
 // ---------- Combined Service ----------
 const GuestService = {
   // Guest endpoints
@@ -192,11 +216,54 @@ create: (payload: GuestPayload): Promise<ApiResponse<Guest>> => {
       });
   },
 
+updateGuestInfo: (
+  payload: UpdateGuestInfoPayload
+): Promise<ApiResponse<{ guest_id: number; checkin_id: number }>> => {
+  const formData = new FormData();
+
+  formData.append("checkin_id", String(payload.checkin_id));
+
+  if (payload.guest_id != null) {
+    formData.append("guest_id", String(payload.guest_id));
+  }
+
+  formData.append("guest", JSON.stringify(payload.guest));
+  formData.append("documents", JSON.stringify(
+    payload.documents.map(doc => ({
+      document_id: doc.document_id,
+      document_type: doc.document_type,
+      document_number: doc.document_number,
+    }))
+  ));
+
+  formData.append("updated_by_id", String(payload.updated_by_id));
+
+  payload.documents.forEach((doc, index) => {
+    if (doc.front_side instanceof File) {
+      formData.append(`front_side_${index}`, doc.front_side);
+    }
+    if (doc.back_side instanceof File) {
+      formData.append(`back_side_${index}`, doc.back_side);
+    }
+  });
+
+  // ✅ Content-Type header mat bhejo — axios FormData dekh kar khud
+  // boundary ke saath sahi multipart/form-data header set kar dega
+  return HttpClient.put<ApiResponse<{ guest_id: number; checkin_id: number }>>(
+    "/guests/update-guest-info",
+    formData
+  );
+},
   getGuestPhoto: (guestId: number): Promise<ApiResponse<{ guest_photo: string; guest_photo_url: string }>> =>
     HttpClient.get<ApiResponse<{ guest_photo: string; guest_photo_url: string }>>(`/guests/${guestId}/photo`),
 
   deleteGuestPhoto: (guestId: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/guests/${guestId}/photo`)
+    HttpClient.delete<ApiResponse<null>>(`/guests/${guestId}/photo`),
+
+  // Add this method:
+getFullGuest: (guestId: number): Promise<ApiResponse<GuestFullResponse>> =>
+  HttpClient.get<ApiResponse<GuestFullResponse>>(`/guests/${guestId}/full`),
+
 };
 
 export default GuestService;

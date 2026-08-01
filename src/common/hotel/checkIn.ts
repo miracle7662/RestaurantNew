@@ -495,6 +495,16 @@ export interface AgentRoomCheckin {
   updated_date: string;
 }
 
+export interface UpdatePaxDetailsPayload {
+  checkin_id: number;
+  detail_id: number;
+  pax: number;
+  ex_pax: number;
+  child_paid: number;
+  driver: number;
+  user_id: number;
+}
+
 // ============================================================================
 // SERVICE
 // ============================================================================
@@ -653,6 +663,12 @@ getAgentRoomCheckins: (params: {
 // Service (checkIn.ts)
 updateBillNo: (payload: UpdateBillNoPayload): Promise<ApiResponse<any>> =>
   HttpClient.put("/checkins/update-bill-no", payload),
+
+/**
+ * Update pax details for a check-in room.
+ */
+updatePaxDetails: (payload: UpdatePaxDetailsPayload): Promise<ApiResponse<any>> =>
+  HttpClient.put("/checkins/update-pax-details", payload),
 
 };
 

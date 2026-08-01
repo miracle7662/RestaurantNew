@@ -15,6 +15,7 @@ router.get('/next-reg-number', controller.getNextRegNumber);
 router.get('/details/:checkinId', controller.getDetailsByCheckinId);
 router.get('/today-checkouts', controller.getTodayCheckouts);
 router.put("/update-bill-no", controller.updateBillNo);
+router.put("/update-pax-details", controller.updatePaxDetails);
 router.get('/:id', controller.getCheckin);
 router.put('/:id', controller.updateCheckin);
 router.patch('/:id/partial', controller.updatePartialCheckin);
