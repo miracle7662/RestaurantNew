@@ -16,13 +16,10 @@ import CompanyService from '@/common/hotel/company'
 import CountryService from '@/common/api/countries'
 import GuestRoomChargesService from '@/common/hotel/guestRoomCharges'
 import RoomCategoryService from '@/common/hotel/roomCategoryService'
-import PaymentMethodService from '@/common/api/outletpaymentmode'
-import GuestFolioService from '@/common/hotel/guestFolio'
 import taxApi from '@/common/hotel/taxes'
-import RoomService from '@/common/hotel/room'
+import RoomService, { ChangeRoomCategoryPayload } from '@/common/hotel/room';
 import PostChargesService from '@/common/hotel/postCharges'
 import AdvanceTransactionService from '@/common/hotel/advanceTransaction'
-import DocumentTypeService from '@/common/hotel/documentType'
 import RoomTransferService from '@/common/hotel/roomTransferService';
 
 
@@ -65,43 +62,7 @@ interface AmendmentFormValues {
 }
 
 // ================== Helper: Update room charge folio entry ==================
-const updateRoomChargeFolio = async (
-  checkinId: number,
-  detailId: number,
-  newTotalAmount: number,
-  hotelId: number,
-) => {
-  try {
-    const folioRes = await GuestFolioService.list({ checkin_id: checkinId })
-    const folioEntries = folioRes.data || []
 
-    const roomChargeEntry = folioEntries.find(
-      (entry: any) => entry.detail_id === detailId && entry.transaction_type === 'Room Charge',
-    )
-
-    if (roomChargeEntry) {
-      await GuestFolioService.update(roomChargeEntry.folio_id, {
-        debit_amount: newTotalAmount,
-        description: `Room charge updated (total: ${newTotalAmount})`,
-      })
-    } else {
-      await GuestFolioService.create({
-        checkin_id: checkinId,
-        hotelid: hotelId,
-        detail_id: detailId,
-        transaction_type: 'Room Charge',
-        transaction_datetime: new Date().toISOString(),
-        description: 'Room charge',
-        debit_amount: newTotalAmount,
-        credit_amount: 0,
-        payment_method: '',
-      })
-    }
-  } catch (error) {
-    console.error('Failed to update room charge folio:', error)
-    throw error
-  }
-}
 
 const Amendments = () => {
   const navigate = useNavigate()
@@ -929,13 +890,7 @@ const Amendments = () => {
                         onRefresh={refreshOccupiedRooms}
                       />
                      
-                    ) : activeAction === 'Change In Pay Mode' && selectedRoom ? (
-                      <ChangePayModeComponent
-                        selectedRoom={selectedRoom}
-                        allRoomsDetails={allRoomsDetails}
-                        onClose={handleCloseAction}
-                        onRefresh={refreshSelectedRoom}
-                      />
+                   
                    
                     ) : activeAction === 'Apply Discount' && selectedRoom ? (
                       <ApplyDiscountComponent
@@ -1890,7 +1845,7 @@ const PaxChangeComponent = ({
 //    checkin_guest_room_charges are loaded — so the table never shows the booking-total child count.
 
 interface StayAmendmentsProps {
-  selectedRoom: OccupiedRoom
+  selectedRoom: any // OccupiedRoom type
   onClose: () => void
   onRefresh: () => void
 }
@@ -1905,119 +1860,89 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
   const [loading, setLoading] = useState(false)
   const [previewActive, setPreviewActive] = useState(false)
 
-  // Fallback category mode_charges (used only when detail fields are missing/zero)
-  const [stayModeCharges, setStayModeCharges] = useState<any[]>([])
-  const [stayTaxMap, setStayTaxMap] = useState<Map<number, number>>(new Map())
-
-  // FIX: per-room child count resolved from checkin_guest_room_charges for this specific room
+  // Per-room child count resolved from getCheckinFullDetails (SP row for this specific room)
   const [perRoomChildCount, setPerRoomChildCount] = useState<number | null>(null)
+  // Extension day-records for this room's detail — resolved from the SAME fetch, used by reduce validation
+  const [extensionRows, setExtensionRows] = useState<any[]>([])
+  const [dataLoading, setDataLoading] = useState(true)
 
-  // Fetch category mode charges as fallback + per-room child count from checkin_guest_room_charges
+  const detail = selectedRoom.detail
+  const checkin = selectedRoom.checkin
+
+  // ── ONLY GET CALL IN THE WHOLE COMPONENT ─────────────────────────────────
   useEffect(() => {
     const fetchData = async () => {
-      const detail = selectedRoom.detail
-      const checkin = selectedRoom.checkin
-
-      // ── 1. Fetch per-room child count from checkin_guest_room_charges ──────────────
-      // selectedRoom.checkin.child_paid is the BOOKING-TOTAL child count.
-      // checkin_guest_room_charges rows are per-room, so filtering by room_id gives the
-      // correct per-room child count.
+      setDataLoading(true)
       try {
-        const chargesRes = await GuestRoomChargesService.list({ checkin_id: checkin.checkin_id })
-        const allCharges: any[] = chargesRes.data || []
-        const roomCharges = allCharges
-          .filter((c: any) => Number(c.room_id) === Number(detail.room_id))
+        const fullDetailsRes = await RoomService.getCheckinFullDetails(hotelId, checkin.checkin_id)
+        const allRows: any[] = fullDetailsRes.data?.details || []
+
+        // Per-room child count: latest ROOM_CHARGE row for this room_id
+        const roomRows = allRows
+          .filter(
+            (r: any) =>
+              r.source_type === 'ROOM_CHARGE' && Number(r.room_id) === Number(detail.room_id),
+          )
           .sort(
             (a: any, b: any) =>
-              new Date(b.checkin_datetime || 0).getTime() -
-              new Date(a.checkin_datetime || 0).getTime(),
+              new Date(b.detail_checkin_datetime || b.charge_checkin_datetime || 0).getTime() -
+              new Date(a.detail_checkin_datetime || a.charge_checkin_datetime || 0).getTime(),
           )
-        if (roomCharges.length > 0) {
-          // Latest charge row has the correct per-room child_count
-          setPerRoomChildCount(Number(roomCharges[0].child_count) || 0)
-        } else {
-          // No charge row yet → fall back to checkin.child_paid (might be booking total, best effort)
-          setPerRoomChildCount(Number(checkin.child_paid) || 0)
-        }
+
+        setPerRoomChildCount(
+          roomRows.length > 0
+            ? Number(roomRows[0].child_count) || 0
+            : Number(checkin.child_paid) || 0,
+        )
+
+        // Extension day-records belonging to this room's parent detail (for reduce-mode validation)
+        const extRows = allRows.filter(
+          (r: any) =>
+            r.source_type === 'ROOM_CHARGE' && r.parent_detail_id === detail.detail_id,
+        )
+        setExtensionRows(extRows)
       } catch (err) {
-        console.error('Failed to fetch checkin_guest_room_charges for child count', err)
+        console.error('Failed to fetch checkin full details', err)
         setPerRoomChildCount(Number(checkin.child_paid) || 0)
-      }
-
-      // ── 2. Fetch category mode_charges as fallback rates ───────────────────
-      const effectiveCategoryId = detail.converted_category_id || detail.room_category_id
-      if (!effectiveCategoryId) return
-      try {
-        const catRes = await RoomCategoryService.get(effectiveCategoryId)
-        const catData = catRes.data || catRes
-        setStayModeCharges(catData.mode_charges || [])
-
-        const taxRes = await taxApi.list()
-        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || []
-        const map = new Map<number, number>()
-        taxData.forEach((tax: any) => {
-          const percent = tax.hotel_tax_value ?? tax.hotel_cgst + tax.hotel_sgst
-          map.set(tax.hotel_taxid, percent)
-        })
-        setStayTaxMap(map)
-      } catch (error) {
-        console.error('Failed to load stay mode charges', error)
+        setExtensionRows([])
+      } finally {
+        setDataLoading(false)
       }
     }
     fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoom])
 
-  // ── Resolved per-room counts ───────────────────────────────────────────────
-  // Use perRoomChildCount (from checkin_guest_room_charges) once loaded; while loading show checkin value.
+  // ── Resolved per-room counts ──────────────────────────────────────────────
   const resolvedChildCount =
-    perRoomChildCount !== null ? perRoomChildCount : Number(selectedRoom.checkin.child_paid) || 0
-
-  // ── Per-person rates from detail (same source as HotelBookingPanel) ────────
-  // These are the actual rates stored at checkin time, always correct for this room.
-  const detail = selectedRoom.detail
-  const checkin = selectedRoom.checkin
+    perRoomChildCount !== null ? perRoomChildCount : Number(checkin.child_paid) || 0
 
   const exPaxCountOnDetail = Number(detail.ex_pax) || 0
   const driverCountOnDetail = Number(detail.driver) || 0
 
-  // Per-person rates stored on detail:
-  //   ex_pax_charge   = total ex_pax base charge (for exPaxCountOnDetail persons)
-  //   child_paid_amount = total child base charge (for resolvedChildCount persons)
-  //   driver_charge   = total driver base charge (for driverCountOnDetail persons)
-  // Divide by count to get per-person rate; fall back to category mode_charges if zero.
+  // ── Per-person rates from detail only ─────────────────────────────────────
+  // (category mode_charges / tax-master fallback removed — those GET calls are gone)
   const getExPaxRatePerPerson = (): number => {
     const fromDetail = Number(detail.ex_pax_charge) || 0
-    if (fromDetail > 0 && exPaxCountOnDetail > 0) return fromDetail / exPaxCountOnDetail
-    // Fallback: category mode_charges
-    const modeEntry = stayModeCharges.find((m: any) => m.mode_name === 'EXTRA_PAX')
-    return modeEntry ? Number(modeEntry.charges) || 0 : 0
+    return fromDetail > 0 && exPaxCountOnDetail > 0 ? fromDetail / exPaxCountOnDetail : 0
   }
 
   const getChildRatePerPerson = (): number => {
     const fromDetail = Number(detail.child_paid_amount) || 0
-    if (fromDetail > 0 && resolvedChildCount > 0) return fromDetail / resolvedChildCount
-    // Fallback: category mode_charges
-    const modeEntry = stayModeCharges.find((m: any) => m.mode_name === 'CHILD')
-    return modeEntry ? Number(modeEntry.charges) || 0 : 0
+    return fromDetail > 0 && resolvedChildCount > 0 ? fromDetail / resolvedChildCount : 0
   }
 
   const getDriverRatePerPerson = (): number => {
     const fromDetail = Number(detail.driver_charge) || 0
-    if (fromDetail > 0 && driverCountOnDetail > 0) return fromDetail / driverCountOnDetail
-    // Fallback: category mode_charges
-    const modeEntry = stayModeCharges.find((m: any) => m.mode_name === 'DRIVER')
-    return modeEntry ? Number(modeEntry.charges) || 0 : 0
+    return fromDetail > 0 && driverCountOnDetail > 0 ? fromDetail / driverCountOnDetail : 0
   }
 
-  // Tax percent: use detail's own cgst+sgst/igst (consistent with original checkin)
   const getTaxPercent = (): number => {
     const igst = Number(detail.igst_percent) || 0
     if (igst > 0) return igst
     return (Number(detail.cgst_percent) || 0) + (Number(detail.sgst_percent) || 0)
   }
 
-  // ── computeExtraCharge: unified helper replacing computeStayModeCharge ─────
-  // Uses per-person rate × count × nights and applies the detail's own tax percent.
   const computeExtraCharge = (
     ratePerPerson: number,
     count: number,
@@ -2084,34 +2009,27 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
   }
 
   const originalRow = useMemo(() => {
-    // buildRoomDataRowFromDetail reads checkin.child_paid which is the BOOKING-TOTAL
-    // (e.g. 2 for a 2-room booking). We must override childPaid + child price fields
-    // with the per-room values AFTER resolvedChildCount is available.
     const raw = buildRoomDataRowFromDetail(
       selectedRoom.detail,
       selectedRoom.checkin,
       selectedRoom.charges,
     )
 
-    // Once perRoomChildCount is resolved, patch the row so the table shows correct values.
-    // While still loading (perRoomChildCount === null) the raw row is shown as-is.
     if (perRoomChildCount === null) return raw
 
-    const childCount = resolvedChildCount // per-room count (correct)
+    const childCount = resolvedChildCount
     const childCalc = computeExtraCharge(getChildRatePerPerson(), childCount, currentNights)
 
     return {
       ...raw,
-      // Override child count column with per-room value
       childPaid: childCount,
-      // Override child price/tax/total columns with per-room calculation
       childPrice: childCalc.price.toFixed(2),
       childTax: childCalc.tax.toFixed(2),
       childTaxPercent: childCalc.taxPercent,
       childTotal: childCalc.total.toFixed(2),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRoom, perRoomChildCount, stayModeCharges, stayTaxMap])
+  }, [selectedRoom, perRoomChildCount])
 
   const previewRow = useMemo(() => {
     if (!previewActive) return null
@@ -2124,7 +2042,6 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
       checkout_datetime: preview.newCheckoutDateTime,
     }
 
-    // FIX: use resolvedChildCount (per-room) instead of checkin.child_paid (booking total)
     const childCount = resolvedChildCount
     const exPaxCount = exPaxCountOnDetail
     const driverCount = driverCountOnDetail
@@ -2149,184 +2066,8 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
       driver_total: driverCalc.total,
     }
     return buildRoomDataRowFromDetail(updatedDetail, checkin, scaledCharges)
-  }, [selectedRoom, previewActive, mode, days, resolvedChildCount, stayModeCharges, stayTaxMap])
-
-  // Helper: Format local datetime string for API
-  const formatLocalDateTimeString = (date: Date): string => {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
-  }
-
-  // Helper: Create day-wise extension records
-  const createDayWiseExtensionRecords = async (
-    item: OccupiedRoom,
-    extensionDays: number,
-    exPaxCount: number,
-    childCount: number, // FIX: caller must pass resolvedChildCount (per-room)
-    driverCount: number,
-    startDate: Date,
-    userHotelId: number,
-    userId: number | undefined,
-  ) => {
-    const detailData = item.detail
-    const checkinData = item.checkin
-    const roomTariff = detailData.room_tariff || 0
-    const discountPercent = detailData.discount_percent || 0
-    const serviceCharge = detailData.service_charge || 0
-    const cgstPercent = detailData.cgst_percent || 0
-    const sgstPercent = detailData.sgst_percent || 0
-    const igstPercent = detailData.igst_percent || 0
-    const cessPercent = detailData.cess_percent || 0
-
-    const newDetailIds: number[] = []
-    let totalExtensionAmount = 0
-
-    const originalCheckinDatetime = detailData.checkin_datetime
-      ? new Date(detailData.checkin_datetime)
-      : startDate
-
-    // Mark current detail as merged/inactive
-    if (detailData.detail_id) {
-      await DetailService.update(detailData.detail_id, { is_checkout: 1, merged: 1 })
-    }
-
-    for (let dayIndex = 0; dayIndex < extensionDays; dayIndex++) {
-      const dayCheckinDate = new Date(startDate)
-      dayCheckinDate.setDate(startDate.getDate() + dayIndex)
-      const dayCheckoutDate = new Date(startDate)
-      dayCheckoutDate.setDate(startDate.getDate() + dayIndex + 1)
-
-      // Room charge for this day
-      const discountAmount = (roomTariff * discountPercent) / 100
-      const roomPriceAfterDiscount = roomTariff - discountAmount
-
-      let roomCgstAmount = 0,
-        roomSgstAmount = 0,
-        roomIgstAmount = 0
-      if (igstPercent > 0) {
-        roomIgstAmount = (roomPriceAfterDiscount * igstPercent) / 100
-      } else {
-        roomCgstAmount = (roomPriceAfterDiscount * cgstPercent) / 100
-        roomSgstAmount = (roomPriceAfterDiscount * sgstPercent) / 100
-      }
-      const roomCessAmount = (roomPriceAfterDiscount * cessPercent) / 100
-      const roomServiceChargeAmount = (roomPriceAfterDiscount * serviceCharge) / 100
-      const roomTaxAmount =
-        roomIgstAmount + roomCgstAmount + roomSgstAmount + roomCessAmount + roomServiceChargeAmount
-      const roomTotal = roomPriceAfterDiscount + roomTaxAmount
-
-      // FIX: use per-person rates from detail (not category mode_charges)
-      // computeExtraCharge(perPersonRate, count, nights=1)
-      const exPaxCalc = computeExtraCharge(getExPaxRatePerPerson(), exPaxCount, 1)
-      const childCalc = computeExtraCharge(getChildRatePerPerson(), childCount, 1)
-      const driverCalc = computeExtraCharge(getDriverRatePerPerson(), driverCount, 1)
-
-      const dayTotal = roomTotal + exPaxCalc.total + childCalc.total + driverCalc.total
-      totalExtensionAmount += dayTotal
-
-      const detailPayload = {
-        checkin_id: checkinData.checkin_id,
-        hotelid: userHotelId,
-        room_id: detailData.room_id,
-        room_number: detailData.room_number,
-        room_category_id: detailData.room_category_id,
-        room_category_name: detailData.room_category_name,
-        converted_category_id: detailData.converted_category_id,
-        converted_category_name: detailData.converted_category_name,
-        checkin_datetime: formatLocalDateTimeString(originalCheckinDatetime),
-        checkout_datetime: formatLocalDateTimeString(dayCheckoutDate),
-        no_of_days: 1,
-        adults: detailData.adults,
-        pax: detailData.pax,
-        ex_pax: exPaxCount,
-        // FIX: store per-room child count (childCount is already per-room)
-        child_unpaid: childCount,
-        driver: driverCount,
-        room_tariff: roomTariff,
-        discount_percent: discountPercent,
-        discount_amount: discountAmount,
-        // FIX: store per-person rate × count (the total base charge for this day, not per-person rate)
-        ex_pax_charge: exPaxCalc.perNightPrice,
-        child_paid_amount: childCalc.perNightPrice,
-        driver_charge: driverCalc.perNightPrice,
-        cgst_percent: cgstPercent,
-        cgst_amount: roomCgstAmount,
-        sgst_percent: sgstPercent,
-        sgst_amount: roomSgstAmount,
-        igst_percent: igstPercent,
-        igst_amount: roomIgstAmount,
-        cess_percent: cessPercent,
-        cess_amount: roomCessAmount,
-        service_charge: serviceCharge,
-        service_charge_amount: roomServiceChargeAmount,
-        parent_detail_id: detailData.detail_id,
-        is_checkout: 0,
-        merged: 0,
-        tax: roomTaxAmount,
-        created_by_id: userId,
-      }
-
-      const detailRes = await DetailService.create(detailPayload)
-      const newDetailId = detailRes.data?.detail_id
-      if (!newDetailId) throw new Error(`Failed to create extension detail for day ${dayIndex + 1}`)
-      newDetailIds.push(newDetailId)
-
-      // checkin_guest_room_charges row for this day
-      const chargePayload = {
-        guest_id: Number(checkinData.guest_id) || 0,
-        room_id: Number(detailData.room_id) || 0,
-        category_id: detailData.room_category_id ? Number(detailData.room_category_id) : null,
-        checkin_id: Number(checkinData.checkin_id) || 0,
-        detail_id: newDetailId,
-        pax_count: detailData.pax || 1,
-        pax_price: roomTariff,
-        pax_tax: roomTaxAmount,
-        ex_pax_count: exPaxCount,
-        ex_pax_price: exPaxCalc.perNightPrice,
-        ex_pax_total: exPaxCalc.total,
-        ex_pax_tax: exPaxCalc.perNightTax,
-        ex_pax_tax_percent: exPaxCalc.taxPercent,
-        // FIX: child_count stores the per-room count (resolvedChildCount passed as childCount)
-        child_count: childCount,
-        child_price: childCalc.perNightPrice,
-        child_total: childCalc.total,
-        child_tax: childCalc.perNightTax,
-        child_tax_percent: childCalc.taxPercent,
-        driver_count: driverCount,
-        driver_price: driverCalc.perNightPrice,
-        driver_total: driverCalc.total,
-        driver_tax: driverCalc.perNightTax,
-        driver_tax_percent: driverCalc.taxPercent,
-        total_amount: dayTotal,
-         // ✅ Rename these fields
-  detail_checkin_datetime: formatLocalDateTimeString(dayCheckinDate),
-  detail_checkout_datetime: formatLocalDateTimeString(dayCheckoutDate),
-      }
-      await GuestRoomChargesService.create(chargePayload)
-
-      // Folio entry for this day
-      const description = `Day extension day ${dayIndex + 1}/${extensionDays} Room ${detailData.room_number}`
-      await GuestFolioService.create({
-        checkin_id: checkinData.checkin_id,
-        hotelid: userHotelId,
-        detail_id: newDetailId,
-        transaction_type: 'Room Charge',
-        transaction_datetime: formatLocalDateTimeString(new Date()),
-        description,
-        debit_amount: dayTotal,
-        credit_amount: 0,
-        reference_number: `EXT-${checkinData.checkin_id}-${detailData.room_id}-${Date.now()}-${dayIndex}`,
-        payment_method: (item.checkin as any).payment_method || 'Cash',
-      } as any)
-    }
-
-    return { totalExtensionAmount, newDetailIds }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRoom, previewActive, mode, days, resolvedChildCount])
 
   const handleExtendClick = () => {
     setMode('extend')
@@ -2350,11 +2091,15 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
       toast.error('Invalid date calculation. Cannot reduce below checkin date.')
       return
     }
+    if (mode === 'reduce' && extensionRows.length < days) {
+      toast.error(`Cannot reduce by ${days} days. Only ${extensionRows.length} extension day(s) exist.`)
+      return
+    }
     setPreviewActive(true)
     toast.success('Preview updated')
   }
 
-  const handleUpdate = async () => {
+ const handleUpdate = async () => {
     if (days <= 0) {
       toast.error('Please enter a valid number of days')
       return
@@ -2373,96 +2118,47 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
 
     setLoading(true)
     try {
-      const newCheckoutDateTime = preview.newCheckoutDateTime
-
       if (mode === 'extend') {
-        const extensionDays = days
-        const currentCheckoutDateObj = new Date(detail.checkout_datetime)
-
-        // FIX: pass resolvedChildCount (per-room) — NOT checkin.child_paid (booking total)
-        const exPaxCount = exPaxCountOnDetail
-        const childCount = resolvedChildCount
-        const driverCount = driverCountOnDetail
-
-        const { totalExtensionAmount } = await createDayWiseExtensionRecords(
-          selectedRoom,
-          extensionDays,
-          exPaxCount,
-          childCount,
-          driverCount,
-          currentCheckoutDateObj,
-          hotelId,
-          user?.id,
-        )
-
-        const currentCheckin = await CheckInService.get(checkin.checkin_id)
-        const currentTotal = currentCheckin.data?.total_amount || 0
-
-        await CheckInService.update(checkin.checkin_id, {
-          total_amount: currentTotal + totalExtensionAmount,
-          checkout_datetime: newCheckoutDateTime,
+        // ── ONLY ACTION CALL for extend ─────────────────────────────────
+        // CheckInService.extendDay payload is strictly { roomId, extensionDays }
+        const res = await CheckInService.extendDay(checkin.checkin_id, {
+          roomId: detail.room_id,
+          extensionDays: days,
         })
-
+        const out = res.data // ExtendDayResponse: { checkin_id, new_checkout_datetime, new_total_amount, new_total_nights, checkin }
+        const oldTotal = Number(checkin.total_amount) || 0
+        const additionalAmount = Math.max(0, (Number(out?.new_total_amount) || 0) - oldTotal)
         toast.success(
-          `Stay extended by ${extensionDays} day(s). Additional charge: ${formatAmount(totalExtensionAmount)}`,
+          `Stay extended by ${days} day(s). Additional charge: ${formatAmount(additionalAmount)}`,
         )
-      } else if (mode === 'reduce') {
-        const reductionDays = days
-
-        const allDetailsRes = await DetailService.list({ checkin_id: checkin.checkin_id })
-        const allDetails = (allDetailsRes.data || [])
-          .filter((d: Detail) => d.is_checkout === 0 && d.parent_detail_id !== null)
-          .sort(
-            (a: Detail, b: Detail) =>
-              new Date(a.checkout_datetime).getTime() - new Date(b.checkout_datetime).getTime(),
-          )
-
-        const extensionRecords = allDetails.filter(
-          (d: Detail) => d.parent_detail_id === detail.detail_id,
-        )
-
-        if (extensionRecords.length < reductionDays) {
-          toast.error(
-            `Cannot reduce by ${reductionDays} days. Only ${extensionRecords.length} extension day(s) exist.`,
-          )
+      } else {
+        // ⚠️ TEMPORARY: no dedicated reduce endpoint exists in CheckInService yet.
+        // This only adjusts checkin_master totals via updatePartial — it does NOT
+        // delete the underlying extension detail/charge/folio rows for the reduced days.
+        // Replace with CheckInService.reduceDay(...) once that endpoint + SP exist.
+        if (extensionRows.length < days) {
+          toast.error(`Cannot reduce by ${days} days. Only ${extensionRows.length} extension day(s) exist.`)
           setLoading(false)
           return
         }
 
-        const recordsToDelete = extensionRecords.slice(-reductionDays)
-        let deletedTotalAmount = 0
+        // Best-effort refund estimate from the day-rows already fetched in useEffect
+        const rowsToDrop = extensionRows.slice(-days)
+        const refundAmount = rowsToDrop.reduce(
+          (sum: number, r: any) => sum + (Number(r.total_amount) || 0),
+          0,
+        )
+        const oldTotal = Number(checkin.total_amount) || 0
+        const newTotal = Math.max(0, oldTotal - refundAmount)
 
-        for (const record of recordsToDelete.reverse()) {
-          const chargesRes = await GuestRoomChargesService.list({ checkin_id: checkin.checkin_id })
-          const charges = (chargesRes.data || []).find((c: any) => c.detail_id === record.detail_id)
-          if (charges && charges.guest_room_charges_id) {
-            deletedTotalAmount += charges.total_amount || 0
-            await GuestRoomChargesService.remove(charges.guest_room_charges_id)
-          }
-
-          const folioRes = await GuestFolioService.list({ checkin_id: checkin.checkin_id })
-          const folio = (folioRes.data || []).find((f: any) => f.detail_id === record.detail_id)
-          if (folio && folio.folio_id) {
-            await GuestFolioService.remove(folio.folio_id)
-          }
-
-          await DetailService.remove(record.detail_id)
-        }
-
-        const currentCheckin = await CheckInService.get(checkin.checkin_id)
-        const currentTotal = currentCheckin.data?.total_amount || 0
-
-        await CheckInService.update(checkin.checkin_id, {
-          total_amount: Math.max(0, currentTotal - deletedTotalAmount),
-          checkout_datetime: newCheckoutDateTime,
+        await CheckInService.updatePartial(checkin.checkin_id, {
+          total_amount: newTotal,
+          checkout_datetime: preview.newCheckoutDateTime,
+          total_nights: Math.max(1, (Number(checkin.total_nights) || currentNights) - days),
         })
 
-        if (extensionRecords.length === reductionDays) {
-          await DetailService.update(detail.detail_id, { is_checkout: 0, merged: 0 })
-        }
-
         toast.success(
-          `Stay reduced by ${reductionDays} day(s). Refund amount: ${formatAmount(deletedTotalAmount)}`,
+          `Stay reduced by ${days} day(s). Refund amount: ${formatAmount(refundAmount)}`,
         )
       }
 
@@ -2584,6 +2280,12 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
             Each extended day will be stored as a separate record in the database
           </div>
         )}
+
+        {mode === 'reduce' && showDaysInput && (
+          <div className="text-muted small mt-1">
+            {extensionRows.length} extension day(s) available to reduce
+          </div>
+        )}
       </div>
 
       <div className="action-table-container mt-1">
@@ -2596,7 +2298,13 @@ const StayAmendmentsComponent = ({ selectedRoom, onClose, onRefresh }: StayAmend
             </tr>
           </thead>
           <tbody>
-            {currentRow ? (
+            {dataLoading ? (
+              <tr>
+                <td colSpan={allHeaders.length} className="text-muted">
+                  Loading...
+                </td>
+              </tr>
+            ) : currentRow ? (
               <tr>
                 <td>1</td>
                 <td>{currentRow.date}</td>
@@ -2681,6 +2389,8 @@ interface ChangeRoomCategoryProps {
   onClose: () => void
   onRefresh: () => void
 }
+
+
 
 // Helper: fetch tax percentages from tax_type ID (same as CheckInForm)
 const fetchTaxPercentages = async (
@@ -2876,15 +2586,13 @@ const ChangeRoomCategoryComponent = ({
         if (!catObj) return
         setNewCategoryId(catObj.room_category_id)
 
-        // 1. Fetch full category details (tariffs, mode_charges)
+        // 1. Fetch full category details (tariffs, mode_charges) for the NEW category.
+        //    KEPT: getCheckinFullDetails cannot provide this — it only reflects the
+        //    guest's current stay, not an arbitrary target category.
         const catRes = await RoomCategoryService.get(catObj.room_category_id)
         const fullCat = catRes.data || catRes
         const modeCharges = fullCat.mode_charges || []
         setNewModeCharges(modeCharges)
-
-        // Debug: Log driver charges from mode
-        const driverMode = modeCharges.find((m: any) => m.mode_name === 'DRIVER')
-        console.log('Driver Mode Charges:', driverMode)
 
         // 2. Get tariff based on room's pax count (fallback to first tariff)
         const paxCount = selectedRoom.detail.pax || 1
@@ -2897,7 +2605,8 @@ const ChangeRoomCategoryComponent = ({
         if (!taxTypeId && fullCat.tariffs?.length) {
           taxTypeId = fullCat.tariffs[0].tax_type
         }
-        // 4. Fetch tax percentages
+        // 4. Fetch tax percentages for the NEW category's tax_type.
+        //    KEPT: same reason as above — this is tax master data, not stay data.
         const taxPercentages = await fetchTaxPercentages(Number(taxTypeId) || null)
         setNewTax(taxPercentages)
 
@@ -2920,32 +2629,69 @@ const ChangeRoomCategoryComponent = ({
         })
         setTaxMap(map)
 
-        // 6. Fetch future records (today and future) for this room
+        // 6. Fetch future records (today and future) for this room via the combined
+        //    stored-procedure-backed endpoint. This is where DetailService.list and
+        //    GuestRoomChargesService.list were replaced — both are subsumed by
+        //    getCheckinFullDetails, so they are intentionally NOT called here.
         const today = new Date()
         today.setHours(0, 0, 0, 0)
 
-        const detailsRes = await DetailService.list({ checkin_id: selectedRoom.checkin.checkin_id })
-        const allDetails = detailsRes.data || []
-        const futureDetails = allDetails.filter((d: Detail) => {
-          const detailCheckinDate = new Date(d.checkin_datetime)
-          detailCheckinDate.setHours(0, 0, 0, 0)
-          return (
-            detailCheckinDate >= today &&
-            d.is_checkout === 0 &&
-            d.room_id === selectedRoom.detail.room_id
-          )
-        })
+        const fullDetailsRes = await RoomService.getCheckinFullDetails(
+          selectedRoom.checkin.hotelid,
+          selectedRoom.checkin.checkin_id,
+          String(selectedRoom.detail.room_id),
+        )
+        const allRows = fullDetailsRes.data?.details || []
 
-        const chargesRes = await GuestRoomChargesService.list({
-          checkin_id: selectedRoom.checkin.checkin_id,
-        })
-        const allCharges = chargesRes.data || []
-        const futureCharges = allCharges.filter((c: any) => {
-          if (!c.checkin_datetime) return false
-          const chargeCheckinDate = new Date(c.checkin_datetime)
-          chargeCheckinDate.setHours(0, 0, 0, 0)
-          return chargeCheckinDate >= today && c.room_id === selectedRoom.detail.room_id
-        })
+        // Sirf isi room ke rows
+        const roomRows = allRows.filter((r) => r.detail_room_id === selectedRoom.detail.room_id)
+
+        // "Detail" jaisi rows (checkin_detail table wale records)
+        const futureDetails = roomRows
+          .filter((r) => r.detail_id !== null && r.detail_checkin_datetime)
+          .filter((r) => {
+            const d = new Date(r.detail_checkin_datetime as string)
+            d.setHours(0, 0, 0, 0)
+            return d >= today
+          })
+          .map((r) => {
+            const checkinD = new Date(r.detail_checkin_datetime as string)
+            const checkoutD = new Date((r.detail_checkout_datetime as string) || r.detail_checkin_datetime as string)
+            const nights = Math.max(
+              1,
+              Math.ceil((checkoutD.getTime() - checkinD.getTime()) / (1000 * 60 * 60 * 24)),
+            )
+            return {
+              detail_id: r.detail_id,
+              room_id: r.detail_room_id,
+              checkin_datetime: r.detail_checkin_datetime,
+              checkout_datetime: r.detail_checkout_datetime,
+              no_of_days: nights, // ⚠️ API mein direct field nahi tha, date-diff se calculate kiya
+              discount_percent: r.discount_percent || 0,
+              ex_pax: r.detail_ex_pax || 0,
+              driver: r.detail_driver || 0,
+              child_paid_amount: r.detail_child_paid_amount || 0,
+            } as unknown as Detail
+          })
+
+        // "Charges" jaisi rows (guest_room_charges table wale records)
+        const futureCharges = roomRows
+          .filter((r) => r.guest_room_charges_id !== null && r.charge_checkin_datetime)
+          .filter((r) => {
+            const d = new Date(r.charge_checkin_datetime as string)
+            d.setHours(0, 0, 0, 0)
+            return d >= today
+          })
+          .map((r) => ({
+            guest_room_charges_id: r.guest_room_charges_id,
+            room_id: r.detail_room_id,
+            checkin_datetime: r.charge_checkin_datetime,
+            checkout_datetime: r.charge_checkout_datetime,
+            ex_pax_count: r.ex_pax_count || 0,
+            child_count: r.child_count || 0,
+            driver_count: r.driver_count || 0,
+            pax_tax_percent: 0, // ⚠️ ye field naye API response mein directly nahi hai
+          }))
 
         setFutureRecords({ details: futureDetails, charges: futureCharges })
       } catch (error) {
@@ -2972,8 +2718,6 @@ const ChangeRoomCategoryComponent = ({
     const childCount = selectedRoom.checkin.child_paid || 0
     const driverCount = selectedRoom.detail.driver || 0
 
-    console.log('Driver Count:', driverCount, 'Nights:', nights)
-
     const extras = computeExtraChargesForCategory(
       newModeCharges,
       taxMap,
@@ -2982,8 +2726,6 @@ const ChangeRoomCategoryComponent = ({
       driverCount,
       nights,
     )
-
-    console.log('Driver Extra Charges:', extras.driver)
 
     const updatedDetail = {
       ...selectedRoom.detail,
@@ -3051,26 +2793,30 @@ const ChangeRoomCategoryComponent = ({
     toast.success(`Preview ready – Tax: ${newTax.total}%`)
   }
 
+    // ========================================================================
+  // UPDATED handleUpdate – single API call
+  // ========================================================================
   const handleUpdate = async () => {
     if (originalCategory === tempNewCategory) {
-      toast.error('No change in category')
-      return
+      toast.error('No change in category');
+      return;
     }
     if (!newCategoryId || !newTariff || !newTax) {
-      toast.error('Category data not fully loaded')
-      return
+      toast.error('Category data not fully loaded');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const discountPercent = selectedRoom.detail.discount_percent || 0
-      const nights = selectedRoom.detail.no_of_days || 1
+      const discountPercent = selectedRoom.detail.discount_percent || 0;
+      const nights = selectedRoom.detail.no_of_days || 1;
 
-      const roomCalc = computeDayTaxes(newTariff, discountPercent, newTax)
+      // ---- Current room calculations ----
+      const roomCalc = computeDayTaxes(newTariff, discountPercent, newTax);
 
-      const exPaxCount = selectedRoom.detail.ex_pax || 0
-      const childCount = selectedRoom.checkin.child_paid || 0
-      const driverCount = selectedRoom.detail.driver || 0
+      const exPaxCount = selectedRoom.detail.ex_pax || 0;
+      const childCount = selectedRoom.checkin.child_paid || 0;
+      const driverCount = selectedRoom.detail.driver || 0;
       const currentExtras = computeExtraChargesForCategory(
         newModeCharges,
         taxMap,
@@ -3078,13 +2824,85 @@ const ChangeRoomCategoryComponent = ({
         childCount,
         driverCount,
         nights,
-      )
+      );
 
-      // ---- 1. Update all future detail records for this room ----
-      for (const detail of futureRecords.details) {
-        const detailNights = detail.no_of_days || 1
-        const detailDiscount = detail.discount_percent || 0
-        const detailRoomCalc = computeDayTaxes(newTariff, detailDiscount, newTax)
+      // ---- 1. Build currentDetail ----
+      const perNightExPaxCharge = currentExtras.exPax.price > 0 ? currentExtras.exPax.price / nights : 0;
+      const perNightDriverCharge = driverCount > 0 && currentExtras.driver.price > 0
+        ? currentExtras.driver.price / nights
+        : 0;
+      const perNightChildPaid = currentExtras.child.price > 0 ? currentExtras.child.price / nights : 0;
+
+      const currentDetail = {
+        detailId: selectedRoom.detail.detail_id,
+        convertedCategoryId: newCategoryId,
+        convertedCategoryName: tempNewCategory,
+        roomTariff: newTariff,
+        cgstPercent: roomCalc.cgstPercent,
+        cgstAmount: roomCalc.cgstAmount,
+        sgstPercent: roomCalc.sgstPercent,
+        sgstAmount: roomCalc.sgstAmount,
+        igstPercent: roomCalc.igstPercent,
+        igstAmount: roomCalc.igstAmount,
+        cessPercent: roomCalc.cessPercent,
+        cessAmount: roomCalc.cessAmount,
+        tax: roomCalc.taxAmount,
+        discountAmount: roomCalc.discountAmount,
+        exPaxCharge: perNightExPaxCharge,
+        driverCharge: perNightDriverCharge,
+        childPaidAmount: perNightChildPaid,
+      };
+
+      // ---- 2. Build currentCharges (if exists and is future) ----
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let currentCharges = null;
+
+      if (selectedRoom.charges) {
+        const chargeDate = selectedRoom.charges.checkout_datetime
+          ? new Date(selectedRoom.charges.checkout_datetime)
+          : new Date();
+        chargeDate.setHours(0, 0, 0, 0);
+
+        if (chargeDate >= today) {
+          const chargesId = selectedRoom.charges.guest_room_charges_id || selectedRoom.charges.id;
+          if (chargesId) {
+            currentCharges = {
+              chargesId,
+              guestId: selectedRoom.checkin.guest_id,
+              roomId: selectedRoom.detail.room_id,
+              detailCheckinDatetime: selectedRoom.detail.detail_checkin_datetime,
+              detailCheckoutDatetime: selectedRoom.detail.detail_checkout_datetime,
+              categoryId: newCategoryId,
+              paxPrice: newTariff,
+              paxTax: roomCalc.taxAmount,
+              exPaxPrice: currentExtras.exPax.price,
+              exPaxTax: currentExtras.exPax.tax,
+              exPaxTaxPercent: currentExtras.exPax.taxPercent,
+              exPaxTotal: currentExtras.exPax.total,
+              childPrice: currentExtras.child.price,
+              childTax: currentExtras.child.tax,
+              childTaxPercent: currentExtras.child.taxPercent,
+              childTotal: currentExtras.child.total,
+              driverPrice: currentExtras.driver.price,
+              driverTax: currentExtras.driver.tax,
+              driverTaxPercent: currentExtras.driver.taxPercent,
+              driverTotal: currentExtras.driver.total,
+              totalAmount:
+                roomCalc.totalAfterTax +
+                currentExtras.exPax.total +
+                currentExtras.child.total +
+                currentExtras.driver.total,
+            };
+          }
+        }
+      }
+
+      // ---- 3. Build futureDetails array ----
+      const futureDetails = futureRecords.details.map((detail) => {
+        const detailNights = detail.no_of_days || 1;
+        const detailDiscount = detail.discount_percent || 0;
+        const detailRoomCalc = computeDayTaxes(newTariff, detailDiscount, newTax);
 
         const detailExtras = computeExtraChargesForCategory(
           newModeCharges,
@@ -3093,40 +2911,38 @@ const ChangeRoomCategoryComponent = ({
           detail.child_paid_amount > 0 ? 1 : 0,
           detail.driver || 0,
           detailNights,
-        )
+        );
 
-        // Calculate per night driver charge
-        const perNightDriverCharge =
-          detail.driver && detail.driver > 0 && detailExtras.driver.price > 0
-            ? detailExtras.driver.price / detailNights
-            : 0
+        const perNightExPax = detailExtras.exPax.price > 0 ? detailExtras.exPax.price / detailNights : 0;
+        const perNightDriver = detail.driver && detail.driver > 0 && detailExtras.driver.price > 0
+          ? detailExtras.driver.price / detailNights
+          : 0;
+        const perNightChild = detailExtras.child.price > 0 ? detailExtras.child.price / detailNights : 0;
 
-        await DetailService.update(detail.detail_id, {
-          converted_category_id: newCategoryId,
-          converted_category_name: tempNewCategory,
-          room_tariff: newTariff,
-          cgst_percent: detailRoomCalc.cgstPercent,
-          cgst_amount: detailRoomCalc.cgstAmount,
-          sgst_percent: detailRoomCalc.sgstPercent,
-          sgst_amount: detailRoomCalc.sgstAmount,
-          igst_percent: detailRoomCalc.igstPercent,
-          igst_amount: detailRoomCalc.igstAmount,
-          cess_percent: detailRoomCalc.cessPercent,
-          cess_amount: detailRoomCalc.cessAmount,
+        return {
+          detailId: detail.detail_id,
+          convertedCategoryId: newCategoryId,
+          convertedCategoryName: tempNewCategory,
+          roomTariff: newTariff,
+          cgstPercent: detailRoomCalc.cgstPercent,
+          cgstAmount: detailRoomCalc.cgstAmount,
+          sgstPercent: detailRoomCalc.sgstPercent,
+          sgstAmount: detailRoomCalc.sgstAmount,
+          igstPercent: detailRoomCalc.igstPercent,
+          igstAmount: detailRoomCalc.igstAmount,
+          cessPercent: detailRoomCalc.cessPercent,
+          cessAmount: detailRoomCalc.cessAmount,
           tax: detailRoomCalc.taxAmount,
-          discount_amount: detailRoomCalc.discountAmount,
-          ex_pax_charge: detailExtras.exPax.price > 0 ? detailExtras.exPax.price / detailNights : 0,
-          driver_charge: perNightDriverCharge,
-          child_paid_amount:
-            detailExtras.child.price > 0 ? detailExtras.child.price / detailNights : 0,
-        })
-      }
+          discountAmount: detailRoomCalc.discountAmount,
+          exPaxCharge: perNightExPax,
+          driverCharge: perNightDriver,
+          childPaidAmount: perNightChild,
+        };
+      });
 
-      // ---- 2. Update all future checkin_guest_room_charges for this room ----
-      for (const charge of futureRecords.charges) {
-        const chargeId = charge.guest_room_charges_id
-        const chargeNights = 1
-
+      // ---- 4. Build futureCharges array ----
+      const futureCharges = futureRecords.charges.map((charge) => {
+        const chargeNights = 1;
         const chargeExtras = computeExtraChargesForCategory(
           newModeCharges,
           taxMap,
@@ -3134,120 +2950,39 @@ const ChangeRoomCategoryComponent = ({
           charge.child_count || 0,
           charge.driver_count || 0,
           chargeNights,
-        )
+        );
+        const chargeRoomCalc = computeDayTaxes(newTariff, charge.pax_tax_percent || 0, newTax);
 
-        const chargeRoomCalc = computeDayTaxes(newTariff, charge.pax_tax_percent || 0, newTax)
+        return {
+          chargesId: charge.guest_room_charges_id,
+          guestId: selectedRoom.checkin.guest_id,
+          roomId: selectedRoom.detail.room_id,
+          detailCheckinDatetime: selectedRoom.detail.detail_checkin_datetime,
+          detailCheckoutDatetime: selectedRoom.detail.detail_checkout_datetime,
+          categoryId: newCategoryId,
+          paxPrice: newTariff,
+          paxTax: chargeRoomCalc.taxAmount,
+          exPaxPrice: chargeExtras.exPax.price,
+          exPaxTax: chargeExtras.exPax.tax,
+          exPaxTaxPercent: chargeExtras.exPax.taxPercent,
+          exPaxTotal: chargeExtras.exPax.total,
+          childPrice: chargeExtras.child.price,
+          childTax: chargeExtras.child.tax,
+          childTaxPercent: chargeExtras.child.taxPercent,
+          childTotal: chargeExtras.child.total,
+          driverPrice: chargeExtras.driver.price,
+          driverTax: chargeExtras.driver.tax,
+          driverTaxPercent: chargeExtras.driver.taxPercent,
+          driverTotal: chargeExtras.driver.total,
+          totalAmount:
+            chargeRoomCalc.totalAfterTax +
+            chargeExtras.exPax.total +
+            chargeExtras.child.total +
+            chargeExtras.driver.total,
+        };
+      });
 
-      await GuestRoomChargesService.update(chargeId, {
-  guest_id: selectedRoom.checkin.guest_id,
-  room_id: selectedRoom.detail.room_id,
-  checkin_id: selectedRoom.checkin.checkin_id,
-  category_id: newCategoryId,
-
-  detail_checkin_datetime: selectedRoom.detail.detail_checkin_datetime,
-  detail_checkout_datetime: selectedRoom.detail.detail_checkout_datetime,
-
-  pax_price: newTariff,
-  pax_tax: chargeRoomCalc.taxAmount,
-
-  ex_pax_price: chargeExtras.exPax.price,
-  ex_pax_tax: chargeExtras.exPax.tax,
-  ex_pax_tax_percent: chargeExtras.exPax.taxPercent,
-  ex_pax_total: chargeExtras.exPax.total,
-
-  child_price: chargeExtras.child.price,
-  child_tax: chargeExtras.child.tax,
-  child_tax_percent: chargeExtras.child.taxPercent,
-  child_total: chargeExtras.child.total,
-
-  driver_price: chargeExtras.driver.price,
-  driver_tax: chargeExtras.driver.tax,
-  driver_tax_percent: chargeExtras.driver.taxPercent,
-  driver_total: chargeExtras.driver.total,
-
-  total_amount:
-    chargeRoomCalc.totalAfterTax +
-    chargeExtras.exPax.total +
-    chargeExtras.child.total +
-    chargeExtras.driver.total,
-})
-      }
-
-      // ---- 3. Update current detail (only if its checkout date is today or future) ----
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const currentDetailDate = new Date(selectedRoom.detail.checkout_datetime)
-      currentDetailDate.setHours(0, 0, 0, 0)
-
-      if (currentDetailDate >= today) {
-        // Calculate per night driver charge for current detail
-        const perNightDriverCharge =
-          driverCount > 0 && currentExtras.driver.price > 0
-            ? currentExtras.driver.price / nights
-            : 0
-
-        await DetailService.update(selectedRoom.detail.detail_id, {
-          converted_category_id: newCategoryId,
-          converted_category_name: tempNewCategory,
-          room_tariff: newTariff,
-          cgst_percent: roomCalc.cgstPercent,
-          cgst_amount: roomCalc.cgstAmount,
-          sgst_percent: roomCalc.sgstPercent,
-          sgst_amount: roomCalc.sgstAmount,
-          igst_percent: roomCalc.igstPercent,
-          igst_amount: roomCalc.igstAmount,
-          cess_percent: roomCalc.cessPercent,
-          cess_amount: roomCalc.cessAmount,
-          tax: roomCalc.taxAmount,
-          discount_amount: roomCalc.discountAmount,
-          ex_pax_charge: currentExtras.exPax.price > 0 ? currentExtras.exPax.price / nights : 0,
-          driver_charge: perNightDriverCharge,
-          child_paid_amount: currentExtras.child.price > 0 ? currentExtras.child.price / nights : 0,
-        })
-      }
-
-      // ---- 4. Update current checkin_guest_room_charges if exists and is future ----
-      if (selectedRoom.charges) {
-        const chargeDate = selectedRoom.charges.checkout_datetime
-          ? new Date(selectedRoom.charges.checkout_datetime)
-          : new Date()
-        chargeDate.setHours(0, 0, 0, 0)
-
-        if (chargeDate >= today) {
-          const chargesId = selectedRoom.charges.guest_room_charges_id || selectedRoom.charges.id
-          if (chargesId) {
-            await GuestRoomChargesService.update(chargesId, {
-              guest_id: selectedRoom.checkin.guest_id,
-              room_id: selectedRoom.detail.room_id,
-              checkin_id: selectedRoom.checkin.checkin_id,
-                 detail_checkin_datetime: selectedRoom.detail.detail_checkin_datetime,
-    detail_checkout_datetime: selectedRoom.detail.detail_checkout_datetime,
-              category_id: newCategoryId,
-              pax_price: newTariff,
-              pax_tax: roomCalc.taxAmount,
-              ex_pax_price: currentExtras.exPax.price,
-              ex_pax_tax: currentExtras.exPax.tax,
-              ex_pax_tax_percent: currentExtras.exPax.taxPercent,
-              ex_pax_total: currentExtras.exPax.total,
-              child_price: currentExtras.child.price,
-              child_tax: currentExtras.child.tax,
-              child_tax_percent: currentExtras.child.taxPercent,
-              child_total: currentExtras.child.total,
-              driver_price: currentExtras.driver.price,
-              driver_tax: currentExtras.driver.tax,
-              driver_tax_percent: currentExtras.driver.taxPercent,
-              driver_total: currentExtras.driver.total,
-              total_amount:
-                roomCalc.totalAfterTax +
-                currentExtras.exPax.total +
-                currentExtras.child.total +
-                currentExtras.driver.total,
-            })
-          }
-        }
-      }
-
-      // ---- 5. Update folio entry for the current day ----
+      // ---- 5. Compute folio total ----
       const updatedDetailForFolio = {
         ...selectedRoom.detail,
         converted_category_name: tempNewCategory,
@@ -3258,41 +2993,46 @@ const ChangeRoomCategoryComponent = ({
         cess_percent: roomCalc.cessPercent,
         tax: roomCalc.taxAmount,
         discount_amount: roomCalc.discountAmount,
-      }
+      };
       const updatedRow = buildRoomDataRowFromDetail(updatedDetailForFolio, selectedRoom.checkin, {
         ex_pax_total: currentExtras.exPax.total,
         child_total: currentExtras.child.total,
         driver_total: currentExtras.driver.total,
-      })
+      });
+      const folioTotalAmount = parseFloat(updatedRow.totalAmount);
 
-      await updateRoomChargeFolio(
-        selectedRoom.checkin.checkin_id,
-        selectedRoom.detail.detail_id,
-        parseFloat(updatedRow.totalAmount),
-        selectedRoom.checkin.hotelid,
-      )
+      // ---- 6. Build final payload ----
+      const payload: ChangeRoomCategoryPayload = {
+        checkinId: selectedRoom.checkin.checkin_id,
+        convertedCategory: tempNewCategory,
+        folioTotalAmount,
+        currentDetail,
+        currentCharges,
+        futureDetails,
+        futureCharges,
+      };
 
-      // ---- 6. Update checkin_master converted_category ----
-      await CheckInService.update(selectedRoom.checkin.checkin_id, {
-        converted_category: tempNewCategory,
-      })
+      // ---- 7. SINGLE API CALL ----
+      const response = await RoomService.changeRoomCategory(payload);
 
-      toast.success(`Category changed to ${tempNewCategory} with tax ${newTax.total}%`)
-      onRefresh()
-      onClose()
-    } catch (error) {
-      console.error('Category change failed:', error)
-      toast.error('Could not update category')
+      if (response.success) {
+        toast.success(`Category changed to ${tempNewCategory} with tax ${newTax.total}%`);
+        onRefresh();
+        onClose();
+      } else {
+        toast.error(response.message || 'Failed to change category');
+      }
+    } catch (error: any) {
+      console.error('Category change failed:', error);
+      toast.error(error.message || 'Could not update category');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const currentRow = previewActive ? previewRow : originalRow
   const isCategoryChanged = previewActive && tempNewCategory !== originalCategory
   const isRateChanged = previewActive && newTariff !== null && newTariff !== originalTariff
-
-
 
   const allHeaders: Array<{ key: string; label: string }> = [
     { key: '#', label: '#' },
@@ -4414,381 +4154,7 @@ const TransferRoomComponent = ({
 
 
 
-// ================== ChangePayModeComponent ==================
-// ================== ChangePayModeComponent ==================
-interface ChangePayModeProps {
-  selectedRoom: OccupiedRoom
-  allRoomsDetails: Detail[]
-  onClose: () => void
-  onRefresh: () => void
-}
 
-const ChangePayModeComponent = ({
-  selectedRoom,
-  allRoomsDetails,
-  onClose,
-  onRefresh,
-}: ChangePayModeProps) => {
-  const [paymentMethods, setPaymentMethods] = useState<
-    Array<{ id: number; name: string; payment_method_name: string }>
-  >([])
-  const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>('')
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('')
-  const [loading, setLoading] = useState(false)
-  const [previewActive, setPreviewActive] = useState(false)
-
-  // ✅ Get outletId from auth context (like in Advance.tsx)
-  const { user } = useAuthContext();
-  const outletId = user?.outletid ?? user?.outletId;
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
-      try {
-        // ✅ Get outlet ID - prioritize auth context, then fallback to selectedRoom
-        const outletIdFromRoom = selectedRoom?.outletid || selectedRoom?.checkin?.outletid || '';
-        const finalOutletId = outletId || outletIdFromRoom;
-        
-        if (!finalOutletId) {
-          console.warn('No outlet ID found');
-          setPaymentMethods([]);
-          setLoading(false);
-          return;
-        }
-
-        // ✅ Fetch payment methods filtered by outlet ID
-        const pmRes = await PaymentMethodService.list({ 
-          outletid: String(finalOutletId) 
-        })
-        const pmData = Array.isArray(pmRes) ? pmRes : pmRes?.data || []
-        
-        // ✅ Map the data - using mode_name as display name
-        const mapped = pmData.map((pm: any) => ({
-          id: pm.id || pm.payment_method_id,
-          name: pm.mode_name || pm.name || pm.payment_method_name,
-          payment_method_name: pm.mode_name || pm.payment_method_name || pm.name,
-        }))
-
-        // Step 1: Try payment_method from the prop (already-loaded checkin)
-        let resolvedMethod = (selectedRoom.checkin as any).payment_method || ''
-
-        // Step 2: If not found on prop, fetch a fresh checkin record
-        if (!resolvedMethod) {
-          try {
-            const freshCheckin = await CheckInService.get(selectedRoom.checkin.checkin_id)
-            resolvedMethod = ((freshCheckin.data || freshCheckin) as any)?.payment_method || ''
-          } catch {
-            resolvedMethod = ''
-          }
-        }
-
-        // Step 3: If still empty, read payment_method from checkin_guest_folio_master via GET API
-        if (!resolvedMethod) {
-          try {
-            const folioRes = await GuestFolioService.list({
-              checkin_id: selectedRoom.checkin.checkin_id,
-            })
-            const folioEntries: any[] = folioRes.data || []
-            const roomCharge = folioEntries.find(
-              (e) => e.transaction_type === 'Room Charge' && e.payment_method,
-            )
-            const anyEntry = folioEntries.find((e) => e.payment_method)
-            const folioMethod = (roomCharge || anyEntry)?.payment_method || ''
-            resolvedMethod = folioMethod
-          } catch {
-            resolvedMethod = ''
-          }
-        }
-
-        if (resolvedMethod) {
-          setCurrentPaymentMethod(resolvedMethod)
-          setSelectedPaymentMethod('')
-        } else {
-          setCurrentPaymentMethod('Not set')
-          setSelectedPaymentMethod('')
-        }
-
-        setPaymentMethods(mapped)
-      } catch (error) {
-        console.error('Failed to load payment data:', error)
-        toast.error('Could not load payment methods')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [selectedRoom.checkin.checkin_id, outletId]) // ✅ Added outletId as dependency
-
-  const handleTest = () => {
-    if (!selectedPaymentMethod) {
-      toast.error('Please select a payment method')
-      return
-    }
-    setPreviewActive(true)
-    toast.success('Preview updated')
-  }
-
-  // Filter out the current payment method from dropdown options
-  const filteredPaymentMethods = paymentMethods.filter(
-    (pm) => (pm.payment_method_name || pm.name) !== currentPaymentMethod,
-  )
-
-  const paymentMethodOptions = filteredPaymentMethods.map((pm) => ({
-    label: pm.payment_method_name || pm.name,
-    value: pm.payment_method_name || pm.name,
-  }))
-
-  const sortedDetails = [...allRoomsDetails].sort((a, b) =>
-    a.room_number.localeCompare(b.room_number, undefined, { numeric: true }),
-  )
-  const rows = sortedDetails.map((detail) =>
-    buildRoomDataRowFromDetail(detail, selectedRoom.checkin, (detail as any).charges),
-  )
-
-  const handleUpdate = async () => {
-    if (!selectedPaymentMethod) {
-      toast.error('Please select a payment method')
-      return
-    }
-    setLoading(true)
-    try {
-      // 1. Update payment_method on checkin_master (primary source)
-      await CheckInService.update(selectedRoom.checkin.checkin_id, {
-        payment_method: selectedPaymentMethod,
-      } as any)
-
-      // 2. Update all existing folio entries' payment_method for consistency
-      try {
-        const folioRes = await GuestFolioService.list({
-          checkin_id: selectedRoom.checkin.checkin_id,
-        })
-        const folioEntries: any[] = folioRes.data || []
-
-        // Update every existing folio entry's payment_method column
-        await Promise.all(
-          folioEntries.map((entry: any) =>
-            GuestFolioService.update(entry.folio_id, {
-              payment_method: selectedPaymentMethod,
-            }),
-          ),
-        )
-
-        // Upsert a dedicated 'Payment Mode' record
-        const payModeEntry = folioEntries.find(
-          (e: any) => e.transaction_type === 'Payment Mode Change',
-        )
-        if (payModeEntry) {
-          await GuestFolioService.update(payModeEntry.folio_id, {
-            payment_method: selectedPaymentMethod,
-            description: `Payment mode changed from ${currentPaymentMethod} to ${selectedPaymentMethod}`,
-            transaction_datetime: new Date().toISOString(),
-          })
-        } else {
-          await GuestFolioService.create({
-            checkin_id: selectedRoom.checkin.checkin_id,
-            hotelid: (selectedRoom.checkin as any).hotelid,
-            detail_id: selectedRoom.detail.detail_id,
-            transaction_type: 'Payment Mode Change',
-            transaction_datetime: new Date().toISOString(),
-            description: `Payment mode changed from ${currentPaymentMethod} to ${selectedPaymentMethod}`,
-            debit_amount: 0,
-            credit_amount: 0,
-            payment_method: selectedPaymentMethod,
-          })
-        }
-      } catch (folioError) {
-        console.warn('Could not sync folio payment_method entries:', folioError)
-      }
-
-      setCurrentPaymentMethod(selectedPaymentMethod)
-      toast.success(
-        `Payment method changed from ${currentPaymentMethod} to ${selectedPaymentMethod}`,
-      )
-      onRefresh()
-      onClose() // Close the modal after successful update
-    } catch (error) {
-      console.error('Failed to update payment method:', error)
-      toast.error('Could not update payment method')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const allHeaders = [
-    { key: '#', label: '#' },
-    { key: 'date', label: 'Date' },
-    { key: 'guest', label: 'Guest' },
-    { key: 'guestId', label: 'Guest ID' },
-    { key: 'roomNo', label: 'Room N' },
-    { key: 'type', label: 'Type' },
-    { key: 'convCat', label: 'Conv. Cat' },
-    { key: 'aDate', label: 'A_Date' },
-    { key: 'aTime', label: 'A_Time' },
-    { key: 'dDate', label: 'D_Date' },
-    { key: 'dTime', label: 'D_Time' },
-    { key: 'adults', label: 'Adults' },
-    { key: 'pax', label: 'Pax' },
-    { key: 'exPax', label: 'Ex_Pax' },
-    { key: 'exPaxPrice', label: 'Ex_Pax Price' },
-    { key: 'exPaxTaxPercent', label: 'Ex_Pax Tax %' },
-    { key: 'exPaxTax', label: 'Ex_Pax Tax' },
-    { key: 'exPaxTotal', label: 'Ex_Pax Total' },
-    { key: 'childPaid', label: 'Child Paid' },
-    { key: 'childUnpaid', label: 'Child Unpaid' },
-    { key: 'childPrice', label: 'Child Price' },
-    { key: 'childTaxPercent', label: 'Child Tax %' },
-    { key: 'childTax', label: 'Child Tax' },
-    { key: 'childTotal', label: 'Child Total' },
-    { key: 'driver', label: 'Driver' },
-    { key: 'driverPrice', label: 'Driver Price' },
-    { key: 'driverTaxPercent', label: 'Driver Tax %' },
-    { key: 'driverTax', label: 'Driver Tax' },
-    { key: 'driverTotal', label: 'Driver Total' },
-    { key: 'nights', label: 'Day' },
-    { key: 'rate', label: 'Rate' },
-    { key: 'discountPercent', label: 'Dis' },
-    { key: 'discountAmt', label: 'Dis Amt' },
-    { key: 'taxPercent', label: 'Tax %' },
-    { key: 'taxAmount', label: 'Tax Amt' },
-    { key: 'totalAmount', label: 'Total' },
-    { key: 'payMode', label: 'Pay Mode' },
-  ]
-
-  return (
-    <ActionBox title="Change In Payment Mode" onClose={onClose} className="mb-2">
-      <div className="mb-3 d-flex gap-3 pt-2">
-        <div className="d-flex align-items-center flex-fill me-3">
-          <label className="fs-small mb-0 me-2 fw-bold" style={{ minWidth: '150px' }}>
-            Current Mode Of Payment
-          </label>
-          <Form.Control
-            type="text"
-            size="sm"
-            value={currentPaymentMethod}
-            readOnly
-            className="fs-small bg-light"
-            style={{ maxWidth: '180px' }}
-          />
-        </div>
-
-        <div className="d-flex align-items-center flex-fill">
-          <label className="fs-small mb-0 me-2 fw-bold" style={{ minWidth: '150px' }}>
-            Select Mode Of Payment
-          </label>
-          <Form.Select
-            size="sm"
-            value={selectedPaymentMethod}
-            onChange={(e) => {
-              setSelectedPaymentMethod(e.target.value)
-              setPreviewActive(false) // Reset preview when selection changes
-            }}
-            className="fs-small"
-            disabled={loading || paymentMethodOptions.length === 0}
-            style={{ maxWidth: '180px' }}>
-            <option value="">Select</option>
-            {paymentMethodOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </Form.Select>
-        </div>
-      </div>
-
-      {paymentMethodOptions.length === 0 && currentPaymentMethod !== 'Not set' && (
-        <div className="alert alert-info mb-3 py-1 px-2 fs-small">
-          <i className="bi bi-info-circle me-1"></i>
-          No other payment methods available for this outlet. Current method is "{currentPaymentMethod}".
-        </div>
-      )}
-
-      <div className="action-table-container">
-        <table className="action-table table table-bordered text-center align-middle">
-          <thead className="table-light">
-            <tr>
-              {allHeaders.map((header) => (
-                <th key={header.key}>{header.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={allHeaders.length} className="text-center text-muted">
-                  No Data Available
-                </td>
-              </tr>
-            ) : (
-              rows.map((row, idx) => (
-                <tr key={idx}>
-                  <td>{idx + 1}</td>
-                  <td>{row.date}</td>
-                  <td>{row.guestName}</td>
-                  <td>{row.guestId}</td>
-                  <td>{row.roomNo}</td>
-                  <td>{row.type}</td>
-                  <td>{row.convCat}</td>
-                  <td>{row.aDate}</td>
-                  <td>{row.aTime}</td>
-                  <td>{row.dDate}</td>
-                  <td>{row.dTime}</td>
-                  <td>{row.adults}</td>
-                  <td>{row.pax}</td>
-                  <td>{row.exPax}</td>
-                  <td>{row.exPaxPrice}</td>
-                  <td>{row.exPaxTaxPercent}%</td>
-                  <td>{row.exPaxTax}</td>
-                  <td>{row.exPaxTotal}</td>
-                  <td>{row.childPaid}</td>
-                  <td>{row.childUnpaid}</td>
-                  <td>{row.childPrice}</td>
-                  <td>{row.childTaxPercent}%</td>
-                  <td>{row.childTax}</td>
-                  <td>{row.childTotal}</td>
-                  <td>{row.driver}</td>
-                  <td>{row.driverPrice}</td>
-                  <td>{row.driverTaxPercent}%</td>
-                  <td>{row.driverTax}</td>
-                  <td>{row.driverTotal}</td>
-                  <td>{row.nights}</td>
-                  <td>{row.rate}</td>
-                  <td>{row.discountPercent}%</td>
-                  <td>{row.discountAmt}</td>
-                  <td>{row.taxPercent}%</td>
-                  <td>{row.taxAmount}</td>
-                  <td>{row.totalAmount}</td>
-                  <td className={previewActive ? 'highlight-cell' : ''}>
-                    {previewActive ? selectedPaymentMethod || '-' : currentPaymentMethod || '-'}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="action-footer d-flex justify-content-end gap-2 mt-3">
-        <Button
-          size="sm"
-          variant="info"
-          onClick={handleTest}
-          disabled={loading || !selectedPaymentMethod}>
-          Test
-        </Button>
-        <Button
-          size="sm"
-          variant="success"
-          onClick={handleUpdate}
-          disabled={loading || !selectedPaymentMethod}>
-          {loading ? 'Updating...' : 'Update'}
-        </Button>
-        <Button size="sm" variant="secondary" onClick={onClose}>
-          Close
-        </Button>
-      </div>
-    </ActionBox>
-  )
-}
 
 
 

@@ -192,6 +192,113 @@ export interface CheckinFullDetailsSummaryRow {
   plan_name: string;
 }
 
+// ========================================================================
+// Change Room Category Types
+// ========================================================================
+
+export interface ChangeRoomCategoryPayload {
+  checkinId: number;
+  convertedCategory: string;
+  folioTotalAmount: number;
+  currentDetail: {
+    detailId: number;
+    convertedCategoryId: number;
+    convertedCategoryName: string;
+    roomTariff: number;
+    cgstPercent: number;
+    cgstAmount: number;
+    sgstPercent: number;
+    sgstAmount: number;
+    igstPercent: number;
+    igstAmount: number;
+    cessPercent: number;
+    cessAmount: number;
+    tax: number;
+    discountAmount: number;
+    exPaxCharge: number;
+    driverCharge: number;
+    childPaidAmount: number;
+  };
+  currentCharges?: {
+    chargesId: number;
+    guestId: number;
+    roomId: number;
+    detailCheckinDatetime: string;
+    detailCheckoutDatetime: string;
+    categoryId: number;
+    paxPrice: number;
+    paxTax: number;
+    exPaxPrice: number;
+    exPaxTax: number;
+    exPaxTaxPercent: number;
+    exPaxTotal: number;
+    childPrice: number;
+    childTax: number;
+    childTaxPercent: number;
+    childTotal: number;
+    driverPrice: number;
+    driverTax: number;
+    driverTaxPercent: number;
+    driverTotal: number;
+    totalAmount: number;
+  } | null;
+  futureDetails: Array<{
+    detailId: number;
+    convertedCategoryId: number;
+    convertedCategoryName: string;
+    roomTariff: number;
+    cgstPercent: number;
+    cgstAmount: number;
+    sgstPercent: number;
+    sgstAmount: number;
+    igstPercent: number;
+    igstAmount: number;
+    cessPercent: number;
+    cessAmount: number;
+    tax: number;
+    discountAmount: number;
+    exPaxCharge: number;
+    driverCharge: number;
+    childPaidAmount: number;
+  }>;
+  futureCharges: Array<{
+    chargesId: number;
+    guestId: number;
+    roomId: number;
+    detailCheckinDatetime: string;
+    detailCheckoutDatetime: string;
+    categoryId: number;
+    paxPrice: number;
+    paxTax: number;
+    exPaxPrice: number;
+    exPaxTax: number;
+    exPaxTaxPercent: number;
+    exPaxTotal: number;
+    childPrice: number;
+    childTax: number;
+    childTaxPercent: number;
+    childTotal: number;
+    driverPrice: number;
+    driverTax: number;
+    driverTaxPercent: number;
+    driverTotal: number;
+    totalAmount: number;
+  }>;
+}
+
+export interface ChangeRoomCategoryResponse {
+  success: number;            // 1 or 0
+  message: string;
+  updatedRows: {
+    checkin_master: number;
+    current_detail: number;
+    current_charges: number;
+    future_details: number;
+    future_charges: number;
+    folio: number;
+  };
+}
+
 // ✅ NEW: Response interface that includes both details and summary
 export interface CheckinFullDetailsResponse {
   details: CheckinFullDetailsRow[];
@@ -258,6 +365,16 @@ const RoomService = {
     return HttpClient.get<ApiResponse<CheckinFullDetailsResponse>>("/rooms/checkin-full-details", {
       params: { hotelid, checkin_id, room_ids: room_ids ?? undefined },
     });
+  },
+
+    // ========================================================================
+  // NEW: Change Room Category (single API call)
+  // ========================================================================
+  changeRoomCategory(payload: ChangeRoomCategoryPayload) {
+    return HttpClient.post<ApiResponse<ChangeRoomCategoryResponse>>(
+      '/rooms/change-room-category',
+      payload
+    );
   },
 };
 

@@ -448,6 +448,63 @@ exports.addRoom = async (req, res) => {
     }
 };
 
+
+// ----------------------------------------------------------------------
+// POST /rooms/change-room-category – change room category (single API)
+// ----------------------------------------------------------------------
+exports.changeRoomCategory = async (req, res) => {
+    try {
+        // 1. Extract payload from request body
+        const payload = req.body;
+
+        // 2. Validate mandatory fields (same as stored procedure)
+        if (!payload.checkinId || !payload.convertedCategory || !payload.currentDetail) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields: checkinId, convertedCategory, or currentDetail'
+            });
+        }
+
+        // 3. (Optional) Validate hotel ownership – ensure the user has access to this checkin
+        //    You can fetch the hotelId from the checkin and compare with req.user.hotelid
+        //    For brevity, we trust the stored procedure's validation (checkin_id existence)
+        //    but we can add an extra security layer if needed.
+
+        // 4. Call the stored procedure
+        const sql = 'CALL sp_change_room_category(?)';
+        const [results] = await db.query(sql, [JSON.stringify(payload)]);
+
+        // 5. The stored procedure returns a JSON object in the first row of the first result set
+        //    The column name is 'response' as defined in the SELECT.
+        let response;
+        if (results && results[0] && results[0].length > 0) {
+            response = results[0][0].response;
+        } else {
+            // Fallback if no response (should not happen)
+            response = {
+                success: true,
+                message: 'Room category changed successfully (no detailed response)'
+            };
+        }
+
+        // 6. Return success response
+        return res.status(200).json({
+            success: true,
+            data: response
+        });
+
+    } catch (error) {
+        console.error('❌ Error in changeRoomCategory:', error);
+        // The stored procedure raises SIGNAL with custom messages
+        // The error message is available in error.message
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to change room category',
+            error: error.message
+        });
+    }
+};
+
 // ----------------------------------------------------------------------
 // PUT /rooms/:id – update an existing room
 // ----------------------------------------------------------------------

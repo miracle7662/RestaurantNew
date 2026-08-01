@@ -15,7 +15,7 @@ router.get('/:guestId/full', controller.getGuestFull);
 
 
 // Guest routes
-//router.get('/', controller.getGuests);
+router.get('/', controller.getGuests);
 router.get('/:id', controller.getGuest);
 router.post('/', controller.addGuest);
 router.put('/:id', controller.updateGuest);

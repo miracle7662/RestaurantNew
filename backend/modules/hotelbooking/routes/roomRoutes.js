@@ -13,4 +13,7 @@ router.get('/:id', controller.getRoom);
 router.put('/:id', controller.updateRoom);
 router.delete('/:id', controller.deleteRoom);
 
+router.post('/change-room-category', controller.changeRoomCategory);
+
+
 module.exports = router;
