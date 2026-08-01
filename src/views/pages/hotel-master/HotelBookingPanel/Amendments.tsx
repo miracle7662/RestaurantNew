@@ -3215,10 +3215,16 @@ const ChangeGuestInfoComponent = ({
   const hotelId = user?.hotelid
 
   const [deleteChecked, setDeleteChecked] = useState(false)
-  const [guestName, setGuestName] = useState(selectedRoom.checkin.guest_name || '')
-  const [companyName, setCompanyName] = useState(
-    selectedRoom.company?.company_name || selectedRoom.checkin.company_name || '',
-  )
+ const [guestName, setGuestName] = useState(
+  selectedRoom.guest?.name || ''
+)
+
+const [companyName, setCompanyName] = useState(
+  selectedRoom.detail?.company_name ||
+  selectedRoom.company?.company_name ||
+  selectedRoom.guest?.organisation ||
+  ''
+)
   const [primaryChecked, setPrimaryChecked] = useState(true)
   const [loadingUpdate, setLoadingUpdate] = useState(false)
   const [previewActive, setPreviewActive] = useState(false)
@@ -3226,11 +3232,15 @@ const ChangeGuestInfoComponent = ({
   const [savingGuest, setSavingGuest] = useState(false)
   const [editingGuest, setEditingGuest] = useState<any>(null)
 
-  useEffect(() => {
-    setGuestName(selectedRoom.checkin.guest_name || '')
-    setCompanyName(selectedRoom.company?.company_name || selectedRoom.checkin.company_name || '')
-    setPreviewActive(false)
-  }, [selectedRoom])
+ useEffect(() => {
+  setGuestName(selectedRoom.guest?.name || '')
+
+    setCompanyName(selectedRoom.detail?.company_name || '')
+
+  console.log("selectedRoom =>", selectedRoom);
+
+  setPreviewActive(false)
+}, [selectedRoom])
 
   const defaultGuestForm = {
     fragment_id: null,
@@ -3261,6 +3271,7 @@ const ChangeGuestInfoComponent = ({
   }
 
   const handleEditGuest = async () => {
+    
   const guestId = selectedRoom.guest?.guest_id ?? selectedRoom.checkin.guest_id
   if (!guestId) {
     toast.error('Guest data not available')

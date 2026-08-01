@@ -46,6 +46,7 @@ export interface Detail {
   updated_by_id: number
    detail_checkin_datetime: string;
   detail_checkout_datetime: string;
+  company_name: string | null;
 }
 
 export interface DetailPayload {
