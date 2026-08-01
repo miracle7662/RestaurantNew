@@ -267,7 +267,6 @@ const Amendments = () => {
       F5: 'Change Room Cat.',
       F6: 'Transfer Room',
       F7: 'Merge Room',
-      F8: 'Change In Pay Mode',
       F9: 'Swap Room',
       F10: 'Apply Discount',
     }
@@ -832,13 +831,7 @@ const Amendments = () => {
                         Transfer Room (F6)
                       </Button>
                      
-                      <Button
-                        variant={activeAction === 'Change In Pay Mode' ? 'success' : 'dark'}
-                        size="sm"
-                        className="action-btn"
-                        onClick={() => handleAction('Change In Pay Mode')}>
-                        Change In Pay Mode (F8)
-                      </Button>
+                      
                      
                       <Button
                         variant={activeAction === 'Apply Discount' ? 'success' : 'dark'}
