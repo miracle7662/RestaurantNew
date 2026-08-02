@@ -1870,7 +1870,7 @@ const handleExtendDay = async () => {
                   <p className="text-muted mb-0">No occupied rooms found.</p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '6px', alignContent: 'start', padding: '0 8px', width: '100%' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '6px', alignContent: 'start', padding: '0 8px', width: '100%' }}>
                   {occupiedRooms.map((item) => {
                     const checkoutTime = item.detail_checkout_datetime || item.latest_charge_checkout_datetime || new Date().toISOString();
                     const minutesLeft = getMinutesLeft(checkoutTime);
