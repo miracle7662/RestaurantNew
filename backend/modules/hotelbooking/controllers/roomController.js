@@ -662,6 +662,37 @@ exports.updateRoom = async (req, res) => {
     }
 };
 
+
+
+
+// PATCH /rooms/:id/status
+exports.updateRoomStatus = async (req, res) => {
+     console.log('🔍 updateRoomStatus called with id:', req.params.id);
+  console.log('📦 room_status_id:', req.body.room_status_id);
+  try {
+    const { id } = req.params;
+    const { room_status_id } = req.body;
+
+    if (!room_status_id) {
+      return res.status(400).json({ success: false, message: 'room_status_id is required' });
+    }
+
+    const [result] = await db.execute(
+      'UPDATE room_master SET room_status_id = ?, updated_date = NOW() WHERE room_id = ?',
+      [room_status_id, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Room not found' });
+    }
+
+    res.json({ success: true, message: 'Room status updated successfully' });
+  } catch (error) {
+    console.error('Update room status error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ----------------------------------------------------------------------
 // GET /rooms/:id – get single room by ID
 // ----------------------------------------------------------------------

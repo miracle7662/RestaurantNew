@@ -316,6 +316,16 @@ useEffect(() => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [activeAction, navigate, selectedRoom])
 
+  const updateRoomStatusIfCheckout = async (roomId: number, isCheckout: boolean) => {
+  if (!isCheckout) return;
+  try {
+    await RoomService.updateRoomStatus(roomId, 2);
+    console.log(`✅ Room ${roomId} status updated to 2 (Occupied)`);
+  } catch (error) {
+    console.error('Failed to update room status:', error);
+  }
+};
+
   const fetchBillingSummary = async (checkinId: number, roomId?: number) => {
     try {
       // Fetch post charges (CHARGE type) for this checkin
@@ -865,6 +875,7 @@ useEffect(() => {
                         allRoomsDetails={allRoomsDetails}
                         onClose={handleCloseAction}
                         onRefresh={refreshSelectedRoom}
+                        onAmendmentSuccess={updateRoomStatusIfCheckout}
                       />
                     ) : activeAction === 'Change In Guest Info' && selectedRoom ? (
                       <ChangeGuestInfoComponent
@@ -872,6 +883,7 @@ useEffect(() => {
                         allRoomsDetails={allRoomsDetails}
                         onClose={handleCloseAction}
                         onRefresh={refreshSelectedRoom}
+                        onAmendmentSuccess={updateRoomStatusIfCheckout}
                       />
                     ) : activeAction === 'Stay Amendments' && selectedRoom ? (
                       <StayAmendmentsComponent
@@ -886,6 +898,7 @@ useEffect(() => {
                         allRoomsDetails={allRoomsDetails}
                         onClose={handleCloseAction}
                         onRefresh={refreshSelectedRoom}
+                        onAmendmentSuccess={updateRoomStatusIfCheckout}
                       />
                     ) : activeAction === 'Transfer Room' && selectedRoom ? (
                       <TransferRoomComponent
@@ -904,6 +917,7 @@ useEffect(() => {
                         allRoomsDetails={allRoomsDetails}
                         onClose={handleCloseAction}
                         onRefresh={refreshSelectedRoom}
+                        onAmendmentSuccess={updateRoomStatusIfCheckout}
                       />
                     ) : (
                       <>
@@ -1252,6 +1266,7 @@ interface PaxChangeProps {
   allRoomsDetails: Detail[]
   onClose: () => void
   onRefresh: () => void
+  onAmendmentSuccess?: (roomId: number, isCheckout: boolean) => Promise<void>; // 👈 add this
 }
 
 const PaxChangeComponent = ({
@@ -1259,6 +1274,7 @@ const PaxChangeComponent = ({
   allRoomsDetails,
   onClose,
   onRefresh,
+  onAmendmentSuccess,  
 }: PaxChangeProps) => {
   const { user } = useAuthContext()
   const hotelId = user?.hotel_id
@@ -1554,6 +1570,11 @@ const PaxChangeComponent = ({
 
       toast.success(`Pax information updated successfully!
         Pax: ${tempPax} | ExPax: ${tempExPax} | Child: ${tempChildPaid} | Driver: ${tempDriver}`)
+
+        // 👇 ADD THIS
+    if (onAmendmentSuccess) {
+      await onAmendmentSuccess(selectedRoom.detail.room_id, selectedRoom.detail.is_checkout === 1);
+    }
       
       onRefresh()
       onClose()
@@ -2394,6 +2415,7 @@ interface ChangeRoomCategoryProps {
   allRoomsDetails: Detail[]
   onClose: () => void
   onRefresh: () => void
+  onAmendmentSuccess?: (roomId: number, isCheckout: boolean) => Promise<void>;
 }
 
 
@@ -2530,6 +2552,7 @@ const ChangeRoomCategoryComponent = ({
   allRoomsDetails,
   onClose,
   onRefresh,
+  onAmendmentSuccess,
 }: ChangeRoomCategoryProps) => {
   const originalCategory =
     selectedRoom.detail.converted_category_name || selectedRoom.detail.room_category_name || ''
@@ -3023,6 +3046,11 @@ const ChangeRoomCategoryComponent = ({
 
       if (response.success) {
         toast.success(`Category changed to ${tempNewCategory} with tax ${newTax.total}%`);
+
+        // 👇 ADD THIS
+    if (onAmendmentSuccess) {
+      await onAmendmentSuccess(selectedRoom.detail.room_id, selectedRoom.detail.is_checkout === 1);
+    }
         onRefresh();
         onClose();
       } else {
@@ -3217,12 +3245,14 @@ interface ChangeGuestInfoProps {
   allRoomsDetails: Detail[]
   onClose: () => void
   onRefresh: () => void
+  onAmendmentSuccess?: (roomId: number, isCheckout: boolean) => Promise<void>; 
 }
 const ChangeGuestInfoComponent = ({
   selectedRoom,
   allRoomsDetails,
   onClose,
   onRefresh,
+  onAmendmentSuccess,
 }: ChangeGuestInfoProps) => {
   const { user } = useAuthContext()
   const hotelId = user?.hotelid
@@ -3443,6 +3473,11 @@ const handleGuestSave = async (guestData: any) => {
 
     // Update local state with the new guest name
     setGuestName(guestData.name ?? guestName)
+
+     // 👇 ADD THIS
+    if (onAmendmentSuccess) {
+      await onAmendmentSuccess(selectedRoom.detail.room_id, selectedRoom.detail.is_checkout === 1);
+    }
 
     onRefresh()
     setShowGuestModal(false)
@@ -4182,6 +4217,7 @@ interface ApplyDiscountProps {
   allRoomsDetails: Detail[]
   onClose: () => void
   onRefresh: () => void
+  onAmendmentSuccess?: (roomId: number, isCheckout: boolean) => Promise<void>;
 }
 
 interface AffectedDay {
@@ -4255,6 +4291,7 @@ const ApplyDiscountComponent = ({
   allRoomsDetails,
   onClose,
   onRefresh,
+  onAmendmentSuccess,
 }: ApplyDiscountProps) => {
   // ========================================
   // STATE
@@ -4599,6 +4636,11 @@ const filteredDetails = allDetails.filter((d: any) => {
 
       const dayLabel = backdatedApply ? 'All days' : `Day ${findCurrentDayIndex() + 1} (Current)`
       toast.success(`Discount ${tempDiscountPercent}% applied to ${dayLabel}`)
+
+      // 👇 ADD THIS
+    if (onAmendmentSuccess) {
+      await onAmendmentSuccess(selectedRoom.detail.room_id, selectedRoom.detail.is_checkout === 1);
+    }
 
       await fetchAffectedDays()
       setPreviewActive(false)

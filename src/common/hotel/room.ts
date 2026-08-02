@@ -338,6 +338,13 @@ const RoomService = {
     return HttpClient.put<ApiResponse<Room>>(`/rooms/${roomId}`, payload);
   },
 
+
+
+
+updateRoomStatus(roomId: number, statusId: number) {
+  return HttpClient.put<ApiResponse<null>>(`/rooms/${roomId}/status`, { room_status_id: statusId });
+},
+
   remove(roomId: number) {
     return HttpClient.delete<ApiResponse<null>>(`/rooms/${roomId}`);
   },
