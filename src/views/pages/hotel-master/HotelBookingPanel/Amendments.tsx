@@ -139,43 +139,44 @@ const Amendments = () => {
   }, [selectedRoom, setValues])
 
   // ✅ FIXED: Use hotelid instead of mst_hotelid
-  useEffect(() => {
-    if (!hotelId) return
+useEffect(() => {
+  if (!hotelId) return;
 
-    const fetchOccupiedRooms = async () => {
-      setLoading(true)
-      try {
-        const checkinsRes = await CheckInService.list({ hotelid: hotelId })
-        const checkins: CheckIn[] = checkinsRes.data || []
+  const fetchOccupiedRooms = async () => {
+    setLoading(true);
+    try {
+      const checkinsRes = await CheckInService.list({ hotelid: hotelId });
+      const checkins: CheckIn[] = checkinsRes.data || [];
 
-        const detailsRes = await DetailService.list({ hotelid: hotelId })
-        const allDetails: Detail[] = detailsRes.data || []
+      const detailsRes = await DetailService.list({ hotelid: hotelId });
+      const allDetails: Detail[] = detailsRes.data || [];
 
-        const checkinMap = new Map<number, CheckIn>()
-        checkins.forEach((c) => checkinMap.set(c.checkin_id, c))
+      const checkinMap = new Map<number, CheckIn>();
+      checkins.forEach((c) => checkinMap.set(c.checkin_id, c));
 
-        const activeDetails = allDetails.filter(
-          (d) => checkinMap.has(d.checkin_id) && d.is_checkout === 0,
-        )
+      // ✅ Removed the .is_checkout === 0 condition
+      const activeDetails = allDetails.filter((d) =>
+        checkinMap.has(d.checkin_id)
+      );
 
-        const rooms: OccupiedRoom[] = activeDetails.map((detail) => ({
-          roomNo: detail.room_number || '',
-          checkin: checkinMap.get(detail.checkin_id)!,
-          detail,
-        }))
+      const rooms: OccupiedRoom[] = activeDetails.map((detail) => ({
+        roomNo: detail.room_number || '',
+        checkin: checkinMap.get(detail.checkin_id)!,
+        detail,
+      }));
 
-        setOccupiedRooms(rooms)
-        setAllRoomsDetails(activeDetails)
-      } catch (error) {
-        console.error('Failed to load occupied rooms:', error)
-        toast.error('Could not load room data')
-      } finally {
-        setLoading(false)
-      }
+      setOccupiedRooms(rooms);
+      setAllRoomsDetails(activeDetails);
+    } catch (error) {
+      console.error('Failed to load occupied rooms:', error);
+      toast.error('Could not load room data');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    fetchOccupiedRooms()
-  }, [hotelId])
+  fetchOccupiedRooms();
+}, [hotelId]);
 
   useEffect(() => {
     if (!hotelId) return
@@ -292,6 +293,14 @@ const Amendments = () => {
           toast.error('Please select a room first')
           return
         }
+
+           // 👇 NEW: Prevent F4 and F6 for checked‑out rooms
+    if (selectedRoom.detail.is_checkout === 1 && (action === 'Stay Amendments' || action === 'Transfer Room')) {
+      toast.error('This action is not allowed for checked‑out rooms.');
+      return;
+    }
+
+        
         // If same action is already open, pressing the key again closes it
         if (activeAction === action) {
           setActiveAction(null)
@@ -300,6 +309,8 @@ const Amendments = () => {
         }
       }
     }
+
+    
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -813,7 +824,8 @@ const Amendments = () => {
                         variant={activeAction === 'Stay Amendments' ? 'success' : 'dark'}
                         size="sm"
                         className="action-btn"
-                        onClick={() => handleAction('Stay Amendments')}>
+                        disabled={selectedRoom?.detail?.is_checkout === 1}   
+                        onClick={() => handleAction('Stay Amendments')}>               
                         Stay Amendments (F4)
                       </Button>
                       <Button
@@ -827,6 +839,7 @@ const Amendments = () => {
                         variant={activeAction === 'Transfer Room' ? 'success' : 'dark'}
                         size="sm"
                         className="action-btn"
+                        disabled={selectedRoom?.detail?.is_checkout === 1} 
                         onClick={() => handleAction('Transfer Room')}>
                         Transfer Room (F6)
                       </Button>

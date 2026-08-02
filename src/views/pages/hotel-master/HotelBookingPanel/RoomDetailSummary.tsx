@@ -143,6 +143,7 @@ interface CombinedGuestSummary {
   total_discount_amount?: number
   total_credit_amount?: number
   total_debit_amount?: number
+  company_name?: string 
 }
 
 interface BillDateSummaryItem {
@@ -870,6 +871,7 @@ const computeMasterTotals = (rows: DisplayDetailRow[]) => {
           plan_name: summaryRow.plan_name || '',
           total_credit_amount: toNumber(summaryRow.total_credit_amount) || 0,
           total_debit_amount: toNumber(summaryRow.total_debit_amount) || 0,
+          company_name: summaryRow.company_name || summaryRow?.company_name || '',   // <-- NEW
         }
         setCombinedSummary(combinedSummaryData)
 
@@ -938,6 +940,7 @@ const computeMasterTotals = (rows: DisplayDetailRow[]) => {
           reg_no: firstRow.reg_no,
           booking_ref: firstRow.booking,
           plan_name: firstRow.plan_name,
+          company_name: firstRow.company_name || '',
         }
         setCombinedSummary(fallbackSummary)
 
@@ -2277,6 +2280,10 @@ const handleConfirmCheckout = async () => {
                 <strong>To:</strong>{' '}
                 {displayRows.length ? displayRows[displayRows.length - 1].bill_date_formatted : '-'}
               </div>
+
+              <div>
+  <strong>Company:</strong> {combinedSummary?.company_name || '-'}
+</div>
               <div className="radio-group ms-auto">
                 <label className="radio-label">
                   <input

@@ -169,12 +169,16 @@ LEFT JOIN
 ) x
 ON x.checkout_id = cm.checkout_id
 
+LEFT JOIN room_master rm ON rm.room_id = x.room_id
+
 WHERE
     cm.hotelid = ?
     AND cm.is_settle = 0
 
 GROUP BY
     cm.checkout_id
+
+HAVING SUM(CASE WHEN rm.room_status_id = 2 THEN 1 ELSE 0 END) = 0
 
 ORDER BY
     cm.ldg_bill_no,
