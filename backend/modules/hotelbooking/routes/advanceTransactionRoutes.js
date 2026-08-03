@@ -1,4 +1,3 @@
-// backend/routes/advanceTransactionRoutes.js
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/advanceTransactionController');
@@ -12,6 +11,7 @@ router.get('/:id', controller.getAdvanceTransactionById);
 
 // POST routes
 router.post('/', controller.addAdvanceTransaction);
+
 router.post('/transfer-room', controller.transferAdvanceToRoom);
 router.post('/swap-rooms', controller.swapAdvanceBetweenRooms);
 

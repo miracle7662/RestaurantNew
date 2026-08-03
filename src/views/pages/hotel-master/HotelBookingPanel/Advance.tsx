@@ -381,6 +381,26 @@ useEffect(() => {
     })
     toast.success('Row deleted')
   }
+  // Helper function to parse narration if it's JSON
+const formatNarration = (narration: string | null): string => {
+  if (!narration) return '';
+  try {
+    const parsed = JSON.parse(narration);
+    // Agar JSON hai toh usse readable string banayein
+    if (parsed.items && Array.isArray(parsed.items)) {
+      return parsed.items
+        .map((item: any) => `${item.payType}: ${item.particulars || item.amount}`)
+        .join('; ');
+    }
+    return narration; // fallback
+  } catch {
+    // JSON nahi hai, as-is return karein
+    return narration;
+  }
+};
+
+
+  
 
   // ==================== Data Loaders ====================
 
@@ -476,7 +496,7 @@ useEffect(() => {
                     .replace(/\//g, '-')
                     .replace(/(\d{2})-(\d{2})-(\d{4})/, (_, d, m, y) => `${d}-${m}-${y.slice(2)}`),
                   description: t.reason || 'Advance Payment',
-                  narration: t.narration || '',
+                  narration: formatNarration(t.narration) || '',
                   amount: availableBalance,
                   select: false,
                   cancelAmt: 0,
