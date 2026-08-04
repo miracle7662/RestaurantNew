@@ -361,6 +361,8 @@ useEffect(() => {
   const [savedAdditionItems, setSavedAdditionItems] = useState<AdditionItem[]>([])
   const [additionItems, setAdditionItems] = useState<AdditionItem[]>([])
 
+  const [receiptSearch, setReceiptSearch] = useState('')
+
   // Helper: build default newAdditionItem with first payment method pre-selected
   const buildDefaultAdditionItem = (methods: PaymentMethod[]): AdditionItem => {
     const firstPm = methods.length > 0 ? methods[0] : null
@@ -790,6 +792,7 @@ const resetRefund = () => {
   setRefundDocNo(generateReceiptNumber('RF'));
   setRefundDate(currentDateTime);
   setRefundBottomItems([]);
+   setReceiptSearch('');
   const firstPm = paymentMethods.length > 0 ? paymentMethods[0] : null;
   setNewRefundBottomItem({
     modeOfPay: firstPm ? firstPm.payment_method_name || firstPm.name : '',
@@ -1280,10 +1283,7 @@ const resetRefund = () => {
     .filter((i) => i.select)
     .reduce((s, i) => s + (i.cancelAmt || 0), 0)
 
-  // Live balance for refund tab
-  const refundSelectedTotal = refundTopItems
-    .filter((i) => i.select)
-    .reduce((s, i) => s + (i.amt || 0), 0)
+  
 
   // ==================== Render Functions ====================
 
@@ -1515,265 +1515,309 @@ const resetRefund = () => {
     </>
   )
 
- const renderAdvanceRefund = () => (
-  <>
-    <div className="form-fields-container mb-2">
-      <div className="form-field-row">
-        <div className="form-field-item">
-          <span className="field-label">Doc No. :</span>
+const renderAdvanceRefund = () => {
+  // 🔍 Filter receipts based on the search text (receipt number)
+  const filteredItems = refundTopItems.filter((item) =>
+    item.docNo.toLowerCase().includes(receiptSearch.toLowerCase())
+  );
+
+  // 💰 Total of selected refund amounts from filtered items
+  const totalRefundAmount = filteredItems
+    .filter((i) => i.select)
+    .reduce((sum, i) => sum + (i.amt || 0), 0);
+
+  return (
+    <>
+      <div className="form-fields-container mb-2">
+        <div className="form-field-row">
+          
+          <div className="form-field-item">
+            <span className="field-label">Receipt No :</span>
+            <Form.Control
+              type="text"
+              size="sm"
+              value={receiptSearch}
+              onChange={(e) => setReceiptSearch(e.target.value)}
+              placeholder="Search by receipt no..."
+              className="field-input"
+              style={{ maxWidth: '200px' }}
+            />
+            {receiptSearch && (
+              <Button
+                size="sm"
+                variant="outline-secondary"
+                onClick={() => setReceiptSearch('')}
+                style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', marginLeft: '4px' }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          <div className="form-field-item">
+            <span className="field-label">Doc No. :</span>
+            <Form.Control
+              type="text"
+              size="sm"
+              value={refundDocNo}
+              readOnly
+              className="field-input bg-light"
+            />
+          </div>
+         
+        </div>
+
+        {/* Guest Name search */}
+        <div className="form-field-row">
+          <div className="form-field-item">
+            <span className="field-label">Guest Name :</span>
+            <Form.Control
+              type="text"
+              size="sm"
+              list="guest-list"
+              value={refundGuestName}
+              onChange={(e) => {
+                const val = e.target.value;
+                setRefundGuestName(val);
+                const found = guestList.find((g) => g.name === val);
+                const guestId = found?.guest_id || null;
+                setRefundGuestId(guestId);
+                loadAdvanceReceipts(guestId, val);
+              }}
+              placeholder="Search guest..."
+              className="field-input"
+              style={{ maxWidth: '280px', minWidth: '180px' }}
+            />
+          </div>
+          
+
+
+          
+        </div>
+
+        {/* ✅ Receipt No search – auto‑filled on row click */}
+       
+      </div>
+
+      {/* TOP TABLE: receipts available for refund */}
+      <div className="action-table-container mb-2">
+        <table className="action-table table table-bordered text-center align-middle">
+          <thead className="table-light">
+            <tr>
+              <th>Doc No.</th>
+              <th>Guest Name</th>
+              <th>Company Name</th>
+              <th>Reason</th>
+              <th>Amt Receive</th>
+              <th>Balance</th>
+              <th>Select</th>
+              <th>Refund Amt</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredItems.length > 0 ? (
+              filteredItems.map((item) => (
+                <tr
+                  key={item.id}
+                  style={{ backgroundColor: item.select ? '#e8f5e9' : undefined }}
+                  onClick={() => setReceiptSearch(item.docNo)} // ✅ auto‑fetch on row click
+                >
+                  <td>{item.docNo}</td>
+                  <td>{item.guestName}</td>
+                  <td>{item.companyName}</td>
+                  <td>{item.reason}</td>
+                  <td className="text-end">₹{item.amtReceive.toLocaleString()}</td>
+                  <td className="text-end">₹{item.balance.toLocaleString()}</td>
+                  <td>
+                    <Form.Check
+                      type="checkbox"
+                      checked={item.select}
+                      onChange={(e) => {
+                        e.stopPropagation(); // ✅ prevent row click
+                        handleRefundSelectChange(item.id, e.target.checked);
+                      }}
+                    />
+                  </td>
+                  <td>
+                    <Form.Control
+                      type="number"
+                      size="sm"
+                      value={item.amt || ''}
+                      onChange={(e) => {
+                        e.stopPropagation(); // ✅ prevent row click
+                        setRefundTopItems((prev) =>
+                          prev.map((r) =>
+                            r.id === item.id ? { ...r, amt: parseFloat(e.target.value) || 0 } : r
+                          )
+                        );
+                      }}
+                      className="text-center"
+                      style={{ width: '100px' }}
+                      placeholder="0"
+                      max={item.balance}
+                      disabled={!item.select}
+                    />
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={8} className="text-muted py-3">
+                  No advance receipts available for refund
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Balance info bar */}
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <div className="d-flex align-items-center">
+          <strong className="me-2" style={{ fontSize: '0.75rem' }}>
+            Total Refund Amount :
+          </strong>
           <Form.Control
             type="text"
             size="sm"
-            value={refundDocNo}
+            value={`₹${totalRefundAmount.toFixed(2)}`}
             readOnly
-            className="field-input bg-light"
-          />
-        </div>
-        <div className="form-field-item">
-          <span className="field-label">Date & Time :</span>
-          <Form.Control
-            type="datetime-local"
-            size="sm"
-            value={refundDate}
-            onChange={(e) => setRefundDate(e.target.value)}
-            className="field-input"
+            className="text-end bg-light"
+            style={{ width: '130px', fontSize: '0.75rem', fontWeight: 600 }}
           />
         </div>
       </div>
 
-      {/* ✅ NEW: Guest Name search field */}
-      <div className="form-field-row">
-       <div className="form-field-item">
-  <span className="field-label">Guest Name :</span>
- <Form.Control
-  type="text"
-  size="sm"
-  list="guest-list"
-  value={refundGuestName}
-  onChange={(e) => {
-    const val = e.target.value;
-    setRefundGuestName(val);
-    const found = guestList.find(g => g.name === val);
-    const guestId = found?.guest_id || null;
-    setRefundGuestId(guestId);
-    // ✅ Reload receipts for this guest
-    loadAdvanceReceipts(guestId, val);
-  }}
-  placeholder="Search guest..."
-  className="field-input"
-/>
-</div>
-      </div>
-    </div>
-
-    {/* TOP TABLE: receipts available for refund (unchanged) */}
-    <div className="action-table-container mb-2">
-      <table className="action-table table table-bordered text-center align-middle">
-        <thead className="table-light">
-          <tr>
-            <th>Doc No.</th>
-            <th>Guest Name</th>
-            <th>Company Name</th>
-            <th>Reason</th>
-            <th>Amt Receive</th>
-            <th>Balance</th>
-            <th>Select</th>
-            <th>Refund Amt</th>
-          </tr>
-        </thead>
-        <tbody>
-          {refundTopItems.length > 0 ? (
-            refundTopItems.map((item) => (
-              <tr key={item.id} style={{ backgroundColor: item.select ? '#e8f5e9' : undefined }}>
-                <td>{item.docNo}</td>
-                <td>{item.guestName}</td>
-                <td>{item.companyName}</td>
-                <td>{item.reason}</td>
-                <td className="text-end">₹{item.amtReceive.toLocaleString()}</td>
-                <td className="text-end">₹{item.balance.toLocaleString()}</td>
+      {/* BOTTOM TABLE: payment method for refund disbursement */}
+      <div className="action-table-container">
+        <table className="action-table table table-bordered text-center align-middle">
+          <thead className="table-light">
+            <tr>
+              <th>Mode Of Pay</th>
+              <th>Ledger Name</th>
+              <th>Rec No</th>
+              <th>Date</th>
+              <th>Narration</th>
+              <th>Amount</th>
+              <th style={{ width: '50px' }}>Del</th>
+            </tr>
+          </thead>
+          <tbody>
+            {refundBottomItems.map((item) => (
+              <tr key={item.id}>
+                <td>{item.modeOfPay}</td>
+                <td>{item.ledgerName}</td>
+                <td>{item.recNo}</td>
+                <td>{formatDateDisplay(item.date)}</td>
+                <td>{item.narration}</td>
+                <td className="text-end">₹{item.amount.toLocaleString()}</td>
                 <td>
-                  <Form.Check
-                    type="checkbox"
-                    checked={item.select}
-                    onChange={(e) => handleRefundSelectChange(item.id, e.target.checked)}
-                  />
-                </td>
-                <td>
-                  <Form.Control
-                    type="number"
-                    size="sm"
-                    value={item.amt || ''}
-                    onChange={(e) =>
-                      setRefundTopItems((prev) =>
-                        prev.map((r) =>
-                          r.id === item.id ? { ...r, amt: parseFloat(e.target.value) || 0 } : r,
-                        ),
-                      )
-                    }
-                    className="text-center"
-                    style={{ width: '100px' }}
-                    placeholder="0"
-                    max={item.balance}
-                    disabled={!item.select}
-                  />
+                  <button
+                    className="btn btn-xs btn-outline-danger py-0 px-1"
+                    style={{ fontSize: '0.65rem' }}
+                    onClick={() => handleDeleteRefundBottomRow(item.id)}
+                  >
+                    🗑
+                  </button>
                 </td>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={8} className="text-muted py-3">
-                No advance receipts available for refund
+            ))}
+            <tr className="table-active">
+              <td>
+                <Form.Select
+                  size="sm"
+                  value={newRefundBottomItem.modeOfPayId ?? ''}
+                  onChange={(e) => {
+                    const selected = paymentMethods.find((pm) => String(pm.id) === e.target.value);
+                    setNewRefundBottomItem({
+                      ...newRefundBottomItem,
+                      modeOfPayId: selected ? selected.id : undefined,
+                      modeOfPay: selected ? selected.payment_method_name || selected.name : '',
+                    });
+                  }}
+                >
+                  <option value="">Select Mode</option>
+                  {paymentMethods.map((pm) => (
+                    <option key={pm.id} value={pm.id}>
+                      {pm.name}
+                    </option>
+                  ))}
+                </Form.Select>
               </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-
-    {/* Balance info bar (unchanged) */}
-    <div className="d-flex justify-content-between align-items-center mb-2">
-      <div className="d-flex align-items-center">
-        <strong className="me-2" style={{ fontSize: '0.75rem' }}>
-          Total Refund Amount :
-        </strong>
-        <Form.Control
-          type="text"
-          size="sm"
-          value={`₹${refundSelectedTotal.toFixed(2)}`}
-          readOnly
-          className="text-end bg-light"
-          style={{ width: '130px', fontSize: '0.75rem', fontWeight: 600 }}
-        />
-      </div>
-    </div>
-
-    {/* BOTTOM TABLE: payment method for refund disbursement (unchanged) */}
-    <div className="action-table-container">
-      <table className="action-table table table-bordered text-center align-middle">
-        <thead className="table-light">
-          <tr>
-            <th>Mode Of Pay</th>
-            <th>Ledger Name</th>
-            <th>Rec No</th>
-            <th>Date</th>
-            <th>Narration</th>
-            <th>Amount</th>
-            <th style={{ width: '50px' }}>Del</th>
-          </tr>
-        </thead>
-        <tbody>
-          {refundBottomItems.map((item) => (
-            <tr key={item.id}>
-              <td>{item.modeOfPay}</td>
-              <td>{item.ledgerName}</td>
-              <td>{item.recNo}</td>
-              <td>{formatDateDisplay(item.date)}</td>
-              <td>{item.narration}</td>
-              <td className="text-end">₹{item.amount.toLocaleString()}</td>
+              <td>
+                <Form.Control
+                  type="text"
+                  size="sm"
+                  placeholder="Ledger Name"
+                  value={newRefundBottomItem.ledgerName || ''}
+                  onChange={(e) =>
+                    setNewRefundBottomItem({ ...newRefundBottomItem, ledgerName: e.target.value })
+                  }
+                />
+              </td>
+              <td>
+                <Form.Control
+                  type="text"
+                  size="sm"
+                  placeholder="Rec No"
+                  value={newRefundBottomItem.recNo || ''}
+                  onChange={(e) =>
+                    setNewRefundBottomItem({ ...newRefundBottomItem, recNo: e.target.value })
+                  }
+                />
+              </td>
+              <td>
+                <Form.Control
+                  type="date"
+                  size="sm"
+                  value={newRefundBottomItem.date || ''}
+                  onChange={(e) =>
+                    setNewRefundBottomItem({ ...newRefundBottomItem, date: e.target.value })
+                  }
+                />
+              </td>
+              <td>
+                <Form.Control
+                  type="text"
+                  size="sm"
+                  placeholder="Narration"
+                  value={newRefundBottomItem.narration || ''}
+                  onChange={(e) =>
+                    setNewRefundBottomItem({ ...newRefundBottomItem, narration: e.target.value })
+                  }
+                />
+              </td>
+              <td>
+                <Form.Control
+                  type="number"
+                  size="sm"
+                  placeholder="Amount"
+                  value={newRefundBottomItem.amount || ''}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                    setNewRefundBottomItem({
+                      ...newRefundBottomItem,
+                      amount: isNaN(value) ? 0 : value,
+                    });
+                  }}
+                  className="text-center"
+                />
+              </td>
               <td>
                 <button
-                  className="btn btn-xs btn-outline-danger py-0 px-1"
+                  className="btn btn-xs btn-primary py-0 px-1"
                   style={{ fontSize: '0.65rem' }}
-                  onClick={() => handleDeleteRefundBottomRow(item.id)}>
-                  🗑
+                  onClick={handleAddRefundBottomRow}
+                >
+                  + Add
                 </button>
               </td>
             </tr>
-          ))}
-          <tr className="table-active">
-            <td>
-              <Form.Select
-                size="sm"
-                value={newRefundBottomItem.modeOfPayId ?? ''}
-                onChange={(e) => {
-                  const selected = paymentMethods.find((pm) => String(pm.id) === e.target.value)
-                  setNewRefundBottomItem({
-                    ...newRefundBottomItem,
-                    modeOfPayId: selected ? selected.id : undefined,
-                    modeOfPay: selected ? selected.payment_method_name || selected.name : '',
-                  })
-                }}>
-                <option value="">Select Mode</option>
-                {paymentMethods.map((pm) => (
-                  <option key={pm.id} value={pm.id}>
-                    {pm.name}
-                  </option>
-                ))}
-              </Form.Select>
-            </td>
-            <td>
-              <Form.Control
-                type="text"
-                size="sm"
-                placeholder="Ledger Name"
-                value={newRefundBottomItem.ledgerName || ''}
-                onChange={(e) =>
-                  setNewRefundBottomItem({ ...newRefundBottomItem, ledgerName: e.target.value })
-                }
-              />
-            </td>
-            <td>
-              <Form.Control
-                type="text"
-                size="sm"
-                placeholder="Rec No"
-                value={newRefundBottomItem.recNo || ''}
-                onChange={(e) =>
-                  setNewRefundBottomItem({ ...newRefundBottomItem, recNo: e.target.value })
-                }
-              />
-            </td>
-            <td>
-              <Form.Control
-                type="date"
-                size="sm"
-                value={newRefundBottomItem.date || ''}
-                onChange={(e) =>
-                  setNewRefundBottomItem({ ...newRefundBottomItem, date: e.target.value })
-                }
-              />
-            </td>
-            <td>
-              <Form.Control
-                type="text"
-                size="sm"
-                placeholder="Narration"
-                value={newRefundBottomItem.narration || ''}
-                onChange={(e) =>
-                  setNewRefundBottomItem({ ...newRefundBottomItem, narration: e.target.value })
-                }
-              />
-            </td>
-            <td>
-              <Form.Control
-                type="number"
-                size="sm"
-                placeholder="Amount"
-                value={newRefundBottomItem.amount || ''}
-                onChange={(e) => {
-                  const value = e.target.value === '' ? 0 : parseFloat(e.target.value)
-                  setNewRefundBottomItem({
-                    ...newRefundBottomItem,
-                    amount: isNaN(value) ? 0 : value,
-                  })
-                }}
-                className="text-center"
-              />
-            </td>
-            <td>
-              <button
-                className="btn btn-xs btn-primary py-0 px-1"
-                style={{ fontSize: '0.65rem' }}
-                onClick={handleAddRefundBottomRow}>
-                + Add
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </>
-)
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+};
 
   const renderAdvanceCancel = () => (
     <>
