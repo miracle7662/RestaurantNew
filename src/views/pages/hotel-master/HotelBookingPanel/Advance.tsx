@@ -1283,7 +1283,10 @@ const resetRefund = () => {
     .filter((i) => i.select)
     .reduce((s, i) => s + (i.cancelAmt || 0), 0)
 
-  
+  // Live balance for refund tab
+  const refundSelectedTotal = refundTopItems
+    .filter((i) => i.select)
+    .reduce((s, i) => s + (i.amt || 0), 0)
 
   // ==================== Render Functions ====================
 
@@ -1585,10 +1588,19 @@ const renderAdvanceRefund = () => {
               }}
               placeholder="Search guest..."
               className="field-input"
-              style={{ maxWidth: '280px', minWidth: '180px' }}
+              style={{ maxWidth: '250px', minWidth: '180px' }}
             />
           </div>
-          
+           <div className="form-field-item">
+            <span className="field-label">Date & Time :</span>
+            <Form.Control
+              type="datetime-local"
+              size="sm"
+              value={refundDate}
+              onChange={(e) => setRefundDate(e.target.value)}
+              className="field-input"
+            />
+          </div>
 
 
           
