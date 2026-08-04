@@ -443,7 +443,7 @@ const formatNarration = (narration: string | null): string => {
 
   // ==================== Data Loaders ====================
 
-  const loadAdvanceReceipts = async (guestId?: number, guestName?: string) => {
+ const loadAdvanceReceipts = async (guestId?: number, guestName?: string) => {
   try {
     const response = await AdvanceTransactionService.list({
       checkin_id: checkinId,
@@ -469,7 +469,8 @@ const formatNarration = (narration: string | null): string => {
           debit: 0,
           receipt_no: t.receipt_no || '',
           guest_name: t.guest_name || '',
-          company_name: t.company_name || '',});
+          company_name: t.company_name || '',
+        });
       }
       const entry = balanceMap.get(aid)!;
       if (t.transaction_type === 'Booking Receipt' || t.transaction_type === 'Advance Addition') {
@@ -785,21 +786,23 @@ const formatNarration = (narration: string | null): string => {
   setReceiptGuestId(matched?.guest_id || null)
   }
 
- const resetRefund = () => {
-  setRefundDocNo(generateReceiptNumber('RF'))
-  setRefundDate(currentDateTime)
-  setRefundBottomItems([])
-  const firstPm = paymentMethods.length > 0 ? paymentMethods[0] : null
+const resetRefund = () => {
+  setRefundDocNo(generateReceiptNumber('RF'));
+  setRefundDate(currentDateTime);
+  setRefundBottomItems([]);
+  const firstPm = paymentMethods.length > 0 ? paymentMethods[0] : null;
   setNewRefundBottomItem({
     modeOfPay: firstPm ? firstPm.payment_method_name || firstPm.name : '',
     modeOfPayId: firstPm ? firstPm.id : undefined,
     date: new Date().toISOString().slice(0, 10),
-  })
-  setRefundGuestName(guestName)
-  const matched = guestList.find(g => g.guest_name === guestName)
-  setRefundGuestId(matched?.guest_id || null)
-  loadAdvanceReceipts()
-}
+  });
+  setRefundGuestName(guestName);
+  const matched = guestList.find(g => g.name === guestName);
+  const guestId = matched?.guest_id || null;
+  setRefundGuestId(guestId);
+  // ✅ Load receipts for this guest
+  loadAdvanceReceipts(guestId, guestName);
+};
 
   const resetCancel = async () => {
     setCancelRoomNo(roomNo)
