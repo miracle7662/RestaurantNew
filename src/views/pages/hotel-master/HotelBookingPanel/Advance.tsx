@@ -1500,24 +1500,23 @@ const formatNarration = (narration: string | null): string => {
 
       {/* ✅ NEW: Guest Name search field */}
       <div className="form-field-row">
-        <div className="form-field-item">
-          <span className="field-label">Guest Name :</span>
-          <Form.Control
-            type="text"
-            size="sm"
-            list="guest-list"
-            value={refundGuestName}
-            onChange={(e) => {
-              const val = e.target.value
-              setRefundGuestName(val)
-              const found = guestList.find(g => g.guest_name === val)
-              setRefundGuestId(found?.guest_id || null)
-            }}
-            placeholder="Search guest..."
-            className="field-input"
-          />
-          {/* Reuse same datalist */}
-        </div>
+       <div className="form-field-item">
+  <span className="field-label">Guest Name :</span>
+  <Form.Control
+    type="text"
+    size="sm"
+    list="guest-list"
+    value={refundGuestName}
+    onChange={(e) => {
+      const val = e.target.value
+      setRefundGuestName(val)
+      const found = guestList.find(g => g.name === val)   // ✅ changed to g.name
+      setRefundGuestId(found?.guest_id || null)
+    }}
+    placeholder="Search guest..."
+    className="field-input"
+  />
+</div>
       </div>
     </div>
 
@@ -2465,6 +2464,11 @@ const formatNarration = (narration: string | null): string => {
   )}
   <Card>
     <Card.Body className="p-2">
+        <datalist id="guest-list">
+    {guestList.map((g) => (
+      <option key={g.guest_id} value={g.name} />
+    ))}
+  </datalist>
    
        
         <div className="d-flex gap-2">
