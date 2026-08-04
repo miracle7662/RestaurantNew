@@ -22,6 +22,7 @@ interface AdvanceModalProps {
   userId?: number
   onSuccess?: () => void
   roomId?: number
+  hideBookingReceiptAndRefund?: boolean   // ✅ new
 }
 
 interface ReceiptItem {
@@ -165,6 +166,7 @@ const Advance = ({
   userId,
   onSuccess,
   roomId: propRoomId,
+   hideBookingReceiptAndRefund = false, 
 }: AdvanceModalProps) => {
   const [activeTab, setActiveTab] = useState<
     'receipt' | 'refund' | 'cancel' | 'posting' | 'addition' | null
@@ -215,6 +217,7 @@ const Advance = ({
   }
 
 const fetchInitialData = async () => {
+  
   setIsLoadingData(true);
   try {
     // 1. Fetch payment modes using the outlet ID from auth
@@ -2379,20 +2382,24 @@ const formatNarration = (narration: string | null): string => {
             <div className="d-flex gap-2">
               <div className="left-side-buttons" style={{ width: '140px', flexShrink: 0 }}>
                 <div className="d-flex flex-column gap-1">
-                  <Button
-                    variant={activeTab === 'receipt' ? 'success' : 'outline-success'}
-                    className="w-100 py-1 rounded-0 fw-semibold"
-                    size="sm"
-                    onClick={() => resetTab('receipt')}>
-                    Booking Receipt
-                  </Button>
-                  <Button
-                    variant={activeTab === 'refund' ? 'danger' : 'outline-danger'}
-                    className="w-100 py-1 rounded-0 fw-small"
-                    size="sm"
-                    onClick={() => resetTab('refund')}>
-                    Advance Refund
-                  </Button>
+                  {!hideBookingReceiptAndRefund && (
+    <>
+      <Button
+        variant={activeTab === 'receipt' ? 'success' : 'outline-success'}
+        className="w-100 py-1 rounded-0 fw-semibold"
+        size="sm"
+        onClick={() => resetTab('receipt')}>
+        Booking Receipt
+      </Button>
+      <Button
+        variant={activeTab === 'refund' ? 'danger' : 'outline-danger'}
+        className="w-100 py-1 rounded-0 fw-small"
+        size="sm"
+        onClick={() => resetTab('refund')}>
+        Advance Refund
+      </Button>
+    </>
+  )}
                   <Button
                     variant={activeTab === 'cancel' ? 'secondary' : 'outline-secondary'}
                     className="w-100 py-1 rounded-0 fw-small"

@@ -400,6 +400,8 @@ const HotelBookingPanel = () => {
   const blockScrollRef = useRef<HTMLDivElement | null>(null)
   const maintScrollRef = useRef<HTMLDivElement | null>(null)
 
+  const [advanceHideReceiptAndRefund, setAdvanceHideReceiptAndRefund] = useState(false)
+
   // ==================== DERIVED STATE ====================
 
   const floorMap = useMemo(
@@ -2098,6 +2100,23 @@ const handleExtendDay = async () => {
             <Button size="sm" variant="danger" className="fw-semibold px-4">Cash In</Button>
             <Button size="sm" variant="danger" className="fw-semibold px-4">Cash Out</Button>
             <Button size="sm" variant="danger" className="fw-semibold px-4">MIS Report</Button>
+             <Button
+  size="sm"
+  variant="warning"
+  className="fw-semibold px-4"
+  onClick={() => {
+    const firstOccupied = occupiedRooms[0];
+    if (firstOccupied) {
+      setSelectedOccupiedItem(firstOccupied);
+      setAdvanceHideReceiptAndRefund(false);   // show all tabs
+      setShowAdvanceModal(true);
+    } else {
+      toast.error('No occupied rooms found. Please check in a room first.');
+    }
+  }}
+>
+  <i className="fi fi-rr-receipt me-1"></i>Advance
+</Button>
             <Button
               size="sm"
               variant={showSettlementPage ? 'secondary' : 'success'}
@@ -2190,7 +2209,11 @@ const handleExtendDay = async () => {
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
               onClick={() => {
                 if (option.label === 'Amendments') navigate('/hotel/amendments', { state: { occupiedItem: contextMenuItem } })
-                else if (option.label === 'Advance') { setSelectedOccupiedItem(contextMenuItem); setShowAdvanceModal(true) }
+                else if (option.label === 'Advance') {
+  setSelectedOccupiedItem(contextMenuItem)
+  setAdvanceHideReceiptAndRefund(true)   // hide Booking Receipt & Refund
+  setShowAdvanceModal(true)
+}
                 else if (option.label === 'Post Charges') { setSelectedOccupiedItem(contextMenuItem); setPostChargesMode('charge'); setShowPostChargesModal(true) }
                 else if (option.label === 'Allowances') { setSelectedOccupiedItem(contextMenuItem); setPostChargesMode('allowance'); setShowPostChargesModal(true) }
                 else if (option.label === 'Receipt Against Posted Bills') { setSelectedOccupiedItem(contextMenuItem); setShowReceiptModal(true) }
@@ -2248,6 +2271,7 @@ const handleExtendDay = async () => {
           userId={user?.id}
           roomId={selectedOccupiedItem.room_id}
           onSuccess={() => { fetchOccupiedRoomsData() }} 
+          hideBookingReceiptAndRefund={advanceHideReceiptAndRefund} 
         />
       )}
 
