@@ -182,6 +182,8 @@ const Advance = ({
   const [billDate, setBillDate] = useState(new Date().toISOString().slice(0, 10))
   const { user } = useAuthContext();
   const outletId = user?.outletid ?? user?.outletId;
+  const hasValidCheckin = checkinId && checkinId > 0;
+
 
   useEffect(() => {
     const now = new Date()
@@ -193,11 +195,7 @@ const Advance = ({
     setCurrentDateTime(`${year}-${month}-${day}T${hours}:${minutes}`)
   }, [])
 
-  useEffect(() => {
-    if (show && checkinId && hotelId) {
-      fetchInitialData()
-    }
-  }, [show, checkinId, hotelId])
+
 
   useEffect(() => {
     if (!roomId && roomNo && hotelId) {
@@ -217,20 +215,17 @@ const Advance = ({
   }
 
 const fetchInitialData = async () => {
-  
   setIsLoadingData(true);
   try {
-    // 1. Fetch payment modes using the outlet ID from auth
+    // ✅ Hamesha payment modes fetch karo
     if (!outletId) {
       console.warn('No outlet ID found in auth context');
       setPaymentMethods([]);
     } else {
       const pmResponse = await PaymentModeService.list({ 
-        outletid: String(outletId)   // ✅ convert to string if needed
+        outletid: String(outletId)
       });
       const pmData = pmResponse?.data ?? [];
-
-      // Map correctly – mode_name is the display name
       const mapped = pmData.map((pm) => ({
         id: pm.id,
         name: pm.mode_name,
@@ -239,29 +234,40 @@ const fetchInitialData = async () => {
       setPaymentMethods(mapped);
     }
 
-    // 2. Other API calls (checkin, advance summary) can still use hotelId prop
-    const checkinRes = await CheckInService.get(checkinId);
-    const checkin = checkinRes.data || checkinRes;
-    setCompanyName(checkin?.company_name || 'SELF');
+    // ✅ SIRF tab checkin-related data fetch karo jab valid checkin ho
+    if (hasValidCheckin) {
+      const checkinRes = await CheckInService.get(checkinId);
+      const checkin = checkinRes.data || checkinRes;
+      setCompanyName(checkin?.company_name || 'SELF');
 
-    const summaryRes = await AdvanceTransactionService.getSummary(checkinId);
-    if (summaryRes.success && summaryRes.data) {
-      setPendingAdvance(summaryRes.data.pending_advance);
+      const summaryRes = await AdvanceTransactionService.getSummary(checkinId);
+      if (summaryRes.success && summaryRes.data) {
+        setPendingAdvance(summaryRes.data.pending_advance);
+      }
+    } else {
+      // Reset checkin-specific states
+      setCompanyName('');
+      setPendingAdvance(0);
     }
   } catch (error) {
     console.error('Failed to fetch initial data:', error);
-    toast.error('Could not load required data');
+    // Sirf tab toast dikhao jab checkin valid hai, warna 404 error ignore karo
+    if (hasValidCheckin) {
+      toast.error('Could not load required data');
+    }
   } finally {
     setIsLoadingData(false);
   }
 };
-
 // Update useEffect dependencies to include outletId
+
+
+// ✅ Add this useEffect
 useEffect(() => {
-  if (show && checkinId && hotelId) {
+  if (show) {
     fetchInitialData();
   }
-}, [show, checkinId, hotelId, outletId]);   // ✅ outletId added
+}, [show, outletId, checkinId, hotelId]);
 
   // Refresh only the pending advance balance (called after every save)
   const refreshPendingAdvance = async () => {
@@ -762,6 +768,11 @@ const formatNarration = (narration: string | null): string => {
   // ==================== Save Functions ====================
 
   const handleSaveReceipt = async () => {
+
+     if (!hasValidCheckin) {
+    toast.error('Please select a room first to save a booking receipt.');
+    return;
+  }
     let allReceiptItems = [...receiptItems]
     if (newReceiptItem.payType && newReceiptItem.amount > 0) {
       const pendingId = String(Date.now())
@@ -2358,89 +2369,98 @@ const formatNarration = (narration: string | null): string => {
       backdrop="static"
       className="advance-modal">
       <Modal.Header closeButton className="py-2">
-        <Modal.Title className="fs-6">
-          ADVANCE MANAGEMENT {roomId && `- Room ${roomNo}`}
-          {pendingAdvance > 0 && (
-            <span
-              className="ms-3"
-              style={{ fontSize: '0.75rem', fontWeight: 400, color: '#d4edff', opacity: 0.9 }}>
-              Pending Advance:{' '}
-              <strong style={{ color: '#fff' }}>₹{pendingAdvance.toFixed(2)}</strong>
-            </span>
-          )}
-        </Modal.Title>
-      </Modal.Header>
-      <Modal.Body className="pb-2">
-        {isLoadingData && (
-          <div className="text-center py-3">
-            <div className="spinner-border spinner-border-sm text-primary me-2"></div>
-            <span className="small">Loading data...</span>
-          </div>
-        )}
-        <Card>
-          <Card.Body className="p-2">
-            <div className="d-flex gap-2">
-              <div className="left-side-buttons" style={{ width: '140px', flexShrink: 0 }}>
-                <div className="d-flex flex-column gap-1">
-                  {!hideBookingReceiptAndRefund && (
-    <>
-      <Button
-        variant={activeTab === 'receipt' ? 'success' : 'outline-success'}
-        className="w-100 py-1 rounded-0 fw-semibold"
-        size="sm"
-        onClick={() => resetTab('receipt')}>
-        Booking Receipt
-      </Button>
-      <Button
-        variant={activeTab === 'refund' ? 'danger' : 'outline-danger'}
-        className="w-100 py-1 rounded-0 fw-small"
-        size="sm"
-        onClick={() => resetTab('refund')}>
-        Advance Refund
-      </Button>
-    </>
+       <Modal.Title className="fs-6">
+  ADVANCE MANAGEMENT
+  {hasValidCheckin && roomId && ` - Room ${roomNo}`}
+  {hasValidCheckin && pendingAdvance > 0 && (
+    <span
+      className="ms-3"
+      style={{ fontSize: '0.75rem', fontWeight: 400, color: '#d4edff', opacity: 0.9 }}
+    >
+      Pending Advance: <strong style={{ color: '#fff' }}>₹{pendingAdvance.toFixed(2)}</strong>
+    </span>
   )}
+</Modal.Title>
+      </Modal.Header>
+     <Modal.Body className="pb-2">
+  {isLoadingData && (
+    <div className="text-center py-3">
+      <div className="spinner-border spinner-border-sm text-primary me-2"></div>
+      <span className="small">Loading data...</span>
+    </div>
+  )}
+  <Card>
+    <Card.Body className="p-2">
+   
+       
+        <div className="d-flex gap-2">
+          <div className="left-side-buttons" style={{ width: '140px', flexShrink: 0 }}>
+            <div className="d-flex flex-column gap-1">
+              {!hideBookingReceiptAndRefund && (
+                <>
                   <Button
-                    variant={activeTab === 'cancel' ? 'secondary' : 'outline-secondary'}
-                    className="w-100 py-1 rounded-0 fw-small"
+                    variant={activeTab === 'receipt' ? 'success' : 'outline-success'}
+                    className="w-100 py-1 rounded-0 fw-semibold"
                     size="sm"
-                    onClick={() => resetTab('cancel')}>
-                    Advance Cancel
+                    onClick={() => resetTab('receipt')}
+                  >
+                    Booking Receipt
                   </Button>
                   <Button
-                    variant={activeTab === 'posting' ? 'warning' : 'outline-warning'}
+                    variant={activeTab === 'refund' ? 'danger' : 'outline-danger'}
                     className="w-100 py-1 rounded-0 fw-small"
                     size="sm"
-                    onClick={() => resetTab('posting')}>
-                    Advance Posting
+                    onClick={() => resetTab('refund')}
+                  >
+                    Advance Refund
                   </Button>
-                  <Button
-                    variant={activeTab === 'addition' ? 'info' : 'outline-info'}
-                    className="w-100 py-1 rounded-0 fw-small"
-                    size="sm"
-                    onClick={() => resetTab('addition')}>
-                    Advance Addition
-                  </Button>
-                </div>
-              </div>
-              <div className="flex-grow-1" style={{ minHeight: '400px' }}>
-                {!activeTab && (
-                  <div className="text-center text-muted py-5">
-                    <i className="fi fi-rr-money-bill fs-1 mb-3 d-block"></i>
-                    <p className="mb-0">Click any button on the left to start a transaction</p>
-                    <p className="small mt-2">Pending Advance: ₹{pendingAdvance.toFixed(2)}</p>
-                  </div>
-                )}
-                {activeTab === 'receipt' && renderBookingReceipt()}
-                {activeTab === 'refund' && renderAdvanceRefund()}
-                {activeTab === 'cancel' && renderAdvanceCancel()}
-                {activeTab === 'posting' && renderAdvancePosting()}
-                {activeTab === 'addition' && renderAdvanceAddition()}
-              </div>
+                </>
+              )}
+              <Button
+                variant={activeTab === 'cancel' ? 'secondary' : 'outline-secondary'}
+                className="w-100 py-1 rounded-0 fw-small"
+                size="sm"
+                onClick={() => resetTab('cancel')}
+              >
+                Advance Cancel
+              </Button>
+              <Button
+                variant={activeTab === 'posting' ? 'warning' : 'outline-warning'}
+                className="w-100 py-1 rounded-0 fw-small"
+                size="sm"
+                onClick={() => resetTab('posting')}
+              >
+                Advance Posting
+              </Button>
+              <Button
+                variant={activeTab === 'addition' ? 'info' : 'outline-info'}
+                className="w-100 py-1 rounded-0 fw-small"
+                size="sm"
+                onClick={() => resetTab('addition')}
+              >
+                Advance Addition
+              </Button>
             </div>
-          </Card.Body>
-        </Card>
-      </Modal.Body>
+          </div>
+          <div className="flex-grow-1" style={{ minHeight: '400px' }}>
+            {!activeTab && (
+              <div className="text-center text-muted py-5">
+                <i className="fi fi-rr-money-bill fs-1 mb-3 d-block"></i>
+                <p className="mb-0">Click any button on the left to start a transaction</p>
+                <p className="small mt-2">Pending Advance: ₹{pendingAdvance.toFixed(2)}</p>
+              </div>
+            )}
+            {activeTab === 'receipt' && renderBookingReceipt()}
+            {activeTab === 'refund' && renderAdvanceRefund()}
+            {activeTab === 'cancel' && renderAdvanceCancel()}
+            {activeTab === 'posting' && renderAdvancePosting()}
+            {activeTab === 'addition' && renderAdvanceAddition()}
+          </div>
+        </div>
+      
+    </Card.Body>
+  </Card>
+</Modal.Body>
       {activeTab && <Modal.Footer className="py-1">{renderFooter()}</Modal.Footer>}
       <style>{`
         .advance-modal .modal-dialog { max-width: 1100px; width: 90%; }

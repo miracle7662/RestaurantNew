@@ -2104,15 +2104,12 @@ const handleExtendDay = async () => {
   size="sm"
   variant="warning"
   className="fw-semibold px-4"
-  onClick={() => {
-    const firstOccupied = occupiedRooms[0];
-    if (firstOccupied) {
-      setSelectedOccupiedItem(firstOccupied);
-      setAdvanceHideReceiptAndRefund(false);   // show all tabs
-      setShowAdvanceModal(true);
-    } else {
-      toast.error('No occupied rooms found. Please check in a room first.');
-    }
+   onClick={() => {
+    // Always open the modal – no room needed
+    const firstOccupied = occupiedRooms[0] || null;
+    setSelectedOccupiedItem(firstOccupied);
+    setAdvanceHideReceiptAndRefund(false);
+    setShowAdvanceModal(true);
   }}
 >
   <i className="fi fi-rr-receipt me-1"></i>Advance
@@ -2259,22 +2256,19 @@ const handleExtendDay = async () => {
         />
       )}
 
-      {selectedOccupiedItem && (
-        <Advance
-          show={showAdvanceModal}
-          onHide={() => { setShowAdvanceModal(false); setSelectedOccupiedItem(null) }}
-          roomNo={selectedOccupiedItem.room_no}
-          guestName={selectedOccupiedItem.guest_name}
-          checkinId={selectedOccupiedItem.checkin_id}
-          detailId={selectedOccupiedItem.detail_id}
-          hotelId={hotelId || 0}
-          userId={user?.id}
-          roomId={selectedOccupiedItem.room_id}
-          onSuccess={() => { fetchOccupiedRoomsData() }} 
-          hideBookingReceiptAndRefund={advanceHideReceiptAndRefund} 
-        />
-      )}
-
+     <Advance
+  show={showAdvanceModal}
+  onHide={() => { setShowAdvanceModal(false); setSelectedOccupiedItem(null) }}
+  roomNo={selectedOccupiedItem?.room_no ?? ''}
+  guestName={selectedOccupiedItem?.guest_name ?? ''}
+  checkinId={selectedOccupiedItem?.checkin_id ?? 0}
+  detailId={selectedOccupiedItem?.detail_id ?? 0}
+  hotelId={hotelId || 0}
+  userId={user?.id}
+  roomId={selectedOccupiedItem?.room_id}
+  onSuccess={() => { fetchOccupiedRoomsData() }}
+  hideBookingReceiptAndRefund={advanceHideReceiptAndRefund}
+/>
       <RoomStatusModal
         show={showMultiRoomStatusModal}
         onHide={() => setShowMultiRoomStatusModal(false)}
