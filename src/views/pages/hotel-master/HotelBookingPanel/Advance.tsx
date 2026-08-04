@@ -1283,10 +1283,7 @@ const resetRefund = () => {
     .filter((i) => i.select)
     .reduce((s, i) => s + (i.cancelAmt || 0), 0)
 
-  // Live balance for refund tab
-  const refundSelectedTotal = refundTopItems
-    .filter((i) => i.select)
-    .reduce((s, i) => s + (i.amt || 0), 0)
+  
 
   // ==================== Render Functions ====================
 
