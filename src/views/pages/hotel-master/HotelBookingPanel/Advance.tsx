@@ -443,31 +443,71 @@ const formatNarration = (narration: string | null): string => {
 
   // ==================== Data Loaders ====================
 
-  const loadAdvanceReceipts = async () => {
-    try {
-      const availRes = await AdvanceTransactionService.getAvailableAdvance(checkinId, roomId)
-      if (availRes.success && availRes.data) {
-        const items: RefundTopItem[] = availRes.data.transactions
-          .filter((t) => t.available_balance > 0)
-          .map((t, idx) => ({
-            id: String(idx + 1),
-            docNo: t.receipt_no,
-            guestName: guestName,
-            companyName: companyName,
-            reason: 'Advance Refund',
-            amtReceive: t.credit_amount,
-            balance: t.available_balance,
-            select: false,
-            amt: 0,
-            advance_id: t.advance_id,
-          }))
-        setRefundTopItems(items)
-      }
-    } catch (error) {
-      console.error('Failed to load advance receipts:', error)
-      toast.error('Could not load advance receipts')
+  const loadAdvanceReceipts = async (guestId?: number, guestName?: string) => {
+  try {
+    const response = await AdvanceTransactionService.list({
+      checkin_id: checkinId,
+      room_id: roomId,
+    });
+    if (!response.success || !response.data) {
+      setRefundTopItems([]);
+      return;
     }
+    const transactions = response.data;
+
+    // Group by advance_id and compute balances
+    const balanceMap = new Map<
+      number,
+      { credit: number; debit: number; receipt_no: string; guest_name: string; company_name: string }
+    >();
+    for (const t of transactions) {
+      if (t.status !== 'active') continue;
+      const aid = t.advance_id;
+      if (!balanceMap.has(aid)) {
+        balanceMap.set(aid, {
+          credit: 0,
+          debit: 0,
+          receipt_no: t.receipt_no || '',
+          guest_name: t.guest_name || '',
+          company_name: t.company_name || '',});
+      }
+      const entry = balanceMap.get(aid)!;
+      if (t.transaction_type === 'Booking Receipt' || t.transaction_type === 'Advance Addition') {
+        entry.credit += Number(t.credit_amount) || 0;
+      } else if (
+        t.transaction_type === 'Advance Posting' ||
+        t.transaction_type === 'Advance Refund' ||
+        t.transaction_type === 'Advance Cancel'
+      ) {
+        entry.debit += Number(t.debit_amount) || 0;
+      }
+    }
+
+    // Filter by guestName if provided and build table rows
+    let items: RefundTopItem[] = [];
+    for (const [aid, data] of balanceMap.entries()) {
+      const balance = data.credit - data.debit;
+      if (balance <= 0) continue;
+      if (guestName && data.guest_name !== guestName) continue; // ✅ Filter by guest name
+      items.push({
+        id: String(aid),
+        docNo: data.receipt_no,
+        guestName: data.guest_name,
+        companyName: data.company_name,
+        reason: 'Advance Refund',
+        amtReceive: data.credit,
+        balance: balance,
+        select: false,
+        amt: 0,
+        advance_id: aid,
+      });
+    }
+    setRefundTopItems(items);
+  } catch (error) {
+    console.error('Failed to load advance receipts:', error);
+    toast.error('Could not load advance receipts');
   }
+};
 
   const loadAdvanceForPosting = async () => {
     try {
@@ -1502,20 +1542,23 @@ const formatNarration = (narration: string | null): string => {
       <div className="form-field-row">
        <div className="form-field-item">
   <span className="field-label">Guest Name :</span>
-  <Form.Control
-    type="text"
-    size="sm"
-    list="guest-list"
-    value={refundGuestName}
-    onChange={(e) => {
-      const val = e.target.value
-      setRefundGuestName(val)
-      const found = guestList.find(g => g.name === val)   // ✅ changed to g.name
-      setRefundGuestId(found?.guest_id || null)
-    }}
-    placeholder="Search guest..."
-    className="field-input"
-  />
+ <Form.Control
+  type="text"
+  size="sm"
+  list="guest-list"
+  value={refundGuestName}
+  onChange={(e) => {
+    const val = e.target.value;
+    setRefundGuestName(val);
+    const found = guestList.find(g => g.name === val);
+    const guestId = found?.guest_id || null;
+    setRefundGuestId(guestId);
+    // ✅ Reload receipts for this guest
+    loadAdvanceReceipts(guestId, val);
+  }}
+  placeholder="Search guest..."
+  className="field-input"
+/>
 </div>
       </div>
     </div>

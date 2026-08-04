@@ -13,6 +13,7 @@ export interface AdvanceTransaction {
   detail_id: number | null;
   room_id: number | null;
   guest_name: string;
+  company_name: string;
   room_no: string;
   transaction_type: 'Booking Receipt' | 'Advance Refund' | 'Advance Cancel' | 'Advance Posting' | 'Advance Addition';
   receipt_no: string;
