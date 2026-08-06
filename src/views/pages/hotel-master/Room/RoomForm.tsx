@@ -1,5 +1,5 @@
 // components/RoomForm.tsx
-import { forwardRef, useImperativeHandle, useEffect, useState } from 'react'
+import { forwardRef, useImperativeHandle, useEffect, useState, useRef } from 'react'
 import { Row, Col } from 'react-bootstrap'
 import { FormikProvider, useFormik } from 'formik'
 import * as Yup from 'yup'
@@ -37,6 +37,9 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
     const { user } = useAuthContext()
     const hotelId = user?.hotelid
 
+    // Ref for the form container
+    const formContainerRef = useRef<HTMLDivElement>(null)
+
     // Dropdown states
     const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])
     const [blocks, setBlocks] = useState<Array<{ id: number; name: string }>>([])
@@ -50,6 +53,54 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
     const [loadingDepartments, setLoadingDepartments] = useState(false)
     const [loadingStatuses, setLoadingStatuses] = useState(false)
     const [statusesLoaded, setStatusesLoaded] = useState(false)
+
+    // Define field order for Enter key navigation
+    const fieldOrder = [
+        'room_no',
+        'room_name',
+        'display_name',
+        'room_ext_no',
+        'room_category_id',
+        'department_id',
+        'block_id',
+        'floor_id',
+        'room_status_id'
+    ]
+
+    // Handle Enter key press
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>, fieldName: string) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            
+            const currentIndex = fieldOrder.indexOf(fieldName)
+            const nextField = fieldOrder[currentIndex + 1]
+            
+            if (nextField) {
+                // Find and focus the next field using name attribute
+                const form = formContainerRef.current
+                if (form) {
+                    // Try to find by name attribute
+                    let nextElement = form.querySelector(`[name="${nextField}"]`) as HTMLInputElement | HTMLSelectElement | null
+                    
+                    // If not found, try to find by id
+                    if (!nextElement) {
+                        nextElement = document.getElementById(nextField) as HTMLInputElement | HTMLSelectElement | null
+                    }
+                    
+                    if (nextElement) {
+                        nextElement.focus()
+                        // For select elements, simulate click to open dropdown
+                        if (nextElement.tagName === 'SELECT') {
+                            (nextElement as HTMLSelectElement).click()
+                        }
+                    }
+                }
+            } else {
+                // Last field - trigger save
+                formik.handleSubmit()
+            }
+        }
+    }
 
     // Fetch all dropdown data on mount
     useEffect(() => {
@@ -197,127 +248,136 @@ const RoomForm = forwardRef<any, RoomFormProps>(({ selectedItem, onSave }, ref) 
 
     return (
         <FormikProvider value={formik}>
-            <form onSubmit={handleSubmit}>
-                <Row className="g-0">
-                    {/* Left Column */}
-                    <Col md={6}>
-                        <div className="p-1">
-                            <Row className="align-items-center g-2 mb-1">
-                                <Col md={4}>Room Number *</Col>
-                                <Col md={8}>
-                                    <FormikTextInput
-                                        name="room_no"
-                                        placeholder="Enter room number"
-                                        className="w-100"
-                                    />
-                                </Col>
-                            </Row>
+            <div ref={formContainerRef}>
+                <form onSubmit={handleSubmit}>
+                    <Row className="g-0">
+                        {/* Left Column */}
+                        <Col md={6}>
+                            <div className="p-1">
+                                <Row className="align-items-center g-2 mb-1">
+                                    <Col md={4}>Room Number *</Col>
+                                    <Col md={8}>
+                                        <FormikTextInput
+                                            name="room_no"
+                                            placeholder="Enter room number"
+                                            className="w-100"
+                                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, 'room_no')}
+                                        />
+                                    </Col>
+                                </Row>
 
-                            <Row className="align-items-center g-2 mb-1">
-                                <Col md={4}>Room Name *</Col>
-                                <Col md={8}>
-                                    <FormikTextInput
-                                        name="room_name"
-                                        placeholder="Enter room name"
-                                        className="w-100"
-                                    />
-                                </Col>
-                            </Row>
+                                <Row className="align-items-center g-2 mb-1">
+                                    <Col md={4}>Room Name *</Col>
+                                    <Col md={8}>
+                                        <FormikTextInput
+                                            name="room_name"
+                                            placeholder="Enter room name"
+                                            className="w-100"
+                                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, 'room_name')}
+                                        />
+                                    </Col>
+                                </Row>
 
-                            <Row className="align-items-center g-2 mb-1">
-                                <Col md={4}>Display Name</Col>
-                                <Col md={8}>
-                                    <FormikTextInput
-                                        name="display_name"
-                                        placeholder="Enter display name"
-                                        className="w-100"
-                                    />
-                                </Col>
-                            </Row>
+                                <Row className="align-items-center g-2 mb-1">
+                                    <Col md={4}>Display Name</Col>
+                                    <Col md={8}>
+                                        <FormikTextInput
+                                            name="display_name"
+                                            placeholder="Enter display name"
+                                            className="w-100"
+                                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, 'display_name')}
+                                        />
+                                    </Col>
+                                </Row>
 
-                            <Row className="align-items-center g-2 mb-1">
-                                <Col md={4}>Extension No.</Col>
-                                <Col md={8}>
-                                    <FormikTextInput
-                                        name="room_ext_no"
-                                        placeholder="Enter extension number"
-                                        className="w-100"
-                                    />
-                                </Col>
-                            </Row>
-                        </div>
-                    </Col>
+                                <Row className="align-items-center g-2 mb-1">
+                                    <Col md={4}>Extension No.</Col>
+                                    <Col md={8}>
+                                        <FormikTextInput
+                                            name="room_ext_no"
+                                            placeholder="Enter extension number"
+                                            className="w-100"
+                                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, 'room_ext_no')}
+                                        />
+                                    </Col>
+                                </Row>
+                            </div>
+                        </Col>
 
-                    {/* Right Column */}
-                    <Col md={6}>
-                        <div className="p-1">
-                            <Row className="align-items-center g-2 mb-1">
-                                <Col md={4}>Category *</Col>
-                                <Col md={8}>
-                                    <FormikSelect
-                                        name="room_category_id"
-                                        options={categoryOptions}
-                                        isLoading={loadingCategories}
-                                        className="w-100"
-                                    />
-                                </Col>
-                            </Row>
+                        {/* Right Column */}
+                        <Col md={6}>
+                            <div className="p-1">
+                                <Row className="align-items-center g-2 mb-1">
+                                    <Col md={4}>Category *</Col>
+                                    <Col md={8}>
+                                        <FormikSelect
+                                            name="room_category_id"
+                                            options={categoryOptions}
+                                            isLoading={loadingCategories}
+                                            className="w-100"
+                                            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, 'room_category_id')}
+                                        />
+                                    </Col>
+                                </Row>
 
-                            
+                                <Row className="align-items-center g-2 mb-1">
+                                    <Col md={4}>Department</Col>
+                                    <Col md={8}>
+                                        <FormikSelect
+                                            name="department_id"
+                                            options={departmentOptions}
+                                            isLoading={loadingDepartments}
+                                            className="w-100"
+                                            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, 'department_id')}
+                                        />
+                                    </Col>
+                                </Row>
 
-                            <Row className="align-items-center g-2 mb-1">
-                                <Col md={4}>Department</Col>
-                                <Col md={8}>
-                                    <FormikSelect
-                                        name="department_id"
-                                        options={departmentOptions}
-                                        isLoading={loadingDepartments}
-                                        className="w-100"
-                                    />
-                                </Col>
-                            </Row>
+                                <Row className="align-items-center g-2 mb-1">
+                                    <Col md={4}>Block</Col>
+                                    <Col md={8}>
+                                        <FormikSelect
+                                            name="block_id"
+                                            options={blockOptions}
+                                            isLoading={loadingBlocks}
+                                            className="w-100"
+                                            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, 'block_id')}
+                                        />
+                                    </Col>
+                                </Row>
 
-                            <Row className="align-items-center g-2 mb-1">
-                                <Col md={4}>Block</Col>
-                                <Col md={8}>
-                                    <FormikSelect
-                                        name="block_id"
-                                        options={blockOptions}
-                                        isLoading={loadingBlocks}
-                                        className="w-100"
-                                    />
-                                </Col>
-                            </Row>
+                                <Row className="align-items-center g-2 mb-1">
+                                    <Col md={4}>Floor</Col>
+                                    <Col md={8}>
+                                        <FormikSelect
+                                            name="floor_id"
+                                            options={floorOptions}
+                                            isLoading={loadingFloors}
+                                            className="w-100"
+                                            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, 'floor_id')}
+                                        />
+                                    </Col>
+                                </Row>
 
-                            <Row className="align-items-center g-2 mb-1">
-                                <Col md={4}>Floor</Col>
-                                <Col md={8}>
-                                    <FormikSelect
-                                        name="floor_id"
-                                        options={floorOptions}
-                                        isLoading={loadingFloors}
-                                        className="w-100"
-                                    />
-                                </Col>
-                            </Row>
-
-                            <Row className="align-items-center g-2 mb-1">
-                                <Col md={4}>Status *</Col>
-                                <Col md={8}>
-                                    <FormikSelect
-                                        key={`status-${statusesLoaded}-${statusOptions.length}`}
-                                        name="room_status_id"
-                                        options={statusOptions}
-                                        isLoading={loadingStatuses}
-                                        placeholder="Select status"
-                                        className="w-100"
-                                    />
-                                </Col>
-                            </Row>
-                        </div>
-                    </Col>
-                </Row>
-            </form>
+                                <Row className="align-items-center g-2 mb-1">
+                                    <Col md={4}>Status *</Col>
+                                    <Col md={8}>
+                                        <FormikSelect
+                                            key={`status-${statusesLoaded}-${statusOptions.length}`}
+                                            name="room_status_id"
+                                            options={statusOptions}
+                                            isLoading={loadingStatuses}
+                                            placeholder="Select status"
+                                            className="w-100"
+                                            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, 'room_status_id')}
+                                        />
+                                    </Col>
+                                </Row>
+                            </div>
+                        </Col>
+                    </Row>
+                </form>
+            </div>
         </FormikProvider>
     )
 })

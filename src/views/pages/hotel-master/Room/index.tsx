@@ -60,8 +60,6 @@ const defaultForm: RoomFormData = {
 
 const RoomMaster = () => {
     const { user } = useAuthContext();
-        console.log("Current User:", user);
-
     const hotelId = user?.hotelid;
 
     const [rooms, setRooms] = useState<Room[]>([]);
@@ -76,7 +74,6 @@ const RoomMaster = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-    
 
     // Load rooms — use getRooms() to get statuses + full room fields
     const loadRooms = async () => {
@@ -191,6 +188,11 @@ const RoomMaster = () => {
         setEditingRoom(null);
         setForm(defaultForm);
         setShowModal(true);
+        // Focus on first field after modal opens
+        setTimeout(() => {
+            const firstInput = document.querySelector('input[name="room_no"]') as HTMLInputElement;
+            if (firstInput) firstInput.focus();
+        }, 100);
     };
 
     const handleOpenEditModal = (room: Room) => {
@@ -208,6 +210,11 @@ const RoomMaster = () => {
             floor_id: room.floor_id?.toString() || '',
         });
         setShowModal(true);
+        // Focus on first field after modal opens
+        setTimeout(() => {
+            const firstInput = document.querySelector('input[name="room_no"]') as HTMLInputElement;
+            if (firstInput) firstInput.focus();
+        }, 100);
     };
 
     const handleCloseModal = () => {
@@ -236,7 +243,7 @@ const RoomMaster = () => {
                 block_id: payload.block_id ? parseInt(payload.block_id) : undefined,
                 floor_id: payload.floor_id ? parseInt(payload.floor_id) : undefined,
                 hotelid: hotelId,
-                outletid: user?.outletid, 
+                outletid: user?.outletid,
                 created_by_id: user?.id,
                 updated_by_id: user?.id,
             };
@@ -259,8 +266,9 @@ const RoomMaster = () => {
                 }
             }
 
-            // setShowModal(false);
-            // setEditingRoom(null);
+            // Close modal after successful save
+            setShowModal(false);
+            setEditingRoom(null);
             loadRooms(); // refresh to pick up status_name + status_color
         } catch (error: any) {
             console.error('Failed to save room:', error);

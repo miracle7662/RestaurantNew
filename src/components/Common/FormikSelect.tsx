@@ -17,10 +17,13 @@ interface FormikSelectProps {
   placeholder?: string
   onChange?: (value: string | number | null) => void
   disabled?: boolean
-  label2?: string | undefined
+  label2?: string
   inputStyle?: React.CSSProperties
   size?: 'sm' | 'lg'
   isLoading?: boolean
+  onKeyDown?: React.KeyboardEventHandler<HTMLSelectElement>
+  onFocus?: React.FocusEventHandler<HTMLSelectElement>
+  onBlur?: React.FocusEventHandler<HTMLSelectElement>
 }
 
 const FormikSelect: React.FC<FormikSelectProps> = ({
@@ -35,18 +38,22 @@ const FormikSelect: React.FC<FormikSelectProps> = ({
   inputStyle,
   size,
   isLoading = false,
+  onKeyDown,
+  onFocus,
+  onBlur,
 }) => {
   const [field, meta] = useField(name)
   const { validateForm } = useFormikContext<any>()
   const selectRef = useRef<HTMLSelectElement>(null)
 
-  // Handle null/undefined values - convert to empty string to avoid React warning
-  const fieldValue = field.value === null || field.value === undefined ? '' : field.value
+  const fieldValue =
+    field.value === null || field.value === undefined ? '' : field.value
 
   const hasError = Boolean(meta.error)
 
   const showErrorToast = async () => {
     await validateForm()
+
     if (!meta.error || !selectRef.current) return
 
     const rect = selectRef.current.getBoundingClientRect()
@@ -66,7 +73,8 @@ const FormikSelect: React.FC<FormikSelectProps> = ({
             whiteSpace: 'nowrap',
             zIndex: 9999,
           }}
-          onClick={() => toast.dismiss(t.id)}>
+          onClick={() => toast.dismiss(t.id)}
+        >
           {meta.error}
         </div>
       ),
@@ -79,12 +87,10 @@ const FormikSelect: React.FC<FormikSelectProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     field.onChange(e)
-    if (onChange) {
-      // Convert empty string to null
-      const value = e.target.value === '' ? null : e.target.value
-      onChange(value)
-    }
-    toast.dismiss(name) // Hide toast when value changes
+
+    onChange?.(e.target.value === '' ? null : e.target.value)
+
+    toast.dismiss(name)
   }
 
   return (
@@ -95,7 +101,8 @@ const FormikSelect: React.FC<FormikSelectProps> = ({
             fontSize: '13px',
             marginBottom: '4px',
             fontWeight: 400,
-          }}>
+          }}
+        >
           {label}
         </Form.Label>
       )}
@@ -105,9 +112,44 @@ const FormikSelect: React.FC<FormikSelectProps> = ({
         name={field.name}
         value={fieldValue}
         size={size}
-        onChange={handleChange}
-        isInvalid={hasError}
         disabled={disabled || isLoading}
+        isInvalid={hasError}
+        onChange={handleChange}
+        onKeyDown={onKeyDown}
+        onFocus={(e) => {
+          if (!hasError) {
+            e.currentTarget.style.border = '1px solid #86b7fe'
+            e.currentTarget.style.boxShadow =
+              '0 0 0 0.1rem rgba(13,110,253,.25)'
+          }
+
+          onFocus?.(e)
+        }}
+        onBlur={(e) => {
+          field.onBlur(e)
+
+          if (!hasError) {
+            e.currentTarget.style.border = '1px solid #ced4da'
+            e.currentTarget.style.boxShadow = 'none'
+          }
+
+          onBlur?.(e)
+        }}
+        onMouseEnter={(e) => {
+          if (!hasError) {
+            e.currentTarget.style.border = '1px solid #86b7fe'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!hasError) {
+            e.currentTarget.style.border = '1px solid #ced4da'
+          }
+        }}
+        onClick={() => {
+          if (hasError && !isLoading) {
+            showErrorToast()
+          }
+        }}
         style={{
           ...inputStyle,
           cursor: 'pointer',
@@ -118,47 +160,25 @@ const FormikSelect: React.FC<FormikSelectProps> = ({
             ? '1px solid #dc3545'
             : '1px solid #ced4da',
           boxShadow: 'none',
-          transition: 'border-color 0.15s ease, box-shadow 0.15s ease'
-        }}
-        /* hover effect */
-        onMouseEnter={e => {
-          if (!hasError) {
-            e.currentTarget.style.border = '1px solid #86b7fe'
-          }
-        }}
-        onMouseLeave={e => {
-          if (!hasError) {
-            e.currentTarget.style.border = '1px solid #ced4da'
-          }
-        }}
-        /* focus effect */
-        onFocus={e => {
-          if (!hasError) {
-            e.currentTarget.style.border = '1px solid #86b7fe'
-            e.currentTarget.style.boxShadow =
-              '0 0 0 0.1rem rgba(13,110,253,.25)'
-          }
-        }}
-        onBlur={e => {
-          if (!hasError) {
-            e.currentTarget.style.border = '1px solid #ced4da'
-            e.currentTarget.style.boxShadow = 'none'
-          }
-        }}
-        /* click to show error toast */
-        onClick={() => {
-          if (hasError && !isLoading) showErrorToast()
+          transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
         }}
       >
-        <option value="">{isLoading ? 'Loading...' : placeholder}</option>
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
+        <option value="">
+          {isLoading ? 'Loading...' : placeholder}
+        </option>
+
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </Form.Select>
 
-      {hasError && <Form.Control.Feedback type="invalid">{meta.error}</Form.Control.Feedback>}
+      {hasError && (
+        <Form.Control.Feedback type="invalid">
+          {meta.error}
+        </Form.Control.Feedback>
+      )}
     </Form.Group>
   )
 }
