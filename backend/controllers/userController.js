@@ -188,9 +188,9 @@ exports.createUser = async (req, res) => {
         // MySQL: Changed datetime('now') to NOW() for MySQL
         const [result] = await connection.query(`
             INSERT INTO mst_users (
-                username, email, password, full_name, phone, role_level,
-                parent_user_id, hotelid, brand_id, outletid, created_by_id, created_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                username, email, password, full_name, phone, role_level, 
+                parent_user_id, hotelid, brand_id, outletid, created_by_id, created_date, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(),?)
         `, [
             username,
             email,
@@ -202,7 +202,8 @@ exports.createUser = async (req, res) => {
             finalHotelId,
             finalBrandId,
             finalHotelId,  // outletid - using hotelid as value
-            finalCreatedById
+            finalCreatedById,
+            0 // status
         ]);
 
         const userId = result.insertId;
@@ -310,7 +311,7 @@ exports.getUserPermissions = (req, res) => {
         
         // MySQL: Changed from db.prepare().all() to db.query() for MySQL
         const query = `
-            SELECT module_name, can_view, can_create, can_edit, can_delete
+            SELECT moduleid, can_view, can_create, can_edit, can_delete
             FROM mst_user_permissions
             WHERE userid = ?
         `;
@@ -343,14 +344,14 @@ exports.updateUserPermissions = async (req, res) => {
         // Insert new permissions
         const insertQuery = `
             INSERT INTO mst_user_permissions (
-                userid, module_name, can_view, can_create, can_edit, can_delete, created_by_id, created_date
+                userid, moduleid, can_view, can_create, can_edit, can_delete, created_by_id, created_date
             ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         `;
 
         for (const permission of permissions) {
             await db.query(insertQuery, [
                 userid,
-                permission.module_name,
+                permission.moduleid,
                 permission.can_view ? 1 : 0,
                 permission.can_create ? 1 : 0,
                 permission.can_edit ? 1 : 0,
@@ -421,7 +422,7 @@ function createDefaultPermissions(userid, roleLevel, createdBy) {
     // MySQL: Changed datetime('now') to NOW() for MySQL
     const insertQuery = `
         INSERT INTO mst_user_permissions (
-            userid, module_name, can_view, can_create, can_edit, can_delete, created_by_id, created_date
+            userid, moduleid, can_view, can_create, can_edit, can_delete, created_by_id, created_date
         ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
     `;
 
