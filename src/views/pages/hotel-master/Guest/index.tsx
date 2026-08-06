@@ -235,7 +235,7 @@ const GuestMaster = () => {
       occupation: guest.occupation || '',
       post_held: guest.post_held || '',
       phone: guest.phone || '',
-      mobile: guest.mobile,
+      mobile: guest.mobile|| '0',
       email: guest.email || '',
       website: guest.website || '',
       purpose: guest.purpose || '',

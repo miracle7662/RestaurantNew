@@ -317,8 +317,8 @@ exports.addGuest = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Name and phone are required' });
         }
 
-        const formattedBirthday = formatDateOnly(birthday);
-        const formattedAnniversary = formatDateOnly(anniversary);
+       const formattedBirthday = birthday ? formatDateOnly(birthday) : null;
+const formattedAnniversary = anniversary ? formatDateOnly(anniversary) : null;
 
         let finalPurposeId = purpose_id || null;
         if (purpose && purpose.trim()) {
@@ -363,19 +363,39 @@ exports.addGuest = async (req, res) => {
         const finalDepartureName = departure_to ? departure_to.trim().toUpperCase() : null;
         const finalGuestTypeName = guest_type ? guest_type.trim() : null;
 
-        const insertValues = [
-    vFrag, name, organisation || null, address || null,
-    vCity, vState, vCountry,
-    occupation || null, post_held || null, phone || null, mobile || null,
-    email || null, website || null,
-    vPurpose, finalPurposeName, vArrived, finalArrivedName,
-    vDeparture, finalDepartureName, vGuestType, finalGuestTypeName,
-    formattedBirthday, formattedAnniversary,
-    gender || 'Male',
-    vNat, credit_allowed ? 1 : 0, vComp ?? null,
-    discount_percent !== undefined ? discount_percent : 0,
-    vHotel, created_by_id || userId, created_at,
-    status !== undefined ? status : 1
+       const insertValues = [
+    vFrag,
+    name,
+    organisation || null,
+    address || null,
+    vCity,
+    vState,
+    vCountry,
+    occupation || null,
+    post_held || null,
+    phone || null,
+    mobile || 0,
+    email || null,
+    website || null,
+    vPurpose,
+    finalPurposeName,
+    vArrived,
+    finalArrivedName,
+    vDeparture,
+    finalDepartureName,
+    vGuestType,
+    finalGuestTypeName,
+    formattedBirthday,
+    formattedAnniversary,
+    gender || "Male",
+    vNat,
+    credit_allowed ? 1 : 0,
+    vComp ?? null,
+    discount_percent ?? 0,
+    vHotel,
+    created_by_id || userId,
+    created_at,
+    status ?? 1
 ];
 
 console.log("Guest Insert Values:", insertValues);

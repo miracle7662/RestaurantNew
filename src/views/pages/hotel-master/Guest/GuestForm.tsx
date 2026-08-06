@@ -352,21 +352,11 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   )
 
   const validationSchema = Yup.object({
-    name: Yup.string().required('!'),
-    address: Yup.string().required('!'),
-    phone: Yup.string().required('!'),
-    discount_percent: Yup.number().min(0).max(100),
-    documents: Yup.array().of(
-      Yup.object().shape({
-        document_type: Yup.string().required('!'),
-        document_number: Yup.string().when('document_type', {
-          is: (val: string) => !!val,
-          then: (schema) => schema.required('!'),
-          otherwise: (schema) => schema,
-        }),
-      })
-    )
-  })
+  name: Yup.string().required('!'),
+  address: Yup.string().required('!'),
+  phone: Yup.string().required('!'),
+  discount_percent: Yup.number().min(0).max(100),
+})
 
   const formik = useFormik({
     enableReinitialize: true,

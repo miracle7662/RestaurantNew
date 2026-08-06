@@ -76,6 +76,7 @@ const RoomMaster = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    
 
     // Load rooms — use getRooms() to get statuses + full room fields
     const loadRooms = async () => {
@@ -258,8 +259,8 @@ const RoomMaster = () => {
                 }
             }
 
-            setShowModal(false);
-            setEditingRoom(null);
+            // setShowModal(false);
+            // setEditingRoom(null);
             loadRooms(); // refresh to pick up status_name + status_color
         } catch (error: any) {
             console.error('Failed to save room:', error);
