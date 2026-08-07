@@ -14,25 +14,37 @@ exports.welcome = async (req, res) => {
 // Get brands/hotels based on user role
 exports.getBrands = async (req, res) => {
   try {
-    const { role_level, hotelid } = req.query
+    const { hotelid } = req.query;
 
-    let query = 'SELECT hotelid, hotel_name FROM msthotelmasters WHERE status = 0';
-    let params = []
+    let query = `
+      SELECT hotelid, hotel_name
+      FROM msthotelmasters
+      WHERE status = 0
+    `;
 
-    // If user is hotel_admin, only show their hotel
-    if (role_level === 'hotel_admin' && hotelid) {
-      query += ' AND hotelid = ?';
-      params.push(hotelid);
+    const params = [];
+
+    if (hotelid) {
+      query += ` AND hotelid = ?`;
+      params.push(Number(hotelid));
     }
 
     const [rows] = await db.query(query, params);
-    const brands = rows;
-    res.json({ success: true, message: 'Brands fetched successfully', data: brands });
+
+    res.json({
+      success: true,
+      message: 'Brands fetched successfully',
+      data: rows,
+    });
   } catch (error) {
     console.error('Error fetching brands:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch brands', data: null });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch brands',
+      data: null,
+    });
   }
-}
+};
 
 
 exports.getOutlets = async (req, res) => {

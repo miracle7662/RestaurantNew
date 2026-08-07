@@ -701,31 +701,31 @@ export const fetchBrands = async (
   setBrands: (brands: Brand[]) => void,
 ): Promise<void> => {
   try {
-    // console.log('Fetching brands for user:', user)
-    const params: { role_level?: string; hotelid?: number } = {}
+    const params: {
+      role_level?: string
+      hotelid?: number
+    } = {}
 
     if (user?.role_level) {
       params.role_level = user.role_level
     }
-    if (user?.role_level === 'hotel_admin' && user?.hotelid) {
+
+    // ✅ Logged-in user's hotel only
+    if (user?.hotelid) {
       params.hotelid = user.hotelid
     }
 
-    // HttpClient interceptor unwraps the response, so we get data directly
     const data = await OutletService.getBrands(params)
-    // console.log('Brands response:', data)
 
     if (Array.isArray(data)) {
       setBrands(data)
-    } else if (data?.data && Array.isArray(data.data)) {
+    } else if (Array.isArray(data?.data)) {
       setBrands(data.data)
     } else {
-      // console.error('Invalid brands response format:', data)
       toast.error('Invalid response from server')
     }
   } catch (error: any) {
-    // console.error('Error fetching brands:', error)
-    toast.error(error?.message || 'Failed to fetch brands. Please check if the backend server is running.')
+    toast.error(error?.message || 'Failed to fetch brands.')
   }
 }
 
