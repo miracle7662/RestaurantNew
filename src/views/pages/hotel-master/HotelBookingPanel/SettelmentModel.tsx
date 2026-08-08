@@ -240,7 +240,7 @@ if (Math.abs(paymentModesTotal - grandTotal) > 0.01) {
     return;
   }
 
-  const settlements = modesToSettle.map((name) => {
+  const settlements = modesToSettle.map((name, index) => {
     const mode = outletPaymentModes.find((m) => m.mode_name === name)
 
     return {
@@ -256,7 +256,7 @@ if (Math.abs(paymentModesTotal - grandTotal) > 0.01) {
       room_name: checked_out_rooms ?? '',
       received_amount: cashReceived || 0,
       refund_amount: refundAmount,
-      TipAmount: tip || 0,
+      TipAmount: index === 0 ? (tip || 0) : 0,
       total_amount: grandTotal,
     }
   })
