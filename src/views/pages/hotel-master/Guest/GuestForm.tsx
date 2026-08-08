@@ -163,7 +163,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
 
   // Loading states
   const [loadingFragments, setLoadingFragments] = useState(false)
-  const [loadingCities, setLoadingCities] = useState(false)
+  const [, setLoadingCities] = useState(false)
   const [loadingCitiesForState, setLoadingCitiesForState] = useState(false)
 
   const [loadingStates, setLoadingStates] = useState(false)
