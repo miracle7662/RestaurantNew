@@ -407,12 +407,12 @@ const CheckInForm = () => {
   const [tempGuestPhoto, setTempGuestPhoto] = useState<string | null>(null)
 
   const getTodayLocal = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   // Fetch front desk settings
   useEffect(() => {
@@ -896,25 +896,25 @@ const CheckInForm = () => {
   }
 
   const handleCompanySelect = async (companyId: string | number | null) => {
-  // Update the form's companyId
-  setFieldValue('companyId', companyId);
+    // Update the form's companyId
+    setFieldValue('companyId', companyId);
 
-  // If no company or "WALK-IN-GUEST", clear GST
-  if (!companyId || companyId === 'WALK-N-GUESTI') {
-    setFieldValue('gst', '');
-    return;
-  }
+    // If no company or "WALK-IN-GUEST", clear GST
+    if (!companyId || companyId === 'WALK-N-GUESTI') {
+      setFieldValue('gst', '');
+      return;
+    }
 
-  try {
-    const response = await CompanyService.get(Number(companyId));
-    const company = response.data || response;
-    // Set the GST number from the fetched company
-    setFieldValue('gst', company.gst_no || '');
-  } catch (error) {
-    console.error('Failed to fetch company GST:', error);
-    setFieldValue('gst', '');
-  }
-};
+    try {
+      const response = await CompanyService.get(Number(companyId));
+      const company = response.data || response;
+      // Set the GST number from the fetched company
+      setFieldValue('gst', company.gst_no || '');
+    } catch (error) {
+      console.error('Failed to fetch company GST:', error);
+      setFieldValue('gst', '');
+    }
+  };
 
   const loadGuestDetails = async (guestId: number) => {
     if (typeof guestId !== 'number' || isNaN(guestId)) {
@@ -992,7 +992,7 @@ const CheckInForm = () => {
       if (response.success && response.data) {
         const docs = response.data
         console.log(`Found ${docs.length} documents for guest ${guestId}`)
-        
+
         setGuestDocuments(docs)
 
         const idProofDoc = docs.find((doc: GuestDocument) => doc.document_type !== 'Guest Photo')
@@ -1103,47 +1103,47 @@ const CheckInForm = () => {
     }
   }
 
- const handleCompanySave = async (companyData: any) => {
-  setSavingCompany(true);
-  try {
-    const payload = {
-      ...companyData,
-      hotelid: hotelId,
-      created_by_id: user?.id,
-    };
+  const handleCompanySave = async (companyData: any) => {
+    setSavingCompany(true);
+    try {
+      const payload = {
+        ...companyData,
+        hotelid: hotelId,
+        created_by_id: user?.id,
+      };
 
-    const response = await CompanyService.create(payload);
-    const newCompany: any = response.data || response;
-    const newCompanyId = newCompany.company_id || newCompany.id;
+      const response = await CompanyService.create(payload);
+      const newCompany: any = response.data || response;
+      const newCompanyId = newCompany.company_id || newCompany.id;
 
-    toast.success('Company saved successfully');
-    setShowCompanyModal(false);
+      toast.success('Company saved successfully');
+      setShowCompanyModal(false);
 
-    await loadAllCompanies(); // refresh dropdown
+      await loadAllCompanies(); // refresh dropdown
 
-    if (newCompanyId) {
-      setFieldValue('companyId', newCompanyId);
+      if (newCompanyId) {
+        setFieldValue('companyId', newCompanyId);
 
-      // Fetch full company details to get GST
-      try {
-        const detailsResponse = await CompanyService.get(newCompanyId);
-        const company = detailsResponse.data || detailsResponse;
-        setFieldValue('gst', company.gst_no || '');
-      } catch (fetchError) {
-        console.error('Failed to fetch company details:', fetchError);
-        // fallback to response data
-        if (newCompany.gst_no) {
-          setFieldValue('gst', String(newCompany.gst_no));
+        // Fetch full company details to get GST
+        try {
+          const detailsResponse = await CompanyService.get(newCompanyId);
+          const company = detailsResponse.data || detailsResponse;
+          setFieldValue('gst', company.gst_no || '');
+        } catch (fetchError) {
+          console.error('Failed to fetch company details:', fetchError);
+          // fallback to response data
+          if (newCompany.gst_no) {
+            setFieldValue('gst', String(newCompany.gst_no));
+          }
         }
       }
+    } catch (error) {
+      console.error('Failed to save company:', error);
+      toast.error('Failed to save company');
+    } finally {
+      setSavingCompany(false);
     }
-  } catch (error) {
-    console.error('Failed to save company:', error);
-    toast.error('Failed to save company');
-  } finally {
-    setSavingCompany(false);
-  }
-};
+  };
 
   const getTariffForPax = (
     tariffs: Array<{ no_of_pax: number; room_tariff: number }>,
@@ -1249,13 +1249,13 @@ const CheckInForm = () => {
 
   const handleRoomNoChange = async (roomId: number | null) => {
     setFieldValue('roomNo', roomId)
-    
+
     if (roomId) {
       const selectedRoom = initialSelectedRooms.find((r) => r.roomId === roomId)
       if (selectedRoom) {
         const categoryName = roomCategoryMap.get(roomId) || ''
         setSelectedCategoryName(categoryName)
-        
+
         const category = roomCategories.find((c) => c.category_name === categoryName)
         if (category) {
           const catId = category.room_category_id
@@ -1266,7 +1266,7 @@ const CheckInForm = () => {
           if (categoryDetails) {
             const standardPax = categoryStandardPaxMap.get(catId) || 0
             setSelectedRoomCategoryPax(standardPax)
-            
+
             const currentAdults = values.adults || 0
             const tariffs: Array<{ no_of_pax: number; room_tariff: number }> =
               categoryDetails.tariffs || []
@@ -1299,7 +1299,7 @@ const CheckInForm = () => {
                 roomTariff = Number(categoryDetails.tariffs[0].room_tariff) || 0
               }
             }
-            
+
             setSelectedRoomTariff(roomTariff)
             setFieldValue('roomCharges', roomTariff)
           }
@@ -1334,7 +1334,7 @@ const CheckInForm = () => {
           const standardPax = categoryStandardPaxMap.get(categoryId) || 0
           setSelectedRoomCategoryPax(standardPax)
           setSelectedCategoryName(category.category_name)
-          
+
           const currentAdults = values.adults || 0
           const tariffs: Array<{ no_of_pax: number; room_tariff: number }> =
             categoryDetails.tariffs || []
@@ -1368,7 +1368,7 @@ const CheckInForm = () => {
             (c) => c.room_category_id === originalCategoryId,
           )
           setSelectedCategoryName(originalCategory?.category_name || '')
-          
+
           const currentAdults = values.adults || 0
           const tariffs: Array<{ no_of_pax: number; room_tariff: number }> =
             originalDetails.tariffs || []
@@ -1481,30 +1481,30 @@ const CheckInForm = () => {
     const childMode = modeCharges.find((m: any) => m.mode_name === 'CHILD')
     const driverMode = modeCharges.find((m: any) => m.mode_name === 'DRIVER')
 
-   const compute = (mode: any, count: number) => {
-  if (!mode || count <= 0) return { price: 0, tax: 0, taxPercent: 0, total: 0 }
-  
-  // Get the per-person charge from the database
-  const perPersonCharge = Number(mode.charges) || 0;
-  
-  // Calculate total for all persons
-  const perNightPrice = perPersonCharge * count;
-  
-  let taxPercent = 0;
-  if (mode.is_tax_applicable && mode.tax_type) {
-    taxPercent = taxMapLocal.get(Number(mode.tax_type)) || 0;
-  }
-  
-  const perNightTax = (perNightPrice * taxPercent) / 100;
-  const perNightTotal = perNightPrice + perNightTax;
+    const compute = (mode: any, count: number) => {
+      if (!mode || count <= 0) return { price: 0, tax: 0, taxPercent: 0, total: 0 }
 
-  return {
-    price: round2(perPersonCharge),  // Return per-person price
-    tax: round2(perNightTax),        // Total tax for all persons
-    taxPercent,
-    total: round2(perNightTotal),    // Total for all persons
-  };
-}
+      // Get the per-person charge from the database
+      const perPersonCharge = Number(mode.charges) || 0;
+
+      // Calculate total for all persons
+      const perNightPrice = perPersonCharge * count;
+
+      let taxPercent = 0;
+      if (mode.is_tax_applicable && mode.tax_type) {
+        taxPercent = taxMapLocal.get(Number(mode.tax_type)) || 0;
+      }
+
+      const perNightTax = (perNightPrice * taxPercent) / 100;
+      const perNightTotal = perNightPrice + perNightTax;
+
+      return {
+        price: round2(perPersonCharge),  // Return per-person price
+        tax: round2(perNightTax),        // Total tax for all persons
+        taxPercent,
+        total: round2(perNightTotal),    // Total for all persons
+      };
+    }
     const exPaxCalc = compute(extraPaxMode, counts.exPax)
     const childCalc = compute(childMode, counts.childPaid)
     const driverCalc = compute(driverMode, counts.driver)
@@ -1569,7 +1569,7 @@ const CheckInForm = () => {
   }
 
   const formik = useFormik<CheckInFormData>({
-   
+
     validateOnChange: false,
     validateOnBlur: false,
     initialValues: {
@@ -1777,9 +1777,9 @@ const CheckInForm = () => {
         const roomIdsString = roomRows.map((r) => r.roomId).join(',')
         const roomNoString = roomRows.map((r) => r.roomNumber).join(',')   // <-- ye line add karo
 
-        const selectedAgent = values.travelAgentId 
-    ? travelAgents.find(a => a.agent_id === values.travelAgentId) 
-    : null;
+        const selectedAgent = values.travelAgentId
+          ? travelAgents.find(a => a.agent_id === values.travelAgentId)
+          : null;
 
 
         // ---- 1. Master Payload (only fields expected by sp_add_checkin) ----
@@ -1789,7 +1789,7 @@ const CheckInForm = () => {
           plan_name: values.planName,
           checkin_datetime: checkinDateTime,
           checkout_datetime: checkoutDateTime,
-          room_no: roomNoString, 
+          room_no: roomNoString,
           room_id: roomIdsString,
           tot_room_tariff: round2(totRoomTariff),
           tot_ex_pax_charge: round2(totExPaxCharge),
@@ -1823,32 +1823,32 @@ const CheckInForm = () => {
           total_amount: round2(totalAmountAllNights),
           status: 'active',
           created_by_id: user?.id,
-           payment_method: values.paymentMethod || 'Cash', // <-- ADD THIS LINE
+          payment_method: values.paymentMethod || 'Cash', // <-- ADD THIS LINE
 
-            // ----- Agent fields -----
-    travel_agent_id: values.travelAgentId || null,
-    travel_agent_name: values.travelAgent || null,
-    agent_code: selectedAgent?.agent_code || null,
-    commission_type: selectedAgent?.commission_type || 'PERCENTAGE',
-    commission_value: values.agentAmountPer || 0,
-    agent_commission_amount: values.agentAmount || 0,
-    agent_cgst_percent: values.agentCgstPer || 0,
-    agent_cgst_amount: values.agentCgst || 0,
-    agent_sgst_percent: values.agentSgstPer || 0,
-    agent_sgst_amount: values.agentSgst || 0,
-    agent_igst_percent: values.agentIgstPer || 0,
-    agent_igst_amount: values.agentIgst || 0,
-    agent_cess_percent: values.agentCessPer || 0,
-    agent_cess_amount: values.agentCess || 0,
-    agent_tds_percent: values.agentTdsPer || 0,
-    agent_tds_amount: values.agentTds || 0,
-    agent_tcs_percent: values.agentTcsPer || 0,
-    agent_tcs_amount: values.agentTcs || 0,
-    agent_service_fee: values.agentServiceFee || 0,
-    agent_total_commission: values.agentTotal || 0,
-    agent_pay_to_hotel: values.agentPayToHotel || 0,
-    booking_id: values.bookingId || null,
-    booking_date: values.bookingDate || null,
+          // ----- Agent fields -----
+          travel_agent_id: values.travelAgentId || null,
+          travel_agent_name: values.travelAgent || null,
+          agent_code: selectedAgent?.agent_code || null,
+          commission_type: selectedAgent?.commission_type || 'PERCENTAGE',
+          commission_value: values.agentAmountPer || 0,
+          agent_commission_amount: values.agentAmount || 0,
+          agent_cgst_percent: values.agentCgstPer || 0,
+          agent_cgst_amount: values.agentCgst || 0,
+          agent_sgst_percent: values.agentSgstPer || 0,
+          agent_sgst_amount: values.agentSgst || 0,
+          agent_igst_percent: values.agentIgstPer || 0,
+          agent_igst_amount: values.agentIgst || 0,
+          agent_cess_percent: values.agentCessPer || 0,
+          agent_cess_amount: values.agentCess || 0,
+          agent_tds_percent: values.agentTdsPer || 0,
+          agent_tds_amount: values.agentTds || 0,
+          agent_tcs_percent: values.agentTcsPer || 0,
+          agent_tcs_amount: values.agentTcs || 0,
+          agent_service_fee: values.agentServiceFee || 0,
+          agent_total_commission: values.agentTotal || 0,
+          agent_pay_to_hotel: values.agentPayToHotel || 0,
+          booking_id: values.bookingId || null,
+          booking_date: values.bookingDate || null,
 
         }
 
@@ -1953,69 +1953,69 @@ const CheckInForm = () => {
           // const perDayTotalAmount = (row.totalAmount || 0) / totalNights
 
           return {
-    guest_id: row.guestId || 0,
-    guest_name: row.guestName || '',
-    address: values.address || '',
-    mobile: values.phone1 || '',
-    // ⚠️ Change: company_id = 0 instead of null for walk‑in
-    company_id: values.companyId === 'WALK-N-GUESTI' ? 0 : Number(values.companyId) || 0,
-    company_name: companyName || '',
-    emailed: values.email || '',
-    room_id: row.roomId || 0,
-    room_number: row.roomNumber || '',
-    room_category_id: catId || 0,
-    room_category_name: row.type || '',
-    converted_category_id: row.convertedCategoryId || 0,
-    converted_category_name: row.convertedCategoryName || '',
-    checkin_datetime: checkinDateTime,
-    checkout_datetime: checkoutDateTime,
-    no_of_days: totalNights,
-    adults: row.adults || 0,
-    pax: row.pax || 0,
-    ex_pax: row.exPax || 0,
-    child_paid: row.childPaid || 0,
-    child_unpaid: row.childUnpaid || 0,
-    driver: row.driver || 0,
-    room_tariff: row.rate || 0,
-    ex_pax_charge: row.exPaxPrice || 0,
-    child_paid_amount: row.childPrice || 0,
-    driver_charge: row.driverPrice || 0,
-    discount_percent: row.discount || 0,
-    discount_amount: (row.rate * (row.discount || 0)) / 100 || 0,
-    tax_percen_room: row.taxPercent || 0,
-    cgst_percent: row.cgstPercent || 0,
-    cgst_amount: row.cgstAmount || 0,
-    sgst_percent: row.sgstPercent || 0,
-    sgst_amount: row.sgstAmount || 0,
-    igst_percent: row.igstPercent || 0,
-    tax_percen_ex: row.exPaxTaxPercent || 0,
-    ex_cgst_percent: row.cgstPercent || 0,
-    ex_cgst_amount: (row.exPaxTax || 0) * ((row.cgstPercent || 0) / 100) || 0,
-    ex_sgst_percent: row.sgstPercent || 0,
-    ex_sgst_amount: (row.exPaxTax || 0) * ((row.sgstPercent || 0) / 100) || 0,
-    ex_igst_percent: row.igstPercent || 0,
-    ex_igst_amount: (row.exPaxTax || 0) * ((row.igstPercent || 0) / 100) || 0,
-    tax_percen_child: row.childTaxPercent || 0,
-    child_cgst_percent: row.cgstPercent || 0,
-    child_cgst_amount: (row.childTax || 0) * ((row.cgstPercent || 0) / 100) || 0,
-    child_sgst_percent: row.sgstPercent || 0,
-    child_sgst_amount: (row.childTax || 0) * ((row.sgstPercent || 0) / 100) || 0,
-    child_igst_percent: row.igstPercent || 0,
-    child_igst_amount: (row.childTax || 0) * ((row.igstPercent || 0) / 100) || 0,
-    tax_percen_driver: row.driverTaxPercent || 0,
-    driver_cgst_percent: row.cgstPercent || 0,
-    driver_cgst_amount: (row.driverTax || 0) * ((row.cgstPercent || 0) / 100) || 0,
-    driver_sgst_percent: row.sgstPercent || 0,
-    driver_sgst_amount: (row.driverTax || 0) * ((row.sgstPercent || 0) / 100) || 0,
-    driver_igst_percent: row.igstPercent || 0,
-    driver_igst_amount: (row.driverTax || 0) * ((row.igstPercent || 0) / 100) || 0,
-    service_charge: 0,
-    service_charge_amount: 0,
-    cess_percent: row.cessPercent || 0,
-    cess_amount: row.cessAmount || 0,
-    tax: row.totalTax || 0,
-  };
-});
+            guest_id: row.guestId || 0,
+            guest_name: row.guestName || '',
+            address: values.address || '',
+            mobile: values.phone1 || '',
+            // ⚠️ Change: company_id = 0 instead of null for walk‑in
+            company_id: values.companyId === 'WALK-N-GUESTI' ? 0 : Number(values.companyId) || 0,
+            company_name: companyName || '',
+            emailed: values.email || '',
+            room_id: row.roomId || 0,
+            room_number: row.roomNumber || '',
+            room_category_id: catId || 0,
+            room_category_name: row.type || '',
+            converted_category_id: row.convertedCategoryId || 0,
+            converted_category_name: row.convertedCategoryName || '',
+            checkin_datetime: checkinDateTime,
+            checkout_datetime: checkoutDateTime,
+            no_of_days: totalNights,
+            adults: row.adults || 0,
+            pax: row.pax || 0,
+            ex_pax: row.exPax || 0,
+            child_paid: row.childPaid || 0,
+            child_unpaid: row.childUnpaid || 0,
+            driver: row.driver || 0,
+            room_tariff: row.rate || 0,
+            ex_pax_charge: row.exPaxPrice || 0,
+            child_paid_amount: row.childPrice || 0,
+            driver_charge: row.driverPrice || 0,
+            discount_percent: row.discount || 0,
+            discount_amount: (row.rate * (row.discount || 0)) / 100 || 0,
+            tax_percen_room: row.taxPercent || 0,
+            cgst_percent: row.cgstPercent || 0,
+            cgst_amount: row.cgstAmount || 0,
+            sgst_percent: row.sgstPercent || 0,
+            sgst_amount: row.sgstAmount || 0,
+            igst_percent: row.igstPercent || 0,
+            tax_percen_ex: row.exPaxTaxPercent || 0,
+            ex_cgst_percent: row.cgstPercent || 0,
+            ex_cgst_amount: (row.exPaxTax || 0) * ((row.cgstPercent || 0) / 100) || 0,
+            ex_sgst_percent: row.sgstPercent || 0,
+            ex_sgst_amount: (row.exPaxTax || 0) * ((row.sgstPercent || 0) / 100) || 0,
+            ex_igst_percent: row.igstPercent || 0,
+            ex_igst_amount: (row.exPaxTax || 0) * ((row.igstPercent || 0) / 100) || 0,
+            tax_percen_child: row.childTaxPercent || 0,
+            child_cgst_percent: row.cgstPercent || 0,
+            child_cgst_amount: (row.childTax || 0) * ((row.cgstPercent || 0) / 100) || 0,
+            child_sgst_percent: row.sgstPercent || 0,
+            child_sgst_amount: (row.childTax || 0) * ((row.sgstPercent || 0) / 100) || 0,
+            child_igst_percent: row.igstPercent || 0,
+            child_igst_amount: (row.childTax || 0) * ((row.igstPercent || 0) / 100) || 0,
+            tax_percen_driver: row.driverTaxPercent || 0,
+            driver_cgst_percent: row.cgstPercent || 0,
+            driver_cgst_amount: (row.driverTax || 0) * ((row.cgstPercent || 0) / 100) || 0,
+            driver_sgst_percent: row.sgstPercent || 0,
+            driver_sgst_amount: (row.driverTax || 0) * ((row.sgstPercent || 0) / 100) || 0,
+            driver_igst_percent: row.igstPercent || 0,
+            driver_igst_amount: (row.driverTax || 0) * ((row.igstPercent || 0) / 100) || 0,
+            service_charge: 0,
+            service_charge_amount: 0,
+            cess_percent: row.cessPercent || 0,
+            cess_amount: row.cessAmount || 0,
+            tax: row.totalTax || 0,
+          };
+        });
 
         // ---- 4. Folio Entries ----
         const folioEntries: any[] = []
@@ -2098,7 +2098,7 @@ const CheckInForm = () => {
     if (!frontDeskSettings) return
 
     const { arrivalDate, arrivalTime, nights } = values
-    
+
     let departureDateStr = ''
     if (arrivalDate && nights && nights > 0) {
       const arrival = new Date(arrivalDate)
@@ -2197,25 +2197,25 @@ const CheckInForm = () => {
     let totalAmt = 0
 
     roomRows.forEach((row) => {
-      const baseAmount      = safeNumber(row.rate) * safeNumber(row.nights)
-      const discountAmt     = safeNumber(row.discountAmt)
-      const afterDiscount   = round2(baseAmount - discountAmt)
+      const baseAmount = safeNumber(row.rate) * safeNumber(row.nights)
+      const discountAmt = safeNumber(row.discountAmt)
+      const afterDiscount = round2(baseAmount - discountAmt)
 
-      totalRate      += afterDiscount
-      totalTax       += safeNumber(row.taxAmount)
-      totalExtra     += (safeNumber(row.exPaxTotal) * safeNumber(row.nights)) + 
-                        (safeNumber(row.childTotal) * safeNumber(row.nights)) + 
-                        (safeNumber(row.driverTotal) * safeNumber(row.nights))
-      totalBaseExtra += (safeNumber(row.exPaxPrice) * safeNumber(row.nights)) + 
-                        (safeNumber(row.childPrice) * safeNumber(row.nights)) + 
-                        (safeNumber(row.driverPrice) * safeNumber(row.nights))
+      totalRate += afterDiscount
+      totalTax += safeNumber(row.taxAmount)
+      totalExtra += (safeNumber(row.exPaxTotal) * safeNumber(row.nights)) +
+        (safeNumber(row.childTotal) * safeNumber(row.nights)) +
+        (safeNumber(row.driverTotal) * safeNumber(row.nights))
+      totalBaseExtra += (safeNumber(row.exPaxPrice) * safeNumber(row.nights)) +
+        (safeNumber(row.childPrice) * safeNumber(row.nights)) +
+        (safeNumber(row.driverPrice) * safeNumber(row.nights))
 
       totalSGST += safeNumber(row.sgstAmount)
       totalCGST += safeNumber(row.cgstAmount)
 
-      const extraTax    = (safeNumber(row.exPaxTax) * safeNumber(row.nights)) + 
-                          (safeNumber(row.childTax) * safeNumber(row.nights)) + 
-                          (safeNumber(row.driverTax) * safeNumber(row.nights))
+      const extraTax = (safeNumber(row.exPaxTax) * safeNumber(row.nights)) +
+        (safeNumber(row.childTax) * safeNumber(row.nights)) +
+        (safeNumber(row.driverTax) * safeNumber(row.nights))
       const halfExtraTax = extraTax / 2
       totalSGST += halfExtraTax
       totalCGST += halfExtraTax
@@ -2223,10 +2223,10 @@ const CheckInForm = () => {
       totalAmt += safeNumber(row.totalAmount)
     })
 
-    const billAmount      = round2(totalRate + totalTax)
-    const otherCharges    = round2(totalExtra)
+    const billAmount = round2(totalRate + totalTax)
+    const otherCharges = round2(totalExtra)
     const billAPlusOtherC = round2(billAmount + otherCharges)
-    const taxableAmt      = round2(totalRate + totalBaseExtra)
+    const taxableAmt = round2(totalRate + totalBaseExtra)
 
     if (Math.abs((values.billAmount || 0) - billAmount) > 0.01) {
       setFieldValue('billAmount', round2(billAmount))
@@ -2487,21 +2487,21 @@ const CheckInForm = () => {
     }
 
     const taxDetails = taxTypeId ? taxDetailsMap.get(Number(taxTypeId)) : null
-    const cgstPercent  = safeNumber(taxDetails?.hotel_cgst)
-    const sgstPercent  = safeNumber(taxDetails?.hotel_sgst)
-    const igstPercent  = safeNumber(taxDetails?.hotel_igst)
-    const cessPercent  = safeNumber(taxDetails?.hotel_cess)
+    const cgstPercent = safeNumber(taxDetails?.hotel_cgst)
+    const sgstPercent = safeNumber(taxDetails?.hotel_sgst)
+    const igstPercent = safeNumber(taxDetails?.hotel_igst)
+    const cessPercent = safeNumber(taxDetails?.hotel_cess)
 
-    const rate         = safeNumber(values.roomCharges) || safeNumber(selectedRoomTariff)
-    const nights       = safeNumber(values.nights) || 1
-    const baseAmount   = round2(rate * nights)
+    const rate = safeNumber(values.roomCharges) || safeNumber(selectedRoomTariff)
+    const nights = safeNumber(values.nights) || 1
+    const baseAmount = round2(rate * nights)
 
     const discountPercent = safeNumber(values.discount)
-    const discountAmt     = round2((baseAmount * discountPercent) / 100)
-    const afterDiscount   = round2(baseAmount - discountAmt)
+    const discountAmt = round2((baseAmount * discountPercent) / 100)
+    const afterDiscount = round2(baseAmount - discountAmt)
 
     const taxPercent = cgstPercent + sgstPercent + igstPercent + cessPercent
-    const taxAmount  = round2((afterDiscount * taxPercent) / 100)
+    const taxAmount = round2((afterDiscount * taxPercent) / 100)
 
     const cgstAmount = round2((afterDiscount * cgstPercent) / 100)
     const sgstAmount = round2((afterDiscount * sgstPercent) / 100)
@@ -2509,9 +2509,9 @@ const CheckInForm = () => {
     const extraDaily = computeExtraCharges(
       effectiveCategoryId,
       {
-        exPax:     safeNumber(values.exPax),
+        exPax: safeNumber(values.exPax),
         childPaid: safeNumber(values.childrenPaid),
-        driver:    safeNumber(values.driver),
+        driver: safeNumber(values.driver),
       },
       nights,
     )
@@ -2525,45 +2525,45 @@ const CheckInForm = () => {
     const guestName = [values.firstName, values.lastName].filter(Boolean).join(' ').trim() || values.firstName || ''
 
     const rowFields = {
-      guestId:               values.guestId || null,
+      guestId: values.guestId || null,
       guestName,
-      roomCategoryId:        selectedCategoryId,
-      type:                  selectedCategoryName,
-      convertedCategoryId:   convertedCategoryId || null,
+      roomCategoryId: selectedCategoryId,
+      type: selectedCategoryName,
+      convertedCategoryId: convertedCategoryId || null,
       convertedCategoryName: convertedCategory?.category_name || '',
-      driver:                safeNumber(values.driver),
-      childUnpaid:           safeNumber(values.childrenUnpaid),
-      childPaid:             safeNumber(values.childrenPaid),
-      arrivalDate:           values.arrivalDate,
-      arrivalTime:           values.arrivalTime,
-      departureDate:         values.departureDate,
-      departureTime:         values.departureTime,
+      driver: safeNumber(values.driver),
+      childUnpaid: safeNumber(values.childrenUnpaid),
+      childPaid: safeNumber(values.childrenPaid),
+      arrivalDate: values.arrivalDate,
+      arrivalTime: values.arrivalTime,
+      departureDate: values.departureDate,
+      departureTime: values.departureTime,
       nights,
       rate,
-      discount:              discountPercent,
+      discount: discountPercent,
       discountAmt,
       taxPercent,
       taxAmount,
-      pax:                   safeNumber(values.pax),
-      exPax:                 safeNumber(values.exPax),
-      adults:                safeNumber(values.adults),
-      taxTypeId:             taxTypeId ? Number(taxTypeId) : undefined,
+      pax: safeNumber(values.pax),
+      exPax: safeNumber(values.exPax),
+      adults: safeNumber(values.adults),
+      taxTypeId: taxTypeId ? Number(taxTypeId) : undefined,
       cgstPercent,
       sgstPercent,
       igstPercent,
       cessPercent,
-      exPaxPrice:            extraDaily.exPaxPrice,
-      exPaxTax:              extraDaily.exPaxTax,
-      exPaxTaxPercent:       extraDaily.exPaxTaxPercent,
-      exPaxTotal:            extraDaily.exPaxTotal,
-      childPrice:            extraDaily.childPrice,
-      childTax:              extraDaily.childTax,
-      childTaxPercent:       extraDaily.childTaxPercent,
-      childTotal:            extraDaily.childTotal,
-      driverPrice:           extraDaily.driverPrice,
-      driverTax:             extraDaily.driverTax,
-      driverTaxPercent:      extraDaily.driverTaxPercent,
-      driverTotal:           extraDaily.driverTotal,
+      exPaxPrice: extraDaily.exPaxPrice,
+      exPaxTax: extraDaily.exPaxTax,
+      exPaxTaxPercent: extraDaily.exPaxTaxPercent,
+      exPaxTotal: extraDaily.exPaxTotal,
+      childPrice: extraDaily.childPrice,
+      childTax: extraDaily.childTax,
+      childTaxPercent: extraDaily.childTaxPercent,
+      childTotal: extraDaily.childTotal,
+      driverPrice: extraDaily.driverPrice,
+      driverTax: extraDaily.driverTax,
+      driverTaxPercent: extraDaily.driverTaxPercent,
+      driverTotal: extraDaily.driverTotal,
       totalAmount,
       cgstAmount,
       sgstAmount,
@@ -2587,15 +2587,15 @@ const CheckInForm = () => {
       }
 
       const newRow: RoomRow = {
-        id:         `${selectedRoomId}-${Date.now()}`,
-        roomId:     selectedRoomId,
+        id: `${selectedRoomId}-${Date.now()}`,
+        roomId: selectedRoomId,
         roomNumber: selectedRoom.roomNumber,
         ...rowFields,
       }
       setRoomRows([...roomRows, newRow])
       setSelectedRowId(null)
       setRoomChargeEditable(false)
-      
+
       // ========== FIX 2: Show progress toast ==========
       const addedCount = roomRows.length + 1
       const totalCount = initialSelectedRooms.length
@@ -2876,12 +2876,12 @@ const CheckInForm = () => {
               )}
             </span>
             {/* ========== FIX 2: Show room addition progress ========== */}
-           
+
             {frontDeskSettings && (
               <span className="ms-3 d-flex align-items-center">
                 <span className="badge bg-secondary fs-small">
-                  Checkout: {frontDeskSettings.checkout_time_setting === '12_NOON' 
-                    ? `Fixed (${frontDeskSettings.fixed_checkout_time || '12:00'})` 
+                  Checkout: {frontDeskSettings.checkout_time_setting === '12_NOON'
+                    ? `Fixed (${frontDeskSettings.fixed_checkout_time || '12:00'})`
                     : '24 Hours'}
                 </span>
               </span>
@@ -2893,1095 +2893,1095 @@ const CheckInForm = () => {
           <Card className="border-0">
             <Card.Body className="p-2">
               <form id="checkin-form" onSubmit={handleSubmit}>
-              <Row className="g-2 mb-2">
-                <Col md={4}>
-                  <div className="border p-1 bg-light">
-                    <div className="bg-danger-custom text-white d-flex align-items-center justify-content-between px-2 py-1 mb-1">
-                      <span className="fs-small fw-bold"> Guest Information</span>
-                    </div>
-                    <Row className="align-items-center g-1 mb-1">
-                      <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                        Name
-                      </Col>
-                      <Col md="auto" style={{ width: '60px' }}>
-                        <FormikTextInput
-                          name="title"
-                          placeholder="Title"
-                          size="sm"
-                          className="w-100 fs-small"
-                        />
-                      </Col>
-                      <Col md="auto" style={{ width: '225px' }}>
-                        <Select
-                          options={guestOptions}
-                          isLoading={loadingGuests}
-                          className="w-100 fs-small"
-                          styles={selectStyles}
-                          value={guestOptions.find((o) => o.value === values.guestId) || null}
-                          onChange={(opt) => {
-                            if (opt?.value) {
-                              const guestId = Number(opt.value)
-                              setFieldValue('guestId', guestId)
-                              loadGuestDetails(guestId)
-                            } else {
-                              setFieldValue('guestId', null)
-                              setFieldValue('fragment_id', null)
-                              setFieldValue('title', 'MR')
-                              setFieldValue('firstName', '')
-                              setFieldValue('lastName', '')
-                              setFieldValue('phone1', '')
-                              setFieldValue('phone2', '')
-                              setFieldValue('email', '')
-                              setFieldValue('address', '')
-                              setFieldValue('countryId', null)
-                              setFieldValue('stateId', null)
-                              setFieldValue('cityId', null)
-                              setFieldValue('idType', '')
-                              setFieldValue('idNumber', '')
-                              setFieldValue('otherInfo', '')
-                              setFieldValue('companyId', null)
-                              setFieldValue('gst', '')
-                              setGuestDocuments([])
-                              setTempGuestPhoto(null)
-                            }
-                          }}
-                          onInputChange={(inputValue, { action }) => {
-                            if (action === 'input-change') {
-                              handleGuestSearch(inputValue)
-                            }
-                          }}
-                          onMenuOpen={() => {
-                            if (!guestOptions.length) {
-                              loadAllGuests()
-                            }
-                          }}
-                          placeholder="Search Guest Name"
-                          isClearable
-                        />
-                      </Col>
-                      <Col md={1}>
-                        <button
-                          type="button"
-                          className="btn btn-success btn-sm w-100 p-0"
-                          style={{ height: '29px' }}
-                          onClick={() => setShowGuestModal(true)}>
-                          +
-                        </button>
-                      </Col>
-                    </Row>
-
-                    <Row className="align-items-center g-1 mb-1">
-                      <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                        Mobile
-                      </Col>
-                      <Col md="auto" style={{ width: '159px' }}>
-                        <FormikTextInput
-                          name="phone1"
-                          placeholder="Mobile 1"
-                          size="sm"
-                          className="w-100 fs-small"
-                          readOnly
-                        />
-                      </Col>
-                      <Col md="auto" style={{ width: '159px' }}>
-                        <FormikTextInput
-                          name="phone2"
-                          placeholder="Mobile 2"
-                          size="sm"
-                          className="w-100 fs-small"
-                          readOnly
-                        />
-                      </Col>
-                    </Row>
-
-                    <Row className="align-items-center g-1 mb-1">
-                      <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                        Email
-                      </Col>
-                      <Col md="auto" style={{ width: '318px' }}>
-                        <FormikTextInput
-                          name="email"
-                          placeholder="Email"
-                          size="sm"
-                          className="w-100 fs-small"
-                          readOnly
-                        />
-                      </Col>
-                    </Row>
-
-                    <Row className="align-items-center g-1 mb-1">
-                      <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                        Address
-                      </Col>
-                      <Col md="auto" style={{ width: '318px' }}>
-                        <FormikTextInput
-                          name="address"
-                          as="textarea"
-                          placeholder="Enter Address"
-                          rows={2}
-                          className="w-100 fs-small"
-                          readOnly
-                        />
-                      </Col>
-                    </Row>
-
-                    <Row className="align-items-center g-1 mb-1">
-                      <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                        Country
-                      </Col>
-                      <Col md="auto" style={{ width: '318px' }}>
-                        <FormSelect
-                          name="countryId"
-                          options={countryOptions}
-                          size="sm"
-                          className="w-100 fs-small"
-                          isLoading={loadingCountries}
-                          onChange={(v) => setFieldValue('countryId', v)}
-                          placeholder="Select Country"
-                          disabled
-                        />
-                      </Col>
-                    </Row>
-
-                    <Row className="align-items-center g-1 mb-1">
-                      <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                        State
-                      </Col>
-                      <Col md="auto" style={{ width: '318px' }}>
-                        <FormSelect
-                          name="stateId"
-                          options={stateOptions}
-                          size="sm"
-                          className="w-100 fs-small"
-                          isLoading={loadingStates}
-                          onChange={(v) => setFieldValue('stateId', v)}
-                          placeholder="Select State"
-                          disabled
-                        />
-                      </Col>
-                    </Row>
-
-                    <Row className="align-items-center g-1 mb-1">
-                      <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                        City
-                      </Col>
-                      <Col md="auto" style={{ width: '318px' }}>
-                        <FormSelect
-                          name="cityId"
-                          options={cityOptions}
-                          size="sm"
-                          className="w-100 fs-small"
-                          isLoading={loadingCities}
-                          onChange={(v) => setFieldValue('cityId', v)}
-                          placeholder="Select City"
-                          disabled
-                        />
-                      </Col>
-                    </Row>
-
-                    <div>
-                      <div className="d-flex align-items-center my-2">
-                        <div style={{ flex: 1, borderTop: '1px solid #999' }}></div>
-                        <span
-                          style={{
-                            padding: '0 8px',
-                            fontWeight: 'bold',
-                            fontSize: '12px',
-                            whiteSpace: 'nowrap',
-                          }}>
-                          Identity Information
-                        </span>
-                        <div style={{ flex: 1, borderTop: '1px solid #999' }}></div>
+                <Row className="g-2 mb-2">
+                  <Col md={4}>
+                    <div className="border p-1 bg-light">
+                      <div className="bg-danger-custom text-white d-flex align-items-center justify-content-between px-2 py-1 mb-1">
+                        <span className="fs-small fw-bold"> Guest Information</span>
                       </div>
-
                       <Row className="align-items-center g-1 mb-1">
                         <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                          ID Type
+                          Name
                         </Col>
-                        <Col md="auto" style={{ width: '318px' }}>
-                          <FormSelect
-                            name="idType"
-                            options={idTypeOptions}
-                            size="sm"
-                            className="w-100 fs-small"
-                            isLoading={loadingDocTypes}
-                            onChange={(v) => setFieldValue('idType', v)}
-                            placeholder="Select ID Type"
-                          
-                          />
-                        </Col>
-                      </Row>
-                      <Row className="align-items-center g-1 mb-0">
-                        <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                          ID No
-                        </Col>
-                        <Col md="auto" style={{ width: '318px' }}>
+                        <Col md="auto" style={{ width: '60px' }}>
                           <FormikTextInput
-                            name="idNumber"
-                            placeholder="Enter ID Number"
+                            name="title"
+                            placeholder="Title"
                             size="sm"
                             className="w-100 fs-small"
-                           
                           />
                         </Col>
-                      </Row>
-                    </div>
-
-                    <div>
-                      <div className="d-flex align-items-center my-2">
-                        <div style={{ flex: 1, borderTop: '1px solid #999' }}></div>
-                        <BootstrapForm.Label
-                          className="fw-bold mb-0 fs-small"
-                          style={{ padding: '0 8px', whiteSpace: 'nowrap' }}>
-                          Other Information
-                        </BootstrapForm.Label>
-                        <div style={{ flex: 1, borderTop: '1px solid #999' }}></div>
-                      </div>
-
-                      <Row className="align-items-center row-compact">
-                        <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                          Agent Name
-                        </Col>
-                        <Col md="auto" style={{ width: '337px' }}>
+                        <Col md="auto" style={{ width: '225px' }}>
                           <Select
-                            options={travelAgentOptions}
-                            isLoading={loadingTravelAgents}
-                            className="fs-small"
+                            options={guestOptions}
+                            isLoading={loadingGuests}
+                            className="w-100 fs-small"
                             styles={selectStyles}
-                            defaultValue={travelAgentOptions[0]}
-                            value={
-                              values.travelAgentId
-                                ? travelAgentOptions.find((o) => o.value === String(values.travelAgentId)) || null
-                                : values.travelAgent === SELF_AGENT_VALUE || (!values.travelAgentId && !values.travelAgent)
-                                  ? travelAgentOptions[0]
-                                  : null
-                            }
+                            value={guestOptions.find((o) => o.value === values.guestId) || null}
                             onChange={(opt) => {
-                              if (!opt || opt.value === SELF_AGENT_VALUE) {
-                                handleAgentSelect(null)
-                                setFieldValue('travelAgent', SELF_AGENT_VALUE)
+                              if (opt?.value) {
+                                const guestId = Number(opt.value)
+                                setFieldValue('guestId', guestId)
+                                loadGuestDetails(guestId)
                               } else {
-                                handleAgentSelect(Number(opt.value))
+                                setFieldValue('guestId', null)
+                                setFieldValue('fragment_id', null)
+                                setFieldValue('title', 'MR')
+                                setFieldValue('firstName', '')
+                                setFieldValue('lastName', '')
+                                setFieldValue('phone1', '')
+                                setFieldValue('phone2', '')
+                                setFieldValue('email', '')
+                                setFieldValue('address', '')
+                                setFieldValue('countryId', null)
+                                setFieldValue('stateId', null)
+                                setFieldValue('cityId', null)
+                                setFieldValue('idType', '')
+                                setFieldValue('idNumber', '')
+                                setFieldValue('otherInfo', '')
+                                setFieldValue('companyId', null)
+                                setFieldValue('gst', '')
+                                setGuestDocuments([])
+                                setTempGuestPhoto(null)
                               }
                             }}
                             onInputChange={(inputValue, { action }) => {
                               if (action === 'input-change') {
-                                loadTravelAgents(inputValue)
+                                handleGuestSearch(inputValue)
                               }
                             }}
-                            placeholder="Select Agent"
+                            onMenuOpen={() => {
+                              if (!guestOptions.length) {
+                                loadAllGuests()
+                              }
+                            }}
+                            placeholder="Search Guest Name"
                             isClearable
                           />
                         </Col>
+                        <Col md={1}>
+                          <button
+                            type="button"
+                            className="btn btn-success btn-sm w-100 p-0"
+                            style={{ height: '29px' }}
+                            onClick={() => setShowGuestModal(true)}>
+                            +
+                          </button>
+                        </Col>
                       </Row>
 
                       <Row className="align-items-center g-1 mb-1">
-  <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-    Company
-  </Col>
-  <Col md="auto" style={{ width: '284px' }}>
-    <Select
-      options={companyOptions}
-      isLoading={loadingCompanies}
-      className="w-100"
-      styles={selectStyles}
-      value={companyOptions.find((o) => o.value === values.companyId) || null}
-      onChange={(opt) => {
-        const val = opt?.value ?? null;
-        handleCompanySelect(val);   // <-- changed here
-      }}
-      onInputChange={(inputValue, { action }) => {
-        if (action === 'input-change') {
-          handleCompanySearch(inputValue);
-        }
-      }}
-      onMenuOpen={() => {
-        if (!companyOptions.length) {
-          loadAllCompanies();
-        }
-      }}
-      placeholder="Select Company"
-      isClearable
-    />
-  </Col>
-  <Col md={1}>
-    <button
-      type="button"
-      className="btn btn-success btn-sm w-100 p-0"
-      style={{ height: '29px' }}
-      onClick={() => setShowCompanyModal(true)}>
-      +
-    </button>
-  </Col>
-</Row>
-                      <Row className="align-items-center g-1 mb-1">
                         <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                          GST No
+                          Mobile
                         </Col>
-                        <Col md="auto" style={{ width: '318px' }}>
+                        <Col md="auto" style={{ width: '159px' }}>
                           <FormikTextInput
-                            name="gst"
-                            placeholder="GST TIN"
+                            name="phone1"
+                            placeholder="Mobile 1"
+                            size="sm"
+                            className="w-100 fs-small"
+                            readOnly
+                          />
+                        </Col>
+                        <Col md="auto" style={{ width: '159px' }}>
+                          <FormikTextInput
+                            name="phone2"
+                            placeholder="Mobile 2"
                             size="sm"
                             className="w-100 fs-small"
                             readOnly
                           />
                         </Col>
                       </Row>
+
                       <Row className="align-items-center g-1 mb-1">
                         <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                          Group
+                          Email
                         </Col>
                         <Col md="auto" style={{ width: '318px' }}>
                           <FormikTextInput
-                            name="groupName"
-                            placeholder="Group Name"
+                            name="email"
+                            placeholder="Email"
                             size="sm"
                             className="w-100 fs-small"
                             readOnly
                           />
                         </Col>
                       </Row>
-                      <Row className="align-items-center g-1 mb-2">
+
+                      <Row className="align-items-center g-1 mb-1">
                         <Col md="auto" className="fs-small" style={{ width: '89px' }}>
-                          Booking Type
+                          Address
+                        </Col>
+                        <Col md="auto" style={{ width: '318px' }}>
+                          <FormikTextInput
+                            name="address"
+                            as="textarea"
+                            placeholder="Enter Address"
+                            rows={2}
+                            className="w-100 fs-small"
+                            readOnly
+                          />
+                        </Col>
+                      </Row>
+
+                      <Row className="align-items-center g-1 mb-1">
+                        <Col md="auto" className="fs-small" style={{ width: '89px' }}>
+                          Country
                         </Col>
                         <Col md="auto" style={{ width: '318px' }}>
                           <FormSelect
-                            name="bookingType"
+                            name="countryId"
+                            options={countryOptions}
                             size="sm"
                             className="w-100 fs-small"
-                            options={[
-                              { label: 'WALK-IN-GUEST', value: 'WALK-IN-GUEST' },
-                              { label: 'ONLINE', value: 'ONLINE' },
-                              { label: 'ADVANCE', value: 'ADVANCE' },
-                              { label: 'AGENT', value: 'AGENT' },
-                              { label: 'GROUP', value: 'GROUP' },
-                              { label: 'CORPORATE', value: 'CORPORATE' },
-                              { label: 'COMPLIMENTARY', value: 'COMPLIMENTARY' },
-                            ]}
+                            isLoading={loadingCountries}
+                            onChange={(v) => setFieldValue('countryId', v)}
+                            placeholder="Select Country"
+                            disabled
                           />
                         </Col>
                       </Row>
-                    </div>
-                  </div>
-                </Col>
 
-                <Col md={8}>
-                  <Row className="g-2 ">
-                    <Col md={8}>
-                      <div className="border rounded p-1 bg-light">
-                        <div className="bg-danger-custom text-white d-flex align-items-center justify-content-between px-2 py-1 mb-1">
-                          <span className="fs-small fw-bold">Stay Information</span>
-                        </div>
+                      <Row className="align-items-center g-1 mb-1">
+                        <Col md="auto" className="fs-small" style={{ width: '89px' }}>
+                          State
+                        </Col>
+                        <Col md="auto" style={{ width: '318px' }}>
+                          <FormSelect
+                            name="stateId"
+                            options={stateOptions}
+                            size="sm"
+                            className="w-100 fs-small"
+                            isLoading={loadingStates}
+                            onChange={(v) => setFieldValue('stateId', v)}
+                            placeholder="Select State"
+                            disabled
+                          />
+                        </Col>
+                      </Row>
 
-                        <Row className="g-2 mb-1">
-                          <Col md={1} style={{ minWidth: '100px' }}>
-                            <label className="fs-small mb-1">Room No</label>
-                            <Select
-                              name="roomNo"
-                              options={roomOptions}
-                              isLoading={loadingRooms}
-                              className="fs-small"
-                              styles={selectStyles}
-                              isDisabled={editingRowId !== null}
-                              value={roomOptions.find((o) => o.value === values.roomNo) || null}
-                              onChange={async (opt) => {
-                                const roomId = opt?.value ?? null
-                                await handleRoomNoChange(roomId as number | null)
-                              }}
-                              placeholder="Room"
-                              isClearable
-                            />
-                          </Col>
+                      <Row className="align-items-center g-1 mb-1">
+                        <Col md="auto" className="fs-small" style={{ width: '89px' }}>
+                          City
+                        </Col>
+                        <Col md="auto" style={{ width: '318px' }}>
+                          <FormSelect
+                            name="cityId"
+                            options={cityOptions}
+                            size="sm"
+                            className="w-100 fs-small"
+                            isLoading={loadingCities}
+                            onChange={(v) => setFieldValue('cityId', v)}
+                            placeholder="Select City"
+                            disabled
+                          />
+                        </Col>
+                      </Row>
 
-                          <Col md={1} style={{ minWidth: '140px' }}>
-                            <label className="fs-small mb-1">
-                              Type
-                              
-                            </label>
-                            <Select
-                              name="roomType"
-                              options={categoryOptions}
-                              isLoading={loadingCategories}
-                              className="fs-small"
-                              styles={selectStyles}
-                              isDisabled={true}
-                              value={
-                                categoryOptions.find((o) => o.value === values.roomType) || null
-                              }
-                              onChange={async (opt) => {
-                                const catId = opt?.value ?? null
-                                setFieldValue('roomType', catId)
-                                await handleRoomTypeChange(catId as number | null)
-                              }}
-                              placeholder="Select Type"
-                              isClearable
-                            />
-                          </Col>
-
-                          <Col md={1} style={{ minWidth: '140px' }}>
-                            <label className="fs-small mb-1">Converted Category</label>
-                            <Select
-                              name="convertedCategoryId"
-                              options={categoryOptions}
-                              isLoading={loadingCategories}
-                              className="fs-small"
-                              styles={selectStyles}
-                              isDisabled={!values.roomNo}
-                              value={
-                                categoryOptions.find(
-                                  (o) => o.value === values.convertedCategoryId,
-                                ) || null
-                              }
-                              onChange={(opt) => {
-                                const catId = opt?.value as number | null
-                                handleConvertedCategoryChange(catId)
-                              }}
-                              placeholder="Optional"
-                              isClearable
-                            />
-                          </Col>
-
-                          <Col md={1} style={{ minWidth: '110px' }}>
-                            <label className="fs-small mb-1">Room Charges</label>
-                            <div className="room-charge-container">
-                              <FormikTextInput
-                                name="roomCharges"
-                                type="number"
-                                size="sm"
-                                className={`w-100 fs-small ${!roomChargeEditable ? 'room-charge-input' : ''}`}
-                                placeholder="Enter Charges"
-                                disabled={!roomChargeEditable}
-                              />
-                              <div className="room-charge-checkbox">
-                                <input
-                                  type="checkbox"
-                                  checked={roomChargeEditable}
-                                  onChange={(e) => setRoomChargeEditable(e.target.checked)}
-                                  title={
-                                    roomChargeEditable
-                                      ? 'Lock room charge'
-                                      : 'Unlock to edit room charge'
-                                  }
-                                />
-                              </div>
-                            </div>
-                          </Col>
-
-                          <Col md={1} style={{ minWidth: '65px' }}>
-                            <label className="fs-small mb-1">Plan</label>
-                            <FormSelect
-                              name="planName"
-                              size="sm"
-                              className="w-100 fs-small"
-                              options={[
-                                { label: 'EP', value: 'EP' },
-                                { label: 'CP', value: 'CP' },
-                                { label: 'AP', value: 'AP' },
-                              ]}
-                            />
-                          </Col>
-                        </Row>
-
-                        <Row className="g-2 mb-1">
-                          <Col md={3}>
-                            <label className="fs-small mb-1">Arrival Date</label>
-                            <FormikTextInput
-                              name="arrivalDate"
-                              type="date"
-                              size="sm"
-                              className="w-100 fs-small"
-                              readOnly   // ← user select/type nahi kar sakta
-                              value={getTodayLocal()} // value force karein (agar Formik value update ho toh bhi)
-                            />
-                          </Col>
-
-                          <Col md={2}>
-                            <label className="fs-small mb-1">Time</label>
-                            <FormikTextInput
-                              name="arrivalTime"
-                              type="time"
-                              size="sm"
-                              className="w-100 fs-small"
-                            />
-                          </Col>
-                          <Col md={2}>
-                            <label className="fs-small mb-1">Days</label>
-                            <FormikTextInput
-                              name="nights"
-                              type="number"
-                              size="sm"
-                              className="w-100 fs-small"
-                            />
-                          </Col>
-                          <Col md={3}>
-                            <label className="fs-small mb-1">Departure Date</label>
-                            <FormikTextInput
-                              name="departureDate"
-                              type="date"
-                              size="sm"
-                              className="w-100 fs-small"
-                            />
-                          </Col>
-                          <Col md={2}>
-                            <label className="fs-small mb-1">Time</label>
-                            <FormikTextInput
-                              name="departureTime"
-                              type="time"
-                              size="sm"
-                              className="w-100 fs-small"
-                            />
-                          </Col>
-                        </Row>
-
-                        <Row className="g-2 mb-1 align-items-end">
-                          <Col md="auto" style={{ width: '110px' }}>
-                            <label className="fs-small mb-1 fw-bold text-primary d-block">
-                              👤 Adults
-                            </label>
-                            <div
-                              className="d-flex align-items-center border border-primary rounded overflow-hidden"
-                              style={{ height: '28px' }}>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setFieldValue('adults', Math.max(0, (values.adults || 0) - 1))
-                                }
-                                style={{
-                                  width: '26px',
-                                  height: '28px',
-                                  border: 'none',
-                                  background: '#e7f3ff',
-                                  color: '#0d6efd',
-                                  fontWeight: 'bold',
-                                  fontSize: '16px',
-                                  cursor: 'pointer',
-                                  lineHeight: 1,
-                                  flexShrink: 0,
-                                }}>
-                                −
-                              </button>
-                              <input
-                                type="number"
-                                value={values.adults || 0}
-                                min={0}
-                                onChange={(e) =>
-                                  setFieldValue('adults', Math.max(0, Number(e.target.value)))
-                                }
-                                style={{
-                                  width: '45px',
-                                  height: '28px',
-                                  border: 'none',
-                                  textAlign: 'center',
-                                  fontWeight: 'bold',
-                                  fontSize: '13px',
-                                  background: '#f8f9fa',
-                                  outline: 'none',
-                                  MozAppearance: 'textfield',
-                                }}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setFieldValue('adults', (values.adults || 0) + 1)}
-                                style={{
-                                  width: '26px',
-                                  height: '28px',
-                                  border: 'none',
-                                  background: '#e7f3ff',
-                                  color: '#0d6efd',
-                                  fontWeight: 'bold',
-                                  fontSize: '16px',
-                                  cursor: 'pointer',
-                                  lineHeight: 1,
-                                  flexShrink: 0,
-                                }}>
-                                +
-                              </button>
-                            </div>
-                          </Col>
-
-                          <Col md="auto" style={{ width: '70px' }}>
-                            <label className="fs-small mb-1 d-block" style={{ color: '#198754' }}>
-                              Pax
-                              {selectedRoomCategoryPax > 0 && (
-                                <span
-                                  className="ms-1"
-                                  style={{ fontSize: '0.55rem', color: '#888' }}>
-                                  (auto)
-                                </span>
-                              )}
-                            </label>
-                            <div
-                              className="d-flex align-items-center justify-content-center border rounded"
-                              style={{
-                                height: '28px',
-                                background: '#f0fff4',
-                                borderColor: '#198754 !important',
-                                border: '1px solid #198754',
-                                borderRadius: '4px',
-                              }}>
-                              <span
-                                style={{
-                                  fontWeight: 'bold',
-                                  fontSize: '14px',
-                                  color: '#198754',
-                                  minWidth: '25px',
-                                  textAlign: 'center',
-                                }}>
-                                {values.pax || 0}
-                              </span>
-                            </div>
-                          </Col>
-
-                          <Col md="auto" style={{ width: '70px' }}>
-                            <label className="fs-small mb-1 d-block" style={{ color: '#dc6500' }}>
-                              Ex_Pax
-                            </label>
-                            <div
-                              className="d-flex align-items-center justify-content-center border rounded"
-                              style={{
-                                height: '28px',
-                                background: (values.exPax || 0) > 0 ? '#fff3e0' : '#f8f9fa',
-                                border: `1px solid ${(values.exPax || 0) > 0 ? '#fd7e14' : '#ced4da'}`,
-                                borderRadius: '4px',
-                              }}>
-                              <span
-                                style={{
-                                  fontWeight: 'bold',
-                                  fontSize: '14px',
-                                  color: (values.exPax || 0) > 0 ? '#dc6500' : '#aaa',
-                                  minWidth: '25px',
-                                  textAlign: 'center',
-                                }}>
-                                {values.exPax || 0}
-                              </span>
-                            </div>
-                          </Col>
-
-                          <Col md="auto" style={{ width: '65px' }}>
-                            <label className="fs-small mb-1">Child Paid</label>
-                            <FormikTextInput
-                              name="childrenPaid"
-                              size="sm"
-                              type="number"
-                              className="w-100 fs-small"
-                              min={0}
-                            />
-                          </Col>
-                          <Col md="auto" style={{ width: '65px' }}>
-                            <label className="fs-small mb-1">C.Unpaid</label>
-                            <FormikTextInput
-                              name="childrenUnpaid"
-                              size="sm"
-                              type="number"
-                              className="w-100 fs-small"
-                              min={0}
-                            />
-                          </Col>
-                          <Col md="auto" style={{ width: '60px' }}>
-                            <label className="fs-small mb-1">Driver</label>
-                            <FormikTextInput
-                              name="driver"
-                              type="number"
-                              size="sm"
-                              className="w-100 fs-small"
-                              min={0}
-                            />
-                          </Col>
-                          <Col
-                            md={1}
+                      <div>
+                        <div className="d-flex align-items-center my-2">
+                          <div style={{ flex: 1, borderTop: '1px solid #999' }}></div>
+                          <span
                             style={{
-                              display: 'flex',
-                              alignItems: 'flex-end',
-                            }}>
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={handleAddOrUpdateRow}
-                              style={{
-                                width: '120%',
-                                height: '27px',
-                                padding: '1px',
-                                fontSize: '10px',
-                              }}>
-                              {editingRowId ? 'Update' : 'Add'}
-                            </Button>
-                          </Col>
-                        </Row>
-
-                        <div className="scrollable-table mt-1">
-                          <table
-                            className="table table-bordered table-sm-compact mb-0"
-                            style={{
-                              borderColor: '#d1d1d1',
-                              minWidth: '1700px',
+                              padding: '0 8px',
+                              fontWeight: 'bold',
+                              fontSize: '12px',
                               whiteSpace: 'nowrap',
                             }}>
-                            <thead className="bg-light">
-                              <tr className="text-center" style={{ backgroundColor: '#d9d9d9' }}>
-                                <th>R</th>
-                                <th>Guest</th>
-                                <th>Guest ID</th>
-                                <th>Room N</th>
-                                <th>Type</th>
-                                <th>Conv. Cat</th>
-                                <th>A_Date</th>
-                                <th>A_Time</th>
-                                <th>D_Date</th>
-                                <th>D_Time</th>
-                                 <th>Room Tariff</th>
-                                <th>Dis</th>
-                                <th>Dis_Amt</th>
-                                <th>Tax%</th>
-                                <th>Tax Amt</th>
-                                <th>Adults</th>
-                                <th>Pax</th>
-                                <th>Ex_Pax</th>
-                                <th>Ex_Pax Price</th>
-                                <th>Ex_Pax Tax %</th>
-                                <th>Ex_Pax Tax</th>
-                                <th>Ex_Pax Total</th>
-                                <th>Child Paid</th>
-                                <th>Child Unpaid</th>
-                                <th>Child Price</th>
-                                <th>Child Tax %</th>
-                                <th>Child Tax</th>
-                                <th>Child Total</th>
-                                <th>Driver</th>
-                                <th>Driver Price</th>
-                                <th>Driver Tax %</th>
-                                <th>Driver Tax</th>
-                                <th>Driver Total</th>
-                                <th>Day</th>
-                               
-                                <th>Total</th>
-                                <th>Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {roomRows.map((row) => (
-                                <tr
-                                  key={row.id}
-                                  className="text-center clickable-row cursor-pointer"
-                                  style={{
-                                    backgroundColor: selectedRowId === row.id ? '#a6ffd5' : '',
-                                    color: selectedRowId === row.id ? 'white' : '',
-                                  }}
-                                  onClick={() => {
-                                    setSelectedRowId(row.id)
-                                    handleEditRow(row)
-                                  }}>
-                                  <td>●</td>
-                                  <td>{row.guestName || '-'}</td>
-                                  <td>{row.guestId || '-'}</td>
-                                  <td>{row.roomNumber}</td>
-                                  <td>{row.type}</td>
-                                  <td>{row.convertedCategoryName || '-'}</td>
-                                  <td>{row.arrivalDate}</td>
-                                  <td>{row.arrivalTime}</td>
-                                  <td>{row.departureDate}</td>
-                                  <td>{row.departureTime}</td>
-                                  <td>{formatCellValue(row.rate)}</td>
-                                  <td>{safeNumber(row.discount)}%</td>
-                                  <td>{formatCellValue(row.discountAmt)}</td>
-                                  <td>{formatCellValue(row.taxPercent)}%</td>
-                                  <td>{formatCellValue(row.taxAmount)}</td>
-                                  <td>{safeNumber(row.adults)}</td>
-                                  <td>{safeNumber(row.pax)}</td>
-                                  <td>{safeNumber(row.exPax)}</td>
-                                  <td>{formatCellValue(row.exPaxPrice)}</td>
-                                  <td>{formatCellValue(row.exPaxTaxPercent)}%</td>
-                                  <td>{formatCellValue(row.exPaxTax)}</td>
-                                  <td>{formatCellValue(row.exPaxTotal)}</td>
-                                  <td>{safeNumber(row.childPaid)}</td>
-                                  <td>{safeNumber(row.childUnpaid)}</td>
-                                  <td>{formatCellValue(row.childPrice)}</td>
-                                  <td>{formatCellValue(row.childTaxPercent)}%</td>
-                                  <td>{formatCellValue(row.childTax)}</td>
-                                  <td>{formatCellValue(row.childTotal)}</td>
-                                  <td>{safeNumber(row.driver)}</td>
-                                  <td>{formatCellValue(row.driverPrice)}</td>
-                                  <td>{formatCellValue(row.driverTaxPercent)}%</td>
-                                  <td>{formatCellValue(row.driverTax)}</td>
-                                  <td>{formatCellValue(row.driverTotal)}</td>
-                                  <td>{safeNumber(row.nights)}</td>                                
-                                  <td>{formatCellValue(row.totalAmount)}</td>
-                                  <td onClick={(e) => e.stopPropagation()}>
-                                    <Button
-                                      variant="outline-danger"
-                                      size="sm"
-                                      className="p-1 px-1"
-                                      onClick={() => handleDeleteRow(row.id)}
-                                      style={{ lineHeight: 1 }}>
-                                      <i className="fi fi-rr-trash"></i>
-                                    </Button>
-                                   </td>
-                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                            Identity Information
+                          </span>
+                          <div style={{ flex: 1, borderTop: '1px solid #999' }}></div>
                         </div>
 
-                        <div
-                          className="position-relative h-100"
-                          style={{ minHeight: '120px', paddingBottom: '220px' }}>
-                          <div
-                            className="border rounded p-2 bg-light position-absolute w-100"
-                            style={{ bottom: 0, left: 0 }}>
-                            <div className="d-flex align-items-center my-2">
-                              <BootstrapForm.Label
-                                className="fw-bold mb-0 fs-small"
-                                style={{ paddingRight: '8px', whiteSpace: 'nowrap' }}>
-                                Rate Information
-                              </BootstrapForm.Label>
-                              <div
-                                style={{
-                                  flex: 1,
-                                  borderTop: '1px solid #999',
-                                }}></div>
-                            </div>
+                        <Row className="align-items-center g-1 mb-1">
+                          <Col md="auto" className="fs-small" style={{ width: '89px' }}>
+                            ID Type
+                          </Col>
+                          <Col md="auto" style={{ width: '318px' }}>
+                            <FormSelect
+                              name="idType"
+                              options={idTypeOptions}
+                              size="sm"
+                              className="w-100 fs-small"
+                              isLoading={loadingDocTypes}
+                              onChange={(v) => setFieldValue('idType', v)}
+                              placeholder="Select ID Type"
 
-                            <Row className="align-items-center g-1 mb-1">
-                              <Col md="auto" className="fs-small" style={{ width: '85px' }}>
-                                Discount %
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="discount"
-                                  size="sm"
-                                  type="number"
-                                  className="w-100 fs-small"
-                                />
-                              </Col>
-                              <Col md="auto" className="fs-small" style={{ width: '85px' }}>
-                                Service
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="roomService"
-                                  size="sm"
-                                  type="number"
-                                  className="w-100 fs-small"
-                                />
-                              </Col>
-                              <Col md="auto" className="fs-small" style={{ width: '85px' }}>
-                                Taxable Amt
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="taxableAmt"
-                                  size="sm"
-                                  type="number"
-                                  className="w-100 fs-small"
-                                />
-                              </Col>
-                            </Row>
+                            />
+                          </Col>
+                        </Row>
+                        <Row className="align-items-center g-1 mb-0">
+                          <Col md="auto" className="fs-small" style={{ width: '89px' }}>
+                            ID No
+                          </Col>
+                          <Col md="auto" style={{ width: '318px' }}>
+                            <FormikTextInput
+                              name="idNumber"
+                              placeholder="Enter ID Number"
+                              size="sm"
+                              className="w-100 fs-small"
 
-                            <Row className="align-items-center g-1 mb-1">
-                              <Col md="auto" className="fs-small" style={{ width: '85px' }}>
-                                SGST Amt
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="sgst"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small"
-                                />
-                              </Col>
-                              <Col md="auto" className="fs-small" style={{ width: '85px' }}>
-                                CGST Amt
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="cgst"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small"
-                                />
-                              </Col>
-                              <Col md="auto" className="fs-small" style={{ width: '85px' }}>
-                                Round Off
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="roundOff"
-                                  size="sm"
-                                  type="number"
-                                  className="w-100 fs-small"
-                                />
-                              </Col>
-                            </Row>
-
-                            <Row className="align-items-center g-1 mb-1">
-                              <Col md="auto" className="fs-small" style={{ width: '85px' }}>
-                                Bill Amt
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="billAmount"
-                                  size="sm"
-                                  type="number"
-                                  className="w-100 fs-small fw-bold"
-                                />
-                              </Col>
-                              <Col md="auto" className="fs-small" style={{ width: '85px' }}>
-                                Other Charges
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="otherCharges"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small"
-                                />
-                              </Col>
-                              <Col
-                                md="auto"
-                                className="fs-small text-danger"
-                                style={{ width: '85px' }}>
-                                Bill A + Other C
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="billAPlusOtherC"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small"
-                                />
-                              </Col>
-                            </Row>
-
-                            <Row className="align-items-center g-1 mb-1">
-                              <Col md="auto" className="fs-small" style={{ width: '85px' }}>
-                                Received Amt
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="receivedAmount"
-                                  size="sm"
-                                  type="number"
-                                  className="w-100 fs-small"
-                                />
-                              </Col>
-                              <Col
-                                md="auto"
-                                className="fs-small text-danger"
-                                style={{ width: '85px' }}>
-                                Credit Transfer
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="creditTransfer"
-                                  size="sm"
-                                  type="number"
-                                  className="w-100 fs-small"
-                                />
-                              </Col>
-                              <Col md="auto" className="fs-small" style={{ width: '85px' }}>
-                                Sett. Disc
-                              </Col>
-                              <Col md="auto" style={{ width: '90px' }}>
-                                <FormikTextInput
-                                  name="settDisc"
-                                  size="sm"
-                                  type="number"
-                                  className="w-100 fs-small"
-                                  readOnly
-                                />
-                              </Col>
-                            </Row>
-
-                            <Row className="align-items-center g-2 mb-2">
-                              <Col md="auto" className="fs-small" style={{ width: '85px' }}>
-                                Pay Method
-                              </Col>
-                              <Col md="auto" style={{ width: '94px' }}>
-                                <FormSelect
-                                  name="paymentMethod"
-                                  options={paymentMethodOptions}
-                                  size="sm"
-                                  className="w-100 fs-small"
-                                  isLoading={loadingPaymentMethods}
-                                  onChange={(v) => {
-                                    setFieldValue('paymentMethod', v)
-                                  }}
-                                />
-                              </Col>
-
-                              <Col md="auto" className="fs-small fw-bold" style={{ width: '81px' }}>
-                                Balance Amt
-                              </Col>
-                              <Col md="auto" style={{ width: '94px' }}>
-                                <FormikTextInput
-                                  name="balanceAmount"
-                                  size="sm"
-                                  type="number"
-                                  className="w-100 fs-small fw-bold"
-                                />
-                              </Col>
-
-                              <Col md="auto" className="fs-small fw-bold" style={{ width: '81px' }}>
-                                Total Amt
-                              </Col>
-                              <Col md="auto" style={{ width: '94px' }}>
-                                <FormikTextInput
-                                  name="totalAmt"
-                                  size="sm"
-                                  type="number"
-                                  className="w-100 fs-small fw-bold"
-                                  readOnly
-                                />
-                              </Col>
-                            </Row>
-                          </div>
-                        </div>
+                            />
+                          </Col>
+                        </Row>
                       </div>
-                    </Col>
 
-                    <Col md={4}>
-                      <div className="border rounded p-1 bg-light">
-                        <div className="bg-danger-custom text-white d-flex align-items-center justify-content-between px-2 py-1 mb-1">
-                          <span className="fs-small fw-bold">Travel Agent Information</span>
+                      <div>
+                        <div className="d-flex align-items-center my-2">
+                          <div style={{ flex: 1, borderTop: '1px solid #999' }}></div>
+                          <BootstrapForm.Label
+                            className="fw-bold mb-0 fs-small"
+                            style={{ padding: '0 8px', whiteSpace: 'nowrap' }}>
+                            Other Information
+                          </BootstrapForm.Label>
+                          <div style={{ flex: 1, borderTop: '1px solid #999' }}></div>
                         </div>
-                        <Row className="align-items-center mb-1">
-                          <Col md={12}>
-                            <div className="d-flex align-items-center gap-4 fs-small">
-                              <label className="d-flex align-items-center gap-2 mb-0">
-                                <input
-                                  type="checkbox"
-                                  name="payAtHotelBooking"
-                                  style={{ cursor: 'pointer' }}
-                                />
-                                Pay at Hotel Booking
-                              </label>
-                              <label className="d-flex align-items-center gap-2 mb-0">
-                                <input
-                                  type="checkbox"
-                                  name="printOnBill"
-                                  style={{ cursor: 'pointer' }}
-                                />
-                                Print On Bill
-                              </label>
-                            </div>
+
+                        <Row className="align-items-center row-compact">
+                          <Col md="auto" className="fs-small" style={{ width: '89px' }}>
+                            Agent Name
+                          </Col>
+                          <Col md="auto" style={{ width: '337px' }}>
+                            <Select
+                              options={travelAgentOptions}
+                              isLoading={loadingTravelAgents}
+                              className="fs-small"
+                              styles={selectStyles}
+                              defaultValue={travelAgentOptions[0]}
+                              value={
+                                values.travelAgentId
+                                  ? travelAgentOptions.find((o) => o.value === String(values.travelAgentId)) || null
+                                  : values.travelAgent === SELF_AGENT_VALUE || (!values.travelAgentId && !values.travelAgent)
+                                    ? travelAgentOptions[0]
+                                    : null
+                              }
+                              onChange={(opt) => {
+                                if (!opt || opt.value === SELF_AGENT_VALUE) {
+                                  handleAgentSelect(null)
+                                  setFieldValue('travelAgent', SELF_AGENT_VALUE)
+                                } else {
+                                  handleAgentSelect(Number(opt.value))
+                                }
+                              }}
+                              onInputChange={(inputValue, { action }) => {
+                                if (action === 'input-change') {
+                                  loadTravelAgents(inputValue)
+                                }
+                              }}
+                              placeholder="Select Agent"
+                              isClearable
+                            />
                           </Col>
                         </Row>
 
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={4} className="fs-small">
-                            Booking Date
+                        <Row className="align-items-center g-1 mb-1">
+                          <Col md="auto" className="fs-small" style={{ width: '89px' }}>
+                            Company
                           </Col>
-                          <Col md={8}>
+                          <Col md="auto" style={{ width: '284px' }}>
+                            <Select
+                              options={companyOptions}
+                              isLoading={loadingCompanies}
+                              className="w-100"
+                              styles={selectStyles}
+                              value={companyOptions.find((o) => o.value === values.companyId) || null}
+                              onChange={(opt) => {
+                                const val = opt?.value ?? null;
+                                handleCompanySelect(val);   // <-- changed here
+                              }}
+                              onInputChange={(inputValue, { action }) => {
+                                if (action === 'input-change') {
+                                  handleCompanySearch(inputValue);
+                                }
+                              }}
+                              onMenuOpen={() => {
+                                if (!companyOptions.length) {
+                                  loadAllCompanies();
+                                }
+                              }}
+                              placeholder="Select Company"
+                              isClearable
+                            />
+                          </Col>
+                          <Col md={1}>
+                            <button
+                              type="button"
+                              className="btn btn-success btn-sm w-100 p-0"
+                              style={{ height: '29px' }}
+                              onClick={() => setShowCompanyModal(true)}>
+                              +
+                            </button>
+                          </Col>
+                        </Row>
+                        <Row className="align-items-center g-1 mb-1">
+                          <Col md="auto" className="fs-small" style={{ width: '89px' }}>
+                            GST No
+                          </Col>
+                          <Col md="auto" style={{ width: '318px' }}>
                             <FormikTextInput
-                              name="bookingDate"
-                              type="date"
+                              name="gst"
+                              placeholder="GST TIN"
                               size="sm"
-                              className="w-100 fs-small input-24"
+                              className="w-100 fs-small"
                               readOnly
                             />
                           </Col>
                         </Row>
+                        <Row className="align-items-center g-1 mb-1">
+                          <Col md="auto" className="fs-small" style={{ width: '89px' }}>
+                            Group
+                          </Col>
+                          <Col md="auto" style={{ width: '318px' }}>
+                            <FormikTextInput
+                              name="groupName"
+                              placeholder="Group Name"
+                              size="sm"
+                              className="w-100 fs-small"
+                              readOnly
+                            />
+                          </Col>
+                        </Row>
+                        <Row className="align-items-center g-1 mb-2">
+                          <Col md="auto" className="fs-small" style={{ width: '89px' }}>
+                            Booking Type
+                          </Col>
+                          <Col md="auto" style={{ width: '318px' }}>
+                            <FormSelect
+                              name="bookingType"
+                              size="sm"
+                              className="w-100 fs-small"
+                              options={[
+                                { label: 'WALK-IN-GUEST', value: 'WALK-IN-GUEST' },
+                                { label: 'ONLINE', value: 'ONLINE' },
+                                { label: 'ADVANCE', value: 'ADVANCE' },
+                                { label: 'AGENT', value: 'AGENT' },
+                                { label: 'GROUP', value: 'GROUP' },
+                                { label: 'CORPORATE', value: 'CORPORATE' },
+                                { label: 'COMPLIMENTARY', value: 'COMPLIMENTARY' },
+                              ]}
+                            />
+                          </Col>
+                        </Row>
+                      </div>
+                    </div>
+                  </Col>
+
+                  <Col md={8}>
+                    <Row className="g-2 ">
+                      <Col md={8}>
+                        <div className="border rounded p-1 bg-light">
+                          <div className="bg-danger-custom text-white d-flex align-items-center justify-content-between px-2 py-1 mb-1">
+                            <span className="fs-small fw-bold">Stay Information</span>
+                          </div>
+
+                          <Row className="g-2 mb-1">
+                            <Col md={1} style={{ minWidth: '100px' }}>
+                              <label className="fs-small mb-1">Room No</label>
+                              <Select
+                                name="roomNo"
+                                options={roomOptions}
+                                isLoading={loadingRooms}
+                                className="fs-small"
+                                styles={selectStyles}
+                                isDisabled={editingRowId !== null}
+                                value={roomOptions.find((o) => o.value === values.roomNo) || null}
+                                onChange={async (opt) => {
+                                  const roomId = opt?.value ?? null
+                                  await handleRoomNoChange(roomId as number | null)
+                                }}
+                                placeholder="Room"
+                                isClearable
+                              />
+                            </Col>
+
+                            <Col md={1} style={{ minWidth: '140px' }}>
+                              <label className="fs-small mb-1">
+                                Type
+
+                              </label>
+                              <Select
+                                name="roomType"
+                                options={categoryOptions}
+                                isLoading={loadingCategories}
+                                className="fs-small"
+                                styles={selectStyles}
+                                isDisabled={true}
+                                value={
+                                  categoryOptions.find((o) => o.value === values.roomType) || null
+                                }
+                                onChange={async (opt) => {
+                                  const catId = opt?.value ?? null
+                                  setFieldValue('roomType', catId)
+                                  await handleRoomTypeChange(catId as number | null)
+                                }}
+                                placeholder="Select Type"
+                                isClearable
+                              />
+                            </Col>
+
+                            <Col md={1} style={{ minWidth: '140px' }}>
+                              <label className="fs-small mb-1">Converted Category</label>
+                              <Select
+                                name="convertedCategoryId"
+                                options={categoryOptions}
+                                isLoading={loadingCategories}
+                                className="fs-small"
+                                styles={selectStyles}
+                                isDisabled={!values.roomNo}
+                                value={
+                                  categoryOptions.find(
+                                    (o) => o.value === values.convertedCategoryId,
+                                  ) || null
+                                }
+                                onChange={(opt) => {
+                                  const catId = opt?.value as number | null
+                                  handleConvertedCategoryChange(catId)
+                                }}
+                                placeholder="Optional"
+                                isClearable
+                              />
+                            </Col>
+
+                            <Col md={1} style={{ minWidth: '110px' }}>
+                              <label className="fs-small mb-1">Room Charges</label>
+                              <div className="room-charge-container">
+                                <FormikTextInput
+                                  name="roomCharges"
+                                  type="number"
+                                  size="sm"
+                                  className={`w-100 fs-small ${!roomChargeEditable ? 'room-charge-input' : ''}`}
+                                  placeholder="Enter Charges"
+                                  disabled={!roomChargeEditable}
+                                />
+                                <div className="room-charge-checkbox">
+                                  <input
+                                    type="checkbox"
+                                    checked={roomChargeEditable}
+                                    onChange={(e) => setRoomChargeEditable(e.target.checked)}
+                                    title={
+                                      roomChargeEditable
+                                        ? 'Lock room charge'
+                                        : 'Unlock to edit room charge'
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            </Col>
+
+                            <Col md={1} style={{ minWidth: '65px' }}>
+                              <label className="fs-small mb-1">Plan</label>
+                              <FormSelect
+                                name="planName"
+                                size="sm"
+                                className="w-100 fs-small"
+                                options={[
+                                  { label: 'EP', value: 'EP' },
+                                  { label: 'CP', value: 'CP' },
+                                  { label: 'AP', value: 'AP' },
+                                ]}
+                              />
+                            </Col>
+                          </Row>
+
+                          <Row className="g-2 mb-1">
+                            <Col md={3}>
+                              <label className="fs-small mb-1">Arrival Date</label>
+                              <FormikTextInput
+                                name="arrivalDate"
+                                type="date"
+                                size="sm"
+                                className="w-100 fs-small"
+                                readOnly   // ← user select/type nahi kar sakta
+                                value={getTodayLocal()} // value force karein (agar Formik value update ho toh bhi)
+                              />
+                            </Col>
+
+                            <Col md={2}>
+                              <label className="fs-small mb-1">Time</label>
+                              <FormikTextInput
+                                name="arrivalTime"
+                                type="time"
+                                size="sm"
+                                className="w-100 fs-small"
+                              />
+                            </Col>
+                            <Col md={2}>
+                              <label className="fs-small mb-1">Days</label>
+                              <FormikTextInput
+                                name="nights"
+                                type="number"
+                                size="sm"
+                                className="w-100 fs-small"
+                              />
+                            </Col>
+                            <Col md={3}>
+                              <label className="fs-small mb-1">Departure Date</label>
+                              <FormikTextInput
+                                name="departureDate"
+                                type="date"
+                                size="sm"
+                                className="w-100 fs-small"
+                              />
+                            </Col>
+                            <Col md={2}>
+                              <label className="fs-small mb-1">Time</label>
+                              <FormikTextInput
+                                name="departureTime"
+                                type="time"
+                                size="sm"
+                                className="w-100 fs-small"
+                              />
+                            </Col>
+                          </Row>
+
+                          <Row className="g-2 mb-1 align-items-end">
+                            <Col md="auto" style={{ width: '110px' }}>
+                              <label className="fs-small mb-1 fw-bold text-primary d-block">
+                                👤 Adults
+                              </label>
+                              <div
+                                className="d-flex align-items-center border border-primary rounded overflow-hidden"
+                                style={{ height: '28px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setFieldValue('adults', Math.max(0, (values.adults || 0) - 1))
+                                  }
+                                  style={{
+                                    width: '26px',
+                                    height: '28px',
+                                    border: 'none',
+                                    background: '#e7f3ff',
+                                    color: '#0d6efd',
+                                    fontWeight: 'bold',
+                                    fontSize: '16px',
+                                    cursor: 'pointer',
+                                    lineHeight: 1,
+                                    flexShrink: 0,
+                                  }}>
+                                  −
+                                </button>
+                                <input
+                                  type="number"
+                                  value={values.adults || 0}
+                                  min={0}
+                                  onChange={(e) =>
+                                    setFieldValue('adults', Math.max(0, Number(e.target.value)))
+                                  }
+                                  style={{
+                                    width: '45px',
+                                    height: '28px',
+                                    border: 'none',
+                                    textAlign: 'center',
+                                    fontWeight: 'bold',
+                                    fontSize: '13px',
+                                    background: '#f8f9fa',
+                                    outline: 'none',
+                                    MozAppearance: 'textfield',
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setFieldValue('adults', (values.adults || 0) + 1)}
+                                  style={{
+                                    width: '26px',
+                                    height: '28px',
+                                    border: 'none',
+                                    background: '#e7f3ff',
+                                    color: '#0d6efd',
+                                    fontWeight: 'bold',
+                                    fontSize: '16px',
+                                    cursor: 'pointer',
+                                    lineHeight: 1,
+                                    flexShrink: 0,
+                                  }}>
+                                  +
+                                </button>
+                              </div>
+                            </Col>
+
+                            <Col md="auto" style={{ width: '70px' }}>
+                              <label className="fs-small mb-1 d-block" style={{ color: '#198754' }}>
+                                Pax
+                                {selectedRoomCategoryPax > 0 && (
+                                  <span
+                                    className="ms-1"
+                                    style={{ fontSize: '0.55rem', color: '#888' }}>
+                                    (auto)
+                                  </span>
+                                )}
+                              </label>
+                              <div
+                                className="d-flex align-items-center justify-content-center border rounded"
+                                style={{
+                                  height: '28px',
+                                  background: '#f0fff4',
+                                  borderColor: '#198754 !important',
+                                  border: '1px solid #198754',
+                                  borderRadius: '4px',
+                                }}>
+                                <span
+                                  style={{
+                                    fontWeight: 'bold',
+                                    fontSize: '14px',
+                                    color: '#198754',
+                                    minWidth: '25px',
+                                    textAlign: 'center',
+                                  }}>
+                                  {values.pax || 0}
+                                </span>
+                              </div>
+                            </Col>
+
+                            <Col md="auto" style={{ width: '70px' }}>
+                              <label className="fs-small mb-1 d-block" style={{ color: '#dc6500' }}>
+                                Ex_Pax
+                              </label>
+                              <div
+                                className="d-flex align-items-center justify-content-center border rounded"
+                                style={{
+                                  height: '28px',
+                                  background: (values.exPax || 0) > 0 ? '#fff3e0' : '#f8f9fa',
+                                  border: `1px solid ${(values.exPax || 0) > 0 ? '#fd7e14' : '#ced4da'}`,
+                                  borderRadius: '4px',
+                                }}>
+                                <span
+                                  style={{
+                                    fontWeight: 'bold',
+                                    fontSize: '14px',
+                                    color: (values.exPax || 0) > 0 ? '#dc6500' : '#aaa',
+                                    minWidth: '25px',
+                                    textAlign: 'center',
+                                  }}>
+                                  {values.exPax || 0}
+                                </span>
+                              </div>
+                            </Col>
+
+                            <Col md="auto" style={{ width: '65px' }}>
+                              <label className="fs-small mb-1">Child Paid</label>
+                              <FormikTextInput
+                                name="childrenPaid"
+                                size="sm"
+                                type="number"
+                                className="w-100 fs-small"
+                                min={0}
+                              />
+                            </Col>
+                            <Col md="auto" style={{ width: '65px' }}>
+                              <label className="fs-small mb-1">C.Unpaid</label>
+                              <FormikTextInput
+                                name="childrenUnpaid"
+                                size="sm"
+                                type="number"
+                                className="w-100 fs-small"
+                                min={0}
+                              />
+                            </Col>
+                            <Col md="auto" style={{ width: '60px' }}>
+                              <label className="fs-small mb-1">Driver</label>
+                              <FormikTextInput
+                                name="driver"
+                                type="number"
+                                size="sm"
+                                className="w-100 fs-small"
+                                min={0}
+                              />
+                            </Col>
+                            <Col
+                              md={1}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'flex-end',
+                              }}>
+                              <Button
+                                size="sm"
+                                variant="success"
+                                onClick={handleAddOrUpdateRow}
+                                style={{
+                                  width: '120%',
+                                  height: '27px',
+                                  padding: '1px',
+                                  fontSize: '10px',
+                                }}>
+                                {editingRowId ? 'Update' : 'Add'}
+                              </Button>
+                            </Col>
+                          </Row>
+
+                          <div className="scrollable-table mt-1">
+                            <table
+                              className="table table-bordered table-sm-compact mb-0"
+                              style={{
+                                borderColor: '#d1d1d1',
+                                minWidth: '1700px',
+                                whiteSpace: 'nowrap',
+                              }}>
+                              <thead className="bg-light">
+                                <tr className="text-center" style={{ backgroundColor: '#d9d9d9' }}>
+                                  <th>R</th>
+                                  <th>Guest</th>
+                                  <th>Guest ID</th>
+                                  <th>Room N</th>
+                                  <th>Type</th>
+                                  <th>Conv. Cat</th>
+                                  <th>A_Date</th>
+                                  <th>A_Time</th>
+                                  <th>D_Date</th>
+                                  <th>D_Time</th>
+                                  <th>Room Tariff</th>
+                                  <th>Dis</th>
+                                  <th>Dis_Amt</th>
+                                  <th>Tax%</th>
+                                  <th>Tax Amt</th>
+                                  <th>Adults</th>
+                                  <th>Pax</th>
+                                  <th>Ex_Pax</th>
+                                  <th>Ex_Pax Price</th>
+                                  <th>Ex_Pax Tax %</th>
+                                  <th>Ex_Pax Tax</th>
+                                  <th>Ex_Pax Total</th>
+                                  <th>Child Paid</th>
+                                  <th>Child Unpaid</th>
+                                  <th>Child Price</th>
+                                  <th>Child Tax %</th>
+                                  <th>Child Tax</th>
+                                  <th>Child Total</th>
+                                  <th>Driver</th>
+                                  <th>Driver Price</th>
+                                  <th>Driver Tax %</th>
+                                  <th>Driver Tax</th>
+                                  <th>Driver Total</th>
+                                  <th>Day</th>
+
+                                  <th>Total</th>
+                                  <th>Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {roomRows.map((row) => (
+                                  <tr
+                                    key={row.id}
+                                    className="text-center clickable-row cursor-pointer"
+                                    style={{
+                                      backgroundColor: selectedRowId === row.id ? '#a6ffd5' : '',
+                                      color: selectedRowId === row.id ? 'white' : '',
+                                    }}
+                                    onClick={() => {
+                                      setSelectedRowId(row.id)
+                                      handleEditRow(row)
+                                    }}>
+                                    <td>●</td>
+                                    <td>{row.guestName || '-'}</td>
+                                    <td>{row.guestId || '-'}</td>
+                                    <td>{row.roomNumber}</td>
+                                    <td>{row.type}</td>
+                                    <td>{row.convertedCategoryName || '-'}</td>
+                                    <td>{row.arrivalDate}</td>
+                                    <td>{row.arrivalTime}</td>
+                                    <td>{row.departureDate}</td>
+                                    <td>{row.departureTime}</td>
+                                    <td>{formatCellValue(row.rate)}</td>
+                                    <td>{safeNumber(row.discount)}%</td>
+                                    <td>{formatCellValue(row.discountAmt)}</td>
+                                    <td>{formatCellValue(row.taxPercent)}%</td>
+                                    <td>{formatCellValue(row.taxAmount)}</td>
+                                    <td>{safeNumber(row.adults)}</td>
+                                    <td>{safeNumber(row.pax)}</td>
+                                    <td>{safeNumber(row.exPax)}</td>
+                                    <td>{formatCellValue(row.exPaxPrice)}</td>
+                                    <td>{formatCellValue(row.exPaxTaxPercent)}%</td>
+                                    <td>{formatCellValue(row.exPaxTax)}</td>
+                                    <td>{formatCellValue(row.exPaxTotal)}</td>
+                                    <td>{safeNumber(row.childPaid)}</td>
+                                    <td>{safeNumber(row.childUnpaid)}</td>
+                                    <td>{formatCellValue(row.childPrice)}</td>
+                                    <td>{formatCellValue(row.childTaxPercent)}%</td>
+                                    <td>{formatCellValue(row.childTax)}</td>
+                                    <td>{formatCellValue(row.childTotal)}</td>
+                                    <td>{safeNumber(row.driver)}</td>
+                                    <td>{formatCellValue(row.driverPrice)}</td>
+                                    <td>{formatCellValue(row.driverTaxPercent)}%</td>
+                                    <td>{formatCellValue(row.driverTax)}</td>
+                                    <td>{formatCellValue(row.driverTotal)}</td>
+                                    <td>{safeNumber(row.nights)}</td>
+                                    <td>{formatCellValue(row.totalAmount)}</td>
+                                    <td onClick={(e) => e.stopPropagation()}>
+                                      <Button
+                                        variant="outline-danger"
+                                        size="sm"
+                                        className="p-1 px-1"
+                                        onClick={() => handleDeleteRow(row.id)}
+                                        style={{ lineHeight: 1 }}>
+                                        <i className="fi fi-rr-trash"></i>
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div
+                            className="position-relative h-100"
+                            style={{ minHeight: '120px', paddingBottom: '220px' }}>
+                            <div
+                              className="border rounded p-2 bg-light position-absolute w-100"
+                              style={{ bottom: 0, left: 0 }}>
+                              <div className="d-flex align-items-center my-2">
+                                <BootstrapForm.Label
+                                  className="fw-bold mb-0 fs-small"
+                                  style={{ paddingRight: '8px', whiteSpace: 'nowrap' }}>
+                                  Rate Information
+                                </BootstrapForm.Label>
+                                <div
+                                  style={{
+                                    flex: 1,
+                                    borderTop: '1px solid #999',
+                                  }}></div>
+                              </div>
+
+                              <Row className="align-items-center g-1 mb-1">
+                                <Col md="auto" className="fs-small" style={{ width: '85px' }}>
+                                  Discount %
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="discount"
+                                    size="sm"
+                                    type="number"
+                                    className="w-100 fs-small"
+                                  />
+                                </Col>
+                                <Col md="auto" className="fs-small" style={{ width: '85px' }}>
+                                  Service
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="roomService"
+                                    size="sm"
+                                    type="number"
+                                    className="w-100 fs-small"
+                                  />
+                                </Col>
+                                <Col md="auto" className="fs-small" style={{ width: '85px' }}>
+                                  Taxable Amt
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="taxableAmt"
+                                    size="sm"
+                                    type="number"
+                                    className="w-100 fs-small"
+                                  />
+                                </Col>
+                              </Row>
+
+                              <Row className="align-items-center g-1 mb-1">
+                                <Col md="auto" className="fs-small" style={{ width: '85px' }}>
+                                  SGST Amt
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="sgst"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small"
+                                  />
+                                </Col>
+                                <Col md="auto" className="fs-small" style={{ width: '85px' }}>
+                                  CGST Amt
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="cgst"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small"
+                                  />
+                                </Col>
+                                <Col md="auto" className="fs-small" style={{ width: '85px' }}>
+                                  Round Off
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="roundOff"
+                                    size="sm"
+                                    type="number"
+                                    className="w-100 fs-small"
+                                  />
+                                </Col>
+                              </Row>
+
+                              <Row className="align-items-center g-1 mb-1">
+                                <Col md="auto" className="fs-small" style={{ width: '85px' }}>
+                                  Bill Amt
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="billAmount"
+                                    size="sm"
+                                    type="number"
+                                    className="w-100 fs-small fw-bold"
+                                  />
+                                </Col>
+                                <Col md="auto" className="fs-small" style={{ width: '85px' }}>
+                                  Other Charges
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="otherCharges"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small"
+                                  />
+                                </Col>
+                                <Col
+                                  md="auto"
+                                  className="fs-small text-danger"
+                                  style={{ width: '85px' }}>
+                                  Bill A + Other C
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="billAPlusOtherC"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small"
+                                  />
+                                </Col>
+                              </Row>
+
+                              <Row className="align-items-center g-1 mb-1">
+                                <Col md="auto" className="fs-small" style={{ width: '85px' }}>
+                                  Received Amt
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="receivedAmount"
+                                    size="sm"
+                                    type="number"
+                                    className="w-100 fs-small"
+                                  />
+                                </Col>
+                                <Col
+                                  md="auto"
+                                  className="fs-small text-danger"
+                                  style={{ width: '85px' }}>
+                                  Credit Transfer
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="creditTransfer"
+                                    size="sm"
+                                    type="number"
+                                    className="w-100 fs-small"
+                                  />
+                                </Col>
+                                <Col md="auto" className="fs-small" style={{ width: '85px' }}>
+                                  Sett. Disc
+                                </Col>
+                                <Col md="auto" style={{ width: '90px' }}>
+                                  <FormikTextInput
+                                    name="settDisc"
+                                    size="sm"
+                                    type="number"
+                                    className="w-100 fs-small"
+                                    readOnly
+                                  />
+                                </Col>
+                              </Row>
+
+                              <Row className="align-items-center g-2 mb-2">
+                                <Col md="auto" className="fs-small" style={{ width: '85px' }}>
+                                  Pay Method
+                                </Col>
+                                <Col md="auto" style={{ width: '94px' }}>
+                                  <FormSelect
+                                    name="paymentMethod"
+                                    options={paymentMethodOptions}
+                                    size="sm"
+                                    className="w-100 fs-small"
+                                    isLoading={loadingPaymentMethods}
+                                    onChange={(v) => {
+                                      setFieldValue('paymentMethod', v)
+                                    }}
+                                  />
+                                </Col>
+
+                                <Col md="auto" className="fs-small fw-bold" style={{ width: '81px' }}>
+                                  Balance Amt
+                                </Col>
+                                <Col md="auto" style={{ width: '94px' }}>
+                                  <FormikTextInput
+                                    name="balanceAmount"
+                                    size="sm"
+                                    type="number"
+                                    className="w-100 fs-small fw-bold"
+                                  />
+                                </Col>
+
+                                <Col md="auto" className="fs-small fw-bold" style={{ width: '81px' }}>
+                                  Total Amt
+                                </Col>
+                                <Col md="auto" style={{ width: '94px' }}>
+                                  <FormikTextInput
+                                    name="totalAmt"
+                                    size="sm"
+                                    type="number"
+                                    className="w-100 fs-small fw-bold"
+                                    readOnly
+                                  />
+                                </Col>
+                              </Row>
+                            </div>
+                          </div>
+                        </div>
+                      </Col>
+
+                      <Col md={4}>
+                        <div className="border rounded p-1 bg-light">
+                          <div className="bg-danger-custom text-white d-flex align-items-center justify-content-between px-2 py-1 mb-1">
+                            <span className="fs-small fw-bold">Travel Agent Information</span>
+                          </div>
+                          <Row className="align-items-center mb-1">
+                            <Col md={12}>
+                              <div className="d-flex align-items-center gap-4 fs-small">
+                                <label className="d-flex align-items-center gap-2 mb-0">
+                                  <input
+                                    type="checkbox"
+                                    name="payAtHotelBooking"
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                  Pay at Hotel Booking
+                                </label>
+                                <label className="d-flex align-items-center gap-2 mb-0">
+                                  <input
+                                    type="checkbox"
+                                    name="printOnBill"
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                  Print On Bill
+                                </label>
+                              </div>
+                            </Col>
+                          </Row>
+
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={4} className="fs-small">
+                              Booking Date
+                            </Col>
+                            <Col md={8}>
+                              <FormikTextInput
+                                name="bookingDate"
+                                type="date"
+                                size="sm"
+                                className="w-100 fs-small input-24"
+                                readOnly
+                              />
+                            </Col>
+                          </Row>
                           <Row className="align-items-center row-compact pt-1">
                             <Col md={4} className="fs-small">
                               Booking ID
@@ -3992,289 +3992,289 @@ const CheckInForm = () => {
                                 type="text"
                                 size="sm"
                                 className="w-100 fs-small input-24"
-                               
+
                               />
                             </Col>
                           </Row>
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={4} className="fs-small">
-                            Commission
-                          </Col>
-                          <Col md={8}>
-                            <Row className="align-items-center g-1">
-                              <Col md={5}>
-                                <FormikTextInput
-                                  name="agentAmountPer"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                              <Col md={1} className="text-center fs-small fw-bold">
-                                %
-                              </Col>
-                              <Col md={6}>
-                                <FormikTextInput
-                                  name="agentAmount"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                            </Row>
-                          </Col>
-                        </Row>
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={4} className="fs-small">
-                            CGST
-                          </Col>
-                          <Col md={8}>
-                            <Row className="align-items-center g-1">
-                              <Col md={5}>
-                                <FormikTextInput
-                                  name="agentCgstPer"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                              <Col md={1} className="text-center fs-small fw-bold">
-                                %
-                              </Col>
-                              <Col md={6}>
-                                <FormikTextInput
-                                  name="agentCgst"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                            </Row>
-                          </Col>
-                        </Row>
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={4} className="fs-small">
-                            SGST
-                          </Col>
-                          <Col md={8}>
-                            <Row className="align-items-center g-1">
-                              <Col md={5}>
-                                <FormikTextInput
-                                  name="agentSgstPer"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                              <Col md={1} className="text-center fs-small fw-bold">
-                                %
-                              </Col>
-                              <Col md={6}>
-                                <FormikTextInput
-                                  name="agentSgst"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                            </Row>
-                          </Col>
-                        </Row>
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={4} className="fs-small">
-                            IGST
-                          </Col>
-                          <Col md={8}>
-                            <Row className="align-items-center g-1">
-                              <Col md={5}>
-                                <FormikTextInput
-                                  name="agentIgstPer"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                              <Col md={1} className="text-center fs-small fw-bold">
-                                %
-                              </Col>
-                              <Col md={6}>
-                                <FormikTextInput
-                                  name="agentIgst"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                            </Row>
-                          </Col>
-                        </Row>
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={4} className="fs-small">
-                            CESS
-                          </Col>
-                          <Col md={8}>
-                            <Row className="align-items-center g-1">
-                              <Col md={5}>
-                                <FormikTextInput
-                                  name="agentCessPer"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                              <Col md={1} className="text-center fs-small fw-bold">
-                                %
-                              </Col>
-                              <Col md={6}>
-                                <FormikTextInput
-                                  name="agentCess"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                            </Row>
-                          </Col>
-                        </Row>
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={4} className="fs-small">
-                            TDS
-                          </Col>
-                          <Col md={8}>
-                            <Row className="align-items-center g-1">
-                              <Col md={5}>
-                                <FormikTextInput
-                                  name="agentTdsPer"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                              <Col md={1} className="text-center fs-small fw-bold">
-                                %
-                              </Col>
-                              <Col md={6}>
-                                <FormikTextInput
-                                  name="agentTds"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                            </Row>
-                          </Col>
-                        </Row>
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={4} className="fs-small">
-                            TCS
-                          </Col>
-                          <Col md={8}>
-                            <Row className="align-items-center g-1">
-                              <Col md={5}>
-                                <FormikTextInput
-                                  name="agentTcsPer"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                              <Col md={1} className="text-center fs-small fw-bold">
-                                %
-                              </Col>
-                              <Col md={6}>
-                                <FormikTextInput
-                                  name="agentTcs"
-                                  type="number"
-                                  size="sm"
-                                  className="w-100 fs-small input-24"
-                                  readOnly
-                                />
-                              </Col>
-                            </Row>
-                          </Col>
-                        </Row>
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={6} className="fs-small">
-                            Service Fee
-                          </Col>
-                          <Col md={6}>
-                            <FormikTextInput
-                              name="agentServiceFee"
-                              type="number"
-                              size="sm"
-                              className="w-100 fs-small input-24"
-                              readOnly
-                            />
-                          </Col>
-                        </Row>
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={6} className="fs-small fw-bold text-success">
-                            Agent Commission
-                          </Col>
-                          <Col md={6}>
-                            <FormikTextInput
-                              name="agentTotal"
-                              type="number"
-                              size="sm"
-                              className="w-100 fs-small fw-bold input-24"
-                              readOnly
-                            />
-                          </Col>
-                        </Row>
-                        <Row className="align-items-center row-compact pt-1">
-                          <Col md={6} className="fs-small fw-bold text-success">
-                            Pay to Hotel
-                          </Col>
-                          <Col md={6}>
-                            <FormikTextInput
-                              name="agentPayToHotel"
-                              type="number"
-                              size="sm"
-                              className="w-100 fs-small fw-bold input-24"
-                              readOnly
-                            />
-                          </Col>
-                        </Row>
-                        <Row className="g-1 mb-2 mt-1">
-                          <Col md={6}>
-                            <label className="fs-small fw-semi-bold">Special Instruction</label>
-                            <textarea
-                              {...formik.getFieldProps('specialInstruction')}
-                              className="form-control form-control-sm fs-small"
-                              rows={4}
-                              placeholder="Enter instruction"
-                            />
-                          </Col>
-                          <Col md={6}>
-                            <label className="fs-small fw-semi-bold">Message</label>
-                            <textarea
-                              {...formik.getFieldProps('message')}
-                              className="form-control form-control-sm fs-small"
-                              rows={4}
-                              placeholder="Enter message"
-                            />
-                          </Col>
-                        </Row>
-                      </div>
-                    </Col>
-                  </Row>
-                </Col>
-              </Row>
-            </form>
-          </Card.Body>
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={4} className="fs-small">
+                              Commission
+                            </Col>
+                            <Col md={8}>
+                              <Row className="align-items-center g-1">
+                                <Col md={5}>
+                                  <FormikTextInput
+                                    name="agentAmountPer"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                                <Col md={1} className="text-center fs-small fw-bold">
+                                  %
+                                </Col>
+                                <Col md={6}>
+                                  <FormikTextInput
+                                    name="agentAmount"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                              </Row>
+                            </Col>
+                          </Row>
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={4} className="fs-small">
+                              CGST
+                            </Col>
+                            <Col md={8}>
+                              <Row className="align-items-center g-1">
+                                <Col md={5}>
+                                  <FormikTextInput
+                                    name="agentCgstPer"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                                <Col md={1} className="text-center fs-small fw-bold">
+                                  %
+                                </Col>
+                                <Col md={6}>
+                                  <FormikTextInput
+                                    name="agentCgst"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                              </Row>
+                            </Col>
+                          </Row>
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={4} className="fs-small">
+                              SGST
+                            </Col>
+                            <Col md={8}>
+                              <Row className="align-items-center g-1">
+                                <Col md={5}>
+                                  <FormikTextInput
+                                    name="agentSgstPer"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                                <Col md={1} className="text-center fs-small fw-bold">
+                                  %
+                                </Col>
+                                <Col md={6}>
+                                  <FormikTextInput
+                                    name="agentSgst"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                              </Row>
+                            </Col>
+                          </Row>
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={4} className="fs-small">
+                              IGST
+                            </Col>
+                            <Col md={8}>
+                              <Row className="align-items-center g-1">
+                                <Col md={5}>
+                                  <FormikTextInput
+                                    name="agentIgstPer"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                                <Col md={1} className="text-center fs-small fw-bold">
+                                  %
+                                </Col>
+                                <Col md={6}>
+                                  <FormikTextInput
+                                    name="agentIgst"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                              </Row>
+                            </Col>
+                          </Row>
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={4} className="fs-small">
+                              CESS
+                            </Col>
+                            <Col md={8}>
+                              <Row className="align-items-center g-1">
+                                <Col md={5}>
+                                  <FormikTextInput
+                                    name="agentCessPer"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                                <Col md={1} className="text-center fs-small fw-bold">
+                                  %
+                                </Col>
+                                <Col md={6}>
+                                  <FormikTextInput
+                                    name="agentCess"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                              </Row>
+                            </Col>
+                          </Row>
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={4} className="fs-small">
+                              TDS
+                            </Col>
+                            <Col md={8}>
+                              <Row className="align-items-center g-1">
+                                <Col md={5}>
+                                  <FormikTextInput
+                                    name="agentTdsPer"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                                <Col md={1} className="text-center fs-small fw-bold">
+                                  %
+                                </Col>
+                                <Col md={6}>
+                                  <FormikTextInput
+                                    name="agentTds"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                              </Row>
+                            </Col>
+                          </Row>
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={4} className="fs-small">
+                              TCS
+                            </Col>
+                            <Col md={8}>
+                              <Row className="align-items-center g-1">
+                                <Col md={5}>
+                                  <FormikTextInput
+                                    name="agentTcsPer"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                                <Col md={1} className="text-center fs-small fw-bold">
+                                  %
+                                </Col>
+                                <Col md={6}>
+                                  <FormikTextInput
+                                    name="agentTcs"
+                                    type="number"
+                                    size="sm"
+                                    className="w-100 fs-small input-24"
+                                    readOnly
+                                  />
+                                </Col>
+                              </Row>
+                            </Col>
+                          </Row>
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={6} className="fs-small">
+                              Service Fee
+                            </Col>
+                            <Col md={6}>
+                              <FormikTextInput
+                                name="agentServiceFee"
+                                type="number"
+                                size="sm"
+                                className="w-100 fs-small input-24"
+                                readOnly
+                              />
+                            </Col>
+                          </Row>
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={6} className="fs-small fw-bold text-success">
+                              Agent Commission
+                            </Col>
+                            <Col md={6}>
+                              <FormikTextInput
+                                name="agentTotal"
+                                type="number"
+                                size="sm"
+                                className="w-100 fs-small fw-bold input-24"
+                                readOnly
+                              />
+                            </Col>
+                          </Row>
+                          <Row className="align-items-center row-compact pt-1">
+                            <Col md={6} className="fs-small fw-bold text-success">
+                              Pay to Hotel
+                            </Col>
+                            <Col md={6}>
+                              <FormikTextInput
+                                name="agentPayToHotel"
+                                type="number"
+                                size="sm"
+                                className="w-100 fs-small fw-bold input-24"
+                                readOnly
+                              />
+                            </Col>
+                          </Row>
+                          <Row className="g-1 mb-2 mt-1">
+                            <Col md={6}>
+                              <label className="fs-small fw-semi-bold">Special Instruction</label>
+                              <textarea
+                                {...formik.getFieldProps('specialInstruction')}
+                                className="form-control form-control-sm fs-small"
+                                rows={4}
+                                placeholder="Enter instruction"
+                              />
+                            </Col>
+                            <Col md={6}>
+                              <label className="fs-small fw-semi-bold">Message</label>
+                              <textarea
+                                {...formik.getFieldProps('message')}
+                                className="form-control form-control-sm fs-small"
+                                rows={4}
+                                placeholder="Enter message"
+                              />
+                            </Col>
+                          </Row>
+                        </div>
+                      </Col>
+                    </Row>
+                  </Col>
+                </Row>
+              </form>
+            </Card.Body>
           </Card>
         </div>
 
@@ -4329,10 +4329,10 @@ const CheckInForm = () => {
                 form="checkin-form"
                 disabled={isCheckInDisabled()}
                 title={getMissingRoomsMessage()}>
-                {submitting ? 'Processing...' : 
-                  !areAllRoomsAdded() && roomRows.length > 0 ? 
-                  `Add ${initialSelectedRooms.length - roomRows.length} more room(s)` : 
-                  'Check In (F9)'}
+                {submitting ? 'Processing...' :
+                  !areAllRoomsAdded() && roomRows.length > 0 ?
+                    `Add ${initialSelectedRooms.length - roomRows.length} more room(s)` :
+                    'Check In (F9)'}
               </Button>
             </div>
           </div>
