@@ -1,364 +1,502 @@
-import { useState, useEffect } from 'react'
-import { Form, Button, Dropdown } from 'react-bootstrap'
+// Reservation.tsx
+import { useRef, useState, useEffect, useCallback } from 'react'
+import { Button } from 'react-bootstrap'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
-import ReservationService from '@/common/hotel/reservation'
-import ReservationRoomService from '@/common/hotel/reservationRooms'
 import { useAuthContext } from '@/common/context/useAuthContext'
-import TitleHelmet from '@/components/Common/TitleHelmet'
-import ReservationFormPage from './HotelReservation'   // ✅ Add this import
+import RoomService from '@/common/hotel/room'
+import ReservationService from '@/common/hotel/reservation'
 
-interface ReservTableRow {
-  reservation_id: number
-  reservation_no: string
+interface ReservationGuest {
+  id: number
+  res_no: string
   guest_name: string
-  phone1: string
-  room_category_name: string
-  converted_category_name: string
-  arrival_date: string
-  arrival_time: string
-  departure_date: string
-  departure_time: string
-  total_rooms: number
-  pax_price: number
-  pax_count: number
-  ex_pax_count: number
-  child_count: number
-  driver_count: number
-  total_amount: number
-  nights: number
+  mobile_no: string
+  room_category: string
+  convert_category: string
+  total_days: number
+  arrival_datetime: string
+  departure_datetime: string
+  rooms: number
+  room_tariff: number
+  pax: number
+  ex_pax: number
+  child: number
+  driver: number
+  total_price: number
 }
 
-const formatAmount = (amt: number): string => {
-  const n = Number(amt)
-  if (!isFinite(n)) return 'Rs.0.00/-'
-  const sign = n < 0 ? '-' : ''
-  return `Rs.${sign}${Math.abs(n).toFixed(2)}/-`
+const formatDateTime = (isoString?: string): string => {
+  if (!isoString) return '-'
+  const d = new Date(isoString)
+  if (isNaN(d.getTime())) return isoString
+  const year = d.getFullYear()
+  const month = (d.getMonth() + 1).toString().padStart(2, '0')
+  const day = d.getDate().toString().padStart(2, '0')
+  const hours = d.getHours().toString().padStart(2, '0')
+  const minutes = d.getMinutes().toString().padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:00`
+}
+
+const getTodayLabel = () => {
+  const d = new Date()
+  const day = d.getDate().toString().padStart(2, '0')
+  const month = d.toLocaleString('default', { month: 'long' })
+  const year = d.getFullYear()
+  return `${day} ${month} ${year}`
+}
+
+// Local YYYY-MM-DD for "today" without any timezone shift.
+const getTodayDateStr = () => {
+  const d = new Date()
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// Maps a raw Reservation (+ its rooms, fetched from the single-API
+// GET /reservations/:id response) into the row shape expected by the table.
+const mapReservationToRow = (
+  res: any,
+  rooms: any[],
+  categoryMap: Map<number, string>,
+): ReservationGuest => {
+  const safeRooms = rooms || []
+  const totalRooms = safeRooms.reduce((sum: number, r: any) => sum + (Number(r.total_rooms) || 1), 0)
+
+  const categoryIds = Array.from(new Set(safeRooms.map((r: any) => r.room_category_id).filter(Boolean)))
+  const roomCategory =
+    categoryIds.map((id: any) => categoryMap.get(Number(id)) || 'Unknown').join(', ') || '-'
+
+  const convertedIds = Array.from(
+    new Set(safeRooms.map((r: any) => r.converted_category_id).filter(Boolean)),
+  )
+  const convertCategory =
+    convertedIds.map((id: any) => categoryMap.get(Number(id)) || 'Unknown').join(', ') || '-'
+
+  const pax = safeRooms.reduce((sum: number, r: any) => sum + (Number(r.pax_count) || 0), 0)
+  const exPax = safeRooms.reduce((sum: number, r: any) => sum + (Number(r.ex_pax_count) || 0), 0)
+  const child = safeRooms.reduce((sum: number, r: any) => sum + (Number(r.child_count) || 0), 0)
+  const driver = safeRooms.reduce((sum: number, r: any) => sum + (Number(r.driver_count) || 0), 0)
+  const roomTariff = safeRooms.reduce(
+    (sum: number, r: any) => sum + (Number(r.pax_price) || 0) * (Number(r.total_rooms) || 1),
+    0,
+  )
+  const totalPrice = safeRooms.reduce((sum: number, r: any) => sum + (Number(r.total_amount) || 0), 0)
+
+  return {
+    id: res.reservation_id,
+    res_no: res.reservation_no || '-',
+    guest_name: res.reservation_name || '-',
+    mobile_no: res.phone1 || '-',
+    room_category: roomCategory,
+    convert_category: convertCategory,
+    total_days: res.nights || 0,
+    arrival_datetime: res.arrival_date ? `${res.arrival_date}T${res.arrival_time || '00:00'}` : '',
+    departure_datetime: res.departure_date
+      ? `${res.departure_date}T${res.departure_time || '00:00'}`
+      : '',
+    rooms: totalRooms || safeRooms.length,
+    room_tariff: roomTariff,
+    pax,
+    ex_pax: exPax,
+    child,
+    driver,
+    total_price: totalPrice,
+  }
+}
+
+// Splits a tall captured canvas across as many A4 pages as needed, so long
+// reservation lists are never cut off or squeezed onto a single page.
+const addCanvasToPdf = (pdf: jsPDF, canvas: HTMLCanvasElement, marginMM = 10) => {
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const pageHeight = pdf.internal.pageSize.getHeight()
+  const usableWidth = pageWidth - marginMM * 2
+  const usableHeight = pageHeight - marginMM * 2
+
+  const ratio = usableWidth / canvas.width // mm per source px
+  const pageHeightPx = usableHeight / ratio
+
+  let renderedPx = 0
+  let isFirstPage = true
+
+  while (renderedPx < canvas.height) {
+    const sliceHeightPx = Math.min(pageHeightPx, canvas.height - renderedPx)
+
+    const pageCanvas = document.createElement('canvas')
+    pageCanvas.width = canvas.width
+    pageCanvas.height = sliceHeightPx
+    const ctx = pageCanvas.getContext('2d')
+    if (ctx) {
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, sliceHeightPx)
+      ctx.drawImage(
+        canvas,
+        0,
+        renderedPx,
+        canvas.width,
+        sliceHeightPx,
+        0,
+        0,
+        canvas.width,
+        sliceHeightPx,
+      )
+    }
+
+    const pageImgData = pageCanvas.toDataURL('image/png')
+    const pageImgHeightMM = sliceHeightPx * ratio
+
+    if (!isFirstPage) pdf.addPage()
+    pdf.addImage(pageImgData, 'PNG', marginMM, marginMM, usableWidth, pageImgHeightMM)
+
+    renderedPx += sliceHeightPx
+    isFirstPage = false
+  }
 }
 
 const ReservationPage = () => {
+  const navigate = useNavigate()
   const { user } = useAuthContext()
-  const hotelId = user?.hotelid
+  const hotelId = (user as any)?.hotelid || (user as any)?.hotel_id
+  const printRef = useRef<HTMLDivElement>(null)
+  const label = getTodayLabel()
+  const hotel = user?.hotel_name || 'Hotel'
 
-  const [reservTableData, setReservTableData] = useState<ReservTableRow[]>([])
-  const [loadingReservTable, setLoadingReservTable] = useState(false)
-  const [reservDate, setReservDate] = useState(new Date().toISOString().slice(0, 10))
-  const [hotelName, ] = useState('')
-  const [showReservationForm, setShowReservationForm] = useState(false)   // ✅ Add this state
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [reservations, setReservations] = useState<ReservationGuest[]>([])
 
-  useEffect(() => {
-    if (hotelId) {
-      fetchReservTableData(reservDate)
+  const fetchReservationData = useCallback(async () => {
+    if (!hotelId) {
+      setError('Hotel ID not found')
+      setLoading(false)
+      return
     }
-  }, [hotelId, reservDate])
 
-  const fetchReservTableData = async (filterDate?: string) => {
-    if (!hotelId) return
-    setLoadingReservTable(true)
+    setLoading(true)
+    setError(null)
+
     try {
-      const todayStr = filterDate || new Date().toISOString().slice(0, 10)
-      const reservations: any[] = (await ReservationService.list({ hotelid: hotelId })).data || []
+      const metaRes = await RoomService.getHotelBookingMeta(hotelId)
+      const categoryMap = new Map<number, string>()
+      ;(metaRes?.data?.categories || []).forEach((c: any) =>
+        categoryMap.set(Number(c.room_category_id), c.category_name),
+      )
 
-      const todayReservs = reservations.filter((r: any) => {
-        const arrival = String(r.arrival_date || '').slice(0, 10)
-        const status = String(r.status || '').toLowerCase()
-        return (
-          arrival === todayStr &&
-          !['checkin', 'checkout', 'checked_in', 'checked_out'].includes(status)
-        )
+      const listRes = await ReservationService.list({ hotelid: Number(hotelId) })
+      const all = listRes?.data || []
+      const todayStr = getTodayDateStr()
+
+      const reservedToday = all.filter((r: any) => r.reservation_date === todayStr)
+
+      // Backend returns rows newest-first (ORDER BY created_at DESC), which
+      // shows Res. No in reverse order (5,4,3,2,1...). Sort ascending by
+      // reservation_no here so the panel always reads 1,2,3,4,5...
+      const byReservationNoAsc = (a: any, b: any) => {
+        const numA = Number(a.reservation_no)
+        const numB = Number(b.reservation_no)
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB
+        return String(a.reservation_no || '').localeCompare(String(b.reservation_no || ''))
+      }
+      reservedToday.sort(byReservationNoAsc)
+
+      // Only fetch room detail (single-API GET /reservations/:id) for the
+      // reservations we actually need to display today — avoids an
+      // unnecessary call per reservation in the whole list.
+      const neededIds = Array.from(new Set(reservedToday.map((r: any) => r.reservation_id)))
+
+      const detailResults = await Promise.all(
+        neededIds.map((id: number) => ReservationService.get(id).catch(() => null)),
+      )
+
+      const roomsByResId = new Map<number, any[]>()
+      detailResults.forEach((detail: any) => {
+        if (detail?.data) roomsByResId.set(detail.data.reservation_id, detail.data.rooms || [])
       })
 
-      const rows: ReservTableRow[] = []
-
-      for (const r of todayReservs) {
-        try {
-          const roomRows: any[] = (await ReservationRoomService.list({ reservation_id: r.reservation_id })).data || []
-
-          const baseRow = {
-            reservation_id: r.reservation_id,
-            reservation_no: r.reservation_no || '-',
-            guest_name: r.reservation_name || r.guest_name || '-',
-            phone1: r.phone1 || '-',
-            arrival_date: r.arrival_date || '',
-            arrival_time: r.arrival_time || '',
-            departure_date: r.departure_date || '',
-            departure_time: r.departure_time || '',
-            nights: r.nights || 0,
-          }
-
-          if (roomRows.length === 0) {
-            rows.push({ ...baseRow, room_category_name: '-', converted_category_name: '-', total_rooms: 0, pax_price: 0, pax_count: 0, ex_pax_count: 0, child_count: 0, driver_count: 0, total_amount: 0 })
-          } else {
-            for (const rm of roomRows) {
-              rows.push({
-                ...baseRow,
-                room_category_name: rm.room_category_name || '-',
-                converted_category_name: rm.converted_category_name || '-',
-                total_rooms: rm.total_rooms || 1,
-                pax_price: rm.pax_price || 0,
-                pax_count: rm.pax_count || 0,
-                ex_pax_count: rm.ex_pax_count || 0,
-                child_count: rm.child_count || 0,
-                driver_count: rm.driver_count || 0,
-                total_amount: rm.total_amount || 0,
-              })
-            }
-          }
-        } catch {
-          rows.push({
-            reservation_id: r.reservation_id,
-            reservation_no: r.reservation_no || '-',
-            guest_name: r.reservation_name || r.guest_name || '-',
-            phone1: r.phone1 || '-',
-            room_category_name: '-',
-            converted_category_name: '-',
-            arrival_date: r.arrival_date || '',
-            arrival_time: r.arrival_time || '',
-            departure_date: r.departure_date || '',
-            departure_time: r.departure_time || '',
-            total_rooms: 0,
-            pax_price: 0,
-            pax_count: 0,
-            ex_pax_count: 0,
-            child_count: 0,
-            driver_count: 0,
-            total_amount: 0,
-            nights: r.nights || 0,
-          })
-        }
-      }
-
-      setReservTableData(rows)
-    } catch (err) {
-      console.error('Failed to fetch reserv data', err)
-      toast.error('Failed to load reservations')
+      setReservations(
+        reservedToday.map((r: any) =>
+          mapReservationToRow(r, roomsByResId.get(r.reservation_id) || [], categoryMap),
+        ),
+      )
+    } catch (err: any) {
+      console.error('Error fetching today reservations:', err)
+      setError(err?.message || 'Could not load reservations. Please try again.')
     } finally {
-      setLoadingReservTable(false)
+      setLoading(false)
+    }
+  }, [hotelId])
+
+  useEffect(() => {
+    fetchReservationData()
+  }, [fetchReservationData])
+
+  // Display-level safeguard: always show Res. No in ascending sequence
+  // (1,2,3,4...) regardless of the order the API returned them in.
+  const sortedReservations = [...reservations].sort((a, b) => {
+    const numA = Number(a.res_no)
+    const numB = Number(b.res_no)
+    if (!isNaN(numA) && !isNaN(numB)) return numA - numB
+    return String(a.res_no || '').localeCompare(String(b.res_no || ''))
+  })
+
+  // PRINT FUNCTION - opens print dialog
+  const handlePrint = () => {
+    const tableElement = printRef.current?.querySelector('.res-table')
+    if (!tableElement) {
+      toast.error('No table to print')
+      return
+    }
+
+    const win = window.open('', '_blank', 'width=1200,height=700')
+    if (!win) {
+      toast.error('Please allow pop-ups to print')
+      return
+    }
+
+    const styles = `
+      body { font-family: Arial, sans-serif; font-size: 10px; margin: 8px; padding: 0; }
+      .report-header { margin-bottom: 12px; }
+      .hotel-name-row { font-size: 16px; font-weight: bold; margin-bottom: 6px; }
+      .report-subheader { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #555; }
+      table { width: 100%; border-collapse: collapse; font-size: 9px; }
+      th {
+        background: #dfdfdf !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-weight: 600;
+        padding: 4px 5px;
+        border: 1px solid #ccc;
+        white-space: nowrap;
+        text-align: left;
+      }
+      td {
+        border: 1px solid #ccc;
+        padding: 3px 5px;
+        white-space: nowrap;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      @media print {
+        @page { size: landscape; margin: 8mm; }
+        body { margin: 0; }
+        th { background: #dfdfdf !important; }
+      }
+    `
+
+    win.document.write(`
+      <html>
+        <head>
+          <title>Today's Reservations</title>
+          <style>${styles}</style>
+        </head>
+        <body>
+          <div class="report-header">
+            <div class="hotel-name-row">Hotel name: ${hotel}</div>
+            <div class="report-subheader"><div>Today's Reservations</div><div>${label}</div></div>
+          </div>
+          ${tableElement.outerHTML}
+        </body>
+      </html>
+    `)
+    win.document.close()
+    win.focus()
+
+    win.onload = function () {
+      setTimeout(() => {
+        win.print()
+        win.close()
+      }, 500)
     }
   }
 
-  const exportReservTableToExcel = (data: ReservTableRow[], filename: string) => {
-    const ws = XLSX.utils.json_to_sheet(
-      data.map((r, i) => ({
-        'Sr.No': i + 1,
-        'Reservation No': r.reservation_no,
-        'Guest Name': r.guest_name,
-        'Mobile No': r.phone1,
-        'Room Category': r.room_category_name,
-        'Convert Category': r.converted_category_name,
-        'Arrival Date': r.arrival_date,
-        'Arrival Time': r.arrival_time,
-        'Departure Date': r.departure_date,
-        'Departure Time': r.departure_time,
-        'Total Rooms': r.total_rooms,
-        'Room Price': r.pax_price,
-        'Pax Count': r.pax_count,
-        'Ex-Pax Count': r.ex_pax_count,
-        'Child Count': r.child_count,
-        'Driver Count': r.driver_count,
-        'Total Price': r.total_amount,
-        'Total Days': r.nights,
-      })),
-    )
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
-    XLSX.writeFile(wb, filename)
-  }
+  // PDF DOWNLOAD FUNCTION - renders table to canvas and saves a real PDF
+  const handleDownloadPDF = async () => {
+    const table = printRef.current?.querySelector('.res-table')
+    if (!table) {
+      toast.error('No table found')
+      return
+    }
 
-  const exportTableToPdf = async (selector: string, title: string, filename: string) => {
-    const table = document.querySelector(selector)
-    if (!table) { toast.error('No table found'); return }
     try {
-      const hotel = hotelName || 'Hotel'
-      const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
       const wrapper = document.createElement('div')
-      wrapper.style.cssText = 'background:#fff;padding:20px;width:1400px;margin:auto;font-family:Arial,sans-serif;'
+      wrapper.style.position = 'fixed'
+      wrapper.style.top = '0'
+      wrapper.style.left = '-10000px'
+      wrapper.style.zIndex = '-1'
+      wrapper.style.background = '#fff'
+      wrapper.style.padding = '20px'
+      wrapper.style.width = '1300px'
+      wrapper.style.fontFamily = 'Arial, sans-serif'
+
       const style = document.createElement('style')
-      style.textContent = `table{width:100%;border-collapse:collapse;font-size:0.7rem;}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;}thead tr{background-color:#dfdfdf;font-weight:600;}tfoot tr{background-color:#f8f9fa;font-weight:600;}.report-header{margin-bottom:16px;}.hotel-name-row{font-size:18px;font-weight:bold;margin-bottom:6px;}.report-subheader{font-size:13px;color:#555;}`
+      style.textContent = `
+        .res-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+        .res-table th, .res-table td { border: 1px solid #ccc; padding: 4px; text-align: left; white-space: nowrap; }
+        .res-table thead tr { background-color: #dfdfdf; }
+        .report-header { margin-bottom: 16px; }
+        .hotel-name-row { font-size: 18px; font-weight: bold; margin-bottom: 8px; }
+        .report-subheader { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 14px; color: #555; }
+      `
       wrapper.appendChild(style)
+
       const headerDiv = document.createElement('div')
       headerDiv.className = 'report-header'
-      headerDiv.innerHTML = `<div class="hotel-name-row">Hotel name: ${hotel}</div><div class="report-subheader">${title} — ${dateStr}</div>`
+      headerDiv.innerHTML = `
+        <div class="hotel-name-row">Hotel name: ${hotel}</div>
+        <div class="report-subheader"><div>Today's Reservations</div><div>${label}</div></div>
+      `
       wrapper.appendChild(headerDiv)
-      wrapper.appendChild(table.cloneNode(true) as HTMLElement)
+
+      const tableClone = table.cloneNode(true) as HTMLElement
+      tableClone.querySelectorAll('th').forEach((el) => {
+        ;(el as HTMLElement).style.position = 'static'
+      })
+      wrapper.appendChild(tableClone)
       document.body.appendChild(wrapper)
-      const canvas = await html2canvas(wrapper, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+
+      const canvas = await html2canvas(wrapper, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      })
+
       document.body.removeChild(wrapper)
+
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-      const imgWidth = 280
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, imgWidth, (canvas.height * imgWidth) / canvas.width)
-      pdf.save(filename)
+      addCanvasToPdf(pdf, canvas, 10)
+
+      const dateStr = new Date().toISOString().split('T')[0]
+      pdf.save(`Today_Reservations_${dateStr}.pdf`)
     } catch (err) {
       console.error(err)
       toast.error('PDF generation failed')
     }
   }
 
-  const handlePrintTable = (selector: string, title: string) => {
-    const tableElement = document.querySelector(selector)
-    if (!tableElement) { toast.error('No table to print'); return }
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) { toast.error('Please allow pop-ups to print'); return }
-    const hotel = hotelName || 'Hotel'
-    const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-    printWindow.document.write(`<html><head><title>${hotel} - ${title}</title><style>body{font-family:Arial,sans-serif;margin:20px;}.hotel-name-row{font-size:18px;font-weight:bold;margin-bottom:6px;}.report-subheader{font-size:13px;color:#555;margin-bottom:16px;}table{width:100%;border-collapse:collapse;font-size:0.75rem;}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;}th{background-color:#f2f2f2;font-weight:600;}</style></head><body><div class="hotel-name-row">Hotel name: ${hotel}</div><div class="report-subheader">${title} — ${dateStr}</div>${tableElement.outerHTML}</body></html>`)
-    printWindow.document.close()
-    printWindow.print()
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '60vh' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div
+        className="d-flex flex-column align-items-center justify-content-center"
+        style={{ height: '60vh' }}>
+        <i className="fi fi-rr-exclamation text-danger fs-1 mb-3"></i>
+        <p className="text-danger">{error}</p>
+        <Button variant="outline-primary" onClick={fetchReservationData}>
+          Retry
+        </Button>
+      </div>
+    )
   }
 
   return (
     <>
-      <TitleHelmet title="Today's Reservations" />
       <style>{`
-        .reserv-section-table { width: 100%; border-collapse: collapse; font-size: 0.70rem; }
-        .reserv-section-table th, .reserv-section-table td { border: 1px solid #dee2e6; padding: 4px 7px; white-space: nowrap; }
-        .reserv-section-table thead tr { background: #f1f5fb; font-weight: 600; position: sticky; top: 0; z-index: 1; }
-        .reserv-section-table tbody tr:hover { background: #f8f9fa; }
-        .reserv-section-table tfoot tr td { background: #f1f5fb; }
-        body.dark-mode th { background-color: #2c2c2c; color: #eee; }
-        body.dark-mode .reserv-section-table td { border-color: #444; }
+        .res-table { width: 100%; border-collapse: collapse; font-size: 0.70rem; }
+        .res-table th { position: sticky; top: 0; background-color: #dfdfdf; font-weight: 600; z-index: 10; padding: 0.4rem 0.5rem; border: 1px solid #dee2e6; white-space: nowrap; }
+        .res-table td { border: 1px solid #dee2e6; padding: 0.35rem 0.5rem; white-space: nowrap; }
+        .res-table tbody tr:hover { background-color: #f5f5f5; }
       `}</style>
 
-      <div className="d-flex flex-column vh-100">
-        <div className="flex-shrink-0 p-3 bg-white border-bottom">
-          <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <h5 className="mb-0 fw-bold">
-              <i className="fi fi-rr-calendar me-2 text-primary"></i>
-              {showReservationForm
-                ? 'New Reservation'
-                : (
-                  <>
-                    Today's Reservations —{' '}
-                    {new Date(reservDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </>
-                )}
-            </h5>
-            <div className="d-flex align-items-center gap-2">
-              {!showReservationForm && (
-                <Form.Control 
-                  type="date" 
-                  size="sm" 
-                  value={reservDate} 
-                  style={{ width: 'auto' }}
-                  onChange={(e) => { 
-                    setReservDate(e.target.value)
-                    fetchReservTableData(e.target.value) 
-                  }} 
-                />
-              )}
-
-              {/* ✅ Reservation Form toggle button — placed before Print */}
-              <Button
-                variant={showReservationForm ? 'secondary' : 'outline-secondary'}
-                size="sm"
-                className="fw-normal px-3"
-                onClick={() => setShowReservationForm((prev) => !prev)}
-              >
-                <i className="fi fi-rr-document-signed me-1"></i>
-                {showReservationForm ? 'Back to List' : 'Reservation Form'}
-              </Button>
-
-              {!showReservationForm && (
-                <>
-                  <Button variant="success" size="sm" className="fw-normal px-3"
-                    onClick={() => handlePrintTable('.reserv-section-table', "Today's Reservations")}>
-                    <i className="fi fi-rr-print me-1"></i>Print
-                  </Button>
-                  <Dropdown>
-                    <Dropdown.Toggle variant="primary" size="sm" className="fw-normal px-2">
-                      <i className="fi fi-rr-download me-1"></i>Export
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      <Dropdown.Item onClick={() => exportTableToPdf('.reserv-section-table', "Today's Reservations", 'todays-reservations.pdf')}>
-                        <i className="fi fi-rr-file-pdf me-2"></i>PDF
-                      </Dropdown.Item>
-                      <Dropdown.Item onClick={() => exportReservTableToExcel(reservTableData, 'reservations.xlsx')}>
-                        <i className="fi fi-rr-file-excel me-2"></i>Excel
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
-                </>
-              )}
-
-              <Button 
-                variant="outline-secondary" 
-                size="sm"
-                onClick={() => {
-                  if (showReservationForm) setShowReservationForm(false)
-                  else window.history.back()
-                }}
-              >
-                <i className="fi fi-rr-arrow-left me-1"></i>Back
-              </Button>
-            </div>
+      <div className="d-flex flex-column h-100">
+        {/* Title row — Print & PDF on right; Reservation Form button */}
+        <div className="d-flex align-items-center justify-content-between px-3 pt-3 pb-2 flex-wrap gap-2">
+          <h6 className="fw-semibold mb-0" style={{ fontSize: '0.9rem' }}>
+            📅 Today's Reservations — {label}
+          </h6>
+          <div className="d-flex gap-2">
+            <Button
+              size="sm"
+              variant="success"
+              className="fw-semibold px-3 d-flex align-items-center gap-1"
+              onClick={handlePrint}>
+              <i className="fi fi-rr-print"></i> Print
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              className="fw-semibold px-2 d-flex align-items-center gap-1"
+              onClick={handleDownloadPDF}>
+               <i className="fi fi-rr-file-pdf me-1"></i> PDF
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="fw-semibold px-3"
+              onClick={() => navigate('/hotel/reservation')}>
+              Reservation Form
+            </Button>
           </div>
         </div>
 
-        <div className="flex-grow-1 overflow-auto p-3">
-          {showReservationForm ? (
-            // ✅ Reservation form replaces the table in the same page area
-            <ReservationFormPage />
-          ) : loadingReservTable ? (
-            <div className="d-flex justify-content-center py-5">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading…</span>
-              </div>
-            </div>
-          ) : reservTableData.length === 0 ? (
-            <div className="text-center py-5">
-              <i className="fi fi-rr-calendar text-muted fs-4 mb-3 d-block"></i>
-              <p className="text-muted mb-0">No reservations for today.</p>
-            </div>
-          ) : (
-            <div className="table-responsive" style={{ height: '100%' }}>
-              <table className="reserv-section-table">
-                <thead>
+        {/* Table */}
+        <div className="flex-grow-1 overflow-auto px-2">
+          <div ref={printRef}>
+            <table className="res-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Res. No</th>
+                  <th>Guest Name</th>
+                  <th>Mobile No</th>
+                  <th>Room Category</th>
+                  <th>Convert Category</th>
+                  <th>Total Days</th>
+                  <th>Arrival Date &amp; Time</th>
+                  <th>Departure Date &amp; Time</th>
+                  <th>Rooms</th>
+                  <th>Room Tariff</th>
+                  <th>Pax</th>
+                  <th>Ex-Pax</th>
+                  <th>Child</th>
+                  <th>Driver</th>
+                  <th>Total Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedReservations.length === 0 ? (
                   <tr>
-                    <th>#</th>
-                    <th>Res. No</th>
-                    <th>Guest Name</th>
-                    <th>Mobile No</th>
-                    <th>Room Category</th>
-                    <th>Convert Category</th>
-                    <th>Total Days</th>
-                    <th>Arrival Date & Time</th>
-                    <th>Departure Date & Time</th>
-                    <th>Rooms</th>
-                    <th>Room Tariff</th>
-                    <th>Pax</th>
-                    <th>Ex-Pax</th>
-                    <th>Child</th>
-                    <th>Driver</th>
-                    <th>Total Price</th>
+                    <td colSpan={16} className="text-center py-4 text-muted">
+                      No Reservations Found
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {reservTableData.map((r, idx) => (
-                    <tr key={`${r.reservation_id}-${idx}`}>
-                      <td className="text-center">{idx + 1}</td>
-                      <td>{r.reservation_no}</td>
+                ) : (
+                  sortedReservations.map((r, idx) => (
+                    <tr key={r.id}>
+                      <td>{idx + 1}</td>
+                      <td>{r.res_no}</td>
                       <td>{r.guest_name}</td>
-                      <td>{r.phone1}</td>
-                      <td>{r.room_category_name}</td>
-                      <td>{r.converted_category_name}</td>
-                      <td className="text-center">{r.nights || '-'}</td>
-                      <td>{r.arrival_date} {r.arrival_time}</td>
-                      <td>{r.departure_date} {r.departure_time}</td>
-                      <td className="text-center">{r.total_rooms}</td>
-                      <td className="text-end">{formatAmount(r.pax_price)}</td>
-                      <td className="text-center">{r.pax_count}</td>
-                      <td className="text-center">{r.ex_pax_count}</td>
-                      <td className="text-center">{r.child_count}</td>
-                      <td className="text-center">{r.driver_count}</td>
-                      <td className="text-end fw-semibold">{formatAmount(r.total_amount)}</td>
+                      <td>{r.mobile_no}</td>
+                      <td>{r.room_category}</td>
+                      <td>{r.convert_category}</td>
+                      <td>{r.total_days}</td>
+                      <td>{formatDateTime(r.arrival_datetime)}</td>
+                      <td>{formatDateTime(r.departure_datetime)}</td>
+                      <td>{r.rooms}</td>
+                      <td>Rs.{r.room_tariff?.toFixed(2)}/-</td>
+                      <td>{r.pax}</td>
+                      <td>{r.ex_pax}</td>
+                      <td>{r.child}</td>
+                      <td>{r.driver}</td>
+                      <td>Rs.{r.total_price?.toFixed(2)}/-</td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </>

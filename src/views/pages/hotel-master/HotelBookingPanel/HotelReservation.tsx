@@ -1,7 +1,6 @@
-// pages/HotelReservation.tsx
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Row, Col, Form as BootstrapForm, Button, Card, Modal } from 'react-bootstrap';
+import { Row, Col,  Button, Card, Modal } from 'react-bootstrap';
 import { FormikProvider, useFormik } from 'formik';
 import * as Yup from 'yup';
 import Select from 'react-select';
@@ -12,19 +11,15 @@ import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common/context/useAuthContext';
 
 // API Services
-import CountryService from '@/common/api/countries';
-import StateService from '@/common/api/states';
-import CityService from '@/common/api/cities';
 import GuestService from '@/common/hotel/guest';
 import RoomCategoryService from '@/common/hotel/roomCategoryService';
 import taxApi from '@/common/hotel/taxes';
 import GuestTypeService from '@/common/hotel/guestType';
 import ReservationService from '@/common/hotel/reservation';
-import ReservationRoomService from '@/common/hotel/reservationRooms';
 import BookedByContactService from '@/common/hotel/bookedByContacts';
-import ReservationBookedByService from '@/common/hotel/reservationBookedBy';
-import FragmentService from '@/common/hotel/fragments';
-
+import CountryService from '@/common/api/countries';
+import StateService from '@/common/api/states';
+import CityService, { City } from '@/common/api/cities';
 import GuestForm from '../Guest/GuestForm';
 import BookedByForm, { BookedBy } from './BookedByForm';
 
@@ -119,15 +114,6 @@ const pickupDropOptions: Option[] = [
   { label: 'Hotel', value: 'Hotel' },
 ];
 
-/**
- * Given a category's tariff list and an adult count, find the best-matching tariff.
- * Rules:
- *   - Sort tariffs by no_of_pax ascending.
- *   - If adults <= some tariff's no_of_pax, use the tariff whose no_of_pax == adults (exact match first).
- *   - If no exact match, use the tariff with the largest no_of_pax that is <= adults.
- *   - If adults exceeds all tariff pax values, use the tariff with the highest no_of_pax
- *     (the excess becomes ex_pax).
- */
 const getTariffForPax = (
   tariffs: Array<{ no_of_pax: number; room_tariff: number; tax_type?: string | number; is_tax_applicable?: number }>,
   adultCount: number,
@@ -135,8 +121,8 @@ const getTariffForPax = (
   if (!tariffs || tariffs.length === 0) return { pax: 0, exPax: 0, tariff: 0, taxType: undefined, isTaxApplicable: 0 };
 
   const sorted = [...tariffs]
-    .map((t) => ({ 
-      no_of_pax: Number(t.no_of_pax), 
+    .map((t) => ({
+      no_of_pax: Number(t.no_of_pax),
       room_tariff: Number(t.room_tariff),
       tax_type: t.tax_type,
       is_tax_applicable: Number(t.is_tax_applicable ?? 0),
@@ -191,10 +177,7 @@ const HotelReservation = () => {
   const isEditing = Boolean(id);
 
   // ---------- State Declarations ----------
-  const [countries, setCountries] = useState<Array<{ id: number; name: string }>>([]);
-  const [states, setStates] = useState<Array<{ id: number; name: string }>>([]);
-  const [cities, setCities] = useState<Array<{ id: number; name: string }>>([]);
-  const [guests, setGuests] = useState<Array<{ guest_id: number; name: string; mobile: string; fragment_id?: number | null }>>([]);
+  const [guests, setGuests] = useState<Array<{ guest_id: number; name: string; mobile: string }>>([]);
   const [guestTypes, setGuestTypes] = useState<Array<{ id: number; name: string }>>([]);
   const [roomCategories, setRoomCategories] = useState<
     Array<{ room_category_id: number; category_name: string; pax?: number }>
@@ -202,11 +185,7 @@ const HotelReservation = () => {
   const [taxList, setTaxList] = useState<
     Array<{ hotel_taxid: number; hotel_tax_value?: number; hotel_cgst?: number; hotel_sgst?: number; hotel_igst?: number; hotel_cess?: number }>
   >([]);
-  const [fragments, setFragments] = useState<Array<{ fragment_id: number; name: string }>>([]);
 
-  const [loadingCountries, setLoadingCountries] = useState(false);
-  const [loadingStates, setLoadingStates] = useState(false);
-  const [loadingCities, setLoadingCities] = useState(false);
   const [loadingGuestTypes, setLoadingGuestTypes] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [searchingGuests, setSearchingGuests] = useState(false);
@@ -226,14 +205,82 @@ const HotelReservation = () => {
   const [bookedBy, setBookedBy] = useState<BookedByWithId | null>(null);
   const [bookedByList, setBookedByList] = useState<BookedByWithId[]>([]);
 
+  // Country / State / City master lists for the "Booked By" popup dropdowns
+  const [countries, setCountries] = useState<Array<{ countryid: number; country_name: string }>>([]);
+  const [states, setStates] = useState<Array<{ stateid: number; state_name: string; countryid: number }>>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [loadingStates, setLoadingStates] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
 
-const bookedByFormRef = useRef<any>(null);
+  const bookedByFormRef = useRef<any>(null);
+
+  // ==================== RESPONSIVE LAYOUT STAGE (zoom-aware) ====================
+  // Mobile: 320-767 | Tablet: 768-1023 | Laptop: 1024-1439 | Desktop: 1440-1919 | XL: 1920+
+  type LayoutStage = 'desktop' | 'laptop' | 'tablet' | 'mobile' | 'xl'
+  const [layoutStage, setLayoutStage] = useState<LayoutStage>('desktop')
+
+  // ==================== MOBILE/TABLET TAB NAVIGATION ====================
+  // Mobile AND Tablet: same 2 tabs (Guest & Reservation, Room & Booking)
+  type MobileTab = 'guest' | 'room'
+  const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>('guest')
+  const mobileTabs: { key: MobileTab; label: string; icon: string }[] = [
+    { key: 'guest', label: 'Guest Info', icon: 'fi fi-rr-user' },
+    { key: 'room', label: 'Room & Booking', icon: 'fi fi-rr-bed-alt' },
+  ]
+  const mobileTabIndex = mobileTabs.findIndex((t) => t.key === activeMobileTab)
+  const mobileTabProgress = Math.round(((mobileTabIndex + 1) / mobileTabs.length) * 100)
+
+  useEffect(() => {
+    const stageRank: Record<LayoutStage, number> = {
+      xl: 0,
+      desktop: 1,
+      laptop: 2,
+      tablet: 3,
+      mobile: 4,
+    }
+
+    const computeStage = () => {
+      const innerW = window.innerWidth
+
+      let widthStage: LayoutStage = 'xl'
+      if (innerW < 768) widthStage = 'mobile'
+      else if (innerW < 1024) widthStage = 'tablet'
+      else if (innerW < 1440) widthStage = 'laptop'
+      else if (innerW < 1920) widthStage = 'desktop'
+      else widthStage = 'xl'
+
+      let zoomStage: LayoutStage = 'xl'
+      if (window.outerWidth && innerW) {
+        const zoomPct = Math.round(((window.outerWidth - 10) / innerW) * 100)
+        if (zoomPct > 0 && zoomPct <= 55) zoomStage = 'mobile'
+        else if (zoomPct > 0 && zoomPct <= 70) zoomStage = 'tablet'
+        else if (zoomPct > 0 && zoomPct <= 85) zoomStage = 'laptop'
+      }
+
+      // Pick the "smaller" (more constrained) stage
+      const nextStage = stageRank[widthStage] <= stageRank[zoomStage] ? zoomStage : widthStage
+      setLayoutStage((prev) => (prev === nextStage ? prev : nextStage))
+    }
+
+    computeStage()
+    window.addEventListener('resize', computeStage)
+    return () => window.removeEventListener('resize', computeStage)
+  }, [])
+
+  // XL/Desktop/Laptop (≥1024px): 2 columns side by side (4 | 8)
+  // Tablet  (768-1023):  2 columns side by side (6 | 6)
+  // Mobile  (<768px):    1 column stacked        (12 | 12)
+  const isDesktopLike =
+    layoutStage === 'xl' || layoutStage === 'desktop' || layoutStage === 'laptop'
+  const leftColSpan = isDesktopLike ? 4 : layoutStage === 'tablet' ? 6 : 12
+  const rightColSpan = isDesktopLike ? 8 : layoutStage === 'tablet' ? 6 : 12
+
   // ---------- Keyboard Shortcuts: ESC = Cancel, F9 = Submit ----------
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-
-      // Don't trigger shortcuts when a modal is open
       if (showGuestModal || showBookedByModal) return;
 
       if (e.key === 'Escape') {
@@ -241,7 +288,6 @@ const bookedByFormRef = useRef<any>(null);
         navigate(-1);
       } else if (e.key === 'F9') {
         e.preventDefault();
-        // Always call via the current handler
         formik.handleSubmit();
       }
     };
@@ -250,19 +296,10 @@ const bookedByFormRef = useRef<any>(null);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showGuestModal, showBookedByModal, navigate]);
 
-
-  // Get today's date in YYYY-MM-DD format
   const todayDate = formatDateToYMD(new Date());
   const tomorrowDate = formatDateToYMD(new Date(Date.now() + 86400000));
 
-  // Helper function to get fragment name by ID
-  const getFragmentName = (fragmentId: number | null | undefined): string => {
-    if (!fragmentId) return 'MR';
-    const fragment = fragments.find((f) => f.fragment_id === fragmentId);
-    return fragment ? fragment.name : 'MR';
-  };
-
-  // ---------- Master Data Fetching (independent of formik) ----------
+  // ---------- Master Data Fetching ----------
   const loadAllGuests = async () => {
     if (!hotelId) return;
     setSearchingGuests(true);
@@ -275,7 +312,6 @@ const bookedByFormRef = useRef<any>(null);
             guest_id: Number(g.id || g.guest_id),
             name: String(g.name),
             mobile: String(g.mobile),
-            fragment_id: g.fragment_id || null,
           }))
           .filter((g: any) => !isNaN(g.guest_id) && g.name)
       );
@@ -319,55 +355,55 @@ const bookedByFormRef = useRef<any>(null);
     loadBookedByList();
   }, []);
 
+  // Load Country / State / City master lists once, used for the
+  // "Booked By" popup dropdowns (previously these were hardcoded to []).
   useEffect(() => {
-    const fetchMasterData = async () => {
+    const loadLocationLists = async () => {
       setLoadingCountries(true);
       setLoadingStates(true);
       setLoadingCities(true);
+      try {
+        const [countryRes, stateRes, cityRes] = await Promise.all([
+          CountryService.list(),
+          StateService.list(),
+          CityService.list(),
+        ]);
+        setCountries(countryRes?.data || []);
+        setStates(stateRes?.data || []);
+        setCities(cityRes?.data || []);
+      } catch (error) {
+        console.error('Failed to load country/state/city lists:', error);
+        toast.error('Could not load country/state/city data');
+      } finally {
+        setLoadingCountries(false);
+        setLoadingStates(false);
+        setLoadingCities(false);
+      }
+    };
+    loadLocationLists();
+  }, []);
+
+  useEffect(() => {
+    const fetchMasterData = async () => {
       setLoadingGuestTypes(true);
       setLoadingCategories(true);
 
       try {
-        const [countriesRes, statesRes, citiesRes, guestTypesRes, categoriesRes, taxRes, fragmentsRes] =
+        const [guestTypesRes, categoriesRes, taxRes] =
           await Promise.all([
-            CountryService.list(),
-            StateService.list(),
-            CityService.list(),
             GuestTypeService.list(),
             RoomCategoryService.list({ hotelid: hotelId }),
             taxApi.list(),
-            FragmentService.list(),
           ]);
 
-        const countriesData = Array.isArray(countriesRes) ? countriesRes : countriesRes?.data || [];
-        setCountries(
-          countriesData
-            .map((c: any) => ({ id: c.id || c.countryid, name: String(c.name || c.country_name) }))
-            .filter((c: any) => c.id && c.name)
-        );
-
-        const statesData = Array.isArray(statesRes) ? statesRes : statesRes?.data || [];
-        setStates(
-          statesData
-            .map((s: any) => ({ id: s.id || s.stateid, name: String(s.name || s.state_name) }))
-            .filter((s: any) => s.id && s.name)
-        );
-
-        const citiesData = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || [];
-        setCities(
-          citiesData
-            .map((c: any) => ({ id: c.id || c.cityid, name: String(c.name || c.city_name) }))
-            .filter((c: any) => c.id && c.name)
-        );
-
-        const guestTypesData = Array.isArray(guestTypesRes) ? guestTypesRes : guestTypesRes?.data || [];
+        let guestTypesData = Array.isArray(guestTypesRes) ? guestTypesRes : guestTypesRes?.data || [];
         setGuestTypes(
           guestTypesData
             .map((g: any) => ({ id: g.id || g.guest_type_id, name: String(g.name || g.guest_type_name) }))
             .filter((g: any) => g.id && g.name)
         );
 
-        const categoriesData = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || [];
+        let categoriesData = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || [];
         setRoomCategories(
           categoriesData.map((c: any) => ({
             room_category_id: c.room_category_id || c.id,
@@ -376,25 +412,12 @@ const bookedByFormRef = useRef<any>(null);
           }))
         );
 
-        const taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || [];
+        let taxData = Array.isArray(taxRes) ? taxRes : taxRes?.data || [];
         setTaxList(taxData);
-
-        const fragmentsData = Array.isArray(fragmentsRes) ? fragmentsRes : fragmentsRes?.data || [];
-        setFragments(
-          fragmentsData
-            .map((f: any) => ({
-              fragment_id: f.fragment_id || f.id,
-              name: String(f.name),
-            }))
-            .filter((f: any) => f.fragment_id && f.name)
-        );
       } catch (error) {
         console.error('Failed to load master data:', error);
         toast.error('Could not load required data');
       } finally {
-        setLoadingCountries(false);
-        setLoadingStates(false);
-        setLoadingCities(false);
         setLoadingGuestTypes(false);
         setLoadingCategories(false);
       }
@@ -403,7 +426,7 @@ const bookedByFormRef = useRef<any>(null);
     if (hotelId) fetchMasterData();
   }, [hotelId]);
 
-  // ---------- Derived Data (independent of formik) ----------
+  // ---------- Derived Data ----------
   const taxDetailsMap = useMemo(() => {
     const map = new Map<number, any>();
     taxList.forEach((tax) => {
@@ -420,9 +443,9 @@ const bookedByFormRef = useRef<any>(null);
         percent = Number(tax.hotel_tax_value);
       } else {
         percent = (Number(tax.hotel_cgst) || 0) +
-                  (Number(tax.hotel_sgst) || 0) +
-                  (Number(tax.hotel_igst) || 0) +
-                  (Number(tax.hotel_cess) || 0);
+          (Number(tax.hotel_sgst) || 0) +
+          (Number(tax.hotel_igst) || 0) +
+          (Number(tax.hotel_cess) || 0);
       }
       map.set(tax.hotel_taxid, percent);
     });
@@ -528,7 +551,6 @@ const bookedByFormRef = useRef<any>(null);
     };
   };
 
-  // Calculate totals based on days, rooms, and quantities
   const calculateTotals = (
     ratePerNight: number,
     nights: number,
@@ -547,7 +569,7 @@ const bookedByFormRef = useRef<any>(null);
     const taxAmount = (discountedRoomCharge * taxPercent) / 100;
     const totalExtraCharges = (extraCharges.exPaxTotal + extraCharges.childTotal + extraCharges.driverTotal) * nights * totalRooms;
     const grandTotal = discountedRoomCharge + taxAmount + totalExtraCharges;
-    
+
     return {
       baseRoomCharge,
       discountAmount,
@@ -566,7 +588,6 @@ const bookedByFormRef = useRef<any>(null);
   ) => {
     const effectiveCategoryId = convertedCategoryId ?? categoryId;
     if (!effectiveCategoryId || adultCount <= 0) {
-      // Reset pricing if no valid category or adults
       setFieldValue('roomCharge', 0);
       setFieldValue('taxPercent', 0);
       setFieldValue('taxAmount', 0);
@@ -580,12 +601,10 @@ const bookedByFormRef = useRef<any>(null);
     if (!categoryDetails) return;
 
     const tariffs = categoryDetails.tariffs || [];
-    
+
     if (tariffs.length > 0) {
-      // Use tariff-based pricing
       const { pax, exPax, tariff, taxType, isTaxApplicable } = getTariffForPax(tariffs, adultCount);
-      
-      // Get tax percent from taxType — use hotel_tax_value first, then sum components
+
       let taxPercent = 0;
       if (isTaxApplicable && taxType != null && taxType !== '' && taxType !== 0) {
         const taxDetails = taxDetailsMap.get(Number(taxType));
@@ -594,54 +613,51 @@ const bookedByFormRef = useRef<any>(null);
             taxPercent = Number(taxDetails.hotel_tax_value);
           } else {
             taxPercent = (Number(taxDetails.hotel_cgst) || 0) +
-                         (Number(taxDetails.hotel_sgst) || 0) +
-                         (Number(taxDetails.hotel_igst) || 0) +
-                         (Number(taxDetails.hotel_cess) || 0);
+              (Number(taxDetails.hotel_sgst) || 0) +
+              (Number(taxDetails.hotel_igst) || 0) +
+              (Number(taxDetails.hotel_cess) || 0);
           }
         }
       }
-      
+
       setFieldValue('pax', pax);
       setFieldValue('exPax', exPax);
       setFieldValue('roomCharge', tariff);
       setFieldValue('taxPercent', taxPercent);
-      
-      // Calculate tax amount and total
+
       const discountPercent = formik.values.discount || 0;
       const nights = formik.values.nights || 1;
       const roomsNo = formik.values.roomsNo || 1;
-      
+
       const extra = computeExtraCharges(effectiveCategoryId, { exPax, childPaid: formik.values.childPaid || 0, driver: formik.values.driver || 0 }, nights);
-      
+
       const totals = calculateTotals(tariff, nights, roomsNo, taxPercent, discountPercent, {
         exPaxTotal: extra.exPaxTotal,
         childTotal: extra.childTotal,
         driverTotal: extra.driverTotal
       });
-      
+
       setFieldValue('taxAmount', Number(formatToTwoDecimals(totals.taxAmount)));
       setFieldValue('discountAmt', Number(formatToTwoDecimals(totals.discountAmount)));
       setFieldValue('total', Number(formatToTwoDecimals(totals.grandTotal)));
-      
-      // Store standard pax for display
+
       const standardPax = categoryStandardPaxMap.get(effectiveCategoryId) || pax;
       setCategoryStandardPaxMap((prev) => new Map(prev).set(effectiveCategoryId, standardPax));
-      
+
       return;
     }
-    
-    // Fallback: Use standard pax from category
-    const standardPax = categoryStandardPaxMap.get(effectiveCategoryId) || 
+
+    const standardPax = categoryStandardPaxMap.get(effectiveCategoryId) ||
       (categoryDetails.pax || 1);
-    
+
     const newPax = standardPax;
     const newExPax = Math.max(0, adultCount - standardPax);
-    
+
     setFieldValue('pax', newPax);
     setFieldValue('exPax', newExPax);
   };
 
-  // ---------- Formik (MUST be declared before handlers that use setFieldValue) ----------
+  // ---------- Formik ----------
   const formik = useFormik({
     enableReinitialize: true,
     initialValues: {
@@ -653,9 +669,17 @@ const bookedByFormRef = useRef<any>(null);
       phone2: '',
       email: '',
       address: '',
-      countryId: null,
-      stateId: null,
-      cityId: null,
+      countryId: '',
+      stateId: '',
+      cityId: '',
+      // The fields above hold the guest's country/state/city NAME text for
+      // display (readOnly inputs). The actual numeric IDs needed by the
+      // hotel_reservations.country_id/state_id/city_id columns are kept
+      // separately here so the correct ID — not the name string — is sent
+      // to the backend on submit.
+      actualCountryId: null as number | null,
+      actualStateId: null as number | null,
+      actualCityId: null as number | null,
       idType: null,
       idNumber: '',
       otherInfo: '',
@@ -728,12 +752,20 @@ const bookedByFormRef = useRef<any>(null);
           phone2: values.phone2,
           email: values.email,
           address: values.address,
-          country_id: values.countryId,
-          state_id: values.stateId,
-          city_id: values.cityId,
+          // FIX: backend (hotel_reservations) expects country_id/state_id/
+          // city_id — sending "country"/"state"/"city" meant these columns
+          // were always saved as NULL. Also use the numeric "actual*Id"
+          // fields, not countryId/stateId/cityId which hold display NAME
+          // text for the read-only Country/State/City inputs.
+          country_id: values.actualCountryId || null,
+          state_id: values.actualStateId || null,
+          city_id: values.actualCityId || null,
           id_type: values.idType,
           id_number: values.idNumber,
-          company_id: values.companyId === 'WALK-IN-GUEST' ? null : Number(values.companyId),
+          company_id:
+            !values.companyId || values.companyId === 'WALK-IN-GUEST'
+              ? null
+              : Number(values.companyId),
           gst: values.gst,
           group_name: values.groupName,
           reservation_date: values.reservationDate,
@@ -755,73 +787,55 @@ const bookedByFormRef = useRef<any>(null);
           created_by_id: user?.id,
         };
 
-        let reservationId: number;
+        // Build the room rows and booked-by link as part of the SAME payload
+        // sent to ReservationService — one API call inserts/replaces
+        // hotel_reservations + reservation_rooms + reservation_booked_by,
+        // matching how CheckInForm sends details/room_charges/folio_entries
+        // together to CheckInService in a single request.
+        const roomsPayload = roomRows.map((row) => ({
+          room_category_id: row.roomCategoryId,
+          converted_category_id: row.convertedCategoryId,
+          total_rooms: row.total_rooms,
+          pax_count: row.pax,
+          pax_price: row.rate,
+          pax_tax: row.taxAmount / (row.total_rooms * row.nights),
+          ex_pax_count: row.exPax,
+          ex_pax_price: row.exPaxPrice,
+          ex_pax_tax: row.exPaxTax,
+          ex_pax_tax_percent: row.exPaxTaxPercent,
+          ex_pax_total: row.exPaxTotal * row.total_rooms * row.nights,
+          child_count: row.childPaid,
+          child_price: row.childPrice,
+          child_tax: row.childTax,
+          child_tax_percent: row.childTaxPercent,
+          child_total: row.childTotal * row.total_rooms * row.nights,
+          driver_count: row.driver,
+          driver_price: row.driverPrice,
+          driver_tax: row.driverTax,
+          driver_tax_percent: row.driverTaxPercent,
+          driver_total: row.driverTotal * row.total_rooms * row.nights,
+          discount_percent: row.discountPercent,
+          discount_amount: row.discountAmt,
+          total_amount: row.totalAmount,
+        }));
+
+        const fullPayload = {
+          ...reservationPayload,
+          rooms: roomsPayload,
+          booked_by_id: bookedBy ? bookedBy.booked_by_id : null,
+        };
+
         let createdResNo: string;
 
         if (isEditing && id) {
-          const reservationRes = await ReservationService.update(Number(id), reservationPayload);
-          reservationId = Number(id);
+          const reservationRes = await ReservationService.update(Number(id), fullPayload);
           createdResNo = reservationRes.data.reservation_no;
           toast.success(`Reservation ${createdResNo} updated`);
         } else {
-          const reservationRes = await ReservationService.create(reservationPayload);
-          reservationId = reservationRes.data.reservation_id;
+          const reservationRes = await ReservationService.create(fullPayload);
           createdResNo = reservationRes.data.reservation_no;
           formik.setFieldValue('reservationNo', createdResNo);
           toast.success(`Reservation ${createdResNo} created`);
-        }
-
-        // Delete existing rooms and booked‑by links manually
-        if (isEditing && id) {
-          const existingRooms = await ReservationRoomService.list({ reservation_id: Number(id) });
-          await Promise.all(existingRooms.data.map(room => ReservationRoomService.remove(room.room_row_id)));
-
-          const existingLinks = await ReservationBookedByService.list({ reservation_id: Number(id) });
-          await Promise.all(existingLinks.data.map(link => ReservationBookedByService.remove(link.id)));
-        }
-
-        // Insert new rooms (with rooms_no)
-        const roomPromises = roomRows.map((row) => {
-          const roomPayload = {
-            reservation_id: isEditing && id ? Number(id) : reservationId,
-            room_category_id: row.roomCategoryId,
-            converted_category_id: row.convertedCategoryId,
-            total_rooms: row.total_rooms,
-            pax_count: row.pax,
-            pax_price: row.rate,
-            pax_tax: row.taxAmount / (row.total_rooms * row.nights),
-            ex_pax_count: row.exPax,
-            ex_pax_price: row.exPaxPrice,
-            ex_pax_tax: row.exPaxTax,
-            ex_pax_tax_percent: row.exPaxTaxPercent,
-            ex_pax_total: row.exPaxTotal * row.total_rooms * row.nights,
-            child_count: row.childPaid,
-            child_price: row.childPrice,
-            child_tax: row.childTax,
-            child_tax_percent: row.childTaxPercent,
-            child_total: row.childTotal * row.total_rooms * row.nights,
-            driver_count: row.driver,
-            driver_price: row.driverPrice,
-            driver_tax: row.driverTax,
-            driver_tax_percent: row.driverTaxPercent,
-            driver_total: row.driverTotal * row.total_rooms * row.nights,
-            discount_percent: row.discountPercent,
-            discount_amount: row.discountAmt,
-            total_amount: row.totalAmount,
-            hotelid: hotelId,
-            created_by_id: user?.id,
-          };
-          return ReservationRoomService.create(roomPayload);
-        });
-
-        await Promise.all(roomPromises);
-
-        // Insert new booked‑by link (only if bookedBy is set)
-        if (bookedBy) {
-          await ReservationBookedByService.create({
-            reservation_id: isEditing && id ? Number(id) : reservationId,
-            booked_by_id: bookedBy.booked_by_id,
-          });
         }
 
         navigate(-1);
@@ -836,9 +850,8 @@ const bookedByFormRef = useRef<any>(null);
 
   const { setFieldValue, values, handleSubmit } = formik;
 
-  // ---------- Handlers that depend on formik (must be after formik declaration) ----------
-  
-  // Handle Room Category Change with tariff-based pricing
+  // ---------- Handlers that depend on formik ----------
+
   const handleRoomCategoryChange = async (categoryId: number | null) => {
     if (!categoryId) {
       setFieldValue('roomCategory', null);
@@ -854,21 +867,16 @@ const bookedByFormRef = useRef<any>(null);
     }
 
     setFieldValue('roomCategory', categoryId);
-    
-    // Auto-select converted category to same as room category
     setFieldValue('convertedCategory', categoryId);
-    
-    // Fetch category details and update pricing based on current adult count
+
     const adultCount = Number(values.adult) || 1;
     await updatePricingFromAdultAndCategory(adultCount, categoryId, categoryId);
   };
 
-  // Handle Converted Category Change
   const handleConvertedCategoryChange = async (categoryId: number | null) => {
     setFieldValue('convertedCategory', categoryId);
-    
+
     if (!categoryId) {
-      // Reset to original room category pricing
       const originalCategoryId = values.roomCategory;
       if (originalCategoryId) {
         const adultCount = Number(values.adult) || 1;
@@ -883,20 +891,18 @@ const bookedByFormRef = useRef<any>(null);
       }
       return;
     }
-    
+
     const adultCount = Number(values.adult) || 1;
     await updatePricingFromAdultAndCategory(adultCount, categoryId, categoryId);
   };
 
-  // Recalculate room total whenever relevant fields change
   const recalculateRoomTotal = async () => {
     const adultCount = values.adult || 0;
     const effectiveCategoryId = values.convertedCategory ?? values.roomCategory;
-    
+
     if (effectiveCategoryId && adultCount > 0) {
       await updatePricingFromAdultAndCategory(adultCount, effectiveCategoryId, values.convertedCategory);
     } else {
-      // Calculate without tariff (fallback)
       const roomCharge = values.roomCharge || 0;
       const taxPercent = values.taxPercent || 0;
       const discountPercent = values.discount || 0;
@@ -908,20 +914,19 @@ const bookedByFormRef = useRef<any>(null);
       const effectiveCatId = values.convertedCategory ?? values.roomCategory;
 
       const extra = computeExtraCharges(effectiveCatId, { exPax, childPaid, driver }, nights);
-      
+
       const totals = calculateTotals(roomCharge, nights, roomsNo, taxPercent, discountPercent, {
         exPaxTotal: extra.exPaxTotal,
         childTotal: extra.childTotal,
         driverTotal: extra.driverTotal
       });
-      
+
       setFieldValue('taxAmount', Number(formatToTwoDecimals(totals.taxAmount)));
       setFieldValue('discountAmt', Number(formatToTwoDecimals(totals.discountAmount)));
       setFieldValue('total', Number(formatToTwoDecimals(totals.grandTotal)));
     }
   };
 
-  // Update exPax when adult or pax changes
   const updateExPaxFromAdultAndPax = (adult: number, pax: number) => {
     const newExPax = Math.max(0, adult - pax);
     if (values.exPax !== newExPax) {
@@ -930,18 +935,15 @@ const bookedByFormRef = useRef<any>(null);
     }
   };
 
-  // Watch for changes that affect total calculation
   useEffect(() => {
     recalculateRoomTotal();
   }, [values.roomCharge, values.taxPercent, values.discount, values.nights, values.roomsNo, values.exPax, values.childPaid, values.driver, values.roomCategory, values.convertedCategory]);
 
-  // Watch adult and pax changes - Update exPax and pricing
   useEffect(() => {
     const adult = values.adult || 0;
     const pax = values.pax || 0;
     updateExPaxFromAdultAndPax(adult, pax);
-    
-    // Also update pricing when adult changes (if category is selected)
+
     const effectiveCategoryId = values.convertedCategory ?? values.roomCategory;
     if (effectiveCategoryId && adult > 0) {
       updatePricingFromAdultAndCategory(adult, effectiveCategoryId, values.convertedCategory);
@@ -949,9 +951,6 @@ const bookedByFormRef = useRef<any>(null);
   }, [values.adult, values.pax]);
 
   // ---------- Options for selects ----------
-  const countryOptions: Option[] = countries.map((c) => ({ label: c.name, value: c.id }));
-  const stateOptions: Option[] = states.map((s) => ({ label: s.name, value: s.id }));
-  const cityOptions: Option[] = cities.map((c) => ({ label: c.name, value: c.id }));
   const guestOptions: Option[] = guests.map((g) => ({ label: g.name, value: g.guest_id }));
   const guestTypeOptions: Option[] = guestTypes.map((gt) => ({
     label: gt.name,
@@ -966,7 +965,20 @@ const bookedByFormRef = useRef<any>(null);
     value: b.booked_by_id,
   }));
 
-  // ---------- Other handlers (add/edit/delete rows) ----------
+  const countryOptions: Option[] = countries.map((c) => ({
+    label: c.country_name,
+    value: c.countryid,
+  }));
+  const stateOptions: Option[] = states.map((s) => ({
+    label: s.state_name,
+    value: s.stateid,
+  }));
+  const cityOptions: Option[] = cities.map((c) => ({
+    label: c.city_name,
+    value: c.cityid,
+  }));
+
+  // ---------- Other handlers ----------
   const loadGuestDetails = async (guestId: number) => {
     if (!guestId || isNaN(guestId)) return;
     try {
@@ -978,19 +990,23 @@ const bookedByFormRef = useRef<any>(null);
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
 
-        const fragmentName = getFragmentName(guest.fragment_id);
+        // Set title from guest's fragment_id if available, otherwise default to MR
+        const title = guest.fragment_id ? 'MR' : 'MR';
         
-        setFieldValue('title', fragmentName);
+        setFieldValue('title', title);
         setFieldValue('guestId', guest.id || guest.guest_id);
         setFieldValue('firstName', firstName);
         setFieldValue('lastName', lastName);
-        setFieldValue('phone1', guest.mobile ? String(guest.mobile) : '');
-        setFieldValue('phone2', guest.phone ? String(guest.phone) : '');
+        setFieldValue('phone1', guest.phone ? String(guest.phone) : '');
+        setFieldValue('phone2', guest.mobile ? String(guest.mobile) : '');
         setFieldValue('email', guest.email ? String(guest.email) : '');
         setFieldValue('address', guest.address ? String(guest.address) : '');
-        setFieldValue('countryId', guest.country_id != null ? Number(guest.country_id) : null);
-        setFieldValue('stateId', guest.state_id != null ? Number(guest.state_id) : null);
-        setFieldValue('cityId', guest.city_id != null ? Number(guest.city_id) : null);
+        setFieldValue('countryId', guest.country_name ? String(guest.country_name) : '');
+        setFieldValue('stateId', guest.state_name ? String(guest.state_name) : '');
+        setFieldValue('cityId', guest.city_name ? String(guest.city_name) : '');
+        setFieldValue('actualCountryId', guest.country_id ?? null);
+        setFieldValue('actualStateId', guest.state_id ?? null);
+        setFieldValue('actualCityId', guest.city_id ?? null);
         setFieldValue('discount', guest.discount_percent ?? 0);
         setFieldValue('idType', (guest as any).id_type || null);
         setFieldValue('idNumber', (guest as any).id_number || '');
@@ -1112,7 +1128,7 @@ const bookedByFormRef = useRef<any>(null);
     setFieldValue('taxAmount', 0);
     setFieldValue('total', 0);
     setSelectedRowId(null);
-    
+
     toast.success(editingRowId ? 'Room updated successfully' : 'Room added successfully');
   };
 
@@ -1135,7 +1151,7 @@ const bookedByFormRef = useRef<any>(null);
     setFieldValue('departureDate', row.departureDate);
     setFieldValue('departureTime', row.departureTime);
     setFieldValue('nights', row.nights);
-    
+
     recalculateRoomTotal();
   };
 
@@ -1162,7 +1178,6 @@ const bookedByFormRef = useRef<any>(null);
             guest_id: Number(g.id || g.guest_id),
             name: String(g.name),
             mobile: String(g.mobile),
-            fragment_id: g.fragment_id || null,
           }))
           .filter((g: any) => !isNaN(g.guest_id) && g.name)
       );
@@ -1255,7 +1270,7 @@ const bookedByFormRef = useRef<any>(null);
     }
   }, [isEditing, hotelId, setFieldValue]);
 
-  // Load existing reservation if editing (with rooms_no)
+  // Load existing reservation if editing
   useEffect(() => {
     if (!isEditing || !id || !hotelId) return;
 
@@ -1286,8 +1301,9 @@ const bookedByFormRef = useRef<any>(null);
           await loadGuestDetails(reservation.guest_id);
         }
 
-        const roomsRes = await ReservationRoomService.list({ reservation_id: Number(id) });
-        const rooms = roomsRes.data || [];
+        // Single API response already carries rooms + booked_by — no more
+        // separate ReservationRoomService / ReservationBookedByService calls.
+        const rooms = reservation.rooms || [];
 
         const rows: RoomRow[] = rooms.map((room: any) => {
           const category = roomCategories.find(c => c.room_category_id === room.room_category_id);
@@ -1340,10 +1356,8 @@ const bookedByFormRef = useRef<any>(null);
         });
         setRoomRows(rows);
 
-        const bookedByRes = await ReservationBookedByService.list({ reservation_id: Number(id) });
-        const bookedByLink = bookedByRes.data?.[0];
-        if (bookedByLink) {
-          const contactRes = await BookedByContactService.get(bookedByLink.booked_by_id);
+        if (reservation.booked_by) {
+          const contactRes = await BookedByContactService.get(reservation.booked_by.booked_by_id);
           setBookedBy(mapContactToBookedByWithId(contactRes.data));
           setFieldValue('bookingTakenBy', contactRes.data.name);
         }
@@ -1356,28 +1370,65 @@ const bookedByFormRef = useRef<any>(null);
     loadReservation();
   }, [id, isEditing, hotelId, roomCategories]);
 
+  // ========== UPDATED SELECT STYLES WITH Z-INDEX FIX ==========
   const selectStyles = {
-    control: (base: any) => ({ ...base, minHeight: '28px', fontSize: '0.7rem', padding: '0' }),
+    control: (base: any) => ({
+      ...base,
+      minHeight: '28px',
+      fontSize: '0.7rem',
+      padding: '0',
+      position: 'relative',
+      zIndex: 1,
+    }),
     valueContainer: (base: any) => ({ ...base, padding: '0 4px' }),
     input: (base: any) => ({ ...base, margin: '0', padding: '0' }),
     indicatorsContainer: (base: any) => ({ ...base, height: '28px' }),
     dropdownIndicator: (base: any) => ({ ...base, padding: '0 4px' }),
     clearIndicator: (base: any) => ({ ...base, padding: '0 4px' }),
-    menu: (base: any) => ({ ...base, fontSize: '0.7rem' }),
+    menu: (base: any) => ({
+      ...base,
+      fontSize: '0.7rem',
+      zIndex: 10000,
+      position: 'absolute',
+      maxHeight: '200px',
+      overflowY: 'auto',
+    }),
     option: (base: any) => ({ ...base, padding: '2px 8px' }),
+    menuPortal: (base: any) => ({ ...base, zIndex: 10001 }),
   } as const;
 
-  // ---------- Determine effective category for Pax banner ----------
+  // Dedicated styles for the "Booked By" select — taller control + breathing
+  // room so it sits centered and fully visible inside its table cell.
+  const bookedBySelectStyles = {
+    ...selectStyles,
+    control: (base: any, state: any) => ({
+      ...base,
+      minHeight: '30px',
+      height: '30px',
+      fontSize: '0.75rem',
+      padding: '0',
+      borderColor: state.isFocused ? '#86b7fe' : '#ced4da',
+      borderRadius: '4px',
+      boxShadow: state.isFocused ? '0 0 0 1px rgba(13,110,253,.25)' : 'none',
+      position: 'relative',
+      zIndex: 1,
+    }),
+    valueContainer: (base: any) => ({ ...base, padding: '0 8px', height: '30px' }),
+    input: (base: any) => ({ ...base, margin: '0', padding: '0' }),
+    indicatorsContainer: (base: any) => ({ ...base, height: '30px' }),
+    placeholder: (base: any) => ({ ...base, color: '#6c757d' }),
+    singleValue: (base: any) => ({ ...base, textAlign: 'left' }),
+  } as const;
+
   const effectiveCategoryId = values.convertedCategory ?? values.roomCategory;
   const effectiveStandardPax = effectiveCategoryId ? categoryStandardPaxMap.get(effectiveCategoryId) || 0 : 0;
+  console.log('Effective standard pax for category', effectiveCategoryId, ':', effectiveStandardPax);
 
-  // Calculate display totals
   const displayRoomCharge = formatToTwoDecimals(values.roomCharge);
   const displayTaxPercent = formatToTwoDecimals(values.taxPercent);
   const displayTaxAmount = formatToTwoDecimals(values.taxAmount);
   const displayTotal = formatToTwoDecimals(values.total);
 
-  // Pre-fetch category details when categories load
   useEffect(() => {
     if (roomCategories.length > 0 && values.roomCategory) {
       fetchCategoryDetails(values.roomCategory);
@@ -1387,61 +1438,463 @@ const bookedByFormRef = useRef<any>(null);
   return (
     <FormikProvider value={formik}>
       <style>{`
-        .fs-small { font-size: 0.7rem; }
+        /* ===== ROOT VARIABLES & SCALING ===== */
+        :root {
+          --page-scale: clamp(0.75, 1.2vw + 0.5, 1);
+          --font-scale: clamp(10px, 0.9vw + 8px, 12px);
+          --input-scale: clamp(24px, 2.5vh + 12px, 28px);
+          --button-scale: clamp(26px, 2vh + 16px, 28px);
+          --table-row-scale: clamp(28px, 3vh, 30px);
+          --header-bg: #a6b8e6;
+        }
+
+        /* ===== MAIN CONTAINER ===== */
+        .reservation-responsive-container {
+          max-width: 1600px;
+          margin: 0 auto;
+          width: 100%;
+          height: 100vh;
+          max-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          background: #f8f9fa;
+        }
+
+        .reservation-responsive-container .card {
+          min-height: 0;
+          overflow: hidden;
+          border-radius: 0;
+          box-shadow: none;
+        }
+
+        .reservation-responsive-container form {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+          overflow: hidden;
+        }
+
+        /* ===== SCALED TEXT & INPUTS ===== */
+        body, input, select, textarea, button, .fs-small, .form-label, .badge, .btn {
+          font-size: var(--font-scale) !important;
+        }
+
+        input.form-control-sm, select.form-select-sm, .form-control-sm {
+          height: var(--input-scale) !important;
+          min-height: var(--input-scale) !important;
+          padding: 0 6px !important;
+        }
+
+        .btn-sm {
+          height: var(--button-scale) !important;
+          padding: 0 10px !important;
+          font-size: var(--font-scale) !important;
+        }
+
+        /* ===== TABLE ===== */
+        .table-sm-compact tbody tr {
+          height: var(--table-row-scale) !important;
+        }
         .table-sm-compact th, .table-sm-compact td {
-          padding: 0.1rem 0.5rem;
-          font-size: 0.65rem;
+          padding: 0px 7px !important;
+          font-size: 11px;
+        }
+
+        /* ===== BOOKED BY TABLE ===== */
+        .booked-by-table {
+          margin-bottom: 0;
+        }
+        .booked-by-table th {
+          padding: 6px 7px !important;
+          font-size: 11px;
           white-space: nowrap;
         }
-        .bg-danger-custom { background-color: #009de0 !important; }
-        input.form-control-sm, select.form-select-sm{
-          height: 28px !important;
-          min-height: 28px !important;
-          padding: 0 6px !important;
-          font-size: 0.7rem !important;
+        .booked-by-table td {
+          padding: 5px 7px !important;
+          font-size: 11px;
+          vertical-align: middle !important;
         }
+        .booked-by-table tbody tr {
+          height: 40px;
+        }
+        .booked-by-name-cell {
+          min-width: 180px;
+        }
+
+        /* ===== REACT SELECT OVERLAP FIX ===== */
+        .react-select__menu {
+          z-index: 9999 !important;
+          position: absolute !important;
+        }
+        .has-select {
+          position: relative !important;
+        }
+        .bordered-section .react-select__menu {
+          max-height: 200px !important;
+          overflow-y: auto !important;
+        }
+        .light-gray-border .react-select__menu {
+          max-height: 150px !important;
+          overflow-y: auto !important;
+        }
+        .bordered-section [class*="react-select__control"] {
+          position: relative !important;
+        }
+        .bordered-section .row .react-select__menu {
+          z-index: 10000 !important;
+        }
+        .react-select__menu-portal {
+          z-index: 10001 !important;
+        }
+        .react-select__menu-list {
+          max-height: 180px !important;
+          overflow-y: auto !important;
+        }
+
+        /* ===== REACT SELECT ===== */
         .react-select__control {
-          min-height: 24px !important;
-          font-size: 0.7rem !important;
+          min-height: var(--input-scale) !important;
+          font-size: var(--font-scale) !important;
         }
-        .react-select__valueContainer { padding: 0 4px !important; }
-        .react-select__indicators { height: 24px !important; }
-        input, select, textarea, .form-control, .form-select {
-          font-size: 0.7rem !important;
+        .react-select__valueContainer {
+          padding: 0 4px !important;
         }
+        .react-select__indicators {
+          height: var(--input-scale) !important;
+        }
+
+        /* ===== SCROLLABLE TABLE ===== */
         .scrollable-table {
-          height: 140px;
+          max-height: 222px;
           overflow-x: auto;
           overflow-y: auto;
           border: 1px solid #dee2e6;
+          position: relative;
         }
+        /* Mobile: show only 2-3 rows by default, then scroll */
+        @media (max-width: 767.98px) {
+          .scrollable-table {
+            max-height: 120px;
+          }
+        }
+
         .scrollable-table table {
-          margin-bottom: 0;
-          min-width: 2000px;
+          border-collapse: separate;
+          border-spacing: 0;
+          font-size: 11px !important;
         }
+
+        .scrollable-table thead th {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+          background-color: #d9d9d9 !important;
+        }
+
+        .scrollable-table th {
+          font-size: 10px !important;
+          font-weight: 600;
+          border: 1px solid #b5b5b5 !important;
+          padding: 4px 6px !important;
+          white-space: nowrap;
+        }
+
+        .scrollable-table td {
+          font-size: 10px !important;
+          border: 1px solid #d0d0d0 !important;
+          padding: 0px 6px !important;
+          vertical-align: middle;
+        }
+
+        .scrollable-table table {
+          border-collapse: collapse !important;
+          border: 1px solid #b5b5b5 !important;
+        }
+
+        .scrollable-table tbody tr {
+          height: 32px;
+        }
+
         .scrollable-table::-webkit-scrollbar {
-          height: 4px;
           width: 5px;
+          height: 5px;
         }
-        .scrollable-table::-webkit-scrollbar-track { background: #f1f1f1; }
-        .scrollable-table::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
-        .scrollable-table::-webkit-scrollbar-thumb:hover { background: #555; }
+        .scrollable-table::-webkit-scrollbar-track {
+          background: #f1f1f1;
+        }
+        .scrollable-table::-webkit-scrollbar-thumb {
+          background: #c8c8c8;
+          border-radius: 3px;
+        }
+        .scrollable-table::-webkit-scrollbar-thumb:hover {
+          background: #aaa;
+        }
+
+        /* ===== SECTION HEADERS ===== */
+        .section-header {
+          background-color: var(--header-bg);
+          color: #333;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 2px 10px;
+          margin-bottom: 4px;
+          font-weight: 600;
+          font-size: var(--font-scale);
+          min-height: 24px;
+        }
+
+        .section-header .fw-bold {
+          font-size: var(--font-scale);
+        }
+
+        /* ===== BORDERED CONTAINERS ===== */
+        .bordered-section {
+          border: 1px solid #adb5bd;
+          padding: 4px 8px;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+
+        /* ===== COUNTER INPUTS ===== */
+        .counter-group {
+          display: flex;
+          align-items: center;
+          border: 1px solid #0d6efd;
+          border-radius: 4px;
+          overflow: hidden;
+          height: 28px;
+          width: 100%;
+        }
+        .counter-btn {
+          border: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 26px;
+          height: 28px;
+          background: #e7f3ff;
+          color: #0d6efd;
+          font-weight: bold;
+          font-size: 16px;
+          cursor: pointer;
+        }
+        .counter-btn:hover {
+          background: #d0e4ff;
+        }
+        .counter-input {
+          border: 0;
+          text-align: center;
+          font-weight: bold;
+          font-size: var(--font-scale);
+          width: 45px;
+          height: 28px;
+          background: #f8f9fa;
+          outline: none;
+          -moz-appearance: textfield;
+        }
+        .counter-input::-webkit-outer-spin-button,
+        .counter-input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .counter-input:focus {
+          background: #fff;
+        }
+
+        .pax-display {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid #28a745;
+          border-radius: 4px;
+          height: 28px;
+          background: #f0fff4;
+        }
+        .pax-display span {
+          font-weight: bold;
+          font-size: var(--font-scale);
+          color: #28a745;
+        }
+
+        .ex-pax-display {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid #fd7e14;
+          border-radius: 4px;
+          height: 28px;
+          background: #fff3e0;
+        }
+        .ex-pax-display span {
+          font-weight: bold;
+          font-size: var(--font-scale);
+          color: #dc6500;
+        }
+
+        /* ===== RATE INFO SECTION ===== */
+        .rate-info-section {
+          border: 1px solid #adb5bd;
+          border-radius: 4px;
+          padding: 4px 8px;
+          margin-top: 4px;
+        }
+
+        /* ===== FIXED BOTTOM BAR ===== */
+        .fixed-bottom-bar {
+          padding: 4px 10px;
+          background: #fff;
+          border-top: 1px solid #dee2e6;
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+
+        /* ===== RESPONSIVE GRID ===== */
+        .row.g-2 {
+          --bs-gutter-x: 0.4rem;
+          --bs-gutter-y: 0.2rem;
+        }
+
+        .reservation-stage-tablet .row.g-2 {
+          --bs-gutter-y: 0.6rem;
+        }
+
+        .reservation-stage-mobile .row.g-2 {
+          --bs-gutter-y: 0.85rem;
+        }
+
+        .mb-1 {
+          margin-bottom: 0.15rem !important;
+        }
+        .mt-1 {
+          margin-top: 0.15rem !important;
+        }
+        .my-2 {
+          margin-top: 0.2rem !important;
+          margin-bottom: 0.2rem !important;
+        }
+
+        /* ===== LABELS ===== */
+        .form-label-sm {
+          font-size: var(--font-scale);
+          margin-bottom: 1px;
+          display: block;
+          font-weight: 500;
+        }
+
+        /* ===== TEXTAREA ===== */
+        .instruction-textarea {
+          resize: vertical;
+          border-radius: 0;
+          min-height: 60px;
+          font-size: var(--font-scale);
+          border: none;
+          flex: 1;
+        }
+        .instruction-textarea:focus {
+          box-shadow: none;
+          border-color: #86b7fe;
+        }
+
+        /* ===== CLICKABLE ROW ===== */
+        .clickable-row {
+          cursor: pointer;
+        }
+        .clickable-row:hover {
+          background-color: #f0f8ff;
+        }
+
+        /* ===== BADGE STYLES ===== */
+        .badge-info-custom {
+          background-color: #17a2b8;
+          color: #fff;
+          font-size: calc(var(--font-scale) - 1px);
+          padding: 2px 6px;
+        }
+
+        /* ===== DARK MODE SUPPORT ===== */
+        body.dark-mode .reservation-responsive-container {
+          background: #1a1a2e;
+        }
+        body.dark-mode .reservation-responsive-container .card {
+          background: #2d2d44;
+        }
+        body.dark-mode .bordered-section {
+          border-color: #444;
+        }
+        body.dark-mode .section-header {
+          background: #3a3a5a;
+          color: #eee;
+        }
+        body.dark-mode .rate-info-section {
+          border-color: #444;
+        }
+        body.dark-mode .scrollable-table thead th {
+          background-color: #3a3a5a !important;
+          color: #eee;
+        }
+        body.dark-mode .scrollable-table td {
+          border-color: #444 !important;
+        }
+        body.dark-mode .scrollable-table table {
+          border-color: #444 !important;
+        }
+        body.dark-mode .fixed-bottom-bar {
+          background: #2d2d44;
+          border-top-color: #444;
+        }
+        body.dark-mode .counter-input {
+          background: #3a3a5a;
+          color: #eee;
+        }
+        body.dark-mode .counter-btn {
+          background: #4a4a6a;
+          color: #7ab7ff;
+        }
+        body.dark-mode .counter-btn:hover {
+          background: #5a5a7a;
+        }
+        body.dark-mode .pax-display {
+          background: #1a3a2a;
+          border-color: #2a8a5a;
+        }
+        body.dark-mode .ex-pax-display {
+          background: #3a2a1a;
+          border-color: #8a6a2a;
+        }
+        body.dark-mode .room-charge-checkbox {
+          background: #2d2d44;
+          border-left-color: #444;
+        }
+        .fs-small { font-size: var(--font-scale); }
+        .bg-danger-custom { background-color: #009de0 !important; }
+        input.form-control-sm, select.form-select-sm{
+          height: var(--input-scale) !important;
+          min-height: var(--input-scale) !important;
+          padding: 0 6px !important;
+          font-size: var(--font-scale) !important;
+        }
         .input-24 {
-          height: 24px !important;
-          min-height: 24px !important;
+          height: var(--input-scale) !important;
+          min-height: var(--input-scale) !important;
           padding: 2px 4px !important;
-          font-size: 12px !important;
+          font-size: var(--font-scale) !important;
         }
         .row-compact { margin-bottom: 4px !important; }
-        .clickable-row { cursor: pointer; }
-        .clickable-row:hover { background-color: #f5f5f5; }
-        .label-top { font-size: 0.65rem; margin-bottom: 2px; display: block; }
+        .label-top { font-size: var(--font-scale); margin-bottom: 2px; display: block; }
         .light-gray-border {
           border: 1px solid #d3d3d3 !important;
           border-radius: 0.25rem;
         }
         .section-legend {
-          font-size: 0.7rem;
+          font-size: var(--font-scale);
           font-weight: bold;
           margin-bottom: 4px;
           width: auto;
@@ -1454,11 +1907,11 @@ const bookedByFormRef = useRef<any>(null);
           border: 1px solid #0d6efd;
           border-radius: 4px;
           overflow: hidden;
-          height: 28px;
+          height: var(--input-scale);
         }
         .adult-control button {
           width: 26px;
-          height: 28px;
+          height: var(--input-scale);
           border: none;
           background: #e7f3ff;
           color: #0d6efd;
@@ -1470,7 +1923,7 @@ const bookedByFormRef = useRef<any>(null);
         }
         .adult-control input {
           width: 45px;
-          height: 28px;
+          height: var(--input-scale);
           border: none;
           text-align: center;
           font-weight: bold;
@@ -1514,7 +1967,7 @@ const bookedByFormRef = useRef<any>(null);
           font-weight: bold;
           color: #198754;
         }
-        .pax-display {
+        .pax-display-custom {
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -1533,29 +1986,440 @@ const bookedByFormRef = useRef<any>(null);
           color: #856404;
           border: 1px solid #ffeeba;
         }
+
+        /* ===== REG NO HEADER BAR - always shown, always at top ===== */
+        .regno-header-bar {
+          border-bottom: 1px solid #dee2e6;
+          flex-shrink: 0;
+        }
+
+        /* ===== CANCEL BUTTON in reservation-no header bar (all screen sizes) ===== */
+        .header-cancel-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: auto;
+          background: #dc3545;
+          color: #fff;
+          border: none;
+          height: 28px;
+          padding: 0 10px;
+          font-size: 14px;
+          font-weight: 600;
+          line-height: 1;
+          cursor: pointer;
+          border-radius: 4px;
+          flex-shrink: 0;
+          white-space: nowrap;
+        }
+        .header-cancel-btn:hover { background: #b02a37; }
+        @media (max-width: 767.98px) {
+          .header-cancel-btn {
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            border-radius: 3px;
+            font-size: 18px;
+          }
+          .header-cancel-label { display: none; }
+        }
+
+        /* ===== MOBILE/TABLET TAB NAV WRAPPER ===== */
+        .mobile-tab-nav-wrapper {
+          display: none;
+          flex-shrink: 0;
+        }
+        .reservation-stage-mobile .mobile-tab-nav-wrapper,
+        .reservation-stage-tablet .mobile-tab-nav-wrapper {
+          display: block;
+        }
+        .reservation-stage-desktop .mobile-tab-nav-wrapper,
+        .reservation-stage-laptop .mobile-tab-nav-wrapper,
+        .reservation-stage-xl .mobile-tab-nav-wrapper {
+          display: none !important;
+        }
+
+        /* ===== MOBILE/TABLET TAB NAV ===== */
+        .mobile-tab-nav {
+          display: none;
+        }
+        .reservation-stage-mobile .mobile-tab-nav,
+        .reservation-stage-tablet .mobile-tab-nav {
+          display: flex;
+          background: #fff;
+          border-bottom: 2px solid #dee2e6;
+          overflow-x: auto;
+          flex-shrink: 0;
+        }
+        .mobile-tab-nav .mtab-btn {
+          flex: 1;
+          min-width: 60px;
+          padding: 6px 4px;
+          border: none;
+          background: transparent;
+          border-bottom: 3px solid transparent;
+          font-size: 10px !important;
+          color: #666;
+          text-align: center;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.15s;
+        }
+        .mobile-tab-nav .mtab-btn.active {
+          color: #0d6efd;
+          border-bottom-color: #0d6efd;
+          font-weight: 600;
+          background: #f0f6ff;
+        }
+        .mobile-tab-nav .mtab-btn i {
+          display: block;
+          font-size: 14px !important;
+          margin-bottom: 2px;
+        }
+
+        /* Progress bar for mobile/tablet */
+        .mobile-tab-progress {
+          display: none;
+        }
+        .reservation-stage-mobile .mobile-tab-progress,
+        .reservation-stage-tablet .mobile-tab-progress {
+          display: block;
+          height: 4px;
+          background: #e9ecef;
+          flex-shrink: 0;
+        }
+        .mobile-tab-progress .progress-fill {
+          height: 100%;
+          background: #0d6efd;
+          transition: width 0.3s ease;
+        }
+
+        /* Hide/show sections based on active tab (mobile/tablet only) */
+        .reservation-stage-mobile .tab-section,
+        .reservation-stage-tablet .tab-section {
+          display: none !important;
+        }
+        .reservation-stage-mobile .tab-section.tab-active,
+        .reservation-stage-tablet .tab-section.tab-active {
+          display: flex !important;
+        }
+        /* Desktop/Laptop/XL: always show all sections normally */
+        .reservation-stage-desktop .tab-section,
+        .reservation-stage-laptop .tab-section,
+        .reservation-stage-xl .tab-section {
+          display: flex !important;
+        }
+        /* Desktop/Laptop/XL: hide tab nav */
+        .reservation-stage-desktop .mobile-tab-nav,
+        .reservation-stage-desktop .mobile-tab-progress,
+        .reservation-stage-laptop .mobile-tab-nav,
+        .reservation-stage-laptop .mobile-tab-progress,
+        .reservation-stage-xl .mobile-tab-nav,
+        .reservation-stage-xl .mobile-tab-progress {
+          display: none !important;
+        }
+
+        /* Mobile: sticky top (reservation no + tabs), scroll middle, sticky bottom */
+        @media (max-width: 767.98px) {
+          .reservation-responsive-container {
+            height: 100dvh;
+            overflow: hidden;
+          }
+          .regno-header-bar { position: sticky; top: 0; z-index: 100; flex-shrink: 0; }
+          .mobile-tab-nav-wrapper { position: sticky; top: 0; z-index: 99; flex-shrink: 0; }
+          .reservation-scroll-body {
+            flex: 1 1 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+          }
+          .fixed-bottom-bar { position: sticky; bottom: 0; z-index: 100; flex-shrink: 0; }
+          .reservation-responsive-container .card { overflow: visible; flex-shrink: 0; }
+          .reservation-responsive-container .card-body { overflow: visible !important; }
+          .reservation-responsive-container form { overflow: visible; }
+          .btn-label-text { display: none; }
+          .btn-icon-only { padding: 0 8px !important; }
+        }
+
+        /* ===== LIGHT GRAY SCROLLBAR — Card.Body & reservation-scroll-body ===== */
+        .card-body::-webkit-scrollbar,
+        .reservation-scroll-body::-webkit-scrollbar { width: 5px; height: 5px; }
+        .card-body::-webkit-scrollbar-track,
+        .reservation-scroll-body::-webkit-scrollbar-track { background: #f5f5f5; }
+        .card-body::-webkit-scrollbar-thumb,
+        .reservation-scroll-body::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 4px; }
+        .card-body::-webkit-scrollbar-thumb:hover,
+        .reservation-scroll-body::-webkit-scrollbar-thumb:hover { background: #b8b8b8; }
+
+        /* ===== XL ENHANCEMENTS ===== */
+        @media (min-width: 1920px) {
+          .reservation-responsive-container { max-width: 2400px; }
+          .scrollable-table { max-height: 160px; }
+        }
+
+        /* ===== MOBILE/Desktop LAYOUT STYLES ===== */
+        /* Desktop: reduce gap between label and input */
+        .reservation-stage-desktop .compact-label,
+        .reservation-stage-laptop .compact-label,
+        .reservation-stage-xl .compact-label {
+          padding-right: 2px !important;
+        }
+        .reservation-stage-desktop .compact-input,
+        .reservation-stage-laptop .compact-input,
+        .reservation-stage-xl .compact-input {
+          padding-left: 2px !important;
+        }
+
+        /* Mobile: label on left, input on right - inline row layout */
+        @media (max-width: 767.98px) {
+          .mobile-inline-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+          }
+          .mobile-inline-row .mobile-label {
+            flex: 0 0 85px;
+            width: 85px;
+            min-width: 85px;
+            font-size: var(--font-scale);
+            text-align: left;
+            padding-right: 4px;
+            color: #444;
+            white-space: nowrap;
+          }
+          .mobile-inline-row .mobile-input {
+            flex: 1;
+            min-width: 0;
+          }
+          .mobile-inline-row .mobile-input select,
+          .mobile-inline-row .mobile-input input {
+            width: 100%;
+          }
+        }
+
+        /* Mobile Room Details: 4-row grid layout */
+        @media (max-width: 767.98px) {
+          /* Row 1: Room Category, Convert Category, Rooms */
+          .mobile-room-row1 {
+            display: grid;
+            grid-template-columns: 1.2fr 1.2fr 0.4fr;
+            gap: 4px 6px;
+            margin-bottom: 6px;
+          }
+          /* Row 2: Room Charges, Discount %, Discount Amt, Tax %, Tax Amt */
+          .mobile-room-row2 {
+            display: grid;
+            grid-template-columns: 1fr 0.7fr 0.8fr 0.6fr 0.8fr;
+            gap: 4px 6px;
+            margin-bottom: 6px;
+          }
+          /* Row 3: Adult, Pax, Ex_Pax, Child Paid, Child Unpaid, Driver */
+          .mobile-room-row3 {
+            display: grid;
+            grid-template-columns: 0.9fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr;
+            gap: 4px 6px;
+            margin-bottom: 6px;
+          }
+          /* Row 4: Total + Add Button */
+          .mobile-room-row4 {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
+            margin-bottom: 4px;
+          }
+          .mobile-room-row4 .room-item:first-child {
+            flex: 1 1 auto;
+            min-width: 0;
+          }
+          .mobile-room-row4 .room-item:last-child {
+            flex: 0 0 auto;
+            width: 64px;
+          }
+
+          .mobile-room-row1 .room-item,
+          .mobile-room-row2 .room-item,
+          .mobile-room-row3 .room-item,
+          .mobile-room-row4 .room-item {
+            display: flex;
+            flex-direction: column;
+          }
+          .mobile-room-row1 .room-item label,
+          .mobile-room-row2 .room-item label,
+          .mobile-room-row3 .room-item label,
+          .mobile-room-row4 .room-item label {
+            font-size: 9px;
+            font-weight: 500;
+            margin-bottom: 1px;
+            color: #555;
+          }
+          .mobile-room-row1 .room-item input,
+          .mobile-room-row1 .room-item .react-select__control,
+          .mobile-room-row2 .room-item input,
+          .mobile-room-row2 .room-item .react-select__control,
+          .mobile-room-row3 .room-item input,
+          .mobile-room-row3 .room-item .react-select__control,
+          .mobile-room-row4 .room-item input,
+          .mobile-room-row4 .room-item .react-select__control {
+            height: 26px !important;
+            min-height: 26px !important;
+            font-size: 10px !important;
+          }
+          .mobile-room-row3 .room-item .counter-group {
+            height: 26px;
+          }
+          .mobile-room-row3 .room-item .counter-btn {
+            height: 26px;
+            width: 22px;
+            font-size: 12px;
+          }
+          .mobile-room-row3 .room-item .counter-input {
+            height: 26px;
+            width: 30px;
+            font-size: 10px;
+          }
+          .mobile-room-row3 .room-item .pax-display,
+          .mobile-room-row3 .room-item .ex-pax-display {
+            height: 26px;
+          }
+          .mobile-room-row3 .room-item .pax-display span,
+          .mobile-room-row3 .room-item .ex-pax-display span {
+            font-size: 10px;
+          }
+          .mobile-room-row1 .room-item .form-control,
+          .mobile-room-row2 .room-item .form-control,
+          .mobile-room-row3 .room-item .form-control,
+          .mobile-room-row4 .room-item .form-control {
+            height: 26px !important;
+            min-height: 26px !important;
+            font-size: 10px !important;
+            padding: 0 4px !important;
+          }
+          .mobile-room-row1 .room-item .form-control-sm,
+          .mobile-room-row2 .room-item .form-control-sm,
+          .mobile-room-row3 .room-item .form-control-sm,
+          .mobile-room-row4 .room-item .form-control-sm {
+            height: 26px !important;
+            min-height: 26px !important;
+          }
+          .mobile-room-row4 .room-item .add-btn {
+            height: 26px;
+            font-size: 11px;
+            padding: 0 6px;
+            width: 100%;
+          }
+        }
+
+        /* Mobile Booking Info: label on left, input on right */
+        @media (max-width: 767.98px) {
+          .mobile-booking-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+          }
+          .mobile-booking-row .booking-label {
+            flex: 0 0 90px;
+            width: 90px;
+            min-width: 90px;
+            font-size: var(--font-scale);
+            text-align: left;
+            padding-right: 4px;
+            color: #444;
+            white-space: nowrap;
+          }
+          .mobile-booking-row .booking-input {
+            flex: 1;
+            min-width: 0;
+          }
+          .mobile-booking-row .booking-input select,
+          .mobile-booking-row .booking-input input {
+            width: 100%;
+          }
+
+          /* ===== BOOKED BY TABLE: horizontal scroll on mobile ===== */
+          .booked-by-scroll-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+          }
+          .booked-by-scroll-wrapper::-webkit-scrollbar {
+            height: 4px;
+          }
+          .booked-by-scroll-wrapper::-webkit-scrollbar-thumb {
+            background: #c8c8c8;
+            border-radius: 3px;
+          }
+          .booked-by-table {
+            min-width: 520px;
+          }
+        }
       `}</style>
 
-      <div className="vh-100 d-flex flex-column overflow-hidden">
-        <div className="p-1 d-flex justify-content-between align-items-center border-bottom">
-          <div className="d-flex align-items-center"></div>
+      <div className={`reservation-responsive-container reservation-stage-${layoutStage}`}>
+        {/* ===== RESERVATION NO HEADER - Always at top (above tabs on mobile/tablet) ===== */}
+        <div
+          className="regno-header-bar d-flex align-items-center flex-wrap gap-2 px-2 py-1 bg-white"
+          style={{ borderBottom: '1px solid #dee2e6' }}>
+          <span className="d-flex align-items-center">
+            <span className="fw-semibold me-1" style={{ fontSize: 'var(--font-scale)' }}>
+              Reservation No:
+            </span>
+            <span className="badge bg-warning" style={{ fontSize: 'var(--font-scale)' }}>
+              {values.reservationNo || 'New'}
+            </span>
+          </span>
+          {/* Cancel button — top-right corner, all screen sizes */}
+          <button
+            type="button"
+            className="header-cancel-btn ms-auto"
+            onClick={() => navigate(-1)}
+            title="Cancel">
+            <i className="fi fi-rr-cross fs-6"></i>
+            <span className="header-cancel-label"></span>
+          </button>
         </div>
 
-        <Card className="flex-grow-1 border-0">
-          <Card.Body className="p-2 overflow-y-auto overflow-x-hidden">
-            <form
-              onSubmit={handleSubmit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const target = e.target as HTMLElement;
-                  // Don't intercept Enter on textareas or buttons
-                  if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') return;
-                  e.preventDefault();
-                  // Find all focusable inputs/selects in the form and focus the next one
-                  const form = e.currentTarget;
-                  const focusable = Array.from(
-                    form.querySelectorAll<HTMLElement>(
-                      'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
-                    )
+        {/* ===== MOBILE/TABLET TAB NAVIGATION (wrapped for sticky positioning) ===== */}
+        <div className="mobile-tab-nav-wrapper">
+          <div className="mobile-tab-nav">
+            {mobileTabs.map((tab) => (
+              <button
+                key={tab.key}
+                className={`mtab-btn${activeMobileTab === tab.key ? ' active' : ''}`}
+                onClick={() => setActiveMobileTab(tab.key)}
+                type="button">
+                <i className={tab.icon}></i>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          {/* Progress bar */}
+          <div className="mobile-tab-progress">
+            <div className="progress-fill" style={{ width: `${mobileTabProgress}%` }} />
+          </div>
+        </div>
+
+        {/* ===== SCROLLABLE CENTER BODY (mobile only; desktop uses card overflow) ===== */}
+        <div
+          className="reservation-scroll-body flex-grow-1 d-flex flex-column"
+          style={{ minHeight: 0 }}>
+          {/* ===== MAIN CARD ===== */}
+          <Card className="flex-grow-1 border-0">
+            <Card.Body className="p-2 overflow-y-auto overflow-x-hidden">
+              <form
+                id="reservation-form"
+                onSubmit={handleSubmit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const target = e.target as HTMLElement;
+                    if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') return;
+                    e.preventDefault();
+                    const form = e.currentTarget;
+                    const focusable = Array.from(
+                      form.querySelectorAll<HTMLElement>(
+                        'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+                      )
                   ).filter((el) => !el.closest('.react-select__input') || el === document.activeElement);
                   const idx = focusable.indexOf(document.activeElement as HTMLElement);
                   if (idx >= 0 && idx < focusable.length - 1) {
@@ -1563,641 +2427,1104 @@ const bookedByFormRef = useRef<any>(null);
                   }
                 }
               }}>
-              <Row className="g-3">
-                <Col md={4} className="bg-light px-1">
-                  {/* Reservation Details */}
-                  <fieldset className="p-1 mb-1">
-                    <legend
-                      style={{
-                        backgroundColor: '#dc3545',
-                        color: '#fff',
-                        padding: '2px 12px',
-                        fontSize: '13px',
-                        fontWeight: '600',
-                        borderRadius: '3px',
-                      }}>
-                      Reservation Details
-                    </legend>
+              <Row className="g-2 align-items-stretch flex-shrink-0">
+                {/* ===== COLUMN 1: Guest & Reservation Details ===== */}
+                <Col
+                  xs={leftColSpan}
+                  className={`d-flex flex-column tab-section${activeMobileTab === 'guest' ? ' tab-active' : ''}`}>
+                  <div className="bordered-section">
+                    {/* Reservation Details */}
+                    <div className="section-header">
+                      <span className="fw-bold">Reservation Details</span>
+                    </div>
 
-                    <Row className="align-items-center g-2 mb-1">
-                      <Col md={5}>
-                        <div className="fs-small mb-1">Reservation No</div>
-                        <FormikTextInput
-                          name="reservationNo"
-                          size="sm"
-                          className="w-100 fs-small"
-                          placeholder="Enter reservation number"
-                        />
-                      </Col>
-                      <Col md={7}>
-                        <div className="fs-small mb-1">Date</div>
-                        <Row className="g-1">
-                          <Col md={7}>
-                            <FormikTextInput
-                              name="reservationDate"
-                              type="date"
-                              size="sm"
-                              className="w-100 fs-small"
-                            />
-                          </Col>
-                          <Col md={5}></Col>
-                        </Row>
-                      </Col>
-                    </Row>
+                    {/* Desktop/Laptop/Tablet layout - compact gaps */}
+                    <div className="d-none d-sm-block">
+                    
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">Date</Col>
+                        <Col xs={12} md={9} className="compact-input">
+                          <FormikTextInput
+                            name="reservationDate"
+                            type="date"
+                            size="sm"
+                            className="w-100 fs-small"
+                          />
+                        </Col>
+                      </Row>
 
-                    <Row className="align-items-center g-2 mb-1">
-                      <Col md={5}>
-                        <div className="fs-small mb-1">Guest Type</div>
-                        <FormSelect
-                          name="guestType"
-                          options={guestTypeOptions}
-                          size="sm"
-                          className="w-100 fs-small"
-                          isLoading={loadingGuestTypes}
-                          placeholder="Select"
-                        />
-                      </Col>
-                      <Col md={7}>
-                        <div className="fs-small mb-1">Arrival Date & Time</div>
-                        <Row className="g-1">
-                          <Col md={7}>
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">Guest Type</Col>
+                        <Col xs={12} md={9} className="compact-input">
+                          <FormSelect
+                            name="guestType"
+                            options={guestTypeOptions}
+                            size="sm"
+                            className="w-100 fs-small"
+                            isLoading={loadingGuestTypes}
+                            placeholder="Select"
+                          />
+                        </Col>
+                      </Row>
+
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">Arrival Date</Col>
+                        <Col xs={12} md={9} className="compact-input">
+                          <Row className="g-1">
+                            <Col xs={12} sm={7}>
+                              <FormikTextInput
+                                name="arrivalDate"
+                                type="date"
+                                size="sm"
+                                className="w-100 fs-small"
+                              />
+                            </Col>
+                            <Col xs={12} sm={5}>
+                              <FormikTextInput
+                                name="arrivalTime"
+                                type="time"
+                                size="sm"
+                                className="w-100 fs-small"
+                              />
+                            </Col>
+                          </Row>
+                        </Col>
+                      </Row>
+
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">No of Days</Col>
+                        <Col xs={12} md={9} className="compact-input">
+                          <FormikTextInput
+                            name="nights"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                          />
+                        </Col>
+                      </Row>
+
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">Departure Date</Col>
+                        <Col xs={12} md={9} className="compact-input">
+                          <Row className="g-1">
+                            <Col xs={12} sm={7}>
+                              <FormikTextInput
+                                name="departureDate"
+                                type="date"
+                                size="sm"
+                                className="w-100 fs-small"
+                              />
+                            </Col>
+                            <Col xs={12} sm={5}>
+                              <FormikTextInput
+                                name="departureTime"
+                                type="time"
+                                size="sm"
+                                className="w-100 fs-small"
+                              />
+                            </Col>
+                          </Row>
+                        </Col>
+                      </Row>
+                    </div>
+
+                    {/* Mobile layout - label on left, input on right */}
+                    <div className="d-sm-none">
+                     
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">Date</span>
+                        <div className="mobile-input">
+                          <FormikTextInput
+                            name="reservationDate"
+                            type="date"
+                            size="sm"
+                            className="w-100 fs-small"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">Guest Type</span>
+                        <div className="mobile-input">
+                          <FormSelect
+                            name="guestType"
+                            options={guestTypeOptions}
+                            size="sm"
+                            className="w-100 fs-small"
+                            isLoading={loadingGuestTypes}
+                            placeholder="Select"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">Arrival Date</span>
+                        <div className="mobile-input">
+                          <div style={{ display: 'flex', gap: '4px' }}>
                             <FormikTextInput
                               name="arrivalDate"
                               type="date"
                               size="sm"
                               className="w-100 fs-small"
+                              style={{ flex: 1 }}
                             />
-                          </Col>
-                          <Col md={5}>
                             <FormikTextInput
                               name="arrivalTime"
                               type="time"
                               size="sm"
                               className="w-100 fs-small"
+                              style={{ flex: '0 0 60px' }}
                             />
-                          </Col>
-                        </Row>
-                      </Col>
-                    </Row>
+                          </div>
+                        </div>
+                      </div>
 
-                    <Row className="align-items-center g-2">
-                      <Col md={5}>
-                        <div className="fs-small mb-1">No of Days</div>
-                        <FormikTextInput
-                          name="nights"
-                          type="number"
-                          size="sm"
-                          className="w-100 fs-small"
-                        />
-                      </Col>
-                      <Col md={7}>
-                        <div className="fs-small mb-1">Departure Date & Time </div>
-                        <Row className="g-1">
-                          <Col md={7}>
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">No of Days</span>
+                        <div className="mobile-input">
+                          <FormikTextInput
+                            name="nights"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">Departure Date</span>
+                        <div className="mobile-input">
+                          <div style={{ display: 'flex', gap: '4px' }}>
                             <FormikTextInput
                               name="departureDate"
                               type="date"
                               size="sm"
                               className="w-100 fs-small"
+                              style={{ flex: 1 }}
                             />
-                          </Col>
-                          <Col md={5}>
                             <FormikTextInput
                               name="departureTime"
                               type="time"
                               size="sm"
                               className="w-100 fs-small"
+                              style={{ flex: '0 0 60px' }}
                             />
-                          </Col>
-                        </Row>
-                      </Col>
-                    </Row>
-                  </fieldset>
-
-                  {/* Guest Information */}
-                  <fieldset className="p-1 mb-1">
-                    <div className="d-flex align-items-center mb-1">
-                      <div style={{ flex: 1, height: '1px', backgroundColor: 'lightgrey' }} />
-                      <span className="fs-small fw-bold me-2">Guest Information</span>
-                      <div style={{ flex: 1, height: '1px', backgroundColor: 'lightgrey' }} />
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <Row className="justify-content-left align-items-end g-1 mb-1">
-                      <Col xs={12}>
-                        <label className="label-top">Name</label>
-                      </Col>
-                      <Col xs="auto" style={{ width: '75px' }}>
-                        <FormikTextInput
-                          name="title"
-                          placeholder="Title"
-                          size="sm"
-                          className="w-100 fs-small"
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '304px' }}>
-                        <Select<Option, false>
-                          options={guestOptions}
-                          isLoading={searchingGuests}
-                          className="w-100 fs-small"
-                          styles={selectStyles}
-                          value={guestOptions.find((o) => Number(o.value) === values.guestId) || null}
-                          onChange={(opt) => {
-                            if (opt?.value) {
-                              const guestId = Number(opt.value);
-                              setFieldValue('guestId', guestId);
-                              loadGuestDetails(guestId);
-                            } else {
-                              setFieldValue('guestId', null);
-                              setFieldValue('title', 'MR');
-                              setFieldValue('firstName', '');
-                              setFieldValue('lastName', '');
-                              setFieldValue('phone1', '');
-                              setFieldValue('phone2', '');
-                              setFieldValue('email', '');
-                              setFieldValue('address', '');
-                              setFieldValue('countryId', null);
-                              setFieldValue('stateId', null);
-                              setFieldValue('cityId', null);
-                              setFieldValue('idType', null);
-                              setFieldValue('idNumber', '');
-                              setFieldValue('otherInfo', '');
-                              setFieldValue('companyId', null);
-                              setFieldValue('gst', '');
-                            }
-                          }}
-                          onInputChange={(inputValue, { action }) => {
-                            if (action === 'input-change') handleGuestSearch(inputValue);
-                          }}
-                          onMenuOpen={() => {
-                            if (!guestOptions.length && hotelId) loadAllGuests();
-                          }}
-                          placeholder="Search Guest"
-                          isClearable
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '35px' }}>
-                        <button
-                          type="button"
-                          className="btn btn-success btn-sm w-100 p-0"
-                          style={{ height: '29px' }}
-                          onClick={() => setShowGuestModal(true)}>
-                          +
-                        </button>
-                      </Col>
-                    </Row>
-
-                    <input type="hidden" {...formik.getFieldProps('firstName')} />
-                    <input type="hidden" {...formik.getFieldProps('lastName')} />
-
-                    <Row className="mb-1">
-                      <Col xs={12}>
-                        <label className="label-top">Address</label>
-                      </Col>
-                      <Col xs={12}>
-                        <textarea
-                          {...formik.getFieldProps('address')}
-                          placeholder="Address"
-                          rows={2}
-                          className="w-100 fs-small"
-                          readOnly
-                        />
-                      </Col>
-                    </Row>
-
-                    <Row className="justify-content-left align-items-end g-2 mb-2">
-                      <Col md={6}>
-                        <label className="label-top">Mobile No 1</label>
-                        <FormikTextInput
-                          name="phone1"
-                          size="sm"
-                          className="w-100 fs-small"
-                          placeholder="Enter Mobile No 1"
-                          readOnly
-                        />
-                      </Col>
-                      <Col md={6}>
-                        <label className="label-top">Mobile No 2</label>
-                        <FormikTextInput
-                          name="phone2"
-                          size="sm"
-                          className="w-100 fs-small"
-                          placeholder="Enter Mobile No 2"
-                          readOnly
-                        />
-                      </Col>
-                    </Row>
-
-                    <Row className="align-items-end g-2 mb-1">
-                      <Col md={4}>
-                        <label className="label-top">Country</label>
-                        <FormSelect
-                          name="countryId"
-                          options={countryOptions}
-                          size="sm"
-                          className="w-100 fs-small"
-                          isLoading={loadingCountries}
-                          disabled
-                        />
-                      </Col>
-                      <Col md={4}>
-                        <label className="label-top">State</label>
-                        <FormSelect
-                          name="stateId"
-                          options={stateOptions}
-                          size="sm"
-                          className="w-100 fs-small"
-                          isLoading={loadingStates}
-                          disabled
-                        />
-                      </Col>
-                      <Col md={4}>
-                        <label className="label-top">City</label>
-                        <FormSelect
-                          name="cityId"
-                          options={cityOptions}
-                          size="sm"
-                          className="w-100 fs-small"
-                          isLoading={loadingCities}
-                          disabled
-                        />
-                      </Col>
-                    </Row>
-                  </fieldset>
-
-                  {/* Instructions */}
-                  <fieldset className="p-1 mb-1">
-                    <div className="d-flex align-items-center mb-2">
-                      <div style={{ flex: 1, height: '1px', backgroundColor: 'lightgray' }} />
-                      <span className="fs-small fw-bold me-2">Instructions</span>
-                      <div style={{ flex: 1, height: '1px', backgroundColor: 'lightgray' }} />
+                    {/* Guest Information */}
+                    <div className="section-header mt-1">
+                      <span className="fw-bold">Guest Information</span>
                     </div>
 
-                    <Row className="g-2 mb-1">
-                      <Col md={6}>
-                        <BootstrapForm.Label className="fs-small">
-                          Billing Instructions
-                        </BootstrapForm.Label>
+                    {/* Desktop/Laptop/Tablet layout - compact gaps */}
+                    <div className="d-none d-sm-block">
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">Name</Col>
+                        <Col xs={12} md={9} className="compact-input">
+                          <Row className="g-1 align-items-center">
+                            {/* Title input - fixed narrow width, e.g. "MR" */}
+                            <Col xs="auto" style={{ width: '42px' }}>
+                              <FormikTextInput
+                                name="title"
+                                placeholder="MR"
+                                size="sm"
+                                className="w-100 fs-small text-center"
+                                style={{ height: '29px' }}
+                              />
+                            </Col>
+                            {/* Guest Search - takes remaining space */}
+                            <Col style={{ flex: '1', minWidth: '110px' }}>
+                              <Select<Option, false>
+                                options={guestOptions}
+                                isLoading={searchingGuests}
+                                className="w-100 fs-small"
+                                styles={selectStyles}
+                                value={guestOptions.find((o) => Number(o.value) === values.guestId) || null}
+                                onChange={(opt) => {
+                                  if (opt?.value) {
+                                    const guestId = Number(opt.value);
+                                    setFieldValue('guestId', guestId);
+                                    loadGuestDetails(guestId);
+                                  } else {
+                                    setFieldValue('guestId', null);
+                                    setFieldValue('title', 'MR');
+                                    setFieldValue('firstName', '');
+                                    setFieldValue('lastName', '');
+                                    setFieldValue('phone1', '');
+                                    setFieldValue('phone2', '');
+                                    setFieldValue('email', '');
+                                    setFieldValue('address', '');
+                                    setFieldValue('countryId', '');
+                                    setFieldValue('stateId', '');
+                                    setFieldValue('cityId', '');
+                                    setFieldValue('actualCountryId', null);
+                                    setFieldValue('actualStateId', null);
+                                    setFieldValue('actualCityId', null);
+                                    setFieldValue('idType', null);
+                                    setFieldValue('idNumber', '');
+                                    setFieldValue('otherInfo', '');
+                                    setFieldValue('companyId', null);
+                                    setFieldValue('gst', '');
+                                  }
+                                }}
+                                onInputChange={(inputValue, { action }) => {
+                                  if (action === 'input-change') handleGuestSearch(inputValue);
+                                }}
+                                onMenuOpen={() => {
+                                  if (!guestOptions.length && hotelId) loadAllGuests();
+                                }}
+                                placeholder="Search Guest Name"
+                                isClearable
+                                menuPortalTarget={document.body}
+                                menuPosition="fixed"
+                              />
+                            </Col>
+                            {/* Add Button - fixed compact square */}
+                            <Col xs="auto" style={{ width: '36px', paddingLeft: '3px' }}>
+                              <button
+                                type="button"
+                                className="btn btn-success btn-sm"
+                                style={{
+                                  height: '29px',
+                                  width: '32px',
+                                  padding: '0',
+                                  fontSize: '15px',
+                                  lineHeight: '1',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '4px',
+                                }}
+                                onClick={() => setShowGuestModal(true)}>
+                                +
+                              </button>
+                            </Col>
+                          </Row>
+                        </Col>
+                      </Row>
+
+                      <input type="hidden" {...formik.getFieldProps('firstName')} />
+                      <input type="hidden" {...formik.getFieldProps('lastName')} />
+
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">Mobile</Col>
+                        <Col xs={12} md={9}>
+                          <Row className="g-1">
+                            <Col xs={12} sm={6}>
+                              <FormikTextInput
+                                name="phone1"
+                                size="sm"
+                                className="w-100 fs-small"
+                                placeholder="Mobile 1"
+                                readOnly
+                              />
+                            </Col>
+                            <Col xs={12} sm={6}>
+                              <FormikTextInput
+                                name="phone2"
+                                size="sm"
+                                className="w-100 fs-small"
+                                placeholder="Mobile 2"
+                                readOnly
+                              />
+                            </Col>
+                          </Row>
+                        </Col>
+                      </Row>
+
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">Email</Col>
+                        <Col xs={12} md={9} className="compact-input">
+                          <FormikTextInput
+                            name="email"
+                            size="sm"
+                            className="w-100 fs-small"
+                            placeholder="Email"
+                            readOnly
+                          />
+                        </Col>
+                      </Row>
+
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">Address</Col>
+                        <Col xs={12} md={9} className="compact-input">
+                          <FormikTextInput
+                            name="address"
+                            as="textarea"
+                            rows={2}
+                            className="w-100 fs-small"
+                            readOnly
+                          />
+                        </Col>
+                      </Row>
+
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">Country</Col>
+                        <Col xs={12} md={9} className="compact-input">
+                          <FormikTextInput
+                            name="countryId"
+                            placeholder="Country"
+                            size="sm"
+                            className="w-100 fs-small"
+                            readOnly
+                          />
+                        </Col>
+                      </Row>
+
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">State</Col>
+                        <Col xs={12} md={9} className="compact-input">
+                          <FormikTextInput
+                            name="stateId"
+                            placeholder="State"
+                            size="sm"
+                            className="w-100 fs-small"
+                            readOnly
+                          />
+                        </Col>
+                      </Row>
+
+                      <Row className="align-items-center g-1 mb-2">
+                        <Col xs={12} md={3} className="fs-small compact-label">City</Col>
+                        <Col xs={12} md={9} className="compact-input">
+                          <FormikTextInput
+                            name="cityId"
+                            placeholder="City"
+                            size="sm"
+                            className="w-100 fs-small"
+                            readOnly
+                          />
+                        </Col>
+                      </Row>
+                    </div>
+
+                    {/* Mobile layout - label on left, input on right */}
+                    <div className="d-sm-none">
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">Name</span>
+                        <div className="mobile-input">
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <div style={{ flex: '0 0 40px' }}>
+                              <FormikTextInput
+                                name="title"
+                                placeholder="MR"
+                                size="sm"
+                                className="w-100 fs-small"
+                              />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <Select<Option, false>
+                                options={guestOptions}
+                                isLoading={searchingGuests}
+                                className="w-100 fs-small"
+                                styles={selectStyles}
+                                value={guestOptions.find((o) => Number(o.value) === values.guestId) || null}
+                                onChange={(opt) => {
+                                  if (opt?.value) {
+                                    const guestId = Number(opt.value);
+                                    setFieldValue('guestId', guestId);
+                                    loadGuestDetails(guestId);
+                                  } else {
+                                    setFieldValue('guestId', null);
+                                    setFieldValue('title', 'MR');
+                                    setFieldValue('firstName', '');
+                                    setFieldValue('lastName', '');
+                                    setFieldValue('phone1', '');
+                                    setFieldValue('phone2', '');
+                                    setFieldValue('email', '');
+                                    setFieldValue('address', '');
+                                    setFieldValue('countryId', '');
+                                    setFieldValue('stateId', '');
+                                    setFieldValue('cityId', '');
+                                    setFieldValue('actualCountryId', null);
+                                    setFieldValue('actualStateId', null);
+                                    setFieldValue('actualCityId', null);
+                                    setFieldValue('idType', null);
+                                    setFieldValue('idNumber', '');
+                                    setFieldValue('otherInfo', '');
+                                    setFieldValue('companyId', null);
+                                    setFieldValue('gst', '');
+                                  }
+                                }}
+                                onInputChange={(inputValue, { action }) => {
+                                  if (action === 'input-change') handleGuestSearch(inputValue);
+                                }}
+                                onMenuOpen={() => {
+                                  if (!guestOptions.length && hotelId) loadAllGuests();
+                                }}
+                                placeholder="Search Guest"
+                                isClearable
+                                menuPortalTarget={document.body}
+                                menuPosition="fixed"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn-success btn-sm p-0"
+                              style={{ height: '29px', width: '29px', flexShrink: 0 }}
+                              onClick={() => setShowGuestModal(true)}>
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <input type="hidden" {...formik.getFieldProps('firstName')} />
+                      <input type="hidden" {...formik.getFieldProps('lastName')} />
+
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">Mobile</span>
+                        <div className="mobile-input">
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <FormikTextInput
+                              name="phone1"
+                              size="sm"
+                              className="w-100 fs-small"
+                              placeholder="Mobile 1"
+                              readOnly
+                              style={{ flex: 1 }}
+                            />
+                            <FormikTextInput
+                              name="phone2"
+                              size="sm"
+                              className="w-100 fs-small"
+                              placeholder="Mobile 2"
+                              readOnly
+                              style={{ flex: 1 }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">Email</span>
+                        <div className="mobile-input">
+                          <FormikTextInput
+                            name="email"
+                            size="sm"
+                            className="w-100 fs-small"
+                            placeholder="Email"
+                            readOnly
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">Address</span>
+                        <div className="mobile-input">
+                          <FormikTextInput
+                            name="address"
+                            as="textarea"
+                            rows={2}
+                            className="w-100 fs-small"
+                            readOnly
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">Country</span>
+                        <div className="mobile-input">
+                          <FormikTextInput
+                            name="countryId"
+                            placeholder="Country"
+                            size="sm"
+                            className="w-100 fs-small"
+                            readOnly
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">State</span>
+                        <div className="mobile-input">
+                          <FormikTextInput
+                            name="stateId"
+                            placeholder="State"
+                            size="sm"
+                            className="w-100 fs-small"
+                            readOnly
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mobile-inline-row">
+                        <span className="mobile-label">City</span>
+                        <div className="mobile-input">
+                          <FormikTextInput
+                            name="cityId"
+                            placeholder="City"
+                            size="sm"
+                            className="w-100 fs-small"
+                            readOnly
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="section-header mt-1">
+                      <span className="fw-bold">Instructions</span>
+                    </div>
+
+                    <Row className="g-1 ">
+                      <Col xs={12} md={6}>
+                        <label className="fs-small">Billing Instructions</label>
                         <textarea
                           {...formik.getFieldProps('billingInstructions')}
-                          rows={3}
-                          className="w-100 fs-small"
+                          rows={2}
+                          className="w-100 fs-small instruction-textarea"
                           placeholder="Billing instructions"
                         />
                       </Col>
-                      <Col md={6}>
-                        <BootstrapForm.Label className="fs-small">
-                          Special Instructions
-                        </BootstrapForm.Label>
+                      <Col xs={12} md={6}>
+                        <label className="fs-small">Special Instructions</label>
                         <textarea
                           {...formik.getFieldProps('specialInstructions')}
-                          rows={3}
-                          className="w-100 fs-small"
+                          rows={2}
+                          className="w-100 fs-small instruction-textarea"
                           placeholder="Special instructions"
                         />
                       </Col>
                     </Row>
-                  </fieldset>
+                  </div>
                 </Col>
 
-                {/* RIGHT COLUMN */}
-                <Col md={8}>
-                  <fieldset className="p-1 bg-light">
-                    <legend
-                      style={{
-                        backgroundColor: '#dc3545',
-                        color: '#fff',
-                        padding: '2px 12px',
-                        fontSize: '13px',
-                        fontWeight: '600',
-                        borderRadius: '3px',
-                      }}>
-                      Room Details
-                    </legend>
+                {/* ===== COLUMN 2: Room Details ===== */}
+                <Col
+                  xs={rightColSpan}
+                  className={`d-flex flex-column tab-section${activeMobileTab === 'room' ? ' tab-active' : ''}`}>
+                  <div className="bordered-section">
+                    <div className="section-header">
+                      <span className="fw-bold">Room Details</span>
+                    </div>
 
-                    {/* Room input fields */}
-                    <Row className="g-2 mb-1">
-                      <Col xs="auto" style={{ width: '150px' }}>
-                        <label className="fs-small mb-1">Room Category</label>
-                        <Select<NumericOption, false>
-                          name="roomCategory"
-                          options={categoryOptionsNumeric}
-                          isLoading={loadingCategories}
-                          className="fs-small"
-                          styles={selectStyles}
-                          value={categoryOptionsNumeric.find((o) => o.value === Number(values.roomCategory)) || null}
-                          onChange={(opt) => {
-                            const catId = opt?.value ?? null;
-                            setFieldValue('roomCategory', catId);
-                            handleRoomCategoryChange(catId);
-                          }}
-                          placeholder="Select"
-                          isClearable
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '150px' }}>
-                        <label className="fs-small mb-1">Converted Category</label>
-                        <Select<NumericOption, false>
-                          name="convertedCategory"
-                          options={categoryOptionsNumeric}
-                          isLoading={loadingCategories}
-                          className="fs-small"
-                          styles={selectStyles}
-                          value={categoryOptionsNumeric.find((o) => o.value === Number(values.convertedCategory)) || null}
-                          onChange={(opt) => {
-                            const catId = opt?.value ?? null;
-                            setFieldValue('convertedCategory', catId);
-                            handleConvertedCategoryChange(catId);
-                          }}
-                          placeholder="Select"
-                          isClearable
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '80px' }}>
-                        <label className="fs-small mb-1">Rooms No</label>
-                        <FormikTextInput
-                          name="roomsNo"
-                          type="number"
-                          size="sm"
-                          className="w-100 fs-small"
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            setFieldValue('roomsNo', e.target.value);
-                            recalculateRoomTotal();
-                          }}
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '100px' }}>
-                        <label className="fs-small mb-1">Room Charge</label>
-                        <FormikTextInput
-                          name="roomCharge"
-                          type="number"
-                          size="sm"
-                          className="w-100 fs-small"
-                          value={displayRoomCharge}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            setFieldValue('roomCharge', e.target.value);
-                            recalculateRoomTotal();
-                          }}
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '80px' }}>
-                        <label className="fs-small mb-1">Discount %</label>
-                        <FormikTextInput
-                          name="discount"
-                          type="number"
-                          size="sm"
-                          className="w-100 fs-small"
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            setFieldValue('discount', e.target.value);
-                            recalculateRoomTotal();
-                          }}
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '100px' }}>
-                        <label className="fs-small mb-1">Discount Amt</label>
-                        <FormikTextInput
-                          name="discountAmt"
-                          type="number"
-                          size="sm"
-                          className="w-100 fs-small"
-                          readOnly
-                          value={formatToTwoDecimals(values.discountAmt)}
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '80px' }}>
-                        <label className="fs-small mb-1">Tax %</label>
-                        <FormikTextInput
-                          name="taxPercent"
-                          type="number"
-                          size="sm"
-                          className="w-100 fs-small"
-                          value={displayTaxPercent}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            setFieldValue('taxPercent', e.target.value);
-                            recalculateRoomTotal();
-                          }}
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '90px' }}>
-                        <label className="fs-small mb-1">Tax Amount</label>
-                        <FormikTextInput
-                          name="taxAmount"
-                          type="number"
-                          size="sm"
-                          className="w-100 fs-small"
-                          readOnly
-                          value={displayTaxAmount}
-                        />
-                      </Col>
-                    </Row>
-
-                    <Row className="g-2 mb-2 align-items-end">
-                      <Col xs="auto" style={{ width: '110px' }}>
-                        <label className="fs-small mb-1 fw-bold text-primary">👤 Adults</label>
-                        <div className="adult-control">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFieldValue('adult', Math.max(0, (values.adult || 0) - 1));
-                              recalculateRoomTotal();
+                    {/* Room input fields - Desktop/Laptop/Tablet */}
+                    <div className="d-none d-sm-block">
+                      <Row className="g-1 mb-2 align-items-end">
+                        <Col xs="auto" style={{ flex: '1', minWidth: '130px' }}>
+                          <label className="form-label-sm">Room Category</label>
+                          <Select<NumericOption, false>
+                            name="roomCategory"
+                            options={categoryOptionsNumeric}
+                            isLoading={loadingCategories}
+                            className="fs-small"
+                            styles={selectStyles}
+                            value={categoryOptionsNumeric.find((o) => o.value === Number(values.roomCategory)) || null}
+                            onChange={(opt) => {
+                              const catId = opt?.value ?? null;
+                              setFieldValue('roomCategory', catId);
+                              handleRoomCategoryChange(catId);
                             }}
-                          >
-                            −
-                          </button>
-                          <input
+                            placeholder="Select"
+                            isClearable
+                            menuPortalTarget={document.body}
+                            menuPosition="fixed"
+                          />
+                        </Col>
+                        <Col xs="auto" style={{ flex: '1', minWidth: '130px' }}>
+                          <label className="form-label-sm">Converted Category</label>
+                          <Select<NumericOption, false>
+                            name="convertedCategory"
+                            options={categoryOptionsNumeric}
+                            isLoading={loadingCategories}
+                            className="fs-small"
+                            styles={selectStyles}
+                            value={categoryOptionsNumeric.find((o) => o.value === Number(values.convertedCategory)) || null}
+                            onChange={(opt) => {
+                              const catId = opt?.value ?? null;
+                              setFieldValue('convertedCategory', catId);
+                              handleConvertedCategoryChange(catId);
+                            }}
+                            placeholder="Select"
+                            isClearable
+                            menuPortalTarget={document.body}
+                            menuPosition="fixed"
+                          />
+                        </Col>
+                        <Col xs="auto" style={{ width: '70px' }}>
+                          <label className="form-label-sm">Rooms</label>
+                          <FormikTextInput
+                            name="roomsNo"
                             type="number"
-                            value={values.adult || 0}
-                            min={0}
-                            onChange={(e) => {
-                              setFieldValue('adult', Math.max(0, Number(e.target.value)));
+                            size="sm"
+                            className="w-100 fs-small"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('roomsNo', e.target.value);
                               recalculateRoomTotal();
                             }}
                           />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFieldValue('adult', (values.adult || 0) + 1);
+                        </Col>
+                        <Col xs="auto" style={{ width: '90px' }}>
+                          <label className="form-label-sm">Room Charge</label>
+                          <FormikTextInput
+                            name="roomCharge"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            value={displayRoomCharge}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('roomCharge', e.target.value);
                               recalculateRoomTotal();
                             }}
-                          >
-                            +
-                          </button>
-                        </div>
-                      </Col>
-
-                      <Col xs="auto" style={{ width: '70px' }}>
-                        <label className="fs-small mb-1 d-block" style={{ color: '#198754' }}>
-                          Pax
-                          {effectiveStandardPax > 0 && (
-                            <span className="ms-1" style={{ fontSize: '0.55rem', color: '#888' }}>
-                              (fixed)
-                            </span>
-                          )}
-                        </label>
-                        <div
-                          className="d-flex align-items-center justify-content-center border rounded"
-                          style={{
-                            height: '28px',
-                            background: '#f0fff4',
-                            borderColor: '#198754',
-                            border: '1px solid #198754',
-                            borderRadius: '4px',
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontWeight: 'bold',
-                              fontSize: '14px',
-                              color: '#198754',
-                              minWidth: '25px',
-                              textAlign: 'center',
+                          />
+                        </Col>
+                        <Col xs="auto" style={{ width: '75px' }}>
+                          <label className="form-label-sm">Discount %</label>
+                          <FormikTextInput
+                            name="discount"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('discount', e.target.value);
+                              recalculateRoomTotal();
                             }}
-                          >
-                            {values.pax || 0}
-                          </span>
-                        </div>
-                      </Col>
-
-                      <Col xs="auto" style={{ width: '70px' }}>
-                        <label className="fs-small mb-1 d-block" style={{ color: '#dc6500' }}>
-                          Ex_Pax
-                        </label>
-                        <div
-                          className="d-flex align-items-center justify-content-center border rounded"
-                          style={{
-                            height: '28px',
-                            background: (values.exPax || 0) > 0 ? '#fff3e0' : '#f8f9fa',
-                            border: `1px solid ${(values.exPax || 0) > 0 ? '#fd7e14' : '#ced4da'}`,
-                            borderRadius: '4px',
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontWeight: 'bold',
-                              fontSize: '14px',
-                              color: (values.exPax || 0) > 0 ? '#dc6500' : '#aaa',
-                              minWidth: '25px',
-                              textAlign: 'center',
+                          />
+                        </Col>
+                        <Col xs="auto" style={{ width: '90px' }}>
+                          <label className="form-label-sm">Discount Amt</label>
+                          <FormikTextInput
+                            name="discountAmt"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            readOnly
+                            value={formatToTwoDecimals(values.discountAmt)}
+                          />
+                        </Col>
+                        <Col xs="auto" style={{ width: '75px' }}>
+                          <label className="form-label-sm">Tax %</label>
+                          <FormikTextInput
+                            name="taxPercent"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            value={displayTaxPercent}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('taxPercent', e.target.value);
+                              recalculateRoomTotal();
                             }}
-                          >
-                            {values.exPax || 0}
-                          </span>
-                        </div>
-                      </Col>
+                          />
+                        </Col>
+                        <Col xs="auto" style={{ width: '90px' }}>
+                          <label className="form-label-sm">Tax Amount</label>
+                          <FormikTextInput
+                            name="taxAmount"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            readOnly
+                            value={displayTaxAmount}
+                          />
+                        </Col>
+                      </Row>
+                    </div>
 
-                      <Col xs="auto" style={{ width: '75px' }}>
-                        <label className="fs-small mb-1">Child Paid</label>
-                        <FormikTextInput
-                          name="childPaid"
-                          type="number"
-                          size="sm"
-                          className="w-100 fs-small"
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            setFieldValue('childPaid', e.target.value);
-                            recalculateRoomTotal();
-                          }}
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '75px' }}>
-                        <label className="fs-small mb-1">Child Unpaid</label>
-                        <FormikTextInput
-                          name="childUnpaid"
-                          type="number"
-                          size="sm"
-                          className="w-100 fs-small"
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            setFieldValue('childUnpaid', e.target.value);
-                            recalculateRoomTotal();
-                          }}
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '75px' }}>
-                        <label className="fs-small mb-1">Driver</label>
-                        <FormikTextInput
-                          name="driver"
-                          type="number"
-                          size="sm"
-                          className="w-100 fs-small"
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            setFieldValue('driver', e.target.value);
-                            recalculateRoomTotal();
-                          }}
-                        />
-                      </Col>
-                      <Col xs="auto" style={{ width: '100px' }}>
-                        <label className="fs-small mb-1">Total (per night)</label>
-                        <FormikTextInput
-                          name="total"
-                          type="text"
-                          size="sm"
-                          className="w-100 fs-small fw-bold amount-display"
-                          readOnly
-                          value={displayTotal}
-                        />
-                      </Col>
-                      <Col xs={2}>
-                        <Button
-                          size="sm"
-                          variant="success"
-                          onClick={handleAddOrUpdateRow}
-                          style={{
-                            height: '28px',
-                            fontSize: '10px',
-                            padding: '1px 6px',
-                            marginTop: '20px',
-                          }}>
-                          {editingRowId ? 'Update' : 'Add'}
-                        </Button>
-                      </Col>
-                    </Row>
+                    {/* Mobile Room Details - 4-row grid layout */}
+                    <div className="d-sm-none">
+                      {/* Row 1: Room Category, Convert Category, Rooms */}
+                      <div className="mobile-room-row1">
+                        <div className="room-item">
+                          <label>Room Category</label>
+                          <Select<NumericOption, false>
+                            name="roomCategory"
+                            options={categoryOptionsNumeric}
+                            isLoading={loadingCategories}
+                            className="fs-small"
+                            styles={selectStyles}
+                            value={categoryOptionsNumeric.find((o) => o.value === Number(values.roomCategory)) || null}
+                            onChange={(opt) => {
+                              const catId = opt?.value ?? null;
+                              setFieldValue('roomCategory', catId);
+                              handleRoomCategoryChange(catId);
+                            }}
+                            placeholder="Select"
+                            isClearable
+                            menuPortalTarget={document.body}
+                            menuPosition="fixed"
+                          />
+                        </div>
+                        <div className="room-item">
+                          <label>Convert Category</label>
+                          <Select<NumericOption, false>
+                            name="convertedCategory"
+                            options={categoryOptionsNumeric}
+                            isLoading={loadingCategories}
+                            className="fs-small"
+                            styles={selectStyles}
+                            value={categoryOptionsNumeric.find((o) => o.value === Number(values.convertedCategory)) || null}
+                            onChange={(opt) => {
+                              const catId = opt?.value ?? null;
+                              setFieldValue('convertedCategory', catId);
+                              handleConvertedCategoryChange(catId);
+                            }}
+                            placeholder="Select"
+                            isClearable
+                            menuPortalTarget={document.body}
+                            menuPosition="fixed"
+                          />
+                        </div>
+                        <div className="room-item">
+                          <label>Rooms</label>
+                          <FormikTextInput
+                            name="roomsNo"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('roomsNo', e.target.value);
+                              recalculateRoomTotal();
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Row 2: Room Charges, Discount %, Discount Amt, Tax %, Tax Amt */}
+                      <div className="mobile-room-row2">
+                        <div className="room-item">
+                          <label>Room Charge</label>
+                          <FormikTextInput
+                            name="roomCharge"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            value={displayRoomCharge}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('roomCharge', e.target.value);
+                              recalculateRoomTotal();
+                            }}
+                          />
+                        </div>
+                        <div className="room-item">
+                          <label>Discount %</label>
+                          <FormikTextInput
+                            name="discount"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('discount', e.target.value);
+                              recalculateRoomTotal();
+                            }}
+                          />
+                        </div>
+                        <div className="room-item">
+                          <label>Discount Amt</label>
+                          <FormikTextInput
+                            name="discountAmt"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            readOnly
+                            value={formatToTwoDecimals(values.discountAmt)}
+                          />
+                        </div>
+                        <div className="room-item">
+                          <label>Tax %</label>
+                          <FormikTextInput
+                            name="taxPercent"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            value={displayTaxPercent}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('taxPercent', e.target.value);
+                              recalculateRoomTotal();
+                            }}
+                          />
+                        </div>
+                        <div className="room-item">
+                          <label>Tax Amount</label>
+                          <FormikTextInput
+                            name="taxAmount"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            readOnly
+                            value={displayTaxAmount}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Row 3: Adult, Pax, Ex_Pax, Child Paid, Child Unpaid, Driver */}
+                      <div className="mobile-room-row3">
+                        <div className="room-item">
+                          <label className="fw-bold text-primary">👤 Adults</label>
+                          <div className="counter-group">
+                            <button
+                              type="button"
+                              className="counter-btn"
+                              onClick={() => {
+                                setFieldValue('adult', Math.max(0, (values.adult || 0) - 1));
+                                recalculateRoomTotal();
+                              }}>
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              className="counter-input"
+                              value={values.adult || 0}
+                              min={0}
+                              onChange={(e) => {
+                                setFieldValue('adult', Math.max(0, Number(e.target.value)));
+                                recalculateRoomTotal();
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="counter-btn"
+                              onClick={() => {
+                                setFieldValue('adult', (values.adult || 0) + 1);
+                                recalculateRoomTotal();
+                              }}>
+                              +
+                            </button>
+                          </div>
+                        </div>
+                        <div className="room-item">
+                          <label className="text-success">Pax</label>
+                          <div className="pax-display">
+                            <span>{values.pax || 0}</span>
+                          </div>
+                        </div>
+                        <div className="room-item">
+                          <label style={{ color: '#dc6500' }}>Ex_Pax</label>
+                          <div className="ex-pax-display">
+                            <span>{values.exPax || 0}</span>
+                          </div>
+                        </div>
+                        <div className="room-item">
+                          <label>Child Paid</label>
+                          <FormikTextInput
+                            name="childPaid"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('childPaid', e.target.value);
+                              recalculateRoomTotal();
+                            }}
+                          />
+                        </div>
+                        <div className="room-item">
+                          <label>C.Unpaid</label>
+                          <FormikTextInput
+                            name="childUnpaid"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('childUnpaid', e.target.value);
+                              recalculateRoomTotal();
+                            }}
+                          />
+                        </div>
+                        <div className="room-item">
+                          <label>Driver</label>
+                          <FormikTextInput
+                            name="driver"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('driver', e.target.value);
+                              recalculateRoomTotal();
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Row 4: Total + Add Button */}
+                      <div className="mobile-room-row4">
+                        <div className="room-item">
+                          <label className="fw-bold text-success">Total</label>
+                          <FormikTextInput
+                            name="total"
+                            type="text"
+                            size="sm"
+                            className="w-100 fs-small fw-bold amount-display"
+                            readOnly
+                            value={displayTotal}
+                          />
+                        </div>
+                        <div className="room-item">
+                          <label style={{ opacity: 0 }}>Add</label>
+                          <Button
+                            size="sm"
+                            variant="success"
+                            className="add-btn"
+                            onClick={handleAddOrUpdateRow}>
+                            {editingRowId ? 'Update' : 'Add'}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pax Controls - Desktop/Laptop/Tablet */}
+                    <div className="d-none d-sm-block">
+                      <Row className="g-2 mb-2 align-items-end">
+                        <Col xs="auto" style={{ width: '100px' }}>
+                          <label className="form-label-sm fw-bold text-primary">👤 Adults</label>
+                          <div className="counter-group">
+                            <button
+                              type="button"
+                              className="counter-btn"
+                              onClick={() => {
+                                setFieldValue('adult', Math.max(0, (values.adult || 0) - 1));
+                                recalculateRoomTotal();
+                              }}>
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              className="counter-input"
+                              value={values.adult || 0}
+                              min={0}
+                              onChange={(e) => {
+                                setFieldValue('adult', Math.max(0, Number(e.target.value)));
+                                recalculateRoomTotal();
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="counter-btn"
+                              onClick={() => {
+                                setFieldValue('adult', (values.adult || 0) + 1);
+                                recalculateRoomTotal();
+                              }}>
+                              +
+                            </button>
+                          </div>
+                        </Col>
+
+                        <Col xs="auto" style={{ width: '70px' }}>
+                          <label className="form-label-sm d-block text-success">Pax</label>
+                          <div className="pax-display">
+                            <span>{values.pax || 0}</span>
+                          </div>
+                        </Col>
+
+                        <Col xs="auto" style={{ width: '75px' }}>
+                          <label className="form-label-sm d-block" style={{ color: '#dc6500' }}>Ex_Pax</label>
+                          <div className="ex-pax-display">
+                            <span>{values.exPax || 0}</span>
+                          </div>
+                        </Col>
+
+                        <Col xs="auto" style={{ width: '80px' }}>
+                          <label className="form-label-sm">Child Paid</label>
+                          <FormikTextInput
+                            name="childPaid"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('childPaid', e.target.value);
+                              recalculateRoomTotal();
+                            }}
+                          />
+                        </Col>
+                        <Col xs="auto" style={{ width: '80px' }}>
+                          <label className="form-label-sm">C.Unpaid</label>
+                          <FormikTextInput
+                            name="childUnpaid"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('childUnpaid', e.target.value);
+                              recalculateRoomTotal();
+                            }}
+                          />
+                        </Col>
+                        <Col xs="auto" style={{ width: '75px' }}>
+                          <label className="form-label-sm">Driver</label>
+                          <FormikTextInput
+                            name="driver"
+                            type="number"
+                            size="sm"
+                            className="w-100 fs-small"
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              setFieldValue('driver', e.target.value);
+                              recalculateRoomTotal();
+                            }}
+                          />
+                        </Col>
+                        <Col xs="auto" style={{ width: '100px' }}>
+                          <label className="form-label-sm fw-bold text-success">Total</label>
+                          <FormikTextInput
+                            name="total"
+                            type="text"
+                            size="sm"
+                            className="w-100 fs-small fw-bold amount-display"
+                            readOnly
+                            value={displayTotal}
+                          />
+                        </Col>
+                        <Col xs="auto" style={{ width: '70px' }}>
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={handleAddOrUpdateRow}
+                            style={{ height: 'var(--input-scale)', fontSize: 'var(--font-scale)', padding: '1px 6px' }}>
+                            {editingRowId ? 'Update' : 'Add'}
+                          </Button>
+                        </Col>
+                      </Row>
+                    </div>
 
                     {/* Scrollable table */}
-                    <div className="scrollable-table mt-2">
+                    <div className="scrollable-table mt-2 mb-2">
                       <table
                         className="table table-bordered table-sm-compact mb-0"
                         style={{
                           borderColor: '#d1d1d1',
-                          minWidth: '2000px',
+                          minWidth: '1200px',
                           whiteSpace: 'nowrap',
                         }}>
-                        <thead className="bg-light">
+                        <thead>
                           <tr className="text-center" style={{ backgroundColor: '#d9d9d9' }}>
-                            <th>Sr.No</th>
-                            <th>Guest</th>
-                            <th>GuestID</th>
-                            <th>Room Count</th>
-                            <th>Room Category</th>
-                            <th>Converted Category</th>
-                            <th>A_Date</th>
-                            <th>A_Time</th>
-                            <th>D_Date</th>
-                            <th>D_Time</th>
-                            <th>Adults</th>
-                            <th>Pax</th>
-                            <th>Ex_Pax</th>
-                            <th>Ex_Pax Price</th>
-                            <th>Ex_Pax Tax%</th>
-                            <th>Ex_Pax Tax Amt</th>
-                            <th>Ex_Pax Total</th>
-                            <th>Child paid</th>
-                            <th>Child unpaid</th>
-                            <th>Child Price</th>
-                            <th>Child Tax%</th>
-                            <th>Child Tax Amt</th>
-                            <th>Child Total</th>
-                            <th>Driver</th>
-                            <th>Driver Price</th>
-                            <th>Driver Tax%</th>
-                            <th>Driver Tax Amt</th>
-                            <th>Driver Total</th>
-                            <th>Days</th>
-                            <th>Rate/Night</th>
-                            <th>Discount%</th>
-                            <th>Discount Amt.</th>
-                            <th>Tax %</th>
-                            <th>Tax Amt</th>
-                            <th>Total Amount</th>
-                            <th>Actions</th>
-                           </tr>
+                            <th style={{ width: '40px' }}>#</th>
+                            <th style={{ minWidth: '100px' }}>Guest</th>
+                            <th style={{ width: '70px' }}>GuestID</th>
+                            <th style={{ width: '60px' }}>Rooms</th>
+                            <th style={{ minWidth: '100px' }}>Category</th>
+                            <th style={{ minWidth: '100px' }}>Conv. Cat</th>
+                            <th style={{ width: '100px' }}>A_Date</th>
+                            <th style={{ width: '80px' }}>A_Time</th>
+                            <th style={{ width: '100px' }}>D_Date</th>
+                            <th style={{ width: '80px' }}>D_Time</th>
+                            <th style={{ width: '60px' }}>Adults</th>
+                            <th style={{ width: '50px' }}>Pax</th>
+                            <th style={{ width: '55px' }}>Ex_Pax</th>
+                            <th style={{ width: '80px' }}>Ex_Pax Price</th>
+                            <th style={{ width: '75px' }}>Ex_Pax Tax%</th>
+                            <th style={{ width: '75px' }}>Ex_Pax Tax</th>
+                            <th style={{ width: '85px' }}>Ex_Pax Total</th>
+                            <th style={{ width: '75px' }}>Child Paid</th>
+                            <th style={{ width: '80px' }}>Child Unpaid</th>
+                            <th style={{ width: '80px' }}>Child Price</th>
+                            <th style={{ width: '75px' }}>Child Tax%</th>
+                            <th style={{ width: '75px' }}>Child Tax</th>
+                            <th style={{ width: '85px' }}>Child Total</th>
+                            <th style={{ width: '60px' }}>Driver</th>
+                            <th style={{ width: '80px' }}>Driver Price</th>
+                            <th style={{ width: '75px' }}>Driver Tax%</th>
+                            <th style={{ width: '75px' }}>Driver Tax</th>
+                            <th style={{ width: '85px' }}>Driver Total</th>
+                            <th style={{ width: '50px' }}>Days</th>
+                            <th style={{ width: '70px' }}>Rate</th>
+                            <th style={{ width: '60px' }}>Dis%</th>
+                            <th style={{ width: '75px' }}>Dis Amt</th>
+                            <th style={{ width: '60px' }}>Tax%</th>
+                            <th style={{ width: '75px' }}>Tax Amt</th>
+                            <th style={{ width: '85px' }}>Total</th>
+                            <th style={{ width: '70px' }}>Actions</th>
+                          </tr>
                         </thead>
                         <tbody>
                           {roomRows.map((row, index) => (
@@ -2248,12 +3575,23 @@ const bookedByFormRef = useRef<any>(null);
                                 <Button
                                   variant="outline-danger"
                                   size="sm"
-                                  className="p-1 px-1"
+                                  className="p-0"
                                   onClick={() => handleDeleteRow(row.id)}
-                                  style={{ lineHeight: 1 }}>
-                                  <i className="fi fi-rr-trash"></i>
+                                  style={{
+                                    height: '20px',
+                                    minHeight: '20px',
+                                    padding: '0 4px',
+                                    lineHeight: 1,
+                                  }}>
+                                  <i className="fi fi-rr-trash" style={{ fontSize: '12px' }} />
                                 </Button>
                               </td>
+                            </tr>
+                          ))}
+                          {/* Empty rows to fill the table height - shows 3 rows on mobile, 7 rows on desktop */}
+                          {Array.from({ length: Math.max(0, 6 - roomRows.length) }).map((_, index) => (
+                            <tr key={`empty-${index}`} style={{ height: '28px' }}>
+                              <td colSpan={36}></td>
                             </tr>
                           ))}
                         </tbody>
@@ -2261,182 +3599,287 @@ const bookedByFormRef = useRef<any>(null);
                     </div>
 
                     {/* Booked By Details */}
-                    <fieldset className="light-gray-border p-1 mt-2">
-                      <div className="d-flex justify-content-between align-items-center mb-2">
-                        <legend className="section-legend mb-0" style={{ fontSize: '14px', fontWeight: '600' }}>
-                          Booked By Details
-                        </legend>
+                    <div className="light-gray-border p-1 mt-1 mb-2">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <span className="fs-small fw-bold">Booked By Details</span>
                         <Button
                           size="sm"
                           variant="success"
-                          style={{ fontSize: '12px', lineHeight: '1.2', height: '28px', padding: '2px 10px' }}
+                          style={{ fontSize: 'var(--font-scale)', lineHeight: '1.2', height: 'var(--button-scale)', padding: '2px 10px' }}
                           onClick={() => setShowBookedByModal(true)}>
                           {bookedBy ? 'Edit' : 'Add'}
                         </Button>
                       </div>
-
-                      <table className="table table-bordered table-sm-compact mb-0" style={{ borderColor: '#d1d1d1' }}>
-                        <thead className="bg-light">
+                      <div className="booked-by-scroll-wrapper">
+                      <table className="table table-bordered booked-by-table mb-1" style={{ borderColor: '#d1d1d1' }}>
+                        <thead>
                           <tr className="text-center" style={{ backgroundColor: '#d9d9d9' }}>
-                            <th style={{ width: '160px' }}>Name</th>
+                            <th style={{ width: '180px' }}>Name</th>
                             <th>Mobile 1</th>
                             <th>Mobile 2</th>
                             <th>Email</th>
                             <th>Website</th>
                             <th>Address</th>
-                           </tr>
+                          </tr>
                         </thead>
                         <tbody>
-                          <tr className="text-center" style={{ verticalAlign: 'middle' }}>
-                            <td style={{ width: '160px' }}>
-                              <Select<Option, false>
-                                options={bookedByOptions}
-                                styles={selectStyles}
-                                value={
-                                  bookedBy
-                                    ? { label: bookedBy.name, value: bookedBy.booked_by_id }
-                                    : null
-                                }
-                                onChange={handleBookedBySelect}
-                                placeholder="Select..."
-                                isClearable
-                              />
+                          <tr>
+                            <td className="booked-by-name-cell" style={{ width: '180px' }}>
+                              <div className="has-select" style={{ width: '100%' }}>
+                                <Select<Option, false>
+                                  options={bookedByOptions}
+                                  styles={bookedBySelectStyles}
+                                  value={
+                                    bookedBy
+                                      ? { label: bookedBy.name, value: bookedBy.booked_by_id }
+                                      : null
+                                  }
+                                  onChange={handleBookedBySelect}
+                                  placeholder="Select..."
+                                  isClearable
+                                  menuPortalTarget={document.body}
+                                  menuPosition="fixed"
+                                />
+                              </div>
                             </td>
-                            <td>{bookedBy?.mobile1 || '-'}</td>
-                            <td>{bookedBy?.mobile2 || '-'}</td>
-                            <td>{bookedBy?.email || '-'}</td>
-                            <td>{bookedBy?.website || '-'}</td>
-                            <td>{bookedBy?.address || '-'}</td>
+                            <td className="text-center">{bookedBy?.mobile1 || '-'}</td>
+                            <td className="text-center">{bookedBy?.mobile2 || '-'}</td>
+                            <td className="text-center">{bookedBy?.email || '-'}</td>
+                            <td className="text-center">{bookedBy?.website || '-'}</td>
+                            <td className="text-center">{bookedBy?.address || '-'}</td>
                           </tr>
                         </tbody>
                       </table>
-                    </fieldset>
+                      </div>{/* end booked-by-scroll-wrapper */}
+                    </div>
 
                     {/* Booking Info */}
-                    <fieldset className="light-gray-border p-2 mt-1">
-                      <legend className="section-legend">Booking Info</legend>
-                      <Row>
-                        <Col md={7}>
-                          <Row className="align-items-center mb-1">
-                            <Col md={4}>
-                              <label className="fs-small mb-0">Booking Taken By</label>
-                            </Col>
-                            <Col md={8}>
-                              <FormikTextInput
-                                name="bookingTakenBy"
-                                size="sm"
-                                className="w-100 fs-small"
-                                placeholder="Enter name"
-                              />
-                            </Col>
-                          </Row>
-                          <Row className="align-items-center mb-1">
-                            <Col md={4}>
-                              <label className="fs-small mb-0">Reservation Mode</label>
-                            </Col>
-                            <Col md={8}>
-                              <FormSelect
-                                name="reservationMode"
-                                options={[
-                                  { label: 'Online', value: 'Online' },
-                                  { label: 'Phone', value: 'Phone' },
-                                  { label: 'In Person', value: 'In Person' },
-                                ]}
-                                size="sm"
-                                className="w-100 fs-small"
-                                placeholder="Select"
-                              />
-                            </Col>
-                          </Row>
-                          <Row className="align-items-center mb-1">
-                            <Col md={4}>
-                              <label className="fs-small mb-0">Confirmation Mode</label>
-                            </Col>
-                            <Col md={8}>
-                              <FormSelect
-                                name="confirmationMode"
-                                options={[
-                                  { label: 'Email', value: 'Email' },
-                                  { label: 'Phone', value: 'Phone' },
-                                  { label: 'SMS', value: 'SMS' },
-                                ]}
-                                size="sm"
-                                className="w-100 fs-small"
-                                placeholder="Select"
-                              />
-                            </Col>
-                          </Row>
-                        </Col>
-                        <Col md={5}>
-                          <Row className="align-items-center mb-1">
-                            <Col md={3}>
-                              <label className="fs-small mb-0">Pickup</label>
-                            </Col>
-                            <Col md={9}>
-                              <FormSelect
-                                name="pickup"
-                                options={pickupDropOptions}
-                                size="sm"
-                                className="w-100 fs-small"
-                                placeholder="Select pickup"
-                              />
-                            </Col>
-                          </Row>
-                          <Row className="align-items-center mb-1">
-                            <Col md={3}>
-                              <label className="fs-small mb-0">Drop</label>
-                            </Col>
-                            <Col md={9}>
-                              <FormSelect
-                                name="drop"
-                                options={pickupDropOptions}
-                                size="sm"
-                                className="w-100 fs-small"
-                                placeholder="Select drop"
-                              />
-                            </Col>
-                          </Row>
-                          <Row className="align-items-center mb-1">
-                            <Col md={3}>
-                              <label className="fs-small mb-0">Status</label>
-                            </Col>
-                            <Col md={9}>
-                              <FormSelect
-                                name="status"
-                                options={[
-                                  { label: 'Confirm', value: 'Confirm' },
-                                  { label: 'Wait Listed', value: 'Wait Listed' },
-                                  { label: 'Temporary', value: 'Temporary' },
-                                ]}
-                                size="sm"
-                                className="w-100 fs-small"
-                                placeholder="Select status"
-                              />
-                            </Col>
-                          </Row>
-                        </Col>
-                      </Row>
-                    </fieldset>
-                  </fieldset>
+                    <div className="light-gray-border p-1 mt-1">
+                      <span className="fs-small fw-bold">Booking Info</span>
+
+                      {/* Desktop/Laptop/Tablet layout */}
+                      <div className="d-none d-sm-block">
+                        <Row className="g-2 mt-1">
+                          {/* Left Section */}
+                          <Col lg={6} xs={12}>
+                            <Row className="align-items-center g-2 mb-2">
+                              <Col md={3} xs={12} className="fs-small compact-label">
+                                Taken By
+                              </Col>
+                              <Col md={9} xs={12} className="compact-input">
+                                <FormikTextInput
+                                  name="bookingTakenBy"
+                                  size="sm"
+                                  className="w-100 fs-small"
+                                  placeholder="Enter name"
+                                />
+                              </Col>
+                            </Row>
+
+                            <Row className="align-items-center g-2 mb-2">
+                              <Col md={3} xs={12} className="fs-small compact-label">
+                                Res. Mode
+                              </Col>
+                              <Col md={9} xs={12} className="compact-input">
+                                <FormSelect
+                                  name="reservationMode"
+                                  options={[
+                                    { label: "Online", value: "Online" },
+                                    { label: "Phone", value: "Phone" },
+                                    { label: "In Person", value: "In Person" },
+                                  ]}
+                                  size="sm"
+                                  className="w-100 fs-small"
+                                  placeholder="Select"
+                                />
+                              </Col>
+                            </Row>
+
+                            <Row className="align-items-center g-2 mb-2">
+                              <Col md={3} xs={12} className="fs-small compact-label">
+                                Conf. Mode
+                              </Col>
+                              <Col md={9} xs={12} className="compact-input">
+                                <FormSelect
+                                  name="confirmationMode"
+                                  options={[
+                                    { label: "Email", value: "Email" },
+                                    { label: "Phone", value: "Phone" },
+                                    { label: "SMS", value: "SMS" },
+                                  ]}
+                                  size="sm"
+                                  className="w-100 fs-small"
+                                  placeholder="Select"
+                                />
+                              </Col>
+                            </Row>
+                          </Col>
+
+                          {/* Right Section */}
+                          <Col lg={6} xs={12}>
+                            <Row className="align-items-center g-2 mb-2">
+                              <Col md={3} xs={12} className="fs-small compact-label">
+                                Pickup
+                              </Col>
+                              <Col md={9} xs={12} className="compact-input">
+                                <FormSelect
+                                  name="pickup"
+                                  options={pickupDropOptions}
+                                  size="sm"
+                                  className="w-100 fs-small"
+                                  placeholder="Select"
+                                />
+                              </Col>
+                            </Row>
+
+                            <Row className="align-items-center g-2 mb-2">
+                              <Col md={3} xs={12} className="fs-small compact-label">
+                                Drop
+                              </Col>
+                              <Col md={9} xs={12} className="compact-input">
+                                <FormSelect
+                                  name="drop"
+                                  options={pickupDropOptions}
+                                  size="sm"
+                                  className="w-100 fs-small"
+                                  placeholder="Select"
+                                />
+                              </Col>
+                            </Row>
+
+                            <Row className="align-items-center g-2 mb-2">
+                              <Col md={3} xs={12} className="fs-small compact-label">
+                                Status
+                              </Col>
+                              <Col md={9} xs={12} className="compact-input">
+                                <FormSelect
+                                  name="status"
+                                  options={[
+                                    { label: "Confirm", value: "Confirm" },
+                                    { label: "Wait Listed", value: "Wait Listed" },
+                                    { label: "Temporary", value: "Temporary" },
+                                  ]}
+                                  size="sm"
+                                  className="w-100 fs-small"
+                                  placeholder="Select"
+                                />
+                              </Col>
+                            </Row>
+                          </Col>
+                        </Row>
+                      </div>
+
+                      {/* Mobile layout - label on left, input on right */}
+                      <div className="d-sm-none">
+                        <div className="mobile-booking-row">
+                          <span className="booking-label">Taken By</span>
+                          <div className="booking-input">
+                            <FormikTextInput
+                              name="bookingTakenBy"
+                              size="sm"
+                              className="w-100 fs-small"
+                              placeholder="Enter name"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mobile-booking-row">
+                          <span className="booking-label">Res. Mode</span>
+                          <div className="booking-input">
+                            <FormSelect
+                              name="reservationMode"
+                              options={[
+                                { label: "Online", value: "Online" },
+                                { label: "Phone", value: "Phone" },
+                                { label: "In Person", value: "In Person" },
+                              ]}
+                              size="sm"
+                              className="w-100 fs-small"
+                              placeholder="Select"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mobile-booking-row">
+                          <span className="booking-label">Conf. Mode</span>
+                          <div className="booking-input">
+                            <FormSelect
+                              name="confirmationMode"
+                              options={[
+                                { label: "Email", value: "Email" },
+                                { label: "Phone", value: "Phone" },
+                                { label: "SMS", value: "SMS" },
+                              ]}
+                              size="sm"
+                              className="w-100 fs-small"
+                              placeholder="Select"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mobile-booking-row">
+                          <span className="booking-label">Pickup</span>
+                          <div className="booking-input">
+                            <FormSelect
+                              name="pickup"
+                              options={pickupDropOptions}
+                              size="sm"
+                              className="w-100 fs-small"
+                              placeholder="Select"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mobile-booking-row">
+                          <span className="booking-label">Drop</span>
+                          <div className="booking-input">
+                            <FormSelect
+                              name="drop"
+                              options={pickupDropOptions}
+                              size="sm"
+                              className="w-100 fs-small"
+                              placeholder="Select"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mobile-booking-row">
+                          <span className="booking-label">Status</span>
+                          <div className="booking-input">
+                            <FormSelect
+                              name="status"
+                              options={[
+                                { label: "Confirm", value: "Confirm" },
+                                { label: "Wait Listed", value: "Wait Listed" },
+                                { label: "Temporary", value: "Temporary" },
+                              ]}
+                              size="sm"
+                              className="w-100 fs-small"
+                              placeholder="Select"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </Col>
               </Row>
             </form>
           </Card.Body>
         </Card>
+        </div>
+        {/* end reservation-scroll-body */}
 
-        {/* Footer buttons */}
-        <div className="fixed-bottom" style={{ padding: '5px 10px', zIndex: 1000 }}>
-          <div className="d-flex justify-content-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => navigate(-1)}>
-              Cancel <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>[ESC]</span>
-            </Button>
+        {/* ===== FIXED BOTTOM BAR ===== */}
+        <div className="fixed-bottom-bar">
+          <div className="d-flex gap-2">
             <Button
-              variant="primary"
+              variant="success"
               size="sm"
               type="submit"
-              onClick={() => formik.handleSubmit()}
+              form="reservation-form"
               disabled={submitting}>
-              {submitting ? 'Processing...' : isEditing ? 'Update Reservation' : 'Create Reservation'}{' '}
+              {submitting ? 'Processing...' : isEditing ? 'Update Reservation' : 'Reservation'}{' '}
               <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>[F9]</span>
             </Button>
           </div>
@@ -2502,7 +3945,7 @@ const bookedByFormRef = useRef<any>(null);
         }}
       />
 
-      {/* Booked By Modal – custom modal with ref */}
+      {/* Booked By Modal */}
       <Modal show={showBookedByModal} onHide={() => setShowBookedByModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Booked By Details</Modal.Title>

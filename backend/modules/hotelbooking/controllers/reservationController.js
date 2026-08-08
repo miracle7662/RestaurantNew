@@ -1,8 +1,14 @@
 // controllers/reservationController.js
+// Single-API controller: every request here handles hotel_reservations
+// together with its child rows in reservation_rooms and reservation_booked_by
+// inside one DB transaction — mirrors checkInController.js, where
+// checkin_master + checkin_detail_master + checkin_guest_room_charges +
+// checkin_guest_folio_master are all driven from one endpoint.
 const db = require('../../../config/db');
 
+
 const getCurrentUserId = (req) => req.user?.id || null;
-const getCurrentUserHotelId = (req) => req.user?.hotel_id || null;
+const getCurrentUserHotelId = (req) => req.user?.hotelid || null;
 
 // Helper to format date WITHOUT timezone conversion
 const formatDateOnly = (date) => {
@@ -17,6 +23,53 @@ const formatDateOnly = (date) => {
 // Helper to format MySQL datetime
 const formatDateTime = (date) => date ? new Date(date).toISOString() : null;
 
+const getValueOrNull = (value) => (value !== undefined && value !== null && value !== '' ? value : null);
+
+const roomAllowedFields = [
+    'room_category_id', 'converted_category_id', 'total_rooms', 'pax_count', 'pax_price',
+    'pax_tax', 'ex_pax_count', 'ex_pax_price', 'ex_pax_tax', 'ex_pax_tax_percent', 'ex_pax_total',
+    'child_count', 'child_price', 'child_tax', 'child_tax_percent', 'child_total',
+    'driver_count', 'driver_price', 'driver_tax', 'driver_tax_percent', 'driver_total',
+    'discount_percent', 'discount_amount', 'total_amount'
+];
+
+// Inserts every row of body.rooms into reservation_rooms for the given
+// reservation_id, inside the supplied connection/transaction.
+const insertReservationRooms = async (connection, reservationId, rooms) => {
+    if (!rooms || !rooms.length) return;
+
+    for (const room of rooms) {
+        const cols = ['reservation_id'];
+        const vals = [reservationId];
+
+        roomAllowedFields.forEach((field) => {
+            if (room[field] !== undefined) {
+                cols.push(field);
+                vals.push(room[field]);
+            }
+        });
+
+        if (!cols.includes('total_rooms')) {
+            cols.push('total_rooms');
+            vals.push(1);
+        }
+
+        await connection.execute(
+            `INSERT INTO reservation_rooms (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+            vals
+        );
+    }
+};
+
+// Inserts the single reservation_booked_by link row, if booked_by_id given.
+const insertBookedByLink = async (connection, reservationId, bookedById) => {
+    if (!bookedById) return;
+    await connection.execute(
+        `INSERT INTO reservation_booked_by (reservation_id, booked_by_id) VALUES (?, ?)`,
+        [reservationId, bookedById]
+    );
+};
+
 exports.getNextReservationNumber = async (req, res) => {
     try {
         let hotelId = req.query.hotelid || req.query.mst_hotelid;
@@ -29,7 +82,7 @@ exports.getNextReservationNumber = async (req, res) => {
             'SELECT MAX(CAST(reservation_no AS UNSIGNED)) as max_num FROM hotel_reservations WHERE hotelid = ?',
             [hotelId]
         );
-        
+
         const nextNumber = (rows[0].max_num || 0) + 1;
         const nextReservationNo = nextNumber.toString().padStart(4, '0');
 
@@ -40,6 +93,9 @@ exports.getNextReservationNumber = async (req, res) => {
     }
 };
 
+// ----------------------------------------------------------------------
+// GET /reservations – list reservations (master rows only)
+// ----------------------------------------------------------------------
 exports.getReservations = async (req, res) => {
     try {
         let hotelId = req.query.hotelid || req.query.mst_hotelid;
@@ -49,8 +105,10 @@ exports.getReservations = async (req, res) => {
             return res.status(400).json({ success: false, message: "Hotel ID not found" });
         }
 
-        const [reservations] = await db.execute(`
-            SELECT 
+        const { q } = req.query;
+
+        let sql = `
+            SELECT
                 hr.*,
                 gm.name as guest_name,
                 cm.company_name as company_name
@@ -58,22 +116,32 @@ exports.getReservations = async (req, res) => {
             LEFT JOIN guest_master gm ON hr.guest_id = gm.guest_id
             LEFT JOIN company_master cm ON hr.company_id = cm.company_id
             WHERE hr.hotelid = ?
-            ORDER BY hr.created_at DESC
-        `, [hotelId]);
+        `;
+        const params = [hotelId];
 
-        const formattedReservations = reservations.map(res => ({
-            ...res,
-            created_at: formatDateTime(res.created_at),
-            updated_at: formatDateTime(res.updated_at),
-            reservation_date: formatDateOnly(res.reservation_date),
-            arrival_date: formatDateOnly(res.arrival_date),
-            departure_date: formatDateOnly(res.departure_date)
+        if (q) {
+            sql += ` AND (gm.name LIKE ? OR hr.reservation_no LIKE ? OR hr.phone1 LIKE ?)`;
+            const like = `%${q}%`;
+            params.push(like, like, like);
+        }
+
+        sql += ` ORDER BY hr.created_at DESC`;
+
+        const [reservations] = await db.execute(sql, params);
+
+        const formattedReservations = reservations.map(r => ({
+            ...r,
+            created_at: formatDateTime(r.created_at),
+            updated_at: formatDateTime(r.updated_at),
+            reservation_date: formatDateOnly(r.reservation_date),
+            arrival_date: formatDateOnly(r.arrival_date),
+            departure_date: formatDateOnly(r.departure_date)
         }));
 
-        res.json({ 
-            success: true, 
-            message: "Data fetched successfully", 
-            data: formattedReservations 
+        res.json({
+            success: true,
+            message: "Data fetched successfully",
+            data: formattedReservations
         });
     } catch (error) {
         console.error(error);
@@ -81,33 +149,60 @@ exports.getReservations = async (req, res) => {
     }
 };
 
+// ----------------------------------------------------------------------
+// GET /reservations/:id – master + rooms + booked-by, single response
+// ----------------------------------------------------------------------
 exports.getReservationById = async (req, res) => {
     try {
         const { id } = req.params;
-        
-        const [reservations] = await db.execute(`
-            SELECT * FROM hotel_reservations WHERE reservation_id = ?
-        `, [id]);
-        
+
+        const [reservations] = await db.execute(
+            `SELECT * FROM hotel_reservations WHERE reservation_id = ?`,
+            [id]
+        );
+
         if (reservations.length === 0) {
             return res.status(404).json({ success: false, message: "Reservation not found" });
         }
-        
+
         const reservation = reservations[0];
-        
+
+        const [rooms] = await db.execute(
+            `SELECT rr.*,
+                    rc.category_name as room_category_name,
+                    rc2.category_name as converted_category_name
+             FROM reservation_rooms rr
+             LEFT JOIN room_category rc ON rr.room_category_id = rc.room_category_id
+             LEFT JOIN room_category rc2 ON rr.converted_category_id = rc2.room_category_id
+             WHERE rr.reservation_id = ?
+             ORDER BY rr.room_row_id`,
+            [id]
+        );
+
+        const [bookedByLinks] = await db.execute(
+            `SELECT rbb.*, bbc.name as booked_by_name, bbc.mobile1, bbc.email
+             FROM reservation_booked_by rbb
+             JOIN booked_by_contacts bbc ON rbb.booked_by_id = bbc.booked_by_id
+             WHERE rbb.reservation_id = ?
+             LIMIT 1`,
+            [id]
+        );
+
         const formattedReservation = {
             ...reservation,
             created_at: formatDateTime(reservation.created_at),
             updated_at: formatDateTime(reservation.updated_at),
             reservation_date: formatDateOnly(reservation.reservation_date),
             arrival_date: formatDateOnly(reservation.arrival_date),
-            departure_date: formatDateOnly(reservation.departure_date)
+            departure_date: formatDateOnly(reservation.departure_date),
+            rooms,
+            booked_by: bookedByLinks[0] || null
         };
-        
-        res.json({ 
-            success: true, 
-            message: "Data fetched successfully", 
-            data: formattedReservation 
+
+        res.json({
+            success: true,
+            message: "Data fetched successfully",
+            data: formattedReservation
         });
     } catch (error) {
         console.error(error);
@@ -115,8 +210,14 @@ exports.getReservationById = async (req, res) => {
     }
 };
 
+// ----------------------------------------------------------------------
+// POST /reservations – single API: master + rooms + booked-by in one txn
+// ----------------------------------------------------------------------
 exports.addReservation = async (req, res) => {
+    const connection = await db.getConnection();
     try {
+        await connection.beginTransaction();
+
         const {
             reservation_no,
             guest_id,
@@ -131,6 +232,7 @@ exports.addReservation = async (req, res) => {
             city_id,
             company_id,
             gst,
+            group_name,
             reservation_date,
             arrival_date,
             arrival_time,
@@ -147,26 +249,30 @@ exports.addReservation = async (req, res) => {
             drop_location,
             status = 'reserved',
             hotelid,
-            created_by_id
+            created_by_id,
+            rooms,
+            booked_by_id
         } = req.body;
 
         const userId = created_by_id || getCurrentUserId(req);
         let finalHotelId = hotelid || getCurrentUserHotelId(req);
-        
+
         if (!finalHotelId) {
+            await connection.rollback();
             return res.status(400).json({ success: false, message: "Hotel ID not found" });
         }
 
+        // ========== 1. RESOLVE RESERVATION NUMBER ==========
         let finalReservationNo = reservation_no;
 
         if (finalReservationNo) {
-            const [existing] = await db.execute(
+            const [existing] = await connection.execute(
                 'SELECT reservation_id FROM hotel_reservations WHERE reservation_no = ? AND hotelid = ?',
                 [finalReservationNo, finalHotelId]
             );
-            
+
             if (existing.length > 0) {
-                const [rows] = await db.execute(
+                const [rows] = await connection.execute(
                     'SELECT MAX(CAST(reservation_no AS UNSIGNED)) as max_num FROM hotel_reservations WHERE hotelid = ?',
                     [finalHotelId]
                 );
@@ -174,7 +280,7 @@ exports.addReservation = async (req, res) => {
                 finalReservationNo = nextNumber.toString().padStart(4, '0');
             }
         } else {
-            const [rows] = await db.execute(
+            const [rows] = await connection.execute(
                 'SELECT MAX(CAST(reservation_no AS UNSIGNED)) as max_num FROM hotel_reservations WHERE hotelid = ?',
                 [finalHotelId]
             );
@@ -182,7 +288,8 @@ exports.addReservation = async (req, res) => {
             finalReservationNo = nextNumber.toString().padStart(4, '0');
         }
 
-        const [result] = await db.execute(`
+        // ========== 2. INSERT MASTER ROW ==========
+        const [result] = await connection.execute(`
             INSERT INTO hotel_reservations (
                 reservation_no, guest_id, title, reservation_name, phone1, phone2, email,
                 address, country_id, state_id, city_id,
@@ -225,56 +332,77 @@ exports.addReservation = async (req, res) => {
         ]);
 
         const reservationId = result.insertId;
-        
+
+        // ========== 3. INSERT ROOMS ==========
+        await insertReservationRooms(connection, reservationId, rooms);
+
+        // ========== 4. INSERT BOOKED-BY LINK ==========
+        await insertBookedByLink(connection, reservationId, getValueOrNull(booked_by_id));
+
+        await connection.commit();
+
+        const [masterRow] = await db.execute(
+            'SELECT * FROM hotel_reservations WHERE reservation_id = ?',
+            [reservationId]
+        );
+
         res.status(201).json({
             success: true,
             message: "Reservation added successfully",
             data: {
-                reservation_id: reservationId,
-                reservation_no: finalReservationNo,
-                ...req.body,
-                hotelid: finalHotelId,
-                created_by_id: userId
+                ...masterRow[0],
+                reservation_date: formatDateOnly(masterRow[0].reservation_date),
+                arrival_date: formatDateOnly(masterRow[0].arrival_date),
+                departure_date: formatDateOnly(masterRow[0].departure_date)
             }
         });
     } catch (error) {
+        await connection.rollback();
         console.error("RESERVATION ADD ERROR:", {
             body: req.body,
-            hotelId: req.body.hotelid,
-            guestId: req.body.guest_id,
-            userHotelId: getCurrentUserHotelId(req),
             error: error.message,
             stack: error.stack,
             code: error.code
         });
-        res.status(500).json({ 
-            success: false, 
-            message: "Failed to add reservation", 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            message: "Failed to add reservation",
+            error: error.message
         });
+    } finally {
+        connection.release();
     }
 };
 
+// ----------------------------------------------------------------------
+// PUT /reservations/:id – single API: master update + rooms/booked-by
+// replace (delete old rows, insert the rows sent in this request), all
+// inside one transaction — same approach checkIn uses for its child tables.
+// ----------------------------------------------------------------------
 exports.updateReservation = async (req, res) => {
+    const connection = await db.getConnection();
     try {
+        await connection.beginTransaction();
+
         const { id } = req.params;
         const updateData = req.body;
         const userId = getCurrentUserId(req);
         const updated_at = new Date();
 
-        const [existing] = await db.execute(
+        const [existing] = await connection.execute(
             'SELECT reservation_id FROM hotel_reservations WHERE reservation_id = ?',
             [id]
         );
-        
+
         if (existing.length === 0) {
+            await connection.rollback();
             return res.status(404).json({ success: false, message: "Reservation not found" });
         }
 
         const allowedFields = [
             'reservation_no', 'guest_id', 'title', 'reservation_name', 'phone1', 'phone2', 'email',
             'address', 'country_id', 'state_id', 'city_id',
-            'company_id', 'gst', 'reservation_date', 'arrival_date',
+            'company_id', 'gst', 'group_name', 'reservation_date', 'arrival_date',
             'arrival_time', 'departure_date', 'departure_time', 'nights', 'guest_type',
             'billing_instructions', 'special_instructions', 'booking_taken_by',
             'reservation_mode', 'confirmation_mode', 'pickup', 'drop_location', 'status'
@@ -282,7 +410,7 @@ exports.updateReservation = async (req, res) => {
 
         const updates = [];
         const values = [];
-        
+
         allowedFields.forEach(field => {
             if (updateData[field] !== undefined) {
                 updates.push(`${field} = ?`);
@@ -290,73 +418,112 @@ exports.updateReservation = async (req, res) => {
             }
         });
 
-        if (updates.length === 0) {
-            return res.status(400).json({ success: false, message: "No fields to update" });
+        if (updates.length > 0) {
+            updates.push('updated_by_id = ?', 'updated_at = ?');
+            values.push(userId, updated_at, id);
+
+            const query = `UPDATE hotel_reservations SET ${updates.join(', ')} WHERE reservation_id = ?`;
+            await connection.execute(query, values);
         }
 
-        updates.push('updated_by_id = ?', 'updated_at = ?');
-        values.push(userId, updated_at, id);
-
-        const query = `UPDATE hotel_reservations SET ${updates.join(', ')} WHERE reservation_id = ?`;
-        const [result] = await db.execute(query, values);
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ success: false, message: "Reservation not found or no changes" });
+        // ========== REPLACE ROOMS (only if rooms array sent) ==========
+        if (Array.isArray(updateData.rooms)) {
+            await connection.execute('DELETE FROM reservation_rooms WHERE reservation_id = ?', [id]);
+            await insertReservationRooms(connection, id, updateData.rooms);
         }
 
-        res.json({ 
-            success: true, 
-            message: "Reservation updated successfully", 
-            data: { reservation_id: parseInt(id), ...updateData } 
+        // ========== REPLACE BOOKED-BY LINK (only if key sent) ==========
+        if (Object.prototype.hasOwnProperty.call(updateData, 'booked_by_id')) {
+            await connection.execute('DELETE FROM reservation_booked_by WHERE reservation_id = ?', [id]);
+            await insertBookedByLink(connection, id, getValueOrNull(updateData.booked_by_id));
+        }
+
+        await connection.commit();
+
+        const [masterRow] = await db.execute(
+            'SELECT * FROM hotel_reservations WHERE reservation_id = ?',
+            [id]
+        );
+
+        res.json({
+            success: true,
+            message: "Reservation updated successfully",
+            data: {
+                ...masterRow[0],
+                reservation_date: formatDateOnly(masterRow[0].reservation_date),
+                arrival_date: formatDateOnly(masterRow[0].arrival_date),
+                departure_date: formatDateOnly(masterRow[0].departure_date)
+            }
         });
     } catch (error) {
+        await connection.rollback();
         console.error("RESERVATION UPDATE ERROR:", {
             id: req.params.id,
             body: req.body,
             error: error.message,
             stack: error.stack
         });
-        res.status(500).json({ 
-            success: false, 
-            message: "Failed to update reservation", 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            message: "Failed to update reservation",
+            error: error.message
         });
+    } finally {
+        connection.release();
     }
 };
 
+// ----------------------------------------------------------------------
+// DELETE /reservations/:id – removes master + rooms + booked-by link
+// (reservation_rooms / reservation_booked_by have ON DELETE CASCADE, but we
+// delete explicitly first too so this works even without the FK cascade).
+// ----------------------------------------------------------------------
 exports.deleteReservation = async (req, res) => {
+    const connection = await db.getConnection();
     try {
+        await connection.beginTransaction();
+
         const { id } = req.params;
-        
-        const [existing] = await db.execute(
+
+        const [existing] = await connection.execute(
             'SELECT reservation_id FROM hotel_reservations WHERE reservation_id = ?',
             [id]
         );
-        
+
         if (existing.length === 0) {
+            await connection.rollback();
             return res.status(404).json({ success: false, message: "Reservation not found" });
         }
 
-        const [result] = await db.execute(
+        await connection.execute('DELETE FROM reservation_booked_by WHERE reservation_id = ?', [id]);
+        await connection.execute('DELETE FROM reservation_rooms WHERE reservation_id = ?', [id]);
+
+        const [result] = await connection.execute(
             'DELETE FROM hotel_reservations WHERE reservation_id = ?',
             [id]
         );
 
         if (result.affectedRows === 0) {
+            await connection.rollback();
             return res.status(404).json({ success: false, message: "Reservation not found" });
         }
 
-        res.json({ 
-            success: true, 
-            message: "Reservation deleted successfully", 
-            data: { reservation_id: parseInt(id) } 
+        await connection.commit();
+
+        res.json({
+            success: true,
+            message: "Reservation deleted successfully",
+            data: { reservation_id: parseInt(id) }
         });
     } catch (error) {
+        await connection.rollback();
         console.error("Error deleting reservation:", error);
-        res.status(500).json({ 
-            success: false, 
-            message: "Failed to delete reservation", 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete reservation",
+            error: error.message
         });
+    } finally {
+        connection.release();
     }
 };
