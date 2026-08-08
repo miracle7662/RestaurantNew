@@ -85,6 +85,7 @@ exports.getCheckinFullDetails = async (req, res) => {
 };
 
 
+
 // exports.getRooms = async (req, res) => {
 //     try {
 //         const { hotelid } = req.params; // ya req.user.hotelid
@@ -226,6 +227,223 @@ exports.getCheckinFullDetails = async (req, res) => {
 //         res.status(500).json({ success: false, message: 'Database error', error: error.message });
 //     }
 // };
+
+
+exports.getLiveRoomAvailability = async (req, res) => {
+    try {
+
+        const hotelid = Number(req.query.hotelid);
+
+        if (!hotelid) {
+            return res.status(400).json({
+                success: false,
+                message: 'hotelid is required'
+            });
+        }
+
+        const [result] = await db.query(
+            'CALL sp_get_live_room_availability(?)',
+            [hotelid]
+        );
+
+        const rows = result[0] || [];
+
+        /*
+         * Convert SQL rows into category-wise response
+         */
+
+        const categoryMap = new Map();
+
+        rows.forEach(row => {
+
+            if (!categoryMap.has(row.room_category_id)) {
+
+                categoryMap.set(
+                    row.room_category_id,
+                    {
+                        room_category_id:
+                            row.room_category_id,
+
+                        category_name:
+                            row.category_name,
+
+                        total_rooms:
+                            Number(
+                                row.category_total_rooms || 0
+                            ),
+
+                        occupied_rooms:
+                            Number(
+                                row.occupied_rooms || 0
+                            ),
+
+                        reserved_rooms:
+                            Number(
+                                row.reserved_rooms || 0
+                            ),
+
+                        available_rooms:
+                            Number(
+                                row.available_rooms || 0
+                            ),
+
+                        blocked_rooms:
+                            Number(
+                                row.blocked_rooms || 0
+                            ),
+
+                        rooms: []
+                    }
+                );
+            }
+
+            const category =
+                categoryMap.get(
+                    row.room_category_id
+                );
+
+            category.rooms.push({
+
+                room_id:
+                    row.room_id,
+
+                room_no:
+                    row.room_no,
+
+                room_name:
+                    row.room_name,
+
+                room_status_id:
+                    row.room_status_id,
+
+                status:
+                    row.live_status,
+
+                master_status:
+                    row.master_status,
+
+                guest:
+                    row.guest_name
+                        ? {
+                            guest_id:
+                                row.guest_id,
+
+                            name:
+                                row.guest_name,
+
+                            mobile:
+                                row.mobile
+                        }
+                        : null,
+
+                checkin_datetime:
+                    row.checkin_datetime,
+
+                checkout_datetime:
+                    row.checkout_datetime,
+
+                available_from:
+                    row.available_from,
+
+                reservation:
+                    row.reservation_id
+                        ? {
+                            reservation_id:
+                                row.reservation_id,
+
+                            reservation_no:
+                                row.reservation_no,
+
+                            arrival:
+                                row.reservation_arrival,
+
+                            departure:
+                                row.reservation_departure,
+
+                            status:
+                                row.reservation_status
+                        }
+                        : null
+            });
+        });
+
+        const categories =
+            Array.from(
+                categoryMap.values()
+            );
+
+        /*
+         * Overall summary
+         */
+
+        const summary = {
+            total_rooms:
+                categories.reduce(
+                    (sum, item) =>
+                        sum + item.total_rooms,
+                    0
+                ),
+
+            occupied_rooms:
+                categories.reduce(
+                    (sum, item) =>
+                        sum + item.occupied_rooms,
+                    0
+                ),
+
+            reserved_rooms:
+                categories.reduce(
+                    (sum, item) =>
+                        sum + item.reserved_rooms,
+                    0
+                ),
+
+            available_rooms:
+                categories.reduce(
+                    (sum, item) =>
+                        sum + item.available_rooms,
+                    0
+                ),
+
+            blocked_rooms:
+                categories.reduce(
+                    (sum, item) =>
+                        sum + item.blocked_rooms,
+                    0
+                )
+        };
+
+        return res.status(200).json({
+
+            success: true,
+
+            generated_at:
+                new Date(),
+
+            summary,
+
+            categories
+        });
+
+    } catch (error) {
+
+        console.error(
+            'getLiveRoomAvailability error:',
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                'Failed to fetch live room availability',
+
+            error:
+                error.message
+        });
+    }
+};
 
 
 

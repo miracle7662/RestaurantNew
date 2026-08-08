@@ -7,6 +7,7 @@ router.get("/checkin-full-details", controller.getCheckinFullDetails);
 //router.get('/', controller.getRooms);
  //router.get('/', controller.getRooms);
 router.get('/hotelbooking-meta', controller.getHotelBookingMeta);
+router.get('/live-room-availability',controller.getLiveRoomAvailability);
 router.post('/', controller.addRoom);
 
 router.get('/:id', controller.getRoom);

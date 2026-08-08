@@ -305,6 +305,59 @@ export interface CheckinFullDetailsResponse {
   summary: CheckinFullDetailsSummaryRow[];
 }
 
+export interface LiveRoom {
+  room_id: number;
+  room_no: string;
+  room_name: string;
+
+  room_status_id?: number;
+  status: string;
+  master_status?: string;
+
+  guest: {
+    guest_id: number;
+    name: string;
+    mobile: string;
+  } | null;
+
+  checkin_datetime?: string | null;
+  checkout_datetime?: string | null;
+  available_from?: string | null;
+
+  reservation: {
+    reservation_id: number;
+    reservation_no?: string;
+    arrival?: string;
+    departure?: string;
+    status?: string;
+  } | null;
+}
+
+export interface LiveRoomAvailabilityResponse {
+  generated_at: string;
+
+  summary: {
+    total_rooms: number;
+    occupied_rooms: number;
+    reserved_rooms: number;
+    available_rooms: number;
+    blocked_rooms: number;
+  };
+
+  categories: {
+    room_category_id: number;
+    category_name: string;
+
+    total_rooms: number;
+    occupied_rooms: number;
+    reserved_rooms: number;
+    available_rooms: number;
+    blocked_rooms: number;
+
+    rooms: LiveRoom[];
+  }[];
+}
+
 const RoomService = {
   getHotelBookingMeta(hotelid: string | number) {
     return HttpClient.get<
@@ -383,6 +436,20 @@ updateRoomStatus(roomId: number, statusId: number) {
       payload
     );
   },
+
+  // ========================================================================
+// Live Room Availability
+// ========================================================================
+
+getLiveRoomAvailability(hotelid: string | number) {
+  return HttpClient.get<ApiResponse<LiveRoomAvailabilityResponse>>(
+    "/rooms/live-room-availability",
+    {
+      params: { hotelid },
+    }
+  );
+},
+
 };
 
 
