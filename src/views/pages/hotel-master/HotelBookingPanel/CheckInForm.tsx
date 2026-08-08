@@ -3107,7 +3107,7 @@ const CheckInForm = () => {
                             isLoading={loadingDocTypes}
                             onChange={(v) => setFieldValue('idType', v)}
                             placeholder="Select ID Type"
-                            disabled
+                          
                           />
                         </Col>
                       </Row>
@@ -3121,7 +3121,7 @@ const CheckInForm = () => {
                             placeholder="Enter ID Number"
                             size="sm"
                             className="w-100 fs-small"
-                            readOnly
+                           
                           />
                         </Col>
                       </Row>
