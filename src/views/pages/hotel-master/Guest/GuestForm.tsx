@@ -164,6 +164,8 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   // Loading states
   const [loadingFragments, setLoadingFragments] = useState(false)
   const [loadingCities, setLoadingCities] = useState(false)
+  const [loadingCitiesForState, setLoadingCitiesForState] = useState(false)
+
   const [loadingStates, setLoadingStates] = useState(false)
   const [loadingCountries, setLoadingCountries] = useState(false)
   const [loadingNationalities, setLoadingNationalities] = useState(false)
@@ -175,7 +177,6 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   const [isCreatingPurpose, setIsCreatingPurpose] = useState(false)
   const [isCreatingArrived, setIsCreatingArrived] = useState(false)
   const [isCreatingDeparture, setIsCreatingDeparture] = useState(false)
-
   const hotelId = selectedItem.hotelid || authUser?.hotelid
 
   // ========== ADDED: reload companies list (used after adding a new company) ==========
@@ -218,7 +219,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
 
         const [
           fragmentsRes,
-          citiesRes,
+          
           statesRes,
           countriesRes,
           nationalitiesRes,
@@ -229,7 +230,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
           departureRes,
         ] = await Promise.all([
           FragmentService.list(),
-          CityService.list(),
+         
           StateService.list(),
           CountryService.list(),
           NationalityService.list(),
@@ -259,7 +260,7 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
         }))
         setFragments(fragmentsData)
 
-        setCities(normalize(citiesRes, 'cityid', 'city_name'))
+       
         setStates(normalize(statesRes, 'stateid', 'state_name'))
         setCountries(normalize(countriesRes, 'countryid', 'country_name'))
         setNationalities(
@@ -383,6 +384,34 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
   })
 
   const { handleSubmit, values, setFieldValue, errors, setTouched, validateForm } = formik
+
+  // ========== ADDED: fetch cities whenever selected state changes ==========
+useEffect(() => {
+  const fetchCitiesForState = async () => {
+    if (!values.state_id) {
+      setCities([])
+      return
+    }
+    setLoadingCitiesForState(true)
+    try {
+      const res = await CityService.getByState(values.state_id)
+      const data = Array.isArray(res) ? res : (res as any)?.data || []
+      setCities(
+        data.map((c: any) => ({
+          id: c.cityid,
+          name: c.city_name,
+          state_id: c.stateId,
+        }))
+      )
+    } catch (error) {
+      console.error('Failed to load cities for state:', error)
+      setCities([])
+    } finally {
+      setLoadingCitiesForState(false)
+    }
+  }
+  fetchCitiesForState()
+}, [values.state_id])
 
   useEffect(() => {
     setSubmitAttempted(false)
@@ -831,12 +860,12 @@ const GuestForm = forwardRef<any, GuestFormProps>(({ selectedItem, onSave }, ref
                         <Col md={3}>
                           <div className="position-relative">
                             <FormSelect
-                              name="city_id"
-                              options={cities.map((c) => ({ label: c.name, value: c.id }))}
-                              className="w-100"
-                              isLoading={loadingCities}
-                              placeholder="Select"
-                            />
+  name="city_id"
+  options={cities.map((c) => ({ label: c.name, value: c.id }))}
+  className="w-100"
+  isLoading={loadingCitiesForState}
+  placeholder="Select"
+/>
                             {showErrorIcon('city_id') && (
                               <span className="text-danger position-absolute" style={{ right: '10px', top: '8px', fontSize: '18px' }}>!</span>
                             )}
