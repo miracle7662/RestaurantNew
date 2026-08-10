@@ -231,189 +231,328 @@ exports.getCheckinFullDetails = async (req, res) => {
 
 exports.getLiveRoomAvailability = async (req, res) => {
     try {
+        console.log('\n========================================');
+        console.log('🏨 LIVE ROOM AVAILABILITY API');
+        console.log('========================================');
+
+        // ========================================
+        // 1. HOTEL ID
+        // ========================================
 
         const hotelid = Number(req.query.hotelid);
 
+        console.log('📌 Request Query:', req.query);
+        console.log('📌 Parsed Hotel ID:', hotelid);
+
         if (!hotelid) {
+            console.log('❌ hotelid is missing');
+
             return res.status(400).json({
                 success: false,
                 message: 'hotelid is required'
             });
         }
 
+        // ========================================
+        // 2. CALL STORED PROCEDURE
+        // ========================================
+
+        console.log(
+            '🔄 Calling SP: sp_get_live_room_availability'
+        );
+
+        console.log(
+            '🏨 Hotel ID:',
+            hotelid
+        );
+
         const [result] = await db.query(
             'CALL sp_get_live_room_availability(?)',
             [hotelid]
         );
 
+        console.log(
+            '📦 Raw SP Result:',
+            result
+        );
+
+        // MySQL CALL result
         const rows = result[0] || [];
 
-        /*
-         * Convert SQL rows into category-wise response
-         */
+        console.log(
+            '📊 SP Rows Count:',
+            rows.length
+        );
 
-        const categoryMap = new Map();
+        // ========================================
+        // 3. LOG EACH SP ROW
+        // ========================================
 
-        rows.forEach(row => {
+        rows.forEach((row, index) => {
 
-            if (!categoryMap.has(row.room_category_id)) {
-
-                categoryMap.set(
-                    row.room_category_id,
-                    {
-                        room_category_id:
-                            row.room_category_id,
-
-                        category_name:
-                            row.category_name,
-
-                        total_rooms:
-                            Number(
-                                row.category_total_rooms || 0
-                            ),
-
-                        occupied_rooms:
-                            Number(
-                                row.occupied_rooms || 0
-                            ),
-
-                        reserved_rooms:
-                            Number(
-                                row.reserved_rooms || 0
-                            ),
-
-                        available_rooms:
-                            Number(
-                                row.available_rooms || 0
-                            ),
-
-                        blocked_rooms:
-                            Number(
-                                row.blocked_rooms || 0
-                            ),
-
-                        rooms: []
-                    }
-                );
-            }
-
-            const category =
-                categoryMap.get(
-                    row.room_category_id
-                );
-
-            category.rooms.push({
-
-                room_id:
-                    row.room_id,
-
-                room_no:
-                    row.room_no,
-
-                room_name:
-                    row.room_name,
-
-                room_status_id:
-                    row.room_status_id,
-
-                status:
-                    row.live_status,
-
-                master_status:
-                    row.master_status,
-
-                guest:
-                    row.guest_name
-                        ? {
-                            guest_id:
-                                row.guest_id,
-
-                            name:
-                                row.guest_name,
-
-                            mobile:
-                                row.mobile
-                        }
-                        : null,
-
-                checkin_datetime:
-                    row.checkin_datetime,
-
-                checkout_datetime:
-                    row.checkout_datetime,
-
-                available_from:
-                    row.available_from,
-
-                reservation:
-                    row.reservation_id
-                        ? {
-                            reservation_id:
-                                row.reservation_id,
-
-                            reservation_no:
-                                row.reservation_no,
-
-                            arrival:
-                                row.reservation_arrival,
-
-                            departure:
-                                row.reservation_departure,
-
-                            status:
-                                row.reservation_status
-                        }
-                        : null
-            });
-        });
-
-        const categories =
-            Array.from(
-                categoryMap.values()
+            console.log(
+                `\n--- SP ROW ${index + 1} ---`
             );
 
-        /*
-         * Overall summary
-         */
+            console.log(
+                'Category ID:',
+                row.room_category_id
+            );
+
+            console.log(
+                'Category Name:',
+                row.category_name
+            );
+
+            console.log(
+                'Total Rooms:',
+                row.category_total_rooms
+            );
+
+            console.log(
+                'Occupied Rooms:',
+                row.occupied_rooms
+            );
+
+            console.log(
+                'Reserved Rooms:',
+                row.reserved_rooms
+            );
+
+            console.log(
+                'Available Rooms Raw:',
+                row.available_rooms_raw
+            );
+
+            console.log(
+                'Available Rooms:',
+                row.available_rooms
+            );
+
+            console.log(
+                'Blocked Rooms:',
+                row.blocked_rooms
+            );
+
+            // ⭐ NEW
+            console.log(
+                'Next Available From:',
+                row.next_available_from
+            );
+        });
+
+        // ========================================
+        // 4. MAP SP RESULT TO API RESPONSE
+        // ========================================
+
+        const categories = rows.map(row => {
+
+            const category = {
+
+                room_category_id:
+                    Number(
+                        row.room_category_id
+                    ),
+
+                category_name:
+                    row.category_name,
+
+                total_rooms:
+                    Number(
+                        row.category_total_rooms || 0
+                    ),
+
+                occupied_rooms:
+                    Number(
+                        row.occupied_rooms || 0
+                    ),
+
+                reserved_rooms:
+                    Number(
+                        row.reserved_rooms || 0
+                    ),
+
+                available_rooms:
+                    Number(
+                        row.available_rooms || 0
+                    ),
+
+                available_rooms_raw:
+                    Number(
+                        row.available_rooms_raw || 0
+                    ),
+
+                blocked_rooms:
+                    Number(
+                        row.blocked_rooms || 0
+                    ),
+
+                // ⭐ Earliest room availability
+                next_available_from:
+                    row.next_available_from || null
+            };
+
+            console.log(
+                '\n✅ MAPPED CATEGORY'
+            );
+
+            console.log(
+                JSON.stringify(
+                    category,
+                    null,
+                    2
+                )
+            );
+
+            return category;
+        });
+
+        // ========================================
+        // 5. STUDIO ROOM DEBUG
+        // ========================================
+
+        const studioRoom = categories.find(
+            category =>
+                String(
+                    category.category_name || ''
+                )
+                    .trim()
+                    .toUpperCase() ===
+                'STUDIO ROOM'
+        );
+
+        console.log(
+            '\n🔎 STUDIO ROOM CHECK'
+        );
+
+        if (studioRoom) {
+
+            console.log(
+                'Studio Room Data:',
+                JSON.stringify(
+                    studioRoom,
+                    null,
+                    2
+                )
+            );
+
+            console.log(
+                'Studio Category ID:',
+                studioRoom.room_category_id
+            );
+
+            console.log(
+                'Studio Total:',
+                studioRoom.total_rooms
+            );
+
+            console.log(
+                'Studio Occupied:',
+                studioRoom.occupied_rooms
+            );
+
+            console.log(
+                'Studio Reserved:',
+                studioRoom.reserved_rooms
+            );
+
+            console.log(
+                'Studio Available:',
+                studioRoom.available_rooms
+            );
+
+            console.log(
+                'Studio Blocked:',
+                studioRoom.blocked_rooms
+            );
+
+            // ⭐ NEW
+            console.log(
+                'Studio Next Available From:',
+                studioRoom.next_available_from
+            );
+
+        } else {
+
+            console.log(
+                '⚠️ STUDIO ROOM NOT FOUND'
+            );
+        }
+
+        // ========================================
+        // 6. OVERALL SUMMARY
+        // ========================================
 
         const summary = {
+
             total_rooms:
                 categories.reduce(
                     (sum, item) =>
-                        sum + item.total_rooms,
+                        sum +
+                        Number(
+                            item.total_rooms || 0
+                        ),
                     0
                 ),
 
             occupied_rooms:
                 categories.reduce(
                     (sum, item) =>
-                        sum + item.occupied_rooms,
+                        sum +
+                        Number(
+                            item.occupied_rooms || 0
+                        ),
                     0
                 ),
 
             reserved_rooms:
                 categories.reduce(
                     (sum, item) =>
-                        sum + item.reserved_rooms,
+                        sum +
+                        Number(
+                            item.reserved_rooms || 0
+                        ),
                     0
                 ),
 
             available_rooms:
                 categories.reduce(
                     (sum, item) =>
-                        sum + item.available_rooms,
+                        sum +
+                        Number(
+                            item.available_rooms || 0
+                        ),
                     0
                 ),
 
             blocked_rooms:
                 categories.reduce(
                     (sum, item) =>
-                        sum + item.blocked_rooms,
+                        sum +
+                        Number(
+                            item.blocked_rooms || 0
+                        ),
                     0
                 )
         };
 
-        return res.status(200).json({
+        console.log(
+            '\n📈 FINAL SUMMARY'
+        );
+
+        console.log(
+            JSON.stringify(
+                summary,
+                null,
+                2
+            )
+        );
+
+        // ========================================
+        // 7. FINAL API RESPONSE
+        // ========================================
+
+        const response = {
 
             success: true,
 
@@ -423,13 +562,58 @@ exports.getLiveRoomAvailability = async (req, res) => {
             summary,
 
             categories
-        });
+        };
+
+        console.log(
+            '\n📤 FINAL API RESPONSE'
+        );
+
+        console.log(
+            JSON.stringify(
+                response,
+                null,
+                2
+            )
+        );
+
+        console.log(
+            '\n========================================'
+        );
+
+        console.log(
+            '✅ LIVE AVAILABILITY API COMPLETED'
+        );
+
+        console.log(
+            '========================================\n'
+        );
+
+        return res.status(200).json(
+            response
+        );
 
     } catch (error) {
 
         console.error(
-            'getLiveRoomAvailability error:',
-            error
+            '\n========================================'
+        );
+
+        console.error(
+            '❌ getLiveRoomAvailability ERROR'
+        );
+
+        console.error(
+            '========================================'
+        );
+
+        console.error(
+            'Message:',
+            error.message
+        );
+
+        console.error(
+            'Stack:',
+            error.stack
         );
 
         return res.status(500).json({
@@ -444,7 +628,6 @@ exports.getLiveRoomAvailability = async (req, res) => {
         });
     }
 };
-
 
 
 

@@ -1,6 +1,6 @@
 // Reservation.tsx
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { Button } from 'react-bootstrap'
+import { Button, Form } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import jsPDF from 'jspdf'
@@ -169,6 +169,11 @@ const ReservationPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [reservations, setReservations] = useState<ReservationGuest[]>([])
 
+  // ---------- Date range filter state ----------
+  const [startDate, setStartDate] = useState<string>(getTodayDateStr())
+  const [endDate, setEndDate] = useState<string>(getTodayDateStr())
+  // ---------------------------------------------
+
   const fetchReservationData = useCallback(async () => {
     if (!hotelId) {
       setError('Hotel ID not found')
@@ -180,34 +185,42 @@ const ReservationPage = () => {
     setError(null)
 
     try {
+      // 1) Fetch category mapping
       const metaRes = await RoomService.getHotelBookingMeta(hotelId)
       const categoryMap = new Map<number, string>()
       ;(metaRes?.data?.categories || []).forEach((c: any) =>
         categoryMap.set(Number(c.room_category_id), c.category_name),
       )
 
+      // 2) Fetch all reservations (no date filter yet)
       const listRes = await ReservationService.list({ hotelid: Number(hotelId) })
       const all = listRes?.data || []
-      const todayStr = getTodayDateStr()
 
-      const reservedToday = all.filter((r: any) => r.reservation_date === todayStr)
+      // 3) Apply date range filter (arrival_date)
+      const filteredByDate = all.filter((r: any) => {
+        const arrival = r.arrival_date // e.g., "2026-08-10"
+        if (!arrival) return false
+        if (startDate && endDate) {
+          return arrival >= startDate && arrival <= endDate
+        } else if (startDate) {
+          return arrival >= startDate
+        } else if (endDate) {
+          return arrival <= endDate
+        }
+        return true
+      })
 
-      // Backend returns rows newest-first (ORDER BY created_at DESC), which
-      // shows Res. No in reverse order (5,4,3,2,1...). Sort ascending by
-      // reservation_no here so the panel always reads 1,2,3,4,5...
+      // 4) Sort ascending by reservation_no (so 1,2,3...)
       const byReservationNoAsc = (a: any, b: any) => {
         const numA = Number(a.reservation_no)
         const numB = Number(b.reservation_no)
         if (!isNaN(numA) && !isNaN(numB)) return numA - numB
         return String(a.reservation_no || '').localeCompare(String(b.reservation_no || ''))
       }
-      reservedToday.sort(byReservationNoAsc)
+      filteredByDate.sort(byReservationNoAsc)
 
-      // Only fetch room detail (single-API GET /reservations/:id) for the
-      // reservations we actually need to display today — avoids an
-      // unnecessary call per reservation in the whole list.
-      const neededIds = Array.from(new Set(reservedToday.map((r: any) => r.reservation_id)))
-
+      // 5) Fetch room details only for the filtered reservations
+      const neededIds = Array.from(new Set(filteredByDate.map((r: any) => r.reservation_id)))
       const detailResults = await Promise.all(
         neededIds.map((id: number) => ReservationService.get(id).catch(() => null)),
       )
@@ -217,25 +230,26 @@ const ReservationPage = () => {
         if (detail?.data) roomsByResId.set(detail.data.reservation_id, detail.data.rooms || [])
       })
 
+      // 6) Map to table rows
       setReservations(
-        reservedToday.map((r: any) =>
+        filteredByDate.map((r: any) =>
           mapReservationToRow(r, roomsByResId.get(r.reservation_id) || [], categoryMap),
         ),
       )
     } catch (err: any) {
-      console.error('Error fetching today reservations:', err)
+      console.error('Error fetching reservations:', err)
       setError(err?.message || 'Could not load reservations. Please try again.')
     } finally {
       setLoading(false)
     }
-  }, [hotelId])
+  }, [hotelId, startDate, endDate]) // Re-fetch when date range changes
 
+  // Initial load and whenever filter changes (via button)
   useEffect(() => {
     fetchReservationData()
   }, [fetchReservationData])
 
   // Display-level safeguard: always show Res. No in ascending sequence
-  // (1,2,3,4...) regardless of the order the API returned them in.
   const sortedReservations = [...reservations].sort((a, b) => {
     const numA = Number(a.res_no)
     const numB = Number(b.res_no)
@@ -243,7 +257,19 @@ const ReservationPage = () => {
     return String(a.res_no || '').localeCompare(String(b.res_no || ''))
   })
 
-  // PRINT FUNCTION - opens print dialog
+  // ---------- Filter handlers ----------
+  const handleApplyFilter = () => {
+    fetchReservationData()
+  }
+
+  const handleResetFilter = () => {
+    setStartDate(getTodayDateStr())
+    setEndDate(getTodayDateStr())
+    // After state update, useEffect will trigger fetchReservationData
+  }
+  // -------------------------------------
+
+  // PRINT FUNCTION
   const handlePrint = () => {
     const tableElement = printRef.current?.querySelector('.res-table')
     if (!tableElement) {
@@ -313,7 +339,7 @@ const ReservationPage = () => {
     }
   }
 
-  // PDF DOWNLOAD FUNCTION - renders table to canvas and saves a real PDF
+  // PDF DOWNLOAD FUNCTION
   const handleDownloadPDF = async () => {
     const table = printRef.current?.querySelector('.res-table')
     if (!table) {
@@ -408,6 +434,8 @@ const ReservationPage = () => {
         .res-table th { position: sticky; top: 0; background-color: #dfdfdf; font-weight: 600; z-index: 10; padding: 0.4rem 0.5rem; border: 1px solid #dee2e6; white-space: nowrap; }
         .res-table td { border: 1px solid #dee2e6; padding: 0.35rem 0.5rem; white-space: nowrap; }
         .res-table tbody tr:hover { background-color: #f5f5f5; }
+        .filter-controls .form-control { height: 30px; font-size: 0.8rem; }
+        .filter-controls .btn { height: 30px; font-size: 0.8rem; }
       `}</style>
 
       <div className="d-flex flex-column h-100">
@@ -441,6 +469,34 @@ const ReservationPage = () => {
           </div>
         </div>
 
+        {/* Date Range Filter Controls */}
+        <div className="d-flex align-items-center gap-3 px-3 pb-2 filter-controls flex-wrap">
+          <Form.Label className="mb-0 fw-semibold" style={{ fontSize: '0.8rem' }}>
+            From:
+          </Form.Label>
+          <Form.Control
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            style={{ width: '150px' }}
+          />
+          <Form.Label className="mb-0 fw-semibold" style={{ fontSize: '0.8rem' }}>
+            To:
+          </Form.Label>
+          <Form.Control
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            style={{ width: '150px' }}
+          />
+          <Button variant="outline-primary" size="sm" onClick={handleApplyFilter}>
+            Apply Filter
+          </Button>
+          <Button variant="outline-secondary" size="sm" onClick={handleResetFilter}>
+            Reset to Today
+          </Button>
+        </div>
+
         {/* Table */}
         <div className="flex-grow-1 overflow-auto px-2">
           <div ref={printRef}>
@@ -463,12 +519,13 @@ const ReservationPage = () => {
                   <th>Child</th>
                   <th>Driver</th>
                   <th>Total Price</th>
+                  <th>Action</th> {/* New column */}
                 </tr>
               </thead>
               <tbody>
                 {sortedReservations.length === 0 ? (
                   <tr>
-                    <td colSpan={16} className="text-center py-4 text-muted">
+                    <td colSpan={17} className="text-center py-4 text-muted"> {/* Updated colSpan */}
                       No Reservations Found
                     </td>
                   </tr>
@@ -491,6 +548,19 @@ const ReservationPage = () => {
                       <td>{r.child}</td>
                       <td>{r.driver}</td>
                       <td>Rs.{r.total_price?.toFixed(2)}/-</td>
+                      <td>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() =>
+                            navigate('/hotel/reservation', {
+                              state: { reservationId: r.id },
+                            })
+                          }
+                        >
+                          Edit
+                        </Button>
+                      </td>
                     </tr>
                   ))
                 )}

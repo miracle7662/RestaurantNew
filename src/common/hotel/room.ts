@@ -353,6 +353,8 @@ export interface LiveRoomAvailabilityResponse {
     reserved_rooms: number;
     available_rooms: number;
     blocked_rooms: number;
+      next_available_from: string | null // ← renamed from available_from
+
 
     rooms: LiveRoom[];
   }[];
@@ -441,8 +443,10 @@ updateRoomStatus(roomId: number, statusId: number) {
 // Live Room Availability
 // ========================================================================
 
-getLiveRoomAvailability(hotelid: string | number) {
-  return HttpClient.get<ApiResponse<LiveRoomAvailabilityResponse>>(
+getLiveRoomAvailability(
+  hotelid: string | number
+): Promise<LiveRoomAvailabilityResponse> {
+  return HttpClient.get<LiveRoomAvailabilityResponse>(
     "/rooms/live-room-availability",
     {
       params: { hotelid },
