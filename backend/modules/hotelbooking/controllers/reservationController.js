@@ -386,14 +386,12 @@ exports.updateReservation = async (req, res) => {
 
         const { id } = req.params;
         const updateData = req.body;
-        const userId = getCurrentUserId(req);
-        const updated_at = new Date();
+        console.log('UPDATE: Received data for id', id);
 
         const [existing] = await connection.execute(
             'SELECT reservation_id FROM hotel_reservations WHERE reservation_id = ?',
             [id]
         );
-
         if (existing.length === 0) {
             await connection.rollback();
             return res.status(404).json({ success: false, message: "Reservation not found" });
@@ -402,7 +400,8 @@ exports.updateReservation = async (req, res) => {
         const allowedFields = [
             'reservation_no', 'guest_id', 'title', 'reservation_name', 'phone1', 'phone2', 'email',
             'address', 'country_id', 'state_id', 'city_id',
-            'company_id', 'gst', 'group_name', 'reservation_date', 'arrival_date',
+            'company_id', 'gst', // 'group_name' removed
+            'reservation_date', 'arrival_date',
             'arrival_time', 'departure_date', 'departure_time', 'nights', 'guest_type',
             'billing_instructions', 'special_instructions', 'booking_taken_by',
             'reservation_mode', 'confirmation_mode', 'pickup', 'drop_location', 'status'
@@ -419,26 +418,32 @@ exports.updateReservation = async (req, res) => {
         });
 
         if (updates.length > 0) {
-            updates.push('updated_by_id = ?', 'updated_at = ?');
-            values.push(userId, updated_at, id);
-
+            values.push(id); // only id for WHERE clause
             const query = `UPDATE hotel_reservations SET ${updates.join(', ')} WHERE reservation_id = ?`;
+            console.log('UPDATE: Executing query:', query);
             await connection.execute(query, values);
+            console.log('UPDATE: Master row updated');
         }
 
-        // ========== REPLACE ROOMS (only if rooms array sent) ==========
+        // ========== REPLACE ROOMS ==========
         if (Array.isArray(updateData.rooms)) {
+            console.log('UPDATE: Deleting old rooms...');
             await connection.execute('DELETE FROM reservation_rooms WHERE reservation_id = ?', [id]);
+            console.log('UPDATE: Inserting new rooms...');
             await insertReservationRooms(connection, id, updateData.rooms);
+            console.log('UPDATE: Rooms replaced');
         }
 
-        // ========== REPLACE BOOKED-BY LINK (only if key sent) ==========
+        // ========== REPLACE BOOKED-BY LINK ==========
         if (Object.prototype.hasOwnProperty.call(updateData, 'booked_by_id')) {
+            console.log('UPDATE: Replacing booked-by...');
             await connection.execute('DELETE FROM reservation_booked_by WHERE reservation_id = ?', [id]);
             await insertBookedByLink(connection, id, getValueOrNull(updateData.booked_by_id));
+            console.log('UPDATE: Booked-by replaced');
         }
 
         await connection.commit();
+        console.log('UPDATE: Transaction committed');
 
         const [masterRow] = await db.execute(
             'SELECT * FROM hotel_reservations WHERE reservation_id = ?',

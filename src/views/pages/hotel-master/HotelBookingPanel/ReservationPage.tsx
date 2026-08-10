@@ -169,10 +169,9 @@ const ReservationPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [reservations, setReservations] = useState<ReservationGuest[]>([])
 
-  // ---------- Date range filter state ----------
+  // Date range filter state
   const [startDate, setStartDate] = useState<string>(getTodayDateStr())
   const [endDate, setEndDate] = useState<string>(getTodayDateStr())
-  // ---------------------------------------------
 
   const fetchReservationData = useCallback(async () => {
     if (!hotelId) {
@@ -242,7 +241,7 @@ const ReservationPage = () => {
     } finally {
       setLoading(false)
     }
-  }, [hotelId, startDate, endDate]) // Re-fetch when date range changes
+  }, [hotelId, startDate, endDate])
 
   // Initial load and whenever filter changes (via button)
   useEffect(() => {
@@ -257,7 +256,7 @@ const ReservationPage = () => {
     return String(a.res_no || '').localeCompare(String(b.res_no || ''))
   })
 
-  // ---------- Filter handlers ----------
+  // Filter handlers
   const handleApplyFilter = () => {
     fetchReservationData()
   }
@@ -267,7 +266,6 @@ const ReservationPage = () => {
     setEndDate(getTodayDateStr())
     // After state update, useEffect will trigger fetchReservationData
   }
-  // -------------------------------------
 
   // PRINT FUNCTION
   const handlePrint = () => {
@@ -519,13 +517,13 @@ const ReservationPage = () => {
                   <th>Child</th>
                   <th>Driver</th>
                   <th>Total Price</th>
-                  <th>Action</th> {/* New column */}
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedReservations.length === 0 ? (
                   <tr>
-                    <td colSpan={17} className="text-center py-4 text-muted"> {/* Updated colSpan */}
+                    <td colSpan={17} className="text-center py-4 text-muted">
                       No Reservations Found
                     </td>
                   </tr>

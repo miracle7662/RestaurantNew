@@ -1,6 +1,7 @@
+// HotelReservation.tsx
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Row, Col,  Button, Card, Modal } from 'react-bootstrap';
+import { useNavigate, useParams, useLocation } from 'react-router-dom'; // <-- added useLocation
+import { Row, Col, Button, Card, Modal } from 'react-bootstrap';
 import { FormikProvider, useFormik } from 'formik';
 import * as Yup from 'yup';
 import Select from 'react-select';
@@ -171,10 +172,15 @@ const getTariffForPax = (
 
 const HotelReservation = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const location = useLocation(); // <-- NEW: get navigation state
+  const { id: idFromParams } = useParams<{ id: string }>();
   const { user } = useAuthContext();
   const hotelId = user?.hotelid;
-  const isEditing = Boolean(id);
+
+  // PRIORITIZE ID from navigation state over URL param
+  const reservationIdFromState = location.state?.reservationId;
+  const effectiveId = reservationIdFromState || idFromParams;
+  const isEditing = Boolean(effectiveId);
 
   // ---------- State Declarations ----------
   const [guests, setGuests] = useState<Array<{ guest_id: number; name: string; mobile: string }>>([]);
@@ -218,12 +224,10 @@ const HotelReservation = () => {
   const bookedByFormRef = useRef<any>(null);
 
   // ==================== RESPONSIVE LAYOUT STAGE (zoom-aware) ====================
-  // Mobile: 320-767 | Tablet: 768-1023 | Laptop: 1024-1439 | Desktop: 1440-1919 | XL: 1920+
   type LayoutStage = 'desktop' | 'laptop' | 'tablet' | 'mobile' | 'xl'
   const [layoutStage, setLayoutStage] = useState<LayoutStage>('desktop')
 
   // ==================== MOBILE/TABLET TAB NAVIGATION ====================
-  // Mobile AND Tablet: same 2 tabs (Guest & Reservation, Room & Booking)
   type MobileTab = 'guest' | 'room'
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>('guest')
   const mobileTabs: { key: MobileTab; label: string; icon: string }[] = [
@@ -260,7 +264,6 @@ const HotelReservation = () => {
         else if (zoomPct > 0 && zoomPct <= 85) zoomStage = 'laptop'
       }
 
-      // Pick the "smaller" (more constrained) stage
       const nextStage = stageRank[widthStage] <= stageRank[zoomStage] ? zoomStage : widthStage
       setLayoutStage((prev) => (prev === nextStage ? prev : nextStage))
     }
@@ -270,9 +273,6 @@ const HotelReservation = () => {
     return () => window.removeEventListener('resize', computeStage)
   }, [])
 
-  // XL/Desktop/Laptop (≥1024px): 2 columns side by side (4 | 8)
-  // Tablet  (768-1023):  2 columns side by side (6 | 6)
-  // Mobile  (<768px):    1 column stacked        (12 | 12)
   const isDesktopLike =
     layoutStage === 'xl' || layoutStage === 'desktop' || layoutStage === 'laptop'
   const leftColSpan = isDesktopLike ? 4 : layoutStage === 'tablet' ? 6 : 12
@@ -355,8 +355,6 @@ const HotelReservation = () => {
     loadBookedByList();
   }, []);
 
-  // Load Country / State / City master lists once, used for the
-  // "Booked By" popup dropdowns (previously these were hardcoded to []).
   useEffect(() => {
     const loadLocationLists = async () => {
       setLoadingCountries(true);
@@ -672,11 +670,6 @@ const HotelReservation = () => {
       countryId: '',
       stateId: '',
       cityId: '',
-      // The fields above hold the guest's country/state/city NAME text for
-      // display (readOnly inputs). The actual numeric IDs needed by the
-      // hotel_reservations.country_id/state_id/city_id columns are kept
-      // separately here so the correct ID — not the name string — is sent
-      // to the backend on submit.
       actualCountryId: null as number | null,
       actualStateId: null as number | null,
       actualCityId: null as number | null,
@@ -752,11 +745,6 @@ const HotelReservation = () => {
           phone2: values.phone2,
           email: values.email,
           address: values.address,
-          // FIX: backend (hotel_reservations) expects country_id/state_id/
-          // city_id — sending "country"/"state"/"city" meant these columns
-          // were always saved as NULL. Also use the numeric "actual*Id"
-          // fields, not countryId/stateId/cityId which hold display NAME
-          // text for the read-only Country/State/City inputs.
           country_id: values.actualCountryId || null,
           state_id: values.actualStateId || null,
           city_id: values.actualCityId || null,
@@ -787,11 +775,6 @@ const HotelReservation = () => {
           created_by_id: user?.id,
         };
 
-        // Build the room rows and booked-by link as part of the SAME payload
-        // sent to ReservationService — one API call inserts/replaces
-        // hotel_reservations + reservation_rooms + reservation_booked_by,
-        // matching how CheckInForm sends details/room_charges/folio_entries
-        // together to CheckInService in a single request.
         const roomsPayload = roomRows.map((row) => ({
           room_category_id: row.roomCategoryId,
           converted_category_id: row.convertedCategoryId,
@@ -827,8 +810,9 @@ const HotelReservation = () => {
 
         let createdResNo: string;
 
-        if (isEditing && id) {
-          const reservationRes = await ReservationService.update(Number(id), fullPayload);
+        // Use effectiveId for update
+        if (isEditing && effectiveId) {   // <-- CHANGED: use effectiveId
+          const reservationRes = await ReservationService.update(Number(effectiveId), fullPayload);
           createdResNo = reservationRes.data.reservation_no;
           toast.success(`Reservation ${createdResNo} updated`);
         } else {
@@ -851,7 +835,6 @@ const HotelReservation = () => {
   const { setFieldValue, values, handleSubmit } = formik;
 
   // ---------- Handlers that depend on formik ----------
-
   const handleRoomCategoryChange = async (categoryId: number | null) => {
     if (!categoryId) {
       setFieldValue('roomCategory', null);
@@ -990,7 +973,6 @@ const HotelReservation = () => {
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
 
-        // Set title from guest's fragment_id if available, otherwise default to MR
         const title = guest.fragment_id ? 'MR' : 'MR';
         
         setFieldValue('title', title);
@@ -1270,13 +1252,13 @@ const HotelReservation = () => {
     }
   }, [isEditing, hotelId, setFieldValue]);
 
-  // Load existing reservation if editing
+  // ---------- Load existing reservation for editing (UPDATED: uses effectiveId) ----------
   useEffect(() => {
-    if (!isEditing || !id || !hotelId) return;
+    if (!isEditing || !effectiveId || !hotelId) return; // <-- CHANGED: use effectiveId
 
     const loadReservation = async () => {
       try {
-        const res = await ReservationService.get(Number(id));
+        const res = await ReservationService.get(Number(effectiveId)); // <-- CHANGED
         const reservation = res.data;
 
         setFieldValue('reservationNo', reservation.reservation_no);
@@ -1301,10 +1283,7 @@ const HotelReservation = () => {
           await loadGuestDetails(reservation.guest_id);
         }
 
-        // Single API response already carries rooms + booked_by — no more
-        // separate ReservationRoomService / ReservationBookedByService calls.
         const rooms = reservation.rooms || [];
-
         const rows: RoomRow[] = rooms.map((room: any) => {
           const category = roomCategories.find(c => c.room_category_id === room.room_category_id);
           const convertedCategory = room.converted_category_id
@@ -1368,7 +1347,7 @@ const HotelReservation = () => {
     };
 
     loadReservation();
-  }, [id, isEditing, hotelId, roomCategories]);
+  }, [effectiveId, isEditing, hotelId, roomCategories]); // <-- CHANGED: depend on effectiveId
 
   // ========== UPDATED SELECT STYLES WITH Z-INDEX FIX ==========
   const selectStyles = {
@@ -1397,8 +1376,6 @@ const HotelReservation = () => {
     menuPortal: (base: any) => ({ ...base, zIndex: 10001 }),
   } as const;
 
-  // Dedicated styles for the "Booked By" select — taller control + breathing
-  // room so it sits centered and fully visible inside its table cell.
   const bookedBySelectStyles = {
     ...selectStyles,
     control: (base: any, state: any) => ({
