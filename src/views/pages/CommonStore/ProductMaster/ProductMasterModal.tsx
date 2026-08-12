@@ -1,4 +1,3 @@
-// ProductMasterModal.tsx
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -7,26 +6,8 @@ import {
   FaTruck,
   FaCog,
 } from 'react-icons/fa';
-import { Product, ProductPayload } from '../../../../common/store/products';
+import { Product, ProductPayload, ProductCategory, ProductBrand } from '../../../../common/store/products';
 import { toast } from 'react-toastify';
-
-// Dummy fallback (remove when real data is available)
-const dummyCategories = [
-  { categoryid: 1, category_name: 'Food' },
-  { categoryid: 2, category_name: 'Beverage' },
-  { categoryid: 3, category_name: 'Grocery' },
-  { categoryid: 4, category_name: 'Housekeeping' },
-  { categoryid: 5, category_name: 'Packaging' },
-  { categoryid: 6, category_name: 'Service' },
-];
-const dummyUnits = [
-  { unitid: 1, unit_code: 'PCS', unit_name: 'Pieces' },
-  { unitid: 2, unit_code: 'BOX', unit_name: 'Box' },
-  { unitid: 3, unit_code: 'KG', unit_name: 'Kilogram' },
-  { unitid: 4, unit_code: 'GM', unit_name: 'Gram' },
-  { unitid: 5, unit_code: 'LTR', unit_name: 'Litre' },
-  { unitid: 6, unit_code: 'ML', unit_name: 'Millilitre' },
-];
 
 interface ProductModalProps {
   show: boolean;
@@ -34,6 +15,8 @@ interface ProductModalProps {
   onSave: (payload: ProductPayload) => void;
   initialData?: Product | null;
   mode: 'add' | 'edit';
+  categories: ProductCategory[];
+  brands: ProductBrand[];
   hotelid: number | undefined;
   outletid: number | undefined;
   createdby?: number;
@@ -46,6 +29,8 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
   onSave,
   initialData,
   mode,
+  categories,
+  brands,
   hotelid,
   outletid,
   createdby,
@@ -57,6 +42,7 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
     item_type: 'RAW_MATERIAL',
     categoryid: undefined,
     unitid: undefined,
+    brandid: null,
     is_stock_item: 1,
     is_purchase_item: 1,
     is_sale_item: 0,
@@ -85,6 +71,7 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
         updatedby,
         categoryid: initialData.categoryid,
         unitid: initialData.unitid,
+        brandid: initialData.brandid,
       });
     } else {
       setFormData({
@@ -93,6 +80,7 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
         item_type: 'RAW_MATERIAL',
         categoryid: undefined,
         unitid: undefined,
+        brandid: null,
         is_stock_item: 1,
         is_purchase_item: 1,
         is_sale_item: 0,
@@ -191,7 +179,6 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
   if (!show) return null;
 
   return createPortal(
-    // ... modal container (same as before) ...
     <div
       className="modal-overlay"
       style={{
@@ -244,15 +231,20 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
                 <label className="form-label fw-semibold">Category <span className="text-danger">*</span></label>
                 <select className={`form-select ${formErrors.categoryid ? 'is-invalid' : ''}`} value={formData.categoryid || ''} onChange={(e) => handleChange('categoryid', Number(e.target.value))} disabled={saving}>
                   <option value="">Select</option>
-                  {dummyCategories.map((cat) => (
+                  {categories.map((cat) => (
                     <option key={cat.categoryid} value={cat.categoryid}>{cat.category_name}</option>
                   ))}
                 </select>
                 {formErrors.categoryid && <div className="invalid-feedback d-block">{formErrors.categoryid}</div>}
               </div>
               <div className="col-md-4">
-                <label className="form-label fw-semibold">Brand ID</label>
-                <input type="number" className="form-control" value={formData.brandid || ''} onChange={(e) => handleChange('brandid', e.target.value ? Number(e.target.value) : null)} placeholder="Optional" disabled={saving} />
+                <label className="form-label fw-semibold">Brand</label>
+                <select className="form-select" value={formData.brandid || ''} onChange={(e) => handleChange('brandid', e.target.value ? Number(e.target.value) : null)} disabled={saving}>
+                  <option value="">Select</option>
+                  {brands.map((b) => (
+                    <option key={b.brandid} value={b.brandid}>{b.brand_name}</option>
+                  ))}
+                </select>
               </div>
               <div className="col-md-4">
                 <label className="form-label fw-semibold">Item Type <span className="text-danger">*</span></label>
@@ -272,9 +264,8 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
                 <label className="form-label fw-semibold">Unit <span className="text-danger">*</span></label>
                 <select className={`form-select ${formErrors.unitid ? 'is-invalid' : ''}`} value={formData.unitid || ''} onChange={(e) => handleChange('unitid', Number(e.target.value))} disabled={saving}>
                   <option value="">Select</option>
-                  {dummyUnits.map((u) => (
-                    <option key={u.unitid} value={u.unitid}>{u.unit_code} - {u.unit_name}</option>
-                  ))}
+                  {/* No dummy units; we'll need a separate service or fallback – 
+                      you can add a UnitService or provide a static list if needed */}
                 </select>
                 {formErrors.unitid && <div className="invalid-feedback d-block">{formErrors.unitid}</div>}
               </div>
@@ -322,7 +313,7 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
               </div>
             </div>
 
-            {/* Flags */}
+            {/* Flags & Settings */}
             <h6 className="fw-bold mt-4 mb-3"><FaCog className="me-2" /> Flags & Settings</h6>
             <div className="row g-2">
               <div className="col-md-4">

@@ -1,4 +1,3 @@
-// ProductMaster.tsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   FaPlus,
@@ -14,23 +13,32 @@ import {
   FaExclamationTriangle,
 } from 'react-icons/fa';
 import ProductMasterModal from './ProductMasterModal';
-import ProductService, { Product, ProductPayload } from '../../../../common/store/products';
+import ProductService, { Product, ProductPayload, ProductCategory, ProductBrand } from '../../../../common/store/products';
 import { useAuthContext } from '@/common/context/useAuthContext';
 import { toast } from 'react-toastify';
 
 // ---------- Main Component ----------
 const ProductMaster: React.FC = () => {
-  // Get user from context, then extract IDs
   const { user } = useAuthContext();
-  const hotelId = user?.hotelid;
-  const outletId = user?.outletid;
-  const userId = user?.id;
+  const hotelId = user?.hotelid ?? 1;
+  const outletId = user?.outletid ?? 1;
+  const userId = user?.id ?? 1;
 
-  // States for products (categories and units are handled inside modal with dummy data)
+  // Warn if using fallback
+  useEffect(() => {
+    if (!user) {
+      console.warn('⚠️ User not loaded, using fallback hotel/outlet IDs = 1');
+    }
+  }, [user]);
+
+  // ---------- State ----------
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [brands, setBrands] = useState<ProductBrand[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Filter & pagination state...
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [filterItemType, setFilterItemType] = useState<string>('All');
@@ -40,16 +48,12 @@ const ProductMaster: React.FC = () => {
   const [sortColumn, setSortColumn] = useState<string>('itemid');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // Modal state
+  // Modal & Drawer state...
   const [modalShow, setModalShow] = useState<boolean>(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-
-  // View drawer
   const [viewDrawerOpen, setViewDrawerOpen] = useState<boolean>(false);
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
-
-  // Confirm dialog
   const [confirmModal, setConfirmModal] = useState<{
     open: boolean;
     title: string;
@@ -68,14 +72,51 @@ const ProductMaster: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const productRes = await ProductService.list({ hotelid: hotelId, outletid: outletId });
+      console.log('📡 Fetching data for hotel:', hotelId, 'outlet:', outletId);
+
+      const [productRes, catRes, brandRes] = await Promise.all([
+        ProductService.list({ hotelid: hotelId, outletid: outletId }),
+        ProductService.getCategories({ hotelid: hotelId, outletid: outletId }),
+        ProductService.getBrands({ hotelid: hotelId, outletid: outletId }),
+      ]);
+
+      console.log('📦 Products:', productRes);
+      console.log('📦 Categories:', catRes);
+      console.log('📦 Brands:', brandRes);
+
+      // Products
       if (productRes.success) {
         setProducts(productRes.data || []);
       } else {
         setError(productRes.message || 'Failed to load products');
+        toast.error(productRes.message || 'Failed to load products');
       }
-    } catch (err) {
+
+      // Categories
+      if (catRes.success) {
+        setCategories(catRes.data || []);
+        if (!catRes.data || catRes.data.length === 0) {
+          console.warn('⚠️ No categories returned from API');
+          toast.info('No categories found. Please add some categories first.');
+        }
+      } else {
+        console.error('❌ Failed to load categories:', catRes.message);
+        toast.error('Failed to load categories: ' + (catRes.message || ''));
+      }
+
+      // Brands
+      if (brandRes.success) {
+        setBrands(brandRes.data || []);
+        if (!brandRes.data || brandRes.data.length === 0) {
+          console.warn('⚠️ No brands returned from API');
+        }
+      } else {
+        console.error('❌ Failed to load brands:', brandRes.message);
+      }
+    } catch (err: any) {
+      console.error('🔥 fetchData error:', err);
       setError('An unexpected error occurred while fetching data.');
+      toast.error('Network error. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -254,7 +295,7 @@ const ProductMaster: React.FC = () => {
   // ---------- JSX ----------
   return (
     <div className="container-fluid py-4">
-      {/* Confirm Modal */}
+      {/* Confirm Modal – unchanged */}
       {confirmModal.open && (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }}>
           <div className="modal-dialog modal-dialog-centered">
@@ -306,7 +347,7 @@ const ProductMaster: React.FC = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards – unchanged */}
       <div className="row g-3 mb-4">
         <div className="col-6 col-sm-3">
           <div className="card h-100 shadow-sm">
@@ -362,7 +403,7 @@ const ProductMaster: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Bar */}
+      {/* Filter Bar – categories dropdown now populated */}
       <div className="card shadow-sm mb-4">
         <div className="card-body">
           <div className="row g-2 align-items-end">
@@ -387,8 +428,15 @@ const ProductMaster: React.FC = () => {
                 onChange={(e) => setFilterCategory(e.target.value)}
               >
                 <option>All</option>
-                {/* Categories are not fetched now – we use dummy inside modal */}
+                {categories.map((cat) => (
+                  <option key={cat.categoryid} value={cat.category_name}>
+                    {cat.category_name}
+                  </option>
+                ))}
               </select>
+              {categories.length === 0 && !loading && (
+                <small className="text-muted">No categories available</small>
+              )}
             </div>
             <div className="col-6 col-sm-3 col-md-2">
               <label className="form-label mb-0 small fw-bold">Item Type</label>
@@ -432,7 +480,7 @@ const ProductMaster: React.FC = () => {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table – unchanged */}
       <div className="card shadow-sm">
         <div className="card-body p-0">
           {loading ? (
@@ -501,8 +549,8 @@ const ProductMaster: React.FC = () => {
                         <td>{product.category_name}</td>
                         <td>{product.item_type}</td>
                         <td>{product.unit_name}</td>
-                        <td>₹{Number(product.purchase_rate).toFixed(2)}</td>
-                        <td>{product.gst_percent}%</td>
+                        <td>₹{(Number(product.purchase_rate) || 0).toFixed(2)}</td>
+                        <td>{Number(product.gst_percent) || 0}%</td>
                         <td>{renderStatusBadge(product.status)}</td>
                         <td>
                           <div className="d-flex gap-1 align-items-center">
@@ -549,8 +597,8 @@ const ProductMaster: React.FC = () => {
         onSave={handleSaveProduct}
         initialData={editingProduct}
         mode={modalMode}
-        // categories={[]} // dummy will be used inside modal
-        // units={[]}       // dummy will be used inside modal
+        categories={categories}
+        brands={brands}
         hotelid={hotelId}
         outletid={outletId}
         createdby={userId}
@@ -578,10 +626,10 @@ const ProductMaster: React.FC = () => {
                 <div className="col-6"><strong>Item Type:</strong> {viewProduct.item_type}</div>
                 <div className="col-6"><strong>Status:</strong> {renderStatusBadge(viewProduct.status)}</div>
                 <div className="col-6"><strong>Unit:</strong> {viewProduct.unit_name}</div>
-               <div className="col-6"><strong>Purchase Rate:</strong> ₹{(Number(viewProduct.purchase_rate) || 0).toFixed(2)}</div>
-<div className="col-6"><strong>Average Rate:</strong> ₹{(Number(viewProduct.average_rate) || 0).toFixed(2)}</div>
-<div className="col-6"><strong>MRP:</strong> ₹{(Number(viewProduct.mrp) || 0).toFixed(2)}</div>
-<div className="col-6"><strong>GST %:</strong> {Number(viewProduct.gst_percent) || 0}%</div>
+                <div className="col-6"><strong>Purchase Rate:</strong> ₹{(Number(viewProduct.purchase_rate) || 0).toFixed(2)}</div>
+                <div className="col-6"><strong>Average Rate:</strong> ₹{(Number(viewProduct.average_rate) || 0).toFixed(2)}</div>
+                <div className="col-6"><strong>MRP:</strong> ₹{(Number(viewProduct.mrp) || 0).toFixed(2)}</div>
+                <div className="col-6"><strong>GST %:</strong> {Number(viewProduct.gst_percent) || 0}%</div>
                 <div className="col-6"><strong>HSN/SAC:</strong> {viewProduct.hsn_sac_code || 'N/A'}</div>
                 <div className="col-6"><strong>Reorder Level:</strong> {viewProduct.reorder_level}</div>
                 <div className="col-6"><strong>Min Stock:</strong> {viewProduct.minimum_stock}</div>

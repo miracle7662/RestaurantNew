@@ -355,6 +355,124 @@ exports.getProductById = async (req, res) => {
 
 
 // ============================================================
+// GET PRODUCT CATEGORIES
+// ============================================================
+exports.getProductCategories = async (req, res) => {
+  let connection;
+
+  try {
+    connection = await db.getConnection();
+
+    const { hotelid, outletid } = req.query;
+
+    if (!hotelid || !outletid) {
+      return res.status(400).json({
+        success: false,
+        message: "hotelid and outletid are required"
+      });
+    }
+
+    const [rows] = await connection.execute(
+      `
+      SELECT
+        categoryid,
+        hotelid,
+        outletid,
+        category_code,
+        category_name,
+        parent_categoryid,
+        status
+      FROM mst_product_category
+      WHERE hotelid = ?
+        AND outletid = ?
+        AND status = 1
+      ORDER BY category_name ASC
+      `,
+      [hotelid, outletid]
+    );
+    console.log("BRAND QUERY:", { hotelid, outletid });
+console.log("BRAND ROWS:", rows);
+
+    return res.status(200).json({
+      success: true,
+      count: rows.length,
+      data: rows
+    });
+
+  } catch (error) {
+    console.error("GET PRODUCT CATEGORIES ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch product categories",
+      error: error.message
+    });
+
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// ============================================================
+// GET PRODUCT BRANDS
+// ============================================================
+exports.getProductBrands = async (req, res) => {
+  let connection;
+
+  try {
+    connection = await db.getConnection();
+
+    const { hotelid, outletid } = req.query;
+
+    if (!hotelid || !outletid) {
+      return res.status(400).json({
+        success: false,
+        message: "hotelid and outletid are required"
+      });
+    }
+
+    const [rows] = await connection.execute(
+      `
+      SELECT
+        brandid,
+        hotelid,
+        outletid,
+        brand_code,
+        brand_name,
+        status
+      FROM mst_product_brand
+      WHERE hotelid = ?
+        AND outletid = ?
+        AND status = 1
+      ORDER BY brand_name ASC
+      `,
+      [hotelid, outletid]
+    );
+
+  console.log("BRAND QUERY:", { hotelid, outletid });
+console.log("BRAND ROWS:", rows);
+    return res.status(200).json({
+      success: true,
+      count: rows.length,
+      data: rows
+    });
+
+  } catch (error) {
+    console.error("GET PRODUCT BRANDS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch product brands",
+      error: error.message
+    });
+
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+
+// ============================================================
 // UPDATE PRODUCT
 // ============================================================
 exports.updateProduct = async (req, res) => {

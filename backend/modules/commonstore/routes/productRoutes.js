@@ -15,6 +15,9 @@ router.get(
   productController.getProducts
 );
 
+router.get('/categories', productController.getProductCategories);
+router.get('/brands', productController.getProductBrands);
+
 // Get Product By ID
 router.get(
   "/:itemid",

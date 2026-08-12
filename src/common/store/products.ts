@@ -129,6 +129,37 @@ export interface ProductPayload {
 }
 
 
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Category
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+export interface ProductCategory {
+  categoryid: number
+  hotelid: number
+  outletid: number
+  category_code: string
+  category_name: string
+  parent_categoryid: number | null
+  status: number
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Brand
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+export interface ProductBrand {
+  brandid: number
+  hotelid: number
+  outletid: number
+  brand_code: string
+  brand_name: string
+  status: number
+}
+
+
+
 /* ═══════════════════════════════════════════════════════════════════════════════
  * Product Service
  * ═══════════════════════════════════════════════════════════════════════════════ */
@@ -214,8 +245,47 @@ const ProductService = {
         HttpClient.delete<ApiResponse<null>>(
             `/product/${id}`,
             { data: payload }
-        )
+        ),
+
+
+         /* ═══════════════════════════════════════════════════════════════════════════
+   * Category
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get active product categories
+   */
+  getCategories: (
+    params: {
+      hotelid: number
+      outletid: number
+    }
+  ): Promise<ApiResponse<ProductCategory[]>> =>
+    HttpClient.get<ApiResponse<ProductCategory[]>>(
+      '/product/categories',
+      { params }
+    ),
+
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * Brand
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get active product brands
+   */
+  getBrands: (
+    params: {
+      hotelid: number
+      outletid: number
+    }
+  ): Promise<ApiResponse<ProductBrand[]>> =>
+    HttpClient.get<ApiResponse<ProductBrand[]>>(
+      '/product/brands',
+      { params }
+    )
 }
+
 
 
 export default ProductService
