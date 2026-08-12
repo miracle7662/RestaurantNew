@@ -140,6 +140,12 @@ const Amendments =  React.lazy(() => import('../views/pages/hotel-master/HotelBo
 const HotelReport = React.lazy(() => import('../views/pages/HotelReport'))
 
 
+/* ================================
+   🏨 STORE SECTION
+================================ */
+
+const   ProductMaster= React.lazy(() => import('../views/pages/CommonStore/ProductMaster/ProductMaster'))
+
 
 
 
@@ -929,6 +935,20 @@ const appsRoutes: RoutesProps = {
         },
       ],
     },
+
+
+
+       /* ================================================================
+                  🏨 COMMON STORE SECTION
+================================================================ */
+       {
+  path: '/apps/ProductMaster',
+  name: 'ProductMaster',
+  element: <ProductMaster />,
+  route: PrivateRoute,
+},
+
+
 
   ],
 }

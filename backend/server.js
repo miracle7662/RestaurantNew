@@ -121,6 +121,14 @@ const DiscountRoutes = require('./modules/hotelbooking/routes/DiscountRoutes');
 const gracePeriodRoutes = require("./modules/hotelbooking/routes/GracePeriodRoutes");
 
 
+
+/* ───────── Common Store Import (MODULAR) ───────── */
+
+const productRoutes = require("./modules/commonstore/routes/productRoutes");
+
+
+
+
 // ✅ Correct order of middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -234,6 +242,10 @@ app.use("/api/grace-period-settings", gracePeriodRoutes);
 app.use('/api/room-transfer', roomTransferRoutes);
 // Discount routes
 app.use('/api/discount', DiscountRoutes)
+
+
+/* ───────── Common Store Routes Registration ───────── */
+app.use("/api/product", productRoutes);
 
 
 

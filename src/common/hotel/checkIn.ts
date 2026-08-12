@@ -58,6 +58,7 @@ export interface CheckIn {
 
   // ----- Guest details (from COALESCE) -----
   guest_name: string;
+  name?: string; // mapped from gm.name / cdm.name
   address: string;
   mobile: string;
   company_name: string;
