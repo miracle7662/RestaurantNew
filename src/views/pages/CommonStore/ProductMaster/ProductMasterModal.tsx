@@ -7,6 +7,7 @@ import {
   FaCog,
 } from 'react-icons/fa';
 import { Product, ProductPayload, ProductCategory, ProductBrand } from '../../../../common/store/products';
+import { UnitMaster } from '../../../../common/api/unitmaster';
 import { toast } from 'react-toastify';
 
 interface ProductModalProps {
@@ -17,6 +18,7 @@ interface ProductModalProps {
   mode: 'add' | 'edit';
   categories: ProductCategory[];
   brands: ProductBrand[];
+  units: UnitMaster[];
   hotelid: number | undefined;
   outletid: number | undefined;
   createdby?: number;
@@ -31,6 +33,7 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
   mode,
   categories,
   brands,
+  units,
   hotelid,
   outletid,
   createdby,
@@ -196,59 +199,153 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
         if (e.target === e.currentTarget && !saving) onHide();
       }}
     >
-      <div className="modal-dialog modal-dialog-centered modal-lg" style={{ maxWidth: '900px', width: '95%', margin: '1.75rem auto', pointerEvents: 'none' }}>
-        <div className="modal-content" style={{ pointerEvents: 'auto', borderRadius: '12px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', backgroundColor: '#fff', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+      <div
+        className="modal-dialog modal-dialog-centered modal-lg"
+        style={{
+          maxWidth: '900px',
+          width: '95%',
+          margin: '1.75rem auto',
+          pointerEvents: 'none',
+        }}
+      >
+        <div
+          className="modal-content"
+          style={{
+            pointerEvents: 'auto',
+            borderRadius: '12px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            backgroundColor: '#fff',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           {/* Header */}
-          <div className="modal-header" style={{ borderBottom: '1px solid #dee2e6', padding: '1rem 1.5rem', flexShrink: 0 }}>
-            <h5 className="modal-title fw-bold">{mode === 'add' ? 'Add Product' : 'Edit Product'}</h5>
+          <div
+            className="modal-header"
+            style={{
+              borderBottom: '1px solid #dee2e6',
+              padding: '1rem 1.5rem',
+              flexShrink: 0,
+            }}
+          >
+            <h5 className="modal-title fw-bold">
+              {mode === 'add' ? 'Add Product' : 'Edit Product'}
+            </h5>
             <button type="button" className="btn-close" onClick={onHide} disabled={saving} />
           </div>
 
           {/* Body */}
-          <div className="modal-body" style={{ padding: '1.5rem', overflowY: 'auto', flex: '1 1 auto' }}>
-            {/* Basic Information */}
-            <h6 className="fw-bold mt-0 mb-3"><FaInfoCircle className="me-2" /> Basic Information</h6>
+          <div
+            className="modal-body"
+            style={{
+              padding: '1.5rem',
+              overflowY: 'auto',
+              flex: '1 1 auto',
+            }}
+          >
+            {/* ====== Basic Information ====== */}
+            <h6 className="fw-bold mt-0 mb-3">
+              <FaInfoCircle className="me-2" /> Basic Information
+            </h6>
             <div className="row g-3">
               <div className="col-md-4">
                 <label className="form-label fw-semibold">Item Code <span className="text-danger">*</span></label>
-                <input type="text" className={`form-control ${formErrors.item_code ? 'is-invalid' : ''}`} value={formData.item_code || ''} onChange={(e) => handleChange('item_code', e.target.value)} placeholder="e.g., PRD-001" disabled={saving} />
+                <input
+                  type="text"
+                  className={`form-control ${formErrors.item_code ? 'is-invalid' : ''}`}
+                  value={formData.item_code || ''}
+                  onChange={(e) => handleChange('item_code', e.target.value)}
+                  placeholder="e.g., PRD-001"
+                  disabled={saving}
+                />
                 {formErrors.item_code && <div className="invalid-feedback d-block">{formErrors.item_code}</div>}
               </div>
               <div className="col-md-4">
                 <label className="form-label fw-semibold">Item Name <span className="text-danger">*</span></label>
-                <input type="text" className={`form-control ${formErrors.item_name ? 'is-invalid' : ''}`} value={formData.item_name || ''} onChange={(e) => handleChange('item_name', e.target.value)} placeholder="Product name" disabled={saving} />
+                <input
+                  type="text"
+                  className={`form-control ${formErrors.item_name ? 'is-invalid' : ''}`}
+                  value={formData.item_name || ''}
+                  onChange={(e) => handleChange('item_name', e.target.value)}
+                  placeholder="Product name"
+                  disabled={saving}
+                />
                 {formErrors.item_name && <div className="invalid-feedback d-block">{formErrors.item_name}</div>}
               </div>
               <div className="col-md-4">
                 <label className="form-label fw-semibold">Short Name</label>
-                <input type="text" className="form-control" value={formData.short_name || ''} onChange={(e) => handleChange('short_name', e.target.value)} placeholder="Short name" disabled={saving} />
+                <input
+                  type="text"
+                  className="form-control"
+                  value={formData.short_name || ''}
+                  onChange={(e) => handleChange('short_name', e.target.value)}
+                  placeholder="Short name"
+                  disabled={saving}
+                />
               </div>
               <div className="col-md-4">
                 <label className="form-label fw-semibold">Barcode</label>
-                <input type="text" className="form-control" value={formData.barcode || ''} onChange={(e) => handleChange('barcode', e.target.value)} placeholder="Barcode" disabled={saving} />
+                <input
+                  type="text"
+                  className="form-control"
+                  value={formData.barcode || ''}
+                  onChange={(e) => handleChange('barcode', e.target.value)}
+                  placeholder="Barcode"
+                  disabled={saving}
+                />
               </div>
               <div className="col-md-4">
                 <label className="form-label fw-semibold">Category <span className="text-danger">*</span></label>
-                <select className={`form-select ${formErrors.categoryid ? 'is-invalid' : ''}`} value={formData.categoryid || ''} onChange={(e) => handleChange('categoryid', Number(e.target.value))} disabled={saving}>
-                  <option value="">Select</option>
+                <select
+                  className={`form-select ${formErrors.categoryid ? 'is-invalid' : ''}`}
+                  value={formData.categoryid || ''}
+                  onChange={(e) => handleChange('categoryid', Number(e.target.value))}
+                  disabled={saving || categories.length === 0}
+                >
+                  <option value="">
+                    {categories.length === 0 ? 'No categories available' : 'Select'}
+                  </option>
                   {categories.map((cat) => (
-                    <option key={cat.categoryid} value={cat.categoryid}>{cat.category_name}</option>
+                    <option key={cat.categoryid} value={cat.categoryid}>
+                      {cat.category_name}
+                    </option>
                   ))}
                 </select>
+                {categories.length === 0 && !saving && (
+                  <small className="text-warning d-block">Please add categories in the system.</small>
+                )}
                 {formErrors.categoryid && <div className="invalid-feedback d-block">{formErrors.categoryid}</div>}
               </div>
               <div className="col-md-4">
                 <label className="form-label fw-semibold">Brand</label>
-                <select className="form-select" value={formData.brandid || ''} onChange={(e) => handleChange('brandid', e.target.value ? Number(e.target.value) : null)} disabled={saving}>
-                  <option value="">Select</option>
+                <select
+                  className="form-select"
+                  value={formData.brandid || ''}
+                  onChange={(e) => handleChange('brandid', e.target.value ? Number(e.target.value) : null)}
+                  disabled={saving || brands.length === 0}
+                >
+                  <option value="">
+                    {brands.length === 0 ? 'No brands available' : 'Select'}
+                  </option>
                   {brands.map((b) => (
-                    <option key={b.brandid} value={b.brandid}>{b.brand_name}</option>
+                    <option key={b.brandid} value={b.brandid}>
+                      {b.brand_name}
+                    </option>
                   ))}
                 </select>
+                {brands.length === 0 && !saving && (
+                  <small className="text-muted d-block">Brands are optional.</small>
+                )}
               </div>
               <div className="col-md-4">
                 <label className="form-label fw-semibold">Item Type <span className="text-danger">*</span></label>
-                <select className={`form-select ${formErrors.item_type ? 'is-invalid' : ''}`} value={formData.item_type || 'RAW_MATERIAL'} onChange={(e) => handleChange('item_type', e.target.value)} disabled={saving}>
+                <select
+                  className={`form-select ${formErrors.item_type ? 'is-invalid' : ''}`}
+                  value={formData.item_type || 'RAW_MATERIAL'}
+                  onChange={(e) => handleChange('item_type', e.target.value)}
+                  disabled={saving}
+                >
                   <option value="RAW_MATERIAL">Raw Material</option>
                   <option value="FINISHED_GOOD">Finished Good</option>
                   <option value="CONSUMABLE">Consumable</option>
@@ -262,111 +359,240 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
               </div>
               <div className="col-md-4">
                 <label className="form-label fw-semibold">Unit <span className="text-danger">*</span></label>
-                <select className={`form-select ${formErrors.unitid ? 'is-invalid' : ''}`} value={formData.unitid || ''} onChange={(e) => handleChange('unitid', Number(e.target.value))} disabled={saving}>
-                  <option value="">Select</option>
-                  {/* No dummy units; we'll need a separate service or fallback – 
-                      you can add a UnitService or provide a static list if needed */}
+                <select
+                  className={`form-select ${formErrors.unitid ? 'is-invalid' : ''}`}
+                  value={formData.unitid || ''}
+                  onChange={(e) => handleChange('unitid', Number(e.target.value))}
+                  disabled={saving || units.length === 0}
+                >
+                  <option value="">
+                    {units.length === 0 ? 'No units available' : 'Select'}
+                  </option>
+                  {units.map((u) => (
+                    <option key={u.unitid} value={u.unitid}>
+                      {u.unitid} - {u.unit_name}
+                    </option>
+                  ))}
                 </select>
+                {units.length === 0 && !saving && (
+                  <small className="text-warning d-block">Please add units in the system.</small>
+                )}
                 {formErrors.unitid && <div className="invalid-feedback d-block">{formErrors.unitid}</div>}
               </div>
             </div>
 
-            {/* Purchase & Pricing */}
-            <h6 className="fw-bold mt-4 mb-3"><FaTruck className="me-2" /> Purchase & Pricing</h6>
+            {/* ====== Purchase & Pricing ====== */}
+            <h6 className="fw-bold mt-4 mb-3">
+              <FaTruck className="me-2" /> Purchase & Pricing
+            </h6>
             <div className="row g-3">
               <div className="col-md-3">
                 <label className="form-label fw-semibold">Purchase Rate</label>
-                <input type="number" className="form-control" value={formData.purchase_rate || ''} onChange={(e) => handleChange('purchase_rate', parseFloat(e.target.value) || 0)} placeholder="0.00" disabled={saving} />
+                <input
+                  type="number"
+                  className="form-control"
+                  value={formData.purchase_rate || ''}
+                  onChange={(e) => handleChange('purchase_rate', parseFloat(e.target.value) || 0)}
+                  placeholder="0.00"
+                  disabled={saving}
+                />
               </div>
               <div className="col-md-3">
                 <label className="form-label fw-semibold">Average Rate</label>
-                <input type="number" className="form-control" value={formData.average_rate || ''} onChange={(e) => handleChange('average_rate', parseFloat(e.target.value) || 0)} placeholder="0.00" disabled={saving} />
+                <input
+                  type="number"
+                  className="form-control"
+                  value={formData.average_rate || ''}
+                  onChange={(e) => handleChange('average_rate', parseFloat(e.target.value) || 0)}
+                  placeholder="0.00"
+                  disabled={saving}
+                />
               </div>
               <div className="col-md-3">
                 <label className="form-label fw-semibold">MRP</label>
-                <input type="number" className="form-control" value={formData.mrp || ''} onChange={(e) => handleChange('mrp', parseFloat(e.target.value) || 0)} placeholder="0.00" disabled={saving} />
+                <input
+                  type="number"
+                  className="form-control"
+                  value={formData.mrp || ''}
+                  onChange={(e) => handleChange('mrp', parseFloat(e.target.value) || 0)}
+                  placeholder="0.00"
+                  disabled={saving}
+                />
               </div>
               <div className="col-md-3">
                 <label className="form-label fw-semibold">GST (%)</label>
-                <input type="number" className="form-control" value={formData.gst_percent || ''} onChange={(e) => handleChange('gst_percent', parseFloat(e.target.value) || 0)} placeholder="0.00" disabled={saving} />
+                <input
+                  type="number"
+                  className="form-control"
+                  value={formData.gst_percent || ''}
+                  onChange={(e) => handleChange('gst_percent', parseFloat(e.target.value) || 0)}
+                  placeholder="0.00"
+                  disabled={saving}
+                />
               </div>
               <div className="col-md-4">
                 <label className="form-label fw-semibold">HSN / SAC</label>
-                <input type="text" className="form-control" value={formData.hsn_sac_code || ''} onChange={(e) => handleChange('hsn_sac_code', e.target.value)} placeholder="e.g., 1006" disabled={saving} />
+                <input
+                  type="text"
+                  className="form-control"
+                  value={formData.hsn_sac_code || ''}
+                  onChange={(e) => handleChange('hsn_sac_code', e.target.value)}
+                  placeholder="e.g., 1006"
+                  disabled={saving}
+                />
               </div>
             </div>
 
-            {/* Stock Levels */}
-            <h6 className="fw-bold mt-4 mb-3"><FaStore className="me-2" /> Stock Levels</h6>
+            {/* ====== Stock Levels ====== */}
+            <h6 className="fw-bold mt-4 mb-3">
+              <FaStore className="me-2" /> Stock Levels
+            </h6>
             <div className="row g-3">
               <div className="col-md-3">
                 <label className="form-label fw-semibold">Reorder Level</label>
-                <input type="number" className="form-control" value={formData.reorder_level || ''} onChange={(e) => handleChange('reorder_level', parseFloat(e.target.value) || 0)} placeholder="0" disabled={saving} />
+                <input
+                  type="number"
+                  className="form-control"
+                  value={formData.reorder_level || ''}
+                  onChange={(e) => handleChange('reorder_level', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  disabled={saving}
+                />
               </div>
               <div className="col-md-3">
                 <label className="form-label fw-semibold">Minimum Stock</label>
-                <input type="number" className="form-control" value={formData.minimum_stock || ''} onChange={(e) => handleChange('minimum_stock', parseFloat(e.target.value) || 0)} placeholder="0" disabled={saving} />
+                <input
+                  type="number"
+                  className="form-control"
+                  value={formData.minimum_stock || ''}
+                  onChange={(e) => handleChange('minimum_stock', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  disabled={saving}
+                />
               </div>
               <div className="col-md-3">
                 <label className="form-label fw-semibold">Maximum Stock</label>
-                <input type="number" className="form-control" value={formData.maximum_stock || ''} onChange={(e) => handleChange('maximum_stock', parseFloat(e.target.value) || 0)} placeholder="0" disabled={saving} />
+                <input
+                  type="number"
+                  className="form-control"
+                  value={formData.maximum_stock || ''}
+                  onChange={(e) => handleChange('maximum_stock', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  disabled={saving}
+                />
               </div>
             </div>
 
-            {/* Flags & Settings */}
-            <h6 className="fw-bold mt-4 mb-3"><FaCog className="me-2" /> Flags & Settings</h6>
+            {/* ====== Flags & Settings ====== */}
+            <h6 className="fw-bold mt-4 mb-3">
+              <FaCog className="me-2" /> Flags & Settings
+            </h6>
             <div className="row g-2">
               <div className="col-md-4">
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" checked={!!formData.is_stock_item} onChange={(e) => handleChange('is_stock_item', e.target.checked ? 1 : 0)} disabled={saving} />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={!!formData.is_stock_item}
+                    onChange={(e) => handleChange('is_stock_item', e.target.checked ? 1 : 0)}
+                    disabled={saving}
+                  />
                   <label className="form-check-label">Stock Item</label>
                 </div>
               </div>
               <div className="col-md-4">
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" checked={!!formData.is_purchase_item} onChange={(e) => handleChange('is_purchase_item', e.target.checked ? 1 : 0)} disabled={saving} />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={!!formData.is_purchase_item}
+                    onChange={(e) => handleChange('is_purchase_item', e.target.checked ? 1 : 0)}
+                    disabled={saving}
+                  />
                   <label className="form-check-label">Purchase Item</label>
                 </div>
               </div>
               <div className="col-md-4">
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" checked={!!formData.is_sale_item} onChange={(e) => handleChange('is_sale_item', e.target.checked ? 1 : 0)} disabled={saving} />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={!!formData.is_sale_item}
+                    onChange={(e) => handleChange('is_sale_item', e.target.checked ? 1 : 0)}
+                    disabled={saving}
+                  />
                   <label className="form-check-label">Sale Item</label>
                 </div>
               </div>
               <div className="col-md-4">
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" checked={!!formData.is_housekeeping_item} onChange={(e) => handleChange('is_housekeeping_item', e.target.checked ? 1 : 0)} disabled={saving} />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={!!formData.is_housekeeping_item}
+                    onChange={(e) => handleChange('is_housekeeping_item', e.target.checked ? 1 : 0)}
+                    disabled={saving}
+                  />
                   <label className="form-check-label">Housekeeping</label>
                 </div>
               </div>
               <div className="col-md-4">
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" checked={!!formData.is_restaurant_item} onChange={(e) => handleChange('is_restaurant_item', e.target.checked ? 1 : 0)} disabled={saving} />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={!!formData.is_restaurant_item}
+                    onChange={(e) => handleChange('is_restaurant_item', e.target.checked ? 1 : 0)}
+                    disabled={saving}
+                  />
                   <label className="form-check-label">Restaurant</label>
                 </div>
               </div>
               <div className="col-md-4">
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" checked={!!formData.is_bar_item} onChange={(e) => handleChange('is_bar_item', e.target.checked ? 1 : 0)} disabled={saving} />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={!!formData.is_bar_item}
+                    onChange={(e) => handleChange('is_bar_item', e.target.checked ? 1 : 0)}
+                    disabled={saving}
+                  />
                   <label className="form-check-label">Bar</label>
                 </div>
               </div>
               <div className="col-md-4">
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" checked={!!formData.is_recipe_item} onChange={(e) => handleChange('is_recipe_item', e.target.checked ? 1 : 0)} disabled={saving} />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={!!formData.is_recipe_item}
+                    onChange={(e) => handleChange('is_recipe_item', e.target.checked ? 1 : 0)}
+                    disabled={saving}
+                  />
                   <label className="form-check-label">Recipe Item</label>
                 </div>
               </div>
               <div className="col-md-4">
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" checked={!!formData.allow_negative_stock} onChange={(e) => handleChange('allow_negative_stock', e.target.checked ? 1 : 0)} disabled={saving} />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={!!formData.allow_negative_stock}
+                    onChange={(e) => handleChange('allow_negative_stock', e.target.checked ? 1 : 0)}
+                    disabled={saving}
+                  />
                   <label className="form-check-label">Allow Negative Stock</label>
                 </div>
               </div>
               <div className="col-md-4">
                 <div className="form-check">
-                  <input className="form-check-input" type="checkbox" checked={!!formData.status} onChange={(e) => handleChange('status', e.target.checked ? 1 : 0)} disabled={saving} />
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={!!formData.status}
+                    onChange={(e) => handleChange('status', e.target.checked ? 1 : 0)}
+                    disabled={saving}
+                  />
                   <label className="form-check-label">Active</label>
                 </div>
               </div>
@@ -374,8 +600,17 @@ const ProductMasterModal: React.FC<ProductModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="modal-footer" style={{ borderTop: '1px solid #dee2e6', padding: '0.75rem 1.5rem', flexShrink: 0 }}>
-            <button className="btn btn-secondary" onClick={onHide} disabled={saving}>Cancel</button>
+          <div
+            className="modal-footer"
+            style={{
+              borderTop: '1px solid #dee2e6',
+              padding: '0.75rem 1.5rem',
+              flexShrink: 0,
+            }}
+          >
+            <button className="btn btn-secondary" onClick={onHide} disabled={saving}>
+              Cancel
+            </button>
             <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
               {saving && <span className="spinner-border spinner-border-sm me-2" />}
               {mode === 'add' ? 'Add Product' : 'Update Product'}
