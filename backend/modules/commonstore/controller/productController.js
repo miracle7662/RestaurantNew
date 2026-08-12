@@ -667,52 +667,79 @@ exports.deleteProduct = async (req, res) => {
     connection = await db.getConnection();
 
     const { itemid } = req.params;
-    const { hotelid, outletid, updatedby } = req.body;
+    const payload = req.body; // { hotelid, outletid, updatedby } or empty
 
-    if (!hotelid || !outletid) {
-      return res.status(400).json({
-        success: false,
-        message: "hotelid and outletid are required"
+    // Check if payload exists (soft delete) or not (hard delete)
+    const isSoftDelete = payload && Object.keys(payload).length > 0;
+
+    if (isSoftDelete) {
+      // ---- SOFT DELETE ----
+      const { hotelid, outletid, updatedby } = payload;
+
+      if (!hotelid || !outletid) {
+        return res.status(400).json({
+          success: false,
+          message: "hotelid and outletid are required for soft delete"
+        });
+      }
+
+      const [result] = await connection.execute(
+        `
+        UPDATE mst_product
+        SET
+          status = 0,
+          updatedby = ?,
+          updatedon = NOW()
+        WHERE itemid = ?
+          AND hotelid = ?
+          AND outletid = ?
+        `,
+        [
+          updatedby || null,
+          itemid,
+          hotelid,
+          outletid
+        ]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found"
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Product deactivated successfully"
+      });
+
+    } else {
+      // ---- HARD DELETE ----
+      const [result] = await connection.execute(
+        `DELETE FROM mst_product WHERE itemid = ?`,
+        [itemid]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found"
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Product permanently deleted"
       });
     }
-
-    const [result] = await connection.execute(
-      `
-      UPDATE mst_product
-      SET
-        status = 0,
-        updatedby = ?,
-        updatedon = NOW()
-      WHERE itemid = ?
-        AND hotelid = ?
-        AND outletid = ?
-      `,
-      [
-        updatedby || null,
-        itemid,
-        hotelid,
-        outletid
-      ]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found"
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Product deactivated successfully"
-    });
 
   } catch (error) {
     console.error("DELETE PRODUCT ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to deactivate product",
+      message: "Failed to delete product",
       error: error.message
     });
 
