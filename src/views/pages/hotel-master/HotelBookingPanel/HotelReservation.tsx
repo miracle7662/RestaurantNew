@@ -3735,6 +3735,7 @@ const HotelReservation = () => {
                                     { label: "Confirm", value: "Confirm" },
                                     { label: "Wait Listed", value: "Wait Listed" },
                                     { label: "Temporary", value: "Temporary" },
+                                    { label: "Checkin", value: "Checkin" },
                                   ]}
                                   size="sm"
                                   className="w-100 fs-small"
@@ -3829,6 +3830,7 @@ const HotelReservation = () => {
                                 { label: "Confirm", value: "Confirm" },
                                 { label: "Wait Listed", value: "Wait Listed" },
                                 { label: "Temporary", value: "Temporary" },
+                               { label: "Checkin", value: "Checkin" },
                               ]}
                               size="sm"
                               className="w-100 fs-small"

@@ -152,15 +152,12 @@ exports.getReservations = async (req, res) => {
     }
 };
 
-// ----------------------------------------------------------------------
+/// ----------------------------------------------------------------------
 // GET /reservations/today-guests
-// Today's reserved guests for Check-In Form
+// Today's reservation guests for Check-In
 // ----------------------------------------------------------------------
 exports.getTodayReservationGuests = async (req, res) => {
     try {
-        // --------------------------------------------------------------
-        // 1. Get Hotel ID
-        // --------------------------------------------------------------
         let hotelId =
             req.query.hotelid ||
             req.query.mst_hotelid ||
@@ -177,9 +174,6 @@ exports.getTodayReservationGuests = async (req, res) => {
             });
         }
 
-        // --------------------------------------------------------------
-        // 2. Get Today's Reservation Guests
-        // --------------------------------------------------------------
         const sql = `
             SELECT
                 hr.reservation_id,
@@ -231,9 +225,7 @@ exports.getTodayReservationGuests = async (req, res) => {
                 hr.status,
                 hr.hotelid,
 
-                hr.created_by_id,
-                hr.created_at,
-                hr.updated_at
+                hr.created_by_id
 
             FROM hotel_reservations hr
 
@@ -245,10 +237,8 @@ exports.getTodayReservationGuests = async (req, res) => {
 
             WHERE hr.hotelid = ?
 
-              -- Only today's arrival reservations
               AND DATE(hr.arrival_date) = CURDATE()
 
-              -- Only active reserved records
               AND LOWER(hr.status) = 'reserved'
 
             ORDER BY
@@ -256,49 +246,22 @@ exports.getTodayReservationGuests = async (req, res) => {
                 hr.reservation_id ASC
         `;
 
-        const [reservations] = await db.execute(sql, [hotelId]);
+        const [reservations] = await db.execute(
+            sql,
+            [hotelId]
+        );
 
-        // --------------------------------------------------------------
-        // 3. Format Response
-        // --------------------------------------------------------------
-        const formattedReservations = reservations.map((reservation) => ({
-            ...reservation,
-
-            reservation_date: formatDateOnly(
-                reservation.reservation_date
-            ),
-
-            arrival_date: formatDateOnly(
-                reservation.arrival_date
-            ),
-
-            departure_date: formatDateOnly(
-                reservation.departure_date
-            ),
-
-            created_at: formatDateTime(
-                reservation.created_at
-            ),
-
-            updated_at: formatDateTime(
-                reservation.updated_at
-            )
-        }));
-
-        // --------------------------------------------------------------
-        // 4. Response
-        // --------------------------------------------------------------
         return res.status(200).json({
             success: true,
 
             message:
-                formattedReservations.length > 0
+                reservations.length > 0
                     ? "Today's reservation guests fetched successfully"
                     : "No today's reservation guests found",
 
-            count: formattedReservations.length,
+            count: reservations.length,
 
-            data: formattedReservations
+            data: reservations
         });
 
     } catch (error) {

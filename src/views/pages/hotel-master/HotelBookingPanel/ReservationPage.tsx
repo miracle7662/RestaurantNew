@@ -26,6 +26,7 @@ interface ReservationGuest {
   child: number
   driver: number
   total_price: number
+  status: string 
 }
 
 const formatDateTime = (isoString?: string): string => {
@@ -55,6 +56,18 @@ const getTodayDateStr = () => {
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+
+
+const getStatusBadgeClass = (status: string): string => {
+  const s = status?.toLowerCase() || ''
+  if (s === 'reserved') return 'bg-primary'
+  if (s === 'confirmed' || s === 'confirm') return 'bg-success'
+  if (s === 'checkin' || s === 'checked-in') return 'bg-warning text-dark'
+  if (s === 'cancelled' || s === 'cancel') return 'bg-danger'
+  if (s === 'completed') return 'bg-secondary'
+  return 'bg-light text-dark'
 }
 
 // Maps a raw Reservation (+ its rooms, fetched from the single-API
@@ -106,6 +119,7 @@ const mapReservationToRow = (
     child,
     driver,
     total_price: totalPrice,
+    status: res.status || '-',
   }
 }
 
@@ -517,6 +531,7 @@ const ReservationPage = () => {
                   <th>Child</th>
                   <th>Driver</th>
                   <th>Total Price</th>
+                  <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -546,6 +561,11 @@ const ReservationPage = () => {
                       <td>{r.child}</td>
                       <td>{r.driver}</td>
                       <td>Rs.{r.total_price?.toFixed(2)}/-</td>
+                        <td>
+    <span className={`badge ${getStatusBadgeClass(r.status)}`}>
+      {r.status}
+    </span>
+  </td>
                       <td>
                         <Button
                           variant="outline-primary"

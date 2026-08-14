@@ -88,6 +88,12 @@ IN p_agent_total_commission DECIMAL(10,2),
 IN p_agent_pay_to_hotel DECIMAL(10,2),
 IN p_booking_id VARCHAR(100),
 IN p_booking_date DATE,
+
+
+-- Reservation Check-In
+IN p_reservation_id INT,
+IN p_reservation_no VARCHAR(100),
+IN p_checkin_type VARCHAR(20),
 -- ==========================================
 
 -- JSON
@@ -900,6 +906,27 @@ v_now
 SET @folio_index=@folio_index+1;
 
 END WHILE;
+
+END IF;
+
+
+
+/*=========================================================
+UPDATE RESERVATION STATUS
+=========================================================*/
+
+IF p_checkin_type = 'reservation'
+   AND p_reservation_id IS NOT NULL
+   AND p_reservation_id > 0
+THEN
+
+    SET v_error_msg = 'Update Reservation Status';
+
+    UPDATE hotel_reservations
+    SET status = 'checkin'
+    WHERE reservation_id = p_reservation_id
+      AND hotelid = p_hotelid
+      AND status = 'reserved';
 
 END IF;
 

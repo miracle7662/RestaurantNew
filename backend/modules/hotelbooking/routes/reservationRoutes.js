@@ -5,6 +5,7 @@ const controller = require('../controllers/reservationController');
 // Important: place next-number before /:id to avoid conflict
 router.get('/next-number', controller.getNextReservationNumber);
 router.get('/', controller.getReservations);
+router.get('/today-guests', controller.getTodayReservationGuests);
 router.get('/:id', controller.getReservationById);
 router.post('/', controller.addReservation);
 router.put('/:id', controller.updateReservation);

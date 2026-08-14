@@ -167,6 +167,15 @@ const ReservationService = {
     getNextNumber: (params?: { hotelid?: number }): Promise<ApiResponse<{ reservation_no: string }>> =>
         HttpClient.get<ApiResponse<{ reservation_no: string }>>('/reservations/next-number', { params }),
 
+
+    getTodayGuests: (params?: {
+    hotelid?: number;
+}): Promise<ApiResponse<Reservation[]>> =>
+    HttpClient.get<ApiResponse<Reservation[]>>(
+        '/reservations/today-guests',
+        { params }
+    ),
+
     // Single call: inserts hotel_reservations + reservation_rooms (each item
     // in payload.rooms) + reservation_booked_by (if payload.booked_by_id set)
     create: (payload: ReservationPayload): Promise<ApiResponse<Reservation>> =>

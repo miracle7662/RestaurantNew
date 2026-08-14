@@ -856,6 +856,9 @@ exports.addCheckin = async (req, res) => {
       agentPayToHotel,
       bookingId,
       bookingDate,
+       body.reservation_id ? Number(body.reservation_id) : null,
+  toStr(body.reservation_no),
+  toStr(body.checkin_type) || 'walkin',
 
       // ----- JSONs -----
       detailsJson,

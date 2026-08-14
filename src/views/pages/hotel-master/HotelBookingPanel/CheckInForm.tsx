@@ -39,6 +39,7 @@ import CompanyForm from '../Company/CompanyForm'
 import GuestHistoryModal from './GuestHistoryModal'
 import DocumentScannerModal from './DocumentScannerModal'
 import GuestDocumentsModal from './GuestDocumentsModal'
+import ReservationService from '@/common/hotel/reservation'   
 
 const round2 = (num: number): number => Math.round((num + Number.EPSILON) * 100) / 100
 
@@ -140,6 +141,8 @@ interface CheckInFormData {
   regNo: string
   specialInstruction: string
   message: string
+  reservationId?: number | null   // ✅ नया
+  reservationNo?: string | null   // ✅ नया
 }
 
 interface Option {
@@ -416,9 +419,9 @@ const CheckInForm = () => {
     Array<{ id: number; name: string; payment_method_name: string }>
   >([])
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false)
-  const [countries, setCountries] = useState<Array<{ id: number; name: string }>>([])
-  const [states, setStates] = useState<Array<{ id: number; name: string }>>([])
-  const [cities, setCities] = useState<Array<{ id: number; name: string }>>([])
+  const [, setCountries] = useState<Array<{ id: number; name: string }>>([])
+  const [, setStates] = useState<Array<{ id: number; name: string }>>([])
+  const [, setCities] = useState<Array<{ id: number; name: string }>>([])
   const [companies, setCompanies] = useState<Array<{ company_id: number; company_name: string }>>(
     [],
   )
@@ -472,6 +475,11 @@ const CheckInForm = () => {
   const [pendingGuestLoad, setPendingGuestLoad] = useState<number | null>(null)
 
   const [tempGuestPhoto, setTempGuestPhoto] = useState<string | null>(null)
+
+  const [checkInType, setCheckInType] = useState<'walkin' | 'reservation'>('walkin')
+const [todayReservations, setTodayReservations] = useState<any[]>([])
+const [, setSelectedReservation] = useState<any | null>(null)
+
 
   const getTodayLocal = () => {
     const now = new Date();
@@ -565,6 +573,30 @@ const CheckInForm = () => {
     }
     fetchRooms()
   }, [hotelId])
+
+  const fetchTodayReservations = async () => {
+  if (!hotelId) return
+  try {
+    const response = await ReservationService.getTodayGuests({ hotelid: hotelId })
+    const data = response.data || []
+    setTodayReservations(data)
+  } catch (error) {
+    console.error('Failed to fetch today reservations:', error)
+    toast.error('Could not load reservations')
+  }
+}
+
+useEffect(() => {
+  if (checkInType === 'reservation') {
+    fetchTodayReservations()
+  } else {
+    // Walk‑in पर सारे reservation state रीसेट करें
+    setTodayReservations([])
+    setSelectedReservation(null)
+    formik.setFieldValue('reservationId', null)
+    formik.setFieldValue('reservationNo', null)
+  }
+}, [checkInType, hotelId])
 
   useEffect(() => {
     if (state?.rooms && state.rooms.length > 0) {
@@ -859,6 +891,15 @@ const CheckInForm = () => {
     })),
     [paymentMethods],
   )
+
+   const reservationGuestOptions = useMemo(() => {
+    return todayReservations.map(res => ({
+      label: res.guest_name || res.reservation_name || 'Guest',
+      value: res.guest_id,
+    }))
+  }, [todayReservations])
+
+
 
   const loadAllGuests = async () => {
     if (!hotelId) return
@@ -1891,6 +1932,9 @@ const CheckInForm = () => {
           status: 'active',
           created_by_id: user?.id,
           payment_method: values.paymentMethod || 'Cash', // <-- ADD THIS LINE
+           reservation_id: values.reservationId || null,
+  reservation_no: values.reservationNo || null,
+  checkin_type: checkInType,    // 'walkin' या 'reservation'
 
           // ----- Agent fields -----
           travel_agent_id: values.travelAgentId || null,
@@ -2415,12 +2459,7 @@ const CheckInForm = () => {
     setFieldValue
   ])
 
-  const countryOptions: Option[] = countries.map((c) => ({
-    label: String(c.name),
-    value: c.id,
-  }))
-  const stateOptions: Option[] = states.map((s) => ({ label: String(s.name), value: s.id }))
-  const cityOptions: Option[] = cities.map((c) => ({ label: String(c.name), value: c.id }))
+ 
   const idTypeOptions: Option[] = documentTypes.map((dt) => ({
     label: dt.name,
     value: dt.id,
@@ -3579,78 +3618,122 @@ const CheckInForm = () => {
                       </div>
 
                       {/* ===== NAME ROW ===== */}
-                      <div className="form-row-inline mb-1">
-                        <span className="field-label">Name</span>
-                        <div className="field-input">
-                          <div className="d-flex align-items-center gap-1">
-                            <div style={{ flex: '0 0 40px', minWidth: '40px', maxWidth: '40px' }}>
-                              <FormikTextInput
-                                name="title"
-                                placeholder="MR"
-                                size="sm"
-                                className="w-100 fs-small"
-                              />
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <Select
-                                options={guestOptions}
-                                isLoading={loadingGuests}
-                                className="w-100 fs-small"
-                                styles={selectStyles}
-                                value={guestOptions.find((o) => o.value === values.guestId) || null}
-                                onChange={(opt) => {
-                                  if (opt?.value) {
-                                    const guestId = Number(opt.value)
-                                    setFieldValue('guestId', guestId)
-                                    loadGuestDetails(guestId)
-                                  } else {
-                                    setFieldValue('guestId', null)
-                                    setFieldValue('fragment_id', null)
-                                    setFieldValue('title', 'MR')
-                                    setFieldValue('firstName', '')
-                                    setFieldValue('lastName', '')
-                                    setFieldValue('phone1', '')
-                                    setFieldValue('phone2', '')
-                                    setFieldValue('email', '')
-                                    setFieldValue('address', '')
-                                    setFieldValue('countryId', '')
-                                    setFieldValue('stateId', '')
-                                    setFieldValue('cityId', '')
-                                    setFieldValue('idType', '')
-                                    setFieldValue('idNumber', '')
-                                    setFieldValue('otherInfo', '')
-                                    setFieldValue('companyId', null)
-                                    setFieldValue('gst', '')
-                                    setGuestDocuments([])
-                                    setTempGuestPhoto(null)
-                                  }
-                                }}
-                                onInputChange={(inputValue, { action }) => {
-                                  if (action === 'input-change') {
-                                    handleGuestSearch(inputValue)
-                                  }
-                                }}
-                                onMenuOpen={() => {
-                                  if (!guestOptions.length) {
-                                    loadAllGuests()
-                                  }
-                                }}
-                                placeholder="Search Guest Name"
-                                isClearable
-                                menuPortalTarget={document.body}
-                                menuPosition="fixed"
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              className="btn btn-success btn-sm d-flex align-items-center justify-content-center add-icon-btn"
-                              onClick={() => setShowGuestModal(true)}>
-                              +
-                            </button>
-                          </div>
-                        </div>
-                      </div>
 
+                    <div className="form-row-inline mb-1">
+    <span className="field-label">Check-In Type</span>
+    <div className="field-input">
+      <div className="d-flex gap-3">
+        <BootstrapForm.Check
+          type="radio"
+          label="Walk-in"
+          name="checkInType"
+          value="walkin"
+          checked={checkInType === 'walkin'}
+          onChange={() => setCheckInType('walkin')}
+          inline
+        />
+        <BootstrapForm.Check
+          type="radio"
+          label="Reservation"
+          name="checkInType"
+          value="reservation"
+          checked={checkInType === 'reservation'}
+          onChange={() => setCheckInType('reservation')}
+          inline
+        />
+      </div>
+    </div>
+  </div>
+
+                        <div className="form-row-inline mb-1">
+    <span className="field-label">Name</span>
+    <div className="field-input">
+      <div className="d-flex align-items-center gap-1">
+        <div style={{ flex: '0 0 40px', minWidth: '40px', maxWidth: '40px' }}>
+          <FormikTextInput name="title" placeholder="MR" size="sm" className="w-100 fs-small" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Select
+            options={checkInType === 'reservation' ? reservationGuestOptions : guestOptions}
+            isLoading={loadingGuests}
+            className="w-100 fs-small"
+            styles={selectStyles}
+            value={
+              checkInType === 'reservation'
+                ? reservationGuestOptions.find((o) => o.value === values.guestId) || null
+                : guestOptions.find((o) => o.value === values.guestId) || null
+            }
+            onChange={(opt) => {
+              if (opt?.value) {
+                const guestId = Number(opt.value)
+                setFieldValue('guestId', guestId)
+                loadGuestDetails(guestId)
+
+                // Agar reservation mode hai to reservation details bhi set karein
+                if (checkInType === 'reservation') {
+                  const matchedRes = todayReservations.find(r => r.guest_id === guestId)
+                  if (matchedRes) {
+                    setSelectedReservation(matchedRes)
+                    setFieldValue('reservationId', matchedRes.reservation_id)
+                    setFieldValue('reservationNo', matchedRes.reservation_no)
+                  }
+                }
+              } else {
+                // Clear guest and reservation data
+                setFieldValue('guestId', null)
+                setFieldValue('fragment_id', null)
+                setFieldValue('title', 'MR')
+                setFieldValue('firstName', '')
+                setFieldValue('lastName', '')
+                setFieldValue('phone1', '')
+                setFieldValue('phone2', '')
+                setFieldValue('email', '')
+                setFieldValue('address', '')
+                setFieldValue('countryId', '')
+                setFieldValue('stateId', '')
+                setFieldValue('cityId', '')
+                setFieldValue('idType', '')
+                setFieldValue('idNumber', '')
+                setFieldValue('otherInfo', '')
+                setFieldValue('companyId', null)
+                setFieldValue('gst', '')
+                setGuestDocuments([])
+                setTempGuestPhoto(null)
+                if (checkInType === 'reservation') {
+                  setSelectedReservation(null)
+                  setFieldValue('reservationId', null)
+                  setFieldValue('reservationNo', null)
+                }
+              }
+            }}
+            onInputChange={(inputValue, { action }) => {
+              if (action === 'input-change' && checkInType === 'walkin') {
+                handleGuestSearch(inputValue)
+              }
+              // Reservation mode mein search disabled – kyunki options fixed hain
+            }}
+            onMenuOpen={() => {
+              if (checkInType === 'walkin' && !guestOptions.length) {
+                loadAllGuests()
+              }
+            }}
+            placeholder={checkInType === 'reservation' ? "Select Reservation Guest" : "Search Guest Name"}
+            isClearable
+            menuPortalTarget={document.body}
+            menuPosition="fixed"
+          />
+        </div>
+        <button
+          type="button"
+          className="btn btn-success btn-sm d-flex align-items-center justify-content-center add-icon-btn"
+          onClick={() => setShowGuestModal(true)}
+          disabled={checkInType === 'reservation'} // Reservation mode mein guest add nahi karna
+        >
+          +
+        </button>
+      </div>
+    </div>
+  </div>
                       <div className="form-row-inline mb-1">
                         <span className="field-label">Mobile</span>
                         <div className="field-input">
