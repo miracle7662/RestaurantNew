@@ -188,7 +188,7 @@ const ModernBill = () => {
   const [defaultKot, setDefaultKot] = useState<number | null>(null); // last / system KOT
   const [editableKot, setEditableKot] = useState<number | null>(null); // user editable
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
 
   // KOT HARD lock (prevents duplicate KOT on rapid click / repeated F9)
   const kotLockRef = useRef(false);
@@ -4039,17 +4039,8 @@ const ModernBill = () => {
         <div className="full-screen-content px-2" style={{ top: `${headerHeight + toolbarHeight}px` }}>
           <div className="content-wrapper">
             <div className="modern-bill">
-              {loading ? (
-                <div className="d-flex justify-content-center align-items-center h-100">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              ) : error ? (
-                <div className="alert alert-danger m-3">
-                  <strong>Error:</strong> {error}
-                </div>
-              ) : (
+             
+             
                 <div className="items-table">
                   <Table bordered className="modern-table" style={{ marginBottom: 0 }}>
                     <thead  >
@@ -4219,7 +4210,7 @@ const ModernBill = () => {
                     </tbody>
                   </Table>
                 </div>
-              )}
+           
             </div>
           </div>
           {/* Bottom Bar for Summary and Footer */}

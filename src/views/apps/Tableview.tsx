@@ -191,101 +191,138 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const fetchTables = async () => {
-      setLoading(true);
-      try {
-        if (!user || !user.hotelid) {
-          setError('User not authenticated or hotel ID missing');
-          setAllTables([]);
-          setLoading(false);
-          return;
-        }
-        const response = await TableManagementService.list();
-        if (response.success && Array.isArray(response.data)) {
-          const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
-          if (filteredData.length > 0) {
-            const formattedData = await Promise.all(
-              filteredData.map(async (item: any) => {
-                let status = Number(item.status);
-
-                const response = await OrderService.getBillStatus(item.tableid);
-                const data = response;
-
-                let txnId: number | null = null;
-                let billNo: string | null = null;
-                let billAmount: number | null = null;
-                let billPrintedTime: string | null = null;
-                let billPrintedDate: Date | null = null;
-                if (data.success && data.data) {
-                  const { isBilled, isSetteled, TxnID, TxnNo, Amount, BilledDate } = data.data;
-                  txnId = TxnID || null;
-                  billNo = TxnNo || null;
-                  billAmount = Amount || null;
-                  if (BilledDate) {
-                    const date = new Date(BilledDate);
-                    billPrintedDate = date;
-                    billPrintedTime = date.toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: true
-                    });
-                  }
-
-                  if (isBilled === 1 && isSetteled !== 1) status = 2;
-                  if (isSetteled === 1) status = 0;
-                }
-
-                let statusString: TableStatus;
-                switch (status) {
-                  case 0: statusString = 'available'; break;
-                  case 1: statusString = 'running'; break;
-                  case 2: statusString = 'printed'; break;
-                  case 3: statusString = 'paid'; break;
-                  case 4: statusString = 'running-kot'; break;
-                  default: statusString = 'available'; break;
-                }
-
-                if (statusString === 'printed' && billPrintedDate) {
-                  const now = new Date();
-                  const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
-                  if (diffMinutes >= 10) {
-                    statusString = 'running-kot';
-                  }
-                }
-
-                return {
-                  id: item.tableid,
-                  name: item.table_name,
-                  status: statusString,
-                  outletid: item.outletid || item.outletId,
-                  departmentid: item.departmentid || item.DeptID || item.departmentId,
-                  department_name: item.department_name,
-                  txnId,
-                  billNo,
-                  billAmount,
-                  billPrintedTime,
-                  billPrintedDate
-                };
-              })
-            );
-
-            setAllTables(formattedData);
-            setError('');
-          } else {
-            setError('No tables found in TableManagement API.');
-            setAllTables([]);
+  const fetchTables = async () => {
+  setLoading(true);
+  try {
+    if (!user || !user.hotelid) {
+      setError('User not authenticated or hotel ID missing');
+      setAllTables([]);
+      setLoading(false);
+      return;
+    }
+    const response = await TableManagementService.list();
+    if (response.success && Array.isArray(response.data)) {
+      const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
+      if (filteredData.length > 0) {
+        // ✅ STEP 1: Format base tables WITHOUT bill status (show immediately)
+        const baseTables = filteredData.map((item: any) => {
+          let status: TableStatus = 'available';
+          const rawStatus = Number(item.status);
+          
+          // Map status without bill check
+          switch (rawStatus) {
+            case 0: status = 'available'; break;
+            case 1: status = 'running'; break;
+            case 2: status = 'printed'; break;
+            case 3: status = 'paid'; break;
+            case 4: status = 'running-kot'; break;
+            default: status = 'available'; break;
           }
-        } else {
-          setError('Invalid data format received from TableManagement API.');
-          setAllTables([]);
-        }
-      } catch (err) {
-        setError('Failed to fetch tables. Please check the API endpoint.');
+
+          return {
+            id: item.tableid,
+            name: item.table_name,
+            status: status,
+            outletid: item.outletid || item.outletId,
+            departmentid: item.departmentid || item.DeptID || item.departmentId,
+            department_name: item.department_name,
+            txnId: null,
+            billNo: null,
+            billAmount: null,
+            billPrintedTime: null,
+            billPrintedDate: null
+          };
+        });
+
+        // ✅ STEP 2: RENDER TABLES IMMEDIATELY
+        setAllTables(baseTables);
+        setError('');
+
+        // ✅ STEP 3: Fetch bill status in background (non-blocking)
+        const updatePromises = filteredData.map(async (item: any) => {
+          try {
+            const response = await OrderService.getBillStatus(item.tableid);
+            const data = response;
+
+            let txnId: number | null = null;
+            let billNo: string | null = null;
+            let billAmount: number | null = null;
+            let billPrintedTime: string | null = null;
+            let billPrintedDate: Date | null = null;
+            let status: TableStatus = 'available';
+            const rawStatus = Number(item.status);
+
+            if (data.success && data.data) {
+              const { isBilled, isSetteled, TxnID, TxnNo, Amount, BilledDate } = data.data;
+              txnId = TxnID || null;
+              billNo = TxnNo || null;
+              billAmount = Amount || null;
+              if (BilledDate) {
+                const date = new Date(BilledDate);
+                billPrintedDate = date;
+                billPrintedTime = date.toLocaleTimeString('en-IN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                });
+              }
+
+              if (isBilled === 1 && isSetteled !== 1) status = 'printed';
+              else if (isSetteled === 1) status = 'available';
+              else {
+                switch (rawStatus) {
+                  case 0: status = 'available'; break;
+                  case 1: status = 'running'; break;
+                  case 2: status = 'printed'; break;
+                  case 3: status = 'paid'; break;
+                  case 4: status = 'running-kot'; break;
+                  default: status = 'available'; break;
+                }
+              }
+            }
+
+            // Apply 10-minute rule
+            if (status === 'printed' && billPrintedDate) {
+              const now = new Date();
+              const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
+              if (diffMinutes >= 10) {
+                status = 'running-kot';
+              }
+            }
+
+            // ✅ Update this specific table
+            setAllTables(prev => prev.map(t => 
+              t.id === item.tableid 
+                ? { ...t, status, txnId, billNo, billAmount, billPrintedTime, billPrintedDate }
+                : t
+            ));
+
+          } catch (err) {
+            // Silently fail - don't block rendering
+            console.error(`Failed to fetch bill status for table ${item.tableid}:`, err);
+          }
+        });
+
+        // ✅ Fire and forget - don't await
+        Promise.all(updatePromises).catch(err => {
+          console.error('Background bill status updates failed:', err);
+        });
+
+      } else {
+        setError('No tables found in TableManagement API.');
         setAllTables([]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } else {
+      setError('Invalid data format received from TableManagement API.');
+      setAllTables([]);
+    }
+  } catch (err) {
+    setError('Failed to fetch tables. Please check the API endpoint.');
+    setAllTables([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
     const fetchDepartments = async () => {
   try {
@@ -312,12 +349,14 @@ export default function App() {
   }
 };
 
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      await Promise.all([fetchTables(), fetchDepartments()]);
-      setLoading(false);
-    };
+   const fetchData = async () => {
+  setLoading(true);
+  setError(null);
+  // ✅ Don't wait for fetchTables to complete all bill status requests
+  // fetchTables now returns immediately after setting base tables
+  await Promise.all([fetchTables(), fetchDepartments()]);
+  setLoading(false);
+};
 
     fetchData();
 
@@ -770,7 +809,7 @@ export default function App() {
 
       {/* Main Content */}
       <div className="full-screen-content ">
-        {loading ? (
+         {loading ? (
           <div className="d-flex justify-content-center align-items-center h-100">Loading...</div>
         ) : error ? (
           <div className="alert alert-danger m-3">{error}</div>
@@ -794,7 +833,8 @@ export default function App() {
               );
             })}
           </div>
-        )}
+          )}
+        
 
         {/* Takeaway Orders Cards */}
         {takeawayOrders.length > 0 && (

@@ -145,6 +145,8 @@ const HotelReport = React.lazy(() => import('../views/pages/HotelReport'))
 ================================ */
 
 const   ProductMaster= React.lazy(() => import('../views/pages/CommonStore/ProductMaster/ProductMaster'))
+const   PurchaseMaster= React.lazy(() => import('../views/pages/CommonStore/PurchaseMaster/PurchaseMaster'))
+
 
 
 
@@ -945,6 +947,12 @@ const appsRoutes: RoutesProps = {
   path: '/apps/ProductMaster',
   name: 'ProductMaster',
   element: <ProductMaster />,
+  route: PrivateRoute,
+},
+       {
+  path: '/apps/PurchaseMaster',
+  name: 'PurchaseMaster',
+  element: <PurchaseMaster />,
   route: PrivateRoute,
 },
 

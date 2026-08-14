@@ -431,7 +431,7 @@ const saveDayEnd = async (req, res) => {
       FROM msttablemanagement
       WHERE outletid = ?
         AND hotelid = ?
-        AND status = 1
+       AND status IN (1, 2)
     `, [outlet_id, hotel_id]);
 
     // ✅ NEW: Check pending non-table bills (pickup/delivery/quickbill/takeaway)

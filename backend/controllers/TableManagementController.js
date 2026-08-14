@@ -30,55 +30,112 @@ const runMigrations = async () => {
 exports.getAllTables = async (req, res) => {
   try {
     const { search, hotelid, outletid } = req.query;
+
     let sql = `
       SELECT
         t.*,
         d.department_name,
         o.outlet_name,
         h.hotel_name,
-        (SELECT PAX FROM TAxnTrnbill WHERE TableID = t.tableid AND isBilled = 0 ORDER BY TxnID DESC LIMIT 1) as pax
+
+        /* Latest open transaction */
+        bill.TxnID,
+        bill.TxnNo,
+        bill.Amount,
+        bill.BilledDate,
+        bill.isBilled,
+        bill.isSetteled,
+
+        /* PAX */
+        bill.PAX
+
       FROM msttablemanagement t
-      LEFT JOIN msttable_department d ON t.departmentid = d.departmentid
-      LEFT JOIN mst_outlets o ON t.outletid = o.outletid
-      LEFT JOIN msthotelmasters h ON t.hotelid = h.hotelid
-      WHERE t.status IN (0,1,2)
+
+      LEFT JOIN msttable_department d
+        ON t.departmentid = d.departmentid
+
+      LEFT JOIN mst_outlets o
+        ON t.outletid = o.outletid
+
+      LEFT JOIN msthotelmasters h
+        ON t.hotelid = h.hotelid
+
+      /* Get latest transaction for each table */
+      LEFT JOIN (
+        SELECT tb.*
+        FROM TAxnTrnbill tb
+        INNER JOIN (
+          SELECT
+            TableID,
+            MAX(TxnID) AS MaxTxnID
+          FROM TAxnTrnbill
+          WHERE isBilled = 0 OR isBilled = 1
+          GROUP BY TableID
+        ) latest
+          ON latest.TableID = tb.TableID
+         AND latest.MaxTxnID = tb.TxnID
+      ) bill
+        ON bill.TableID = t.tableid
     `;
-    let params = [];
-    let conditions = [];
+
+    const params = [];
+    const conditions = [];
 
     if (hotelid) {
       conditions.push('t.hotelid = ?');
       params.push(hotelid);
     }
+
     if (outletid) {
       conditions.push('t.outletid = ?');
       params.push(outletid);
     }
+
     if (search) {
-      conditions.push('(t.table_name LIKE ? OR o.outlet_name LIKE ? OR h.hotel_name LIKE ?)');
+      conditions.push(`
+        (
+          t.table_name LIKE ?
+          OR o.outlet_name LIKE ?
+          OR h.hotel_name LIKE ?
+        )
+      `);
+
       const searchParam = `%${search}%`;
-      params.push(searchParam, searchParam, searchParam);
+
+      params.push(
+        searchParam,
+        searchParam,
+        searchParam
+      );
     }
 
     if (conditions.length > 0) {
-       sql += ` AND ${conditions.join(' AND ')}`;
-}
+      sql += ` WHERE ${conditions.join(' AND ')}`;
+    }
 
-     // ✅ Add ORDER BY - table_name wise sorting
-    sql += ` ORDER BY CAST(t.table_name AS UNSIGNED) ASC, t.table_name ASC`;
+    sql += `
+      ORDER BY
+        CAST(t.table_name AS UNSIGNED) ASC,
+        t.table_name ASC
+    `;
 
     const [rows] = await db.query(sql, params);
 
-    res.json({
+    return res.json({
       success: true,
-      data: rows,
+      data: rows
     });
+
   } catch (error) {
-    // console.error("Error fetching tables:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch tables", error: error.message });
+    console.error('Error fetching tables:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch tables',
+      error: error.message
+    });
   }
 };
-
 
 // Create a new table record (✅ departmentid added)
 // Create a new table record

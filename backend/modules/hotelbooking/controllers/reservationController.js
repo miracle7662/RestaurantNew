@@ -93,6 +93,9 @@ exports.getNextReservationNumber = async (req, res) => {
     }
 };
 
+
+
+
 // ----------------------------------------------------------------------
 // GET /reservations – list reservations (master rows only)
 // ----------------------------------------------------------------------
@@ -146,6 +149,170 @@ exports.getReservations = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Database error", error: error.message });
+    }
+};
+
+// ----------------------------------------------------------------------
+// GET /reservations/today-guests
+// Today's reserved guests for Check-In Form
+// ----------------------------------------------------------------------
+exports.getTodayReservationGuests = async (req, res) => {
+    try {
+        // --------------------------------------------------------------
+        // 1. Get Hotel ID
+        // --------------------------------------------------------------
+        let hotelId =
+            req.query.hotelid ||
+            req.query.mst_hotelid ||
+            getCurrentUserHotelId(req);
+
+        if (!hotelId && req.body?.hotelid) {
+            hotelId = req.body.hotelid;
+        }
+
+        if (!hotelId) {
+            return res.status(400).json({
+                success: false,
+                message: "Hotel ID not found"
+            });
+        }
+
+        // --------------------------------------------------------------
+        // 2. Get Today's Reservation Guests
+        // --------------------------------------------------------------
+        const sql = `
+            SELECT
+                hr.reservation_id,
+                hr.reservation_no,
+
+                hr.guest_id,
+                gm.name AS guest_name,
+
+                hr.title,
+                hr.reservation_name,
+
+                hr.phone1,
+                hr.phone2,
+                hr.email,
+
+                hr.address,
+
+                hr.country_id,
+                hr.state_id,
+                hr.city_id,
+
+                hr.company_id,
+                cm.company_name,
+
+                hr.gst,
+
+                hr.reservation_date,
+
+                hr.arrival_date,
+                hr.arrival_time,
+
+                hr.departure_date,
+                hr.departure_time,
+
+                hr.nights,
+
+                hr.guest_type,
+
+                hr.billing_instructions,
+                hr.special_instructions,
+
+                hr.booking_taken_by,
+                hr.reservation_mode,
+                hr.confirmation_mode,
+
+                hr.pickup,
+                hr.drop_location,
+
+                hr.status,
+                hr.hotelid,
+
+                hr.created_by_id,
+                hr.created_at,
+                hr.updated_at
+
+            FROM hotel_reservations hr
+
+            LEFT JOIN guest_master gm
+                ON hr.guest_id = gm.guest_id
+
+            LEFT JOIN company_master cm
+                ON hr.company_id = cm.company_id
+
+            WHERE hr.hotelid = ?
+
+              -- Only today's arrival reservations
+              AND DATE(hr.arrival_date) = CURDATE()
+
+              -- Only active reserved records
+              AND LOWER(hr.status) = 'reserved'
+
+            ORDER BY
+                hr.arrival_time ASC,
+                hr.reservation_id ASC
+        `;
+
+        const [reservations] = await db.execute(sql, [hotelId]);
+
+        // --------------------------------------------------------------
+        // 3. Format Response
+        // --------------------------------------------------------------
+        const formattedReservations = reservations.map((reservation) => ({
+            ...reservation,
+
+            reservation_date: formatDateOnly(
+                reservation.reservation_date
+            ),
+
+            arrival_date: formatDateOnly(
+                reservation.arrival_date
+            ),
+
+            departure_date: formatDateOnly(
+                reservation.departure_date
+            ),
+
+            created_at: formatDateTime(
+                reservation.created_at
+            ),
+
+            updated_at: formatDateTime(
+                reservation.updated_at
+            )
+        }));
+
+        // --------------------------------------------------------------
+        // 4. Response
+        // --------------------------------------------------------------
+        return res.status(200).json({
+            success: true,
+
+            message:
+                formattedReservations.length > 0
+                    ? "Today's reservation guests fetched successfully"
+                    : "No today's reservation guests found",
+
+            count: formattedReservations.length,
+
+            data: formattedReservations
+        });
+
+    } catch (error) {
+
+        console.error(
+            "GET TODAY RESERVATION GUESTS ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch today's reservation guests",
+            error: error.message
+        });
     }
 };
 
