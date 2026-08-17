@@ -482,7 +482,12 @@ console.log('🧾 BILL PRINT ITEMS:', items.map(i => ({
 </div>
     <div style="flex:1;"><strong>Waiter</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>
     <div style="flex:1;font-size:7pt;"><strong>Covers</strong><br />N/A</div>
-    <div style="flex:1;white-space:nowrap;"><strong>KOT No</strong><br />${allKOTNos.length > 0 ? allKOTNos.join(', ') : currentKOTNo || '—'}</div>
+     ${(showAll || localFormData.show_kot_number_bill) ? `
+    <div style="flex:1;white-space:nowrap;">
+      <strong>KOT No</strong><br />
+      ${allKOTNos.length > 0 ? allKOTNos.join(', ') : currentKOTNo || '—'}
+    </div>
+  ` : ''}
     <div style="flex:1;"></div>
   </div>
 
