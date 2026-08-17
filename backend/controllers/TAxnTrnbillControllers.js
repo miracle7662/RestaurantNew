@@ -13,7 +13,7 @@ async function generateTxnNo(outletid) {
   // 1. Fetch bill_prefix from settings
   const [settingsRows] = await db.query('SELECT bill_prefix FROM mstbill_preview_settings WHERE outletid = ?', [outletid]);
   const settings = settingsRows[0] || {};
-  const billPrefix = settings.bill_prefix || 'BILL-';
+  const billPrefix = settings.bill_prefix || '';
 
   // 2. Construct a date-based prefix for searching to ensure daily unique sequence
   const prefix = `${billPrefix}`;
