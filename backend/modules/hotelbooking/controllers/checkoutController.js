@@ -386,6 +386,123 @@ exports.getNextInvoiceNo = async (req, res) => {
 };
 
 
+
+
+// =====================================================
+// GET LIVE ROOM DATA
+// =====================================================
+exports. getLiveData = async (req, res) => {
+    try {
+        const hotelid = Number(
+            req.params.hotelid || 
+            req.query.hotelid || 
+            req.body.hotelid
+        );
+
+        // Validate hotelid
+        if (!hotelid || hotelid <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Valid hotelid is required"
+            });
+        }
+
+        console.log("📊 getLiveData called:", {
+            hotelid
+        });
+
+        // =====================================================
+        // CALL STORED PROCEDURE
+        // =====================================================
+        const [results] = await db.query(
+            "CALL sp_get_live_data(?)",
+            [hotelid]
+        );
+
+        // MySQL stored procedure result
+        const rows = results?.[0] || [];
+
+        console.log(
+            `📊 Live room categories fetched: ${rows.length}`
+        );
+
+        // =====================================================
+        // FORMAT RESPONSE
+        // =====================================================
+        const data = rows.map((row) => ({
+            hotelid: Number(row.hotelid),
+
+            room_category_id: Number(row.room_category_id),
+
+            category_name: row.category_name,
+
+            category_total_rooms: Number(
+                row.category_total_rooms || 0
+            ),
+
+            occupied_rooms: Number(
+                row.occupied_rooms || 0
+            ),
+
+            reserved_rooms: Number(
+                row.reserved_rooms || 0
+            ),
+
+            today_reservations: Number(
+                row.today_reservations || 0
+            ),
+
+            today_checkins: Number(
+                row.today_checkins || 0
+            ),
+
+            today_checkouts: Number(
+                row.today_checkouts || 0
+            ),
+
+            available_rooms_raw: Number(
+                row.available_rooms_raw || 0
+            ),
+
+            available_rooms: Number(
+                row.available_rooms || 0
+            ),
+
+            blocked_rooms: Number(
+                row.blocked_rooms || 0
+            ),
+
+            next_available_from:
+                row.next_available_from || null
+        }));
+
+        return res.status(200).json({
+            success: true,
+            message: "Live room data fetched successfully",
+            data
+        });
+
+    } catch (error) {
+        console.error(
+            "❌ getLiveData Error:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch live room data",
+            error:
+                process.env.NODE_ENV === "development"
+                    ? error.message
+                    : undefined
+        });
+    }
+};
+
+
+
+
+
 exports.performCheckout = async (req, res) => {
   let connection;
   try {

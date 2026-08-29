@@ -7,6 +7,7 @@ const controller = require('../controllers/checkoutController');
 router.get('/bill-preview', controller.getBillPreview);
 router.get('/backups', controller.getBackupCheckins);
 router.get('/active-orders-check', controller.checkActiveRoomServiceOrders); // ✅ MOVED UP
+router.get('/live-data/:hotelid', controller.getLiveData);
 router.get('/by-checkin/:checkin_id', controller.getCheckoutByCheckinId);
 
 router.get('/', controller.getCheckouts);

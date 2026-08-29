@@ -191,6 +191,58 @@ export interface RoomServiceCheckResponse {
 }
 
 
+// =====================================================
+// LIVE ROOM AVAILABILITY
+// =====================================================
+
+export interface LiveRoomCategory {
+  hotelid: number;
+  room_category_id: number;
+  category_name: string;
+  category_total_rooms: number;
+
+  occupied_rooms: number;
+  reserved_rooms: number;
+
+  today_reservations: number;
+  today_checkins: number;
+  today_checkouts: number;
+
+  available_rooms_raw: number;
+  available_rooms: number;
+
+  blocked_rooms: number;
+
+  next_available_from: string | null;
+
+  rooms?: LiveRoom[];
+}
+
+export interface LiveRoom {
+  room_id: number;
+  room_no: string;
+  room_name?: string;
+  room_status_id?: number;
+  live_status?: string;
+
+  guest_id?: number | null;
+  guest_name?: string | null;
+  mobile?: string | null;
+
+  checkin_id?: number | null;
+  detail_id?: number | null;
+
+  checkin_datetime?: string | null;
+  checkout_datetime?: string | null;
+}
+
+export interface LiveDataResponse {
+  success: boolean;
+  message: string;
+  data: LiveRoomCategory[];
+}
+
+
 
 const CheckoutService = {
   list: (params?: { hotelid?: number }): Promise<ApiResponse<CheckoutMaster[]>> =>
@@ -245,6 +297,19 @@ getBillPreview: async (checkoutId?: number, ldgBillNo?: string): Promise<{
 
   getCheckoutBill: (checkoutId: number): Promise<ApiResponse<CheckoutBillData>> =>
     HttpClient.get<ApiResponse<CheckoutBillData>>(`/checkout/bill/${checkoutId}`),
+
+
+    // =====================================================
+  // LIVE ROOM DATA
+  // =====================================================
+
+  getLiveData: (
+    hotelId: number
+  ): Promise<LiveDataResponse> =>
+    HttpClient.get<LiveDataResponse>(
+      `/checkouts/live-data/${hotelId}`
+    ),
+
 
 
    checkActiveRoomServiceOrders: (
