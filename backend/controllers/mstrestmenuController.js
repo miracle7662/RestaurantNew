@@ -107,7 +107,6 @@ exports.getAllMenuItems = async (req, res) => {
         });
     }
 };
-
 exports.getMenuItemById = async (req, res) => {
     try {
         const { id } = req.params;
