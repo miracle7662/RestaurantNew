@@ -8,6 +8,8 @@ router.post('/kot', controller.createKOT); // Create or update a KOT, which may 
 router.post('/generateTxnNo', controller.generateTxnNo); // Generate TxnNo and create a bill record
 
 // --- Bill & KOT Retrieval ---
+router.get('/recent-orders', controller.getRecentOrdersForDashboard);
+
 router.get('/', controller.getAllBills); // Get all bills (can be filtered)
 router.get('/all', controller.getAllBillsForBillingTab); // Optimized for the "Billing" tab
 router.get('/by-type/:type', controller.getBillsByType); // Get bills by Order_Type (e.g., "Quick Bill")

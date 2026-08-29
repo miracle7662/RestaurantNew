@@ -32,6 +32,9 @@ import SettlementPage from '@/views/pages/hotel-master/HotelBookingPanel/Settlem
 const Ecommerce = React.lazy(() => import('./../views/dashboards'))
 const Analytics = React.lazy(() => import('./../views/dashboards/Analytics'))
 const CRM = React.lazy(() => import('./../views/dashboards/CRM'))
+const RestoDashboard = React.lazy(
+  () => import('../views/dashboards/RestoDashboard')
+)
 
 // Apps
 
@@ -268,10 +271,10 @@ const dashboardRoutes: RoutesProps = {
   name: 'Dashboards',
   header: 'Navigation',
   children: [
-    {
+     {
       path: '/',
-      name: 'Root',
-      element: <Ecommerce />,
+      name: 'Dashboards',
+      element: <RestoDashboard />,
       route: PrivateRoute,
     },
     {
@@ -286,8 +289,22 @@ const dashboardRoutes: RoutesProps = {
       element: <CRM />,
       route: PrivateRoute,
     },
+
+    {
+  path: '/dashboards/RestoDashboard',
+  name: 'Dashboard',
+  element: <RestoDashboard />,
+  route: PrivateRoute,
+},
+
+    
+    
+
+    
   ],
 }
+
+
 
 // Apps
 const appsRoutes: RoutesProps = {

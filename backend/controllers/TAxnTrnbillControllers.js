@@ -5074,4 +5074,50 @@ exports.getGlobalReverseKOTNumber = async (req, res) => {
       })
   }
 }
+
+
+// In your bill controller
+exports.getRecentOrdersForDashboard = async (req, res) => {
+  try {
+    const { outletid, hotelid, limit = 5, curr_date } = req.query;
+
+    const sql = `
+      SELECT 
+        b.TxnID,
+        b.TxnNo,
+        b.TableID,
+        b.table_name,
+        b.CustomerName,
+        b.MobileNo,
+        b.Amount,
+        b.isBilled,
+        b.isSetteled,
+        b.TxnDatetime,
+        b.Order_Type,
+        (SELECT COUNT(*) FROM TAxnTrnbilldetails WHERE TxnID = b.TxnID AND isCancelled = 0) as itemCount
+      FROM TAxnTrnbill b
+      WHERE b.outletid = ?
+        AND b.HotelID = ?
+        AND b.isCancelled = 0
+        AND DATE(b.TxnDatetime) = ?
+      ORDER BY b.TxnDatetime DESC
+      LIMIT ?
+    `;
+
+    const [rows] = await db.query(sql, [outletid, hotelid, curr_date, parseInt(limit)]);
+    
+    res.json({
+      success: true,
+      message: 'Recent orders fetched',
+      data: rows
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recent orders',
+      error: error.message
+    });
+  }
+};
+
 module.exports = exports

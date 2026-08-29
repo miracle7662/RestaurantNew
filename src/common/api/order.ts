@@ -713,8 +713,19 @@ getBillById: (id: number, hotelId: number): Promise<ApiResponse<BillDetailsRespo
     hotelid?: number
     outletid?: number
   }): Promise<ApiResponse<{ success: boolean; message: string }>> =>
-    HttpClient.put<ApiResponse<{ success: boolean; message: string }>>('/TAxnTrnbill/transfer-kot', payload)
+    HttpClient.put<ApiResponse<{ success: boolean; message: string }>>('/TAxnTrnbill/transfer-kot', payload),
+    
+
+     getRecentOrdersForDashboard: (params: {
+    outletid: number;
+    hotelid: number;
+    limit?: number;
+    curr_date?: string;
+  }): Promise<ApiResponse<any[]>> =>
+    HttpClient.get<ApiResponse<any[]>>('/TAxnTrnbill/recent-orders', { params }),
 }
+
+
 
  
 
