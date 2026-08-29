@@ -596,5 +596,4 @@ exports.getMaxItemNo = async (req, res) => {
 
 
 
-// Download sample template for menu import
 
