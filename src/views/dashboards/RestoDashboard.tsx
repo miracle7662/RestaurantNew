@@ -783,67 +783,67 @@ const RestaurantDashboard: React.FC = () => {
         ================================================= */}
 
         <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-          <div>
-            <h3
-              className="fw-bold mb-1"
-              style={{ letterSpacing: '-0.5px' }}
-            >
-              Dashboard Overview
-            </h3>
+  <div className="d-flex align-items-center gap-3">
+    <div>
+      <h3
+        className="fw-bold mb-1"
+        style={{ letterSpacing: '-0.5px' }}
+      >
+        Dashboard Overview
+      </h3>
 
-            <p className="text-muted mb-0 small">
-              Welcome back! Here's what's happening today.
-              {user?.outletid && (
-                <span className="ms-2">• Outlet #{user.outletid}</span>
-              )}
-            </p>
-          </div>
+      <p className="text-muted mb-0 small">
+        Welcome back! Here's what's happening today.
+        {user?.outletid && (
+          <span className="ms-2">• Outlet #{user.outletid}</span>
+        )}
+      </p>
+    </div>
 
-          <div className="d-flex align-items-center gap-2">
-            <ButtonGroup size="sm">
-              <Button
-                variant={activeModule === 'restaurant' ? 'primary' : 'outline-primary'}
-                onClick={() => setActiveModule('restaurant')}
-                style={{ fontSize: '0.75rem' }}
-              >
-                <FaUtensils className="me-1" size={12} />
-                Restaurant
-              </Button>
+    <ButtonGroup size="sm">
+      <Button
+        variant={activeModule === 'restaurant' ? 'primary' : 'outline-primary'}
+        onClick={() => setActiveModule('restaurant')}
+        style={{ fontSize: '0.75rem' }}
+      >
+        <FaUtensils className="me-1" size={12} />
+        Restaurant
+      </Button>
 
-              <Button
-                variant={activeModule === 'lodging' ? 'primary' : 'outline-primary'}
-                onClick={() => setActiveModule('lodging')}
-                style={{ fontSize: '0.75rem' }}
-              >
-                <FaHotel className="me-1" size={12} />
-                Lodging
-              </Button>
-            </ButtonGroup>
+      <Button
+        variant={activeModule === 'lodging' ? 'primary' : 'outline-primary'}
+        onClick={() => setActiveModule('lodging')}
+        style={{ fontSize: '0.75rem' }}
+      >
+        <FaHotel className="me-1" size={12} />
+        Lodging
+      </Button>
+    </ButtonGroup>
+  </div>
 
-            <div className="position-relative" style={{ width: '260px' }}>
-              <FaSearch
-                className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"
-                style={{ fontSize: '13px' }}
-              />
+  <div className="position-relative" style={{ width: '260px' }}>
+    <FaSearch
+      className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"
+      style={{ fontSize: '13px' }}
+    />
 
-              <Form.Control
-                type="text"
-                placeholder={
-                  activeModule === 'restaurant' ? 'Search orders...' : 'Search rooms...'
-                }
-                className="ps-5 rounded-pill border-0"
-                style={{
-                  background: '#fff',
-                  padding: '0.55rem 1rem',
-                  fontSize: '0.875rem',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                }}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
+    <Form.Control
+      type="text"
+      placeholder={
+        activeModule === 'restaurant' ? 'Search orders...' : 'Search rooms...'
+      }
+      className="ps-5 rounded-pill border-0"
+      style={{
+        background: '#fff',
+        padding: '0.55rem 1rem',
+        fontSize: '0.875rem',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+      }}
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+  </div>
+</div>
 
         {/* =================================================
             STAT CARDS

@@ -166,67 +166,90 @@ const Menu: React.FC = () => {
   const { user } = useAuthContext();
 
 
-  const fetchMenu = async () => {
-    try {
-      setLoading(true);
-      const response = await MenuService.list({
-        hotelid: user?.hotelid,
-        outletid: user?.outletid
-      });
+const fetchMenu = async () => {
+  try {
+    setLoading(true);
 
-      if (response.success) {
-        const menuData = response.data || [];
-        setData(menuData);
-        setMenuItems(menuData);
+    const isHotelAdmin =
+      user?.role?.toLowerCase() === 'hotel_admin';
 
-        const updatedCardItems = menuData.map((item) => ({
-          userId: String(item.restitemid),
-          itemId: item.item_no || '',
-          ItemName: item.item_name,
-          aliasName: item.short_name || '',
-          price: item.price || 0,
-          visits: 0,
-          cardStatus: item.status === 1 ? '✅ Available' : '❌ Unavailable',
-        }));
+    console.log('👤 Role:', user?.role);
+    console.log('🏨 Hotel Admin:', isHotelAdmin);
+    console.log('🏨 Hotel ID:', user?.hotelid);
+    console.log('🏪 Outlet ID:', user?.outletid);
 
-        setCardItems(updatedCardItems);
-      }
-    } catch (err) {
-      // console.error('Fetch Menu error:', err);
-      toast.error('Failed to fetch menu');
-    } finally {
-      setLoading(false);
+    const response = await MenuService.list({
+      hotelid: user?.hotelid,
+      outletid: isHotelAdmin ? undefined : user?.outletid,
+    });
+
+    console.log('📦 FULL MENU RESPONSE:', response);
+    console.log('📦 FIRST ITEM:', response?.data?.[0]);
+
+    if (response.success) {
+      const menuData = response.data || [];
+
+      console.log('🍽️ MENU COUNT:', menuData.length);
+      console.log('🍽️ FIRST ITEM NAME:', menuData[0]?.item_name);
+
+      setData(menuData);
+      setMenuItems(menuData);
+
+      const updatedCardItems = menuData.map((item) => ({
+        userId: String(item.restitemid),
+        itemId: item.item_no || '',
+        ItemName: item.item_name,
+        aliasName: item.short_name || '',
+        price: item.price || 0,
+        visits: 0,
+        cardStatus:
+          item.status === 1
+            ? '✅ Available'
+            : '❌ Unavailable',
+      }));
+
+      setCardItems(updatedCardItems);
     }
-  };
+  } catch (err) {
+    console.error('❌ Fetch Menu error:', err);
+    toast.error('Failed to fetch menu');
+  } finally {
+    setLoading(false);
+  }
+};
+  const fetchMenuItems = async () => {
+  try {
+    setLoading(true);
+    setError(null);
 
-  const fetchMenuItems = async (hotelid?: number, outletid?: number) => {
-    try {
-      setLoading(true);
-      setError(null);
+   const isHotelAdmin =
+  user?.role?.toLowerCase() === 'hotel_admin';
 
-      const response = await MenuService.list({ hotelid, outletid });
+    const response = await MenuService.list({
+      hotelid: user?.hotelid,
+      outletid: isHotelAdmin ? undefined : user?.outletid,
+    });
 
-      if (response.success) {
-        // console.log('Fetched menu items:', response.data);
-        setMenuItems(response.data || []);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch menu items');
-      toast.error('Failed to fetch Menu Items');
-      // console.error(err);
-    } finally {
-      setLoading(false);
+    if (response.success) {
+      setMenuItems(response.data || []);
     }
-  };
+  } catch (err: any) {
+    setError(err.message || 'Failed to fetch menu items');
+    toast.error('Failed to fetch Menu Items');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
-    fetchMenu();
-    fetchOutletsForDropdown(user, setOutlets, setLoading);
-    fetchBrands(user, setBrands);
-    fetchMenuItems(user?.hotelid, user?.outletid); // Fetch menu items for sidebar
-    fetchVariantTypes(); // Fetch variant types
-  }, [user]);
+  if (!user?.hotelid) return;
 
+  fetchMenu();
+  fetchOutletsForDropdown(user, setOutlets, setLoading);
+  fetchBrands(user, setBrands);
+  fetchMenuItems();
+  fetchVariantTypes();
+}, [user]);
   // Fetch variant types from API
   const fetchVariantTypes = async () => {
     try {
@@ -321,11 +344,10 @@ const Menu: React.FC = () => {
     }
   };
 
-  const handleSuccess = () => {
-    fetchMenu();
-    fetchMenuItems(user?.hotelid, user?.outletid);
-  };
-
+const handleSuccess = () => {
+  fetchMenu();
+  fetchMenuItems();
+};
 
 
   return (
