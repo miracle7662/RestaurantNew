@@ -265,10 +265,10 @@ exports.getCustomerByMobile = async (req, res) => {
     const { mobile } = req.query;
 
     if (!mobile) {
-      return res.status(400).json({ 
-        success: false, 
-        data: null, 
-        message: "Mobile number is required" 
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: "Mobile number is required"
       });
     }
 
@@ -305,28 +305,28 @@ exports.getCustomerByMobile = async (req, res) => {
       WHERE TRIM(C.mobile) = TRIM(?)
       LIMIT 1
     `, [mobile]);
-    
+
     const customer = rows[0];
 
     if (customer) {
-      res.json({ 
-        success: true, 
-        data: customer, 
-        message: "Customer found" 
+      res.json({
+        success: true,
+        data: customer,
+        message: "Customer found"
       });
     } else {
-      res.json({ 
-        success: false, 
-        data: null, 
-        message: "Customer not found" 
+      res.json({
+        success: false,
+        data: null,
+        message: "Customer not found"
       });
     }
   } catch (err) {
-    res.status(500).json({ 
-      success: false, 
-      data: null, 
-      message: "Internal server error", 
-      error: err.message 
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: "Internal server error",
+      error: err.message
     });
   }
 };
