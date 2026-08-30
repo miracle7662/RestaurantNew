@@ -172,7 +172,8 @@ const [cityid, setCityId] = useState<number | null>(null);
  const fetchCustomers = async () => {
   setLoading(true);
   try {
-    const response = await CustomerService.list();
+    const hotelId = user?.hotelid;
+    const response = await CustomerService.list({ hotelId });
 
     // ✅ Extract actual customer array - with guard for undefined
     const data = Array.isArray(response.data) ? response.data : [];
@@ -265,7 +266,8 @@ const [cityid, setCityId] = useState<number | null>(null);
     if (!mobile || mobile.length !== 10) return;
     setCheckingMobile(true);
     try {
-      const response = await CustomerService.getByMobile(mobile);
+      const hotelId = user?.hotelid;
+      const response = await CustomerService.getByMobile(mobile, hotelId);
       if (response.success && response.data && response.data.customerid) {
         populateFromCustomer(response.data);
         toast.success('Customer data loaded. You can update now.');
@@ -400,6 +402,7 @@ const [cityid, setCityId] = useState<number | null>(null);
         created_date: selectedCustomerId ? undefined : currentDate,
         updated_by_id: user?.id || 1,
         updated_date: currentDate,
+        hotelid: user?.hotelid,
       };
       const response = selectedCustomerId
   ? await CustomerService.update(selectedCustomerId, payload)

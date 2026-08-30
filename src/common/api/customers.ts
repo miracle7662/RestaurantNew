@@ -38,6 +38,7 @@ export interface Customer {
   created_date?: string
   updated_by_id?: number
   updated_date?: string
+  hotelid?: number
 }
 
 /** Customer payload for create/update */
@@ -66,6 +67,7 @@ export interface CustomerPayload {
   created_date?: string
   updated_by_id?: number
   updated_date?: string
+  hotelid?: number
 }
 
 /** Customer list response */
@@ -87,7 +89,7 @@ const CustomerService = {
   /**
    * Get all customers
    */
-  list: (params?: { q?: string }): Promise<ApiResponse<Customer[]>> =>
+  list: (params?: { q?: string; hotelId?: number }): Promise<ApiResponse<Customer[]>> =>
     HttpClient.get<ApiResponse<Customer[]>>('/customer', { params }),
 
   /**
@@ -99,15 +101,25 @@ const CustomerService = {
   /**
    * Get customer by mobile number
    */
-  getByMobile: (mobile: string): Promise<ApiResponse<Customer>> =>
-    HttpClient.get<ApiResponse<Customer>>('/customer/by-mobile', { params: { mobile } }),
+  getByMobile: (mobile: string, hotelId?: number): Promise<ApiResponse<Customer>> => {
+    const params: { mobile: string; hotelId?: number } = { mobile }
+    if (hotelId) {
+      params.hotelId = hotelId
+    }
+    return HttpClient.get<ApiResponse<Customer>>('/customer/by-mobile', { params })
+  },
 
   /**
    * ✅ NEW: Search customers by name (partial match)
    * Returns customers whose name contains the search string
    */
-  searchByName: (name: string): Promise<ApiResponse<Customer[]>> =>
-    HttpClient.get<ApiResponse<Customer[]>>('/customer/search', { params: { name } }),
+  searchByName: (name: string, hotelId?: number): Promise<ApiResponse<Customer[]>> => {
+    const params: { name: string; hotelId?: number } = { name }
+    if (hotelId) {
+      params.hotelId = hotelId
+    }
+    return HttpClient.get<ApiResponse<Customer[]>>('/customer/search', { params })
+  },
 
   /**
    * Create a new customer
