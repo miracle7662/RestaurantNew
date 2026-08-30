@@ -26,6 +26,8 @@ import {
   FaTruck,
   FaHotel,
   FaBed,
+  FaStar,
+  FaUtensils,
 } from 'react-icons/fa';
 
 import {
@@ -43,9 +45,7 @@ import {
 } from 'recharts';
 
 import { useAuthContext } from '@/common/context/useAuthContext';
-import HandoverService from '@/common/api/handover';
-import OrderService from '@/common/api/order';
-import { SettlementService } from '@/common/api';
+import DashboardService from '@/common/api/dashboard';
 import CheckoutService from '@/common/hotel/checkout';
 
 // =====================================================
@@ -72,19 +72,11 @@ interface DashboardItem {
   table?: number;
 }
 
-interface ReviewItem {
+interface BestSellerItem {
   name: string;
-  rating: number;
-  comment: string;
-  time: string;
-}
-
-interface HandoverSummary {
-  totalOrders: number;
-  totalKOTs: number;
-  totalSales: number;
-  completed: number;
-  reverseKOT?: number;
+  quantity: number;
+  revenue: number;
+  category?: string;
 }
 
 // =====================================================
@@ -105,17 +97,6 @@ interface LiveRoomCategory {
   available_rooms: number;
   blocked_rooms: number;
   next_available_from: string | null;
-}
-
-interface LiveDataSummary {
-  total_rooms: number;
-  occupied_rooms: number;
-  reserved_rooms: number;
-  today_reservations: number;
-  today_checkins: number;
-  today_checkouts: number;
-  available_rooms: number;
-  blocked_rooms: number;
 }
 
 // =====================================================
@@ -271,7 +252,7 @@ const RestaurantDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<StatCardProps[]>([]);
   const [recentItems, setRecentItems] = useState<DashboardItem[]>([]);
-  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [bestSellers, setBestSellers] = useState<BestSellerItem[]>([]);
   const [revenueData, setRevenueData] = useState<{ day: string; revenue: number }[]>([]);
   const [categoryData, setCategoryData] = useState<
     { name: string; value: number; color: string }[]
@@ -339,7 +320,7 @@ const RestaurantDashboard: React.FC = () => {
   };
 
   // ===================================================
-  // DEFAULT DATA FUNCTIONS
+  // DEFAULT DATA FUNCTIONS (ONLY FOR FALLBACK)
   // ===================================================
 
   const getDefaultRevenueData = () => {
@@ -351,120 +332,147 @@ const RestaurantDashboard: React.FC = () => {
 
   const getDefaultCategoryData = () => {
     return [
-      { name: 'Main Course', value: 42, color: chartColors[0] },
-      { name: 'Starters', value: 23, color: chartColors[1] },
-      { name: 'Beverages', value: 15, color: chartColors[2] },
-      { name: 'Desserts', value: 12, color: chartColors[3] },
-      { name: 'Others', value: 8, color: chartColors[4] },
+      { name: 'Main Course', value: 0, color: chartColors[0] },
+      { name: 'Starters', value: 0, color: chartColors[1] },
+      { name: 'Beverages', value: 0, color: chartColors[2] },
+      { name: 'Desserts', value: 0, color: chartColors[3] },
+      { name: 'Others', value: 0, color: chartColors[4] },
     ];
   };
 
   const getDefaultPaymentData = () => {
     return [
-      { name: 'Card', value: 48, color: chartColors[0] },
-      { name: 'UPI', value: 28, color: chartColors[2] },
-      { name: 'Cash', value: 18, color: chartColors[4] },
-      { name: 'Wallet', value: 6, color: chartColors[3] },
+      { name: 'Card', value: 0, color: chartColors[0] },
+      { name: 'UPI', value: 0, color: chartColors[2] },
+      { name: 'Cash', value: 0, color: chartColors[4] },
+      { name: 'Wallet', value: 0, color: chartColors[3] },
     ];
   };
 
   // ===================================================
-  // DATA PROCESSING FUNCTIONS
+  // PROCESS DASHBOARD DATA FROM API
   // ===================================================
 
-  const processRevenueData = (data: any[]) => {
-    if (!Array.isArray(data) || data.length === 0) {
-      return [];
-    }
+  const processDashboardData = (data: any) => {
+    if (!data) return;
 
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const dayMap: Record<string, number> = {};
+    // 1. Process Stats
+    const summary = data.summary || {};
+    const yesterdayRevenue = summary.total_revenue * 0.9;
+    const yesterdayOrders = summary.total_orders * 0.92;
+    const yesterdaySettled = summary.settled_orders * 0.95;
+    const yesterdayPending = summary.pending_orders * 0.9;
 
-    data.forEach((item: any) => {
-      const rawDate = item.created_at || item.InsertDate || item.date || item.TxnDatetime;
-      if (!rawDate) return;
+    setStats([
+      {
+        icon: <FaDollarSign size={22} />,
+        title: "Today's Revenue",
+        value: formatCurrency(summary.total_revenue || 0),
+        change: calculateChange(summary.total_revenue || 0, yesterdayRevenue),
+        iconBg: 'primary',
+      },
+      {
+        icon: <FaClipboardList size={22} />,
+        title: 'Total Orders',
+        value: summary.total_orders?.toString() || '0',
+        change: calculateChange(summary.total_orders || 0, yesterdayOrders),
+        iconBg: 'success',
+      },
+      {
+        icon: <FaUsers size={22} />,
+        title: 'Settled Orders',
+        value: summary.settled_orders?.toString() || '0',
+        change: calculateChange(summary.settled_orders || 0, yesterdaySettled),
+        iconBg: 'info',
+      },
+      {
+        icon: <FaChartLine size={22} />,
+        title: 'Pending Orders',
+        value: summary.pending_orders?.toString() || '0',
+        change: calculateChange(summary.pending_orders || 0, yesterdayPending),
+        iconBg: 'warning',
+      },
+    ]);
 
-      const date = new Date(rawDate);
-      if (isNaN(date.getTime())) return;
-
-      const day = days[date.getDay() === 0 ? 6 : date.getDay() - 1];
-      const amount = Number(item.Amount || item.amount || item.total || item.amount_paid || 0);
-
-      dayMap[day] = (dayMap[day] || 0) + amount;
-    });
-
-    return days.map((day) => ({
-      day,
-      revenue: dayMap[day] || 0,
-    }));
-  };
-
-  const processCategoryData = (data: any[]) => {
-    if (!Array.isArray(data) || data.length === 0) {
-      return [];
-    }
-
-    const categoryMap: Record<string, number> = {};
-
-    data.forEach((item: any) => {
-      const category =
-        item.Order_Type || item.room_type || item.RoomType || item.category || item.table_name || 'Other';
-      categoryMap[category] = (categoryMap[category] || 0) + 1;
-    });
-
-    const total = Object.values(categoryMap).reduce((a, b) => a + b, 0);
-    if (!total) return [];
-
-    return Object.entries(categoryMap)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
-      .map(([name, value], index) => ({
-        name: name || 'Other',
-        value: Math.round((value / total) * 100),
-        color: chartColors[index % chartColors.length],
+    // 2. Process Recent Orders
+    if (data.recentOrders && Array.isArray(data.recentOrders)) {
+      const orders: DashboardItem[] = data.recentOrders.map((order: any) => ({
+        id: Number(order.TxnID || 0),
+        customer: order.CustomerName || 'Guest',
+        items: order.table_name || order.Order_Type || 'Takeaway',
+        total: Number(order.Amount || 0),
+        status: order.isSetteled === 1 ? 'completed' : 'pending',
+        time: formatTimeAgo(order.TxnDatetime),
+        table: Number(order.TableID || 0),
       }));
-  };
-
-  const processPaymentData = (data: any[]) => {
-    if (!Array.isArray(data) || data.length === 0) {
-      return [];
+      setRecentItems(orders);
     }
 
-    const paymentMap: Record<string, number> = {};
-
-    data.forEach((item: any) => {
-      let type =
-        item.PaymentType || item.payment_type || item.method || item.payment_method || item.type || 'Other';
-
-      let cleanType = String(type).trim();
-      const lowerType = cleanType.toLowerCase();
-
-      if (lowerType.includes('card')) cleanType = 'Card';
-      else if (lowerType.includes('upi')) cleanType = 'UPI';
-      else if (lowerType.includes('cash')) cleanType = 'Cash';
-      else if (lowerType.includes('wallet')) cleanType = 'Wallet';
-      else if (lowerType.includes('zomato')) cleanType = 'Zomato';
-      else if (lowerType.includes('room') || lowerType.includes('credit')) cleanType = 'Room Credit';
-      else if (lowerType.includes('paytm')) cleanType = 'Paytm';
-      else if (lowerType.includes('google') || lowerType.includes('gpay')) cleanType = 'Google Pay';
-
-      const amount = Number(item.Amount || item.amount || item.total || item.amount_paid || 0);
-      paymentMap[cleanType] = (paymentMap[cleanType] || 0) + amount;
-    });
-
-    const total = Object.values(paymentMap).reduce((a, b) => a + b, 0);
-
-    return Object.entries(paymentMap)
-      .sort(([, a], [, b]) => b - a)
-      .map(([name, value], index) => ({
-        name,
-        value: total > 0 ? Math.round((value / total) * 100) : 0,
-        color: chartColors[index % chartColors.length],
+    // 3. Process Best Sellers
+    if (data.bestSellers && Array.isArray(data.bestSellers)) {
+      const sellers: BestSellerItem[] = data.bestSellers.map((item: any) => ({
+        name: item.item_name || 'Unknown Item',
+        quantity: Number(item.total_quantity_sold || 0),
+        revenue: Number(item.total_revenue || 0),
+        category: item.category_name || 'General',
       }));
+      setBestSellers(sellers);
+    }
+
+    // 4. Process Category Sales (for Pie Chart)
+    if (data.categorySales && Array.isArray(data.categorySales)) {
+      const totalRevenue = data.categorySales.reduce(
+        (sum: number, cat: any) => sum + Number(cat.total_revenue || 0),
+        0
+      );
+      
+      if (totalRevenue > 0) {
+        const categories = data.categorySales.map((cat: any, index: number) => ({
+          name: cat.category_name || 'Other',
+          value: Math.round((Number(cat.total_revenue || 0) / totalRevenue) * 100),
+          color: chartColors[index % chartColors.length],
+        }));
+        setCategoryData(categories);
+      } else {
+        setCategoryData(getDefaultCategoryData());
+      }
+    }
+
+    // 5. Process Payment Distribution
+    if (data.paymentDistribution && Array.isArray(data.paymentDistribution)) {
+      const totalAmount = data.paymentDistribution.reduce(
+        (sum: number, p: any) => sum + Number(p.total_amount || 0),
+        0
+      );
+      
+      if (totalAmount > 0) {
+        const payments = data.paymentDistribution.map((p: any, index: number) => ({
+          name: p.PaymentType || 'Other',
+          value: Math.round((Number(p.total_amount || 0) / totalAmount) * 100),
+          color: chartColors[index % chartColors.length],
+        }));
+        setPaymentData(payments);
+      } else {
+        setPaymentData(getDefaultPaymentData());
+      }
+    }
+
+    // 6. Process Revenue Data (Last 7 days - from hourly sales or default)
+    if (data.hourlySales && Array.isArray(data.hourlySales) && data.hourlySales.length > 0) {
+      // Convert hourly to daily (or use as is if we have daily data)
+      // For now, we'll use default or we can aggregate
+      const revenue = data.hourlySales.map((h: any) => ({
+        day: `${h.hour}:00`,
+        revenue: Number(h.total_revenue || 0),
+      }));
+      setRevenueData(revenue.length > 0 ? revenue : getDefaultRevenueData());
+    } else {
+      setRevenueData(getDefaultRevenueData());
+    }
   };
 
   // ===================================================
-  // RESTAURANT DATA FETCH
+  // RESTAURANT DATA FETCH - USING SP
   // ===================================================
 
   const fetchRestaurantData = async () => {
@@ -472,134 +480,43 @@ const RestaurantDashboard: React.FC = () => {
     const outletId = Number(user?.outletid);
     const hotelId = Number(user?.hotelid);
 
-    console.log('🍽️ Fetch Restaurant Dashboard');
+    console.log('🍽️ Fetch Restaurant Dashboard via SP');
 
-    // Fetch Handover Data
     try {
-      const response = await HandoverService.getHandoverData({
+      const response = await DashboardService.getDashboardData({
+        outletid: outletId,
+        hotelid: hotelId,
+        limit: 10,
         curr_date: currDate,
       });
 
-      if (response?.success && response?.data?.summary) {
-        const summary: HandoverSummary = response.data.summary;
-        const yesterdaySales = summary.totalSales * 0.9;
-        const yesterdayOrders = summary.totalOrders * 0.92;
-        const yesterdayKOTs = summary.totalKOTs * 0.95;
-        const yesterdayReverseKOT = (summary.reverseKOT || 0) * 0.9;
+      console.log('📦 Dashboard API Response:', response);
 
-        setStats([
-          {
-            icon: <FaDollarSign size={22} />,
-            title: "Today's Revenue",
-            value: formatCurrency(summary.totalSales || 0),
-            change: calculateChange(summary.totalSales || 0, yesterdaySales),
-            iconBg: 'primary',
-          },
-          {
-            icon: <FaClipboardList size={22} />,
-            title: 'Total Orders',
-            value: summary.totalOrders?.toString() || '0',
-            change: calculateChange(summary.totalOrders || 0, yesterdayOrders),
-            iconBg: 'success',
-          },
-          {
-            icon: <FaUsers size={22} />,
-            title: 'Total KOTs',
-            value: summary.totalKOTs?.toString() || '0',
-            change: calculateChange(summary.totalKOTs || 0, yesterdayKOTs),
-            iconBg: 'info',
-          },
-          {
-            icon: <FaChartLine size={22} />,
-            title: 'Reverse KOT',
-            value: summary.reverseKOT?.toString() || '0',
-            change: calculateChange(summary.reverseKOT || 0, yesterdayReverseKOT),
-            iconBg: 'warning',
-          },
-        ]);
-      }
-    } catch (err) {
-      console.error('❌ Restaurant handover error:', err);
-    }
-
-    // Fetch Recent Orders
-    try {
-      console.log('📦 Fetching Recent Orders...', { currDate, outletId, hotelId });
-
-      const response = await OrderService.getAllBills(
-        { curr_date: currDate },
-        user
-      );
-
-      console.log('📦 Orders API Response:', response);
-
-      if (response?.success && Array.isArray(response.data)) {
-        const orders = response.data;
-        console.log('📦 Total Orders:', orders.length);
-
-        const validOrders = orders.filter((bill: any) => Number(bill.isCancelled) !== 1);
-
-        const recentOrders = [...validOrders]
-          .sort((a: any, b: any) => {
-            const dateA = new Date(a.TxnDatetime || a.created_at || 0).getTime();
-            const dateB = new Date(b.TxnDatetime || b.created_at || 0).getTime();
-            return dateB - dateA;
-          })
-          .slice(0, 10);
-
-        const transformedOrders: DashboardItem[] = recentOrders.map((bill: any) => ({
-          id: Number(bill.TxnID || bill.id || 0),
-          customer: bill.CustomerName || bill.customer_name || 'Guest',
-          items: bill.table_name || bill.TableName || bill.table || 'Takeaway',
-          total: Number(bill.Amount || bill.amount || bill.TotalAmount || bill.total || 0),
-          status: mapRestaurantStatus(bill),
-          time: formatTimeAgo(bill.TxnDatetime || bill.created_at),
-          table: Number(bill.TableID || bill.table_id || 0),
-        }));
-
-        console.log('✅ Recent Orders:', transformedOrders);
-        setRecentItems(transformedOrders);
-
-        const categories = processCategoryData(orders);
-        setCategoryData(categories.length ? categories : getDefaultCategoryData());
+      if (response?.success && response?.data) {
+        processDashboardData(response.data);
       } else {
-        console.warn('⚠️ No orders found');
+        // Set empty state if no data
+        setStats([]);
         setRecentItems([]);
-        setCategoryData(getDefaultCategoryData());
-      }
-    } catch (err) {
-      console.error('❌ Restaurant orders error:', err);
-      setRecentItems([]);
-      setCategoryData(getDefaultCategoryData());
-    }
-
-    // Fetch Settlement Data
-    try {
-      const response = await SettlementService.list({
-        outletid: outletId,
-        hotelid: hotelId,
-        q: currDate,
-      });
-
-      if (response?.success && Array.isArray(response.data)) {
-        const revenue = processRevenueData(response.data);
-        const payments = processPaymentData(response.data);
-
-        setRevenueData(revenue.length ? revenue : getDefaultRevenueData());
-        setPaymentData(payments.length ? payments : getDefaultPaymentData());
-      } else {
+        setBestSellers([]);
         setRevenueData(getDefaultRevenueData());
+        setCategoryData(getDefaultCategoryData());
         setPaymentData(getDefaultPaymentData());
       }
     } catch (err) {
-      console.error('❌ Restaurant settlement error:', err);
+      console.error('❌ Restaurant dashboard error:', err);
+      setStats([]);
+      setRecentItems([]);
+      setBestSellers([]);
       setRevenueData(getDefaultRevenueData());
+      setCategoryData(getDefaultCategoryData());
       setPaymentData(getDefaultPaymentData());
+      throw err;
     }
   };
 
   // ===================================================
-  // LODGING DATA FETCH - USING NEW LIVE DATA API
+  // LODGING DATA FETCH - USING LIVE DATA API
   // ===================================================
 
   const fetchLodgingData = async () => {
@@ -612,7 +529,6 @@ const RestaurantDashboard: React.FC = () => {
     console.log('🏨 Fetch Lodging Dashboard with Live Data API', hotelId);
 
     try {
-      // ✅ FIXED: Using CheckoutService (where getLiveData is defined)
       const response = await CheckoutService.getLiveData(hotelId);
       console.log('📦 Live Data Response:', response);
 
@@ -623,12 +539,7 @@ const RestaurantDashboard: React.FC = () => {
       const { data } = response;
       const categories = data || [];
 
-      // Set lodging rooms for table
       setLodgingRooms(categories);
-
-      // =================================================
-      // CALCULATE TOTALS FROM CATEGORIES
-      // =================================================
 
       const totalRooms = categories.reduce((sum: number, room: LiveRoomCategory) => sum + Number(room.category_total_rooms || 0), 0);
       const totalOccupied = categories.reduce((sum: number, room: LiveRoomCategory) => sum + Number(room.occupied_rooms || 0), 0);
@@ -639,15 +550,11 @@ const RestaurantDashboard: React.FC = () => {
       const totalCheckouts = categories.reduce((sum: number, room: LiveRoomCategory) => sum + Number(room.today_checkouts || 0), 0);
       const totalReservations = categories.reduce((sum: number, room: LiveRoomCategory) => sum + Number(room.today_reservations || 0), 0);
 
-      // =================================================
-      // STATS - LODGING (Using Live Data)
-      // =================================================
-
       setStats([
         {
           icon: <FaDollarSign size={22} />,
           title: "Today's Revenue",
-          value: formatCurrency(0), // Still need settlement API for revenue
+          value: formatCurrency(0),
           change: 0,
           iconBg: 'primary',
         },
@@ -674,10 +581,7 @@ const RestaurantDashboard: React.FC = () => {
         },
       ]);
 
-      // =================================================
-      // ROOM CATEGORY (Pie Chart)
-      // =================================================
-
+      // Room Category Pie Chart
       const roomCategoryData = categories
         .map((room: LiveRoomCategory, index: number) => ({
           name: room.category_name || 'Other',
@@ -690,69 +594,31 @@ const RestaurantDashboard: React.FC = () => {
 
       setCategoryData(roomCategoryData.length > 0 ? roomCategoryData : getDefaultCategoryData());
 
-      // =================================================
-      // ROOM STATUS (Payment Data Chart)
-      // =================================================
-
+      // Room Status Chart
       const roomStatusRaw = [
-        {
-          name: 'Available',
-          count: totalAvailable,
-          color: '#10b981',
-        },
-        {
-          name: 'Occupied',
-          count: totalOccupied,
-          color: '#4f46e5',
-        },
-        {
-          name: 'Reserved',
-          count: totalReserved,
-          color: '#f59e0b',
-        },
-        {
-          name: 'Blocked',
-          count: totalBlocked,
-          color: '#e11d48',
-        },
+        { name: 'Available', count: totalAvailable, color: '#10b981' },
+        { name: 'Occupied', count: totalOccupied, color: '#4f46e5' },
+        { name: 'Reserved', count: totalReserved, color: '#f59e0b' },
+        { name: 'Blocked', count: totalBlocked, color: '#e11d48' },
       ].filter((item) => item.count > 0);
 
       const statusTotal = roomStatusRaw.reduce((sum, item) => sum + item.count, 0);
 
-      const roomStatusData =
-        statusTotal > 0
-          ? roomStatusRaw.map((item) => ({
-              name: item.name,
-              value: Math.round((item.count / statusTotal) * 100),
-              color: item.color,
-            }))
-          : [];
+      const roomStatusData = statusTotal > 0
+        ? roomStatusRaw.map((item) => ({
+            name: item.name,
+            value: Math.round((item.count / statusTotal) * 100),
+            color: item.color,
+          }))
+        : [];
 
       setPaymentData(roomStatusData.length > 0 ? roomStatusData : getDefaultPaymentData());
-
-      // =================================================
-      // LODGING REVENUE
-      // =================================================
-
       setRevenueData(getDefaultRevenueData());
-
-      console.log('📊 Lodging Summary:', {
-        totalRooms,
-        totalOccupied,
-        totalReserved,
-        totalAvailable,
-        totalBlocked,
-        totalCheckins,
-        totalCheckouts,
-        totalReservations,
-      });
-      console.log('🏨 Room Categories:', categories);
 
     } catch (err) {
       console.error('❌ Lodging API error:', err);
       setLodgingRooms([]);
       
-      // Set default stats on error
       setStats([
         {
           icon: <FaDollarSign size={22} />,
@@ -804,30 +670,8 @@ const RestaurantDashboard: React.FC = () => {
       try {
         if (activeModule === 'restaurant') {
           await fetchRestaurantData();
-
-          setReviews([
-            {
-              name: 'John Doe',
-              rating: 5,
-              comment: 'Amazing food and service! Will definitely come back.',
-              time: '2 hours ago',
-            },
-            {
-              name: 'Jane Smith',
-              rating: 4,
-              comment: 'Great atmosphere, food was delicious.',
-              time: '4 hours ago',
-            },
-            {
-              name: 'Bob Johnson',
-              rating: 3,
-              comment: 'Good experience but service was a bit slow.',
-              time: '6 hours ago',
-            },
-          ]);
         } else {
           await fetchLodgingData();
-          setReviews([]);
         }
       } catch (err) {
         console.error('❌ Dashboard fetch error:', err);
@@ -856,6 +700,13 @@ const RestaurantDashboard: React.FC = () => {
       item.items.toLowerCase().includes(search) ||
       item.id.toString().includes(search)
     );
+  });
+
+  const filteredBestSellers = bestSellers.filter((item) => {
+    const search = searchTerm.toLowerCase().trim();
+    if (!search) return true;
+    return item.name.toLowerCase().includes(search) || 
+           (item.category && item.category.toLowerCase().includes(search));
   });
 
   // ===================================================
@@ -949,13 +800,13 @@ const RestaurantDashboard: React.FC = () => {
           </div>
 
           <div className="d-flex align-items-center gap-2">
-            {/* Module Switcher */}
             <ButtonGroup size="sm">
               <Button
                 variant={activeModule === 'restaurant' ? 'primary' : 'outline-primary'}
                 onClick={() => setActiveModule('restaurant')}
                 style={{ fontSize: '0.75rem' }}
               >
+                <FaUtensils className="me-1" size={12} />
                 Restaurant
               </Button>
 
@@ -964,11 +815,11 @@ const RestaurantDashboard: React.FC = () => {
                 onClick={() => setActiveModule('lodging')}
                 style={{ fontSize: '0.75rem' }}
               >
+                <FaHotel className="me-1" size={12} />
                 Lodging
               </Button>
             </ButtonGroup>
 
-            {/* Search */}
             <div className="position-relative" style={{ width: '260px' }}>
               <FaSearch
                 className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"
@@ -999,11 +850,17 @@ const RestaurantDashboard: React.FC = () => {
         ================================================= */}
 
         <Row className="g-3 mb-4">
-          {stats.map((stat, idx) => (
-            <Col key={idx} xs={12} sm={6} lg={3}>
-              <StatCard {...stat} />
+          {stats.length > 0 ? (
+            stats.map((stat, idx) => (
+              <Col key={idx} xs={12} sm={6} lg={3}>
+                <StatCard {...stat} />
+              </Col>
+            ))
+          ) : (
+            <Col xs={12}>
+              <div className="text-center text-muted py-3">No statistics available</div>
             </Col>
-          ))}
+          )}
         </Row>
 
         {/* =================================================
@@ -1237,7 +1094,6 @@ const RestaurantDashboard: React.FC = () => {
                   className="table-responsive"
                   style={{ maxHeight: '300px', overflowY: 'auto' }}
                 >
-                  {/* Lodging Table */}
                   {activeModule === 'lodging' ? (
                     lodgingRooms.length > 0 ? (
                       <Table
@@ -1294,7 +1150,6 @@ const RestaurantDashboard: React.FC = () => {
                       <div className="text-center text-muted py-4">No room data found</div>
                     )
                   ) : (
-                    /* Restaurant Recent Orders Table */
                     filteredItems.length > 0 ? (
                       <Table
                         hover
@@ -1350,7 +1205,7 @@ const RestaurantDashboard: React.FC = () => {
             </Card>
           </Col>
 
-          {/* Right Card - Reviews / Room Summary */}
+          {/* Right Card - Best Sellers / Room Summary */}
           <Col xl={5} lg={12}>
             <Card
               className="border-0 h-100"
@@ -1361,49 +1216,70 @@ const RestaurantDashboard: React.FC = () => {
             >
               <Card.Body className="p-3 p-md-4">
                 {activeModule === 'restaurant' ? (
-                  // Restaurant Reviews
                   <>
                     <div className="d-flex justify-content-between align-items-center mb-3">
-                      <h6 className="fw-bold mb-0">Recent Reviews</h6>
-
-                      {reviews.length > 0 && (
-                        <Badge bg="light" text="dark">
-                          {(reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(
-                            1
-                          )}{' '}
-                          ★
-                        </Badge>
-                      )}
+                      <div>
+                        <h6 className="fw-bold mb-0">
+                          <FaStar className="text-warning me-1" size={14} />
+                          Top Selling Items
+                        </h6>
+                        <small className="text-muted">Most ordered items today</small>
+                      </div>
+                      <Badge bg="light" text="dark" className="rounded-pill">
+                        {filteredBestSellers.length} items
+                      </Badge>
                     </div>
 
-                    {reviews.map((review, idx) => (
-                      <div
-                        key={idx}
-                        className="pb-3 mb-2"
-                        style={{
-                          borderBottom:
-                            idx !== reviews.length - 1 ? '1px solid #f1f5f9' : 'none',
-                        }}
-                      >
-                        <div className="d-flex justify-content-between">
-                          <div>
-                            <div className="fw-semibold">{review.name}</div>
-                            <div className="text-warning">{'★'.repeat(review.rating)}</div>
+                    {filteredBestSellers.length > 0 ? (
+                      <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        {filteredBestSellers.slice(0, 8).map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="d-flex justify-content-between align-items-center py-2"
+                            style={{
+                              borderBottom: idx !== Math.min(filteredBestSellers.length, 8) - 1 
+                                ? '1px solid #f1f5f9' 
+                                : 'none',
+                            }}
+                          >
+                            <div className="d-flex align-items-center gap-3">
+                              <span 
+                                className="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold"
+                                style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  background: chartColors[idx % chartColors.length],
+                                  fontSize: '0.7rem',
+                                }}
+                              >
+                                #{idx + 1}
+                              </span>
+                              <div>
+                                <div className="fw-semibold" style={{ fontSize: '0.85rem' }}>
+                                  {item.name}
+                                </div>
+                                {item.category && (
+                                  <small className="text-muted">{item.category}</small>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-end">
+                              <div className="fw-bold" style={{ color: '#4f46e5', fontSize: '0.85rem' }}>
+                                {item.quantity} sold
+                              </div>
+                              <small className="text-muted">{formatCurrency(item.revenue)}</small>
+                            </div>
                           </div>
-                          <small className="text-muted">{review.time}</small>
-                        </div>
-
-                        <p
-                          className="mb-0 mt-1 text-muted"
-                          style={{ fontSize: '0.8rem' }}
-                        >
-                          {review.comment}
-                        </p>
+                        ))}
                       </div>
-                    ))}
+                    ) : (
+                      <div className="text-center text-muted py-4">
+                        <FaUtensils size={30} className="mb-2" />
+                        <div>No items sold yet today</div>
+                      </div>
+                    )}
                   </>
                 ) : (
-                  // Lodging Room Summary
                   <>
                     <div className="d-flex justify-content-between align-items-center mb-3">
                       <div>

@@ -5077,44 +5077,55 @@ exports.getGlobalReverseKOTNumber = async (req, res) => {
 
 
 // In your bill controller
+// In your bill controller
+
 exports.getRecentOrdersForDashboard = async (req, res) => {
   try {
     const { outletid, hotelid, limit = 5, curr_date } = req.query;
 
-    const sql = `
-      SELECT 
-        b.TxnID,
-        b.TxnNo,
-        b.TableID,
-        b.table_name,
-        b.CustomerName,
-        b.MobileNo,
-        b.Amount,
-        b.isBilled,
-        b.isSetteled,
-        b.TxnDatetime,
-        b.Order_Type,
-        (SELECT COUNT(*) FROM TAxnTrnbilldetails WHERE TxnID = b.TxnID AND isCancelled = 0) as itemCount
-      FROM TAxnTrnbill b
-      WHERE b.outletid = ?
-        AND b.HotelID = ?
-        AND b.isCancelled = 0
-        AND DATE(b.TxnDatetime) = ?
-      ORDER BY b.TxnDatetime DESC
-      LIMIT ?
-    `;
+    // Call Stored Procedure
+    const [results] = await db.query(
+      'CALL sp_get_dashboard_data(?, ?, ?, ?)',
+      [parseInt(outletid), parseInt(hotelid), curr_date, parseInt(limit)]
+    );
 
-    const [rows] = await db.query(sql, [outletid, hotelid, curr_date, parseInt(limit)]);
-    
+    // Results will be in array format: [recentOrders, bestSellers, categorySales, paymentDistribution, hourlySales, summaryStats, tableStatus]
+    const [
+      recentOrders,
+      bestSellers,
+      categorySales,
+      paymentDistribution,
+      hourlySales,
+      summaryStats,
+      tableStatus
+    ] = results;
+
     res.json({
       success: true,
-      message: 'Recent orders fetched',
-      data: rows
+      message: 'Dashboard data fetched successfully',
+      data: {
+        recentOrders: recentOrders || [],
+        bestSellers: bestSellers || [],
+        categorySales: categorySales || [],
+        paymentDistribution: paymentDistribution || [],
+        hourlySales: hourlySales || [],
+        tableStatus: tableStatus || [],
+        summary: summaryStats[0] || {
+          total_orders: 0,
+          total_revenue: 0,
+          billed_not_settled: 0,
+          settled_orders: 0,
+          pending_orders: 0,
+          settled_revenue: 0,
+          pending_settlement_amount: 0
+        }
+      }
     });
   } catch (error) {
+    console.error('Error in getRecentOrdersForDashboard:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch recent orders',
+      message: 'Failed to fetch dashboard data',
       error: error.message
     });
   }
