@@ -13,6 +13,66 @@ const getAll = async (query, params = []) => {
   return rows;
 };
 
+let billPrinterLayoutColumnsReady = false;
+
+const parseBillPaperWidth = (size, paper_width) => {
+  const fromField = Number(paper_width);
+  if (Number.isFinite(fromField) && fromField > 0) return fromField;
+  const match = String(size || '').match(/(\d+(?:\.\d+)?)/);
+  if (match) {
+    const n = Number(match[1]);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 80;
+};
+
+const parseBillMargin = (value, fallback = 2) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+};
+
+const ensureBillPrinterLayoutColumns = async () => {
+  if (billPrinterLayoutColumnsReady) return;
+  try {
+    const rows = await getAll(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'bill_printer_settings'`
+    );
+    const columns = (rows || []).map((col) => col.COLUMN_NAME || col.column_name);
+
+    if (!columns.includes('paper_width')) {
+      await runQuery(
+        'ALTER TABLE bill_printer_settings ADD COLUMN paper_width DECIMAL(6,2) NULL DEFAULT NULL'
+      );
+    }
+    if (!columns.includes('left_margin')) {
+      await runQuery(
+        'ALTER TABLE bill_printer_settings ADD COLUMN left_margin DECIMAL(6,2) NULL DEFAULT 2'
+      );
+    }
+    if (!columns.includes('right_margin')) {
+      await runQuery(
+        'ALTER TABLE bill_printer_settings ADD COLUMN right_margin DECIMAL(6,2) NULL DEFAULT 2'
+      );
+    }
+
+    await runQuery(`
+      UPDATE bill_printer_settings
+      SET paper_width = CASE
+        WHEN size LIKE '%58%' THEN 58
+        WHEN size LIKE '%80%' THEN 80
+        ELSE 80
+      END
+      WHERE paper_width IS NULL
+    `);
+    billPrinterLayoutColumnsReady = true;
+  } catch (error) {
+    console.error('Bill printer layout column migration error:', error.message);
+  }
+};
+
 // ------------------------------------------
 // 2️⃣ KOT Printer Settings
 // ------------------------------------------
@@ -115,6 +175,7 @@ exports.deleteKotPrinterSetting = async (req, res) => {
 exports.getBillPrinterSettings = async (req, res) => {
   try {
     const { id } = req.params;
+    await ensureBillPrinterLayoutColumns();
 
     const rows = await getAll(
       `SELECT * FROM bill_printer_settings
@@ -124,7 +185,7 @@ exports.getBillPrinterSettings = async (req, res) => {
     );
 
     if (!rows || rows.length === 0) {
-      return res.json({ printer_name: null });
+      return res.json({ printer_name: null, paper_width: 80, left_margin: 2, right_margin: 2 });
     }
 
     res.json(rows[0]);
@@ -138,6 +199,7 @@ exports.getBillPrinterSettings = async (req, res) => {
  */
 exports.getAllBillPrinterSettings = async (req, res) => {
   try {
+    await ensureBillPrinterLayoutColumns();
     const rows = await getAll("SELECT * FROM bill_printer_settings");
     res.json(rows);
   } catch (e) {
@@ -154,17 +216,26 @@ exports.createBillPrinterSetting = async (req, res) => {
       size,
       copies = 1,
       outletid,
-      enableBillPrint = 1
+      enableBillPrint = 1,
+      paper_width,
+      left_margin,
+      right_margin
     } = req.body;
 
     if (!printer_name || !order_type || !size || !outletid) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    await ensureBillPrinterLayoutColumns();
+
+    const paperWidth = parseBillPaperWidth(size, paper_width);
+    const leftMargin = parseBillMargin(left_margin, 2);
+    const rightMargin = parseBillMargin(right_margin, 2);
+
     await runQuery(
       `INSERT INTO bill_printer_settings
-      (printer_name, hotelid, order_type, size, copies, outletid, enableBillPrint)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      (printer_name, hotelid, order_type, size, copies, outletid, enableBillPrint, paper_width, left_margin, right_margin)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         printer_name,
         hotelid,
@@ -172,13 +243,77 @@ exports.createBillPrinterSetting = async (req, res) => {
         size,
         copies,
         outletid,
-        enableBillPrint ? 1 : 0
+        enableBillPrint ? 1 : 0,
+        paperWidth,
+        leftMargin,
+        rightMargin
       ]
     );
 
     res.json({ success: true, msg: 'Bill Printer Setting Added' });
   } catch (e) {
     console.error('BILL INSERT ERROR:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.updateBillPrinterSetting = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      printer_name,
+      hotelid,
+      order_type,
+      size,
+      copies = 1,
+      outletid,
+      enableBillPrint = 1,
+      paper_width,
+      left_margin,
+      right_margin
+    } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
+    if (!printer_name || !order_type || !size) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    await ensureBillPrinterLayoutColumns();
+
+    const paperWidth = parseBillPaperWidth(size, paper_width);
+    const leftMargin = parseBillMargin(left_margin, 2);
+    const rightMargin = parseBillMargin(right_margin, 2);
+
+    const result = await runQuery(
+      `UPDATE bill_printer_settings
+       SET printer_name = ?, hotelid = ?, order_type = ?, size = ?, copies = ?,
+           outletid = COALESCE(?, outletid), enableBillPrint = ?,
+           paper_width = ?, left_margin = ?, right_margin = ?
+       WHERE id = ?`,
+      [
+        printer_name,
+        hotelid,
+        order_type,
+        size,
+        copies,
+        outletid || null,
+        enableBillPrint ? 1 : 0,
+        paperWidth,
+        leftMargin,
+        rightMargin,
+        id
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Bill printer setting not found' });
+    }
+
+    res.json({ success: true, msg: 'Bill Printer Setting Updated' });
+  } catch (e) {
+    console.error('BILL UPDATE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };

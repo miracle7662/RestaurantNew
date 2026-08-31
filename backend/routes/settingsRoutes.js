@@ -18,6 +18,7 @@ const settingsController = require("../controllers/settingsController");
 router.get("/bill-printer-settings", settingsController.getAllBillPrinterSettings);
 router.get("/bill-printer-settings/:id", settingsController.getBillPrinterSettings);
 router.post("/bill-printer-settings", settingsController.createBillPrinterSetting);
+router.put("/bill-printer-settings/:id", settingsController.updateBillPrinterSetting);
 router.delete("/bill-printer-settings/:id", settingsController.deleteBillPrinterSetting);
 
 // -------------------------

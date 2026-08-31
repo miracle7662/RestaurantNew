@@ -14,6 +14,10 @@ import { ApiResponse } from '@/types/api'
 /** Bill printer settings response */
 export interface BillPrinterSettings {
   printer_name: string | null
+  paper_width?: number
+  size?: string
+  left_margin?: number
+  right_margin?: number
   [key: string]: any
 }
 

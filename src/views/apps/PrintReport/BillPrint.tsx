@@ -6,6 +6,13 @@ import { applyBillSettings } from '@/utils/applyOutletSettings'
 import BillPrintService from '@/common/api/billPrint'
 import { useAuthContext } from '@/common/context/useAuthContext'
 import HotelService from '@/common/api/hotels'  // ✅ Import for logo fetching
+import {
+  DEFAULT_THERMAL_PRINTER_LAYOUT,
+  getThermalContentWidth,
+  mm,
+  resolveThermalPrinterLayout,
+  ThermalPrinterLayout,
+} from '@/utils/thermalPrinterLayout'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-level caches (survive across component mounts/unmounts within the app
@@ -13,7 +20,13 @@ import HotelService from '@/common/api/hotels'  // ✅ Import for logo fetching
 // display names, and hotel logo. Bill ON/OFF settings (billSettings) are never
 // cached and are always fetched fresh so toggles reflect immediately.
 // ─────────────────────────────────────────────────────────────────────────────
-const printerCache = new Map<number, string | null>()
+const printerCache = new Map<number, {
+  printer_name: string | null
+  paper_width?: number
+  size?: string
+  left_margin?: number
+  right_margin?: number
+}>()
 const outletDetailsCache = new Map<number, { name: string; outlet: string }>()
 const logoCache = new Map<string, string | null>()
 
@@ -181,6 +194,9 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   // ─── Local state ───────────────────────────────────────────────────────────
   const [loading, setLoading] = React.useState(false)
   const [printerName, setPrinterName] = React.useState<string | null>(null)
+  const [printerLayout, setPrinterLayout] = React.useState<ThermalPrinterLayout>(
+    DEFAULT_THERMAL_PRINTER_LAYOUT,
+  )
   const [outletId, setOutletId] = React.useState<number | null>(null)
   const [hasPrinted, setHasPrinted] = React.useState(false)
   const [localRestaurantName, setLocalRestaurantName] = React.useState('')
@@ -274,7 +290,9 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       if (!outletId) return
 
       if (printerCache.has(outletId)) {
-        setPrinterName(printerCache.get(outletId) ?? null)
+        const cached = printerCache.get(outletId)!
+        setPrinterName(cached.printer_name ?? null)
+        setPrinterLayout(resolveThermalPrinterLayout(cached))
         return
       }
 
@@ -282,11 +300,19 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         const res = await BillPrintService.getBillPrinterSettings(outletId)
         const data = res?.data || res
         const name = data?.printer_name || null
-        printerCache.set(outletId, name)
+        printerCache.set(outletId, {
+          printer_name: name,
+          paper_width: data?.paper_width,
+          size: data?.size,
+          left_margin: data?.left_margin,
+          right_margin: data?.right_margin,
+        })
         setPrinterName(name)
+        setPrinterLayout(resolveThermalPrinterLayout(data))
       } catch {
         toast.error('Failed to load printer settings.')
         setPrinterName(null)
+        setPrinterLayout(DEFAULT_THERMAL_PRINTER_LAYOUT)
       }
     }
     fetchPrinter()
@@ -453,6 +479,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     }
   }, [autoPrint, show, loading, hasPrinted, printerName, logoReady, settingsReady])
 
+  const contentWidth = getThermalContentWidth(printerLayout)
+
   // ─── HTML generation ───────────────────────────────────────────────────────
   const generateBillHTML = () => `<!DOCTYPE html>
 <html>
@@ -460,11 +488,11 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   <meta charset="UTF-8" />
   <title>BILL</title>
   <style>
-    @page { size: 75mmauto; margin: 0; }
+    @page { size: ${mm(printerLayout.paperWidth)} auto; margin: 0; }
     @media print { html, body { overflow: visible !important; } }
     html, body {
-      width: 75mm!important;
-      min-width: 75mm!important;
+      width: ${mm(printerLayout.paperWidth)} !important;
+      max-width: ${mm(printerLayout.paperWidth)} !important;
       margin: 0; padding: 0;
       font-family: 'Courier New', monospace;
       font-size: 12pt; line-height: 1.4;
@@ -472,9 +500,14 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       -webkit-print-color-adjust: exact !important;
     }
     #bill-preview-content {
-      width: 75mm!important; min-width: 75mm!important;
-      margin: 0 auto; padding: 10px; box-sizing: border-box;
+      width: ${mm(contentWidth)} !important;
+      max-width: ${mm(contentWidth)} !important;
+      margin-left: ${mm(printerLayout.leftMargin)};
+      margin-right: ${mm(printerLayout.rightMargin)};
+      padding: 0; box-sizing: border-box;
+      overflow-wrap: break-word; word-break: break-word;
     }
+    #bill-preview-content img { max-width: 100%; height: auto; }
     .center { text-align: center; }
     .right  { text-align: right; }
     .bold   { font-weight: bold; }
@@ -527,7 +560,7 @@ console.log('🧾 BILL PRINT ITEMS:', items.map(i => ({
 
     return `
 <div id="bill-preview-section">
-<div style="margin:0 auto;font-family:'Courier New',monospace;font-size:12pt;line-height:1.2;padding:10px;color:#000;font-weight:bold;">
+<div style="margin:0 auto;width:100%;box-sizing:border-box;overflow-wrap:break-word;word-break:break-word;font-family:'Courier New',monospace;font-size:12pt;line-height:1.2;padding:8px 0;color:#000;font-weight:bold;">
 
   <!-- HEADER -->
   <div style="text-align:center;margin-bottom:10px;">
@@ -537,7 +570,7 @@ console.log('🧾 BILL PRINT ITEMS:', items.map(i => ({
   <img 
     src="${hotelLogoUrl}" 
     alt="Hotel Logo" 
-    style="max-width:100px;max-height:100px;object-fit:contain;display:inline-block;" 
+    style="max-width:100%;max-height:100px;object-fit:contain;display:inline-block;" 
     onerror="this.style.display='none'" 
   />
   </div>` : ''}
@@ -679,7 +712,7 @@ ${(showAll || localFormData.show_bill_no_bill) ? `
 <div style="margin-bottom:10px;">
   <div style="display:grid;
     grid-template-columns:
-      ${(showAll || localFormData.print_bill_both_languages) ? '6fr' : '5fr'}
+      minmax(0, 1fr)
       ${(showAll || !localFormData.hide_item_quantity_column) ? '20px' : ''}
       ${(showAll || !localFormData.hide_item_rate_column) ? '30px' : ''}
       ${(showAll || !localFormData.hide_item_total_column) ? '40px' : ''};
@@ -710,12 +743,12 @@ const displayName = item.specialInst && item.specialInst.trim()
   return `
 <div style="display:grid;
   grid-template-columns:
-    ${(showAll || localFormData.print_bill_both_languages) ? '6fr' : '5fr'}
+    minmax(0, 1fr)
     ${(showAll || !localFormData.hide_item_quantity_column) ? '20px' : ''}
     ${(showAll || !localFormData.hide_item_rate_column) ? '30px' : ''}
     ${(showAll || !localFormData.hide_item_total_column) ? '40px' : ''};
-  gap:3px;padding:2px 0;font-size:9pt;">
-  <div style="word-wrap: break-word; white-space: normal; max-width: 100%;">
+  gap:3px;padding:2px 0;font-size:9pt;align-items:start;">
+  <div style="word-wrap: break-word; overflow-wrap: anywhere; white-space: normal; min-width: 0; max-width: 100%;">
     ${displayName}
     ${item.variantName ? `<span style="font-size:8pt;color:#0066cc;font-weight:bold;">(${item.variantName})</span>` : ''}
     ${(showAll || (localFormData.print_bill_both_languages && localFormData.show_alt_name_bill && item.alternativeItem)) ? ` / ${item.alternativeItem || 'N/A'}` : ''}
@@ -947,21 +980,34 @@ const displayName = item.specialInst && item.specialInst.trim()
           </div>
         ) : (
           canPreviewBill && (
-            <div className="border mb-3 bg-light">
+            <div className="border mb-3 bg-light" style={{ overflowX: 'auto' }}>
               <div
                 style={{
-                  width: '80mm',
+                  width: mm(printerLayout.paperWidth),
                   margin: '0 auto',
-                  fontFamily: "'Courier New', monospace",
-                  fontSize: '10px',
-                  lineHeight: '1.2',
-                  padding: '10px',
-                  color: '#000',
-                  backgroundColor: 'white',
+                  backgroundColor: '#ececec',
+                  boxSizing: 'border-box',
                   border: '1px solid #ccc',
                 }}
-                dangerouslySetInnerHTML={{ __html: generateBillContent(true) }}
-              />
+              >
+                <div
+                  style={{
+                    width: mm(contentWidth),
+                    marginLeft: mm(printerLayout.leftMargin),
+                    marginRight: mm(printerLayout.rightMargin),
+                    fontFamily: "'Courier New', monospace",
+                    fontSize: '10px',
+                    lineHeight: '1.2',
+                    padding: 0,
+                    color: '#000',
+                    backgroundColor: 'white',
+                    boxSizing: 'border-box',
+                    overflowWrap: 'break-word',
+                    wordBreak: 'break-word',
+                  }}
+                  dangerouslySetInnerHTML={{ __html: generateBillContent(true) }}
+                />
+              </div>
             </div>
           )
         )}

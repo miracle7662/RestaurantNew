@@ -20,6 +20,9 @@ type BillPrinterPayload = {
   outletid: number
   enableBillPrint: boolean
   hotelid: string
+  paper_width?: number
+  left_margin?: number
+  right_margin?: number
 }
 
 type LabelPrinterPayload = {

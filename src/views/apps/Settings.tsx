@@ -17,6 +17,11 @@ import { OutletData } from '../../common/api/outlet';
 import { useAuthContext } from "@/common/context/useAuthContext";
 import SettingsService from '@/common/api/settings';
 import { useUIModeContext } from '@/common/context';
+import { clearBillPrintCache } from '@/views/apps/PrintReport/BillPrint';
+import {
+  DEFAULT_THERMAL_PRINTER_LAYOUT,
+  resolveThermalPrinterLayout,
+} from '@/utils/thermalPrinterLayout';
 
 
 interface KotPrinterSetting {
@@ -37,6 +42,9 @@ interface BillPrinterSetting {
   copies: number;
   outletid: number;
   enableBillPrint: boolean;
+  paper_width?: number;
+  left_margin?: number;
+  right_margin?: number;
 }
 
 interface LabelPrinterSetting {
@@ -150,7 +158,10 @@ function SettingsPage() {
   const [categoryPrinters, ] = useState<CategoryWisePrinter[]>([]);
   const [, ] = useState<KDSUser[]>([]);
   const [, setEditingKotId] = useState<number | null>(null);
-  const [, setEditingBillId] = useState<number | null>(null);
+  const [editingBillId, setEditingBillId] = useState<number | null>(null);
+  const [billCustomWidth, setBillCustomWidth] = useState("");
+  const [billLeftMargin, setBillLeftMargin] = useState(String(DEFAULT_THERMAL_PRINTER_LAYOUT.leftMargin));
+  const [billRightMargin, setBillRightMargin] = useState(String(DEFAULT_THERMAL_PRINTER_LAYOUT.rightMargin));
   const [reportPrinterName, setReportPrinterName] = useState("");
   const [reportPaperSize, setReportPaperSize] = useState("80mm");
   const [reportAutoPrint, setReportAutoPrint] = useState(true);
@@ -727,6 +738,17 @@ function SettingsPage() {
   };
 
   // Bill Printer handlers
+  const resolveBillPaperWidth = () => {
+    if (selectedBillSize === 'custom') {
+      const custom = Number(billCustomWidth);
+      return Number.isFinite(custom) && custom > 0 ? custom : DEFAULT_THERMAL_PRINTER_LAYOUT.paperWidth;
+    }
+    if (selectedBillSize === '58mm') return 58;
+    if (selectedBillSize === '80mm') return 80;
+    const parsed = Number(String(selectedBillSize).replace(/mm$/i, ''));
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_THERMAL_PRINTER_LAYOUT.paperWidth;
+  };
+
   const clearBillForm = () => {
     setSelectedBillPrinter('');
     setSelectedBillSource('');
@@ -734,6 +756,9 @@ function SettingsPage() {
     setSelectedBillSize('');
     setBillCopies('');
     setBillEnablePrint(true);
+    setBillCustomWidth('');
+    setBillLeftMargin(String(DEFAULT_THERMAL_PRINTER_LAYOUT.leftMargin));
+    setBillRightMargin(String(DEFAULT_THERMAL_PRINTER_LAYOUT.rightMargin));
     setEditingBillId(null);
   };
 
@@ -748,39 +773,67 @@ function SettingsPage() {
       alert('Please fill all required fields');
       return;
     }
+    if (size === 'custom' && !(Number(billCustomWidth) > 0)) {
+      alert('Please enter a custom paper width in mm');
+      return;
+    }
+
+    const paperWidth = resolveBillPaperWidth();
+    const sizeValue = `${paperWidth}mm`;
+    const leftMargin = Number(billLeftMargin);
+    const rightMargin = Number(billRightMargin);
 
     setLoading(true);
     try {
       const newSetting = {
         printer_name: printer,
         order_type: orderType,
-        size,
+        size: sizeValue,
         copies,
         outletid: selectedOutlet,
         enableBillPrint: enablePrint,
-        hotelid: user?.hotelid || '1'
+        hotelid: user?.hotelid || '1',
+        paper_width: paperWidth,
+        left_margin: Number.isFinite(leftMargin) && leftMargin >= 0 ? leftMargin : DEFAULT_THERMAL_PRINTER_LAYOUT.leftMargin,
+        right_margin: Number.isFinite(rightMargin) && rightMargin >= 0 ? rightMargin : DEFAULT_THERMAL_PRINTER_LAYOUT.rightMargin,
       };
 
-      await SettingsService.createBillPrinter(newSetting);
+      if (editingBillId) {
+        await SettingsService.updateBillPrinter(editingBillId, newSetting);
+      } else {
+        await SettingsService.createBillPrinter(newSetting);
+      }
 
+      clearBillPrintCache(selectedOutlet);
       fetchBillPrinters();
       clearBillForm();
     } catch (error) {
       console.error('Failed to add bill printer:', error);
-      alert('Failed to add bill printer setting');
+      alert('Failed to save bill printer setting');
     } finally {
       setLoading(false);
     }
   };
 
   const handleEditBillPrinter = (item: BillPrinterSetting) => {
+    const layout = resolveThermalPrinterLayout(item);
     setEditingBillId(item.id);
     setBillEnablePrint(item.enableBillPrint);
     setSelectedBillPrinter(item.printer_name);
     setSelectedBillOrderType(item.order_type);
-    setSelectedBillSize(item.size);
     setBillCopies(String(item.copies ?? ''));
-
+    setBillLeftMargin(String(layout.leftMargin));
+    setBillRightMargin(String(layout.rightMargin));
+    if (layout.paperWidth === 58) {
+      setSelectedBillSize('58mm');
+      setBillCustomWidth('');
+    } else if (layout.paperWidth === 80) {
+      setSelectedBillSize('80mm');
+      setBillCustomWidth('');
+    } else {
+      setSelectedBillSize('custom');
+      setBillCustomWidth(String(layout.paperWidth));
+    }
   };
 
   const handleDeleteBillPrinter = async (id: number) => {
@@ -789,6 +842,7 @@ function SettingsPage() {
     try {
       await SettingsService.deleteBillPrinter(id);
       fetchBillPrinters();
+      clearBillPrintCache();
     } catch (error) {
       console.error('Failed to delete bill printer:', error);
       alert('Failed to delete bill printer setting');
@@ -1444,7 +1498,7 @@ function SettingsPage() {
                     </select>
                   </div>
                   <div className="col-md-3">
-                    <label className="form-label">Size</label>
+                    <label className="form-label">Paper Width</label>
                     <select
                       className="form-select"
                       id="bill-size"
@@ -1454,7 +1508,46 @@ function SettingsPage() {
                       <option value="">Select Size</option>
                       <option value="58mm">58mm</option>
                       <option value="80mm">80mm</option>
+                      <option value="custom">Custom</option>
                     </select>
+                  </div>
+                  {selectedBillSize === 'custom' && (
+                    <div className="col-md-3">
+                      <label className="form-label">Custom Width (mm)</label>
+                      <input
+                        className="form-control"
+                        type="number"
+                        min="20"
+                        step="0.1"
+                        value={billCustomWidth}
+                        onChange={(e) => setBillCustomWidth(e.target.value)}
+                        placeholder="e.g. 72"
+                      />
+                    </div>
+                  )}
+                  <div className="col-md-3">
+                    <label className="form-label">Left Margin (mm)</label>
+                    <input
+                      className="form-control"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={billLeftMargin}
+                      onChange={(e) => setBillLeftMargin(e.target.value)}
+                      placeholder="2"
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label">Right Margin (mm)</label>
+                    <input
+                      className="form-control"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={billRightMargin}
+                      onChange={(e) => setBillRightMargin(e.target.value)}
+                      placeholder="2"
+                    />
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Copies</label>
@@ -1471,14 +1564,14 @@ function SettingsPage() {
 
                   <div className="col-md-9 d-flex gap-2 align-items-end">
                     <button className="btn btn-success" onClick={() => handleAddBillPrinter()} >
-                      {loading ? 'Adding...' : 'Add'}
+                      {loading ? 'Saving...' : (editingBillId ? 'Update' : 'Add')}
                     </button>
                     <button className="btn btn-secondary" onClick={() => clearBillForm()}>Clear</button>
                   </div>
                 </div>
                 <PrinterTable
                   data={billPrinters}
-                  columns={['Printer Name', 'Outlet Name', 'Order Type', 'Size', 'Copies']}
+                  columns={['Printer Name', 'Outlet Name', 'Order Type', 'Size', 'Left Margin', 'Right Margin', 'Copies']}
                   onEdit={handleEditBillPrinter}
                   onDelete={handleDeleteBillPrinter}
                 />
