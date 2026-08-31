@@ -2368,7 +2368,7 @@ exports.getOutletBillingSettings = async (req, res) => {
         hide_item_rate_column: !!settings.hide_item_rate_column,
         hide_item_total_column: !!settings.hide_item_total_column,
         hide_total_without_tax: !!settings.hide_total_without_tax,
-        trn_gstno: !!settings.bill_trn_gstno,
+        trn_gstno: settings.bill_trn_gstno || '',
       } : null,
 
       general_settings: settings.customize_url_links !== undefined ? {

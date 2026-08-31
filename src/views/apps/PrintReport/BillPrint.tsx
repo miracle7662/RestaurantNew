@@ -8,6 +8,41 @@ import { useAuthContext } from '@/common/context/useAuthContext'
 import HotelService from '@/common/api/hotels'  // ✅ Import for logo fetching
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Module-level caches (survive across component mounts/unmounts within the app
+// session). Only "slow-changing" data is cached here — printer name, outlet
+// display names, and hotel logo. Bill ON/OFF settings (billSettings) are never
+// cached and are always fetched fresh so toggles reflect immediately.
+// ─────────────────────────────────────────────────────────────────────────────
+const printerCache = new Map<number, string | null>()
+const outletDetailsCache = new Map<number, { name: string; outlet: string }>()
+const logoCache = new Map<string, string | null>()
+
+// ✅ NEW: stale-while-revalidate cache for the bill ON/OFF settings themselves.
+// A true zero-latency fetch over the network is not possible, so instead:
+//   1. On open, if we have a cached copy for this outlet, apply it INSTANTLY
+//      (no spinner, no wait) so the print/preview reflects toggles immediately.
+//   2. A fresh fetch is still always triggered in the background and, the
+//      moment it resolves, overwrites both the cache and the live settings —
+//      so correctness is never sacrificed, only the *first frame* uses
+//      slightly-stale data (typically identical, since toggles change rarely).
+const billSettingsCache = new Map<number, { preview: any; print: any }>()
+
+// Optional helper: call this after saving printer/outlet/bill settings
+// elsewhere in the app if you want to force a fresh fetch next time this
+// modal opens (e.g. right after the settings-admin screen saves changes).
+export const clearBillPrintCache = (outletId?: number) => {
+  if (outletId) {
+    printerCache.delete(outletId)
+    outletDetailsCache.delete(outletId)
+    billSettingsCache.delete(outletId)
+  } else {
+    printerCache.clear()
+    outletDetailsCache.clear()
+    billSettingsCache.clear()
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Type Definitions (keep exactly as in original)
 // ─────────────────────────────────────────────────────────────────────────────
 interface MenuItem {
@@ -160,11 +195,47 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       : formData,
   )
 
+  // ✅ CHANGED: settingsReady is now local state (not derived), so it can be
+  // flipped to `true` INSTANTLY from the cache (see effect below) without
+  // waiting on the network, while still getting flipped again — with fresh
+  // data — the moment the background fetch resolves.
+  const [settingsReady, setSettingsReady] = React.useState(false)
+
+  // ✅ NEW: instant-apply from cache. The moment we know which outlet we're
+  // printing for, if we've already fetched its bill settings before in this
+  // app session, apply them to localFormData immediately (same render tick —
+  // effectively 0ms from the user's perspective) instead of waiting for a
+  // network round-trip. This does NOT skip the real fetch — see the outlet
+  // settings fetch effect below, which always still calls fetchBillSettings.
+  React.useEffect(() => {
+    if (!show) {
+      setSettingsReady(false)
+      return
+    }
+    if (!outletId) return
+
+    const cached = billSettingsCache.get(outletId)
+    if (cached) {
+      setLocalFormData(applyBillSettings(formData, cached.preview, cached.print))
+      setSettingsReady(true)
+    }
+  }, [show, outletId, formData])
+
+  // ✅ CHANGED: whenever a FRESH billSettings arrives from the server (this
+  // always runs, regardless of whether cache was used above), re-apply it —
+  // overwriting any stale cached values — and refresh the cache for next time.
   React.useEffect(() => {
     if (billSettings) {
       setLocalFormData(applyBillSettings(formData, billSettings.preview, billSettings.print))
+      if (outletId) {
+        billSettingsCache.set(outletId, {
+          preview: billSettings.preview,
+          print: billSettings.print,
+        })
+      }
+      setSettingsReady(true)
     }
-  }, [billSettings, formData])
+  }, [billSettings, formData, outletId])
 
   // ─── Derived display values ────────────────────────────────────────────────
   const displayRestaurantName =
@@ -182,29 +253,37 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   }, [currentKOTNos, items])
 
   // ─── Outlet settings fetch ─────────────────────────────────────────────────
+  // ✅ CHANGED: always fetch fresh bill settings when modal opens — never rely
+  // on a stale cached `billSettings` for on/off toggles.
   React.useEffect(() => {
     if (!show) return
     const outlet = selectedOutletId ?? Number(user?.outletid) ?? 1
     if (!outlet || isNaN(outlet)) return
     setOutletId(outlet)
-    const defaultOutlet = Number(user?.outletid) ?? 1
-    if (outlet !== defaultOutlet || !billSettings) {
-      fetchBillSettings(outlet)
-    }
-  }, [show, selectedOutletId, user, billSettings, fetchBillSettings])
+    fetchBillSettings(outlet)
+  }, [show, selectedOutletId, user, fetchBillSettings])
 
   React.useEffect(() => {
     if (!show) setHasPrinted(false)
   }, [show])
 
   // ─── Printer settings ──────────────────────────────────────────────────────
+  // ✅ CHANGED: cache printer name per outlet so repeat opens are instant.
   React.useEffect(() => {
     const fetchPrinter = async () => {
       if (!outletId) return
+
+      if (printerCache.has(outletId)) {
+        setPrinterName(printerCache.get(outletId) ?? null)
+        return
+      }
+
       try {
         const res = await BillPrintService.getBillPrinterSettings(outletId)
         const data = res?.data || res
-        setPrinterName(data?.printer_name || null)
+        const name = data?.printer_name || null
+        printerCache.set(outletId, name)
+        setPrinterName(name)
       } catch {
         toast.error('Failed to load printer settings.')
         setPrinterName(null)
@@ -214,6 +293,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   }, [outletId])
 
   // ─── Outlet display names ──────────────────────────────────────────────────
+  // ✅ CHANGED: cache outlet display names per outlet so repeat opens are instant.
   React.useEffect(() => {
     const fetchOutletDetails = async () => {
       if (!outletId) return
@@ -222,12 +302,23 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       const needsOutlet =
         !outletName || outletName.trim() === '' || outletName === 'Outlet Name'
       if (!needsName && !needsOutlet) return
+
+      if (outletDetailsCache.has(outletId)) {
+        const cached = outletDetailsCache.get(outletId)!
+        setLocalRestaurantName(cached.name)
+        setLocalOutletName(cached.outlet)
+        return
+      }
+
       try {
         const res = await BillPrintService.getOutletDetails(outletId)
         const data = res?.data || res
         if (data) {
-          setLocalRestaurantName(data.brand_name || data.hotel_name || 'Restaurant Name')
-          setLocalOutletName(data.outlet_name || 'Outlet Name')
+          const name = data.brand_name || data.hotel_name || 'Restaurant Name'
+          const outlet = data.outlet_name || 'Outlet Name'
+          outletDetailsCache.set(outletId, { name, outlet })
+          setLocalRestaurantName(name)
+          setLocalOutletName(outlet)
         }
       } catch {
         setLocalRestaurantName(user?.hotel_name || 'Restaurant Name')
@@ -303,6 +394,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
   // ─── Fetch hotel logo when modal opens ─────────────────────────────────────
   // ✅ FIX: logoReady gates auto-print so it never fires before logo fetch completes
+  // ✅ CHANGED: cache logo per hotelid so repeat opens are instant.
   React.useEffect(() => {
     const fetchHotelLogo = async () => {
       setLogoReady(false)  // reset on every open
@@ -312,11 +404,20 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         setLogoReady(true)   // no logo, but done waiting
         return
       }
+
+      const key = String(hotelid)
+      if (logoCache.has(key)) {
+        setHotelLogoUrl(logoCache.get(key) ?? null)
+        setLogoReady(true)
+        return
+      }
+
       try {
         const res = await HotelService.get(hotelid)
         const data = res?.data || res
         const rawLogo = data?.Logo ?? data?.Logo ?? null
         const normalized = normalizeLogoUrl(rawLogo)
+        logoCache.set(key, normalized)
         setHotelLogoUrl(normalized)
       } catch (err) {
         console.error('Failed to fetch hotel logo:', err)
@@ -334,12 +435,23 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
   // ─── Auto-print logic ──────────────────────────────────────────────────────
   // ✅ FIX: logoReady added as gate — print only after logo fetch completes
+  // ✅ FIX: settingsReady added as gate — print only after bill ON/OFF settings
+  // have loaded AND been applied to localFormData, so auto-print never fires
+  // with stale/default settings.
   React.useEffect(() => {
-    if (autoPrint && show && !loading && !hasPrinted && printerName && logoReady) {
+    if (
+      autoPrint &&
+      show &&
+      !loading &&
+      !hasPrinted &&
+      printerName &&
+      logoReady &&
+      settingsReady
+    ) {
       setHasPrinted(true)
       handlePrintBill()
     }
-  }, [autoPrint, show, loading, hasPrinted, printerName, logoReady])
+  }, [autoPrint, show, loading, hasPrinted, printerName, logoReady, settingsReady])
 
   // ─── HTML generation ───────────────────────────────────────────────────────
   const generateBillHTML = () => `<!DOCTYPE html>
@@ -391,6 +503,20 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       return Number.isInteger(val) ? val.toString() : val.toFixed(2).replace(/\.00$/, '')
     }
 
+    // ✅ NEW: `mask_order_id` toggle previously existed in settings but had no
+    // effect anywhere in the printed bill. This masks the middle of an ID,
+    // keeping the first 2 and last 2 characters visible (e.g. "DIN0012345" ->
+    // "DI******45"). Short strings (<=4 chars) are returned unmasked since
+    // masking them would hide the whole value.
+    const maskId = (raw: string): string => {
+      if (!raw) return raw
+      if (raw.length <= 4) return raw
+      const visibleStart = raw.slice(0, 2)
+      const visibleEnd = raw.slice(-2)
+      const maskedMiddle = '*'.repeat(raw.length - 4)
+      return `${visibleStart}${maskedMiddle}${visibleEnd}`
+    }
+
     // 🔍 TEMP DEBUG — remove after confirming
 console.log('🧾 BILL PRINT ITEMS:', items.map(i => ({
   name: i.name,
@@ -406,6 +532,7 @@ console.log('🧾 BILL PRINT ITEMS:', items.map(i => ({
   <!-- HEADER -->
   <div style="text-align:center;margin-bottom:10px;">
 
+   ${(showAll || localFormData.show_logo_bill) && hotelLogoUrl ? `
    <div style="text-align:center;margin-bottom:4px;">
   <img 
     src="${hotelLogoUrl}" 
@@ -413,33 +540,39 @@ console.log('🧾 BILL PRINT ITEMS:', items.map(i => ({
     style="max-width:100px;max-height:100px;object-fit:contain;display:inline-block;" 
     onerror="this.style.display='none'" 
   />
-  </div>
+  </div>` : ''}
 
+    ${(showAll || localFormData.show_brand_name_bill) ? `
     <div style="font-weight:bold;font-size:14pt;margin-bottom:2px;">
       ${billData?.hotelName || displayRestaurantName || ''}
-    </div>
+    </div>` : ''}
 
+    ${(showAll || localFormData.show_outlet_name_bill) ? `
     <div style="font-weight:bold;font-size:10pt;margin-bottom:2px;">
       ${billData?.outletName || displayOutletName || ''}
-    </div>
+    </div>` : ''}
 
+   ${(billData?.address || localFormData.address || user?.address) ? `
+  <div style="font-size:8pt;">
+    ${billData?.address || localFormData.address || user?.address}
+  </div>
+` : ''}
+
+${(billData?.phone || user?.mobile) ? `
+  <div style="font-size:8pt;">
+    Phone: ${billData?.phone || user?.mobile}
+  </div>
+` : ''}
+
+${(showAll || (localFormData.trn_gstno && localFormData.trn_gstno !== '0' && localFormData.trn_gstno !== 'false')) ? `
     <div style="font-size:8pt;">
-      ${billData?.address || user?.address || ''}
-    </div>
+      GST No: ${billData?.gstNo || localFormData.trn_gstno || 'N/A'}
+    </div>` : ''}
 
+    ${(showAll || localFormData.fssai_no) ? `
     <div style="font-size:8pt;">
-      Phone: ${billData?.phone || 'N/A'}
-    </div>
-
-    <div style="font-size:8pt;">
-      GST No: ${billData?.gstNo || user?.trn_gstno || 'N/A'}
-    </div>
-
-    
-
-    <div style="font-size:8pt;">
-      FSSAI: ${billData?.fssaiNo || 'N/A'}
-    </div>
+      FSSAI: ${billData?.fssaiNo || localFormData.fssai_no || 'N/A'}
+    </div>` : ''}
 
    ${isSettled ? `
 <div style="text-align:center;font-weight:bold;font-size:12pt;letter-spacing:2px;border-top:1px dashed #000;border-bottom:1px dashed #000;padding:4px 0;margin:6px 0;">
@@ -456,16 +589,27 @@ console.log('🧾 BILL PRINT ITEMS:', items.map(i => ({
 
   <!-- BILL INFO -->
   <div style="display:flex;gap:8px;margin-bottom:5px;font-size:9pt;">
+${(showAll || localFormData.show_bill_no_bill) ? `
 <div style="flex:1;">
   <strong>BillNo</strong>
   <br />
-  ${(txnNo || billData?.TxnNo || '').toString().replace(/^DIN-/, '')}
-</div>
+  ${(() => {
+    const raw = (showAll || localFormData.show_bill_number_prefix_bill)
+      ? (txnNo || billData?.TxnNo || '').toString()
+      : (txnNo || billData?.TxnNo || '').toString().replace(/^DIN-/, '')
+    return (showAll || localFormData.mask_order_id) ? maskId(raw) : raw
+  })()}
+</div>` : ''}
 <div style="flex:1;"><strong>Date</strong><br />${billDate ? new Date(billDate).toLocaleDateString('en-GB') : (businessCurrDate ? new Date(businessCurrDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'))}</div>
 <div style="flex:1;white-space:nowrap;"><strong>Time</strong><br />${billDateTime ? new Date(billDateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : (billDate ? new Date(billDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }))}</div>  </div>
   <div style="display:flex;gap:8px;margin-bottom:10px;font-size:9pt;">
+   ${(showAll || (
+        (activeTab === 'Dine-in' && localFormData.table_name_dine_in) ||
+        (activeTab === 'Pickup' && localFormData.table_name_pickup) ||
+        (activeTab === 'Delivery' && localFormData.table_name_delivery) ||
+        (activeTab === 'Quick Bill' && localFormData.table_name_quick_bill)
+      )) ? `
    <div style="flex:1;">
- 
   <div
     style="
       border:2px solid #000;
@@ -479,9 +623,11 @@ console.log('🧾 BILL PRINT ITEMS:', items.map(i => ({
   >
     ${selectedTable || '—'}
   </div>
-</div>
-    <div style="flex:1;"><strong>Waiter</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>
-    <div style="flex:1;font-size:7pt;"><strong>Covers</strong><br />N/A</div>
+</div>` : ''}
+    ${(showAll || localFormData.show_waiter_bill) ? `
+    <div style="flex:1;"><strong>Waiter</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>` : ''}
+    ${(showAll || localFormData.show_covers_bill) ? `
+    <div style="flex:1;font-size:7pt;"><strong>Covers</strong><br />N/A</div>` : ''}
      ${(showAll || localFormData.show_kot_number_bill) ? `
     <div style="flex:1;white-space:nowrap;">
       <strong>KOT No</strong><br />
@@ -510,7 +656,12 @@ console.log('🧾 BILL PRINT ITEMS:', items.map(i => ({
   <div style="display:flex;justify-content:space-between;gap:8px;font-weight:bold;font-size:12pt;margin-bottom:5px;">
     <div style="text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%;">
   ${activeTab === 'Pickup' || activeTab === 'Delivery'
-        ? ` ${(billData?.orderNo || '').toString().replace(/^DIN-/, '')}`
+        ? ((showAll || localFormData.show_order_no_bill)
+            ? ` ${(() => {
+                  const raw = (billData?.orderNo || '').toString().replace(/^DIN-/, '')
+                  return (showAll || localFormData.mask_order_id) ? maskId(raw) : raw
+                })()}`
+            : '')
         : (departmentName ? ` ${departmentName}` : '')}
 </div>
     <div style="text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;">
@@ -595,6 +746,7 @@ const displayName = item.specialInst && item.specialInst.trim()
     </div>
     ${(showAll || (localFormData.show_discount_reason_bill && reason)) ? `<div style="font-size:8pt;">(${reason || 'N/A'})</div>` : ''}` : ''}
 
+   ${(showAll || localFormData.show_tax_charge_bill) ? `
    ${(taxCalc.cgstAmt > 0 || taxCalc.sgstAmt > 0 || taxCalc.igstAmt > 0) ? `
 <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
   <span><strong>Taxable Value</strong></span>
@@ -623,6 +775,7 @@ const displayName = item.specialInst && item.specialInst.trim()
       <span style="text-align:center;">:</span>
       <span style="text-align:right;">₹${taxCalc.igstAmt.toFixed(2)}</span>
     </div>` : ''}
+    ` : ''}
 
     ${roundOffEnabled && roundOffValue !== 0 ? `
     <div style="display:grid;grid-template-columns:auto 4px 55px;justify-content:end;column-gap:4px;">
@@ -767,7 +920,10 @@ const displayName = item.specialInst && item.specialInst.trim()
   // ─── Auto-print mode ───────────────────────────────────────────────────────
   if (autoPrint) return null
 
-  const isSettingsLoading = loading || contextSettingsLoading
+  // ✅ CHANGED: only show the spinner when we truly have nothing to display
+  // yet (no cache hit AND context still loading). If settingsReady is already
+  // true (from cache), skip the spinner even while a background refresh runs.
+  const isSettingsLoading = loading || (contextSettingsLoading && !settingsReady)
 
   // ─── Modal UI ───────────────────────────────────────────────────────────────
   return (

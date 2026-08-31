@@ -92,7 +92,7 @@ export interface OutletSettings {
   hide_item_rate_column?: boolean;
   hide_item_total_column?: boolean;
   hide_total_without_tax?: boolean;
-  trn_gstno?: boolean;
+  trn_gstno?: string;
   address?: string;
   
   outlet_name?: string;
