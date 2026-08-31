@@ -9,6 +9,9 @@ type KotPrinterPayload = {
   outletid: number
   enableKotPrint: boolean
   hotelid: string
+  paper_width?: number | null;
+  left_margin?: number | null;
+  right_margin?: number | null;
 }
 
 type BillPrinterPayload = {

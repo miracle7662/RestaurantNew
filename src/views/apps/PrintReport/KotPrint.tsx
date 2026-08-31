@@ -6,6 +6,13 @@ import { fetchKotPrintSettings } from "@/services/outletSettings.service";
 import { applyKotSettings } from "@/utils/applyOutletSettings";
 import PrintService from "@/common/api/print";
 import { useAuthContext } from "@/common/context/useAuthContext";
+import {
+  DEFAULT_THERMAL_PRINTER_LAYOUT,
+  resolveThermalPrinterLayout,
+  getThermalContentWidth,
+  mm,
+  ThermalPrinterLayout,
+} from "@/utils/thermalPrinterLayout";
 
 interface MenuItem {
   id: number;
@@ -28,7 +35,7 @@ interface MenuItem {
   revQty?: number;
   variantId?: number;
   variantName?: string;
-  specialInst?: string; // ✅ ADDED
+  specialInst?: string;
   isRuntimeRate?: boolean;
 }
 
@@ -62,7 +69,6 @@ interface KotPreviewPrintProps {
   tableStatus?: number | null;
   order_tag?: string;
 }
-
 
 const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   show,
@@ -102,6 +108,11 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const [localFormData, setLocalFormData] = useState<OutletSettings>(formData);
   const [enableKotPrint, setEnableKotPrint] = useState<number>(0);
   const [, setLoadingSetting] = useState(true);
+  
+  // ✅ Printer layout state
+  const [printerLayout, setPrinterLayout] = useState<ThermalPrinterLayout>(
+    DEFAULT_THERMAL_PRINTER_LAYOUT,
+  );
 
   // ─── Load KOT outlet settings ────────────────────────────────────────────────
   const loadOutletSettings = async (id: number) => {
@@ -130,47 +141,54 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   }, [show]);
 
   // ─── Fetch printer name + outlet names ───────────────────────────────────────
-  useEffect(() => {
-    const fetchPrinterAndOutlet = async () => {
-      if (!outletId) return;
-      setIsLoadingNames(true);
+ // In KotPreviewPrint.tsx, update the fetchPrinterAndOutlet useEffect:
 
+useEffect(() => {
+  const fetchPrinterAndOutlet = async () => {
+    if (!outletId) return;
+    setIsLoadingNames(true);
+
+    try {
+      const printerRes = await PrintService.getKotPrinterSettings(outletId);
+      const data = printerRes?.data || printerRes;
+      setPrinterName(data?.printer_name || null);
+      
+      // ✅ Use resolveThermalPrinterLayout from utils
+      // Cast data to any to handle the type mismatch, or use a type assertion
+      setPrinterLayout(resolveThermalPrinterLayout(data as any));
+    } catch {
+      toast.error("Failed to load printer settings.");
+      setPrinterName(null);
+      setPrinterLayout(DEFAULT_THERMAL_PRINTER_LAYOUT);
+    }
+
+    const needsNames =
+      !restaurantName ||
+      restaurantName.trim() === "" ||
+      restaurantName === "Restaurant Name" ||
+      !outletName ||
+      outletName.trim() === "" ||
+      outletName === "Outlet Name";
+
+    if (needsNames) {
       try {
-        const printerRes = await PrintService.getKotPrinterSettings(outletId);
-        const data = printerRes?.data || printerRes;
-        setPrinterName(data?.printer_name || null);
-      } catch {
-        toast.error("Failed to load printer settings.");
-        setPrinterName(null);
-      }
-
-      const needsNames =
-        !restaurantName ||
-        restaurantName.trim() === "" ||
-        restaurantName === "Restaurant Name" ||
-        !outletName ||
-        outletName.trim() === "" ||
-        outletName === "Outlet Name";
-
-      if (needsNames) {
-        try {
-          const outletRes = await PrintService.getOutletDetails(outletId);
-          const data = outletRes?.data || outletRes;
-          if (data) {
-            setLocalRestaurantName(data.brand_name || data.hotel_name || "Restaurant Name");
-            setLocalOutletName(data.outlet_name || "Outlet Name");
-          }
-        } catch {
-          setLocalRestaurantName(user?.hotel_name || "Restaurant Name");
-          setLocalOutletName(user?.outlet_name || "Outlet Name");
+        const outletRes = await PrintService.getOutletDetails(outletId);
+        const data = outletRes?.data || outletRes;
+        if (data) {
+          setLocalRestaurantName(data.brand_name || data.hotel_name || "Restaurant Name");
+          setLocalOutletName(data.outlet_name || "Outlet Name");
         }
+      } catch {
+        setLocalRestaurantName(user?.hotel_name || "Restaurant Name");
+        setLocalOutletName(user?.outlet_name || "Outlet Name");
       }
+    }
 
-      setIsLoadingNames(false);
-    };
+    setIsLoadingNames(false);
+  };
 
-    fetchPrinterAndOutlet();
-  }, [outletId, restaurantName, outletName, user]);
+  fetchPrinterAndOutlet();
+}, [outletId, restaurantName, outletName, user]);
 
   // ─── Auto-print ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -202,7 +220,6 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
   // ─── Date/time formatter ─────────────────────────────────────────────────────
 
-
   const { user: authUser } = useAuthContext();
 
   const userDate = authUser?.currDate ?? date;
@@ -227,42 +244,49 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const kotBusinessDateTime =
     `${day}/${month}/${year} ${formattedHours}:${minutes}:${ampm}`;
 
-
-
-  // ─── KOT HTML shell (unchanged) ──────────────────────────────────────────────
-  const generateKOTHTML = () => `
-<!DOCTYPE html>
+  // ─── KOT HTML shell with dynamic widths ──────────────────────────────────────
+  const generateKOTHTML = () => {
+    const contentWidth = getThermalContentWidth(printerLayout);
+    
+    return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
   <title>KOT</title>
   <style>
-    @page { size: 76mm auto; margin: 0; }
-  @media print {
-  html, body {
-    overflow: visible !important;
-  }
-
-  body {
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  #kot-preview-content {
-    padding-top: 90px !important;
-  }
-}
+    @page { size: ${mm(printerLayout.paperWidth)} auto; margin: 0; }
+    @media print {
+      html, body {
+        overflow: visible !important;
+      }
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      #kot-preview-content {
+        padding-top: 90px !important;
+      }
+    }
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
-      width: 76mm !important; max-width: 76mm !important; min-width: 76mm !important;
+      width: ${mm(printerLayout.paperWidth)} !important;
+      max-width: ${mm(printerLayout.paperWidth)} !important;
+      min-width: ${mm(printerLayout.paperWidth)} !important;
       margin: 0; padding: 0;
       font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.0;
       color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact;
       overflow-x: hidden;
     }
     #kot-preview-content {
-      width: 76mm !important; max-width: 76mm !important; min-width: 76mm !important;
-      padding: 6px 8px 6px 16px; margin: 0; font-weight: bold; overflow-x: hidden;
+      width: ${mm(contentWidth)} !important;
+      max-width: ${mm(contentWidth)} !important;
+      min-width: ${mm(contentWidth)} !important;
+      margin-left: ${mm(printerLayout.leftMargin)};
+      margin-right: ${mm(printerLayout.rightMargin)};
+      padding: 6px 0 6px 0;
+      margin-top: 0;
+      overflow-x: hidden;
+      box-sizing: border-box;
     }
     #kot-preview-content * { max-width: 100%; word-wrap: break-word; overflow-wrap: break-word; }
     .center { text-align: center; } .right { text-align: right; }
@@ -270,45 +294,45 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     .text-small { font-size: 10px; } .text-smaller { font-size: 9px; }
     .separator { border: none; border-top: 1px dashed #000; margin: 5px 0; }
     .item-row {
-     display: grid; column-gap: 10px; font-weight: bold;
-     padding: 1px 0;  margin-bottom: 0px; 
-     align-items: start; width: 100%;
-     line-height: 1.1;
-}
-    .item-qty  { text-align: center; font-size: 12pt; font-weight: bold; }
+      display: grid; column-gap: 10px; font-weight: bold;
+      padding: 1px 0; margin-bottom: 0px;
+      align-items: start; width: 100%;
+      line-height: 1.1;
+    }
+    .item-qty { text-align: center; font-size: 12pt; font-weight: bold; }
     .item-name { text-align: left; font-size: 12pt; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
     .item-rate { text-align: right; font-size: 10pt; white-space: nowrap; }
-    .item-amt  { text-align: right; font-size: 10pt; white-space: nowrap; }
+    .item-amt { text-align: right; font-size: 10pt; white-space: nowrap; }
     .header-row {
       display: grid; column-gap: 4px; font-weight: bold;
       border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px; width: 100%;
     }
-    .header-qty  { text-align: center; } .header-item { text-align: left; }
-    .header-rate { text-align: right; }  .header-amt  { text-align: right; }
+    .header-qty { text-align: center; } .header-item { text-align: left; }
+    .header-rate { text-align: right; } .header-amt { text-align: right; }
     .kot-variant { font-size: 9pt; color: #0066cc; font-weight: bold; }
     .totals-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 11pt; padding: 2px 0; }
-   .basic-details {
-  display: grid;
-  grid-template-columns: 58px 1fr;
-  gap: 0px;
-  margin-bottom: 6px;
-  font-size: 9pt;
-  padding-left: 3px;
-  width: 100%;
-}
-
-.table-box {
-  border: 1px solid #696868;
-  width: 60px;
-  height: 50px;
-  display: flex;
-  margin-left: 8px;
-  align-items: center;
-  justify-content: center;
-  font-size: 16pt;
-  font-weight: bold;
-  padding: 4px;
-}   .details-grid { display: grid; grid-template-columns: auto auto; gap: 1px 6px; text-align: left; justify-content: end; }
+    .basic-details {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 0px;
+      margin-bottom: 6px;
+      font-size: 9pt;
+      padding-left: 3px;
+      width: 100%;
+    }
+    .table-box {
+      border: 1px solid #696868;
+      width: 60px;
+      height: 50px;
+      display: flex;
+      margin-left: 8px;
+      align-items: center;
+      justify-content: center;
+      font-size: 16pt;
+      font-weight: bold;
+      padding: 4px;
+    }
+    .details-grid { display: grid; grid-template-columns: auto auto; gap: 1px 6px; text-align: left; justify-content: end; }
     hr.dashed { border: none; border-top: 1px dashed #000; margin: 4px 0; width: 100%; }
   </style>
 </head>
@@ -318,8 +342,9 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   </div>
 </body>
 </html>`;
+  };
 
-  // ─── Print handler (unchanged) ───────────────────────────────────────────────
+  // ─── Print handler ───────────────────────────────────────────────────────────
   const handlePrintKOT = async () => {
     try {
       setLoading(true);
@@ -391,7 +416,6 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   };
 
   // ─── KOT content (memoised) ───────────────────────────────────────────────────
-  // MODIFIED: Removed modifierHtml and alternativeHtml, added special instruction
   const generateKOTContent = useMemo(() => {
     const kotItems = printItems.length > 0 ? printItems : items.filter((i) => i.isNew);
 
@@ -409,7 +433,6 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     const tabKey = tabKeyMap[activeTab] || "dine_in";
 
     const isTakeaway = activeTab === "Pickup" || activeTab === "Delivery";
-
 
     const orderTag = (() => {
       if (activeTab === "Dine-in" && selectedTable && tableStatus !== null) {
@@ -459,7 +482,6 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     const showRateColumn = localFormData.show_item_price;
     const showAmountColumn = localFormData.hide_item_Amt_column;
-    //const showOrderTypeSymbol        = localFormData.show_order_type_symbol;
     const showKotNote = localFormData.show_kot_note;
     const showOnlineOrderOtp = localFormData.show_online_order_otp;
     const showOrderIdQuickBill = localFormData.show_order_id_quick_bill && activeTab === "Quick Bill";
@@ -600,7 +622,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   // ─── Auto-print: render nothing ──────────────────────────────────────────────
   if (autoPrint) return null;
 
-  // ─── Modal UI (unchanged) ────────────────────────────────────────────────────
+  // ─── Modal UI with dynamic widths ────────────────────────────────────────────
   return (
     <Modal
       show={show}
@@ -626,9 +648,9 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
             <div
               key={JSON.stringify(localFormData)}
               style={{
-                width: "272px",
-                minWidth: "272px",
-                maxWidth: "272px",
+                width: mm(printerLayout.paperWidth),
+                minWidth: mm(printerLayout.paperWidth),
+                maxWidth: mm(printerLayout.paperWidth),
                 margin: "0 auto",
                 fontFamily: "'Courier New', monospace",
                 fontSize: "11px",
@@ -638,11 +660,27 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
                 border: "1px solid #ccc",
                 overflowX: "hidden",
                 boxSizing: "border-box",
-                paddingLeft: "8px",
-                paddingRight: "5px",
+                padding: "0",
               }}
-              dangerouslySetInnerHTML={{ __html: generateKOTContent }}
-            />
+            >
+              <div
+                style={{
+                  width: mm(getThermalContentWidth(printerLayout)),
+                  marginLeft: mm(printerLayout.leftMargin),
+                  marginRight: mm(printerLayout.rightMargin),
+                  fontFamily: "'Courier New', monospace",
+                  fontSize: "11px",
+                  lineHeight: "1.3",
+                  color: "#000",
+                  backgroundColor: "white",
+                  boxSizing: "border-box",
+                  overflowWrap: "break-word",
+                  wordBreak: "break-word",
+                  padding: "0",
+                }}
+                dangerouslySetInnerHTML={{ __html: generateKOTContent }}
+              />
+            </div>
           </div>
         )}
       </Modal.Body>

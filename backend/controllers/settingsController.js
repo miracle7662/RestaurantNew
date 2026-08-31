@@ -14,6 +14,8 @@ const getAll = async (query, params = []) => {
 };
 
 let billPrinterLayoutColumnsReady = false;
+let kotPrinterLayoutColumnsReady = false;
+let reportPrinterLayoutColumnsReady = false;
 
 const parseBillPaperWidth = (size, paper_width) => {
   const fromField = Number(paper_width);
@@ -31,6 +33,7 @@ const parseBillMargin = (value, fallback = 2) => {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 };
 
+// ✅ Ensure Bill Printer Layout Columns
 const ensureBillPrinterLayoutColumns = async () => {
   if (billPrinterLayoutColumnsReady) return;
   try {
@@ -73,19 +76,108 @@ const ensureBillPrinterLayoutColumns = async () => {
   }
 };
 
+// ✅ Ensure KOT Printer Layout Columns
+const ensureKotPrinterLayoutColumns = async () => {
+  if (kotPrinterLayoutColumnsReady) return;
+  try {
+    const rows = await getAll(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'kot_printer_settings'`
+    );
+    const columns = (rows || []).map((col) => col.COLUMN_NAME || col.column_name);
+
+    if (!columns.includes('paper_width')) {
+      await runQuery(
+        'ALTER TABLE kot_printer_settings ADD COLUMN paper_width DECIMAL(6,2) NULL DEFAULT NULL'
+      );
+    }
+    if (!columns.includes('left_margin')) {
+      await runQuery(
+        'ALTER TABLE kot_printer_settings ADD COLUMN left_margin DECIMAL(6,2) NULL DEFAULT 2'
+      );
+    }
+    if (!columns.includes('right_margin')) {
+      await runQuery(
+        'ALTER TABLE kot_printer_settings ADD COLUMN right_margin DECIMAL(6,2) NULL DEFAULT 2'
+      );
+    }
+
+    await runQuery(`
+      UPDATE kot_printer_settings
+      SET paper_width = CASE
+        WHEN size LIKE '%58%' THEN 58
+        WHEN size LIKE '%80%' THEN 80
+        ELSE 80
+      END
+      WHERE paper_width IS NULL
+    `);
+    kotPrinterLayoutColumnsReady = true;
+  } catch (error) {
+    console.error('KOT printer layout column migration error:', error.message);
+  }
+};
+
+// ✅ Ensure Report Printer Layout Columns
+const ensureReportPrinterLayoutColumns = async () => {
+  if (reportPrinterLayoutColumnsReady) return;
+  try {
+    const rows = await getAll(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'report_printer_settings'`
+    );
+    const columns = (rows || []).map((col) => col.COLUMN_NAME || col.column_name);
+
+    if (!columns.includes('paper_width')) {
+      await runQuery(
+        'ALTER TABLE report_printer_settings ADD COLUMN paper_width DECIMAL(6,2) NULL DEFAULT NULL'
+      );
+    }
+    if (!columns.includes('left_margin')) {
+      await runQuery(
+        'ALTER TABLE report_printer_settings ADD COLUMN left_margin DECIMAL(6,2) NULL DEFAULT 2'
+      );
+    }
+    if (!columns.includes('right_margin')) {
+      await runQuery(
+        'ALTER TABLE report_printer_settings ADD COLUMN right_margin DECIMAL(6,2) NULL DEFAULT 2'
+      );
+    }
+
+    await runQuery(`
+      UPDATE report_printer_settings
+      SET paper_width = CASE
+        WHEN paper_size LIKE '%58%' THEN 58
+        WHEN paper_size LIKE '%80%' THEN 80
+        ELSE 80
+      END
+      WHERE paper_width IS NULL
+    `);
+    reportPrinterLayoutColumnsReady = true;
+  } catch (error) {
+    console.error('Report printer layout column migration error:', error.message);
+  }
+};
+
 // ------------------------------------------
 // 2️⃣ KOT Printer Settings
 // ------------------------------------------
+
 exports.getKotPrinterSettings = async (req, res) => {
   try {
     const { id } = req.params;
+    await ensureKotPrinterLayoutColumns();
+
     const rows = await getAll(
       "SELECT * FROM kot_printer_settings WHERE outletid = ? LIMIT 1",
       [id]
     );
 
     if (!rows || rows.length === 0) {
-      return res.json({ printer_name: null });
+      return res.json({ printer_name: null, paper_width: 80, left_margin: 2, right_margin: 2 });
     }
 
     res.json(rows[0]);
@@ -99,6 +191,7 @@ exports.getKotPrinterSettings = async (req, res) => {
  */
 exports.getAllKotPrinterSettings = async (req, res) => {
   try {
+    await ensureKotPrinterLayoutColumns();
     const rows = await getAll("SELECT * FROM kot_printer_settings");
     res.json(rows);
   } catch (e) {
@@ -112,20 +205,29 @@ exports.createKotPrinterSetting = async (req, res) => {
       printer_name,
       hotelid,
       order_type,
-      size, 
+      size,
       copies = 1,
       outletid,
-      enableKotPrint = 1
+      enableKotPrint = 1,
+      paper_width,
+      left_margin,
+      right_margin
     } = req.body;
 
     if (!printer_name || !order_type || !size || !outletid) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    await ensureKotPrinterLayoutColumns();
+
+    const paperWidth = parseBillPaperWidth(size, paper_width);
+    const leftMargin = parseBillMargin(left_margin, 2);
+    const rightMargin = parseBillMargin(right_margin, 2);
+
     await runQuery(
       `INSERT INTO kot_printer_settings
-      (printer_name, hotelid, order_type, size, copies, outletid, enableKotPrint)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      (printer_name, hotelid, order_type, size, copies, outletid, enableKotPrint, paper_width, left_margin, right_margin)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         printer_name,
         hotelid,
@@ -133,13 +235,77 @@ exports.createKotPrinterSetting = async (req, res) => {
         size,
         copies,
         outletid,
-        enableKotPrint ? 1 : 0
+        enableKotPrint ? 1 : 0,
+        paperWidth,
+        leftMargin,
+        rightMargin
       ]
     );
 
     res.json({ success: true, msg: 'KOT Setting Added' });
   } catch (e) {
     console.error('KOT INSERT ERROR:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.updateKotPrinterSetting = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      printer_name,
+      hotelid,
+      order_type,
+      size,
+      copies = 1,
+      outletid,
+      enableKotPrint = 1,
+      paper_width,
+      left_margin,
+      right_margin
+    } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
+    if (!printer_name || !order_type || !size) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    await ensureKotPrinterLayoutColumns();
+
+    const paperWidth = parseBillPaperWidth(size, paper_width);
+    const leftMargin = parseBillMargin(left_margin, 2);
+    const rightMargin = parseBillMargin(right_margin, 2);
+
+    const result = await runQuery(
+      `UPDATE kot_printer_settings
+       SET printer_name = ?, hotelid = ?, order_type = ?, size = ?, copies = ?,
+           outletid = COALESCE(?, outletid), enableKotPrint = ?,
+           paper_width = ?, left_margin = ?, right_margin = ?
+       WHERE id = ?`,
+      [
+        printer_name,
+        hotelid,
+        order_type,
+        size,
+        copies,
+        outletid || null,
+        enableKotPrint ? 1 : 0,
+        paperWidth,
+        leftMargin,
+        rightMargin,
+        id
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'KOT printer setting not found' });
+    }
+
+    res.json({ success: true, msg: 'KOT printer setting updated successfully' });
+  } catch (e) {
+    console.error('KOT UPDATE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -544,6 +710,7 @@ exports.updateLabelPrinter = async (req, res) => {
 exports.getReportPrinterSettings = async (req, res) => {
   try {
     const { id } = req.params;
+    await ensureReportPrinterLayoutColumns();
 
     const rows = await getAll(
       "SELECT * FROM report_printer_settings WHERE outletid = ? OR hotelid = ?",
@@ -556,23 +723,63 @@ exports.getReportPrinterSettings = async (req, res) => {
   }
 };
 
+/**
+ * Get all report printer settings without id parameter
+ */
+exports.getAllReportPrinterSettings = async (req, res) => {
+  try {
+    await ensureReportPrinterLayoutColumns();
+    const rows = await getAll("SELECT * FROM report_printer_settings");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
 exports.createReportPrinter = async (req, res) => {
   try {
-    const { printer_name, paper_size, auto_print, hotelid, outletid } = req.body;
+    const {
+      printer_name,
+      paper_size,
+      auto_print,
+      hotelid,
+      outletid,
+      
+      paper_width,
+      left_margin,
+      right_margin
+    } = req.body;
 
     if (!outletid) {
       return res.status(400).json({ error: 'outletid is required' });
     }
 
+    await ensureReportPrinterLayoutColumns();
+
+    const paperWidth = parseBillPaperWidth(paper_size, paper_width);
+    const leftMargin = parseBillMargin(left_margin, 2);
+    const rightMargin = parseBillMargin(right_margin, 2);
+
     await runQuery(
       `INSERT INTO report_printer_settings
-      (printer_name, paper_size, auto_print, hotelid, outletid)
-      VALUES (?, ?, ?, ?, ?)`,
-      [printer_name, paper_size, auto_print ? 1 : 0, hotelid, outletid]
+      (printer_name, paper_size, auto_print, hotelid, outletid,  paper_width, left_margin, right_margin)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        printer_name,
+        paper_size,
+        auto_print ? 1 : 0,
+        hotelid,
+        outletid,
+        
+        paperWidth,
+        leftMargin,
+        rightMargin
+      ]
     );
 
-    res.json({ msg: 'Report Printer Added' });
+    res.json({ success: true, msg: 'Report Printer Added' });
   } catch (e) {
+    console.error('REPORT INSERT ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -580,34 +787,50 @@ exports.createReportPrinter = async (req, res) => {
 exports.updateReportPrinter = async (req, res) => {
   try {
     const { id } = req.params;
-    const { printer_name, paper_size, auto_print } = req.body;
+    const {
+      printer_name,
+      paper_size,
+      auto_print,
+      
+      paper_width,
+      left_margin,
+      right_margin
+    } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
     }
 
+    await ensureReportPrinterLayoutColumns();
+
+    const paperWidth = parseBillPaperWidth(paper_size, paper_width);
+    const leftMargin = parseBillMargin(left_margin, 2);
+    const rightMargin = parseBillMargin(right_margin, 2);
+
     const result = await runQuery(
       `UPDATE report_printer_settings
-      SET printer_name = ?, paper_size = ?, auto_print = ?
-      WHERE id = ?`,
-      [printer_name, paper_size, auto_print ? 1 : 0, id]
+       SET printer_name = ?, paper_size = ?, auto_print = ?,
+            paper_width = ?, left_margin = ?, right_margin = ?
+       WHERE id = ?`,
+      [
+        printer_name,
+        paper_size,
+        auto_print ? 1 : 0,
+       
+        paperWidth,
+        leftMargin,
+        rightMargin,
+        id
+      ]
     );
 
-    res.json({ msg: 'Report Printer Updated' });
-  } catch (e) {
-    console.error('Error updating report printer:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-};
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Report printer setting not found' });
+    }
 
-/**
- * Get all report printer settings without id parameter
- */
-exports.getAllReportPrinterSettings = async (req, res) => {
-  try {
-    const rows = await getAll("SELECT * FROM report_printer_settings");
-    res.json(rows);
+    res.json({ success: true, msg: 'Report Printer Updated' });
   } catch (e) {
+    console.error('REPORT UPDATE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -833,4 +1056,3 @@ exports.saveUIMode = async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 };
-

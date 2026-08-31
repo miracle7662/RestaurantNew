@@ -11,6 +11,13 @@ import KitchenMainGroupService from '@/common/api/kitchenmaingroup';
 import TableDepartmentService from '@/common/api/tabledepartment';
 import OutletUserService from '@/common/api/outletUser';
 import SettingsService from '@/common/api/settings';
+import {
+  DEFAULT_THERMAL_PRINTER_LAYOUT,
+  resolveThermalPrinterLayout,
+  getThermalContentWidth,
+  mm,
+  ThermalPrinterLayout,
+} from '@/utils/thermalPrinterLayout';
 
 const formatAmount = (value: any) => {
   const num = typeof value === 'number' ? value : Number(value);
@@ -69,6 +76,9 @@ const KitchenAllocation: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [, setOutletId] = useState<number | null>(null);
+  const [printerLayout, setPrinterLayout] = useState<ThermalPrinterLayout>(
+    DEFAULT_THERMAL_PRINTER_LAYOUT,
+  );
 
   // Filters - Using datetime-local inputs
   const [selectedUser, setSelectedUser] = useState('');
@@ -150,10 +160,14 @@ const KitchenAllocation: React.FC = () => {
       setOutletId(Number(outletIdToUse));
       try {
         const res = await SettingsService.getReportPrinterById(Number(outletIdToUse));
-        setPrinterName(res?.[0]?.printer_name || null);
+        const name = res?.[0]?.printer_name || null;
+        setPrinterName(name);
+        // ✅ Use resolveThermalPrinterLayout from utils
+        setPrinterLayout(resolveThermalPrinterLayout(res?.[0] as any));
       } catch (err) {
         toast.error('Failed to load printer settings.');
         setPrinterName(null);
+        setPrinterLayout(DEFAULT_THERMAL_PRINTER_LAYOUT);
       }
     };
     fetchPrinterAndOutlet();
@@ -335,11 +349,14 @@ const KitchenAllocation: React.FC = () => {
 
       const formatDisplayDateTime = (dateTimeStr: string) => dateTimeStr.replace('T', ' ');
 
+      // ✅ Use dynamic widths from printerLayout
+      const contentWidth = getThermalContentWidth(printerLayout);
+
       const reportHTML = `
         <html>
         <head>
           <style>
-            @page { size: 70mm auto; margin: 0; }
+            @page { size: ${mm(printerLayout.paperWidth)} auto; margin: 0; }
             @media print {
               html, body { overflow: visible !important; }
               thead { display: table-header-group !important; }
@@ -350,10 +367,11 @@ const KitchenAllocation: React.FC = () => {
               font-family: monospace;
               font-size: 12px;
               line-height: 1.3;
-              width: 70mm;
-              margin-left: 1mm;
-              margin-right: 1mm;
+              width: ${mm(contentWidth)};
+              margin-left: ${mm(printerLayout.leftMargin)};
+              margin-right: ${mm(printerLayout.rightMargin)};
               padding: 0;
+              box-sizing: border-box;
             }
             .sub-header { text-align: center; font-size: 13px; margin-bottom: 5px; font-weight: bold; }
             table { width: 100%; border-collapse: collapse; table-layout: fixed; }

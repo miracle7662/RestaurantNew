@@ -23,21 +23,21 @@ interface BillDetail {
   TxnDatetime: string;
   settlement_breakdown?: string;
 }
-interface PaymentSummary  { PaymentType: string; totalAmount: number; billCount: number; }
-interface CreditSummary   { customerName: string; creditAmount: number; TxnNo: string; }
+interface PaymentSummary { PaymentType: string; totalAmount: number; billCount: number; }
+interface CreditSummary { customerName: string; creditAmount: number; TxnNo: string; }
 interface DiscountSummary { TxnNo: string; table_name: string; Discount: number; reason: string; }
-interface ReverseKOT      { kotNo: string; table_name: string; item_name: string; RevQty: number; amount: number; TxnDatetime: string; billedDate?: string; BilledDate?: string;  }
-interface ReverseBill     { billNo: string; table_name: string; reversedAmount: number; TxnDatetime: string; BilledDate?: string; }
-interface NCKOTSummary    { ncName: string; purpose: string; quantity: number; amount: number; TxnDatetime: string; kotNo: string; }
+interface ReverseKOT { kotNo: string; table_name: string; item_name: string; RevQty: number; amount: number; TxnDatetime: string; billedDate?: string; BilledDate?: string; }
+interface ReverseBill { billNo: string; table_name: string; reversedAmount: number; TxnDatetime: string; BilledDate?: string; }
+interface NCKOTSummary { ncName: string; purpose: string; quantity: number; amount: number; TxnDatetime: string; kotNo: string; }
 
 interface ReportData {
-  billDetails?:     BillDetail[];
-  paymentSummary?:  PaymentSummary[];
-  creditSummary?:   CreditSummary[];
+  billDetails?: BillDetail[];
+  paymentSummary?: PaymentSummary[];
+  creditSummary?: CreditSummary[];
   discountSummary?: DiscountSummary[];
-  reverseKOTs?:     ReverseKOT[];
-  reverseBills?:    ReverseBill[];
-  ncKOTSummary?:    NCKOTSummary[];
+  reverseKOTs?: ReverseKOT[];
+  reverseBills?: ReverseBill[];
+  ncKOTSummary?: NCKOTSummary[];
 }
 
 // ─────────────────────────────────────────────
@@ -242,39 +242,39 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
   };
 
   // ✅ Helper: compute net amount WITHOUT adding tip (actual payment received)
- const computeDisplayNet = (bill: BillDetail): number => {
-  const breakdown = parseBreakdown(bill.settlement_breakdown);
-  const hasSplit = Object.keys(breakdown).length > 0;
+  const computeDisplayNet = (bill: BillDetail): number => {
+    const breakdown = parseBreakdown(bill.settlement_breakdown);
+    const hasSplit = Object.keys(breakdown).length > 0;
 
-  let paymentTotal = 0;
+    let paymentTotal = 0;
 
-  if (hasSplit) {
-    // Split payment: add all payment amounts
-    const orderedEntries = (bill.settlement_breakdown || '')
-      .split(',')
-      .map(pair => {
-        const [type, amt] = pair.split(':');
+    if (hasSplit) {
+      // Split payment: add all payment amounts
+      const orderedEntries = (bill.settlement_breakdown || '')
+        .split(',')
+        .map(pair => {
+          const [type, amt] = pair.split(':');
 
-        return {
-          type: type?.trim().toLowerCase(),
-          amount: Number(amt) || 0
-        };
-      })
-      .filter(item => item.type);
+          return {
+            type: type?.trim().toLowerCase(),
+            amount: Number(amt) || 0
+          };
+        })
+        .filter(item => item.type);
 
-    for (const entry of orderedEntries) {
-      paymentTotal += entry.amount;
+      for (const entry of orderedEntries) {
+        paymentTotal += entry.amount;
+      }
+    } else {
+      // Single payment
+      paymentTotal = Number(bill.netAmount || 0);
     }
-  } else {
-    // Single payment
-    paymentTotal = Number(bill.netAmount || 0);
-  }
 
-  // Tip is separate from payment breakdown, so add it once
-  const tip = Number(bill.tipAmount || 0);
+    // Tip is separate from payment breakdown, so add it once
+    const tip = Number(bill.tipAmount || 0);
 
-  return paymentTotal + tip;
-};
+    return paymentTotal + tip;
+  };
 
   let tDisc = 0, tTax = 0, tGST = 0, tTip = 0, tNet = 0;
 
@@ -283,10 +283,10 @@ const BillDetailsSection: React.FC<{ data: BillDetail[] }> = ({ data }) => {
     const displayNet = computeDisplayNet(bill); // ✅ Without tip
 
     tDisc += Number(bill.Discount || 0);
-    tTax  += Number(bill.TaxableValue || 0);
-    tGST  += gst;
-    tTip  += Number(bill.tipAmount || 0);
-    tNet  += displayNet; // ✅ Without tip
+    tTax += Number(bill.TaxableValue || 0);
+    tGST += gst;
+    tTip += Number(bill.tipAmount || 0);
+    tNet += displayNet; // ✅ Without tip
 
     return (
       <div key={i} className="rc-col-row" style={{ gridTemplateColumns: BILL_COLS, columnGap: '2px' }}>
@@ -535,7 +535,7 @@ const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
         // Use BilledDate from the data
         const billedDateTime = (k as any).BilledDate || (k as any).billedDate || k.TxnDatetime;
         const displayTime = timeStr(billedDateTime);
-        
+
         return (
           <div key={i} className="rc-col-row" style={{ gridTemplateColumns: RKOT_COLS, columnGap: '3px', alignItems: 'center' }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -548,7 +548,7 @@ const ReverseKOTSection: React.FC<{ data: ReverseKOT[] }> = ({ data }) => {
               {k.item_name}
             </span>
             <span style={{ textAlign: 'right' }}>{k.RevQty}</span>
-             <span style={{ textAlign: 'right', marginRight: '8px' }}>{fmt(k.amount)}</span>
+            <span style={{ textAlign: 'right', marginRight: '8px' }}>{fmt(k.amount)}</span>
             <span style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>
               {displayTime}
             </span>
@@ -581,7 +581,7 @@ const ReverseBillSection: React.FC<{ data: ReverseBill[] }> = ({ data }) => {
         // Use BilledDate from the data
         const billedDateTime = (b as any).BilledDate || (b as any).billedDate || b.TxnDatetime;
         const displayTime = timeStr(billedDateTime);
-        
+
         return (
           <div key={i} className="rc-col-row" style={{ gridTemplateColumns: RBILL_COLS, columnGap: '4px' }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -605,7 +605,7 @@ const NCKOT_COLS = '70px 1fr 28px 58px';
 const NCKOTSection: React.FC<{ data: NCKOTSummary[] }> = ({ data }) => {
   if (!data?.length) return null;
   const tQty = data.reduce((s, n) => s + Number(n.quantity || 0), 0);
-  const tAmt = data.reduce((s, n) => s + Number(n.amount   || 0), 0);
+  const tAmt = data.reduce((s, n) => s + Number(n.amount || 0), 0);
   return (
     <>
       <SecHdr title="NC KOT SUMMARY" />
@@ -651,7 +651,7 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   // Bill Details Section
   if (data.billDetails?.length) {
     b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:5px 0;">BILL DETAILS</div>`;
-      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
             <span style="width:20%">Bill</span>
             <span style="width:12%">Tbl</span>
             <span style="width:10%;text-align:right">Disc</span>
@@ -667,7 +667,7 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
       tDisc += Number(row.Discount || 0);
       tTax += Number(row.TaxableValue || 0);
       tGST += gst;
-      tTip += Number(row.tipAmount || 0); 
+      tTip += Number(row.tipAmount || 0);
       tNet += Number(row.netAmount || 0);
       b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
               <span style="width:20%;overflow:hidden;white-space:nowrap">${String(row.TxnNo).slice(-6)}</span>
@@ -677,7 +677,7 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
               <span style="width:10%;text-align:right">${gst.toFixed(0)}</span>
               <span style="width:10%;text-align:right">${f(row.tipAmount)}</span>
               <span style="width:15%;text-align:right">${f(row.netAmount)}</span>
-              <span style="width:10%;overflow:hidden;white-space:nowrap;padding-left:10px">${(row.paymentMode || 'Cash').substring(0, 2).toUpperCase() }</span>
+              <span style="width:10%;overflow:hidden;white-space:nowrap;padding-left:10px">${(row.paymentMode || 'Cash').substring(0, 2).toUpperCase()}</span>
             </div>`;
     });
     b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
@@ -705,69 +705,69 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
     }
   }
 
-    // Detailed payment mode wise list (using the same logic as screen preview)
-// Detailed payment mode wise list – tip added to first non‑cash mode
-if (data.billDetails?.length) {
-  const groups: Record<string, { bills: Array<{ bill: BillDetail; amount: number }>; totalAmount: number }> = {};
+  // Detailed payment mode wise list (using the same logic as screen preview)
+  // Detailed payment mode wise list – tip added to first non‑cash mode
+  if (data.billDetails?.length) {
+    const groups: Record<string, { bills: Array<{ bill: BillDetail; amount: number }>; totalAmount: number }> = {};
 
-  data.billDetails.forEach(bill => {
-    const tip = Number(bill.tipAmount || 0);
-    const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
-    const modes = Object.keys(breakdown);
+    data.billDetails.forEach(bill => {
+      const tip = Number(bill.tipAmount || 0);
+      const breakdown = parseSettlementBreakdown(bill.settlement_breakdown);
+      const modes = Object.keys(breakdown);
 
-    if (modes.length > 0) {
-      // Split bill – preserve order from settlement_breakdown string
-      const orderedEntries = (bill.settlement_breakdown || '')
-        .split(',')
-        .map(pair => {
-          const [type, amt] = pair.split(':');
-          return { type: type?.trim().toLowerCase(), amount: Number(amt) || 0 };
-        })
-        .filter(entry => entry.type && entry.type !== 'cash');
+      if (modes.length > 0) {
+        // Split bill – preserve order from settlement_breakdown string
+        const orderedEntries = (bill.settlement_breakdown || '')
+          .split(',')
+          .map(pair => {
+            const [type, amt] = pair.split(':');
+            return { type: type?.trim().toLowerCase(), amount: Number(amt) || 0 };
+          })
+          .filter(entry => entry.type && entry.type !== 'cash');
 
-      let tipAdded = false;
-      orderedEntries.forEach(entry => {
-        let amount = entry.amount;
-        if (!tipAdded && entry.type !== 'cash') {
-          amount += tip;   // add tip to first non‑cash mode
-          tipAdded = true;
-        }
-        const modeKey = entry.type;
-        if (!groups[modeKey]) groups[modeKey] = { bills: [], totalAmount: 0 };
-        groups[modeKey].bills.push({ bill, amount });
-        groups[modeKey].totalAmount += amount;
-      });
-    } else {
-      // Single‑mode bill (non‑cash only)
-      const modeRaw = (bill.paymentMode || 'Cash').trim().toLowerCase();
-      if (modeRaw === 'cash') return; // skip cash
-      let amount = Number(bill.netAmount || 0);
-      amount += tip;   // tip goes to this single mode
-      if (!groups[modeRaw]) groups[modeRaw] = { bills: [], totalAmount: 0 };
-      groups[modeRaw].bills.push({ bill, amount });
-      groups[modeRaw].totalAmount += amount;
-    }
-  });
+        let tipAdded = false;
+        orderedEntries.forEach(entry => {
+          let amount = entry.amount;
+          if (!tipAdded && entry.type !== 'cash') {
+            amount += tip;   // add tip to first non‑cash mode
+            tipAdded = true;
+          }
+          const modeKey = entry.type;
+          if (!groups[modeKey]) groups[modeKey] = { bills: [], totalAmount: 0 };
+          groups[modeKey].bills.push({ bill, amount });
+          groups[modeKey].totalAmount += amount;
+        });
+      } else {
+        // Single‑mode bill (non‑cash only)
+        const modeRaw = (bill.paymentMode || 'Cash').trim().toLowerCase();
+        if (modeRaw === 'cash') return; // skip cash
+        let amount = Number(bill.netAmount || 0);
+        amount += tip;   // tip goes to this single mode
+        if (!groups[modeRaw]) groups[modeRaw] = { bills: [], totalAmount: 0 };
+        groups[modeRaw].bills.push({ bill, amount });
+        groups[modeRaw].totalAmount += amount;
+      }
+    });
 
-  // Render each mode section (unchanged)
-  for (const [mode, { bills, totalAmount }] of Object.entries(groups)) {
-    b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">${mode.toUpperCase()} PAYMENTS</div>`;
-    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+    // Render each mode section (unchanged)
+    for (const [mode, { bills, totalAmount }] of Object.entries(groups)) {
+      b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">${mode.toUpperCase()} PAYMENTS</div>`;
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
             <span style="width:35%">Bill No</span>
             <span style="width:30%">Table</span>
             <span style="width:35%;text-align:right">Amount</span>
           </div>`;
-    for (const { bill, amount } of bills) {
-      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+      for (const { bill, amount } of bills) {
+        b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
               <span style="width:35%;overflow:hidden;white-space:nowrap">${String(bill.TxnNo).slice(-6)}</span>
               <span style="width:30%;overflow:hidden;white-space:nowrap">${(bill.table_name || '').substring(0, 6)}</span>
               <span style="width:35%;text-align:right">₹${f(amount)}</span>
             </div>`;
+      }
+      b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
+      b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>Total (${mode.toUpperCase()})</span><span>₹${f(totalAmount)}</span></div>`;
     }
-    b += `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
-    b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;"><span>Total (${mode.toUpperCase()})</span><span>₹${f(totalAmount)}</span></div>`;
   }
-}
   // Split Payments Section
   if (data.billDetails?.length) {
     const splitBills = data.billDetails.filter(bill => {
@@ -844,9 +844,9 @@ if (data.billDetails?.length) {
 
   // Reverse KOT Section
   if (data.reverseKOTs?.length) {
-  b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">REVERSE KOT SUMMARY</div>`;
+    b += `<div style="font-weight:700;text-align:center;border-top:1px solid #000;border-bottom:1px solid #000;padding:2px 0;margin:8px 0 4px;">REVERSE KOT SUMMARY</div>`;
 
-  b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
+    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;border-bottom:1px dashed #000;padding:2px 0;">
           <span style="width:12%">KOT</span>
           <span style="width:12%">Tbl</span>
           <span style="width:38%">Item</span>
@@ -855,13 +855,13 @@ if (data.billDetails?.length) {
           <span style="width:10%;padding-left:4px;">Time</span>
         </div>`;
 
-  let tQty = 0, tAmt = 0;
+    let tQty = 0, tAmt = 0;
 
-  data.reverseKOTs.forEach(k => {
-    tQty += Number(k.RevQty || 0);
-    tAmt += Number(k.amount || 0);
+    data.reverseKOTs.forEach(k => {
+      tQty += Number(k.RevQty || 0);
+      tAmt += Number(k.amount || 0);
 
-    b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
+      b += `<div style="font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:1.5px 0;border-bottom:1px dashed #ccc;">
             <span style="width:12%;overflow:hidden;white-space:nowrap">${String(k.kotNo).substring(0, 5)}</span>
 
             <span style="width:12%;overflow:hidden;white-space:nowrap">${(k.table_name || '').substring(0, 5)}</span>
@@ -878,15 +878,15 @@ if (data.billDetails?.length) {
               ${t((k as any).BilledDate || (k as any).billedDate || k.TxnDatetime)}
             </span>
           </div>`;
-  });
+    });
 
-  b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
+    b += `<div style="border-top:1px solid #000;margin:2px 0;"></div>`;
 
-  b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;">
+    b += `<div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;">
           <span>TOTAL</span>
           <span>${tQty} | ${f(tAmt)}</span>
         </div>`;
-}
+  }
 
   // Reverse Bill Section
   if (data.reverseBills?.length) {
@@ -972,7 +972,7 @@ const DayEndReportPreview: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const raw  = sessionStorage.getItem("dayEndReportData");
+    const raw = sessionStorage.getItem("dayEndReportData");
     const date = sessionStorage.getItem("dayEndReportDate") || '';
     if (raw) {
       try {
@@ -1006,7 +1006,7 @@ const DayEndReportPreview: React.FC = () => {
   }, [user]);
 
   const hotelName = user?.hotel_name || 'Report';
-  const hasData   = reportData && Object.values(reportData).some(v => Array.isArray(v) && v.length > 0);
+  const hasData = reportData && Object.values(reportData).some(v => Array.isArray(v) && v.length > 0);
 
   const handlePrint = async () => {
     if (!reportData) { toast.error("No report data available"); return; }
@@ -1081,15 +1081,15 @@ const DayEndReportPreview: React.FC = () => {
                   {businessDate && <div className="rc-meta">Date: {businessDate}</div>}
                   <DashHr />
 
-                  <BillDetailsSection    data={reportData?.billDetails    || []} />
+                  <BillDetailsSection data={reportData?.billDetails || []} />
                   <PaymentSummarySection data={reportData?.paymentSummary || []} />
                   <PaymentModeDetailsSection billDetails={reportData?.billDetails || []} />
-                  <SplitPaymentsSection      billDetails={reportData?.billDetails || []} />
-                  <CreditSummarySection  data={reportData?.creditSummary  || []} />
+                  <SplitPaymentsSection billDetails={reportData?.billDetails || []} />
+                  <CreditSummarySection data={reportData?.creditSummary || []} />
                   <DiscountSummarySection data={reportData?.discountSummary || []} />
-                  <ReverseKOTSection     data={reportData?.reverseKOTs    || []} />
-                  <ReverseBillSection    data={reportData?.reverseBills   || []} />
-                  <NCKOTSection          data={reportData?.ncKOTSummary   || []} />
+                  <ReverseKOTSection data={reportData?.reverseKOTs || []} />
+                  <ReverseBillSection data={reportData?.reverseBills || []} />
+                  <NCKOTSection data={reportData?.ncKOTSummary || []} />
 
                   <SolidHr />
                   <div className="rc-footer">*** END OF REPORT ***</div>
