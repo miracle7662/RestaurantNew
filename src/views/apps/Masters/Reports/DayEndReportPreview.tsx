@@ -5,6 +5,13 @@ import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "@/common/context/useAuthContext";
 import { toast } from "react-hot-toast";
 import SettingsService from "@/common/api/settings";
+import {
+  DEFAULT_THERMAL_PRINTER_LAYOUT,
+  resolveThermalPrinterLayout,
+  getThermalContentWidth,
+  mm,
+  ThermalPrinterLayout,
+} from "@/utils/thermalPrinterLayout";
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -209,9 +216,6 @@ const getModeAmountsWithTip = (bill: BillDetail): Record<string, number> => {
   }
   return result;
 };
-
-
-
 
 // ─────────────────────────────────────────────
 // SECTION COMPONENTS
@@ -636,9 +640,15 @@ const NCKOTSection: React.FC<{ data: NCKOTSummary[] }> = ({ data }) => {
 };
 
 // ─────────────────────────────────────────────
-// PRINT HTML BUILDER
+// PRINT HTML BUILDER with dynamic layout
 // ─────────────────────────────────────────────
-function buildPrintHTML(data: ReportData, hotelName: string, businessDate: string): string {
+function buildPrintHTML(
+  data: ReportData,
+  hotelName: string,
+  businessDate: string,
+  layout: ThermalPrinterLayout = DEFAULT_THERMAL_PRINTER_LAYOUT
+): string {
+  const contentWidth = getThermalContentWidth(layout);
   const f = (n: number) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
   const t = (dt: string) => dt ? new Date(dt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--';
 
@@ -944,13 +954,17 @@ function buildPrintHTML(data: ReportData, hotelName: string, businessDate: strin
   return `<html>
 <head>
   <style>
-    @page { size: 75mm auto; margin: 0; }
-    html, body { margin: 0; padding: 0; width: 75mm; background: #ffffff; }
+    @page { size: ${mm(layout.paperWidth)} auto; margin: 0; }
+    html, body { margin: 0; padding: 0; width: ${mm(layout.paperWidth)}; background: #ffffff; }
     body {
       font-family: monospace; font-size: 12.5px; line-height: 1.2;
-      width: 71mm; margin: 0 auto; padding: 2mm 2mm 4mm 2mm;
+      width: ${mm(contentWidth)};
+      margin-left: ${mm(layout.leftMargin)};
+      margin-right: ${mm(layout.rightMargin)};
+      padding: 2mm 0 4mm 0;
       color: #000000; -webkit-print-color-adjust: exact; print-color-adjust: exact;
       overflow: visible !important;
+      box-sizing: border-box;
     }
     * { box-sizing: border-box; }
     div, table, tr, td { page-break-inside: avoid !important; break-inside: avoid !important; }
@@ -970,6 +984,10 @@ const DayEndReportPreview: React.FC = () => {
   const [businessDate, setBusinessDate] = useState('');
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // ✅ Add printer layout state
+  const [printerLayout, setPrinterLayout] = useState<ThermalPrinterLayout>(
+    DEFAULT_THERMAL_PRINTER_LAYOUT,
+  );
 
   useEffect(() => {
     const raw = sessionStorage.getItem("dayEndReportData");
@@ -990,16 +1008,21 @@ const DayEndReportPreview: React.FC = () => {
     }
   }, [navigate]);
 
+  // ✅ Fetch printer settings with layout
   useEffect(() => {
     const fetchPrinter = async () => {
       const outletIdToUse = user?.outletid || user?.hotelid;
       if (!outletIdToUse) return;
       try {
         const printerData = await SettingsService.getReportPrinterById(Number(outletIdToUse));
-        setPrinterName(printerData[0]?.printer_name || null);
+        const name = printerData[0]?.printer_name || null;
+        setPrinterName(name);
+        // ✅ Use resolveThermalPrinterLayout from utils
+        setPrinterLayout(resolveThermalPrinterLayout(printerData[0] as any));
       } catch (error) {
         console.error("Failed to load printer settings:", error);
         toast.error("Failed to load printer settings.");
+        setPrinterLayout(DEFAULT_THERMAL_PRINTER_LAYOUT);
       }
     };
     fetchPrinter();
@@ -1008,6 +1031,7 @@ const DayEndReportPreview: React.FC = () => {
   const hotelName = user?.hotel_name || 'Report';
   const hasData = reportData && Object.values(reportData).some(v => Array.isArray(v) && v.length > 0);
 
+  // ✅ Updated handlePrint to use printerLayout
   const handlePrint = async () => {
     if (!reportData) { toast.error("No report data available"); return; }
     try {
@@ -1034,7 +1058,8 @@ const DayEndReportPreview: React.FC = () => {
 
       if (!finalPrinter) { toast.error("No printer available"); return; }
 
-      const printHTML = buildPrintHTML(reportData, hotelName, businessDate);
+      // ✅ Pass printerLayout to buildPrintHTML
+      const printHTML = buildPrintHTML(reportData, hotelName, businessDate, printerLayout);
 
       if ((window as any).electronAPI?.directPrint) {
         await (window as any).electronAPI.directPrint(printHTML, finalPrinter);
