@@ -309,15 +309,7 @@ const RestaurantDashboard: React.FC = () => {
     return `${Math.floor(diffMins / 1440)} days ago`;
   };
 
-  const mapRestaurantStatus = (bill: any): DashboardItem['status'] => {
-    if (Number(bill.isCancelled) === 1) {
-      return 'cancelled';
-    }
-    if (Number(bill.isBilled) === 1 || Number(bill.isSetteled) === 1) {
-      return 'completed';
-    }
-    return 'pending';
-  };
+
 
   // ===================================================
   // DEFAULT DATA FUNCTIONS (ONLY FOR FALLBACK)
@@ -401,7 +393,7 @@ const RestaurantDashboard: React.FC = () => {
         customer: order.CustomerName || 'Guest',
         items: order.table_name || order.Order_Type || 'Takeaway',
         total: Number(order.Amount || 0),
-        status: mapRestaurantStatus(order),
+         status: order.isSetteled === 1 ? 'completed' : 'pending',
         time: formatTimeAgo(order.TxnDatetime),
         table: Number(order.TableID || 0),
       }));

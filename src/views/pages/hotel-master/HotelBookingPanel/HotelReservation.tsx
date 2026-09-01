@@ -220,6 +220,7 @@ const HotelReservation = () => {
   const [loadingCities, setLoadingCities] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+  
 
   const bookedByFormRef = useRef<any>(null);
 
@@ -3871,25 +3872,53 @@ const HotelReservation = () => {
         show={showGuestModal}
         onHide={() => setShowGuestModal(false)}
         title="Add New Guest"
-        onSave={async (guestData) => {
-          setSavingGuest(true);
-          try {
-            const payload = { ...guestData, hotelid: hotelId, created_by_id: user?.id };
-            const response = await GuestService.create(payload);
-            toast.success('Guest saved');
-            setShowGuestModal(false);
-            await loadAllGuests();
-            const newGuest = response.data || response;
-            if (newGuest && newGuest.id) {
-              setFieldValue('guestId', newGuest.id);
-              loadGuestDetails(newGuest.id);
-            }
-          } catch (error) {
-            toast.error('Failed to save guest');
-          } finally {
-            setSavingGuest(false);
-          }
-        }}
+       onSave={async (guestData) => {
+  setSavingGuest(true);
+  try {
+    // ✅ GuestForm से आए data में hotelid और created_by_id add करें
+    const payload = { 
+      ...guestData, 
+      hotelid: hotelId, 
+      created_by_id: user?.id,
+      mst_hotelid: hotelId,  // अगर GuestForm mst_hotelid use करता है
+    };
+    
+    const response = await GuestService.create(payload);
+    toast.success('Guest saved successfully');
+    setShowGuestModal(false);
+    
+    // ✅ Guest list refresh करें
+    await loadAllGuests();
+    
+    // ✅ सही ID extract करें
+    const newGuest = response.data || response;
+    const newGuestId = newGuest.id || newGuest.guest_id || newGuest.guestId;
+    
+    if (newGuestId) {
+      console.log('New guest created with ID:', newGuestId);
+      
+      // ✅ Guest ID set करें
+      setFieldValue('guestId', newGuestId);
+      
+      // ✅ Guest details load करें (await के साथ)
+      await loadGuestDetails(newGuestId);
+      
+      // ✅ Extra: थोड़ी देर बाद फिर से load करें (अगर documents भी load करने हैं)
+      setTimeout(async () => {
+        // अगर GuestService में listDocuments method है
+        // try {
+        //   const docs = await GuestService.listDocuments(newGuestId);
+        //   console.log('Documents loaded:', docs);
+        // } catch(e) { console.error(e); }
+      }, 500);
+    }
+  } catch (error: any) {
+    console.error('Failed to save guest:', error);
+    toast.error(error?.response?.data?.message || 'Failed to save guest');
+  } finally {
+    setSavingGuest(false);
+  }
+}}
         saving={savingGuest}
         submitLabel="Save Guest"
         Component={GuestForm}
