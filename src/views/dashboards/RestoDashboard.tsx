@@ -401,7 +401,7 @@ const RestaurantDashboard: React.FC = () => {
         customer: order.CustomerName || 'Guest',
         items: order.table_name || order.Order_Type || 'Takeaway',
         total: Number(order.Amount || 0),
-        status: order.isSetteled === 1 ? 'completed' : 'pending',
+        status: mapRestaurantStatus(order),
         time: formatTimeAgo(order.TxnDatetime),
         table: Number(order.TableID || 0),
       }));
