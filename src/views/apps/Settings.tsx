@@ -35,6 +35,8 @@ interface NumericInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   decimal?: boolean;
+  onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
+  disabled?: boolean;
 }
 
 const NumericInput = ({
@@ -42,6 +44,8 @@ const NumericInput = ({
   onChange,
   placeholder,
   decimal = true,
+  onKeyDown,
+  disabled = false,
 }: NumericInputProps) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -55,6 +59,14 @@ const NumericInput = ({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    onKeyDown?.(e);
+  };
+
   return (
     <input
       className="form-control"
@@ -62,8 +74,10 @@ const NumericInput = ({
       inputMode={decimal ? "decimal" : "numeric"}
       value={value}
       onChange={handleChange}
+      onKeyDown={handleKeyDown}
       onWheel={(e) => e.currentTarget.blur()}
       placeholder={placeholder}
+      disabled={disabled}
     />
   );
 };
@@ -1619,10 +1633,10 @@ function SettingsPage() {
                   </div>
 
                   <div className="col-md-9 d-flex gap-2 align-items-end">
-                    <button className="btn btn-success" onClick={() => handleAddKotPrinter()}>
+                    <button type="button" className="btn btn-success" onClick={() => handleAddKotPrinter()} disabled={loading}>
                       {loading ? 'Adding...' : 'Add'}
                     </button>
-                    <button className="btn btn-secondary" onClick={() => clearKotForm()}>Clear</button>
+                    <button type="button" className="btn btn-secondary" onClick={() => clearKotForm()}>Clear</button>
                   </div>
                 </div>
                 <PrinterTable
@@ -1741,10 +1755,10 @@ function SettingsPage() {
                   </div>
 
                   <div className="col-md-9 d-flex gap-2 align-items-end">
-                    <button className="btn btn-success" onClick={() => handleAddBillPrinter()}>
+                    <button type="button" className="btn btn-success" onClick={() => handleAddBillPrinter()} disabled={loading}>
                       {loading ? 'Saving...' : (editingBillId ? 'Update' : 'Add')}
                     </button>
-                    <button className="btn btn-secondary" onClick={() => clearBillForm()}>Clear</button>
+                    <button type="button" className="btn btn-secondary" onClick={() => clearBillForm()}>Clear</button>
                   </div>
                 </div>
                 <PrinterTable
