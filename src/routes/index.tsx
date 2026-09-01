@@ -29,7 +29,6 @@ import SettlementPage from '@/views/pages/hotel-master/HotelBookingPanel/Settlem
 
  
 // Dashboards
-const Ecommerce = React.lazy(() => import('./../views/dashboards'))
 const Analytics = React.lazy(() => import('./../views/dashboards/Analytics'))
 const CRM = React.lazy(() => import('./../views/dashboards/CRM'))
 const RestoDashboard = React.lazy(
