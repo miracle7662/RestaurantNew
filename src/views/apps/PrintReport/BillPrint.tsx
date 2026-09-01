@@ -713,9 +713,9 @@ ${(showAll || localFormData.show_bill_no_bill) ? `
   <div style="display:grid;
     grid-template-columns:
       minmax(0, 1fr)
-      ${(showAll || !localFormData.hide_item_quantity_column) ? '20px' : ''}
-      ${(showAll || !localFormData.hide_item_rate_column) ? '30px' : ''}
-      ${(showAll || !localFormData.hide_item_total_column) ? '40px' : ''};
+      ${(showAll || !localFormData.hide_item_quantity_column) ? '28px' : ''}
+      ${(showAll || !localFormData.hide_item_rate_column) ? '32px' : ''}
+      ${(showAll || !localFormData.hide_item_total_column) ? '48px' : ''};
     gap:3px;font-weight:bold;border-bottom:1px solid #000;
     padding-bottom:2px;margin-bottom:5px;font-size:9pt;">
     <div>${(showAll || (localFormData.show_alt_item_title_bill && localFormData.print_bill_both_languages)) ? 'Item' : 'Description'}</div>

@@ -376,6 +376,7 @@ const KitchenAllocation: React.FC = () => {
             .sub-header { text-align: center; font-size: 13px; margin-bottom: 5px; font-weight: bold; }
             table { width: 100%; border-collapse: collapse; table-layout: fixed; }
             th, td { border-bottom: padding: 2px; font-size: 12px; font-weight: bold; }
+            thead tr {border-bottom: 1px solid #000;}
             th { text-align: left; }
             .col-no   { width: 10%; text-align: right; }
             .col-name { width: 55%; }
