@@ -391,7 +391,7 @@ exports.getNextInvoiceNo = async (req, res) => {
 // =====================================================
 // GET LIVE ROOM DATA
 // =====================================================
-exports. getLiveData = async (req, res) => {
+exports.getLiveData = async (req, res) => {
     try {
         const hotelid = Number(
             req.params.hotelid || 
@@ -470,6 +470,12 @@ exports. getLiveData = async (req, res) => {
 
             blocked_rooms: Number(
                 row.blocked_rooms || 0
+            ),
+
+            // ✅ NEW: Today's revenue from ldgsettlement table
+            // This field is returned by sp_get_live_data stored procedure
+            today_revenue: Number(
+                row.today_revenue || 0
             ),
 
             next_available_from:

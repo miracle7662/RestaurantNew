@@ -23,6 +23,52 @@ import {
 } from '@/utils/thermalPrinterLayout';
 
 // ============================================================
+// REUSABLE NUMERIC INPUT
+// ============================================================
+// Fixes cursor/focus instability and mouse-wheel value changes that
+// occur with native <input type="number"> in Electron/Chrome.
+// Renders as a text input constrained by regex, with wheel scrolling
+// disabled (blurs on wheel so the browser can't mutate the value).
+
+interface NumericInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  decimal?: boolean;
+}
+
+const NumericInput = ({
+  value,
+  onChange,
+  placeholder,
+  decimal = true,
+}: NumericInputProps) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+
+    const pattern = decimal
+      ? /^\d*\.?\d*$/
+      : /^\d*$/;
+
+    if (pattern.test(value)) {
+      onChange(value);
+    }
+  };
+
+  return (
+    <input
+      className="form-control"
+      type="text"
+      inputMode={decimal ? "decimal" : "numeric"}
+      value={value}
+      onChange={handleChange}
+      onWheel={(e) => e.currentTarget.blur()}
+      placeholder={placeholder}
+    />
+  );
+};
+
+// ============================================================
 // INTERFACES
 // ============================================================
 
@@ -1534,13 +1580,9 @@ function SettingsPage() {
                   {selectedKotSize === 'custom' && (
                     <div className="col-md-3">
                       <label className="form-label">Custom Width (mm)</label>
-                      <input
-                        className="form-control"
-                        type="number"
-                        min="20"
-                        step="0.1"
+                      <NumericInput
                         value={kotCustomWidth}
-                        onChange={(e) => setKotCustomWidth(e.target.value)}
+                        onChange={setKotCustomWidth}
                         placeholder="e.g. 72"
                       />
                     </div>
@@ -1549,13 +1591,9 @@ function SettingsPage() {
                   {/* ✅ KOT Left Margin */}
                   <div className="col-md-3">
                     <label className="form-label">Left Margin (mm)</label>
-                    <input
-                      className="form-control"
-                      type="number"
-                      min="0"
-                      step="0.5"
+                    <NumericInput
                       value={kotLeftMargin}
-                      onChange={(e) => setKotLeftMargin(e.target.value)}
+                      onChange={setKotLeftMargin}
                       placeholder="2"
                     />
                   </div>
@@ -1563,27 +1601,20 @@ function SettingsPage() {
                   {/* ✅ KOT Right Margin */}
                   <div className="col-md-3">
                     <label className="form-label">Right Margin (mm)</label>
-                    <input
-                      className="form-control"
-                      type="number"
-                      min="0"
-                      step="0.5"
+                    <NumericInput
                       value={kotRightMargin}
-                      onChange={(e) => setKotRightMargin(e.target.value)}
+                      onChange={setKotRightMargin}
                       placeholder="2"
                     />
                   </div>
 
                   <div className="col-md-3">
                     <label className="form-label">Copies</label>
-                    <input
-                      className="form-control"
-                      id="kot-copies"
-                      placeholder="No of Copies"
-                      type="number"
-                      min="1"
+                    <NumericInput
                       value={kotCopies}
-                      onChange={(e) => setKotCopies(e.target.value)}
+                      onChange={setKotCopies}
+                      placeholder="No of Copies"
+                      decimal={false}
                     />
                   </div>
 
@@ -1676,51 +1707,36 @@ function SettingsPage() {
                   {selectedBillSize === 'custom' && (
                     <div className="col-md-3">
                       <label className="form-label">Custom Width (mm)</label>
-                      <input
-                        className="form-control"
-                        type="number"
-                        min="20"
-                        step="0.1"
+                      <NumericInput
                         value={billCustomWidth}
-                        onChange={(e) => setBillCustomWidth(e.target.value)}
+                        onChange={setBillCustomWidth}
                         placeholder="e.g. 72"
                       />
                     </div>
                   )}
                   <div className="col-md-3">
                     <label className="form-label">Left Margin (mm)</label>
-                    <input
-                      className="form-control"
-                      type="number"
-                      min="0"
-                      step="0.5"
+                    <NumericInput
                       value={billLeftMargin}
-                      onChange={(e) => setBillLeftMargin(e.target.value)}
+                      onChange={setBillLeftMargin}
                       placeholder="2"
                     />
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Right Margin (mm)</label>
-                    <input
-                      className="form-control"
-                      type="number"
-                      min="0"
-                      step="0.5"
+                    <NumericInput
                       value={billRightMargin}
-                      onChange={(e) => setBillRightMargin(e.target.value)}
+                      onChange={setBillRightMargin}
                       placeholder="2"
                     />
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Copies</label>
-                    <input
-                      className="form-control"
-                      id="bill-copies"
-                      placeholder="No of Copies"
-                      type="number"
-                      min="1"
+                    <NumericInput
                       value={billCopies}
-                      onChange={(e) => setBillCopies(e.target.value)}
+                      onChange={setBillCopies}
+                      placeholder="No of Copies"
+                      decimal={false}
                     />
                   </div>
 
@@ -1779,11 +1795,9 @@ function SettingsPage() {
 
                   <div className="col-md-3">
                     <label className="form-label">Paper Width (mm)</label>
-                    <input
-                      className="form-control"
-                      type="number"
+                    <NumericInput
                       value={labelPaperWidth}
-                      onChange={(e) => setLabelPaperWidth(e.target.value)}
+                      onChange={setLabelPaperWidth}
                       placeholder="80"
                     />
                   </div>
@@ -1881,13 +1895,9 @@ function SettingsPage() {
                   {reportPaperSize === 'custom' && (
                     <div className="col-md-3">
                       <label className="form-label">Custom Width (mm)</label>
-                      <input
-                        className="form-control"
-                        type="number"
-                        min="20"
-                        step="0.1"
+                      <NumericInput
                         value={reportCustomWidth}
-                        onChange={(e) => setReportCustomWidth(e.target.value)}
+                        onChange={setReportCustomWidth}
                         placeholder="e.g. 72"
                       />
                     </div>
@@ -1896,13 +1906,9 @@ function SettingsPage() {
                   {/* ✅ Report Left Margin */}
                   <div className="col-md-3">
                     <label className="form-label">Left Margin (mm)</label>
-                    <input
-                      className="form-control"
-                      type="number"
-                      min="0"
-                      step="0.5"
+                    <NumericInput
                       value={reportLeftMargin}
-                      onChange={(e) => setReportLeftMargin(e.target.value)}
+                      onChange={setReportLeftMargin}
                       placeholder="2"
                     />
                   </div>
@@ -1910,13 +1916,9 @@ function SettingsPage() {
                   {/* ✅ Report Right Margin */}
                   <div className="col-md-3">
                     <label className="form-label">Right Margin (mm)</label>
-                    <input
-                      className="form-control"
-                      type="number"
-                      min="0"
-                      step="0.5"
+                    <NumericInput
                       value={reportRightMargin}
-                      onChange={(e) => setReportRightMargin(e.target.value)}
+                      onChange={setReportRightMargin}
                       placeholder="2"
                     />
                   </div>
@@ -2032,13 +2034,11 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Copies</label>
-                    <input
-                      className="form-control"
-                      placeholder="No of Copies"
-                      type="number"
-                      min="1"
+                    <NumericInput
                       value={deptCopies}
-                      onChange={(e) => setDeptCopies(e.target.value)}
+                      onChange={setDeptCopies}
+                      placeholder="No of Copies"
+                      decimal={false}
                     />
                   </div>
                   <div className="col-md-6 d-flex gap-2 align-items-end">

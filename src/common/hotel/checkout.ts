@@ -215,6 +215,8 @@ export interface LiveRoomCategory {
 
   next_available_from: string | null;
 
+   today_revenue?: number;
+
   rooms?: LiveRoom[];
 }
 
