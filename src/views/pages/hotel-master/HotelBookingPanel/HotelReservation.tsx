@@ -220,6 +220,8 @@ const HotelReservation = () => {
   const [loadingCities, setLoadingCities] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+  // Add this state near other state declarations
+const [roomChargeEditable, setRoomChargeEditable] = useState(false);
   
 
   const bookedByFormRef = useRef<any>(null);
@@ -880,36 +882,65 @@ const HotelReservation = () => {
     await updatePricingFromAdultAndCategory(adultCount, categoryId, categoryId);
   };
 
-  const recalculateRoomTotal = async () => {
-    const adultCount = values.adult || 0;
-    const effectiveCategoryId = values.convertedCategory ?? values.roomCategory;
+ const recalculateRoomTotal = async () => {
+  const adultCount = values.adult || 0;
+  const effectiveCategoryId = values.convertedCategory ?? values.roomCategory;
 
-    if (effectiveCategoryId && adultCount > 0) {
-      await updatePricingFromAdultAndCategory(adultCount, effectiveCategoryId, values.convertedCategory);
-    } else {
-      const roomCharge = values.roomCharge || 0;
-      const taxPercent = values.taxPercent || 0;
-      const discountPercent = values.discount || 0;
-      const nights = values.nights || 1;
-      const roomsNo = values.roomsNo || 1;
-      const exPax = values.exPax || 0;
-      const childPaid = values.childPaid || 0;
-      const driver = values.driver || 0;
-      const effectiveCatId = values.convertedCategory ?? values.roomCategory;
+  // 🔒 MANUAL MODE: User has unchecked the auto-calculate checkbox
+  // Room charge is manually entered, so we only recalculate derived values
+  if (roomChargeEditable) {
+    const roomCharge = values.roomCharge || 0;
+    const taxPercent = values.taxPercent || 0;
+    const discountPercent = values.discount || 0;
+    const nights = values.nights || 1;
+    const roomsNo = values.roomsNo || 1;
+    const exPax = values.exPax || 0;
+    const childPaid = values.childPaid || 0;
+    const driver = values.driver || 0;
+    const effectiveCatId = values.convertedCategory ?? values.roomCategory;
 
-      const extra = computeExtraCharges(effectiveCatId, { exPax, childPaid, driver }, nights);
+    const extra = computeExtraCharges(effectiveCatId, { exPax, childPaid, driver }, nights);
 
-      const totals = calculateTotals(roomCharge, nights, roomsNo, taxPercent, discountPercent, {
-        exPaxTotal: extra.exPaxTotal,
-        childTotal: extra.childTotal,
-        driverTotal: extra.driverTotal
-      });
+    const totals = calculateTotals(roomCharge, nights, roomsNo, taxPercent, discountPercent, {
+      exPaxTotal: extra.exPaxTotal,
+      childTotal: extra.childTotal,
+      driverTotal: extra.driverTotal
+    });
 
-      setFieldValue('taxAmount', Number(formatToTwoDecimals(totals.taxAmount)));
-      setFieldValue('discountAmt', Number(formatToTwoDecimals(totals.discountAmount)));
-      setFieldValue('total', Number(formatToTwoDecimals(totals.grandTotal)));
-    }
-  };
+    setFieldValue('taxAmount', Number(formatToTwoDecimals(totals.taxAmount)));
+    setFieldValue('discountAmt', Number(formatToTwoDecimals(totals.discountAmount)));
+    setFieldValue('total', Number(formatToTwoDecimals(totals.grandTotal)));
+    return;
+  }
+
+  // 🤖 AUTO MODE: Derive room charge from tariff based on adult count
+  if (effectiveCategoryId && adultCount > 0) {
+    await updatePricingFromAdultAndCategory(adultCount, effectiveCategoryId, values.convertedCategory);
+  } else {
+    // Fallback: No category or no adults - use manual values
+    const roomCharge = values.roomCharge || 0;
+    const taxPercent = values.taxPercent || 0;
+    const discountPercent = values.discount || 0;
+    const nights = values.nights || 1;
+    const roomsNo = values.roomsNo || 1;
+    const exPax = values.exPax || 0;
+    const childPaid = values.childPaid || 0;
+    const driver = values.driver || 0;
+    const effectiveCatId = values.convertedCategory ?? values.roomCategory;
+
+    const extra = computeExtraCharges(effectiveCatId, { exPax, childPaid, driver }, nights);
+
+    const totals = calculateTotals(roomCharge, nights, roomsNo, taxPercent, discountPercent, {
+      exPaxTotal: extra.exPaxTotal,
+      childTotal: extra.childTotal,
+      driverTotal: extra.driverTotal
+    });
+
+    setFieldValue('taxAmount', Number(formatToTwoDecimals(totals.taxAmount)));
+    setFieldValue('discountAmt', Number(formatToTwoDecimals(totals.discountAmount)));
+    setFieldValue('total', Number(formatToTwoDecimals(totals.grandTotal)));
+  }
+};
 
   const updateExPaxFromAdultAndPax = (adult: number, pax: number) => {
     const newExPax = Math.max(0, adult - pax);
@@ -1453,6 +1484,60 @@ const HotelReservation = () => {
           min-height: 0;
           overflow: hidden;
         }
+
+        /* ===== ROOM CHARGE - CHECKBOX ON LEFT (ALL SCREEN SIZES) ===== */
+.room-charge-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.room-charge-wrapper .room-charge-checkbox {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  background: #f8f9fa;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.room-charge-wrapper .room-charge-checkbox:hover {
+  background: #e9ecef;
+  border-color: #86b7fe;
+}
+
+.room-charge-wrapper .room-charge-checkbox input {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.room-charge-wrapper .room-charge-checkbox input:checked {
+  accent-color: #0d6efd;
+}
+
+.room-charge-wrapper .room-charge-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.room-charge-wrapper .room-charge-input input,
+.room-charge-wrapper .room-charge-input .form-control {
+  width: 100% !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 6px !important;
+  font-size: var(--font-scale) !important;
+}
 
         /* ===== SCALED TEXT & INPUTS ===== */
         body, input, select, textarea, button, .fs-small, .form-label, .badge, .btn {
@@ -2331,6 +2416,9 @@ const HotelReservation = () => {
           .booked-by-table {
             min-width: 520px;
           }
+
+
+     
         }
       `}</style>
 
@@ -2982,124 +3070,169 @@ const HotelReservation = () => {
 
                     {/* Room input fields - Desktop/Laptop/Tablet */}
                     <div className="d-none d-sm-block">
-                      <Row className="g-1 mb-2 align-items-end">
-                        <Col xs="auto" style={{ flex: '1', minWidth: '130px' }}>
-                          <label className="form-label-sm">Room Category</label>
-                          <Select<NumericOption, false>
-                            name="roomCategory"
-                            options={categoryOptionsNumeric}
-                            isLoading={loadingCategories}
-                            className="fs-small"
-                            styles={selectStyles}
-                            value={categoryOptionsNumeric.find((o) => o.value === Number(values.roomCategory)) || null}
-                            onChange={(opt) => {
-                              const catId = opt?.value ?? null;
-                              setFieldValue('roomCategory', catId);
-                              handleRoomCategoryChange(catId);
-                            }}
-                            placeholder="Select"
-                            isClearable
-                            menuPortalTarget={document.body}
-                            menuPosition="fixed"
-                          />
-                        </Col>
-                        <Col xs="auto" style={{ flex: '1', minWidth: '130px' }}>
-                          <label className="form-label-sm">Converted Category</label>
-                          <Select<NumericOption, false>
-                            name="convertedCategory"
-                            options={categoryOptionsNumeric}
-                            isLoading={loadingCategories}
-                            className="fs-small"
-                            styles={selectStyles}
-                            value={categoryOptionsNumeric.find((o) => o.value === Number(values.convertedCategory)) || null}
-                            onChange={(opt) => {
-                              const catId = opt?.value ?? null;
-                              setFieldValue('convertedCategory', catId);
-                              handleConvertedCategoryChange(catId);
-                            }}
-                            placeholder="Select"
-                            isClearable
-                            menuPortalTarget={document.body}
-                            menuPosition="fixed"
-                          />
-                        </Col>
-                        <Col xs="auto" style={{ width: '70px' }}>
-                          <label className="form-label-sm">Rooms</label>
-                          <FormikTextInput
-                            name="roomsNo"
-                            type="number"
-                            size="sm"
-                            className="w-100 fs-small"
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              setFieldValue('roomsNo', e.target.value);
-                              recalculateRoomTotal();
-                            }}
-                          />
-                        </Col>
-                        <Col xs="auto" style={{ width: '90px' }}>
-                          <label className="form-label-sm">Room Charge</label>
-                          <FormikTextInput
-                            name="roomCharge"
-                            type="number"
-                            size="sm"
-                            className="w-100 fs-small"
-                            value={displayRoomCharge}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              setFieldValue('roomCharge', e.target.value);
-                              recalculateRoomTotal();
-                            }}
-                          />
-                        </Col>
-                        <Col xs="auto" style={{ width: '75px' }}>
-                          <label className="form-label-sm">Discount %</label>
-                          <FormikTextInput
-                            name="discount"
-                            type="number"
-                            size="sm"
-                            className="w-100 fs-small"
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              setFieldValue('discount', e.target.value);
-                              recalculateRoomTotal();
-                            }}
-                          />
-                        </Col>
-                        <Col xs="auto" style={{ width: '90px' }}>
-                          <label className="form-label-sm">Discount Amt</label>
-                          <FormikTextInput
-                            name="discountAmt"
-                            type="number"
-                            size="sm"
-                            className="w-100 fs-small"
-                            readOnly
-                            value={formatToTwoDecimals(values.discountAmt)}
-                          />
-                        </Col>
-                        <Col xs="auto" style={{ width: '75px' }}>
-                          <label className="form-label-sm">Tax %</label>
-                          <FormikTextInput
-                            name="taxPercent"
-                            type="number"
-                            size="sm"
-                            className="w-100 fs-small"
-                            value={displayTaxPercent}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              setFieldValue('taxPercent', e.target.value);
-                              recalculateRoomTotal();
-                            }}
-                          />
-                        </Col>
-                        <Col xs="auto" style={{ width: '90px' }}>
-                          <label className="form-label-sm">Tax Amount</label>
-                          <FormikTextInput
-                            name="taxAmount"
-                            type="number"
-                            size="sm"
-                            className="w-100 fs-small"
-                            readOnly
-                            value={displayTaxAmount}
-                          />
-                        </Col>
-                      </Row>
+                     <Row className="g-1 mb-2 align-items-end">
+  {/* Room Category - Reduced width */}
+  <Col xs="auto" style={{ flex: '0.7', minWidth: '100px' }}>
+    <label className="form-label-sm">Room Category</label>
+    <Select<NumericOption, false>
+      name="roomCategory"
+      options={categoryOptionsNumeric}
+      isLoading={loadingCategories}
+      className="fs-small"
+      styles={selectStyles}
+      value={categoryOptionsNumeric.find((o) => o.value === Number(values.roomCategory)) || null}
+      onChange={(opt) => {
+        const catId = opt?.value ?? null;
+        setFieldValue('roomCategory', catId);
+        handleRoomCategoryChange(catId);
+      }}
+      placeholder="Select"
+      isClearable
+      menuPortalTarget={document.body}
+      menuPosition="fixed"
+    />
+  </Col>
+  
+  {/* Converted Category - Reduced width */}
+  <Col xs="auto" style={{ flex: '0.7', minWidth: '100px' }}>
+    <label className="form-label-sm">Converted Category</label>
+    <Select<NumericOption, false>
+      name="convertedCategory"
+      options={categoryOptionsNumeric}
+      isLoading={loadingCategories}
+      className="fs-small"
+      styles={selectStyles}
+      value={categoryOptionsNumeric.find((o) => o.value === Number(values.convertedCategory)) || null}
+      onChange={(opt) => {
+        const catId = opt?.value ?? null;
+        setFieldValue('convertedCategory', catId);
+        handleConvertedCategoryChange(catId);
+      }}
+      placeholder="Select"
+      isClearable
+      menuPortalTarget={document.body}
+      menuPosition="fixed"
+    />
+  </Col>
+  
+  {/* Rooms - Keep as is */}
+  <Col xs="auto" style={{ width: '70px' }}>
+    <label className="form-label-sm">Rooms</label>
+    <FormikTextInput
+      name="roomsNo"
+      type="number"
+      size="sm"
+      className="w-100 fs-small"
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+        setFieldValue('roomsNo', e.target.value);
+        recalculateRoomTotal();
+      }}
+    />
+  </Col>
+  
+  {/* Room Charge - Keep as is */}
+  {/* Room Charge - with checkbox on left */}
+<Col xs="auto" style={{ width: '100px' }}>
+  <label className="form-label-sm">Room Charge</label>
+  <div className="room-charge-wrapper">
+    <label className="room-charge-checkbox">
+      <input
+        type="checkbox"
+        checked={roomChargeEditable}
+        onChange={(e) => {
+          const checked = e.target.checked;
+          setRoomChargeEditable(checked);
+          if (!checked) {
+            const effectiveCategoryId = values.convertedCategory ?? values.roomCategory;
+            const adultCount = values.adult || 0;
+            if (effectiveCategoryId && adultCount > 0) {
+              updatePricingFromAdultAndCategory(adultCount, effectiveCategoryId, values.convertedCategory);
+            }
+          }
+        }}
+        title={
+          roomChargeEditable
+            ? '🔓 Manual mode - you can edit the room charge'
+            : '🔒 Auto mode - room charge auto-calculated from adults'
+        }
+      />
+    </label>
+    <div className="room-charge-input">
+      <FormikTextInput
+        name="roomCharge"
+        type="number"
+        size="sm"
+        step="0.01"
+        className="w-100 fs-small"
+        value={values.roomCharge ?? 0}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+          const val = parseFloat(e.target.value);
+          setFieldValue('roomCharge', isNaN(val) ? 0 : val);
+          recalculateRoomTotal();
+        }}
+        disabled={!roomChargeEditable}
+      />
+    </div>
+  </div>
+</Col>
+  
+  {/* Discount % */}
+  <Col xs="auto" style={{ width: '75px' }}>
+    <label className="form-label-sm">Discount %</label>
+    <FormikTextInput
+      name="discount"
+      type="number"
+      size="sm"
+      className="w-100 fs-small"
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+        setFieldValue('discount', e.target.value);
+        recalculateRoomTotal();
+      }}
+    />
+  </Col>
+  
+  {/* Discount Amt */}
+  <Col xs="auto" style={{ width: '90px' }}>
+    <label className="form-label-sm">Discount Amt</label>
+    <FormikTextInput
+      name="discountAmt"
+      type="number"
+      size="sm"
+      className="w-100 fs-small"
+      readOnly
+      value={formatToTwoDecimals(values.discountAmt)}
+    />
+  </Col>
+  
+  {/* Tax % */}
+  <Col xs="auto" style={{ width: '75px' }}>
+    <label className="form-label-sm">Tax %</label>
+    <FormikTextInput
+      name="taxPercent"
+      type="number"
+      size="sm"
+      className="w-100 fs-small"
+      value={displayTaxPercent}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+        setFieldValue('taxPercent', e.target.value);
+        recalculateRoomTotal();
+      }}
+    />
+  </Col>
+  
+  {/* Tax Amount */}
+  <Col xs="auto" style={{ width: '90px' }}>
+    <label className="form-label-sm">Tax Amount</label>
+    <FormikTextInput
+      name="taxAmount"
+      type="number"
+      size="sm"
+      className="w-100 fs-small"
+      readOnly
+      value={displayTaxAmount}
+    />
+  </Col>
+</Row>
                     </div>
 
                     {/* Mobile Room Details - 4-row grid layout */}
@@ -3163,20 +3296,41 @@ const HotelReservation = () => {
 
                       {/* Row 2: Room Charges, Discount %, Discount Amt, Tax %, Tax Amt */}
                       <div className="mobile-room-row2">
-                        <div className="room-item">
-                          <label>Room Charge</label>
-                          <FormikTextInput
-                            name="roomCharge"
-                            type="number"
-                            size="sm"
-                            className="w-100 fs-small"
-                            value={displayRoomCharge}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              setFieldValue('roomCharge', e.target.value);
-                              recalculateRoomTotal();
-                            }}
-                          />
-                        </div>
+                       {/* In mobile room-row2, replace roomCharge div with: */}
+<div className="room-item">
+  <label>Room Charge</label>
+  <div className="room-charge-container">
+    <FormikTextInput
+      name="roomCharge"
+      type="number"
+      size="sm"
+      className={`w-100 fs-small ${!roomChargeEditable ? 'room-charge-input' : ''}`}
+      value={displayRoomCharge}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+        setFieldValue('roomCharge', e.target.value);
+        recalculateRoomTotal();
+      }}
+      disabled={!roomChargeEditable}
+    />
+    <div className="room-charge-checkbox">
+      <input
+        type="checkbox"
+        checked={roomChargeEditable}
+        onChange={(e) => {
+          const checked = e.target.checked;
+          setRoomChargeEditable(checked);
+          if (!checked) {
+            const effectiveCategoryId = values.convertedCategory ?? values.roomCategory;
+            const adultCount = values.adult || 0;
+            if (effectiveCategoryId && adultCount > 0) {
+              updatePricingFromAdultAndCategory(adultCount, effectiveCategoryId, values.convertedCategory);
+            }
+          }
+        }}
+      />
+    </div>
+  </div>
+</div>
                         <div className="room-item">
                           <label>Discount %</label>
                           <FormikTextInput
